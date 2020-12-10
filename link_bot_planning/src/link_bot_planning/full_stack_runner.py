@@ -270,18 +270,26 @@ class FullStackRunner:
 
     def planning_evaluation(self, log: Dict, seed: int):
         classifier_model_dir = pathlib.Path(log['learn_classifier']['model_dir'])
+
         udnn_model_dirs = paths_from_json(log['learn_dynamics']['model_dirs'])
+
         # full_dynamics_model_dirs = paths_from_json(log['learn_full_dynamics']['model_dirs'])
         full_dynamics_model_dirs = []
+
         recovery_model_dir = pathlib.Path(log['learn_recovery']['model_dir'])
         planning_module_path = pathlib.Path(r.get_path('link_bot_planning'))
+
         planning_evaluation_params = self.full_stack_params["planning_evaluation"]
-        if "test_scenes_dir" in planning_evaluation_params:
-            test_scenes_dir = pathlib.Path(planning_evaluation_params["test_scenes_dir"])
-        else:
-            test_scenes_dir = None
+
+        # if "test_scenes_dir" in planning_evaluation_params:
+        #     test_scenes_dir = pathlib.Path(planning_evaluation_params["test_scenes_dir"])
+        # else:
+        #     test_scenes_dir = None
+        test_scenes_dir = None
+
         n_trials = planning_evaluation_params['n_trials']
         trials = list(range(n_trials))
+
         planners_params_common_filename = pathlib.Path(planning_evaluation_params['planners_params_common'])
         planners_params = self.make_planners_params(classifier_model_dir, full_dynamics_model_dirs, udnn_model_dirs,
                                                     planners_params_common_filename, planning_evaluation_params,
@@ -296,6 +304,7 @@ class FullStackRunner:
         outdir = planning_evaluation(outdir=root,
                                      planners_params=planners_params,
                                      trials=trials,
+                                     use_gt_rope=self.use_gt_rope,
                                      test_scenes_dir=test_scenes_dir,
                                      verbose=self.verbose,
                                      logfile_name=None,

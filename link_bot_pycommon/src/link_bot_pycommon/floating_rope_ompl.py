@@ -369,10 +369,10 @@ class DualGripperStateSampler(ob.CompoundStateSampler):
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
         }
-        self.scenario_ompl_ompl.numpy_to_ompl_state(state_np, state_out)
+        self.scenario_ompl.numpy_to_ompl_state(state_np, state_out)
 
         if self.plot:
-            self.scenario_ompl_ompl.s.plot_sampled_state(state_np)
+            self.scenario_ompl.s.plot_sampled_state(state_np)
 
 
 # noinspection PyMethodOverriding

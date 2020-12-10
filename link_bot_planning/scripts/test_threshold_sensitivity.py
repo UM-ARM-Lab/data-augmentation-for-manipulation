@@ -26,6 +26,7 @@ def main():
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
     parser.add_argument('--start-at', type=int, default=0)
     parser.add_argument('--stop-at', type=int, default=-1)
+    parser.add_argument('--use-gt-rope', action='store_true')
 
     args = parser.parse_args()
 
@@ -58,6 +59,7 @@ def main():
     return planning_evaluation(outdir=root,
                                planners_params=planners_params,
                                trials=args.trials,
+                               use_gt_rope=args.use_gt_rope,
                                start_idx=args.start_at,
                                stop_idx=args.stop_at,
                                verbose=args.verbose,

@@ -16,6 +16,7 @@ from arc_utilities.listener import Listener
 from gazebo_msgs.msg import LinkStates
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers import recovery_policy_utils
+from link_bot_data import dataset_utils
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner
 from link_bot_pycommon.base_services import BaseServices
@@ -41,12 +42,15 @@ def execute_actions(
         environment: Dict,
         start_state: Dict,
         actions: List[Dict],
+        use_gt_rope : bool,
         plot: bool = False):
     pre_action_state = start_state
     actual_path = [pre_action_state]
     for action in actions:
         scenario.execute_action(action)
         state_t = scenario.get_state()
+        if use_gt_rope:
+            state_t = dataset_utils.use_gt_rope(state_t)
         actual_path.append(state_t)
         if plot:
             scenario.plot_environment_rviz(environment)
@@ -64,10 +68,10 @@ class PlanAndExecute:
                  verbose: int,
                  planner_params: Dict,
                  service_provider: BaseServices,
-                 no_execution: bool,
+                 no_execution: bool, use_gt_rope,
                  test_scenes_dir: Optional[pathlib.Path] = None,
-                 save_test_scenes_dir: Optional[pathlib.Path] = None,
-                 ):
+                 save_test_scenes_dir: Optional[pathlib.Path] = None):
+        self.use_gt_rope = use_gt_rope
         self.planner = planner
         self.scenario = self.planner.scenario
         self.scenario.on_before_get_state_or_execute_action()
@@ -148,6 +152,8 @@ class PlanAndExecute:
         self.on_before_execute()
         if self.no_execution:
             state_t = self.scenario.get_state()
+            if self.use_gt_rope:
+                state_t = dataset_utils.use_gt_rope(state_t)
             actual_path = [state_t]
         else:
             if self.verbose >= 2 and not self.no_execution:
@@ -157,6 +163,7 @@ class PlanAndExecute:
                                           environment=planning_query.environment,
                                           start_state=planning_query.start,
                                           actions=planning_result.actions,
+                                          use_gt_rope=self.use_gt_rope,
                                           plot=True)
             self.service_provider.pause()
 
@@ -169,10 +176,14 @@ class PlanAndExecute:
             actual_path = []
         else:
             before_state = self.scenario.get_state()
+            if self.use_gt_rope:
+                before_state = dataset_utils.use_gt_rope(before_state)
             self.service_provider.play()
             self.scenario.execute_action(action)
             self.service_provider.pause()
             after_state = self.scenario.get_state()
+            if self.use_gt_rope:
+                after_state = dataset_utils.use_gt_rope(after_state)
             actual_path = [before_state, after_state]
         execution_result = ExecutionResult(path=actual_path)
         return execution_result
@@ -199,7 +210,11 @@ class PlanAndExecute:
         planning_queries = []
         while True:
             # get start states
+            self.service_provider.play()
             start_state = self.scenario.get_state()
+            if self.use_gt_rope:
+                start_state = dataset_utils.use_gt_rope(start_state)
+            self.service_provider.pause()
 
             # get the environment, which here means anything which is assumed constant during planning
             # This includes the occupancy map but can also include things like the initial state of the tether
@@ -221,6 +236,8 @@ class PlanAndExecute:
                 if self.recovery_policy is None:
                     # Nothing else to do here, just give up
                     end_state = self.scenario.get_state()
+                    if self.use_gt_rope:
+                        end_state = dataset_utils.use_gt_rope(end_state)
                     trial_status = TrialStatus.NotProgressingNoRecovery
                     trial_msg = f"Trial {trial_idx} Ended: not progressing, no recovery. {time_since_start:.3f}s"
                     rospy.loginfo(Fore.BLUE + trial_msg + Fore.RESET)
@@ -266,6 +283,8 @@ class PlanAndExecute:
                 self.on_execution_complete(planning_query, planning_result, execution_result)
 
             end_state = self.scenario.get_state()
+            if self.use_gt_rope:
+                end_state = dataset_utils.use_gt_rope(end_state)
             d = self.scenario.distance_to_goal(end_state, planning_query.goal)
             rospy.loginfo(f"distance to goal after execution is {d:.3f}")
             reached_goal = (d <= self.planner_params['goal_params']['threshold'] + 1e-6)
@@ -300,8 +319,8 @@ class PlanAndExecute:
             self.scenario.after_restore()
             self.service_provider.play()
         else:
-            self.randomize_environment()
             rospy.loginfo(Fore.GREEN + f"Randomizing Environment")
+            self.randomize_environment()
         if self.save_test_scenes_dir is not None:
             # Gazebo specific
             links_states = self.link_states_listener.get()

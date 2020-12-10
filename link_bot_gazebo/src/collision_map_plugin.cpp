@@ -10,6 +10,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <regex>
 #include <memory>
 
 using namespace gazebo;
@@ -27,9 +28,11 @@ constexpr auto const PLUGIN_NAME = "collision_map_plugin";
  *  1. make it faster
  */
 
+/** Check if the string s2 matches up until the first double colon **/
 bool matches(std::string s1, std::string s2)
 {
-  return s1.find(s2) != std::string::npos;
+  std::regex self_regex(s2 + "::.*");
+  return std::regex_search(s1, self_regex);
 }
 
 void CollisionMapPlugin::Load(physics::WorldPtr world, sdf::ElementPtr /*sdf*/)
@@ -208,7 +211,6 @@ void nearCallback(void *_data, dGeomID _o1, dGeomID _o2)
     if (ode_collision)
     {
       dContactGeom contact;
-      auto const *position = dGeomGetPosition(_o2);
       if (dGeomGetClass(_o2) == dTriMeshClass)
       {
         ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME,

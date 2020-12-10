@@ -1,0 +1,19 @@
+{
+  method_name: Classifier + Learned Recovery
+  filter_model_dir: [
+    filter_trials/none/none
+  ]
+  fwd_model_dir: [
+    dy_trials/baseline_gt_rope_1606788041_0/December_01_13-54-02_59e9b8dcee/best_checkpoint
+    dy_trials/baseline_gt_rope_1606788041_1/December_01_15-16-40_59e9b8dcee/best_checkpoint
+    dy_trials/baseline_gt_rope_1606788041_2/December_01_16-39-11_59e9b8dcee/best_checkpoint
+    dy_trials/baseline_gt_rope_1606788041_3/December_01_18-03-17_59e9b8dcee/best_checkpoint
+  ]
+  classifier_model_dir: [
+    cl_trials/baseline_gt_rope_1606788041/December_01_19-41-46_59e9b8dcee/best_checkpoint
+  ]
+  recovery: {
+    recovery_model_dir: recovery_trials/baseline_gt_rope_1606788041/December_01_22-25-17_59e9b8dcee/best_checkpoint
+    use_recovery: true
+  }
+}

@@ -48,7 +48,6 @@ class GazeboServices(BaseServices):
         roslaunch_args = ['link_bot_gazebo', launch_file_name, f"gui:={str(gui).lower()}"]
         if world:
             roslaunch_args.append(f"world:={world}")
-        print(roslaunch_args)
 
         roslaunch_file = roslaunch.rlutil.resolve_launch_arguments(roslaunch_args)[0]
         roslaunch_args = roslaunch_args[2:]

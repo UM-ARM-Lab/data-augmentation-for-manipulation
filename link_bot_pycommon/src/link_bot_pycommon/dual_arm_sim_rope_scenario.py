@@ -3,10 +3,6 @@ from typing import Dict
 import numpy as np
 
 from controller_manager_msgs.srv import SwitchController, SwitchControllerRequest
-from arc_utilities.listener import Listener
-from trajectory_msgs.msg import JointTrajectory
-from control_msgs.srv import QueryTrajectoryState, QueryTrajectoryStateRequest, QueryTrajectoryStateResponse
-from control_msgs.msg import JointTrajectoryControllerState
 import rospy
 from link_bot_gazebo_python.gazebo_services import GazeboServices, gz_scope
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
@@ -30,14 +26,6 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
     def on_before_data_collection(self, params: Dict):
         super().on_before_data_collection(params)
 
-        # register kinematic controllers for fake-grasping
-        self.register_fake_grasping()
-
-        # Mark the rope as a not-obstacle
-        exclude = ExcludeModelsRequest()
-        exclude.model_names.append("rope_3d")
-        self.exclude_from_planning_scene_srv(exclude)
-
         # move to init positions
         self.robot.plan_to_joint_config("both_arms", params['reset_joint_config'])
 
@@ -46,6 +34,16 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
     def on_before_get_state_or_execute_action(self):
         self.robot.connect()
+
+        self.robot.store_current_tool_orientations([self.robot.right_tool_name, self.robot.left_tool_name])
+
+        # Mark the rope as a not-obstacle
+        exclude = ExcludeModelsRequest()
+        exclude.model_names.append("rope_3d")
+        self.exclude_from_planning_scene_srv(exclude)
+
+        # register kinematic controllers for fake-grasping
+        self.register_fake_grasping()
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         # teleport movable objects out of the way
@@ -64,6 +62,8 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         # randomize the object configurations
         random_object_poses = self.random_new_object_poses(env_rng, params)
         self.set_object_poses(random_object_poses)
+
+        # TODO: move the grippers again to more "random" starting configuration
 
     def grasp_rope_endpoints(self):
         self.robot.open_left_gripper()

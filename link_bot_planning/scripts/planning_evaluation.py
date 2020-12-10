@@ -28,6 +28,7 @@ def main():
     parser.add_argument("--no-execution", action="store_true", help='no execution')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
     parser.add_argument('--record', action='store_true', help='record')
+    parser.add_argument('--use-gt-rope', action='store_true', help='use ground truth rope state')
     parser.add_argument('--skip-on-exception', action='store_true', help='skip method if exception is raise')
 
     args = parser.parse_args()
@@ -51,6 +52,7 @@ def main():
                                planners_params=planners_params,
                                trials=args.trials,
                                skip_on_exception=args.skip_on_exception,
+                               use_gt_rope=args.use_gt_rope,
                                verbose=args.verbose,
                                timeout=args.timeout,
                                test_scenes_dir=args.test_scenes_dir,

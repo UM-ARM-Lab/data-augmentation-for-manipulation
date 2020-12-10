@@ -1,40 +1,6 @@
 {
   "scene": "tabletop",
   "scenario": "dual_arm",
-  "home": {
-    "name": [
-      "victor_left_arm_joint_1",
-      "victor_left_arm_joint_2",
-      "victor_left_arm_joint_3",
-      "victor_left_arm_joint_4",
-      "victor_left_arm_joint_5",
-      "victor_left_arm_joint_6",
-      "victor_left_arm_joint_7",
-      "victor_right_arm_joint_1",
-      "victor_right_arm_joint_2",
-      "victor_right_arm_joint_3",
-      "victor_right_arm_joint_4",
-      "victor_right_arm_joint_5",
-      "victor_right_arm_joint_6",
-      "victor_right_arm_joint_7"
-    ],
-    "position": [
-      -1.1462081323840563,
-      1.226658522254759,
-      2.496373975637866,
-      -0.9015918195233449,
-      -0.6934815434002939,
-      1.489008421851203,
-      -0.1997030509448301,
-      -1.995304455498625,
-      -1.217371294047899,
-      -2.148658497914306,
-      0.9268130437662494,
-      0.46886492789985645,
-      -1.2886398689514698,
-      2.035848925520293
-    ]
-  },
   "objects": [
     "box1",
     "box2",

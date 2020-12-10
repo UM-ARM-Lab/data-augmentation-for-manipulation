@@ -32,19 +32,20 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
                  verbose: int,
                  planner_params: Dict,
                  outdir: pathlib.Path,
+                 use_gt_rope,
                  record: Optional[bool] = False,
                  no_execution: Optional[bool] = False,
                  test_scenes_dir: Optional[pathlib.Path] = None,
-                 save_test_scenes_dir: Optional[pathlib.Path] = None,
-                 ):
+                 save_test_scenes_dir: Optional[pathlib.Path] = None):
         super().__init__(planner,
                          trials=trials,
                          verbose=verbose,
                          planner_params=planner_params,
                          service_provider=service_provider,
+                         no_execution=no_execution,
+                         use_gt_rope=use_gt_rope,
                          test_scenes_dir=test_scenes_dir,
-                         save_test_scenes_dir=save_test_scenes_dir,
-                         no_execution=no_execution)
+                         save_test_scenes_dir=save_test_scenes_dir)
         self.record = record
         self.outdir = outdir
         self.job_chunker = job_chunker
@@ -134,6 +135,7 @@ def evaluate_planning_method(planner_params: Dict,
                              job_chunker: JobChunker,
                              trials: List[int],
                              comparison_root_dir: pathlib.Path,
+                             use_gt_rope: bool,
                              verbose: int = 0,
                              record: bool = False,
                              no_execution: bool = False,
@@ -159,19 +161,18 @@ def evaluate_planning_method(planner_params: Dict,
     #  which could be done by making a type, something like "EmbodiedScenario" which has get_state and execute_action,
     planner.scenario.on_before_get_state_or_execute_action()
 
-    runner = EvalPlannerConfigs(
-        planner=planner,
-        service_provider=service_provider,
-        job_chunker=job_chunker,
-        trials=trials,
-        verbose=verbose,
-        planner_params=planner_params,
-        outdir=comparison_root_dir,
-        test_scenes_dir=test_scenes_dir,
-        save_test_scenes_dir=save_test_scenes_dir,
-        record=record,
-        no_execution=no_execution,
-    )
+    runner = EvalPlannerConfigs(planner=planner,
+                                service_provider=service_provider,
+                                job_chunker=job_chunker,
+                                trials=trials,
+                                verbose=verbose,
+                                planner_params=planner_params,
+                                outdir=comparison_root_dir,
+                                use_gt_rope=use_gt_rope,
+                                record=record,
+                                no_execution=no_execution,
+                                test_scenes_dir=test_scenes_dir,
+                                save_test_scenes_dir=save_test_scenes_dir)
     return runner.run()
 
 
@@ -179,6 +180,7 @@ def planning_evaluation(outdir: pathlib.Path,
                         planners_params: List[Tuple[str, Dict]],
                         trials: List[int],
                         logfile_name: Optional[str],
+                        use_gt_rope: bool,
                         start_idx: int = 0,
                         stop_idx: int = -1,
                         skip_on_exception: Optional[bool] = False,
@@ -220,6 +222,7 @@ def planning_evaluation(outdir: pathlib.Path,
                         evaluate_planning_method,
                         planner_params=planner_params,
                         job_chunker=sub_job_chunker,
+                        use_gt_rope=use_gt_rope,
                         trials=trials,
                         comparison_root_dir=comparison_root_dir,
                         verbose=verbose,
