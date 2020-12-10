@@ -29,6 +29,7 @@
         <plugin name="stepping_plugin" filename="libstepping_plugin.so"/>
         <plugin name="gazebo_ros_tf_plugin" filename="libgazebo_ros_tf_plugin.so"/>
         <plugin name="ros_link_attacher_plugin" filename="libgazebo_ros_link_attacher.so"/>
+        <plugin name="position_3d_plugin" filename="libposition_3d_plugin.so"/>
         <plugin name="collision_map_plugin" filename="libcollision_map_plugin.so"/>
 
         <include>
@@ -46,38 +47,47 @@
         </include>
 
         <include>
-            <pose>0.64 -0.58 0.62 0 0 0</pose>
-            <uri>model://car_alternator</uri>
+            <pose>0.6 -0.4 0.62 0 0 0</pose>
+            <uri>model://box1</uri>
         </include>
 
         <include>
-            <pose>0.735 -0.04 0.62 0 0 0</pose>
-            <uri>model://car_engine2</uri>
+            <pose>0.8 -0.4 0.62 0 0 0</pose>
+            <uri>model://box2_kinematic</uri>
         </include>
 
         <include>
-            <pose>0.68 0.60 0.62 0 0 0</pose>
-            <uri>model://car_tube_and_tank</uri>
+            <pose>1.0 -0.4 0.62 0 0 0</pose>
+            <uri>model://box3</uri>
         </include>
 
         <include>
-            <pose>1.04 -0.36 0.62 0 0 0</pose>
-            <uri>model://car_coolant_tank</uri>
+            <pose>0.6 0.0 0.62 0 0 0</pose>
+            <uri>model://box4</uri>
         </include>
 
         <include>
-            <pose>0.81 -0.58 0.62 0 0 0</pose>
-            <uri>model://car_pulley</uri>
+            <pose>0.8 0.0 0.62 0 0 0</pose>
+            <uri>model://box5</uri>
         </include>
 
-        <!-- The Rope -->
+        <include>
+            <pose>1.0 0.4 0.62 0 0 0</pose>
+            <uri>model://hook1</uri>
+        </include>
+
+        <include>
+            <pose>0.6 0.4 0.62 0 0 0</pose>
+            <uri>model://hook2</uri>
+        </include>
+
         <include>
             <pose>0.8 -0.6 1.0 0 0 1.5707</pose>
             <uri>model://rope_3d</uri>
         </include>
 
         <include>
-            <pose>1.8 0.0 1.2 0 0.15 3.14159</pose>
+            <pose>1.8 0.0 1.4 0 0.35 3.14159</pose>
             <uri>model://kinect</uri>
         </include>
     </world>
