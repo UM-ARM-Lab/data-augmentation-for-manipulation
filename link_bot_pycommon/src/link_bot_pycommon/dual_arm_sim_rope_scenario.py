@@ -117,6 +117,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.set_object_poses(out_of_scene_object_poses)
 
     def restore_from_bag(self, service_provider: BaseServices, bagfile_name):
+        self.service_provider.play()
         self.robot.open_left_gripper()
         self.detach_rope_from_grippers()
 
