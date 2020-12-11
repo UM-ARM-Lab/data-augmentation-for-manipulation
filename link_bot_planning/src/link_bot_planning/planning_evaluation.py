@@ -37,15 +37,9 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
                  no_execution: Optional[bool] = False,
                  test_scenes_dir: Optional[pathlib.Path] = None,
                  save_test_scenes_dir: Optional[pathlib.Path] = None):
-        super().__init__(planner,
-                         trials=trials,
-                         verbose=verbose,
-                         planner_params=planner_params,
-                         service_provider=service_provider,
-                         no_execution=no_execution,
-                         use_gt_rope=use_gt_rope,
-                         test_scenes_dir=test_scenes_dir,
-                         save_test_scenes_dir=save_test_scenes_dir)
+        super().__init__(planner, trials=trials, verbose=verbose, planner_params=planner_params,
+                         service_provider=service_provider, no_execution=no_execution, use_gt_rope=use_gt_rope,
+                         test_scenes_dir=test_scenes_dir)
         self.record = record
         self.outdir = outdir
         self.job_chunker = job_chunker
@@ -155,7 +149,7 @@ def evaluate_planning_method(planner_params: Dict,
     service_provider.setup_env(verbose=verbose,
                                real_time_rate=planner_params['real_time_rate'],
                                max_step_size=planner.fwd_model.max_step_size,
-                               play=False)
+                               play=True)
 
     # FIXME: RAII -- you should not be able to call get_state on a scenario until this method has been called
     #  which could be done by making a type, something like "EmbodiedScenario" which has get_state and execute_action,

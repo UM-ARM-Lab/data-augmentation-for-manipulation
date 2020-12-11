@@ -1,8 +1,11 @@
+import warnings
 from typing import Dict, List, Optional
 
 import numpy as np
 
-import moveit_commander
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    import moveit_commander
 import ros_numpy
 import rospy
 from arc_utilities.listener import Listener

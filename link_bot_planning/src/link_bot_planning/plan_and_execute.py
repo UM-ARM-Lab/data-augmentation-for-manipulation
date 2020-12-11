@@ -10,7 +10,6 @@ import tensorflow as tf
 from colorama import Fore
 from dataclasses_json import dataclass_json
 
-import rosbag
 import rospy
 from arc_utilities.listener import Listener
 from gazebo_msgs.msg import LinkStates
@@ -42,7 +41,7 @@ def execute_actions(
         environment: Dict,
         start_state: Dict,
         actions: List[Dict],
-        use_gt_rope : bool,
+        use_gt_rope: bool,
         plot: bool = False):
     pre_action_state = start_state
     actual_path = [pre_action_state]
@@ -69,8 +68,7 @@ class PlanAndExecute:
                  planner_params: Dict,
                  service_provider: BaseServices,
                  no_execution: bool, use_gt_rope,
-                 test_scenes_dir: Optional[pathlib.Path] = None,
-                 save_test_scenes_dir: Optional[pathlib.Path] = None):
+                 test_scenes_dir: Optional[pathlib.Path] = None):
         self.use_gt_rope = use_gt_rope
         self.planner = planner
         self.scenario = self.planner.scenario
@@ -84,7 +82,6 @@ class PlanAndExecute:
         self.goal_rng = np.random.RandomState(0)
         self.recovery_rng = np.random.RandomState(0)
         self.test_scenes_dir = test_scenes_dir
-        self.save_test_scenes_dir = save_test_scenes_dir
         if self.planner_params['recovery']['use_recovery']:
             recovery_model_dir = pathlib.Path(self.planner_params['recovery']['recovery_model_dir'])
             self.recovery_policy = recovery_policy_utils.load_generic_model(model_dir=recovery_model_dir,
@@ -313,22 +310,10 @@ class PlanAndExecute:
             # Gazebo specific
             bagfile_name = self.test_scenes_dir / f'scene_{trial_idx:04d}.bag'
             rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
-            self.scenario.before_restore()
-            self.service_provider.pause()
-            self.service_provider.restore_from_bag(bagfile_name)
-            self.scenario.after_restore()
-            self.service_provider.play()
+            self.scenario.restore_from_bag(self.service_provider, bagfile_name)
         else:
             rospy.loginfo(Fore.GREEN + f"Randomizing Environment")
             self.randomize_environment()
-        if self.save_test_scenes_dir is not None:
-            # Gazebo specific
-            links_states = self.link_states_listener.get()
-            self.save_test_scenes_dir.mkdir(exist_ok=True, parents=True)
-            bagfile_name = self.save_test_scenes_dir / f'scene_{trial_idx:04d}.bag'
-            rospy.loginfo(f"Saving scene to {bagfile_name}")
-            with rosbag.Bag(bagfile_name, 'w') as bag:
-                bag.write('links_states', links_states)
 
     def set_random_seeds_for_trial(self, trial_idx):
         self.env_rng.seed(trial_idx)

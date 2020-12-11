@@ -1,4 +1,3 @@
-import pathlib
 from typing import Dict
 
 from link_bot_planning.rrt import RRT

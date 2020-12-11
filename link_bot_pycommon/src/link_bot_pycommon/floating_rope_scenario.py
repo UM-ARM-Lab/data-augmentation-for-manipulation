@@ -300,7 +300,7 @@ class FloatingRopeScenario(Base3DScenario):
         return {
             'left_gripper':  left_gripper_robot,
             'right_gripper': right_gripper_robot,
-            rope_key_name:          rope_robot,
+            rope_key_name:   rope_robot,
         }
 
     @staticmethod
@@ -320,7 +320,7 @@ class FloatingRopeScenario(Base3DScenario):
         return {
             'left_gripper':  left_gripper_local,
             'right_gripper': right_gripper_local,
-            rope_key_name:          rope_local,
+            rope_key_name:   rope_local,
         }
 
     @staticmethod
@@ -424,7 +424,7 @@ class FloatingRopeScenario(Base3DScenario):
             'left_gripper':  left_rope_point_position,
             'right_gripper': right_rope_point_position,
             'gt_rope':       np.array(rope_state_vector, np.float32),
-            rope_key_name:          np.array(cdcpd_vector, np.float32),
+            rope_key_name:   np.array(cdcpd_vector, np.float32),
             'rgbd':          color_depth_cropped,
         }
 
@@ -475,8 +475,8 @@ class FloatingRopeScenario(Base3DScenario):
     @staticmethod
     def observation_features_description() -> Dict:
         return {
-            rope_key_name:  FloatingRopeScenario.n_links * 3,
-            'cdcpd': FloatingRopeScenario.n_links * 3,
+            rope_key_name: FloatingRopeScenario.n_links * 3,
+            'cdcpd':       FloatingRopeScenario.n_links * 3,
         }
 
     @staticmethod

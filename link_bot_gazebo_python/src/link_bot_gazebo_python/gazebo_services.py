@@ -1,4 +1,5 @@
 import pathlib
+from typing import Optional, List
 
 import rosbag
 import roslaunch
@@ -20,24 +21,27 @@ class GazeboServices(BaseServices):
         self.pause_srv = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
         self.play_srv = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
 
-    def restore_from_bag(self, bagfile_name: pathlib.Path):
-        # run a few times to really make sure it happens
-        for _ in range(4):
-            with rosbag.Bag(bagfile_name) as bag:
-                saved_links_states = next(iter(bag.read_messages()))[1]
-                set_link_state_req = SetLinkStateRequest()
-                set_link_state_req.link_state = saved_links_states
+    def restore_from_bag(self, bagfile_name: pathlib.Path, excluded_models: Optional[List[str]] = None):
+        with rosbag.Bag(bagfile_name) as bag:
+            saved_links_states = next(iter(bag.read_messages()))[1]
+            set_link_state_req = SetLinkStateRequest()
+            set_link_state_req.link_state = saved_links_states
 
-                n = len(saved_links_states.name)
-                for i in range(n):
-                    name = saved_links_states.name[i]
-                    pose = saved_links_states.pose[i]
-                    twist = saved_links_states.twist[i]
-                    set_req = SetLinkStateRequest()
-                    set_req.link_state.link_name = name
-                    set_req.link_state.pose = pose
-                    set_req.link_state.twist = twist
-                    self.set_link_state(set_req)
+            n = len(saved_links_states.name)
+            for i in range(n):
+                name = saved_links_states.name[i]
+                pose = saved_links_states.pose[i]
+                twist = saved_links_states.twist[i]
+                set_req = SetLinkStateRequest()
+                set_req.link_state.link_name = name
+                set_req.link_state.pose = pose
+                set_req.link_state.twist = twist
+
+                model_name = name.split('::')[0]
+                if excluded_models is not None and model_name not in excluded_models:
+                    # run a few times to really make sure it happens
+                    for _ in range(4):
+                        self.set_link_state(set_req)
 
     def launch(self, params, **kwargs):
         gui = kwargs.get("gui", True)

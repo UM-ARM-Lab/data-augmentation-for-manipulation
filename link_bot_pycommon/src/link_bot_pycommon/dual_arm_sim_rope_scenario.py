@@ -2,13 +2,16 @@ from typing import Dict
 
 import numpy as np
 
-from controller_manager_msgs.srv import SwitchController, SwitchControllerRequest
+import rosbag
 import rospy
 from link_bot_gazebo_python.gazebo_services import GazeboServices, gz_scope
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
+from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
+from sensor_msgs.msg import JointState
+
 
 class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
@@ -63,7 +66,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         random_object_poses = self.random_new_object_poses(env_rng, params)
         self.set_object_poses(random_object_poses)
 
-        # TODO: move the grippers again to more "random" starting configuration
+        # TODO: move the grippers again to more "random" starting configuration??
 
     def grasp_rope_endpoints(self):
         self.robot.open_left_gripper()
@@ -109,20 +112,20 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         out_of_scene_object_poses = {k: (position, orientation) for k in params['objects']}
         self.set_object_poses(out_of_scene_object_poses)
 
-    def before_restore(self):
-        unload = rospy.ServiceProxy("/victor/controller_manager/switch_controller", SwitchController)
-        unload(SwitchControllerRequest(stop_controllers=["both_arms_trajectory_controller"]))
+    def restore_from_bag(self, service_provider: BaseServices, bagfile_name):
+        self.robot.open_left_gripper()
+        self.detach_rope_from_grippers()
 
-    def after_restore(self):
-        pass
-        # could I perhaps automatically include in the bag file the state for all ros controllers and then pub cmd?
-        # listener = Listener("/victor/both_arms_trajectory_controller/state", JointTrajectoryControllerState)
-        # srv = rospy.ServiceProxy("/victor/both_arms_trajectory_controller/query_state", QueryTrajectoryState)
-        # srv(QueryTrajectoryStateRequest(time=rospy.Time.now()))
-        # state = listener.get()
-        # pub = rospy.Publisher("/victor/both_arms_trajectory_controller/command", JointTrajectory, queue_size=10)
-        # msg = JointTrajectory(joint_names=state.joint_names, points=[state.actual])
-        # pub.publisher(msg)
-        #
-        # unload = rospy.ServiceProxy("/victor/controller_manager/unload_controller", UnloadController)
-        # unload(UnloadControllerRequest(name="both_arms_trajectory_controller"))
+        with rosbag.Bag(bagfile_name) as bag:
+            joint_state: JointState = next(iter(bag.read_messages(topics=['joint_state'])))[1]
+
+        joint_config = []
+        for joint_name in self.robot.get_both_arm_joints():
+            index_of_joint_name_in_state_msg = joint_state.name.index(joint_name)
+            joint_config.append(joint_state.position[index_of_joint_name_in_state_msg])
+        self.robot.plan_to_joint_config("both_arms", joint_config)
+
+        self.service_provider.pause()
+        self.service_provider.restore_from_bag(bagfile_name, excluded_models=['victor'])
+        self.grasp_rope_endpoints()
+        self.service_provider.play()

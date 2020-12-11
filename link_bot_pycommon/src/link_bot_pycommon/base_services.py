@@ -1,5 +1,5 @@
 from time import sleep
-from typing import Dict
+from typing import Dict, List, Optional
 
 import rospy
 from arm_video_recorder.srv import TriggerVideoRecording, TriggerVideoRecordingRequest
@@ -54,7 +54,7 @@ class BaseServices:
         self.service_names.append(service_name)
         return rospy.ServiceProxy(service_name, service_type)
 
-    def restore_from_bag(self, bagfile_name):
+    def restore_from_bag(self, bagfile_name, excluded_models : Optional[List[str]] = None):
         pass
 
     def step(self, steps: int = 1):

@@ -6,6 +6,7 @@ import rospy
 from arc_utilities.tf2wrapper import TF2Wrapper
 from geometry_msgs.msg import Vector3
 from link_bot_data.dataset_utils import add_predicted
+from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.sample_object_positions import sample_object_position, sample_object_positions
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from peter_msgs.srv import GetPosition3DRequest, Position3DEnableRequest, Position3DActionRequest
@@ -321,4 +322,5 @@ class ExperimentScenario:
     def needs_reset(self):
         raise NotImplementedError()
 
-
+    def restore_from_bag(self, service_provider: BaseServices, bagfile_name):
+        service_provider.restore_from_bag(bagfile_name)
