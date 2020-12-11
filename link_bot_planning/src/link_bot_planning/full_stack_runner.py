@@ -281,11 +281,10 @@ class FullStackRunner:
 
         planning_evaluation_params = self.full_stack_params["planning_evaluation"]
 
-        # if "test_scenes_dir" in planning_evaluation_params:
-        #     test_scenes_dir = pathlib.Path(planning_evaluation_params["test_scenes_dir"])
-        # else:
-        #     test_scenes_dir = None
-        test_scenes_dir = None
+        if "test_scenes_dir" in planning_evaluation_params:
+            test_scenes_dir = pathlib.Path(planning_evaluation_params["test_scenes_dir"])
+        else:
+            test_scenes_dir = None
 
         n_trials = planning_evaluation_params['n_trials']
         trials = list(range(n_trials))
