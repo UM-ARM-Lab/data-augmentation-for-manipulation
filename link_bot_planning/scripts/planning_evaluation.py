@@ -8,6 +8,7 @@ import hjson
 import tensorflow as tf
 
 import rospy
+from arc_utilities.ros_init import rospy_and_cpp_init, shutdown
 from link_bot_data.dataset_utils import data_directory
 from link_bot_planning.planning_evaluation import planning_evaluation
 from link_bot_pycommon.args import my_formatter, int_range_arg
@@ -33,7 +34,7 @@ def main():
 
     args = parser.parse_args()
 
-    rospy.init_node("planning_evaluation")
+    rospy_and_cpp_init("planning_evaluation")
 
     root = data_directory(pathlib.Path('results') / f"{args.nickname}-compare")
 
@@ -60,6 +61,7 @@ def main():
                                no_execution=args.no_execution,
                                logfile_name=None,
                                record=args.record)
+    shutdown()
 
 
 if __name__ == '__main__':
