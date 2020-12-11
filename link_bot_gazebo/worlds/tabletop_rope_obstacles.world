@@ -88,7 +88,7 @@
 
         <include>
             <pose>1.8 0.0 1.4 0 0.35 3.14159</pose>
-            <uri>model://kinect</uri>
+            <uri>model://arm_kinect</uri>
         </include>
     </world>
 </sdf>
