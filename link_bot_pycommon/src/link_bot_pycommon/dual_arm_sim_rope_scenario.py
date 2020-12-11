@@ -129,3 +129,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=['victor'])
         self.grasp_rope_endpoints()
         self.service_provider.play()
+
+    @staticmethod
+    def simple_name():
+        return "dual_arm_rope_sim_victor"

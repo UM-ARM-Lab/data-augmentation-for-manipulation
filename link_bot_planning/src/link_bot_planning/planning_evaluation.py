@@ -84,7 +84,7 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
     def on_trial_complete(self, trial_data: Dict, trial_idx: int):
         extra_trial_data = {
             "planner_params": self.planner_params,
-            "scenario":       self.planner.scenario.simple_name(),
+            "scenario":       self.planner_params['scenario'],
             'current_time':   int(time()),
             'uuid':           uuid.uuid4(),
         }

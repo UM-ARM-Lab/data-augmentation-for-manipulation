@@ -494,7 +494,8 @@ class FloatingRopeScenario(Base3DScenario):
     def __repr__(self):
         return "DualFloatingGripperRope"
 
-    def simple_name(self):
+    @staticmethod
+    def simple_name():
         return "dual_floating"
 
     @staticmethod

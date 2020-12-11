@@ -166,7 +166,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
             'kinect_params': kinect_params,
         }
 
-    def simple_name(self):
+    @staticmethod
+    def simple_name():
         return "dual_arm"
 
     def get_excluded_models_for_env(self):

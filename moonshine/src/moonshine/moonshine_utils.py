@@ -30,7 +30,14 @@ def numpify(x, dtype=np.float32):
         elif isinstance(x[0], str):
             return np.array(x, dtype=np.str)
         else:
-            return [numpify(xi) for xi in x]
+            l = [numpify(xi) for xi in x]
+            # NOTE: if l is list of dicts for instance, we don't want to convert to an array.
+            #  But if it's a list of lists (e.g. array) we do convert, so this is how we test for that
+            l_arr = np.array(l)
+            if l_arr.dtype in [np.float32, np.float64, np.int32, np.int64]:
+                return l_arr
+            else:
+                return l
     elif isinstance(x, tf.Tensor):
         return x.numpy()
     elif isinstance(x, dict):
@@ -51,6 +58,8 @@ def numpify(x, dtype=np.float32):
         return x
     elif isinstance(x, np.bytes_):
         return x
+    elif x is None:
+        return None
     else:
         raise NotImplementedError(type(x))
 
