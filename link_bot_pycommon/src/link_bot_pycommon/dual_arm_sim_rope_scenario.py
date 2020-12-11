@@ -11,6 +11,7 @@ from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState
+from tf.transformations import quaternion_from_euler
 
 
 class SimDualArmRopeScenario(BaseDualArmRopeScenario):
@@ -38,7 +39,10 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
     def on_before_get_state_or_execute_action(self):
         self.robot.connect()
 
-        self.robot.store_current_tool_orientations([self.robot.right_tool_name, self.robot.left_tool_name])
+        self.robot.store_tool_orientations({
+            self.robot.right_tool_name: quaternion_from_euler(np.pi, 0, 0),
+            self.robot.left_tool_name:  quaternion_from_euler(np.pi, 0, 0),
+        })
 
         # Mark the rope as a not-obstacle
         exclude = ExcludeModelsRequest()
