@@ -26,10 +26,10 @@
       -1.2886398689514698
       2.035848925520293
   ]
-  total_timeout: 180
+  total_timeout: 240
   termination_criteria: {
     attempted_extensions_threshold: 32
-    timeout: 180
+    timeout: 60
   }
   left_gripper_reset_position: [
     1.2
