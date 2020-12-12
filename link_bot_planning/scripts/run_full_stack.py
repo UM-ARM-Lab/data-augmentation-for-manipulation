@@ -50,6 +50,8 @@ def main():
         logfile_name = logfile_dir / "logfile.hjson"
         log = {'nickname': nickname}
 
+    log['filename'] = logfile_name
+
     with args.full_stack_param.open('r') as f:
         full_stack_params = hjson.load(f)
 
@@ -64,7 +66,7 @@ def main():
     else:
         included_steps = None
 
-    run_steps(fsr, full_stack_params, included_steps, logfile_name, log)
+    run_steps(fsr, full_stack_params, included_steps, log)
 
     ros_init.shutdown()
 

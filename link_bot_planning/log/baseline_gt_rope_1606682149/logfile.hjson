@@ -35,4 +35,15 @@
   {
     model_dir: /home/peter/catkin_ws/src/link_bot/link_bot_planning/recovery_trials/baseline_gt_rope_1606788041/December_01_22-25-17_59e9b8dcee
   }
+  learned_recovery:
+  {
+    0:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/baseline_gt_rope_1606682149/learned_recovery/0_metrics.json.gz
+    }
+    1:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/baseline_gt_rope_1606682149/learned_recovery/1_metrics.json.gz
+    }
+  }
 }

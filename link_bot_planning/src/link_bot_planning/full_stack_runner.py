@@ -7,11 +7,9 @@ import rospkg
 from colorama import Fore
 
 import rospy
-from arc_utilities.algorithms import is_list_unique
 from link_bot_classifiers import train_test_classifier, train_test_recovery
 from link_bot_data.base_collect_dynamics_data import TfDataCollector
 from link_bot_data.classifier_dataset_utils import make_classifier_dataset_from_params_dict
-from link_bot_data.dataset_utils import data_directory
 from link_bot_data.recovery_dataset_utils import make_recovery_dataset_from_params_dict
 from link_bot_planning.planning_evaluation import planning_evaluation
 from link_bot_pycommon.get_service_provider import get_service_provider
@@ -269,6 +267,7 @@ class FullStackRunner:
         }
 
     def planning_evaluation(self, log: Dict, seed: int):
+        logfile_name = log['filename']
         classifier_model_dir = pathlib.Path(log['learn_classifier']['model_dir'])
 
         udnn_model_dirs = paths_from_json(log['learn_dynamics']['model_dirs'])
@@ -299,14 +298,14 @@ class FullStackRunner:
                                          gui=self.gui,
                                          world=planning_evaluation_params['world'])
 
-        root = data_directory(planning_module_path / 'results' / self.nickname)
+        root = planning_module_path / 'results' / logfile_name.parent
         outdir = planning_evaluation(outdir=root,
                                      planners_params=planners_params,
                                      trials=trials,
                                      use_gt_rope=self.use_gt_rope,
                                      test_scenes_dir=test_scenes_dir,
                                      verbose=self.verbose,
-                                     logfile_name=None,
+                                     logfile_name=logfile_name,
                                      skip_on_exception=False)
 
         if self.launch:
@@ -373,10 +372,10 @@ class FullStackRunner:
         return planners_params
 
 
-def run_steps(fsr, full_stack_params, included_steps, logfile_name, log):
+def run_steps(fsr, full_stack_params, included_steps, log):
+    logfile_name = log['filename']
     seed = full_stack_params['seed']
-    if 'collect_dynamics_data_1' not in log and (
-            included_steps is None or 'collect_dynamics_data_1' in included_steps):
+    if 'collect_dynamics_data_1' not in log and (included_steps is None or 'collect_dynamics_data_1' in included_steps):
         collect_dynamics_data_1_out = fsr.collect_dynamics_data_1(log, seed)
         log['collect_dynamics_data_1'] = collect_dynamics_data_1_out
         with logfile_name.open("w") as logfile:
@@ -402,8 +401,7 @@ def run_steps(fsr, full_stack_params, included_steps, logfile_name, log):
     #     with logfile_name.open("w") as logfile:
     #         hjson.dump(log, logfile, cls=MyHjsonEncoder)
     #     rospy.loginfo(Fore.GREEN + logfile_name.as_posix())
-    if 'make_classifier_dataset' not in log and (
-            included_steps is None or 'make_classifier_dataset' in included_steps):
+    if 'make_classifier_dataset' not in log and (included_steps is None or 'make_classifier_dataset' in included_steps):
         make_classifier_dataset_out = fsr.make_classifier_dataset(log, seed)
         log['make_classifier_dataset'] = make_classifier_dataset_out
         with logfile_name.open("w") as logfile:

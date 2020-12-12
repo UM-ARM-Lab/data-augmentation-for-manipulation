@@ -116,8 +116,10 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         out_of_scene_object_poses = {k: (position, orientation) for k in params['objects']}
         self.set_object_poses(out_of_scene_object_poses)
 
-    def restore_from_bag(self, service_provider: BaseServices, bagfile_name):
+    def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
         self.service_provider.play()
+
+        self.move_objects_out_of_scene(params)
         self.robot.open_left_gripper()
         self.detach_rope_from_grippers()
 
