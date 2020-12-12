@@ -1,4 +1,3 @@
-import pathlib
 import time
 import warnings
 from typing import Dict, List, Tuple
@@ -7,10 +6,11 @@ import numpy as np
 from matplotlib import cm
 
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner
-from link_bot_pycommon.rope_dragging_ompl import RopeDraggingOmpl
-from link_bot_pycommon.rope_dragging_scenario import RopeDraggingScenario
 from link_bot_pycommon.dual_arm_sim_rope_scenario import SimDualArmRopeScenario
 from link_bot_pycommon.floating_rope_ompl import FloatingRopeOmpl
+from link_bot_pycommon.rope_dragging_ompl import RopeDraggingOmpl
+from link_bot_pycommon.rope_dragging_scenario import RopeDraggingScenario
+from link_bot_pycommon.scenario_ompl import ScenarioOmpl
 from state_space_dynamics.base_filter_function import BaseFilterFunction
 
 with warnings.catch_warnings():
@@ -20,7 +20,7 @@ with warnings.catch_warnings():
 
 import rospy
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
-from link_bot_classifiers.collision_checker_classifier import CollisionCheckerClassifier
+# from link_bot_classifiers.collision_checker_classifier import CollisionCheckerClassifier
 from link_bot_planning.ompl_viz import planner_data_to_json
 from link_bot_planning.timeout_or_not_progressing import TimeoutOrNotProgressing
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -28,7 +28,7 @@ from moonshine.tests.testing_utils import are_dicts_close_np
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 
-def get_ompl_scenario(scenario):
+def get_ompl_scenario(scenario) -> ScenarioOmpl:
     if isinstance(scenario, RopeDraggingScenario):
         return RopeDraggingOmpl(scenario)
     elif isinstance(scenario, SimDualArmRopeScenario):
@@ -55,7 +55,6 @@ class RRT(MyPlanner):
         self.params = planner_params
         self.action_params = action_params
         # TODO: consider making full env params h/w come from elsewhere. res should match the model though.
-        self.si = ob.SpaceInformation(ob.StateSpace())
         self.classifier_rng = np.random.RandomState(0)
         self.state_sampler_rng = np.random.RandomState(0)
         self.goal_sampler_rng = np.random.RandomState(0)
@@ -73,7 +72,14 @@ class RRT(MyPlanner):
 
         self.ss = oc.SimpleSetup(self.control_space)
 
-        self.si = self.ss.getSpaceInformation()
+        self.si: oc.SpaceInformation = self.ss.getSpaceInformation()
+
+        # def _dcs_allocator(si):
+        #     return self.scenario_ompl.make_directed_control_sampler(si,
+        #                                                             rng=self.control_sampler_rng,
+        #                                                             action_params=action_params)
+        #
+        # self.si.setDirectedControlSamplerAllocator(oc.DirectedControlSamplerAllocator(_dcs_allocator))
 
         self.ss.setStatePropagator(oc.AdvancedStatePropagatorFn(self.propagate))
         self.ss.setMotionsValidityChecker(oc.MotionsValidityCheckerFn(self.motions_valid))
@@ -82,8 +88,8 @@ class RRT(MyPlanner):
         self.cleanup_before_plan(0)
 
         # just for debugging
-        self.cc = CollisionCheckerClassifier([pathlib.Path("cl_trials/cc_baseline/cc")], self.scenario, 0.0)
-        self.cc_but_accept_count = 0
+        # self.cc = CollisionCheckerClassifier([pathlib.Path("cl_trials/cc_baseline/cc")], self.scenario, 0.0)
+        # self.cc_but_accept_count = 0
 
         self.rrt = oc.RRT(self.si)
         self.rrt.setIntermediateStates(True)  # this is necessary, because we use this to generate datasets
@@ -132,7 +138,6 @@ class RRT(MyPlanner):
                 self.closest_state_to_goal = final_state
                 self.scenario.plot_state_closest_to_goal(final_state)
         # end PTC bookkeeping
-
         return motions_valid
 
     def motions_to_numpy(self, motions):
@@ -152,9 +157,11 @@ class RRT(MyPlanner):
     def predict(self, previous_states, previous_actions, new_action):
         new_actions = [new_action]
         last_previous_state = previous_states[-1]
+        # t0 = perf_counter()
         mean_predicted_states, stdev_predicted_states = self.fwd_model.propagate(environment=self.environment,
                                                                                  start_states=last_previous_state,
                                                                                  actions=new_actions)
+        # print('fwd model propagate', perf_counter() - t0) # takes 3ms
         # get only the final state predicted
         final_predicted_state = mean_predicted_states[-1]
 
@@ -173,18 +180,18 @@ class RRT(MyPlanner):
         classifier_probabilities, _ = self.classifier_model.check_constraint(environment=self.environment,
                                                                              states_sequence=all_states,
                                                                              actions=all_actions)
-        not_in_collision = self.cc.check_constraint(environment=self.environment,
-                                                    states_sequence=all_states,
-                                                    actions=all_actions)
+        # not_in_collision = self.cc.check_constraint(environment=self.environment,
+        #                                             states_sequence=all_states,
+        #                                             actions=all_actions)
         final_classifier_probability = classifier_probabilities[-1]
-        if not not_in_collision and final_classifier_probability > 0.5:
-            self.cc_but_accept_count += 1
-            if self.verbose >= 2:
-                self.scenario.plot_state_rviz(final_predicted_state,
-                                              color='y',
-                                              label='accepted in collision',
-                                              idx=self.cc_but_accept_count)
-
+        # if not not_in_collision and final_classifier_probability > 0.5:
+        #     self.cc_but_accept_count += 1
+        #     if self.verbose >= 2:
+        #         self.scenario.plot_state_rviz(final_predicted_state,
+        #                                       color='y',
+        #                                       label='accepted in collision',
+        #                                       idx=self.cc_but_accept_count)
+        #
         if self.verbose >= 2:
             self.scenario.plot_accept_probability(final_classifier_probability)
         if final_classifier_probability > self.params['accept_threshold']:

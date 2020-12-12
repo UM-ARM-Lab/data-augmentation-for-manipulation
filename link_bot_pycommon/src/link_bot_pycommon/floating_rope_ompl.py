@@ -280,6 +280,55 @@ class FloatingRopeOmpl(ScenarioOmpl):
 
         return control_space
 
+    def make_directed_control_sampler(self, si: oc.SpaceInformation, rng: np.random.RandomState, action_params: Dict):
+        return DualGripperDirectedControlSampler(si=si,
+                                                 scenario_ompl=self,
+                                                 rng=rng,
+                                                 action_params=action_params)
+
+
+# noinspection PyMethodOverriding
+class DualGripperDirectedControlSampler(oc.ControlSampler):
+    def __init__(self,
+                 si: oc.SpaceInformation,
+                 scenario_ompl: ScenarioOmpl,
+                 rng: np.random.RandomState,
+                 action_params: Dict):
+        super().__init__(si)
+        self.scenario_ompl = scenario_ompl
+        self.rng = rng
+        self.si = si
+        self.action_params = action_params
+
+    def sampleTo(self, control_out: oc.Control, prev, source: ob.CompoundState, dest: ob.CompoundState):
+        del prev  # unused
+
+        #
+
+        # Pitch
+        pitch_1 = self.rng.uniform(-np.pi, np.pi)
+        pitch_2 = self.rng.uniform(-np.pi, np.pi)
+
+        # Yaw
+        yaw_1 = self.rng.uniform(-np.pi, np.pi)
+        yaw_2 = self.rng.uniform(-np.pi, np.pi)
+
+        # Displacement
+        displacement1 = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
+        displacement2 = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
+
+        control_out[0][0] = pitch_1
+        control_out[0][1] = yaw_1
+        control_out[0][2] = displacement1
+
+        control_out[1][0] = pitch_2
+        control_out[1][1] = yaw_2
+        control_out[1][2] = displacement2
+
+        # set dest!
+        self.scenario_ompl.numpy_to_ompl_state(dest)
+
+
 
 # noinspection PyMethodOverriding
 class DualGripperControlSampler(oc.ControlSampler):

@@ -66,37 +66,36 @@ class TrajectoryOptimizer:
                                                                           start_state=start_state,
                                                                           actions=actions)
 
-            # Compute the constraint values predicted given the states and actions
-            constraint_costs = self.compute_constraints_cost(environment, actions, mean_predictions)
-            constraint_loss = tf.reduce_sum(constraint_costs)
-
-            # Compute various loss terms
-            final_state = mean_predictions[-1]
-
-            goal_loss = self.scenario.trajopt_distance_to_goal_differentiable(final_state, goal_state)
-
-            distances = [self.scenario.trajopt_distance_differentiable(s1, s2) for (s1, s2) in pairwise(mean_predictions)]
-            length_loss = tf.reduce_sum(tf.square(distances))
-
-            action_loss = self.scenario.trajopt_action_sequence_cost_differentiable(actions)
-
-            losses = tf.convert_to_tensor([length_loss, goal_loss, constraint_loss, action_loss])
-            weights = tf.convert_to_tensor([self.length_alpha, self.goal_alpha, self.constraints_alpha, self.action_alpha],
-                                           dtype=tf.float32)
-            weighted_losses = tf.multiply(losses, weights)
-            loss = tf.reduce_sum(weighted_losses, axis=0)
-            print(loss)
+            length_loss, loss, weighted_losses = self.compute_cost(actions, environment, goal_state, mean_predictions)
+            # print(loss)
 
         variables = []
         for action in actions:
             for v in action.values():
                 variables.append(v)
         gradients = tape.gradient(loss, variables)
-        print(gradients)
+        # print(gradients)
         self.optimizer.apply_gradients(zip(gradients, variables))
 
         losses = [weighted_losses[0], weighted_losses[1], weighted_losses[2], weighted_losses[3], loss]
         return actions, mean_predictions, losses, length_loss
+
+    def compute_cost(self, actions, environment, goal_state, mean_predictions):
+        # Compute the constraint values predicted given the states and actions
+        constraint_costs = self.compute_constraints_cost(environment, actions, mean_predictions)
+        constraint_loss = tf.reduce_sum(constraint_costs)
+        # Compute various loss terms
+        final_state = mean_predictions[-1]
+        goal_loss = self.scenario.trajopt_distance_to_goal_differentiable(final_state, goal_state)
+        distances = [self.scenario.trajopt_distance_differentiable(s1, s2) for (s1, s2) in pairwise(mean_predictions)]
+        length_loss = tf.reduce_sum(tf.square(distances))
+        action_loss = self.scenario.trajopt_action_sequence_cost_differentiable(actions)
+        losses = tf.convert_to_tensor([length_loss, goal_loss, constraint_loss, action_loss])
+        weights = tf.convert_to_tensor([self.length_alpha, self.goal_alpha, self.constraints_alpha, self.action_alpha],
+                                       dtype=tf.float32)
+        weighted_losses = tf.multiply(losses, weights)
+        loss = tf.reduce_sum(weighted_losses, axis=0)
+        return length_loss, loss, weighted_losses
 
     def compute_constraints_cost(self, environment: Dict, actions, predictions):
         if self.classifier_model is None:

@@ -31,3 +31,6 @@ class ScenarioOmpl:
 
     def make_ompl_control_space(self, state_space, rng: np.random.RandomState, action_params: Dict):
         raise NotImplementedError()
+
+    def make_directed_control_sampler(self, si: oc.SpaceInformation):
+        raise NotImplementedError()
