@@ -16,6 +16,10 @@ class ScenarioOmpl:
         raise NotImplementedError()
 
     @staticmethod
+    def numpy_to_ompl_control(state_np: Dict, control_np: Dict, control_out: oc.CompoundControl):
+        raise NotImplementedError()
+
+    @staticmethod
     def ompl_state_to_numpy(ompl_state: ob.CompoundState):
         raise NotImplementedError()
 
@@ -32,5 +36,5 @@ class ScenarioOmpl:
     def make_ompl_control_space(self, state_space, rng: np.random.RandomState, action_params: Dict):
         raise NotImplementedError()
 
-    def make_directed_control_sampler(self, si: oc.SpaceInformation):
+    def make_directed_control_sampler(self, si: oc.SpaceInformation, rng: np.random.RandomState, action_params: Dict, opt):
         raise NotImplementedError()

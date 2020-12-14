@@ -86,4 +86,11 @@
   filter_model_dir: [
     filter_trials/none/none
   ]
+  # Local Planner Parameters
+  iters: 5,
+  length_alpha: 0
+  goal_alpha: 1
+  constraints_alpha: 0
+  action_alpha: 0
+  initial_learning_rate: 0.01
 }

@@ -96,7 +96,7 @@ class FloatingRopeScenario(Base3DScenario):
         res: GetOverstretchingResponse = self.overstretching_srv(GetOverstretchingRequest())
         return res.magnitude > 1.30
 
-    def trajopt_distance_to_goal_differentiable(self, final_state, goal_state: Dict):
+    def trajopt_distance_to_goal_differentiable(self, final_state: Dict, goal_state: Dict):
         return self.cfm_distance(final_state['z'], goal_state['z'])
 
     def trajopt_distance_differentiable(self, s1, s2):
@@ -528,14 +528,6 @@ class FloatingRopeScenario(Base3DScenario):
         else:
             raise NotImplementedError(planner_params['goal_params']['goal_type'])
 
-    @staticmethod
-    def distance_to_gripper_goal(state: Dict, goal: Dict):
-        left_gripper = state['left_gripper']
-        right_gripper = state['right_gripper']
-        distance1 = np.linalg.norm(goal['left_gripper'] - left_gripper)
-        distance2 = np.linalg.norm(goal['right_gripper'] - right_gripper)
-        return max(distance1, distance2)
-
     def sample_midpoint_goal(self, environment: Dict, rng: np.random.RandomState, planner_params: Dict):
         goal_extent = planner_params['goal_params']['extent']
 
@@ -565,36 +557,94 @@ class FloatingRopeScenario(Base3DScenario):
                 return goal
 
     @staticmethod
+    def distance_to_gripper_goal(state: Dict, goal: Dict):
+        left_gripper = state['left_gripper']
+        right_gripper = state['right_gripper']
+        distance1 = tf.linalg.norm(goal['left_gripper'] - left_gripper)
+        distance2 = tf.linalg.norm(goal['right_gripper'] - right_gripper)
+        return tf.math.maximum(distance1, distance2)
+
+    @staticmethod
     def distance_grippers_and_any_point_goal(state: Dict, goal: Dict):
-        rope_points = np.reshape(state[rope_key_name], [-1, 3])
+        rope_points = tf.reshape(state[rope_key_name], [-1, 3])
         # well ok not _any_ node, but ones near the middle
         n_from_ends = 5
-        distances = np.linalg.norm(np.expand_dims(goal['point'], axis=0) -
+        distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
                                    rope_points, axis=1)[n_from_ends:-n_from_ends]
-        rope_distance = np.min(distances)
+        rope_distance = tf.min(distances)
 
         left_gripper = state['left_gripper']
         right_gripper = state['right_gripper']
-        distance1 = np.linalg.norm(goal['left_gripper'] - left_gripper)
-        distance2 = np.linalg.norm(goal['right_gripper'] - right_gripper)
-        return max(max(distance1, distance2), rope_distance)
+        distance1 = tf.linalg.norm(goal['left_gripper'] - left_gripper)
+        distance2 = tf.linalg.norm(goal['right_gripper'] - right_gripper)
+        return tf.math.maximum(tf.math.maximum(distance1, distance2), rope_distance)
 
     @staticmethod
     def distance_to_any_point_goal(state: Dict, goal: Dict):
-        rope_points = np.reshape(state[rope_key_name], [-1, 3])
+        rope_points = tf.reshape(state[rope_key_name], [-1, 3])
         # well ok not _any_ node, but ones near the middle
         n_from_ends = 7
-        distances = np.linalg.norm(np.expand_dims(goal['point'], axis=0) -
+        distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
                                    rope_points, axis=1)[n_from_ends:-n_from_ends]
-        min_distance = np.min(distances)
+        min_distance = tf.min(distances)
         return min_distance
 
     @staticmethod
     def distance_to_midpoint_goal(state: Dict, goal: Dict):
-        rope_points = np.reshape(state[rope_key_name], [-1, 3])
+        rope_points = tf.reshape(state[rope_key_name], [-1, 3])
         rope_midpoint = rope_points[int(FloatingRopeScenario.n_links / 2)]
-        distance = np.linalg.norm(goal['midpoint'] - rope_midpoint)
+        distance = tf.linalg.norm(goal['midpoint'] - rope_midpoint)
         return distance
+
+    def distance_to_goal(self, state: Dict, goal: Dict):
+        if goal['type'] == 'midpoint':
+            return self.distance_to_midpoint_goal(state, goal)
+        elif goal['type'] == 'any_point':
+            return self.distance_to_any_point_goal(state, goal)
+        elif goal['type'] == 'grippers':
+            return self.distance_to_gripper_goal(state, goal)
+        elif goal['type'] == 'grippers_and_point':
+            return self.distance_grippers_and_any_point_goal(state, goal)
+        else:
+            raise NotImplementedError()
+
+    def goal_state_to_goal(self, goal_state: Dict, goal_type: str):
+        if goal_type == 'midpoint':
+            rope_points = tf.reshape(goal_state[rope_key_name], [-1, 3])
+            rope_midpoint = rope_points[int(FloatingRopeScenario.n_links / 2)]
+            return {
+                'type':     goal_type,
+                'midpoint': rope_midpoint,
+            }
+        elif goal_type == 'any_point':
+            # NOTE: since all points on the sampled ropes are the same point, it doesn't matter which one we pick here
+            rope_points = tf.reshape(goal_state[rope_key_name], [-1, 3])
+            rope_point = rope_points[0]
+            return {
+                'point': rope_point,
+                'type':  goal_type,
+            }
+        elif goal_type == 'grippers':
+            left_gripper = goal_state['left_gripper']
+            right_gripper = goal_state['right_gripper']
+            return {
+                'type':          goal_type,
+                'left_gripper':  left_gripper,
+                'right_gripper': right_gripper,
+            }
+        elif goal_type == 'grippers_and_point':
+            left_gripper = goal_state['left_gripper']
+            right_gripper = goal_state['right_gripper']
+            rope_points = tf.reshape(goal_state[rope_key_name], [-1, 3])
+            rope_point = rope_points[0]
+            return {
+                'type':          goal_type,
+                'point':         rope_point,
+                'left_gripper':  left_gripper,
+                'right_gripper': right_gripper,
+            }
+        else:
+            raise NotImplementedError()
 
     def classifier_distance(self, s1: Dict, s2: Dict):
         model_error = np.linalg.norm(s1[rope_key_name] - s2[rope_key_name], axis=-1)
@@ -615,18 +665,6 @@ class FloatingRopeScenario(Base3DScenario):
         threshold = labeling_params['threshold']
         is_close = model_error < threshold
         return is_close
-
-    def distance_to_goal(self, state, goal):
-        if 'type' not in goal or goal['type'] == 'midpoint':
-            return self.distance_to_midpoint_goal(state, goal)
-        elif goal['type'] == 'any_point':
-            return self.distance_to_any_point_goal(state, goal)
-        elif goal['type'] == 'grippers':
-            return self.distance_to_gripper_goal(state, goal)
-        elif goal['type'] == 'grippers_and_point':
-            return self.distance_grippers_and_any_point_goal(state, goal)
-        else:
-            raise NotImplementedError()
 
     def plot_goal_rviz(self, goal: Dict, goal_threshold: float, actually_at_goal: Optional[bool] = None):
         if actually_at_goal:

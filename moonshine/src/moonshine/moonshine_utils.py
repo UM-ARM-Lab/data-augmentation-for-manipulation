@@ -40,6 +40,8 @@ def numpify(x, dtype=np.float32):
                 return l
     elif isinstance(x, tf.Tensor):
         return x.numpy()
+    elif isinstance(x, tf.Variable):
+        return x.numpy()
     elif isinstance(x, dict):
         return {k: numpify(v) for k, v in x.items()}
     elif isinstance(x, tuple):

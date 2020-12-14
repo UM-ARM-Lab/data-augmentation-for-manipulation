@@ -3,8 +3,11 @@ from typing import Dict
 
 import numpy as np
 
+from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
+from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.scenario_ompl import ScenarioOmpl
+from moonshine.moonshine_utils import numpify
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -14,7 +17,6 @@ with warnings.catch_warnings():
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
-from tf import transformations
 
 
 def sample_rope_and_grippers(rng, g1, g2, p, n_links, kd):
@@ -93,21 +95,37 @@ class FloatingRopeOmpl(ScenarioOmpl):
         state_out[FloatingRopeScenario.n_links + 3][0] = np.float64(state_np['num_diverged'][0])
 
     @staticmethod
+    def numpy_to_ompl_control(state_np: Dict, control_np: Dict, control_out: oc.CompoundControl):
+        left_gripper_delta = control_np['left_gripper_position'] - state_np['left_gripper']
+        left_r, left_phi, left_theta = vector3_to_spherical(left_gripper_delta)
+
+        right_gripper_delta = control_np['right_gripper_position'] - state_np['right_gripper']
+        right_r, right_phi, right_theta = vector3_to_spherical(right_gripper_delta)
+
+        control_out[0][0] = left_r.astype(np.float64)
+        control_out[0][1] = left_phi.astype(np.float64)
+        control_out[0][2] = left_theta.astype(np.float64)
+
+        control_out[1][0] = right_r.astype(np.float64)
+        control_out[1][1] = right_phi.astype(np.float64)
+        control_out[1][2] = right_theta.astype(np.float64)
+
+    @staticmethod
     def ompl_state_to_numpy(ompl_state: ob.CompoundState):
-        left_gripper = np.array([ompl_state[0][0], ompl_state[0][1], ompl_state[0][2]])
-        right_gripper = np.array([ompl_state[1][0], ompl_state[1][1], ompl_state[1][2]])
+        left_gripper = np.array([ompl_state[0][0], ompl_state[0][1], ompl_state[0][2]], np.float32)
+        right_gripper = np.array([ompl_state[1][0], ompl_state[1][1], ompl_state[1][2]], np.float32)
         rope = []
         for i in range(FloatingRopeScenario.n_links):
             rope.append(ompl_state[2 + i][0])
             rope.append(ompl_state[2 + i][1])
             rope.append(ompl_state[2 + i][2])
-        rope = np.array(rope)
+        rope = np.array(rope, np.float32)
         return {
             'left_gripper':  left_gripper,
             'right_gripper': right_gripper,
             'rope':          rope,
-            'stdev':         np.array([ompl_state[FloatingRopeScenario.n_links + 2][0]]),
-            'num_diverged':  np.array([ompl_state[FloatingRopeScenario.n_links + 3][0]]),
+            'stdev':         np.array([ompl_state[FloatingRopeScenario.n_links + 2][0]], np.float32),
+            'num_diverged':  np.array([ompl_state[FloatingRopeScenario.n_links + 3][0]], np.float32),
         }
 
     def ompl_control_to_numpy(self, ompl_state: ob.CompoundState, ompl_control: oc.CompoundControl):
@@ -115,13 +133,13 @@ class FloatingRopeOmpl(ScenarioOmpl):
         current_left_gripper_position = state_np['left_gripper']
         current_right_gripper_position = state_np['right_gripper']
 
-        rotation_matrix_1 = transformations.euler_matrix(0, ompl_control[0][0], ompl_control[0][1])
-        left_gripper_delta_position_homo = rotation_matrix_1 @ np.array([1, 0, 0, 1]) * ompl_control[0][2]
-        left_gripper_delta_position = left_gripper_delta_position_homo[:3]
+        left_gripper_delta_position = spherical_to_vector3(r=ompl_control[0][0],
+                                                           phi=ompl_control[0][1],
+                                                           theta=ompl_control[0][2])
 
-        rotation_matrix_2 = transformations.euler_matrix(0, ompl_control[1][0], ompl_control[1][1])
-        right_gripper_delta_position_homo = rotation_matrix_2 @ np.array([1, 0, 0, 1]) * ompl_control[1][2]
-        right_gripper_delta_position = right_gripper_delta_position_homo[:3]
+        right_gripper_delta_position = spherical_to_vector3(r=ompl_control[1][0],
+                                                            phi=ompl_control[1][1],
+                                                            theta=ompl_control[1][2])
 
         target_left_gripper_position = current_left_gripper_position + left_gripper_delta_position
         target_right_gripper_position = current_right_gripper_position + right_gripper_delta_position
@@ -280,54 +298,49 @@ class FloatingRopeOmpl(ScenarioOmpl):
 
         return control_space
 
-    def make_directed_control_sampler(self, si: oc.SpaceInformation, rng: np.random.RandomState, action_params: Dict):
+    def make_directed_control_sampler(self, si: oc.SpaceInformation, rng: np.random.RandomState, action_params: Dict,
+                                      opt):
         return DualGripperDirectedControlSampler(si=si,
                                                  scenario_ompl=self,
                                                  rng=rng,
-                                                 action_params=action_params)
+                                                 action_params=action_params,
+                                                 opt=opt)
 
 
 # noinspection PyMethodOverriding
-class DualGripperDirectedControlSampler(oc.ControlSampler):
+class DualGripperDirectedControlSampler(oc.DirectedControlSampler):
     def __init__(self,
                  si: oc.SpaceInformation,
                  scenario_ompl: ScenarioOmpl,
                  rng: np.random.RandomState,
+                 opt: TrajectoryOptimizer,
                  action_params: Dict):
         super().__init__(si)
         self.scenario_ompl = scenario_ompl
         self.rng = rng
         self.si = si
         self.action_params = action_params
+        self.opt = opt
 
-    def sampleTo(self, control_out: oc.Control, prev, source: ob.CompoundState, dest: ob.CompoundState):
-        del prev  # unused
-
-        #
-
-        # Pitch
-        pitch_1 = self.rng.uniform(-np.pi, np.pi)
-        pitch_2 = self.rng.uniform(-np.pi, np.pi)
-
-        # Yaw
-        yaw_1 = self.rng.uniform(-np.pi, np.pi)
-        yaw_2 = self.rng.uniform(-np.pi, np.pi)
-
-        # Displacement
-        displacement1 = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
-        displacement2 = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
-
-        control_out[0][0] = pitch_1
-        control_out[0][1] = yaw_1
-        control_out[0][2] = displacement1
-
-        control_out[1][0] = pitch_2
-        control_out[1][1] = yaw_2
-        control_out[1][2] = displacement2
-
-        # set dest!
-        self.scenario_ompl.numpy_to_ompl_state(dest)
-
+    def sampleTo(self, control_out: oc.CompoundControl, _, source: ob.CompoundState, dest: ob.CompoundState):
+        current_state_np = self.scenario_ompl.ompl_state_to_numpy(source)
+        goal_state_np = self.scenario_ompl.ompl_state_to_numpy(dest)
+        initial_actions = [{
+            'left_gripper_position':  current_state_np['left_gripper'],
+            'right_gripper_position': current_state_np['right_gripper'],
+        }]
+        control_out_tf, path = self.opt.optimize(environment={},
+                                                 goal_state=goal_state_np,
+                                                 initial_actions=initial_actions,
+                                                 start_state=current_state_np)
+        control_out_np = numpify(control_out_tf[0])
+        next_state_np = numpify(path[0])
+        # FIXME: this is wrong, we actually need to "set" these the same way we do in propagate... right?
+        next_state_np['stdev'] = current_state_np['stdev']
+        next_state_np['num_diverged'] = current_state_np['num_diverged']
+        self.scenario_ompl.numpy_to_ompl_control(current_state_np, control_out_np, control_out)
+        self.scenario_ompl.numpy_to_ompl_state(next_state_np, dest)
+        return 1
 
 
 # noinspection PyMethodOverriding
@@ -347,23 +360,20 @@ class DualGripperControlSampler(oc.ControlSampler):
         del previous_control
         del state
 
-        # Pitch
-        pitch_1 = self.rng.uniform(-np.pi, np.pi)
-        pitch_2 = self.rng.uniform(-np.pi, np.pi)
-        # Yaw
-        yaw_1 = self.rng.uniform(-np.pi, np.pi)
-        yaw_2 = self.rng.uniform(-np.pi, np.pi)
-        # Displacement
-        displacement1 = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
-        displacement2 = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
+        left_phi = self.rng.uniform(-np.pi, np.pi)
+        right_phi = self.rng.uniform(-np.pi, np.pi)
+        left_theta = self.rng.uniform(-np.pi, np.pi)
+        right_theta = self.rng.uniform(-np.pi, np.pi)
+        left_r = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
+        right_r = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
 
-        control_out[0][0] = pitch_1
-        control_out[0][1] = yaw_1
-        control_out[0][2] = displacement1
+        control_out[0][0] = left_r
+        control_out[0][1] = left_phi
+        control_out[0][2] = left_theta
 
-        control_out[1][0] = pitch_2
-        control_out[1][1] = yaw_2
-        control_out[1][2] = displacement2
+        control_out[1][0] = right_r
+        control_out[1][1] = right_phi
+        control_out[1][2] = right_theta
 
     def sampleStepCount(self, min_steps, max_steps):
         step_count = self.rng.randint(min_steps, max_steps)
@@ -390,19 +400,6 @@ class DualGripperStateSampler(ob.CompoundStateSampler):
         bbox_msg.header.frame_id = 'world'
         self.sampler_extents_bbox_pub = rospy.Publisher('sampler_extents', BoundingBox, queue_size=10, latch=True)
         self.sampler_extents_bbox_pub.publish(bbox_msg)
-
-    def sample_point_for_R3_subspace(self, subspace, subspace_state_out):
-        bounds = subspace.getBounds()
-        min_x = bounds.low[0]
-        min_y = bounds.low[1]
-        min_z = bounds.low[2]
-        max_x = bounds.high[0]
-        max_y = bounds.high[1]
-        max_z = bounds.high[2]
-        p = self.rng.uniform([min_x, min_y, min_z], [max_x, max_y, max_z])
-        subspace_state_out[0] = p[0]
-        subspace_state_out[1] = p[1]
-        subspace_state_out[2] = p[2]
 
     def sampleUniform(self, state_out: ob.CompoundState):
         # for i in range(2 + DualFloatingGripperRopeScenario.n_links):

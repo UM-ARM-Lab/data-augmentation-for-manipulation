@@ -161,8 +161,14 @@ class ExperimentScenario:
     def sample_goal(self, environment: Dict, rng: np.random.RandomState, planner_params: Dict):
         raise NotImplementedError()
 
-    @staticmethod
-    def distance_to_goal(state, goal):
+    def distance_to_goal(self, state: Dict, goal: Dict):
+        raise NotImplementedError()
+
+    def distance_to_goal_state(self, state: Dict, goal_state: Dict, goal_type: str):
+        goal = self.goal_state_to_goal(goal_state, goal_type)
+        return self.distance_to_goal(state, goal)
+
+    def goal_state_to_goal(self, goal_state: Dict, goal_type: str) -> Dict:
         raise NotImplementedError()
 
     def classifier_distance(self, s1: Dict, s2: Dict):
@@ -300,15 +306,6 @@ class ExperimentScenario:
 
     def on_before_data_collection(self, params: Dict):
         pass
-
-    def trajopt_action_sequence_cost_differentiable(self, actions):
-        return 0.0
-
-    def trajopt_distance_to_goal_differentiable(self, final_state, goal):
-        raise NotImplementedError()
-
-    def trajopt_distance_differentiable(self, s1, s2):
-        raise NotImplementedError()
 
     def get_excluded_models_for_env(self):
         raise NotImplementedError()
