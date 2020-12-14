@@ -5,11 +5,11 @@ from typing import Dict, List, Tuple
 import numpy as np
 from matplotlib import cm
 
+from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner
+from link_bot_planning.rope_dragging_ompl import RopeDraggingOmpl
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.dual_arm_sim_rope_scenario import SimDualArmRopeScenario
-from link_bot_pycommon.floating_rope_ompl import FloatingRopeOmpl
-from link_bot_pycommon.rope_dragging_ompl import RopeDraggingOmpl
 from link_bot_pycommon.rope_dragging_scenario import RopeDraggingScenario
 from link_bot_pycommon.scenario_ompl import ScenarioOmpl
 from state_space_dynamics.base_filter_function import BaseFilterFunction
@@ -74,26 +74,32 @@ class RRT(MyPlanner):
 
         self.si: oc.SpaceInformation = self.ss.getSpaceInformation()
 
-        def _dcs_allocator(si):
-            # noinspection PyUnusedLocal
-            def _cost_function(actions: List[Dict], environment: Dict, goal_state: Dict, mean_predictions: List[Dict]):
-                del actions, environment
-                return self.scenario.distance_to_goal_state(state=mean_predictions[1],
-                                                            goal_type=self.params['goal_params']['goal_type'],
-                                                            goal_state=goal_state)
+        if self.params['use_local_planner']:
+            def _dcs_allocator(si):
+                # noinspection PyUnusedLocal
+                def _cost_function(actions: List[Dict],
+                                   environment: Dict,
+                                   goal_state: Dict,
+                                   mean_predictions: List[Dict]):
+                    del actions, environment
+                    return self.scenario.distance_to_goal_state(state=mean_predictions[1],
+                                                                goal_type=self.params['goal_params']['goal_type'],
+                                                                goal_state=goal_state)
 
-            opt = TrajectoryOptimizer(fwd_model=self.fwd_model,
-                                      classifier_model=None,
-                                      scenario=self.scenario,
-                                      params=self.params,
-                                      verbose=self.verbose,
-                                      cost_function=_cost_function)
-            return self.scenario_ompl.make_directed_control_sampler(si,
-                                                                    rng=self.control_sampler_rng,
-                                                                    action_params=action_params,
-                                                                    opt=opt)
+                opt = TrajectoryOptimizer(fwd_model=self.fwd_model,
+                                          classifier_model=None,
+                                          scenario=self.scenario,
+                                          params=self.params,
+                                          verbose=self.verbose,
+                                          cost_function=_cost_function)
+                return self.scenario_ompl.make_directed_control_sampler(si,
+                                                                        rng=self.control_sampler_rng,
+                                                                        action_params=action_params,
+                                                                        opt=opt)
 
-        self.si.setDirectedControlSamplerAllocator(oc.DirectedControlSamplerAllocator(_dcs_allocator))
+            self.si.setDirectedControlSamplerAllocator(oc.DirectedControlSamplerAllocator(_dcs_allocator))
+        else:
+            rospy.loginfo("No DCS, falling back to CS")
 
         self.ss.setStatePropagator(oc.AdvancedStatePropagatorFn(self.propagate))
         self.ss.setMotionsValidityChecker(oc.MotionsValidityCheckerFn(self.motions_valid))

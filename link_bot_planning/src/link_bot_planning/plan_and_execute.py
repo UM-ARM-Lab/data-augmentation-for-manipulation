@@ -104,23 +104,34 @@ class PlanAndExecute:
 
         goal_params = self.planner_params['goal_params']
         if goal_params['type'] == 'fixed':
-            self.goal_generator = lambda e: numpify(goal_params['goal_fixed'])
+            def _fixed_goal_gen(e):
+                goal = numpify(goal_params['goal_fixed'])
+                goal['goal_type'] = goal_params['goal_type']
+                return goal
+
+            self.goal_generator = _fixed_goal_gen
         elif goal_params['type'] == 'random':
-            self.goal_generator = lambda e: self.scenario.sample_goal(environment=e,
-                                                                      rng=self.goal_rng,
-                                                                      planner_params=self.planner_params)
+            def _rand_goal_gen(e):
+                goal = self.scenario.sample_goal(environment=e,
+                                                 rng=self.goal_rng,
+                                                 planner_params=self.planner_params)
+                goal['goal_type'] = goal_params['goal_type']
+                return goal
+
+            self.goal_generator = _rand_goal_gen
         elif goal_params['type'] == 'dataset':
             dataset = DynamicsDatasetLoader([pathlib.Path(goal_params['goals_dataset'])])
             tf_dataset = dataset.get_datasets(mode='val')
             goal_dataset_iterator = iter(tf_dataset)
 
-            def _gen(e):
+            def _dataset_goal_gen(e):
                 example = next(goal_dataset_iterator)
                 example_t = dataset.index_time_batched(example_batched=add_batch(example), t=1)
                 goal = remove_batch(example_t)
+                goal['goal_type'] = goal_params['goal_type']
                 return goal
 
-            self.goal_generator = _gen
+            self.goal_generator = _dataset_goal_gen
         else:
             raise NotImplementedError(f"invalid goal param type {goal_params['type']}")
 

@@ -597,13 +597,13 @@ class FloatingRopeScenario(Base3DScenario):
         return distance
 
     def distance_to_goal(self, state: Dict, goal: Dict):
-        if goal['type'] == 'midpoint':
+        if goal['goal_type'] == 'midpoint':
             return self.distance_to_midpoint_goal(state, goal)
-        elif goal['type'] == 'any_point':
+        elif goal['goal_type'] == 'any_point':
             return self.distance_to_any_point_goal(state, goal)
-        elif goal['type'] == 'grippers':
+        elif goal['goal_type'] == 'grippers':
             return self.distance_to_gripper_goal(state, goal)
-        elif goal['type'] == 'grippers_and_point':
+        elif goal['goal_type'] == 'grippers_and_point':
             return self.distance_grippers_and_any_point_goal(state, goal)
         else:
             raise NotImplementedError()
@@ -613,7 +613,7 @@ class FloatingRopeScenario(Base3DScenario):
             rope_points = tf.reshape(goal_state[rope_key_name], [-1, 3])
             rope_midpoint = rope_points[int(FloatingRopeScenario.n_links / 2)]
             return {
-                'type':     goal_type,
+                'goal_type':     goal_type,
                 'midpoint': rope_midpoint,
             }
         elif goal_type == 'any_point':
@@ -621,14 +621,14 @@ class FloatingRopeScenario(Base3DScenario):
             rope_points = tf.reshape(goal_state[rope_key_name], [-1, 3])
             rope_point = rope_points[0]
             return {
+                'goal_type':  goal_type,
                 'point': rope_point,
-                'type':  goal_type,
             }
         elif goal_type == 'grippers':
             left_gripper = goal_state['left_gripper']
             right_gripper = goal_state['right_gripper']
             return {
-                'type':          goal_type,
+                'goal_type':          goal_type,
                 'left_gripper':  left_gripper,
                 'right_gripper': right_gripper,
             }
@@ -638,7 +638,7 @@ class FloatingRopeScenario(Base3DScenario):
             rope_points = tf.reshape(goal_state[rope_key_name], [-1, 3])
             rope_point = rope_points[0]
             return {
-                'type':          goal_type,
+                'goal_type':          goal_type,
                 'point':         rope_point,
                 'left_gripper':  left_gripper,
                 'right_gripper': right_gripper,

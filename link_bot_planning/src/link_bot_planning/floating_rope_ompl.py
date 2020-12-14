@@ -133,13 +133,13 @@ class FloatingRopeOmpl(ScenarioOmpl):
         current_left_gripper_position = state_np['left_gripper']
         current_right_gripper_position = state_np['right_gripper']
 
-        left_gripper_delta_position = spherical_to_vector3(r=ompl_control[0][0],
-                                                           phi=ompl_control[0][1],
-                                                           theta=ompl_control[0][2])
+        left_gripper_delta_position = spherical_to_vector3([ompl_control[0][0],
+                                                            ompl_control[0][1],
+                                                            ompl_control[0][2]])
 
-        right_gripper_delta_position = spherical_to_vector3(r=ompl_control[1][0],
-                                                            phi=ompl_control[1][1],
-                                                            theta=ompl_control[1][2])
+        right_gripper_delta_position = spherical_to_vector3([ompl_control[1][0],
+                                                             ompl_control[1][1],
+                                                             ompl_control[1][2]])
 
         target_left_gripper_position = current_left_gripper_position + left_gripper_delta_position
         target_right_gripper_position = current_right_gripper_position + right_gripper_delta_position
@@ -151,28 +151,28 @@ class FloatingRopeOmpl(ScenarioOmpl):
     def make_goal_region(self, si: oc.SpaceInformation, rng: np.random.RandomState, params: Dict,
                          goal: Dict,
                          plot: bool):
-        if 'type' not in goal or goal['type'] == 'midpoint':
+        if goal['goal_type'] == 'midpoint':
             return RopeMidpointGoalRegion(si=si,
                                           scenario_ompl=self,
                                           rng=rng,
                                           threshold=params['goal_params']['threshold'],
                                           goal=goal,
                                           plot=plot)
-        elif goal['type'] == 'any_point':
+        elif goal['goal_type'] == 'any_point':
             return RopeAnyPointGoalRegion(si=si,
                                           scenario_ompl=self,
                                           rng=rng,
                                           threshold=params['goal_params']['threshold'],
                                           goal=goal,
                                           plot=plot)
-        elif goal['type'] == 'grippers':
+        elif goal['goal_type'] == 'grippers':
             return DualGripperGoalRegion(si=si,
                                          scenario_ompl=self,
                                          rng=rng,
                                          threshold=params['goal_params']['threshold'],
                                          goal=goal,
                                          plot=plot)
-        elif goal['type'] == 'grippers_and_point':
+        elif goal['goal_type'] == 'grippers_and_point':
             return RopeAndGrippersGoalRegion(si=si,
                                              scenario_ompl=self,
                                              rng=rng,
@@ -402,10 +402,6 @@ class DualGripperStateSampler(ob.CompoundStateSampler):
         self.sampler_extents_bbox_pub.publish(bbox_msg)
 
     def sampleUniform(self, state_out: ob.CompoundState):
-        # for i in range(2 + DualFloatingGripperRopeScenario.n_links):
-        #     self.sample_point_for_R3_subspace(self.state_space.getSubspace(i), state_out[i])
-        # state_np = self.scenario_ompl.ompl_state_to_numpy(state_out)
-
         random_point = self.rng.uniform(self.extent[:, 0], self.extent[:, 1])
         random_point_rope = np.concatenate([random_point] * FloatingRopeScenario.n_links)
         state_np = {
@@ -443,7 +439,7 @@ class DualGripperGoalRegion(ob.GoalSampleableRegion):
         Uses the distance between a specific point in a specific subspace and the goal point
         """
         state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = self.scenario_ompl.s.distance_to_gripper_goal(state_np, self.goal)
+        distance = float(self.scenario_ompl.s.distance_to_gripper_goal(state_np, self.goal).numpy())
 
         # this ensures the goal must have num_diverged = 0
         if state_np['num_diverged'] > 0:
@@ -501,7 +497,7 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
         Uses the distance between a specific point in a specific subspace and the goal point
         """
         state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = self.scenario_ompl.s.distance_to_midpoint_goal(state_np, self.goal)
+        distance = float(self.scenario_ompl.s.distance_to_midpoint_goal(state_np, self.goal).numpy())
 
         # this ensures the goal must have num_diverged = 0
         if state_np['num_diverged'] > 0:
@@ -511,9 +507,11 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
     def sampleGoal(self, state_out: ob.CompoundState):
         sampler = self.getSpaceInformation().allocStateSampler()
         # sample a random state via the state space sampler, in hopes that OMPL will clean up the memory...
+        sampler.plot = False
         sampler.sampleUniform(state_out)
 
-        # attempt to sample "legit" rope states
+        # TODO: we need a proper evaluation to test whether this is actually helpful
+        #  attempt to sample "legit" rope states
         kd = 0.04
         rope = sample_rope(self.rng, self.goal['midpoint'], FloatingRopeScenario.n_links, kd)
         left_gripper = rope[-1] + self.rng.uniform(-kd, kd, 3)
@@ -558,7 +556,7 @@ class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
         Uses the distance between a specific point in a specific subspace and the goal point
         """
         state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = self.scenario_ompl.s.distance_to_any_point_goal(state_np, self.goal)
+        distance = float(self.scenario_ompl.s.distance_to_any_point_goal(state_np, self.goal).numpy())
 
         # this ensures the goal must have num_diverged = 0
         if state_np['num_diverged'] > 0:
@@ -612,7 +610,7 @@ class RopeAndGrippersGoalRegion(ob.GoalSampleableRegion):
 
     def distanceGoal(self, state: ob.CompoundState):
         state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = self.scenario_ompl.s.distance_grippers_and_any_point_goal(state_np, self.goal)
+        distance = float(self.scenario_ompl.s.distance_grippers_and_any_point_goal(state_np, self.goal).numpy())
 
         # this ensures the goal must have num_diverged = 0
         if state_np['num_diverged'] > 0:
@@ -707,7 +705,7 @@ class RopeAndGrippersBoxesGoalRegion(ob.GoalSampleableRegion):
 
     def distanceGoal(self, state: ob.CompoundState):
         state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = self.scenario_ompl.s.distance_grippers_and_any_point_goal(state_np, self.goal)
+        distance = float(self.scenario_ompl.s.distance_grippers_and_any_point_goal(state_np, self.goal).numpy())
 
         # this ensures the goal must have num_diverged = 0
         if state_np['num_diverged'] > 0:
