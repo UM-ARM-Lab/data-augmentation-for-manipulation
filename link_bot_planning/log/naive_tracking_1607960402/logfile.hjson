@@ -1,0 +1,12 @@
+{
+  nickname: naive_tracking
+  # we use the same dynamics datasets across all methods
+  collect_dynamics_data_1:
+  {
+    dynamics_dataset_dir: fwd_model_data/baseline_gt_rope_phase1_1606682161_1b3bea4d11_2048
+  }
+  collect_dynamics_data_2:
+  {
+    dynamics_dataset_dir: fwd_model_data/baseline_gt_rope_phase2_1606788056_59e9b8dcee_5120
+  }
+}
