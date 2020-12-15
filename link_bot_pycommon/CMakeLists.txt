@@ -3,11 +3,11 @@ project(link_bot_pycommon)
 
 find_package(catkin REQUIRED COMPONENTS
         rospy
-        roscpp
-        std_msgs)
+        std_msgs
+        arm_gazebo_msgs)
 
 catkin_package(
-        CATKIN_DEPENDS std_msgs roscpp
+        CATKIN_DEPENDS std_msgs rospy arm_gazebo_msgs
 )
 
 catkin_python_setup()

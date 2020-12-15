@@ -71,8 +71,6 @@ gazebo_plugin(position_3d_plugin
         src/link_position_3d_pid_controller.cpp
         src/gazebo_plugin_utils.cpp)
 
-gazebo_plugin(gazebo_ros_moveit_planning_scene src/gazebo_ros_moveit_planning_scene.cpp)
-
 gazebo_plugin(gazebo_ros_tf_plugin src/gazebo_ros_tf_plugin.cpp)
 
 gazebo_plugin(kinematic_robotiq_3f_gripper_plugin

@@ -23,7 +23,6 @@ add_service_files(
         FILES
         ComputeOccupancy.srv
         DualGripperTrajectory.srv
-        ExcludeModels.srv
         GetAnimControllerState.srv
         GetBool.srv
         GetDualGripperPoints.srv

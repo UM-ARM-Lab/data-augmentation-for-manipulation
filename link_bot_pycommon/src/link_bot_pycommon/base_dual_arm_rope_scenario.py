@@ -16,8 +16,8 @@ from link_bot_gazebo_python.gazebo_utils import get_gazebo_kinect_pose
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.ros_pycommon import get_environment_for_extents_3d, get_camera_params
-from peter_msgs.srv import ExcludeModels, ExcludeModelsRequest, ExcludeModelsResponse, GetOverstretchingResponse, \
-    GetOverstretchingRequest
+from arm_gazebo_msgs.srv import ExcludeModels, ExcludeModelsRequest, ExcludeModelsResponse
+from peter_msgs.srv import GetOverstretchingResponse, GetOverstretchingRequest
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState, PointCloud2
 from std_srvs.srv import Empty, EmptyRequest

@@ -11,15 +11,14 @@
 
   <author >Peter Mitrano</author>
 
-
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>rospy</build_depend>
-  <build_export_depend>rospy</build_export_depend>
 
+  <depend>rospy</depend>
   <depend>pybind11_catkin</depend>
   <depend>std_msgs</depend>
   <depend>tf2-sensors-msgs</depend>
   <depend>roscpp</depend>
+  <depend>arm_gazebo_msgs</depend>
   <depend>moveit_commander</depend>
 
   <exec_depend>rospy</exec_depend>
