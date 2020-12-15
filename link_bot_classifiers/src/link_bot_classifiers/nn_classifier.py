@@ -19,7 +19,6 @@ from link_bot_pycommon.pycommon import make_dict_float32, make_dict_tf_float32
 from moonshine.classifier_losses_and_metrics import binary_classification_sequence_metrics_function, \
     class_weighted_mean_loss
 from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
-from moonshine.indexing import index_time
 from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors
 from moonshine.raster_3d import raster_3d
 from mps_shape_completion_msgs.msg import OccupancyStamped
@@ -150,7 +149,6 @@ class NNClassifier(MyKerasModel):
         conv_outputs = conv_outputs_array.stack()
         return tf.transpose(conv_outputs, [1, 0, 2]), debug_info_seq
 
-    @tf.function
     def fwd_conv(self, batch_size, local_voxel_grid_t):
         conv_z = local_voxel_grid_t
         for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
@@ -189,13 +187,29 @@ class NNClassifier(MyKerasModel):
     def compute_metrics(self, dataset_element, outputs):
         return binary_classification_sequence_metrics_function(dataset_element, outputs)
 
-    @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
         batch_size = input_dict['batch_size']
         time = tf.cast(input_dict['time'], tf.int32)
 
         conv_output, debug_info_seq = self.make_traj_voxel_grids_from_input_dict(input_dict, batch_size, time)
 
+        out_h = self.fc(conv_output, input_dict, training)
+
+        # for every timestep's output, map down to a single scalar, the logit for accept probability
+        all_accept_logits = self.output_layer(out_h)
+        # ignore the first output, it is meaningless to predict the validity of a single state
+        valid_accept_logits = all_accept_logits[:, 1:]
+        valid_accept_probabilities = self.sigmoid(valid_accept_logits)
+
+        if DEBUG_VIZ:
+            self.debug_rviz(input_dict, debug_info_seq)
+
+        return {
+            'logits':        valid_accept_logits,
+            'probabilities': valid_accept_probabilities,
+        }
+
+    def fc(self, conv_output, input_dict, training):
         states = {k: input_dict[add_predicted(k)] for k in self.state_keys}
         states_in_local_frame = self.scenario.put_state_local_frame(states)
         actions = {k: input_dict[k] for k in self.action_keys}
@@ -211,36 +225,18 @@ class NNClassifier(MyKerasModel):
                            list(states_in_local_frame.values()) + padded_actions)
         else:
             concat_args = [conv_output] + list(states_in_local_frame.values()) + padded_actions
-
         if self.hparams['stdev']:
             stdevs = input_dict[add_predicted('stdev')]
             concat_args.append(stdevs)
-
         concat_output = tf.concat(concat_args, axis=2)
-
         if self.hparams['batch_norm']:
             concat_output = self.batch_norm(concat_output, training=training)
-
         z = concat_output
         for dense_layer in self.dense_layers:
             z = dense_layer(z)
         out_d = z
-
         out_h = self.lstm(out_d)
-
-        # for every timestep's output, map down to a single scalar, the logit for accept probability
-        all_accept_logits = self.output_layer(out_h)
-        # ignore the first output, it is meaningless to predict the validity of a single state
-        valid_accept_logits = all_accept_logits[:, 1:]
-        valid_accept_probabilities = self.sigmoid(valid_accept_logits)
-
-        if DEBUG_VIZ:
-            self.debug_rviz(input_dict, debug_info_seq)
-
-        return {
-            'logits':        valid_accept_logits,
-            'probabilities': valid_accept_probabilities,
-        }
+        return out_h
 
     def debug_rviz(self, input_dict: Dict, debug_info_seq: List[Tuple]):
         import pickle

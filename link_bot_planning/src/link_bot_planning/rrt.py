@@ -3,12 +3,13 @@ import warnings
 from typing import Dict, List, Tuple
 
 import numpy as np
+import tensorflow as tf
 from matplotlib import cm
 
 from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner
 from link_bot_planning.rope_dragging_ompl import RopeDraggingOmpl
-from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
+from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer, compute_constraints_cost
 from link_bot_pycommon.dual_arm_sim_rope_scenario import SimDualArmRopeScenario
 from link_bot_pycommon.rope_dragging_scenario import RopeDraggingScenario
 from link_bot_pycommon.scenario_ompl import ScenarioOmpl
@@ -55,8 +56,7 @@ class RRT(MyPlanner):
         self.classifier_model = classifier_model
         self.params = planner_params
         self.action_params = action_params
-        # TODO: consider making full env params h/w come from elsewhere. res should match the model though.
-        self.classifier_rng = np.random.RandomState(0)
+        # These RNGs get re-seeded before planning, don't bother changing these values
         self.state_sampler_rng = np.random.RandomState(0)
         self.goal_sampler_rng = np.random.RandomState(0)
         self.control_sampler_rng = np.random.RandomState(0)
@@ -74,28 +74,36 @@ class RRT(MyPlanner):
 
         self.si: oc.SpaceInformation = self.ss.getSpaceInformation()
 
+        def _cost_function(actions: List[Dict],
+                           environment: Dict,
+                           goal_state: Dict,
+                           mean_predictions: List[Dict]):
+            goal_cost = self.scenario.distance_to_goal_state(state=mean_predictions[1],
+                                                             goal_type=self.params['goal_params']['goal_type'],
+                                                             goal_state=goal_state)
+            return goal_cost
+            # constraint_costs = compute_constraints_cost(classifier_model=self.classifier_model,
+            #                                             environment=environment,
+            #                                             states=mean_predictions,
+            #                                             actions=actions)
+            # constraint_cost = tf.math.reduce_sum(constraint_costs)
+            # alpha = 1.0
+            # return goal_cost + alpha * constraint_cost
+
+        self.opt = TrajectoryOptimizer(fwd_model=self.fwd_model,
+                                       classifier_model=None,
+                                       scenario=self.scenario,
+                                       params=self.params,
+                                       verbose=self.verbose,
+                                       cost_function=_cost_function)
+
         if self.params['use_local_planner']:
             def _dcs_allocator(si):
-                # noinspection PyUnusedLocal
-                def _cost_function(actions: List[Dict],
-                                   environment: Dict,
-                                   goal_state: Dict,
-                                   mean_predictions: List[Dict]):
-                    del actions, environment
-                    return self.scenario.distance_to_goal_state(state=mean_predictions[1],
-                                                                goal_type=self.params['goal_params']['goal_type'],
-                                                                goal_state=goal_state)
-
-                opt = TrajectoryOptimizer(fwd_model=self.fwd_model,
-                                          classifier_model=None,
-                                          scenario=self.scenario,
-                                          params=self.params,
-                                          verbose=self.verbose,
-                                          cost_function=_cost_function)
                 return self.scenario_ompl.make_directed_control_sampler(si,
                                                                         rng=self.control_sampler_rng,
                                                                         action_params=action_params,
-                                                                        opt=opt)
+                                                                        opt=self.opt,
+                                                                        max_steps=self.params.get('max_steps', 50))
 
             self.si.setDirectedControlSamplerAllocator(oc.DirectedControlSamplerAllocator(_dcs_allocator))
         else:
@@ -113,8 +121,9 @@ class RRT(MyPlanner):
 
         self.rrt = oc.RRT(self.si)
         self.rrt.setIntermediateStates(True)  # this is necessary, because we use this to generate datasets
+        self.rrt.setGoalBias(0.5)
         self.ss.setPlanner(self.rrt)
-        self.si.setMinMaxControlDuration(1, 50)
+        self.si.setMinMaxControlDuration(1, self.params.get('max_steps', 50))
 
     def cleanup_before_plan(self, seed):
         self.ptc = None
@@ -126,7 +135,6 @@ class RRT(MyPlanner):
         self.closest_state_to_goal = None
         self.min_dist_to_goal = 10000
 
-        self.classifier_rng.seed(seed)
         self.state_sampler_rng.seed(seed)
         self.goal_sampler_rng.seed(seed)
         self.control_sampler_rng.seed(seed)
@@ -268,6 +276,8 @@ class RRT(MyPlanner):
         self.cleanup_before_plan(planning_query.seed)
 
         self.environment = planning_query.environment
+        # FIXME: horrible hack. the environment isn't in the OMPL state so I have to do something like this
+        self.opt.env = self.environment
 
         self.goal_region = self.scenario_ompl.make_goal_region(self.si,
                                                                rng=self.goal_sampler_rng,

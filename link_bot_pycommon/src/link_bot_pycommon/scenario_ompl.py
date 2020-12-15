@@ -3,6 +3,8 @@ from typing import Dict
 
 import numpy as np
 
+from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
+
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
     import ompl.base as ob
@@ -36,5 +38,10 @@ class ScenarioOmpl:
     def make_ompl_control_space(self, state_space, rng: np.random.RandomState, action_params: Dict):
         raise NotImplementedError()
 
-    def make_directed_control_sampler(self, si: oc.SpaceInformation, rng: np.random.RandomState, action_params: Dict, opt):
+    def make_directed_control_sampler(self,
+                                      si: oc.SpaceInformation,
+                                      rng: np.random.RandomState,
+                                      action_params: Dict,
+                                      opt: TrajectoryOptimizer,
+                                      max_steps: int):
         raise NotImplementedError()

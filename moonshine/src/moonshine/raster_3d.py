@@ -4,6 +4,7 @@ import tensorflow as tf
 from link_bot_pycommon.grid_utils import idx_to_point_3d
 
 
+@tf.function
 def raster_3d(state, pixel_indices, res, origin, h, w, c, k, batch_size: int):
     """ output is 1-channel voxel grid, using the max to reduce values contributed to by different points in the input state """
     res = res[0]

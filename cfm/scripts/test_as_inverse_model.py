@@ -65,7 +65,7 @@ def test_as_inverse_model(filter_model, latent_dynamics_model, test_dataset, tes
                                       "constraints_alpha":     0,
                                       "action_alpha":          0,
                                       "initial_learning_rate": 0.0001,
-                                  })
+                                  }) # FIXME: custom cost function?
 
     s_color_viz_pub = rospy.Publisher("s_state_color_viz", Image, queue_size=10, latch=True)
     s_next_color_viz_pub = rospy.Publisher("s_next_state_color_viz", Image, queue_size=10, latch=True)

@@ -28,5 +28,6 @@ class TimeoutOrNotProgressing(ob.PlannerTerminationCondition):
         self.timed_out = dt_s > self.params['timeout']
         should_terminate = self.timed_out or self.not_progressing
         if self.verbose >= 3:
-            rospy.loginfo(f"PTC: {self.attempted_extensions:6d}, {self.all_rejected}")
+            msg = f"PTC: {dt_s:.1f}s/{self.params['timeout']:.1f}s {self.attempted_extensions:5d}, {self.all_rejected}"
+            rospy.loginfo(msg)
         return should_terminate

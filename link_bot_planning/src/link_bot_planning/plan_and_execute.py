@@ -332,7 +332,7 @@ class PlanAndExecute:
         self.goal_rng.seed(trial_idx)
 
         # NOTE: ompl SetSeed can only be called once which is why we don't bother doing it here
-        # FIXME: we should not be relying on this...
+        # FIXME: we should not be relying on this. need to test whether we are
         np.random.seed(trial_idx)
         tf.random.set_seed(trial_idx)
 

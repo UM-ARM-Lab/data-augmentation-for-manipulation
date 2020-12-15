@@ -8,6 +8,7 @@ from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.scenario_ompl import ScenarioOmpl
 from moonshine.moonshine_utils import numpify
+from tf import transformations
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -102,13 +103,13 @@ class FloatingRopeOmpl(ScenarioOmpl):
         right_gripper_delta = control_np['right_gripper_position'] - state_np['right_gripper']
         right_r, right_phi, right_theta = vector3_to_spherical(right_gripper_delta)
 
-        control_out[0][0] = left_r.astype(np.float64)
-        control_out[0][1] = left_phi.astype(np.float64)
-        control_out[0][2] = left_theta.astype(np.float64)
+        control_out[0][0] = np.float_(left_r)
+        control_out[0][1] = np.float_(left_phi)
+        control_out[0][2] = np.float_(left_theta)
 
-        control_out[1][0] = right_r.astype(np.float64)
-        control_out[1][1] = right_phi.astype(np.float64)
-        control_out[1][2] = right_theta.astype(np.float64)
+        control_out[1][0] = np.float_(right_r)
+        control_out[1][1] = np.float_(right_phi)
+        control_out[1][2] = np.float_(right_theta)
 
     @staticmethod
     def ompl_state_to_numpy(ompl_state: ob.CompoundState):
@@ -148,8 +149,10 @@ class FloatingRopeOmpl(ScenarioOmpl):
             'right_gripper_position': target_right_gripper_position,
         }
 
-    def make_goal_region(self, si: oc.SpaceInformation, rng: np.random.RandomState, params: Dict,
-                         goal: Dict,
+    def make_goal_region(self,
+                         si: oc.SpaceInformation,
+                         rng: np.random.RandomState,
+                         params: Dict, goal: Dict,
                          plot: bool):
         if goal['goal_type'] == 'midpoint':
             return RopeMidpointGoalRegion(si=si,
@@ -298,13 +301,18 @@ class FloatingRopeOmpl(ScenarioOmpl):
 
         return control_space
 
-    def make_directed_control_sampler(self, si: oc.SpaceInformation, rng: np.random.RandomState, action_params: Dict,
-                                      opt):
+    def make_directed_control_sampler(self,
+                                      si: oc.SpaceInformation,
+                                      rng: np.random.RandomState,
+                                      action_params: Dict,
+                                      opt: TrajectoryOptimizer,
+                                      max_steps: int):
         return DualGripperDirectedControlSampler(si=si,
                                                  scenario_ompl=self,
                                                  rng=rng,
                                                  action_params=action_params,
-                                                 opt=opt)
+                                                 opt=opt,
+                                                 max_steps=max_steps)
 
 
 # noinspection PyMethodOverriding
@@ -314,13 +322,15 @@ class DualGripperDirectedControlSampler(oc.DirectedControlSampler):
                  scenario_ompl: ScenarioOmpl,
                  rng: np.random.RandomState,
                  opt: TrajectoryOptimizer,
-                 action_params: Dict):
+                 action_params: Dict,
+                 max_steps: int = 50):
         super().__init__(si)
         self.scenario_ompl = scenario_ompl
         self.rng = rng
         self.si = si
         self.action_params = action_params
         self.opt = opt
+        self.max_steps = max_steps
 
     def sampleTo(self, control_out: oc.CompoundControl, _, source: ob.CompoundState, dest: ob.CompoundState):
         current_state_np = self.scenario_ompl.ompl_state_to_numpy(source)
@@ -329,7 +339,7 @@ class DualGripperDirectedControlSampler(oc.DirectedControlSampler):
             'left_gripper_position':  current_state_np['left_gripper'],
             'right_gripper_position': current_state_np['right_gripper'],
         }]
-        control_out_tf, path = self.opt.optimize(environment={},
+        control_out_tf, path = self.opt.optimize(environment=self.opt.env,  # FIXME: horrible hack
                                                  goal_state=goal_state_np,
                                                  initial_actions=initial_actions,
                                                  start_state=current_state_np)
@@ -340,7 +350,9 @@ class DualGripperDirectedControlSampler(oc.DirectedControlSampler):
         next_state_np['num_diverged'] = current_state_np['num_diverged']
         self.scenario_ompl.numpy_to_ompl_control(current_state_np, control_out_np, control_out)
         self.scenario_ompl.numpy_to_ompl_state(next_state_np, dest)
-        return 1
+
+        step_count = self.rng.randint(1, self.max_steps)
+        return step_count
 
 
 # noinspection PyMethodOverriding
@@ -505,22 +517,15 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
         return distance
 
     def sampleGoal(self, state_out: ob.CompoundState):
-        sampler = self.getSpaceInformation().allocStateSampler()
-        # sample a random state via the state space sampler, in hopes that OMPL will clean up the memory...
-        sampler.plot = False
-        sampler.sampleUniform(state_out)
-
-        # TODO: we need a proper evaluation to test whether this is actually helpful
-        #  attempt to sample "legit" rope states
-        kd = 0.04
-        rope = sample_rope(self.rng, self.goal['midpoint'], FloatingRopeScenario.n_links, kd)
-        left_gripper = rope[-1] + self.rng.uniform(-kd, kd, 3)
-        right_gripper = rope[0] + self.rng.uniform(-kd, kd, 3)
+        d = self.getThreshold()
+        random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) @ np.array([d, 0, 0, 1])
+        random_direction = random_direction[:3]
+        random_point = self.goal['midpoint'] + random_direction
 
         goal_state_np = {
-            'left_gripper':  left_gripper,
-            'right_gripper': right_gripper,
-            'rope':          rope.flatten(),
+            'left_gripper':  random_point,
+            'right_gripper': random_point,
+            'rope':          [random_point] * self.scenario_ompl.s.n_links,
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
         }
@@ -564,20 +569,14 @@ class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
         return distance
 
     def sampleGoal(self, state_out: ob.CompoundState):
-        sampler = self.getSpaceInformation().allocStateSampler()
-        # sample a random state via the state space sampler, in hopes that OMPL will clean up the memory...
-        sampler.sampleUniform(state_out)
-
-        # attempt to sample "legit" rope states
-        kd = 0.05
-        rope = sample_rope(self.rng, self.goal['point'], FloatingRopeScenario.n_links, kd)
-        left_gripper = rope[-1] + self.rng.uniform(-kd, kd, 3)
-        right_gripper = rope[0] + self.rng.uniform(-kd, kd, 3)
+        d = self.getThreshold()
+        random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) * np.array([d, 0, 0, 1])
+        random_point = self.goal['point'] + random_direction
 
         goal_state_np = {
-            'left_gripper':  left_gripper,
-            'right_gripper': right_gripper,
-            'rope':          rope.flatten(),
+            'left_gripper':  random_point,
+            'right_gripper': random_point,
+            'rope':          [random_point] * self.scenario_ompl.s.n_links,
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
         }
