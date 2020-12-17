@@ -28,7 +28,7 @@
   ]
   total_timeout: 180
   termination_criteria: {
-    attempted_extensions_threshold: 8
+    attempted_extensions_threshold: 32
     timeout: 180
   }
   left_gripper_reset_position: [
