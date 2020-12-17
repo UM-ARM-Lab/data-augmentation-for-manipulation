@@ -21,7 +21,6 @@
   <depend>arm_gazebo_msgs</depend>
   <depend>moveit_commander</depend>
 
-  <exec_depend>rospy</exec_depend>
   <exec_depend>gazebo_ros_link_attacher</exec_depend>
   <exec_depend>ros-noetic-rospy-message-converter</exec_depend>
   <!-- TODO: properly list dependencies -->
