@@ -182,6 +182,7 @@ class BaseDataCollector:
 
         print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)
 
+        self.service_provider.pause()
         return files_dataset
 
     def write_example(self, full_output_directory, example, traj_idx):
