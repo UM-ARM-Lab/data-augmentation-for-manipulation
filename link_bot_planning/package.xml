@@ -13,6 +13,15 @@
 
     <buildtool_depend>catkin</buildtool_depend>
 
+    <depend>link_bot_classifiers</depend>
+    <depend>link_bot_data</depend>
+    <depend>link_bot_gazebo</depend>
+    <depend>link_bot_gazebo_python</depend>
+    <depend>link_bot_pycommon</depend>
+    <depend>merrt_visualization</depend>
+    <depend>moonshine</depend>
+    <depend>peter_msgs</depend>
     <depend>rospy</depend>
+    <depend>victor</depend>
 
 </package>
