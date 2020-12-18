@@ -17,8 +17,15 @@
       dy_trials/naive_tracking_1607965008_2/December_14_14-07-58_c6121a4f55
       dy_trials/naive_tracking_1607965008_3/December_14_15-13-46_c6121a4f55
     ]
-    # this one I computed manually with:
-    #    ./scripts/train_test.py eval fwd_model_data/baseline_gt_rope_phase1_1606682161_1b3bea4d11_2048/ trials/naive_tracking_1607965008_0/December_14_11-56-49_c6121a4f55/best_checkpoint
     classifier_threshold: 0.06606092154979704
+  }
+  filename: log/naive_tracking_1607960402/logfile.hjson
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/naive_tracking_1608299695
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/naive_tracking_1608299695/December_18_09-02-04_af2786b6a9
   }
 }

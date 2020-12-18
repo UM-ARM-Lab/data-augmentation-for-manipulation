@@ -121,7 +121,7 @@ class RRT(MyPlanner):
 
         self.rrt = oc.RRT(self.si)
         self.rrt.setIntermediateStates(True)  # this is necessary, because we use this to generate datasets
-        self.rrt.setGoalBias(0.5)
+        # self.rrt.setGoalBias(0.5)
         self.ss.setPlanner(self.rrt)
         self.si.setMinMaxControlDuration(1, self.params.get('max_steps', 50))
 
