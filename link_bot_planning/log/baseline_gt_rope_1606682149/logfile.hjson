@@ -1,10 +1,10 @@
 {
   nickname: baseline_gt_rope
+  filename: log/baseline_gt_rope_1606682149/logfile.hjson
   collect_dynamics_data_1:
   {
     dynamics_dataset_dir: fwd_model_data/baseline_gt_rope_phase1_1606682161_1b3bea4d11_2048
   }
-  filename: log/baseline_gt_rope_1606682149/logfile.hjson
   collect_dynamics_data_2:
   {
     dynamics_dataset_dir: fwd_model_data/baseline_gt_rope_phase2_1608162314_f978fd9f4c_5120
@@ -36,6 +36,5 @@
   {
     model_dir: /home/peter/catkin_ws/src/link_bot/link_bot_planning/recovery_trials/baseline_gt_rope_1608220893/December_17_13-30-15_9f47ad1f16
   }
-  learned_recovery: {}
   planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/baseline_gt_rope_1606682149
 }
