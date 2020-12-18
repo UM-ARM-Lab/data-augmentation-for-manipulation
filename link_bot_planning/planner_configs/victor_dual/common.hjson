@@ -49,7 +49,7 @@
     1.3
     -0.7
     0.7
-    0.60
+    0.50
     1.40
   ]
   state_sampler_extent: [
@@ -87,7 +87,7 @@
     filter_trials/none/none
   ]
   # Local Planner Parameters
-  use_local_planner: true
+  use_local_planner: false
   iters: 2,
   length_alpha: 0
   goal_alpha: 1
