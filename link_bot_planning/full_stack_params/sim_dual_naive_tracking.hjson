@@ -44,7 +44,7 @@
     batch_size: 8
   }
   make_recovery_dataset: {
-    batch_size: 8
+    batch_size: 1
     labeling_params: labeling_params/recovery/dual.json
   }
   learn_recovery: {

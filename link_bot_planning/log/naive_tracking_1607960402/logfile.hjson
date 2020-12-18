@@ -28,4 +28,13 @@
   {
     model_dir: cl_trials/naive_tracking_1608299695/December_18_09-02-04_af2786b6a9
   }
+  make_recovery_dataset:
+  {
+    recovery_dataset_dir: recovery_data/naive_tracking_1608306890
+  }
+  learn_recovery:
+  {
+    model_dir: /home/peter/catkin_ws/src/link_bot/link_bot_planning/recovery_trials/naive_tracking_1608306890/December_18_12-33-01_0f88ea5ad7
+  }
+  learned_recovery: {}
 }
