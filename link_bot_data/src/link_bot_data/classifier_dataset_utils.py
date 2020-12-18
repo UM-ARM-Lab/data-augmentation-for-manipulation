@@ -11,8 +11,8 @@ from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset, add_lab
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
-from moonshine.moonshine_utils import gather_dict
 from moonshine.indexing import index_dict_of_batched_tensors_tf
+from moonshine.moonshine_utils import gather_dict
 from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
@@ -46,20 +46,34 @@ def make_classifier_dataset(dataset_dir: pathlib.Path,
                             batch_size,
                             start_at: Optional[int] = None,
                             stop_at: Optional[int] = None,
+                            custom_threshold: Optional[float] = None,
                             ):
     labeling_params = hjson.load(labeling_params.open("r"))
-    make_classifier_dataset_from_params_dict(dataset_dir=dataset_dir, fwd_model_dir=fwd_model_dir,
-                                             labeling_params=labeling_params, outdir=outdir, use_gt_rope=use_gt_rope,
-                                             visualize=visualize, take=None, batch_size=batch_size,
-                                             start_at=start_at, stop_at=stop_at)
+    make_classifier_dataset_from_params_dict(dataset_dir=dataset_dir,
+                                             fwd_model_dir=fwd_model_dir,
+                                             labeling_params=labeling_params,
+                                             outdir=outdir,
+                                             use_gt_rope=use_gt_rope,
+                                             visualize=visualize,
+                                             custom_threshold=custom_threshold,
+                                             take=None,
+                                             batch_size=batch_size,
+                                             start_at=start_at,
+                                             stop_at=stop_at,
+                                             )
 
 
-def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path, fwd_model_dir: List[pathlib.Path],
-                                             labeling_params: Dict, outdir: pathlib.Path, use_gt_rope: bool,
+def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
+                                             fwd_model_dir: List[pathlib.Path],
+                                             labeling_params: Dict,
+                                             outdir: pathlib.Path,
+                                             use_gt_rope: bool,
                                              visualize: bool,
+                                             custom_threshold: Optional[float] = None,
                                              take: Optional[int] = None,
                                              batch_size: Optional[int] = None,
-                                             start_at: Optional[int] = None, stop_at: Optional[int] = None):
+                                             start_at: Optional[int] = None,
+                                             stop_at: Optional[int] = None):
     # append "best_checkpoint" before loading
     if not isinstance(fwd_model_dir, List):
         fwd_model_dir = [fwd_model_dir]
@@ -86,6 +100,9 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path, fwd_mode
 
     # because we're currently making this dataset, we can't call "get_dataset" but we can still use it to visualize
     classifier_dataset_for_viz = ClassifierDatasetLoader([outdir], use_gt_rope=use_gt_rope)
+
+    if custom_threshold is not None:
+        labeling_params['threshold'] = custom_threshold
 
     t0 = perf_counter()
     total_example_idx = 0
@@ -230,7 +247,7 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
         # keep only valid_indices from every key in out_example...
         valid_out_example = gather_dict(out_example, valid_indices)
         valid_out_examples.append(valid_out_example)
-        # valid_out_examples.append(out_example)
+
     return valid_out_examples
 
 

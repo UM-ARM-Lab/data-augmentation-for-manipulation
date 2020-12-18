@@ -29,6 +29,7 @@ def main():
     parser.add_argument('--start-at', type=str, help='mode:batch_index, ex train:10')
     parser.add_argument('--stop-at', type=str, help='mode:batch_index, ex train:10')
     parser.add_argument('--batch-size', type=int, help='batch size', default=8)
+    parser.add_argument('--threshold', type=float, help='threshold')
     parser.add_argument('--yes', '-y', action='store_true')
     parser.add_argument('--use-gt-rope', action='store_true')
     parser.add_argument('--visualize', action='store_true')
@@ -51,7 +52,9 @@ def main():
                             visualize=args.visualize,
                             batch_size=args.batch_size,
                             start_at=args.start_at,
+                            custom_threshold=args.threshold,
                             stop_at=args.stop_at)
 
-    if __name__ == '__main__':
-        main()
+
+if __name__ == '__main__':
+    main()

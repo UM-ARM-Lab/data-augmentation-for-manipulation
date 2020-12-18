@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--threshold', type=float, default=None)
     parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--start-at', type=int, default=0)
     parser.add_argument('--take', type=int)
     parser.add_argument('--use-gt-rope', action='store_true')
     parser.add_argument('--old-compat', action='store_true')
@@ -79,7 +80,11 @@ def visualize_dataset(args, classifier_dataset):
     stdevs_for_negative = []
     stdevs_for_positive = []
 
-    for i, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+    for i, example in enumerate(tf_dataset):
+    # for i, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+        if i < args.start_at:
+            continue
+
         example = remove_batch(example)
 
         is_close = example['is_close'].numpy().squeeze()
@@ -108,9 +113,11 @@ def visualize_dataset(args, classifier_dataset):
         if reconverging:
             reconverging_count += 1
 
+        print(i, is_close[1])
+
         # Print statistics intermittently
-        if count % 1000 == 0:
-            print_stats_and_timing(args, count, reconverging_count, negative_count, positive_count)
+        # if count % 1000 == 0:
+        #     print_stats_and_timing(args, count, reconverging_count, negative_count, positive_count)
 
         #############################
         # Show Visualization
