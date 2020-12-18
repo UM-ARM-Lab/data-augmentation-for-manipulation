@@ -12,11 +12,10 @@
   {
     model_dirs:
     [
-      dy_trials/naive_tracking_1607965008_0/December_14_11-56-49_c6121a4f55/best_checkpoint
-      dy_trials/naive_tracking_1607965008_1/December_14_13-02-34_c6121a4f55/best_checkpoint
-      dy_trials/naive_tracking_1607965008_2/December_14_14-07-58_c6121a4f55/best_checkpoint
-      dy_trials/naive_tracking_1607965008_3/December_14_15-13-46_c6121a4f55/best_checkpoint
-      dy_trials/naive_tracking_1608045069_0/December_15_10-11-11_63606506bc/best_checkpoint
+      dy_trials/naive_tracking_1607965008_0/December_14_11-56-49_c6121a4f55
+      dy_trials/naive_tracking_1607965008_1/December_14_13-02-34_c6121a4f55
+      dy_trials/naive_tracking_1607965008_2/December_14_14-07-58_c6121a4f55
+      dy_trials/naive_tracking_1607965008_3/December_14_15-13-46_c6121a4f55
     ]
     # this one I computed manually with:
     #    ./scripts/train_test.py eval fwd_model_data/baseline_gt_rope_phase1_1606682161_1b3bea4d11_2048/ trials/naive_tracking_1607965008_0/December_14_11-56-49_c6121a4f55/best_checkpoint
