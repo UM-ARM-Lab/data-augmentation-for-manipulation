@@ -96,6 +96,7 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
     classifier_dataset_hparams['scenario_metadata'] = dataset.hparams['scenario_metadata']
     classifier_dataset_hparams['start-at'] = start_at
     classifier_dataset_hparams['stop-at'] = stop_at
+    classifier_dataset_hparams['use_gt_rope'] = fwd_models.hparams['use_gt_rope']
     my_hdump(classifier_dataset_hparams, new_hparams_filename.open("w"), indent=2)
 
     # because we're currently making this dataset, we can't call "get_dataset" but we can still use it to visualize

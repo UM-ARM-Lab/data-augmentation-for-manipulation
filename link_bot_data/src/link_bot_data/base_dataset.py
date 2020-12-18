@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from __future__ import annotations
+
 import csv
 import pathlib
 from typing import List, Optional, Dict, Callable, Any
@@ -75,10 +77,15 @@ class SizedTFDataset:
         dataset = self.dataset.take(count)
         return SizedTFDataset(dataset, self.records, size=count)
 
+    def zip(self, dataset2: SizedTFDataset):
+        dataset = tf.data.Dataset.zip((self.dataset, dataset2.dataset))
+        return SizedTFDataset(dataset, self.records + dataset2.records, size=min(self.size, dataset2.size))
+
 
 class BaseDatasetLoader:
 
     def __init__(self, dataset_dirs: List[pathlib.Path]):
+        self.name = '-'.join([d.name for d in dataset_dirs])
         self.dataset_dirs = dataset_dirs
         self.hparams = {}
         for dataset_dir in dataset_dirs:

@@ -16,18 +16,18 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
 
     def __init__(self,
                  dataset_dirs: List[pathlib.Path],
-                 use_gt_rope: bool,
                  load_true_states=False,
                  no_balance=True,
+                 use_gt_rope: Optional[bool] = None,
                  threshold: Optional[float] = None,
                  old_compat: Optional[bool] = False,
                  ):
         super(ClassifierDatasetLoader, self).__init__(dataset_dirs)
         self.no_balance = no_balance
         self.load_true_states = load_true_states
-        self.use_gt_rope = use_gt_rope
         self.labeling_params = self.hparams['labeling_params']
         self.threshold = threshold if threshold is not None else self.labeling_params['threshold']
+        self.use_gt_rope = use_gt_rope if use_gt_rope is not None else self.hparams['use_gt_rope']
         rospy.loginfo(f"classifier using threshold {self.threshold}")
         self.horizon = self.hparams['labeling_params']['classifier_horizon']
         self.scenario = get_scenario(self.hparams['scenario'])
