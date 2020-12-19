@@ -10,6 +10,7 @@ from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
+from arm_gazebo_msgs.srv import ExcludeModelsRequest
 from sensor_msgs.msg import JointState
 from tf.transformations import quaternion_from_euler
 

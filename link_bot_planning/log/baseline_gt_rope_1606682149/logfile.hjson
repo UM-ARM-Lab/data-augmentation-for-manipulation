@@ -24,4 +24,23 @@
   {
     classifier_dataset_dir: classifier_data/baseline_gt_rope_1608314703
   }
+  learn_classifier:
+  {
+    model_dir: cl_trials/baseline_gt_rope_1608336301/December_18_19-05-02_c53db41763
+  }
+  make_recovery_dataset:
+  {
+    recovery_dataset_dir: recovery_data/baseline_gt_rope_1608347200
+  }
+  learn_recovery:
+  {
+    model_dir: /home/peter/catkin_ws/src/link_bot/link_bot_planning/recovery_trials/baseline_gt_rope_1608347200/December_18_23-43-38_c53db41763
+  }
+  learned_recovery:
+  {
+    0:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/baseline_gt_rope_1606682149/learned_recovery/0_metrics.json.gz
+    }
+  }
 }
