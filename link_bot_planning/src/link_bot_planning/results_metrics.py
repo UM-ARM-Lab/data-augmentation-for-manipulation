@@ -11,7 +11,6 @@ from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout
 from link_bot_pycommon.metric_utils import row_stats
 
 
-
 class ResultsMetric:
     def __init__(self, args, results_dir: pathlib.Path):
         super().__init__()
@@ -38,12 +37,73 @@ class ResultsMetric:
             self.values[method_name] = np.array(metric_values)
 
 
+class BoxplotOverTrialsPerMethod(ResultsMetric):
+    def __init__(self, args, results_dir: pathlib.Path):
+        super().__init__(args, results_dir)
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        return trial_datum['total_time']
+
+
+class TaskError(ResultsMetric):
+    def __init__(self, args, results_dir: pathlib.Path):
+        super().__init__(args, results_dir)
+        self.goal_threshold = None
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        goal = trial_datum['goal']
+        final_actual_state = trial_datum['end_state']
+        final_execution_to_goal_error = scenario.distance_to_goal(final_actual_state, goal)
+        return final_execution_to_goal_error
+
+    def setup_method(self, method_name: str, metadata: Dict):
+        super().setup_method(method_name, metadata)
+        planner_params = metadata['planner_params']
+        if 'goal_params' in planner_params:
+            self.goal_threshold = planner_params['goal_params']['threshold']
+        else:
+            self.goal_threshold = planner_params['goal_threshold']
+
+
+class NRecoveryActions(BoxplotOverTrialsPerMethod):
+    def __init__(self, args, results_dir: pathlib.Path):
+        super().__init__(args, results_dir)
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        steps = trial_datum['steps']
+        n_recovery = 0
+        for step in steps:
+            if step['type'] == 'executed_recovery':
+                n_recovery += 1
+        return n_recovery
+
+
+class NPlanningAttempts(BoxplotOverTrialsPerMethod):
+    def __init__(self, args, results_dir: pathlib.Path):
+        super().__init__(args, results_dir)
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        return len(trial_datum['steps'])
+
+
+class TotalTime(BoxplotOverTrialsPerMethod):
+    def __init__(self, args, results_dir: pathlib.Path):
+        super().__init__(args, results_dir)
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        return trial_datum['total_time']
+
+
 class MyFigure:
     def __init__(self, analysis_params: Dict, metric: ResultsMetric, name: str):
         super().__init__()
         self.metric = metric
         self.params = analysis_params
         self.name = name
+        self.fig, self.ax = self.create_figure()
+
+    def create_figure(self):
+        raise NotImplementedError()
 
     def make_table(self, table_format):
         table_data = []
@@ -89,20 +149,16 @@ class MyFigure:
         self.metric.values = sorted_values
         self.enumerate_methods()
 
-class BoxplotOverTrialsPerMethod(ResultsMetric):
-    def __init__(self, args, results_dir: pathlib.Path):
-        super().__init__(args, results_dir)
-
-    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
-        return trial_datum['total_time']
 
 class BoxplotOverTrialsPerMethodFigure(MyFigure):
-    def __init__(self, analysis_params : Dict, metric, ylabel : str):
+    def __init__(self, analysis_params: Dict, metric, ylabel: str):
         super().__init__(analysis_params, metric, name="task_error_boxplot")
-        self.fig, self.ax = plt.subplots(figsize=(7.3, 4))
         self.ax.set_xlabel("Method")
         self.ax.set_ylabel(ylabel)
         self.trendline = self.params.get('trendline', False)
+
+    def create_figure(self):
+        return plt.subplots(figsize=(7.3, 4))
 
     def add_to_figure(self, method_name: str, values: List, color):
         x = self.metric.method_indices[method_name]
@@ -124,33 +180,12 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
 
     def finish_figure(self):
         # don't a legend for these plots
-        self.ax.set_xticklabels(self.values.keys())
+        self.ax.set_xticklabels(self.metric.values.keys())
 
 
-class FinalExecutionToGoalError(ResultsMetric):
-    def __init__(self, args, results_dir: pathlib.Path):
-        super().__init__(args, results_dir, "Final Execution to Goal Distance")
-        self.goal_threshold = None
-
-    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
-        goal = trial_datum['goal']
-        final_actual_state = trial_datum['end_state']
-        final_execution_to_goal_error = scenario.distance_to_goal(final_actual_state, goal)
-        return final_execution_to_goal_error
-
-    def setup_method(self, method_name: str, metadata: Dict):
-        super().setup_method(method_name, metadata)
-        planner_params = metadata['planner_params']
-        if 'goal_params' in planner_params:
-            self.goal_threshold = planner_params['goal_params']['threshold']
-        else:
-            self.goal_threshold = planner_params['goal_threshold']
-
-
-class FinalExecutionToGoalErrorFigure(MyFigure):
-    def __init__(self, analysis_params : Dict, metric):
+class TaskErrorLineFigure(MyFigure):
+    def __init__(self, analysis_params: Dict, metric: TaskError):
         super().__init__(analysis_params, metric, name="task_error_lineplot")
-        self.fig, self.ax = plt.subplots(figsize=(7, 4))
         self.fig.suptitle(self.params['experiment_name'])
         max_error = self.params["max_error"]
         self.errors_thresholds = np.linspace(0.01, max_error, self.params["n_error_bins"])
@@ -158,6 +193,9 @@ class FinalExecutionToGoalErrorFigure(MyFigure):
         self.ax.set_ylabel("Success Rate")
         self.ax.set_ylim([-0.1, 100.5])
         self.fig.subplots_adjust(top=0.94)
+
+    def create_figure(self):
+        return plt.subplots(figsize=(7.3, 4))
 
     def add_to_figure(self, method_name: str, values: List, color):
         success_rate_at_thresholds = []
@@ -180,46 +218,22 @@ class FinalExecutionToGoalErrorFigure(MyFigure):
         return row
 
 
-class NRecoveryActions(BoxplotOverTrialsPerMethod):
-    def __init__(self, args, results_dir: pathlib.Path):
-        super().__init__(args, results_dir, "Recovery Actions")
-
-    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
-        steps = trial_datum['steps']
-        n_recovery = 0
-        for step in steps:
-            if step['type'] == 'executed_recovery':
-                n_recovery += 1
-        return n_recovery
-
-    def get_table_header(self):
-        return ["Name", "min", "max", "mean", "median", "std"]
+class NRecoveryActionsFigure(BoxplotOverTrialsPerMethodFigure):
+    def __init__(self, analysis_params: Dict, metric):
+        super().__init__(analysis_params, metric, "Recovery Actions")
 
 
-class NPlanningAttempts(BoxplotOverTrialsPerMethod):
-    def __init__(self, args, results_dir: pathlib.Path):
-        super().__init__(args, results_dir, "Planning Attempts")
-
-    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
-        return len(trial_datum['steps'])
-
-    def get_table_header(self):
-        return ["Name", "min", "max", "mean", "median", "std"]
+class NPlanningAttemptsFigure(BoxplotOverTrialsPerMethodFigure):
+    def __init__(self, analysis_params: Dict, metric):
+        super().__init__(analysis_params, metric, "Planning Attempts")
 
 
-class TotalTime(BoxplotOverTrialsPerMethod):
-    def __init__(self, args, results_dir: pathlib.Path):
-        super().__init__(args, results_dir, "Total Time")
-        self.ax.set_ylabel("Total Time")
-
-    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
-        return trial_datum['total_time']
-
-    def get_table_header(self):
-        return ["Name", "min", "max", "mean", "median", "std"]
+class TotalTimeBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
+    def __init__(self, analysis_params: Dict, metric):
+        super().__init__(analysis_params, metric, "Total Time")
 
 
-class TaskErrorBoxplot(BoxplotOverTrialsPerMethodFigure):
+class TaskErrorBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
     def __init__(self, analysis_params: Dict, metric):
         super().__init__(analysis_params, metric, "Task Error")
         self.ax.set_ylim([0.0, self.params["max_error"]])
@@ -247,5 +261,5 @@ class TaskErrorBoxplot(BoxplotOverTrialsPerMethodFigure):
         self.ax.plot(range(len(values)), np.mean(values, axis=1), c='b', zorder=2)
         self.ax.set_xticklabels(list(self.metric.values.keys()))
 
-    def make_table(self, table_format):
-        return None, None
+    def get_table_header(self):
+        return ["Name", "min", "max", "mean", "median", "std"]

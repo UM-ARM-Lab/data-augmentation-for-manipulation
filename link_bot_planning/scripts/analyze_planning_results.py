@@ -2,16 +2,12 @@
 import argparse
 import gzip
 import json
-import pathlib
 import pickle
-from typing import List
 
 import colorama
 import hjson
-import matplotlib.pyplot as plt
-import numpy as np
 import orjson
-from colorama import Style, Fore
+from colorama import Style
 from tabulate import tabulate
 
 import rospy
@@ -100,7 +96,7 @@ def metrics_main(args):
         # NRecoveryActions(analysis_params, metrics[1]),
         # TotalTime(analysis_params, metrics[2]),
         # NPlanningAttempts(analysis_params, metrics[3]),
-        TaskErrorBoxplot(analysis_params, metrics[0]),
+        TaskErrorBoxplotFigure(analysis_params, metrics[0]),
     ]
 
     for figure in figures:
@@ -148,7 +144,7 @@ def metrics_main(args):
 
 def generate_metrics(args, out_dir, subfolders_ordered):
     metrics = [
-        FinalExecutionToGoalError(args, results_dir=out_dir),
+        TaskError(args, results_dir=out_dir),
         NRecoveryActions(args, results_dir=out_dir),
         TotalTime(args, results_dir=out_dir),
         NPlanningAttempts(args, results_dir=out_dir),
