@@ -110,7 +110,7 @@ def metrics_main(args):
         table_header, table_data = figure.make_table(table_format)
         if table_data is None:
             continue
-        print(Style.BRIGHT + figure.metric.name + Style.NORMAL)
+        print(Style.BRIGHT + figure.name + Style.NORMAL)
         table = tabulate(table_data,
                          headers=table_header,
                          tablefmt=table_format,
@@ -119,13 +119,13 @@ def metrics_main(args):
                          stralign='left')
         print(table)
         print()
-        table_outfile.write(figure.metric.name)
+        table_outfile.write(figure.name)
         table_outfile.write('\n')
         table_outfile.write(table)
         table_outfile.write('\n')
 
     for figure in figures:
-        pvalue_table_title = f"p-value matrix [{figure.metric.name}]"
+        pvalue_table_title = f"p-value matrix [{figure.name}]"
         pvalue_table = dict_to_pvalue_table(figure.metric.values, table_format=table_format)
         print(Style.BRIGHT + pvalue_table_title + Style.NORMAL)
         print(pvalue_table)
