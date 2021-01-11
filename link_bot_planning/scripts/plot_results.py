@@ -42,10 +42,11 @@ def main():
             metrics_str = metrics_file.read()
         datum = json.loads(metrics_str.decode("utf-8"))
 
+        print(f"Trial {trial_idx} ...")
         if if_filter_with_status(datum, args.filter_by_status):
             plot_steps(args, scenario, datum, metadata, {'threshold': 0.065})
 
-        print(f"Trial {trial_idx} complete with status {datum['trial_status']}")
+        print(f"... complete with status {datum['trial_status']}")
 
 
 def plot_recovery(args, scenario, step, metadata):
@@ -185,7 +186,6 @@ def plot_steps(args, scenario, datum, metadata, fallback_labeing_params: Dict):
             return '#ff00ff'
 
     scenario.reset_planning_viz()
-    dist_to_goal = np.inf
     while not anim.done:
         scenario.plot_environment_rviz(environment)
         t = anim.t()
@@ -213,7 +213,6 @@ def plot_steps(args, scenario, datum, metadata, fallback_labeing_params: Dict):
         actually_at_goal = dist_to_goal < goal_threshold
         scenario.plot_goal_rviz(goal, goal_threshold, actually_at_goal)
         anim.step()
-    print(f"final dist to goal {dist_to_goal:.3f}")
 
 
 if __name__ == '__main__':

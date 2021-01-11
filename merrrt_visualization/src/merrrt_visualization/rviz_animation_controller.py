@@ -109,6 +109,10 @@ class RvizAnimationController:
         else:
             if self.idx > 0:
                 self.idx -= 1
+            elif self.loop:
+                self.idx -= 1
+                if self.idx == -1:
+                    self.idx = self.max_idx - 1
 
         t_msg = Int64()
         t_msg.data = self.time_steps[self.idx]
