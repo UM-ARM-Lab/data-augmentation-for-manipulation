@@ -89,7 +89,7 @@ def metrics_main(args):
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
     else:
         rospy.loginfo(Fore.GREEN + f"Generating metrics")
-        metrics = generate_metrics(analysis_params, args, out_dir, subfolders_ordered)
+        metrics = generate_metrics(args, out_dir, subfolders_ordered)
 
         with pickle_filename.open("wb") as pickle_file:
             pickle.dump(metrics, pickle_file)
@@ -146,13 +146,12 @@ def metrics_main(args):
         plt.show()
 
 
-def generate_metrics(analysis_params, args, out_dir, subfolders_ordered):
+def generate_metrics(args, out_dir, subfolders_ordered):
     metrics = [
-        FinalExecutionToGoalError(args, analysis_params, results_dir=out_dir),
-        # NRecoveryActions(args, analysis_params, results_dir=out_dir),
-        # TotalTime(args, analysis_params, results_dir=out_dir),
-        # NPlanningAttempts(args, analysis_params, results_dir=out_dir),
-        # TaskErrorBoxplot(args, analysis_params, results_dir=out_dir),
+        FinalExecutionToGoalError(args, results_dir=out_dir),
+        NRecoveryActions(args, results_dir=out_dir),
+        TotalTime(args, results_dir=out_dir),
+        NPlanningAttempts(args, results_dir=out_dir),
     ]
     for subfolder in subfolders_ordered:
         metrics_filenames = list(subfolder.glob("*_metrics.json.gz"))
