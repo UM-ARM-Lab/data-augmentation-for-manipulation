@@ -19,4 +19,22 @@
     ]
     classifier_threshold: 0.06606092154979704
   }
+  filename: log/naive_tracking_1607960402/logfile.hjson
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/naive_tracking_1608434249
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/naive_tracking_1608434249/December_19_22-25-48_d99c056734
+  }
+  make_recovery_dataset:
+  {
+    recovery_dataset_dir: recovery_data/naive_tracking_1608434249
+  }
+  learn_recovery:
+  {
+    model_dir: /home/peter/catkin_ws/src/link_bot/link_bot_planning/recovery_trials/naive_tracking_1608434249/December_20_01-19-43_d99c056734
+  }
+  planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/naive_tracking_1607960402
 }
