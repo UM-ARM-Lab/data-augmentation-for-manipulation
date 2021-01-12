@@ -124,6 +124,8 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
 
                 # # BEGIN DEBUG
                 # from link_bot_data.visualization import init_viz_env, recovery_transition_viz_t, init_viz_action
+                # from link_bot_data.recovery_dataset import compute_recovery_probabilities
+                # from merrrt_visualization.rviz_animation_controller import RvizAnimation
                 # from copy import deepcopy
                 #
                 # viz_out_example_b = deepcopy(out_example_b)

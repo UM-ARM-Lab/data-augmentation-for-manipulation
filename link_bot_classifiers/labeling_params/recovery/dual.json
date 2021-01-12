@@ -1,6 +1,5 @@
 {
-  "threshold": 0.0453338947147131,
-  "state_key": "link_bot",
+  "threshold": 0.030306979268789284,
   "action_sequence_horizon": 2,
   "n_action_samples": 32,
   "start_step": 4
