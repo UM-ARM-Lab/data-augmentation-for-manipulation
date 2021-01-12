@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.0)
 project(merrrt_visualization)
 
 find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
-find_package(catkin REQUIRED COMPONENTS roscpp peter_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp peter_msgs arc_utilities)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
@@ -16,7 +16,7 @@ catkin_package()
 
 catkin_package(
    INCLUDE_DIRS include
-   CATKIN_DEPENDS roscpp peter_msgs
+   CATKIN_DEPENDS roscpp peter_msgs arc_utilities
    )
 
 set(rviz_animation_controller_src

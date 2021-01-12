@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>link_bot_perception</name>
+  <version>0.0.0</version>
+  <description>The link_bot_perception package</description>
+
+  <maintainer email="peter@todo.todo">peter</maintainer>
+
+  <license>TODO</license>
+
+  <author >peter</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+</package>

@@ -1,0 +1,15 @@
+<launch>
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find link_bot_perception)/custom_rosconsole.conf"/>
+
+    <param name="rope_num_points" value="25"/>
+    <param name="rope_length" value="0.80"/>
+    <node pkg="cdcpd_ros" type="cdcpd_node" name="cdcpd_node" respawn="true">
+        <param name="kinect_channel" value="qhd"/>
+        <param name="left_tf_name" value="left_tool"/>
+        <param name="right_tf_name" value="right_tool"/>
+        <param name="lambda" value="1.0"/>
+        <param name="left_node_idx" value="0"/>
+        <param name="right_node_idx" value="24"/>
+    </node>
+</launch>
+<!--node _kinect_channel:="qhd" _left_tf_name:="left_tool" _right_tf_name:="right_tool" _lambda:="10.0" _rope_length:="0.80" _left_node_idx:="0" _right_node_idx:="24" _rope_num_points:="25"-->

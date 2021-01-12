@@ -1,80 +1,85 @@
-#include <merrrt_visualization/color_filter_widget.h>
-
 #include <iostream>
+#include <string>
+
+#include <merrrt_visualization/color_filter_widget.h>
+#include <arc_utilities/ros_helpers.hpp>
+
+auto constexpr default_cdcpd_node_name = "cdcpd_node";
 
 namespace merrrt_visualization
 {
 ColorFilterWidget::ColorFilterWidget(QWidget *parent)
-  : rviz::Panel(parent)
+    : rviz::Panel(parent)
 {
   ui.setupUi(this);
-  connect(ui.mask1_lower_h, &QSlider::sliderMoved, this, &ColorFilterWidget::OnMask1LowerHMoved);
+  connect(ui.min_hue_slider, &QSlider::sliderMoved, this, &ColorFilterWidget::MinHueMoved);
+  connect(ui.max_hue_slider, &QSlider::sliderMoved, this, &ColorFilterWidget::MaxHueMoved);
+  connect(ui.min_sat_slider, &QSlider::sliderMoved, this, &ColorFilterWidget::MinSatMoved);
+  connect(ui.max_sat_slider, &QSlider::sliderMoved, this, &ColorFilterWidget::MaxSatMoved);
+  connect(ui.min_val_slider, &QSlider::sliderMoved, this, &ColorFilterWidget::MinValMoved);
+  connect(ui.max_val_slider, &QSlider::sliderMoved, this, &ColorFilterWidget::MaxValMoved);
 }
 
-void ColorFilterWidget::OnMask1LowerHMoved(int const position)
+void ColorFilterWidget::MinHueMoved(int const position)
 {
-  ros::param::set("mask1_lower_h", static_cast<float>(position));
+  auto const cdcpd_node_name = ROSHelpers::GetParamDebugLog<std::string>(nh, "cdcpd_node_name", default_cdcpd_node_name);
+  auto const param_name = ros::names::append(cdcpd_node_name, "hue_min");
+  auto const value = static_cast<double>(position);
+  ros::param::set(param_name, value);
+  ui.min_hue_label->setText(QString::number(value));
 }
 
-void ColorFilterWidget::OnMask1LowerSMoved(int const position)
+void ColorFilterWidget::MinSatMoved(int const position)
 {
-  ros::param::set("mask1_lower_s", static_cast<float>(position) / 10.f);
+  auto const cdcpd_node_name = ROSHelpers::GetParamDebugLog<std::string>(nh, "cdcpd_node_name", default_cdcpd_node_name);
+  auto const param_name = ros::names::append(cdcpd_node_name, "saturation_min");
+  auto const value = static_cast<double>(position) / 100.0;
+  ros::param::set(param_name, value);
+  ui.min_sat_label->setText(QString::number(value));
 }
 
-void ColorFilterWidget::OnMask1LowerVMoved(int const position)
+void ColorFilterWidget::MinValMoved(int const position)
 {
-  ros::param::set("mask1_lower_v", static_cast<float>(position) / 10.f);
+  auto const cdcpd_node_name = ROSHelpers::GetParamDebugLog<std::string>(nh, "cdcpd_node_name", default_cdcpd_node_name);
+  auto const param_name = ros::names::append(cdcpd_node_name, "value_min");
+  auto const value = static_cast<double>(position) / 100.0;
+  ros::param::set(param_name, value);
+  ui.min_val_label->setText(QString::number(value));
 }
 
-void ColorFilterWidget::OnMask1UpperHMoved(int const position)
+void ColorFilterWidget::MaxHueMoved(int const position)
 {
-  ros::param::set("mask1_upper_h", static_cast<float>(position));
+  auto const cdcpd_node_name = ROSHelpers::GetParamDebugLog<std::string>(nh, "cdcpd_node_name", default_cdcpd_node_name);
+  auto const param_name = ros::names::append(cdcpd_node_name, "hue_max");
+  auto const value = static_cast<double>(position);
+  ros::param::set(param_name, value);
+  ui.max_hue_label->setText(QString::number(value));
 }
 
-void ColorFilterWidget::OnMask1UpperSMoved(int const position)
+void ColorFilterWidget::MaxSatMoved(int const position)
 {
-  ros::param::set("mask1_upper_s", static_cast<float>(position) / 10.f);
+  auto const cdcpd_node_name = ROSHelpers::GetParamDebugLog<std::string>(nh, "cdcpd_node_name", default_cdcpd_node_name);
+  auto const param_name = ros::names::append(cdcpd_node_name, "saturation_max");
+  auto const value = static_cast<double>(position) / 100.0;
+  ros::param::set(param_name, value);
+  ui.max_sat_label->setText(QString::number(value));
 }
 
-void ColorFilterWidget::OnMask1UpperVMoved(int const position)
+void ColorFilterWidget::MaxValMoved(int const position)
 {
-  ros::param::set("mask1_upper_v", static_cast<float>(position) / 10.f);
+  auto const cdcpd_node_name = ROSHelpers::GetParamDebugLog<std::string>(nh, "cdcpd_node_name", default_cdcpd_node_name);
+  auto const param_name = ros::names::append(cdcpd_node_name, "value_max");
+  auto const value = static_cast<double>(position) / 100.0;
+  ros::param::set(param_name, value);
+  ui.max_val_label->setText(QString::number(value));
 }
 
-void ColorFilterWidget::OnMask2LowerHMoved(int const position)
-{
-  ros::param::set("mask2_lower_h", static_cast<float>(position));
-}
-
-void ColorFilterWidget::OnMask2LowerSMoved(int const position)
-{
-  ros::param::set("mask2_lower_s", static_cast<float>(position) / 10.f);
-}
-
-void ColorFilterWidget::OnMask2LowerVMoved(int const position)
-{
-  ros::param::set("mask2_lower_v", static_cast<float>(position) / 10.f);
-}
-
-void ColorFilterWidget::OnMask2UpperHMoved(int const position)
-{
-  ros::param::set("mask2_upper_h", static_cast<float>(position));
-}
-
-void ColorFilterWidget::OnMask2UpperSMoved(int const position)
-{
-  ros::param::set("mask2_upper_s", static_cast<float>(position) / 10.f);
-}
-
-void ColorFilterWidget::OnMask2UpperVMoved(int const position)
-{
-  ros::param::set("mask2_upper_v", static_cast<float>(position) / 10.f);
-}
 
 void ColorFilterWidget::load(const rviz::Config &config)
 {
   rviz::Panel::load(config);
 }
+
 void ColorFilterWidget::save(rviz::Config config) const
 {
   rviz::Panel::save(config);
@@ -83,4 +88,5 @@ void ColorFilterWidget::save(rviz::Config config) const
 }  // namespace merrrt_visualization
 
 #include <pluginlib/class_list_macros.h>
+
 PLUGINLIB_EXPORT_CLASS(merrrt_visualization::ColorFilterWidget, rviz::Panel)

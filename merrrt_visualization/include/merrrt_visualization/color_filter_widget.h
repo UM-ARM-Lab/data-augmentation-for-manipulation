@@ -24,24 +24,18 @@ public:
   void save(rviz::Config config) const override;
 
 public slots:
-  void OnMask1LowerHMoved(int position);
-  void OnMask1LowerSMoved(int position);
-  void OnMask1LowerVMoved(int position);
+  void MinHueMoved(int position);
+  void MinSatMoved(int position);
+  void MinValMoved(int position);
 
-  void OnMask1UpperHMoved(int position);
-  void OnMask1UpperSMoved(int position);
-  void OnMask1UpperVMoved(int position);
-
-  void OnMask2LowerHMoved(int position);
-  void OnMask2LowerSMoved(int position);
-  void OnMask2LowerVMoved(int position);
-
-  void OnMask2UpperHMoved(int position);
-  void OnMask2UpperSMoved(int position);
-  void OnMask2UpperVMoved(int position);
+  void MaxHueMoved(int position);
+  void MaxSatMoved(int position);
+  void MaxValMoved(int position);
 
 private:
   Ui_ColorFilterWidget ui;
+
+  ros::NodeHandle nh;
 };
 
 }  // namespace merrrt_visualization

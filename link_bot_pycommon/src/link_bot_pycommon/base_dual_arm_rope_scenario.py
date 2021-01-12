@@ -3,6 +3,8 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
+import rosnode
+
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
     import moveit_commander
@@ -20,7 +22,7 @@ from arm_gazebo_msgs.srv import ExcludeModels, ExcludeModelsRequest, ExcludeMode
 from peter_msgs.srv import GetOverstretchingResponse, GetOverstretchingRequest
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState, PointCloud2
-from std_srvs.srv import Empty, EmptyRequest
+from std_srvs.srv import Empty
 from tf.transformations import quaternion_from_euler
 
 
@@ -35,7 +37,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
                                                    queue_size=10)
         self.goto_home_srv = rospy.ServiceProxy("goto_home", Empty)
         self.cdcpd_listener = Listener("cdcpd/output", PointCloud2)
-        self.cdcpd_reset_srv = rospy.ServiceProxy("cdcpd/reset", Empty)
         self.attach_srv = rospy.ServiceProxy("/link_attacher_node/attach", Attach)
         self.detach_srv = rospy.ServiceProxy("/link_attacher_node/detach", Attach)
 
@@ -104,7 +105,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
 
     def get_state(self):
         # TODO: this should be composed of function calls to get_state for arm_no_rope and get_state for rope?
-        joint_state = self.robot.joint_state_listener.get()
+        joint_state = self.robot._joint_state_listener.get()
 
         left_gripper_position, right_gripper_position = self.robot.get_gripper_positions()
 
@@ -157,7 +158,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
             self.joint_state_viz_pub.publish(joint_msg)
 
     def dynamics_dataset_metadata(self):
-        joint_state: JointState = self.robot.joint_state_listener.get()
+        joint_state: JointState = self.robot._joint_state_listener.get()
         kinect_pose = get_gazebo_kinect_pose()
         kinect_params = get_camera_params(self.KINECT_NAME)
         return {
@@ -202,4 +203,5 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         raise NotImplementedError()
 
     def reset_cdcpd(self):
-        self.cdcpd_reset_srv(EmptyRequest())
+        # since the launch file has respawn=true, we just need to kill cdcpd_node
+        rosnode.kill_nodes("cdcpd_node")
