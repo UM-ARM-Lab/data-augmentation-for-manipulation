@@ -59,7 +59,7 @@
   ]
   res: 0.02
   max_step_size: 0.01
-  real_time_rate: 5.0
+  real_time_rate: 0.0
   steps_per_traj: 10
   no_objects: false
   randomize_n: 16
