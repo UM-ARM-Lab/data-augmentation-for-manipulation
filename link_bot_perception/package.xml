@@ -11,5 +11,8 @@
   <author >peter</author>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <depend>rospy</depend>
+  <depend>cdcpd_ros</depend>
+  <depend>link_bot_data</depend>
 
 </package>

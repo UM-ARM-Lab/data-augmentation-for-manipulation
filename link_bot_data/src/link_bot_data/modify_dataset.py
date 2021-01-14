@@ -21,7 +21,7 @@ def modify_hparams(in_dir: pathlib.Path, out_dir: pathlib.Path, update: Optional
     in_hparams = hjson.loads(in_hparams_str)
 
     out_hparams = in_hparams
-    algorithms.update(out_hparams, update)
+    algorithms.nested_dict_update(out_hparams, update)
     out_hparams_str = hjson.dumps(out_hparams)
     with (out_dir / 'hparams.hjson').open("w") as out_f:
         out_f.write(out_hparams_str)

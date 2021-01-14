@@ -19,8 +19,15 @@ def main():
 
     if args.input.is_file():
         filenames = [args.input]
+    elif not args.input.exists():
+        print("directory not found")
+        return
     else:
         filenames = [filename for filename in args.input.glob("{}/*.tfrecords".format(args.mode))]
+        if len(filenames) == 0:
+            print("No tfrecords found")
+            return
+
     for filename in filenames:
         example = next(iter(tf.data.TFRecordDataset(filename.as_posix(), compression_type='ZLIB'))).numpy()
         message = tf.train.Example.FromString(example)

@@ -13,6 +13,7 @@ from geometry_msgs.msg import Point
 from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted
 from link_bot_data.visualization import rviz_arrow
 from link_bot_gazebo_python.gazebo_services import gz_scope
+from link_bot_gazebo_python.gazebo_utils import get_gazebo_kinect_pose
 from link_bot_gazebo_python.position_3d import Position3D
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.base_3d_scenario import Base3DScenario
@@ -23,12 +24,13 @@ from link_bot_pycommon.constants import KINECT_MAX_DEPTH
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import default_if_none
-from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image
+from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params, \
+    transform_points_to_robot_frame
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
 from moonshine.moonshine_utils import numpify, remove_batch
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
-from sensor_msgs.msg import Image, PointCloud2
+from sensor_msgs.msg import Image, PointCloud2, CameraInfo
 from std_msgs.msg import Float32
 from std_srvs.srv import Empty, EmptyRequest
 from tf import transformations
@@ -47,8 +49,10 @@ class FloatingRopeScenario(Base3DScenario):
     IMAGE_W = 160
     n_links = 25
     KINECT_NAME = "kinect2"
-    COLOR_IMAGE_TOPIC = ns_join(KINECT_NAME, "qhd/image_color_rect")
-    DEPTH_IMAGE_TOPIC = ns_join(KINECT_NAME, "qhd/image_depth_rect")
+    KINECT_CHANNEL = "qhd"
+    COLOR_IMAGE_TOPIC = ns_join(KINECT_NAME, ns_join(KINECT_CHANNEL, "image_color_rect"))
+    DEPTH_IMAGE_TOPIC = ns_join(KINECT_NAME, ns_join(KINECT_CHANNEL, "image_depth_rect"))
+    CAMERA_INFO_TOPIC = ns_join(KINECT_NAME, ns_join(KINECT_CHANNEL, "camera_info"))
     crop_region = {
         'min_y': 0,
         'min_x': 0,
@@ -60,11 +64,11 @@ class FloatingRopeScenario(Base3DScenario):
     # TODO: break out the different pieces of get_state to make them composable,
     #  since there are just a few shared amongst all the scenarios
     # TODO: about this... maybe they should all be pure functions? do we really need "self" at all?
-    #  the one reason we have classes at all is so that we can describe interfaces via type hints
     def __init__(self):
         super().__init__()
         self.color_image_listener = Listener(self.COLOR_IMAGE_TOPIC, Image)
         self.depth_image_listener = Listener(self.DEPTH_IMAGE_TOPIC, Image)
+        self.camera_info_listener = Listener(self.CAMERA_INFO_TOPIC, CameraInfo)
         self.state_color_viz_pub = rospy.Publisher("state_color_viz", Image, queue_size=10, latch=True)
         self.state_depth_viz_pub = rospy.Publisher("state_depth_viz", Image, queue_size=10, latch=True)
         self.last_action = None
@@ -160,6 +164,17 @@ class FloatingRopeScenario(Base3DScenario):
         reset.right_gripper.z = numpify(action_params['right_gripper_reset_position'][2])
 
         self.set_rope_state_srv(reset)
+
+    def dynamics_dataset_metadata(self):
+        metadata = super().dynamics_dataset_metadata()
+        kinect_pose = get_gazebo_kinect_pose()
+        kinect_params = get_camera_params(self.KINECT_NAME)
+        metadata.update({
+            'world_to_rgb_optical_frame': self.tf.get_transform(parent='world', child='kinect2_rgb_optical_frame'),
+            'kinect_pose':   ros_numpy.numpify(kinect_pose),
+            'kinect_params': kinect_params,
+        })
+        return metadata
 
     def sample_action(self,
                       action_rng: np.random.RandomState,
@@ -376,15 +391,7 @@ class FloatingRopeScenario(Base3DScenario):
     def get_cdcpd_state(self):
         cdcpd_msg: PointCloud2 = self.cdcpd_listener.get()
 
-        # transform into robot-frame
-        transform = self.tf.get_transform_msg("robot_root", "kinect2_rgb_optical_frame")
-        cdcpd_points_robot_frame = tf2_sensor_msgs.do_transform_cloud(cdcpd_msg, transform)
-
-        cdcpd_points_array = ros_numpy.numpify(cdcpd_points_robot_frame)
-        x = cdcpd_points_array['x']
-        y = cdcpd_points_array['y']
-        z = cdcpd_points_array['z']
-        points = np.stack([x, y, z], axis=-1)
+        points = transform_points_to_robot_frame(self.tf, cdcpd_msg)
 
         cdcpd_vector = points.flatten()
         return cdcpd_vector
@@ -420,11 +427,14 @@ class FloatingRopeScenario(Base3DScenario):
         cdcpd_vector = self.get_cdcpd_state()
         left_rope_point_position, right_rope_point_position = self.get_rope_point_positions()
 
+        # camera_info_msg : CameraInfo = self.camera_info_listener.get()
+        # 'camera_info': camera_info_msg,
+
         return {
             'left_gripper':  left_rope_point_position,
             'right_gripper': right_rope_point_position,
             'gt_rope':       np.array(rope_state_vector, np.float32),
-            rope_key_name:   np.array(cdcpd_vector, np.float32),
+            # rope_key_name:   np.array(cdcpd_vector, np.float32),
             'rgbd':          color_depth_cropped,
         }
 
@@ -439,16 +449,16 @@ class FloatingRopeScenario(Base3DScenario):
         # NaN Depths means out of range, so clip to the max range
         depth = np.clip(np.nan_to_num(depth, nan=KINECT_MAX_DEPTH), 0, KINECT_MAX_DEPTH)
         rgbd = np.concatenate([rgb, depth], axis=2)
-        box = tf.convert_to_tensor([self.crop_region['min_y'] / rgb.shape[0],
-                                    self.crop_region['min_x'] / rgb.shape[1],
-                                    self.crop_region['max_y'] / rgb.shape[0],
-                                    self.crop_region['max_x'] / rgb.shape[1]], dtype=tf.float32)
+        # box = tf.convert_to_tensor([self.crop_region['min_y'] / rgb.shape[0],
+        #                             self.crop_region['min_x'] / rgb.shape[1],
+        #                             self.crop_region['max_y'] / rgb.shape[0],
+        #                             self.crop_region['max_x'] / rgb.shape[1]], dtype=tf.float32)
         # this operates on a batch
-        rgbd_cropped = tf.image.crop_and_resize(image=tf.expand_dims(rgbd, axis=0),
-                                                boxes=tf.expand_dims(box, axis=0),
-                                                box_indices=[0],
-                                                crop_size=[self.IMAGE_H, self.IMAGE_W])
-        rgbd_cropped = remove_batch(rgbd_cropped)
+        # rgbd_cropped = tf.image.crop_and_resize(image=tf.expand_dims(rgbd, axis=0),
+        #                                         boxes=tf.expand_dims(box, axis=0),
+        #                                         box_indices=[0],
+        #                                         crop_size=[self.IMAGE_H, self.IMAGE_W])
+        # rgbd_cropped = remove_batch(rgbd_cropped)
 
         def _debug_show_image(_rgb_depth_cropped):
             import matplotlib.pyplot as plt
@@ -458,7 +468,9 @@ class FloatingRopeScenario(Base3DScenario):
         # BEGIN DEBUG
         # _debug_show_image(rgbd_cropped)
         # END DEBUG
-        return rgbd_cropped.numpy()
+        # return rgbd_cropped.numpy()
+        return rgbd
+
 
     def observations_description(self) -> Dict:
         return {
@@ -613,22 +625,22 @@ class FloatingRopeScenario(Base3DScenario):
             rope_points = tf.reshape(goal_state[rope_key_name], [-1, 3])
             rope_midpoint = rope_points[int(FloatingRopeScenario.n_links / 2)]
             return {
-                'goal_type':     goal_type,
-                'midpoint': rope_midpoint,
+                'goal_type': goal_type,
+                'midpoint':  rope_midpoint,
             }
         elif goal_type == 'any_point':
             # NOTE: since all points on the sampled ropes are the same point, it doesn't matter which one we pick here
             rope_points = tf.reshape(goal_state[rope_key_name], [-1, 3])
             rope_point = rope_points[0]
             return {
-                'goal_type':  goal_type,
-                'point': rope_point,
+                'goal_type': goal_type,
+                'point':     rope_point,
             }
         elif goal_type == 'grippers':
             left_gripper = goal_state['left_gripper']
             right_gripper = goal_state['right_gripper']
             return {
-                'goal_type':          goal_type,
+                'goal_type':     goal_type,
                 'left_gripper':  left_gripper,
                 'right_gripper': right_gripper,
             }
@@ -638,7 +650,7 @@ class FloatingRopeScenario(Base3DScenario):
             rope_points = tf.reshape(goal_state[rope_key_name], [-1, 3])
             rope_point = rope_points[0]
             return {
-                'goal_type':          goal_type,
+                'goal_type':     goal_type,
                 'point':         rope_point,
                 'left_gripper':  left_gripper,
                 'right_gripper': right_gripper,

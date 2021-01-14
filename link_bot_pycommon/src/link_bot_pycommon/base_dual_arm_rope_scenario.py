@@ -158,14 +158,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
             self.joint_state_viz_pub.publish(joint_msg)
 
     def dynamics_dataset_metadata(self):
+        metadata = super().dynamics_dataset_metadata()
         joint_state: JointState = self.robot._joint_state_listener.get()
-        kinect_pose = get_gazebo_kinect_pose()
-        kinect_params = get_camera_params(self.KINECT_NAME)
-        return {
+        metadata.update({
             'joint_names':   joint_state.name,
-            'kinect_pose':   ros_numpy.numpify(kinect_pose),
-            'kinect_params': kinect_params,
-        }
+        })
+        return metadata
 
     @staticmethod
     def simple_name():
