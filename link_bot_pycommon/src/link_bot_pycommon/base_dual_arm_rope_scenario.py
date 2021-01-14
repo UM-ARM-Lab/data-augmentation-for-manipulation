@@ -14,10 +14,9 @@ from arc_utilities.listener import Listener
 from arm_robots.get_moveit_robot import get_moveit_robot
 from gazebo_ros_link_attacher.srv import Attach
 from geometry_msgs.msg import PoseStamped
-from link_bot_gazebo_python.gazebo_utils import get_gazebo_kinect_pose
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
-from link_bot_pycommon.ros_pycommon import get_environment_for_extents_3d, get_camera_params
+from link_bot_pycommon.ros_pycommon import get_environment_for_extents_3d
 from arm_gazebo_msgs.srv import ExcludeModels, ExcludeModelsRequest, ExcludeModelsResponse
 from peter_msgs.srv import GetOverstretchingResponse, GetOverstretchingRequest
 from rosgraph.names import ns_join
@@ -109,20 +108,25 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
 
         left_gripper_position, right_gripper_position = self.robot.get_gripper_positions()
 
-        color_depth_cropped = self.get_rgbd()
+        rgbd = self.get_rgbd()
 
-        rope_state_vector = self.get_rope_state()
+        gt_rope_state_vector = self.get_rope_state()
+        gt_rope_state_vector = np.array(gt_rope_state_vector, np.float32)
 
-        cdcpd_vector = self.get_cdcpd_state()
+        # here we use ground-truth rope
+        rope_state_vector = gt_rope_state_vector
+        # here we use cdcpd
+        # cdcpd_vector = self.get_cdcpd_state()
+        # rope_state_vector = np.array(cdcpd_vector, np.float32)
 
         return {
             'joint_positions': np.array(joint_state.position),
             'joint_names':     np.array(joint_state.name),
             'left_gripper':    ros_numpy.numpify(left_gripper_position),
             'right_gripper':   ros_numpy.numpify(right_gripper_position),
-            'rope':            np.array(cdcpd_vector, np.float32),
-            'rgbd':            color_depth_cropped,
-            'gt_rope':         np.array(rope_state_vector, np.float32),
+            'rgbd':            rgbd,
+            'gt_rope':         gt_rope_state_vector,
+            'rope':            rope_state_vector,
         }
 
     def states_description(self) -> Dict:
@@ -161,7 +165,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         metadata = super().dynamics_dataset_metadata()
         joint_state: JointState = self.robot._joint_state_listener.get()
         metadata.update({
-            'joint_names':   joint_state.name,
+            'joint_names': joint_state.name,
         })
         return metadata
 

@@ -424,11 +424,8 @@ class FloatingRopeScenario(Base3DScenario):
         color_depth_cropped = self.get_rgbd()
 
         rope_state_vector = self.get_rope_state()
-        cdcpd_vector = self.get_cdcpd_state()
+        # cdcpd_vector = self.get_cdcpd_state()
         left_rope_point_position, right_rope_point_position = self.get_rope_point_positions()
-
-        # camera_info_msg : CameraInfo = self.camera_info_listener.get()
-        # 'camera_info': camera_info_msg,
 
         return {
             'left_gripper':  left_rope_point_position,
