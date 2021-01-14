@@ -1,6 +1,8 @@
 #!/usr/bin/env python
+from multiprocessing import Process
 import pathlib
-from time import perf_counter
+from threading import Thread
+from time import perf_counter, sleep
 from typing import Dict, Optional
 
 import hjson
@@ -154,9 +156,10 @@ class BaseDataCollector:
         self.scenario.randomization_initialization()
         self.scenario.on_before_data_collection(self.params)
 
-        t0 = perf_counter()
+        trial_start = perf_counter()
 
         combined_seeds = [traj_idx + 100000 * self.seed for traj_idx in range(n_trajs)]
+        write_process = None
         for traj_idx, seed in enumerate(combined_seeds):
             # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
             env_rng = np.random.RandomState(seed)
@@ -172,11 +175,18 @@ class BaseDataCollector:
 
             # Generate a new trajectory
             example = self.collect_trajectory(traj_idx=traj_idx, verbose=self.verbose, action_rng=action_rng)
-            print(f'traj {traj_idx}/{n_trajs} ({seed}), {perf_counter() - t0:.4f}s')
+            print(f'traj {traj_idx}/{n_trajs} ({seed}), {perf_counter() - trial_start:.4f}s')
 
             # Save the data
-            full_filename = self.write_example(full_output_directory, example, traj_idx)
-            files_dataset.add(full_filename)
+            def _write():
+                full_filename = self.write_example(full_output_directory, example, traj_idx)
+                files_dataset.add(full_filename)
+
+            # we may need to wait before writing again, because this won't parallelize well
+            if write_process is not None:
+                write_process.join()
+            write_process = Process(target=_write)
+            write_process.start()
 
         self.scenario.on_after_data_collection(self.params)
 
