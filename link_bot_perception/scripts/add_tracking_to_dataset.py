@@ -96,13 +96,17 @@ def main():
                 info_pub.publish(camera_info_msg)
 
             send()
-            # rospy.sleep(1.0)
+            rospy.sleep(0.1)
+            # FIXME: there's no guarantee that cdcpd has updated at this point
 
             # get the response
             cdcpd_msg: PointCloud2 = cdcpd_listener.get()
+            cdcpd_listener.data = None
             points = transform_points_to_robot_frame(tf, cdcpd_msg)
             cdcpd_vector = points.flatten()
             tracked_rope.append(cdcpd_vector)
+
+            rospy.sleep(1.0)
 
         example['rope'] = tracked_rope
         yield example
