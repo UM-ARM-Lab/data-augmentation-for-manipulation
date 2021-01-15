@@ -87,7 +87,7 @@
         </include>
 
         <!-- spawn the robot -->
-        <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+        <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false"
               args="-urdf -model $(arg robot_name) -param robot_description"/>
     </group>
 </launch>

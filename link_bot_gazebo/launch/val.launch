@@ -1,17 +1,24 @@
 <launch>
     <arg name="gui" default="true"/>
-    <arg name="verbose" default="true"/>
     <arg name="world" default="empty.world"/>
+    <arg name="use_cdcpd" default="true"/>
 
-    <include file="robot_in_gazebo.launch">
+    <include file="$(find link_bot_gazebo)/launch/robot_in_gazebo.launch">
         <arg name="world" value="$(arg world)"/>
         <arg name="use_victor" value="false"/>
         <arg name="use_val" value="true"/>
         <arg name="robot_name" value="hdt_michigan"/>
-        <arg name="verbose" value="$(arg verbose)"/>
+        <arg name="verbose" value="false"/>
         <arg name="gui" value="$(arg gui)"/>
         <arg name="pause" value="true"/>
         <arg name="debug_gazebo" value="false"/>
         <arg name="debug_moveit" value="false"/>
     </include>
+
+    <include file="$(find link_bot_gazebo)/launch/kinect_static_transforms.launch"/>
+
+    <group if="$(arg use_cdcpd)">
+        <include file="$(find link_bot_perception)/launch/rope_tracking.launch">
+        </include>
+    </group>
 </launch>
