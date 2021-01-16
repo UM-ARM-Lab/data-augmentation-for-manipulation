@@ -22,7 +22,6 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
         self.service_provider = GazeboServices()
 
-        # register a new callback to stop when the rope is overstretched
         self.set_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set"), Position3DAction)
 
     def execute_action(self, action: Dict):
@@ -32,7 +31,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         super().on_before_data_collection(params)
 
         # move to init positions
-        self.robot.plan_to_joint_config("both_arms", params['reset_joint_config'])
+        self.robot.plan_to_joint_config("both_arms", dict(params['reset_joint_config']))
 
         # Grasp the rope again
         self.grasp_rope_endpoints()
@@ -42,7 +41,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
         self.robot.store_tool_orientations({
             self.robot.right_tool_name: quaternion_from_euler(np.pi, 0, 0),
-            self.robot.left_tool_name : quaternion_from_euler(np.pi, 0, 0),
+            self.robot.left_tool_name:  quaternion_from_euler(np.pi, 0, 0),
         })
 
         # Mark the rope as a not-obstacle
@@ -62,7 +61,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.detach_rope_from_gripper('left_gripper')
 
         # plan to reset joint config, we assume this will always work
-        self.robot.plan_to_joint_config("both_arms", params['reset_joint_config'])
+        self.robot.plan_to_joint_config("both_arms", dict(params['reset_joint_config']))
 
         # Grasp the rope again
         self.grasp_rope_endpoints()
@@ -127,10 +126,10 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         with rosbag.Bag(bagfile_name) as bag:
             joint_state: JointState = next(iter(bag.read_messages(topics=['joint_state'])))[1]
 
-        joint_config = []
+        joint_config = {}
         for joint_name in self.robot.get_both_arm_joints():
             index_of_joint_name_in_state_msg = joint_state.name.index(joint_name)
-            joint_config.append(joint_state.position[index_of_joint_name_in_state_msg])
+            joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
         self.robot.plan_to_joint_config("both_arms", joint_config)
 
         self.service_provider.pause()
@@ -140,16 +139,33 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
     @staticmethod
     def simple_name():
-        return "dual_arm_rope_sim_victor"
+        return "sim_dual_arm_rope"
+
+    def __repr__(self):
+        return "SimDualArmRopeScenario"
 
 
-class SimVictorDualArmRopeScenario(BaseDualArmRopeScenario):
+class SimVictorDualArmRopeScenario(SimDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('victor')
 
+    @staticmethod
+    def simple_name():
+        return "sim_victor_dual_arm_rope"
 
-class SimValDualArmRopeScenario(BaseDualArmRopeScenario):
+    def __repr__(self):
+        return "SimVictorDualArmRopeScenario"
+
+
+class SimValDualArmRopeScenario(SimDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('hdt_michigan')
+
+    @staticmethod
+    def simple_name():
+        return "sim_val_dual_arm_rope"
+
+    def __repr__(self):
+        return "SimValDualArmRopeScenario"

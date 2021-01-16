@@ -34,7 +34,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         self.service_provider = BaseServices()
         self.joint_state_viz_pub = rospy.Publisher(ns_join(self.robot_namespace, "joint_states_viz"), JointState,
                                                    queue_size=10)
-        self.goto_home_srv = rospy.ServiceProxy("goto_home", Empty)
         self.cdcpd_listener = Listener("cdcpd/output", PointCloud2)
         self.attach_srv = rospy.ServiceProxy("/link_attacher_node/attach", Attach)
         self.detach_srv = rospy.ServiceProxy("/link_attacher_node/detach", Attach)
@@ -186,7 +185,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         right_gripper_points = [action['right_gripper_position']]
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         grippers = [left_gripper_points, right_gripper_points]
-        traj, result = self.robot.follow_jacobian_to_position("both_arms", tool_names, grippers, vel_scaling=0.1)
+        traj, result, _ = self.robot.follow_jacobian_to_position("both_arms", tool_names, grippers, vel_scaling=0.1)
 
         rope_settling_time = action.get('settling_time', 1.0)
         rospy.sleep(rope_settling_time)

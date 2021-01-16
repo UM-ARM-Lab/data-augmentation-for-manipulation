@@ -1,22 +1,33 @@
 {
   name: val_car
-  reset_joint_config: [
-  0,0 # torso
-  0,0,0,0,0,0,0, # left arm
-  0,0 # left gripper
-  0,0,0,0,0,0,0, # right arm
-  0,0 # right gripper
-  ]
+  reset_joint_config: {
+    joint56: 0.0
+    joint57: 0.0
+    joint41: 0.55
+    joint42: 0.64
+    joint43: -0.52
+    joint44: 0.57
+    joint45: 1.39
+    joint46: -1.00
+    joint47: -0.68
+    joint1: 0.53
+    joint2: -0.64
+    joint3: 0.52
+    joint4: 0.56
+    joint5: -1.37
+    joint6: 1.0
+    joint7: 0.67
+  }
   extent: [
-    0.45
+    -0.8
+    0.8
+    0.3
     1.2
-    -0.6
-    0.6
-    0.55
-    0.96
+    0.0
+    1.0
   ]
   left_gripper_action_sample_extent: [
-    0.8
+    -0.8
     0.8
     0.3
     1.2
@@ -43,7 +54,7 @@
   objects: [
   ]
   res: 0.01
-  max_step_size: 0.01
+  max_step_size: 0.001
   real_time_rate: 0.0
   steps_per_traj: 10
   no_objects: false

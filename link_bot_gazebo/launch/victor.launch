@@ -2,7 +2,7 @@
     <arg name="gui" default="true"/>
     <arg name="verbose" default="true"/>
     <arg name="world" default="empty.world"/>
-    <arg name="use_cdcpd" default="true"/>
+    <arg name="use_cdcpd" default="false"/>
 
     <include file="$(find link_bot_gazebo)/launch/robot_in_gazebo.launch">
         <arg name="world" value="$(arg world)"/>
