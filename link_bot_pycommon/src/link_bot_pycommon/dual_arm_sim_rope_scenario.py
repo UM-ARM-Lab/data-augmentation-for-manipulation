@@ -4,21 +4,21 @@ import numpy as np
 
 import rosbag
 import rospy
+from arm_gazebo_msgs.srv import ExcludeModelsRequest
 from link_bot_gazebo_python.gazebo_services import GazeboServices, gz_scope
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
-from arm_gazebo_msgs.srv import ExcludeModelsRequest
 from sensor_msgs.msg import JointState
 from tf.transformations import quaternion_from_euler
 
 
 class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
-    def __init__(self):
-        super().__init__('victor')
+    def __init__(self, robot_namespace):
+        super().__init__(robot_namespace)
 
         self.service_provider = GazeboServices()
 
@@ -42,7 +42,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
         self.robot.store_tool_orientations({
             self.robot.right_tool_name: quaternion_from_euler(np.pi, 0, 0),
-            self.robot.left_tool_name:  quaternion_from_euler(np.pi, 0, 0),
+            self.robot.left_tool_name : quaternion_from_euler(np.pi, 0, 0),
         })
 
         # Mark the rope as a not-obstacle
@@ -141,3 +141,15 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
     @staticmethod
     def simple_name():
         return "dual_arm_rope_sim_victor"
+
+
+class SimVictorDualArmRopeScenario(BaseDualArmRopeScenario):
+
+    def __init__(self):
+        super().__init__('victor')
+
+
+class SimValDualArmRopeScenario(BaseDualArmRopeScenario):
+
+    def __init__(self):
+        super().__init__('hdt_michigan')

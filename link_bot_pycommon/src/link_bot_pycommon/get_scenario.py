@@ -20,8 +20,13 @@ def make_dual_arm_scenario():
 
 
 def make_dual_arm_sim_victor_scenario():
-    from link_bot_pycommon.dual_arm_sim_rope_scenario import SimDualArmRopeScenario
-    return SimDualArmRopeScenario
+    from link_bot_pycommon.dual_arm_sim_rope_scenario import SimVictorDualArmRopeScenario
+    return SimVictorDualArmRopeScenario
+
+
+def make_dual_arm_sim_val_scenario():
+    from link_bot_pycommon.dual_arm_sim_rope_scenario import SimValDualArmRopeScenario
+    return SimValDualArmRopeScenario
 
 
 def make_floating_rope_scenario():
@@ -30,17 +35,18 @@ def make_floating_rope_scenario():
 
 
 scenario_map = {
-    'link_bot': make_rope_dragging_scenario,
-    'rope dragging': make_rope_dragging_scenario,
-    'rope_dragging': make_rope_dragging_scenario,
-    'dragging': make_rope_dragging_scenario,
-    'dual_arm': make_dual_arm_sim_victor_scenario,
-    'dual_arm_real_victor': make_dual_arm_real_victor_rope_scenario,
-    'dual_arm_rope_sim_victor': make_dual_arm_sim_victor_scenario,
-    'dual_arm_rope': make_dual_arm_sim_victor_scenario,
+    'link_bot':                   make_rope_dragging_scenario,
+    'rope dragging':              make_rope_dragging_scenario,
+    'rope_dragging':              make_rope_dragging_scenario,
+    'dragging':                   make_rope_dragging_scenario,
+    'dual_arm':                   make_dual_arm_sim_victor_scenario,
+    'dual_arm_real_victor':       make_dual_arm_real_victor_rope_scenario,
+    'dual_arm_rope_sim_victor':   make_dual_arm_sim_victor_scenario,
+    'dual_arm_rope_sim_val':      make_dual_arm_sim_val_scenario,
+    'dual_arm_rope':              make_dual_arm_sim_victor_scenario,
     'dual_floating_gripper_rope': make_floating_rope_scenario,
-    'dual_floating': make_floating_rope_scenario,
-    'dual_arm_no_rope': make_dual_arm_scenario,
+    'dual_floating':              make_floating_rope_scenario,
+    'dual_arm_no_rope':           make_dual_arm_scenario,
 }
 
 
