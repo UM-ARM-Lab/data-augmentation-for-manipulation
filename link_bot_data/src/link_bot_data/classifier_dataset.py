@@ -2,6 +2,7 @@ import pathlib
 from typing import List, Dict, Optional
 
 import tensorflow as tf
+from colorama import Fore
 
 import rospy
 from link_bot_data.base_dataset import BaseDatasetLoader
@@ -28,6 +29,8 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         self.labeling_params = self.hparams['labeling_params']
         self.threshold = threshold if threshold is not None else self.labeling_params['threshold']
         self.use_gt_rope = use_gt_rope if use_gt_rope is not None else self.hparams['use_gt_rope']
+        if self.use_gt_rope:
+            rospy.loginfo(Fore.GREEN + f"Using groud-truth rope")
         rospy.loginfo(f"classifier using threshold {self.threshold}")
         self.horizon = self.hparams['labeling_params']['classifier_horizon']
         self.scenario = get_scenario(self.hparams['scenario'])

@@ -73,6 +73,7 @@ def main():
     eval_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_parser.add_argument('--take', type=int)
     eval_parser.add_argument('--use-gt-rope', action='store_true')
+    eval_parser.add_argument('--threshold', type=float, default=None)
     eval_parser.set_defaults(func=eval_main)
 
     viz_parser = subparsers.add_parser('viz')
@@ -83,6 +84,7 @@ def main():
     viz_parser.add_argument('--verbose', '-v', action='count', default=0)
     viz_parser.add_argument('--only-errors', action='store_true')
     viz_parser.add_argument('--use-gt-rope', action='store_true')
+    viz_parser.add_argument('--threshold', type=float, default=None)
     viz_parser.add_argument('--old-compat', action='store_true')
     viz_parser.set_defaults(func=viz_main)
 

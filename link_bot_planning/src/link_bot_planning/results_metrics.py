@@ -103,7 +103,7 @@ class MyFigure:
         self.fig, self.ax = self.create_figure()
 
     def create_figure(self):
-        raise NotImplementedError()
+        return plt.subplots(figsize=(7.3, 4))
 
     def make_table(self, table_format):
         table_data = []
@@ -157,9 +157,6 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
         self.ax.set_ylabel(ylabel)
         self.trendline = self.params.get('trendline', False)
 
-    def create_figure(self):
-        return plt.subplots(figsize=(7.3, 4))
-
     def add_to_figure(self, method_name: str, values: List, color):
         x = self.metric.method_indices[method_name]
         if self.trendline:
@@ -184,7 +181,7 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
 
 
 class TaskErrorLineFigure(MyFigure):
-    def __init__(self, analysis_params: Dict, metric: TaskError):
+    def __init__(self, analysis_params: Dict, metric: ResultsMetric):
         super().__init__(analysis_params, metric, name="task_error_lineplot")
         self.fig.suptitle(self.params['experiment_name'])
         max_error = self.params["max_error"]
@@ -193,9 +190,6 @@ class TaskErrorLineFigure(MyFigure):
         self.ax.set_ylabel("Success Rate")
         self.ax.set_ylim([-0.1, 100.5])
         self.fig.subplots_adjust(top=0.94)
-
-    def create_figure(self):
-        return plt.subplots(figsize=(7.3, 4))
 
     def add_to_figure(self, method_name: str, values: List, color):
         success_rate_at_thresholds = []

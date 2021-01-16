@@ -36,6 +36,7 @@ def load_sort_order(outdir: pathlib.Path, unsorted_dirs: List[pathlib.Path]):
     return unsorted_dirs
 
 
+
 def metrics_main(args):
     with args.analysis_params.open('r') as analysis_params_file:
         analysis_params = hjson.load(analysis_params_file)
@@ -92,7 +93,7 @@ def metrics_main(args):
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
 
     figures = [
-        # FinalExecutionToGoalErrorFigure(analysis_params, metrics[0]),
+        TaskErrorLineFigure(analysis_params, metrics[0]),
         # NRecoveryActions(analysis_params, metrics[1]),
         # TotalTime(analysis_params, metrics[2]),
         # NPlanningAttempts(analysis_params, metrics[3]),

@@ -34,7 +34,7 @@
 
         <include>
             <uri>model://my_ground_plane</uri>
-            <pose>0 0 -0.41 0 0 0</pose>
+            <pose>0 0 -0.415 0 0 0</pose>
         </include>
 
         <include>
