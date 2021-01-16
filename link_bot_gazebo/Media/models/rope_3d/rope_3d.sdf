@@ -3634,7 +3634,7 @@
         </joint>
         <plugin name='rope_plugin' filename='librope_plugin.so'>
             <num_links>25</num_links>
-            <overstretching_factor>1.25</overstretching_factor>
+            <overstretching_factor>1.10</overstretching_factor>
         </plugin>
     </model>
 </sdf>

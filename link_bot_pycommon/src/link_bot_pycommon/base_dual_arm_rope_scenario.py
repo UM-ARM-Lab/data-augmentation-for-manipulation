@@ -21,7 +21,6 @@ from arm_gazebo_msgs.srv import ExcludeModels, ExcludeModelsRequest, ExcludeMode
 from peter_msgs.srv import GetOverstretchingResponse, GetOverstretchingRequest
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState, PointCloud2
-from std_srvs.srv import Empty
 from tf.transformations import quaternion_from_euler
 
 
@@ -42,22 +41,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
         # FIXME: this blocks until the robot is available, we need lazy construction
         self.robot = get_moveit_robot(self.robot_namespace)
-
-    def sample_action_for_data_collection(self,
-                                          action_rng: np.random.RandomState,
-                                          environment: Dict,
-                                          state: Dict,
-                                          action_params: Dict,
-                                          stateless: Optional[bool] = False):
-        res: GetOverstretchingResponse = self.overstretching_srv(GetOverstretchingRequest())
-        if res.overstretched:
-            return
-        return self.sample_action(action_rng=action_rng,
-                                  environment=environment,
-                                  state=state,
-                                  action_params=action_params,
-                                  validate=True,
-                                  stateless=stateless)
 
     def add_boxes_around_tools(self):
         # add spheres to prevent moveit from smooshing the rope and ends of grippers into obstacles

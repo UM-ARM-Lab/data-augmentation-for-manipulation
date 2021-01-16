@@ -97,8 +97,11 @@ class FloatingRopeScenario(Base3DScenario):
         self.robot_reset_rng = np.random.RandomState(0)
 
     def needs_reset(self):
+        return self.is_rope_overstretched()
+
+    def is_rope_overstretched(self):
         res: GetOverstretchingResponse = self.overstretching_srv(GetOverstretchingRequest())
-        return res.magnitude > 1.30
+        return res.overstretched
 
     def trajopt_distance_to_goal_differentiable(self, final_state: Dict, goal_state: Dict):
         return self.cfm_distance(final_state['z'], goal_state['z'])
@@ -186,11 +189,16 @@ class FloatingRopeScenario(Base3DScenario):
         self.viz_action_sample_bbox(self.left_gripper_bbox_pub, self.get_action_sample_extent(action_params, 'left'))
         self.viz_action_sample_bbox(self.right_gripper_bbox_pub, self.get_action_sample_extent(action_params, 'right'))
 
+        rope_stretch_res: GetOverstretchingResponse = self.overstretching_srv(GetOverstretchingRequest())
+
         action = None
         for _ in range(self.max_action_attempts):
             # move in the same direction as the previous action with some probability
             repeat_probability = action_params['repeat_delta_gripper_motion_probability']
-            if not stateless and self.last_action is not None and action_rng.uniform(0, 1) < repeat_probability:
+            if rope_stretch_res.magnitude > 1.30:
+                left_gripper_delta_position = np.zeros(3, dtype=np.float)
+                right_gripper_delta_position = np.zeros(3, dtype=np.float)
+            elif not stateless and self.last_action is not None and action_rng.uniform(0, 1) < repeat_probability:
                 left_gripper_delta_position = self.last_action['left_gripper_delta_position']
                 right_gripper_delta_position = self.last_action['right_gripper_delta_position']
             else:

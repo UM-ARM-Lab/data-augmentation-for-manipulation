@@ -37,4 +37,5 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, action: Dict):
 def overstretching_stop_condition(feedback: FollowJointTrajectoryFeedback, rope_namespace='rope_3d'):
     overstretching_srv = rospy.ServiceProxy(ns_join(rope_namespace, "rope_overstretched"), GetOverstretching)
     res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
+    rospy.logdebug(f'rope overstretching magnitude={res.magnitude}, overstretched? {res.overstretched}')
     return res.overstretched

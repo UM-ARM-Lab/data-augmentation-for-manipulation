@@ -1,21 +1,21 @@
 {
   name: victor_obs
-  reset_joint_config: [
-      -0.9
-      1.226658522254759
-      2.496373975637866
-      -0.9015918195233449
-      -0.6934815434002939
-      1.489008421851203
-      -0.1997030509448301
-      -2.2
-      -1.217371294047899
-      -2.148658497914306
-      0.9268130437662494
-      0.46886492789985645
-      -1.2886398689514698
-      2.035848925520293
-  ]
+  reset_joint_config: {
+      'victor_left_arm_joint_1': -0.9
+      'victor_left_arm_joint_2': 1.226658522254759
+      'victor_left_arm_joint_3': 2.496373975637866
+      'victor_left_arm_joint_4': -0.9015918195233449
+      'victor_left_arm_joint_5': -0.6934815434002939
+      'victor_left_arm_joint_6': 1.489008421851203
+      'victor_left_arm_joint_7': -0.1997030509448301
+      'victor_right_arm_joint_1': -2.2
+      'victor_right_arm_joint_2': -1.217371294047899
+      'victor_right_arm_joint_3': -2.148658497914306
+      'victor_right_arm_joint_4': 0.9268130437662494
+      'victor_right_arm_joint_5': 0.46886492789985645
+      'victor_right_arm_joint_6': -1.2886398689514698
+      'victor_right_arm_joint_7': 2.035848925520293
+  }
   extent: [
     0.45
     1.2
