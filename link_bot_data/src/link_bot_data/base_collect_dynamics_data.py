@@ -153,7 +153,7 @@ class BaseDataCollector:
         with (full_output_directory / 'hparams.hjson').open('w') as dataset_hparams_file:
             my_hdump(dataset_hparams, dataset_hparams_file, indent=2)
 
-        self.scenario.randomization_initialization()
+        self.scenario.randomization_initialization(self.params)
         self.scenario.on_before_data_collection(self.params)
 
         trial_start = perf_counter()

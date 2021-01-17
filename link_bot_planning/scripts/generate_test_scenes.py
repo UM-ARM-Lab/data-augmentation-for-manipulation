@@ -62,7 +62,7 @@ def generate_test_scenes(scenario: str,
         params = hjson.load(params_file)
 
     scenario.on_before_data_collection(params)
-    scenario.randomization_initialization()
+    scenario.randomization_initialization(params)
 
     for trial_idx in range(n_trials):
         environment = scenario.get_environment(params)

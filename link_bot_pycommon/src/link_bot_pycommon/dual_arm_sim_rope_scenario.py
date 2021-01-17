@@ -2,9 +2,11 @@ from typing import Dict
 
 import numpy as np
 
+import ros_numpy
 import rosbag
 import rospy
 from arm_gazebo_msgs.srv import ExcludeModelsRequest
+from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_gazebo_python.gazebo_services import GazeboServices, gz_scope
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
 from link_bot_pycommon.base_services import BaseServices
@@ -67,8 +69,15 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.grasp_rope_endpoints()
 
         # randomize the object configurations
-        random_object_poses = self.random_new_object_poses(env_rng, params)
-        self.set_object_poses(random_object_poses)
+        er_type = params['environment_randomization']['type']
+        if er_type == 'random':
+            random_object_poses = self.random_new_object_poses(env_rng, params)
+            self.set_object_poses(random_object_poses)
+        elif er_type == 'jitter':
+            random_object_poses = self.jitter_object_poses(env_rng, params)
+            self.set_object_poses(random_object_poses)
+        else:
+            raise NotImplementedError(er_type)
 
         # TODO: move the grippers again to more "random" starting configuration??
 
@@ -111,9 +120,17 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.detach_rope_from_gripper('right_gripper')
 
     def move_objects_out_of_scene(self, params: Dict):
-        position = [0, 2, 0]
-        orientation = [0, 0, 0, 1]
-        out_of_scene_object_poses = {k: (position, orientation) for k in params['objects']}
+        position = ros_numpy.msgify(Point, np.array([0, 2, 0]))
+        orientation = ros_numpy.msgify(Quaternion, np.array([0, 0, 0, 1]))
+        er_params = params['environment_randomization']
+        if er_params['type'] == 'random':
+            objects = params['environment_randomization']['objects']
+        elif er_params['type'] == 'jitter':
+            objects = params['environment_randomization']['nominal_poses'].keys()
+        else:
+            raise NotImplementedError(er_params['type'])
+        out_of_scene_pose = Pose(position=position, orientation=orientation)
+        out_of_scene_object_poses = {k: out_of_scene_pose for k in objects}
         self.set_object_poses(out_of_scene_object_poses)
 
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):

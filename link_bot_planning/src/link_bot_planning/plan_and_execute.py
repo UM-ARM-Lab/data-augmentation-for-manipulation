@@ -136,7 +136,7 @@ class PlanAndExecute:
             raise NotImplementedError(f"invalid goal param type {goal_params['type']}")
 
     def run(self):
-        self.scenario.randomization_initialization()
+        self.scenario.randomization_initialization(params=self.planner_params)
         for trial_idx in self.trials:
             self.plan_and_execute(trial_idx)
 

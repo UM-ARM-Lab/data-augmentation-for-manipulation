@@ -1,6 +1,14 @@
 <?xml version="1.0" ?>
 <sdf version="1.6">
     <world name="default">
+        <gui>
+            <camera name='user_camera'>
+                <pose>0.836228 0.008466 1.7 0 0.399643 2.84019</pose>
+                <view_controller>orbit</view_controller>
+                <projection_type>perspective</projection_type>
+            </camera>
+        </gui>
+
         <scene>
             <grid>false</grid>
             <origin_visual>false</origin_visual>
@@ -14,7 +22,7 @@
         <physics name="ode" type="ode">
             <max_step_size>0.01</max_step_size>
             <real_time_factor>1</real_time_factor>
-            <real_time_update_rate>100</real_time_update_rate>
+            <real_time_update_rate>0</real_time_update_rate>
             <ode>
                 <solver>
                     <island_threads>2</island_threads>

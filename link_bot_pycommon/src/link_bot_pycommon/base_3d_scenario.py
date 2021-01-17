@@ -3,9 +3,11 @@ from typing import Dict, List
 import numpy as np
 from matplotlib import cm
 
+import ros_numpy
 import rospy
-from gazebo_msgs.srv import GetModelState, GetModelStateRequest
+from gazebo_msgs.srv import GetModelState, GetModelStateRequest, GetModelStateResponse
 from gazebo_msgs.srv import SetModelState, SetModelStateRequest
+from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_data.dataset_utils import NULL_PAD_VALUE
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
@@ -250,36 +252,55 @@ class Base3DScenario(ExperimentScenario):
             'extent': example['extent'],
         }
 
-    def random_new_object_poses(self, env_rng: np.random.RandomState, params: Dict):
-        random_object_poses = {k: self.random_object_pose(env_rng, params) for k in params['objects']}
+    def jitter_object_poses(self, env_rng: np.random.RandomState, params: Dict):
+        poses = params['environment_randomization']['nominal_poses']
+
+        def _to_pose_msg(p):
+            position = ros_numpy.msgify(Point, np.array(p['position']))
+            q = np.array(transformations.quaternion_from_euler(*p['orientation']))
+            orientation = ros_numpy.msgify(Quaternion, q)
+            return Pose(position=position, orientation=orientation)
+
+        poses = {k: _to_pose_msg(v) for k, v in poses.items()}
+        random_object_poses = {k: self.jitter_object_pose(pose, env_rng, params) for k, pose in poses.items()}
         return random_object_poses
 
-    def random_pose_in_extents(self, env_rng: np.random.RandomState, extent):
-        extent = np.array(extent).reshape(3, 2)
-        position = env_rng.uniform(extent[:, 0], extent[:, 1])
-        yaw = env_rng.uniform(-np.pi, np.pi)
-        orientation = transformations.quaternion_from_euler(0, 0, yaw)
-        return (position, orientation)
+    def random_new_object_poses(self, env_rng: np.random.RandomState, params: Dict):
+        objects = params['environment_randomization']['objects']
+        random_object_poses = {k: self.random_object_pose(env_rng, params) for k in objects}
+        return random_object_poses
+
+    def jitter_object_pose(self, nominal_object_pose: Pose, env_rng: np.random.RandomState, objects_params: Dict):
+        extent = objects_params['environment_randomization']['jitter_extent']
+        jitter_pose = self.random_pose_in_extents(env_rng, extent)
+        nominal_object_pose.position.x += jitter_pose.position.x
+        nominal_object_pose.position.y += jitter_pose.position.y
+        nominal_object_pose.position.z += jitter_pose.position.z
+        return nominal_object_pose
 
     def random_object_pose(self, env_rng: np.random.RandomState, objects_params: Dict):
-        extent = objects_params['objects_extent']
+        extent = objects_params['environment_randomization']['extent']
         bbox_msg = extent_to_bbox(extent)
         bbox_msg.header.frame_id = 'world'
+        bbox_msg.label = 'randomize_objects_extent'
         self.obs_bbox_pub.publish(bbox_msg)
 
         return self.random_pose_in_extents(env_rng, extent)
 
+    def random_pose_in_extents(self, env_rng: np.random.RandomState, extent):
+        extent = np.array(extent).reshape(3, 2)
+        pose = Pose()
+        pose.position = ros_numpy.msgify(Point, env_rng.uniform(extent[:, 0], extent[:, 1]))
+        # TODO: make angles configurable
+        yaw = env_rng.uniform(-np.pi, np.pi)
+        pose.orientation = ros_numpy.msgify(Quaternion, transformations.quaternion_from_euler(0, 0, yaw))
+        return pose
+
     def set_object_poses(self, object_positions: Dict):
-        for object_name, (position, orientation) in object_positions.items():
+        for object_name, pose in object_positions.items():
             set_req = SetModelStateRequest()
             set_req.model_state.model_name = object_name
-            set_req.model_state.pose.position.x = position[0]
-            set_req.model_state.pose.position.y = position[1]
-            set_req.model_state.pose.position.z = position[2]
-            set_req.model_state.pose.orientation.x = orientation[0]
-            set_req.model_state.pose.orientation.y = orientation[1]
-            set_req.model_state.pose.orientation.z = orientation[2]
-            set_req.model_state.pose.orientation.w = orientation[3]
+            set_req.model_state.pose = pose
             self.set_model_state_srv(set_req)
 
     def get_object_poses(self, names: List):
@@ -287,6 +308,6 @@ class Base3DScenario(ExperimentScenario):
         for object_name in names:
             get_req = GetModelStateRequest()
             get_req.model_name = object_name
-            res = self.get_model_state_srv(get_req)
-            poses[object_name] = res
+            res: GetModelStateResponse = self.get_model_state_srv(get_req)
+            poses[object_name] = res.pose
         return poses

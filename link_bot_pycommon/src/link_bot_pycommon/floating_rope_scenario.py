@@ -6,7 +6,6 @@ from matplotlib import colors
 
 import ros_numpy
 import rospy
-import tf2_sensor_msgs
 from arc_utilities.listener import Listener
 from arc_utilities.marker_utils import scale_marker_array
 from geometry_msgs.msg import Point
@@ -27,7 +26,7 @@ from link_bot_pycommon.pycommon import default_if_none
 from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params, \
     transform_points_to_robot_frame
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
-from moonshine.moonshine_utils import numpify, remove_batch
+from moonshine.moonshine_utils import numpify
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import Image, PointCloud2, CameraInfo
@@ -118,9 +117,6 @@ class FloatingRopeScenario(Base3DScenario):
     def hard_reset(self):
         self.reset_srv(EmptyRequest())
 
-    def randomization_initialization(self):
-        pass
-
     def on_before_action(self):
         self.register_fake_grasping()
 
@@ -174,8 +170,8 @@ class FloatingRopeScenario(Base3DScenario):
         kinect_params = get_camera_params(self.KINECT_NAME)
         metadata.update({
             'world_to_rgb_optical_frame': self.tf.get_transform(parent='world', child='kinect2_rgb_optical_frame'),
-            'kinect_pose':   ros_numpy.numpify(kinect_pose),
-            'kinect_params': kinect_params,
+            'kinect_pose':                ros_numpy.numpify(kinect_pose),
+            'kinect_params':              kinect_params,
         })
         return metadata
 
@@ -236,7 +232,7 @@ class FloatingRopeScenario(Base3DScenario):
         return not out_of_bounds and not too_far
 
     def get_action_sample_extent(self, action_params: Dict, prefix: str):
-        k = prefix + 'gripper_action_sample_extent'
+        k = prefix + '_gripper_action_sample_extent'
         if k in action_params:
             gripper_extent = np.array(action_params[k]).reshape([3, 2])
         else:
@@ -454,6 +450,7 @@ class FloatingRopeScenario(Base3DScenario):
         # NaN Depths means out of range, so clip to the max range
         depth = np.clip(np.nan_to_num(depth, nan=KINECT_MAX_DEPTH), 0, KINECT_MAX_DEPTH)
         rgbd = np.concatenate([rgb, depth], axis=2)
+
         # box = tf.convert_to_tensor([self.crop_region['min_y'] / rgb.shape[0],
         #                             self.crop_region['min_x'] / rgb.shape[1],
         #                             self.crop_region['max_y'] / rgb.shape[0],
@@ -475,7 +472,6 @@ class FloatingRopeScenario(Base3DScenario):
         # END DEBUG
         # return rgbd_cropped.numpy()
         return rgbd
-
 
     def observations_description(self) -> Dict:
         return {

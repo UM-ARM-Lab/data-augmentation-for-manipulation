@@ -21,40 +21,46 @@
   extent: [
     -0.8
     0.8
-    0.3
-    1.2
-    0.0
-    1.0
+    0.2
+    1.4
+    -0.4
+    0.8
   ]
   left_gripper_action_sample_extent: [
     -0.8
     0.8
-    0.3
-    1.2
-    0.0
-    1.0
+    0.2
+    1.4
+    0.1
+    0.6
   ]
   right_gripper_action_sample_extent: [
     -0.8
     0.8
-    0.3
-    1.2
-    0.0
-    1.0
-  ]
-  # FIXME: this is not a sufficiently descriptive way to do object randomization
-  objects_extent: [
-    -0.6
-    0.6
-    -0.5
-    0.5
-    0.6
+    0.2
+    1.4
+    0.1
     0.6
   ]
-  objects: [
-  ]
-  res: 0.01
-  max_step_size: 0.001
+  environment_randomization: {
+      type: jitter
+      jitter_extent: [
+        -0.1
+        0.1
+        -0.1
+        0.1
+        -0.1
+        0.1
+      ]
+      nominal_poses: {
+        car_engine2: {
+          position: [0, 0.9, -0.25]
+          orientation: [0, 0, 0]
+        }
+      }
+  }
+  res: 0.02
+  max_step_size: 0.01
   real_time_rate: 0.0
   steps_per_traj: 10
   no_objects: false

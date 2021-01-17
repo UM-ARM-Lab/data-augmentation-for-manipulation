@@ -286,8 +286,8 @@ class ExperimentScenario:
     def get_state(self):
         raise NotImplementedError()
 
-    def randomization_initialization(self):
-        raise NotImplementedError()
+    def randomization_initialization(self, params: Dict):
+        pass
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         raise NotImplementedError()
@@ -319,5 +319,5 @@ class ExperimentScenario:
     def needs_reset(self):
         raise NotImplementedError()
 
-    def restore_from_bag(self, service_provider: BaseServices, bagfile_name):
+    def restore_from_bag(self, service_provider: BaseServices, planner_params: Dict, bagfile_name):
         service_provider.restore_from_bag(bagfile_name)
