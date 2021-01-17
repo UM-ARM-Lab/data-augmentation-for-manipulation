@@ -57,10 +57,38 @@
           position: [0, 0.9, -0.25]
           orientation: [0, 0, 0]
         }
+        car_platform: {
+          position: [0, 1.07, -0.528]
+          orientation: [0, 0, 1.5707]
+        }
+        car_front: {
+          position: [0, 0.474, -0.41]
+          orientation: [0, 0, 3.14159]
+        }
+        car_hood: {
+          position: [0, 1.242, 0.157]
+          orientation: [-0.908, 0, 0]
+        }
+        car_engine2: {
+          position: [0, 0.9, -0.25]
+          orientation: [0, 0, 0]
+        }
+        car_tube_and_tank: {
+          position: [0.32, 1.25, -0.35]
+          orientation: [0, 0, 0]
+        }
+        car_alternator: {
+          position: [-0.57, 0.807, -0.255]
+          orientation: [0, 0, 0]
+        }
+        car_pulley: {
+          position: [-0.641, 1.03, -0.25]
+          orientation: [0, 0, 0]
+        }
       }
   }
   res: 0.02
-  max_step_size: 0.01
+  max_step_size: 0.002
   real_time_rate: 0.0
   steps_per_traj: 10
   no_objects: false

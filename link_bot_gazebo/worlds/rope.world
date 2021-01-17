@@ -17,6 +17,9 @@
                     <thread_position_correction>0</thread_position_correction>
                     <island_threads>2</island_threads>
                 </solver>
+                <constraints>
+                    <erp>0.8</erp>
+                </constraints>
             </ode>
         </physics>
 

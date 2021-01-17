@@ -23,6 +23,9 @@
                     <sor>1.0</sor> <!-- Important, see issue #2209 -->
                     <use_dynamic_moi_rescaling>false</use_dynamic_moi_rescaling>
                 </solver>
+                <constraints>
+                    <erp>0.8</erp>
+                </constraints>
             </ode>
         </physics>
 
