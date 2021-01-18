@@ -167,12 +167,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         right_gripper_points = [action['right_gripper_position']]
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         grippers = [left_gripper_points, right_gripper_points]
-        traj, result, _ = self.robot.follow_jacobian_to_position("both_arms", tool_names, grippers, vel_scaling=0.1)
+        self.robot.follow_jacobian_to_position("both_arms", tool_names, grippers, vel_scaling=0.1)
 
         rope_settling_time = action.get('settling_time', 1.0)
         rospy.sleep(rope_settling_time)
-
-        return traj, result
 
     def get_environment(self, params: Dict, **kwargs):
         default_res = 0.01
@@ -196,4 +194,4 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
 
     def needs_reset(self, state: Dict, params: Dict):
         grippers_out_of_bounds = self.grippers_out_of_bounds(state['left_gripper'], state['right_gripper'], params)
-        return super().needs_reset() or grippers_out_of_bounds
+        return super().needs_reset(state, params) or grippers_out_of_bounds

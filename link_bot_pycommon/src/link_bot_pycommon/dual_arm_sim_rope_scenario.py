@@ -6,6 +6,7 @@ import ros_numpy
 import rosbag
 import rospy
 from arm_gazebo_msgs.srv import ExcludeModelsRequest
+from control_msgs.msg import FollowJointTrajectoryResult as FJTR
 from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_gazebo_python.gazebo_services import GazeboServices, gz_scope
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
@@ -63,7 +64,16 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.detach_rope_from_gripper('left_gripper')
 
         # plan to reset joint config, we assume this will always work
-        self.robot.plan_to_joint_config("both_arms", dict(params['reset_joint_config']))
+        result = self.robot.plan_to_joint_config("both_arms", dict(params['reset_joint_config']))
+        if result.execution_result.execution_result.error_code not in [FJTR.SUCCESSFUL,
+                                                                       FJTR.GOAL_TOLERANCE_VIOLATED] \
+                or not result.planning_result.success:
+            rospy.logfatal("Could not plan to reset joint config! Aborting")
+            # by exiting here, we prevent saving bogus data
+            import sys
+            sys.exit(-3)
+        if result.execution_result.execution_result.error_code == FJTR.GOAL_TOLERANCE_VIOLATED:
+            rospy.logwarn("Goal tolerance violated while resetting?")
 
         # Grasp the rope again
         self.grasp_rope_endpoints()

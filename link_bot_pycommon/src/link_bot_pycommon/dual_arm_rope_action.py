@@ -19,13 +19,13 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, action: Dict):
     def _stop_condition(feedback):
         return overstretching_stop_condition(feedback)
 
-    traj, result, state = robot.follow_jacobian_to_position(group_name=r"both_arms",
-                                                            tool_names=tool_names,
-                                                            preferred_tool_orientations=None,
-                                                            points=grippers,
-                                                            stop_condition=_stop_condition)
+    result = robot.follow_jacobian_to_position(group_name="both_arms",
+                                               tool_names=tool_names,
+                                               preferred_tool_orientations=None,
+                                               points=grippers,
+                                               stop_condition=_stop_condition)
 
-    if state == GoalStatus.PREEMPTED:
+    if result.action_client_state == GoalStatus.PREEMPTED:
         rev_grippers = [[ros_numpy.numpify(start_left_gripper_position)],
                         [ros_numpy.numpify(start_right_gripper_position)]]
         robot.follow_jacobian_to_position("both_arms",
