@@ -167,7 +167,8 @@ class BaseDataCollector:
 
             # Randomize the environment
             randomize = self.params["randomize_n"] and traj_idx % self.params["randomize_n"] == 0
-            needs_reset = self.scenario.needs_reset()
+            state = self.scenario.get_state()
+            needs_reset = self.scenario.needs_reset(state, self.params)
             if (not self.params['no_objects'] and randomize) or needs_reset:
                 if needs_reset:
                     rospy.logwarn("Reset required!")

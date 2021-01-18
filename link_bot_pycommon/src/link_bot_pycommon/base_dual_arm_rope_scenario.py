@@ -1,5 +1,5 @@
 import warnings
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import numpy as np
 
@@ -18,7 +18,6 @@ from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.ros_pycommon import get_environment_for_extents_3d
 from arm_gazebo_msgs.srv import ExcludeModels, ExcludeModelsRequest, ExcludeModelsResponse
-from peter_msgs.srv import GetOverstretchingResponse, GetOverstretchingRequest
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState, PointCloud2
 from tf.transformations import quaternion_from_euler
@@ -176,7 +175,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         return traj, result
 
     def get_environment(self, params: Dict, **kwargs):
-        res = params.get("res", 0.01)
+        default_res = 0.01
+        if 'res' not in params:
+            rospy.logwarn(f"res not in params, using default {default_res}")
+            res = default_res
+        else:
+            res = params["res"]
         return get_environment_for_extents_3d(extent=params['extent'],
                                               res=res,
                                               service_provider=self.service_provider,
@@ -187,5 +191,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         raise NotImplementedError()
 
     def reset_cdcpd(self):
-        # since the launch file has respawn=true, we just need to kill cdcpd_node
+        # since the launch file has respawn=true, we just need to kill cdcpd_node and it will restart
         rosnode.kill_nodes("cdcpd_node")
+
+    def needs_reset(self, state: Dict, params: Dict):
+        grippers_out_of_bounds = self.grippers_out_of_bounds(state['left_gripper'], state['right_gripper'], params)
+        return super().needs_reset() or grippers_out_of_bounds

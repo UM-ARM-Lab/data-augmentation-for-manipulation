@@ -95,7 +95,7 @@ class FloatingRopeScenario(Base3DScenario):
 
         self.robot_reset_rng = np.random.RandomState(0)
 
-    def needs_reset(self):
+    def needs_reset(self, state: Dict, params: Dict):
         return self.is_rope_overstretched()
 
     def is_rope_overstretched(self):

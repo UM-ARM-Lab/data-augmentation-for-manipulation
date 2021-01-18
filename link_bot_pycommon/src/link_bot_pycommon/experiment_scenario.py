@@ -316,7 +316,7 @@ class ExperimentScenario:
     def on_after_data_collection(self, params):
         pass
 
-    def needs_reset(self):
+    def needs_reset(self, state: Dict, params: Dict):
         raise NotImplementedError()
 
     def restore_from_bag(self, service_provider: BaseServices, planner_params: Dict, bagfile_name):
