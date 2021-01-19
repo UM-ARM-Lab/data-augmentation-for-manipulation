@@ -3492,7 +3492,7 @@
                 </inertia>
             </inertial>
             <collision name='left_gripper_collision'>
-                <max_contacts>4</max_contacts>
+                <max_contacts>2</max_contacts>
                 <pose frame=''>0 0 0 0 0 0</pose>
                 <geometry>
                     <sphere>
@@ -3570,7 +3570,7 @@
                 </inertia>
             </inertial>
             <collision name='right_gripper_collision'>
-                <max_contacts>4</max_contacts>
+                <max_contacts>2</max_contacts>
                 <pose frame=''>0 0 0 0 0 0</pose>
                 <geometry>
                     <sphere>

@@ -1,22 +1,22 @@
 {
   name: val_car
   reset_joint_config: {
-    joint56: 0.0
-    joint57: 0.0
-    joint41: 0.55
-    joint42: 0.64
-    joint43: -0.52
-    joint44: 0.57
-    joint45: 1.39
-    joint46: -1.00
-    joint47: -0.68
-    joint1: 0.53
-    joint2: -0.64
-    joint3: 0.52
-    joint4: 0.56
-    joint5: -1.37
-    joint6: 1.0
-    joint7: 0.67
+    joint1: 0.5903734250235528,
+    joint2: -0.7214355209537864,
+    joint3: 0.6228154864993862,
+    joint4: 0.5598020237501977,
+    joint41: 0.9111050714571904,
+    joint42: 0.928783552358694,
+    joint43: -1.0444957786375042,
+    joint44: 0.5699129088752324,
+    joint45: 1.3209929051657374,
+    joint46: -1.0740661355371026,
+    joint47: -1.7605314838269148,
+    joint5: -1.3501547155831561,
+    joint56: -0.00018261176063205653,
+    joint57: 0.0004871437759357278,
+    joint6: 1.0175395063376493,
+    joint7: 2.173908028268774,
   }
   extent: [
     -0.8
@@ -29,7 +29,7 @@
   left_gripper_action_sample_extent: [
     -0.8
     0.8
-    0.2
+    0.3
     1.4
     0.1
     0.6
@@ -37,7 +37,7 @@
   right_gripper_action_sample_extent: [
     -0.8
     0.8
-    0.2
+    0.3
     1.4
     0.1
     0.6
@@ -88,7 +88,7 @@
       }
   }
   res: 0.02
-  max_step_size: 0.002
+  max_step_size: 0.01
   real_time_rate: 0.0
   steps_per_traj: 10
   no_objects: false

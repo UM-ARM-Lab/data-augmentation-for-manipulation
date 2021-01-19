@@ -25,7 +25,7 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, action: Dict):
                                                points=grippers,
                                                stop_condition=_stop_condition)
 
-    if result.action_client_state == GoalStatus.PREEMPTED:
+    if result.execution_result.action_client_state == GoalStatus.PREEMPTED:
         rev_grippers = [[ros_numpy.numpify(start_left_gripper_position)],
                         [ros_numpy.numpify(start_right_gripper_position)]]
         robot.follow_jacobian_to_position("both_arms",

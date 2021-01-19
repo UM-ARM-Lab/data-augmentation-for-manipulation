@@ -23,21 +23,13 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
     def __init__(self, robot_namespace):
         super().__init__(robot_namespace)
 
+        self.reset_move_group = 'both_arms'
         self.service_provider = GazeboServices()
 
         self.set_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set"), Position3DAction)
 
     def execute_action(self, action: Dict):
         dual_arm_rope_execute_action(self.robot, action)
-
-    def on_before_data_collection(self, params: Dict):
-        super().on_before_data_collection(params)
-
-        # move to init positions
-        self.robot.plan_to_joint_config("both_arms", dict(params['reset_joint_config']))
-
-        # Grasp the rope again
-        self.grasp_rope_endpoints()
 
     def on_before_get_state_or_execute_action(self):
         self.robot.connect()
@@ -63,17 +55,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.robot.open_left_gripper()
         self.detach_rope_from_gripper('left_gripper')
 
-        # plan to reset joint config, we assume this will always work
-        result = self.robot.plan_to_joint_config("both_arms", dict(params['reset_joint_config']))
-        if result.execution_result.execution_result.error_code not in [FJTR.SUCCESSFUL,
-                                                                       FJTR.GOAL_TOLERANCE_VIOLATED] \
-                or not result.planning_result.success:
-            rospy.logfatal("Could not plan to reset joint config! Aborting")
-            # by exiting here, we prevent saving bogus data
-            import sys
-            sys.exit(-3)
-        if result.execution_result.execution_result.error_code == FJTR.GOAL_TOLERANCE_VIOLATED:
-            rospy.logwarn("Goal tolerance violated while resetting?")
+        self.plan_to_reset_config(params)
 
         # Grasp the rope again
         self.grasp_rope_endpoints()
@@ -90,6 +72,23 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
             raise NotImplementedError(er_type)
 
         # TODO: move the grippers again to more "random" starting configuration??
+
+    def on_before_data_collection(self, params: Dict):
+        super().on_before_data_collection(params)
+        self.plan_to_reset_config(params)
+        self.grasp_rope_endpoints()
+
+    def plan_to_reset_config(self, params: Dict):
+        result = self.robot.plan_to_joint_config(self.reset_move_group, dict(params['reset_joint_config']))
+        if result.execution_result.execution_result.error_code not in [FJTR.SUCCESSFUL,
+                                                                       FJTR.GOAL_TOLERANCE_VIOLATED] \
+                or not result.planning_result.success:
+            rospy.logfatal("Could not plan to reset joint config! Aborting")
+            # by exiting here, we prevent saving bogus data
+            import sys
+            sys.exit(-3)
+        if result.execution_result.execution_result.error_code == FJTR.GOAL_TOLERANCE_VIOLATED:
+            rospy.logwarn("Goal tolerance violated while resetting?")
 
     def grasp_rope_endpoints(self):
         self.robot.open_left_gripper()

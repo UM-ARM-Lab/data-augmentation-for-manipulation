@@ -39,7 +39,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         exclude_srv_name = ns_join(self.robot_namespace, "exclude_models_from_planning_scene")
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
         # FIXME: this blocks until the robot is available, we need lazy construction
-        self.robot = get_moveit_robot(self.robot_namespace)
+        self.robot = get_moveit_robot(self.robot_namespace, raise_on_failure=True)
 
     def add_boxes_around_tools(self):
         # add spheres to prevent moveit from smooshing the rope and ends of grippers into obstacles
