@@ -58,6 +58,10 @@ def numpify(x, dtype=np.float32):
         return x
     elif isinstance(x, np.int64):
         return x
+    elif isinstance(x, np.int32):
+        return x
+    elif isinstance(x, np.bool_):
+        return x
     elif isinstance(x, np.bytes_):
         return x
     elif x is None:

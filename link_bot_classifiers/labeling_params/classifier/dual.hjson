@@ -1,5 +1,5 @@
 {
-  threshold: 0.066
+  threshold: 0.0303
   classifier_horizon: 2
   start_step: 4
   perception_reliability_method: gt

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+from collections import OrderedDict
 
 import colorama
 import matplotlib.pyplot as plt
@@ -9,9 +10,9 @@ import tensorflow as tf
 
 import rospy
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
-from moonshine.indexing import index_time_np
 from link_bot_pycommon.args import my_formatter
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
+from moonshine.indexing import index_time_np
 from moonshine.moonshine_utils import numpify
 from sensor_msgs.msg import Image
 
@@ -77,7 +78,12 @@ def main():
     example = next(iter(tf_dataset))
     print("Example:")
     for k, v in example.items():
-        print(k, v.shape)
+        if hasattr(v, 'shape'):
+            print(k, v.shape)
+        elif isinstance(v, OrderedDict):
+            print(k, numpify(v))
+        else:
+            print(k, v)
 
     if args.plot_type == '3d':
         # uses rviz

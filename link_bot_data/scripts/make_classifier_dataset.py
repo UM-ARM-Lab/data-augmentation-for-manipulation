@@ -13,9 +13,6 @@ from link_bot_data.classifier_dataset_utils import make_classifier_dataset
 from link_bot_pycommon.args import my_formatter
 from moonshine.gpu_config import limit_gpu_mem
 
-limit_gpu_mem(6)
-
-
 def main():
     colorama.init(autoreset=True)
     rospy.init_node("make_classifier_dataset")

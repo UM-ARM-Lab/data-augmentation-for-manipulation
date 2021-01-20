@@ -13,7 +13,7 @@
     </group>
     <group if="$(arg use_val)">
         <param name="robot_description"
-               command="$(find xacro)/xacro '$(find hdt_michigan_description)/urdf/hdt_michigan.urdf.xacro'"/>
+               command="$(find xacro)/xacro '$(find hdt_michigan_description)/urdf/hdt_michigan.xacro'"/>
         <node pkg="tf2_ros" type="static_transform_publisher" name="robot_root" required="true"
               args="0 0 0 0 0 0 hdt_michigan_root robot_root">
         </node>
