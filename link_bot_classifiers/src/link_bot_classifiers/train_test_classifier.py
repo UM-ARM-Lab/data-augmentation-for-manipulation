@@ -182,6 +182,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              only_errors: bool,
              use_gt_rope: bool,
              old_compat: bool = False,
+             threshold: Optional[float] = None,
              **kwargs):
     stdev_pub_ = rospy.Publisher("stdev", Float32, queue_size=10)
     traj_idx_pub_ = rospy.Publisher("traj_idx_viz", Float32, queue_size=10)
@@ -201,7 +202,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
     dataset = ClassifierDatasetLoader(dataset_dirs,
                                       load_true_states=True,
                                       use_gt_rope=use_gt_rope,
-                                      threshold=params['classifier_dataset_hparams']['labeling_params']['threshold'],
+                                      threshold=threshold,
                                       old_compat=old_compat)
     model = model_class(hparams=params, batch_size=batch_size, scenario=dataset.scenario)
     tf_dataset = dataset.get_datasets(mode=mode)
@@ -255,7 +256,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                                           ExperimentScenario.plot_stdev_t,
                                           ])
             with open("debugging.hjson", 'w') as f:
-                my_hdump(numpify(example_b), f)
+                example_b_np = numpify(example_b)
+                my_hdump(example_b_np, f)
             anim.play(example_b)
 
 

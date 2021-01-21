@@ -16,6 +16,11 @@ from sensor_msgs.msg import genpy
 class MyHjsonEncoder(hjson.HjsonEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
+            # if the array is of bytes we want to convert those to strings
+            # this happens when you call .numpy() on a tensor of strings,
+            # you get back a list bytes
+            if isinstance(obj[0], bytes):
+                return [b.decode("utf-8") for b in obj.tolist()]
             return obj.tolist()
         elif isinstance(obj, pathlib.Path):
             return obj.as_posix()
