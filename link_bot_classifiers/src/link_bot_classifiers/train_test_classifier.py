@@ -8,7 +8,6 @@ import tensorflow as tf
 from progressbar import progressbar
 
 import link_bot_classifiers
-from link_bot_pycommon.get_scenario import get_scenario
 import rospy
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.classifier_utils import load_generic_model
@@ -16,15 +15,10 @@ from link_bot_data import base_dataset
 from link_bot_data.balance import balance
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset
-from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.base_3d_scenario import Base3DScenario
 from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.serialization import my_hdump
-from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_dict_of_batched_tensors_tf
-from moonshine.moonshine_utils import numpify
-from shape_completion_training.metric import AccuracyMetric
+from moonshine.metric import AccuracyMetric
 from shape_completion_training.model import filepath_tools
 from shape_completion_training.model_runner import ModelRunner
 from state_space_dynamics import common_train_hparams
@@ -180,6 +174,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              mode: str,
              batch_size: int,
              only_errors: bool,
+             only_fp: bool,
+             only_fn: bool,
              use_gt_rope: bool,
              old_compat: bool = False,
              threshold: Optional[float] = None,
@@ -215,6 +211,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
 
     model = classifier_utils.load_generic_model([checkpoint])
 
+    fn = 0
+    fp = 0
     for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
         example.update(dataset.batch_metadata)
         predictions, _ = model.check_constraint_from_example(example, training=False)
@@ -226,14 +224,38 @@ def viz_main(dataset_dirs: List[pathlib.Path],
         # Visualization
         example.pop("time")
         example.pop("batch_size")
-        decisions = probabilities > 0.5
-        classifier_is_correct = tf.squeeze(tf.equal(decisions, tf.cast(labels, tf.bool)), axis=-1)
+        decisions = tf.squeeze(probabilities > 0.5, axis=-1)
+        labels = tf.squeeze(tf.cast(labels, tf.bool), axis=-1)
+        classifier_is_correct = tf.equal(decisions, labels)
+        is_fp = tf.logical_and(tf.logical_not(labels), decisions)
+        is_fn = tf.logical_and(labels, tf.logical_not(decisions))
         for b in range(batch_size):
             example_b = index_dict_of_batched_tensors_tf(example, b)
 
+            if tf.reduce_all(is_fp[b]):
+                fp += 1
+            if tf.reduce_all(is_fn[b]):
+                fn += 1
+
             # if the classifier is correct at all time steps, ignore
-            if only_errors and tf.reduce_all(classifier_is_correct[b]):
-                continue
+            if only_fp:
+                if not tf.reduce_all(is_fp[b]):
+                    continue
+                else:
+                    print(f'\nFP: example={batch_idx}, b={b}')
+            if only_fn:
+                if not tf.reduce_all(is_fn[b]):
+                    continue
+                else:
+                    print(f'\nFN: example={batch_idx}, b={b}')
+            if only_errors:
+                if tf.reduce_all(classifier_is_correct[b]):
+                    continue
+                else:
+                    if tf.reduce_all(is_fp[b]):
+                        print(f'\nFP: example={batch_idx}, b={b}')
+                    if tf.reduce_all(is_fn[b]):
+                        print(f'\nFN: example={batch_idx}, b={b}')
 
             def _custom_viz_t(scenario: Base3DScenario, e: Dict, t: int):
                 if t > 0:
@@ -246,19 +268,22 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 traj_idx_msg.data = batch_idx * batch_size + b
                 traj_idx_pub_.publish(traj_idx_msg)
 
-            anim = RvizAnimation(scenario=scenario,
-                                 n_time_steps=dataset.horizon,
-                                 init_funcs=[init_viz_env,
-                                             dataset.init_viz_action(),
-                                             ],
-                                 t_funcs=[_custom_viz_t,
-                                          dataset.classifier_transition_viz_t(),
-                                          ExperimentScenario.plot_stdev_t,
-                                          ])
-            with open("debugging.hjson", 'w') as f:
-                example_b_np = numpify(example_b)
-                my_hdump(example_b_np, f)
-            anim.play(example_b)
+            # anim = RvizAnimation(scenario=scenario,
+            #                      n_time_steps=dataset.horizon,
+            #                      init_funcs=[init_viz_env,
+            #                                  dataset.init_viz_action(),
+            #                                  ],
+            #                      t_funcs=[_custom_viz_t,
+            #                               dataset.classifier_transition_viz_t(),
+            #                               ExperimentScenario.plot_stdev_t,
+            #                               ])
+            # with open("debugging.hjson", 'w') as f:
+            #     example_b_np = numpify(example_b)
+            #     my_hdump(example_b_np, f)
+            # anim.play(example_b)
+            print(fn / (fn + fp), fp / (fn + fp))
+
+    print(fn / (fn + fp), fp / (fn + fp))
 
 
 def viz_ensemble_main(dataset_dir: pathlib.Path,
@@ -323,6 +348,7 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
 
             # if the classifier is correct at all time steps, ignore
             if only_errors and tf.reduce_all(classifier_is_correct[b]):
+                print(f'batch {b}')
                 continue
 
             # if only_collision

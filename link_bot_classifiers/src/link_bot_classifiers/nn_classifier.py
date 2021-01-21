@@ -325,7 +325,10 @@ class NNClassifierWrapper(BaseConstraintChecker):
             ckpt = tf.train.Checkpoint(model=net)
             manager = tf.train.CheckpointManager(ckpt, model_dir, max_to_keep=1)
 
+            rospy.logwarn("suppressing warnings!")
+            tf.get_logger().setLevel(logging.ERROR)
             status = ckpt.restore(manager.latest_checkpoint).expect_partial()
+            tf.get_logger().setLevel(logging.WARNING)
             if manager.latest_checkpoint:
                 print(Fore.CYAN + "Restored from {}".format(manager.latest_checkpoint) + Fore.RESET)
                 if manager.latest_checkpoint:

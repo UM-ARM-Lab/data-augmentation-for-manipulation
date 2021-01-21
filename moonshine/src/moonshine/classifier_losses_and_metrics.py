@@ -1,7 +1,8 @@
 import tensorflow as tf
 
+import rospy
 from link_bot_data.dataset_utils import is_reconverging
-from shape_completion_training import metric
+from moonshine import metric
 
 
 def class_weighted_binary_classification_sequence_loss_function(dataset_element, predictions, key='is_close'):
@@ -50,17 +51,6 @@ def reconverging_weighted_binary_classification_sequence_loss_function(dataset_e
     return total_bce
 
 
-def binary_classification_sequence_loss_function(dataset_element, predictions):
-    # skip the first element, the label will always be 1
-    labels = tf.expand_dims(dataset_element['is_close'][:, 1:], axis=2)
-    logits = predictions['logits']
-    bce = tf.keras.losses.binary_crossentropy(y_true=labels, y_pred=logits, from_logits=True)
-    bce = tf.gather_nd(bce, _indices)
-    # mean over batch & time
-    total_bce = tf.reduce_mean(bce)
-    return total_bce
-
-
 def binary_classification_sequence_metrics_function(dataset_element, predictions):
     labels = tf.expand_dims(dataset_element['is_close'][:, 1:], axis=2)
     total = tf.cast(tf.size(labels), tf.float32)
@@ -77,11 +67,9 @@ def binary_classification_sequence_metrics_function(dataset_element, predictions
     negative_accuracy = metric.accuray_on_negatives(y_true=labels, y_pred=probabilities)
     average_negative_accuracy = tf.reduce_mean(negative_accuracy)
 
-    false_positives = metric.fp(y_true=labels, y_pred=probabilities)
-    false_positive_rate = false_positives / total
-
-    false_negatives = metric.fn(y_true=labels, y_pred=probabilities)
-    false_negative_rate = false_negatives / total
+    false_positive_rate = metric.fp_rate(y_true=labels, y_pred=probabilities)
+    false_negative_rate = metric.fn_rate(y_true=labels, y_pred=probabilities)
+    rospy.logwarn_once("WARNING! these metrics do not accumulate correctly!")
 
     return {
         'accuracy': average_accuracy,
