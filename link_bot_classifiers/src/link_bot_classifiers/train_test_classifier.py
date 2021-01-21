@@ -268,20 +268,20 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 traj_idx_msg.data = batch_idx * batch_size + b
                 traj_idx_pub_.publish(traj_idx_msg)
 
-            # anim = RvizAnimation(scenario=scenario,
-            #                      n_time_steps=dataset.horizon,
-            #                      init_funcs=[init_viz_env,
-            #                                  dataset.init_viz_action(),
-            #                                  ],
-            #                      t_funcs=[_custom_viz_t,
-            #                               dataset.classifier_transition_viz_t(),
-            #                               ExperimentScenario.plot_stdev_t,
-            #                               ])
-            # with open("debugging.hjson", 'w') as f:
-            #     example_b_np = numpify(example_b)
-            #     my_hdump(example_b_np, f)
-            # anim.play(example_b)
-            print(fn / (fn + fp), fp / (fn + fp))
+            anim = RvizAnimation(scenario=scenario,
+                                 n_time_steps=dataset.horizon,
+                                 init_funcs=[init_viz_env,
+                                             dataset.init_viz_action(),
+                                             ],
+                                 t_funcs=[_custom_viz_t,
+                                          dataset.classifier_transition_viz_t(),
+                                          ExperimentScenario.plot_stdev_t,
+                                          ])
+            with open("debugging.hjson", 'w') as f:
+                example_b_np = numpify(example_b)
+                my_hdump(example_b_np, f)
+            anim.play(example_b)
+            # print(fn / (fn + fp), fp / (fn + fp))
 
     print(fn / (fn + fp), fp / (fn + fp))
 
