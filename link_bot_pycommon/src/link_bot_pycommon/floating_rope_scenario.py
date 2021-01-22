@@ -412,15 +412,21 @@ class FloatingRopeScenario(Base3DScenario):
             rope_velocity_vector.append(v.z)
         return rope_state_vector
 
-    def get_rope_point_positions(self):
+    def is_rope_point_attached(self, gripper: str):
+        scoped_link_name = gz_scope(self.ROPE_NAMESPACE, gripper + '_gripper')
+        res: GetPosition3DResponse = self.pos3d.get(scoped_link_name=scoped_link_name)
+        return res.enabled
+
+    def get_rope_point_position(self, gripper: str):
         # NOTE: consider getting rid of this message type/service just use rope state [0] and rope state [-1]
         #  although that looses semantic meaning and means hard-coding indices a lot...
-        left_res: GetPosition3DResponse = self.pos3d.get(scoped_link_name=gz_scope(self.ROPE_NAMESPACE, 'left_gripper'))
-        left_rope_point_position = ros_numpy.numpify(left_res.pos)
-        right_res: GetPosition3DResponse = self.pos3d.get(
-            scoped_link_name=gz_scope(self.ROPE_NAMESPACE, 'right_gripper'))
-        right_rope_point_position = ros_numpy.numpify(right_res.pos)
-        return left_rope_point_position, right_rope_point_position
+        scoped_link_name = gz_scope(self.ROPE_NAMESPACE, gripper + '_gripper')
+        res: GetPosition3DResponse = self.pos3d.get(scoped_link_name=scoped_link_name)
+        rope_point_position = ros_numpy.numpify(res.pos)
+        return rope_point_position
+
+    def get_rope_point_positions(self):
+        return self.get_rope_point_position('left'), self.get_rope_point_position('right')
 
     def get_state(self):
         color_depth_cropped = self.get_rgbd()

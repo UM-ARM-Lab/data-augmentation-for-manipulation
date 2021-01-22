@@ -91,10 +91,10 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
             rospy.logwarn("Goal tolerance violated while resetting?")
 
     def grasp_rope_endpoints(self):
-        left_end_grasped = self.robot.is_left_gripper_closed() and
+        left_end_grasped = self.robot.is_left_gripper_closed() and self.is_rope_point_attached('left')
         if not left_end_grasped:
             self.robot.open_left_gripper()
-        right_end_grasped = self.robot.is_right_gripper_closed()
+        right_end_grasped = self.robot.is_right_gripper_closed() and self.is_rope_point_attached('right')
         if not right_end_grasped:
             self.robot.open_right_gripper()
 
