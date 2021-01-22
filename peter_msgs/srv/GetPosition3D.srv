@@ -1,5 +1,6 @@
 string scoped_link_name
 ---
 geometry_msgs/Point pos
+bool enabled
 bool success
 

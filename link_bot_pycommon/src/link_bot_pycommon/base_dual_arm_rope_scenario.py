@@ -12,7 +12,6 @@ import ros_numpy
 import rospy
 from arc_utilities.listener import Listener
 from arm_robots.get_moveit_robot import get_moveit_robot
-from gazebo_ros_link_attacher.srv import Attach
 from geometry_msgs.msg import PoseStamped
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
@@ -33,8 +32,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         self.joint_state_viz_pub = rospy.Publisher(ns_join(self.robot_namespace, "joint_states_viz"), JointState,
                                                    queue_size=10)
         self.cdcpd_listener = Listener("cdcpd/output", PointCloud2)
-        self.attach_srv = rospy.ServiceProxy("/link_attacher_node/attach", Attach)
-        self.detach_srv = rospy.ServiceProxy("/link_attacher_node/detach", Attach)
 
         exclude_srv_name = ns_join(self.robot_namespace, "exclude_models_from_planning_scene")
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)

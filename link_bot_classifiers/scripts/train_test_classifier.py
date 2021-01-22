@@ -85,6 +85,8 @@ def main():
     viz_parser.add_argument('--only-errors', action='store_true')
     viz_parser.add_argument('--only-fp', action='store_true')
     viz_parser.add_argument('--only-fn', action='store_true')
+    viz_parser.add_argument('--only-tn', action='store_true')
+    viz_parser.add_argument('--only-tp', action='store_true')
     viz_parser.add_argument('--use-gt-rope', action='store_true')
     viz_parser.add_argument('--threshold', type=float, default=None)
     viz_parser.add_argument('--old-compat', action='store_true')

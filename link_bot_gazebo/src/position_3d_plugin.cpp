@@ -332,6 +332,7 @@ bool Position3dPlugin::GetPos(peter_msgs::GetPosition3DRequest &req, peter_msgs:
     {
       res.pos = ign_vector_3d_to_point(*pos);
       res.success = true;
+      res.enabled = it->second->enabled_;
     }
   } else
   {

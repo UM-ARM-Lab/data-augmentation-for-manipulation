@@ -68,7 +68,8 @@ void MerrrtWidget::OnRecoveryProbability(const std_msgs::Float32::ConstPtr &msg)
     green = 0;
   }
   ui.recovery_probability->setStyleSheet(QString("color: rgb(%1, %2, %3);").arg(red).arg(green).arg(blue));
-  ui.recovery_probability->setText(QString::number(msg->data));
+  auto const text = QString::asprintf("%0.4f", msg->data);
+  ui.recovery_probability->setText(text);
 }
 
 void MerrrtWidget::OnAcceptProbability(const std_msgs::Float32::ConstPtr &msg)
@@ -88,7 +89,8 @@ void MerrrtWidget::OnAcceptProbability(const std_msgs::Float32::ConstPtr &msg)
     green = 0;
   }
   ui.accept_probability->setStyleSheet(QString("color: rgb(%1, %2, %3);").arg(red).arg(green).arg(blue));
-  ui.accept_probability->setText(QString::number(msg->data));
+  auto const text = QString::asprintf("%0.4f", msg->data);
+  ui.accept_probability->setText(text);
 }
 
 void MerrrtWidget::load(const rviz::Config &config)

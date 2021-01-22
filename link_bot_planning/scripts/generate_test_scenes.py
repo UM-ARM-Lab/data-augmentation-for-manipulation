@@ -53,7 +53,6 @@ def generate_test_scenes(scenario: str,
                                play=True)
 
     link_states_listener = Listener("gazebo/link_states", LinkStates)
-    joint_state_listener = Listener("victor/joint_states", JointState)
 
     env_rng = np.random.RandomState(0)
     action_rng = np.random.RandomState(0)
@@ -80,7 +79,7 @@ def generate_test_scenes(scenario: str,
             scenario.execute_action(action)
 
         links_states = link_states_listener.get()
-        joint_state = joint_state_listener.get()
+        joint_state = scenario.robot._joint_state_listener.get()
         save_test_scenes_dir.mkdir(exist_ok=True, parents=True)
         bagfile_name = save_test_scenes_dir / f'scene_{trial_idx:04d}.bag'
         rospy.loginfo(f"Saving scene to {bagfile_name}")
