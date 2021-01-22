@@ -15,10 +15,15 @@ from link_bot_data import base_dataset
 from link_bot_data.balance import balance
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset
+from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.base_3d_scenario import Base3DScenario
 from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
+from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.serialization import my_hdump
+from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metric import AccuracyMetric
+from moonshine.moonshine_utils import numpify
 from shape_completion_training.model import filepath_tools
 from shape_completion_training.model_runner import ModelRunner
 from state_space_dynamics import common_train_hparams
@@ -173,6 +178,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              checkpoint: pathlib.Path,
              mode: str,
              batch_size: int,
+             start_at: int,
              only_errors: bool,
              only_fp: bool,
              only_fn: bool,
@@ -214,6 +220,10 @@ def viz_main(dataset_dirs: List[pathlib.Path],
     fn = 0
     fp = 0
     for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+
+        if batch_idx < start_at:
+            continue
+
         example.update(dataset.batch_metadata)
         predictions, _ = model.check_constraint_from_example(example, training=False)
 

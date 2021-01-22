@@ -88,6 +88,7 @@ def main():
     viz_parser.add_argument('--use-gt-rope', action='store_true')
     viz_parser.add_argument('--threshold', type=float, default=None)
     viz_parser.add_argument('--old-compat', action='store_true')
+    viz_parser.add_argument('--start-at', type=int, default=0)
     viz_parser.set_defaults(func=viz_main)
 
     viz_ensemble_parser = subparsers.add_parser('viz_ensemble')
