@@ -49,6 +49,7 @@ def generate_test_scenes(scenario: str,
                          ):
     service_provider = gazebo_services.GazeboServices()
     scenario = get_scenario(scenario)
+    scenario.robot.raise_on_failure = False
 
     service_provider.setup_env(verbose=0,
                                real_time_rate=0.0,
