@@ -8,7 +8,7 @@
   collect_dynamics_data_2:
   {
     dynamics_dataset_dir: fwd_model_data/val_car_3_1611110783_d79d3faf49_5120+no-rgbd
-
+  }
   learn_dynamics:
   {
     model_dirs:
@@ -26,7 +26,6 @@
   }
   learn_classifier:
   {
-    model_dir: cl_trials/val_car_3/January_20_11-15-31_3b4c39a23d/
+    model_dir: cl_trials/val_car_3/January_20_11-15-31_3b4c39a23d
   }
 }
-
