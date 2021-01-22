@@ -185,13 +185,11 @@ class FloatingRopeScenario(Base3DScenario):
         self.viz_action_sample_bbox(self.left_gripper_bbox_pub, self.get_action_sample_extent(action_params, 'left'))
         self.viz_action_sample_bbox(self.right_gripper_bbox_pub, self.get_action_sample_extent(action_params, 'right'))
 
-        rope_stretch_res: GetOverstretchingResponse = self.overstretching_srv(GetOverstretchingRequest())
-
         action = None
         for _ in range(self.max_action_attempts):
             # move in the same direction as the previous action with some probability
             repeat_probability = action_params['repeat_delta_gripper_motion_probability']
-            if rope_stretch_res.magnitude > 1.30:
+            if state.get('is_overstretched', False):
                 left_gripper_delta_position = np.zeros(3, dtype=np.float)
                 right_gripper_delta_position = np.zeros(3, dtype=np.float)
             elif not stateless and self.last_action is not None and action_rng.uniform(0, 1) < repeat_probability:
@@ -432,11 +430,12 @@ class FloatingRopeScenario(Base3DScenario):
         left_rope_point_position, right_rope_point_position = self.get_rope_point_positions()
 
         return {
-            'left_gripper':  left_rope_point_position,
-            'right_gripper': right_rope_point_position,
-            'gt_rope':       np.array(rope_state_vector, np.float32),
+            'left_gripper':     left_rope_point_position,
+            'right_gripper':    right_rope_point_position,
+            'gt_rope':          np.array(rope_state_vector, np.float32),
             # rope_key_name:   np.array(cdcpd_vector, np.float32),
-            'rgbd':          color_depth_cropped,
+            'rgbd':             color_depth_cropped,
+            'is_overstretched': self.is_rope_overstretched(),
         }
 
     def get_rgbd(self):
