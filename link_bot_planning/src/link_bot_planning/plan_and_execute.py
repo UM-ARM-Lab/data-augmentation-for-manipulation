@@ -198,7 +198,9 @@ class PlanAndExecute:
 
     def get_environment(self):
         # get the environment, which here means anything which is assumed constant during planning
-        return self.scenario.get_environment(self.planner.fwd_model.data_collection_params)
+        get_env_params = self.planner_params.copy()
+        get_env_params['res'] = self.planner.fwd_model.data_collection_params['res']
+        return self.scenario.get_environment(get_env_params)
 
     def plan_and_execute(self, trial_idx: int):
         self.set_random_seeds_for_trial(trial_idx)

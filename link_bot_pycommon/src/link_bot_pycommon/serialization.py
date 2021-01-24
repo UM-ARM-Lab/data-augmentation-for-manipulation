@@ -1,6 +1,7 @@
 import gzip
 import json
 import pathlib
+import pickle
 import uuid
 from enum import Enum
 
@@ -83,8 +84,7 @@ def dummy_proof_write(data, filename):
     while True:
         try:
             with gzip.open(filename, 'wb') as data_file:
-                data_str = my_dumps(data)
-                data_file.write(data_str.encode("utf-8"))
+                pickle.dump(data, data_file)
             return
         except KeyboardInterrupt:
             pass

@@ -1,8 +1,9 @@
 import pathlib
 import tempfile
+import traceback
 import uuid
 from time import time, sleep
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Callable
 
 import numpy as np
 from colorama import Fore
@@ -11,7 +12,6 @@ from ompl import util as ou
 import rosbag
 import rospy
 from arc_utilities.algorithms import is_list_unique
-from arc_utilities.conditional_try import conditional_try
 from link_bot_gazebo_python import gazebo_services
 from link_bot_planning import plan_and_execute
 from link_bot_planning.get_planner import get_planner
@@ -20,6 +20,32 @@ from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.serialization import dummy_proof_write, my_dump
 from moonshine.moonshine_utils import numpify
+
+
+def deal_with_exceptions(on_exception: str,
+                         function: Callable,
+                         value_on_no_retry_exception=None,
+                         print_exception: bool = False,
+                         **kwargs):
+    def _print_exception():
+        if print_exception:
+            print("Caught an exception!")
+            traceback.print_exc()
+            print("End of caught exception.")
+
+    if on_exception == 'raise':
+        return function(**kwargs)
+    else:
+        for i in range(10):
+            try:
+                return function(**kwargs)
+            except Exception:
+                if on_exception == 'retry':
+                    _print_exception()
+                elif on_exception == 'catch':
+                    _print_exception()
+                    return value_on_no_retry_exception
+        return value_on_no_retry_exception
 
 
 class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
@@ -89,7 +115,7 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
             'uuid':           uuid.uuid4(),
         }
         trial_data.update(extra_trial_data)
-        data_filename = self.outdir / f'{trial_idx}_metrics.json.gz'
+        data_filename = self.outdir / f'{trial_idx}_metrics.pkl'
         dummy_proof_write(trial_data, data_filename)
 
         if self.record:
@@ -177,7 +203,7 @@ def planning_evaluation(outdir: pathlib.Path,
                         use_gt_rope: bool,
                         start_idx: int = 0,
                         stop_idx: int = -1,
-                        skip_on_exception: Optional[bool] = False,
+                        on_exception: Optional[str] = 'raise',
                         verbose: int = 0,
                         record: bool = False,
                         no_execution: bool = False,
@@ -212,20 +238,20 @@ def planning_evaluation(outdir: pathlib.Path,
         rospy.loginfo(Fore.GREEN + f"Running method {method_name}")
         comparison_root_dir = outdir / method_name
 
-        conditional_try(skip_on_exception,
-                        evaluate_planning_method,
-                        planner_params=planner_params,
-                        job_chunker=sub_job_chunker,
-                        use_gt_rope=use_gt_rope,
-                        trials=trials,
-                        comparison_root_dir=comparison_root_dir,
-                        verbose=verbose,
-                        record=record,
-                        no_execution=no_execution,
-                        timeout=timeout,
-                        test_scenes_dir=test_scenes_dir,
-                        save_test_scenes_dir=save_test_scenes_dir,
-                        )
+        deal_with_exceptions(on_exception=on_exception,
+                             function=evaluate_planning_method,
+                             planner_params=planner_params,
+                             job_chunker=sub_job_chunker,
+                             use_gt_rope=use_gt_rope,
+                             trials=trials,
+                             comparison_root_dir=comparison_root_dir,
+                             verbose=verbose,
+                             record=record,
+                             no_execution=no_execution,
+                             timeout=timeout,
+                             test_scenes_dir=test_scenes_dir,
+                             save_test_scenes_dir=save_test_scenes_dir,
+                             )
 
         rospy.loginfo(f"Results written to {outdir}")
 

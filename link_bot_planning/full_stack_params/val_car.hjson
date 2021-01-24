@@ -54,10 +54,10 @@
   }
   planning_evaluation: {
     n_trials: 100
-    planners_params_common: planner_configs/victor_dual/common.hjson
-    test_scenes_dir: test_scenes/dual
+    planners_params_common: planner_configs/val_car/common.hjson
+    test_scenes_dir: test_scenes/val_car
     launch: main.launch
-    world: tabletop_rope_obstacles.world
+    world: car.world
     methods: [
      learned_recovery
       # no_classifier

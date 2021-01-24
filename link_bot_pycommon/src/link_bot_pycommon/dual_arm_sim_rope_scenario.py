@@ -58,6 +58,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.plan_to_reset_config(params)
 
         # Grasp the rope again
+        self.open_grippers_if_not_grasping()
         self.grasp_rope_endpoints()
 
         # randomize the object configurations
@@ -76,6 +77,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
     def on_before_data_collection(self, params: Dict):
         super().on_before_data_collection(params)
         self.plan_to_reset_config(params)
+        self.open_grippers_if_not_grasping()
         self.grasp_rope_endpoints()
 
     def plan_to_reset_config(self, params: Dict):
@@ -90,7 +92,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         if result.execution_result.execution_result.error_code == FJTR.GOAL_TOLERANCE_VIOLATED:
             rospy.logwarn("Goal tolerance violated while resetting?")
 
-    def grasp_rope_endpoints(self):
+    def open_grippers_if_not_grasping(self):
         left_end_grasped = self.robot.is_left_gripper_closed() and self.is_rope_point_attached('left')
         if not left_end_grasped:
             self.robot.open_left_gripper()
@@ -98,6 +100,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         if not right_end_grasped:
             self.robot.open_right_gripper()
 
+    def grasp_rope_endpoints(self):
         self.service_provider.pause()
         self.make_rope_endpoints_follow_gripper()
         self.service_provider.play()
@@ -157,13 +160,13 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
             joint_state: JointState = next(iter(bag.read_messages(topics=['joint_state'])))[1]
 
         joint_config = {}
-        for joint_name in self.robot.get_both_arm_joints():
+        for joint_name in self.robot.get_move_group_commander("both_arms").get_active_joints():
             index_of_joint_name_in_state_msg = joint_state.name.index(joint_name)
             joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
         self.robot.plan_to_joint_config("both_arms", joint_config)
 
         self.service_provider.pause()
-        self.service_provider.restore_from_bag(bagfile_name, excluded_models=['victor'])
+        self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
         self.grasp_rope_endpoints()
         self.service_provider.play()
 
@@ -184,6 +187,10 @@ class SimVictorDualArmRopeScenario(SimDualArmRopeScenario):
     def simple_name():
         return "sim_victor_dual_arm_rope"
 
+    @staticmethod
+    def robot_name():
+        return 'victor'
+
     def __repr__(self):
         return "SimVictorDualArmRopeScenario"
 
@@ -196,6 +203,10 @@ class SimValDualArmRopeScenario(SimDualArmRopeScenario):
     @staticmethod
     def simple_name():
         return "sim_val_dual_arm_rope"
+
+    @staticmethod
+    def robot_name():
+        return 'hdt_michigan'
 
     def __repr__(self):
         return "SimValDualArmRopeScenario"

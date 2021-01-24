@@ -306,7 +306,8 @@ class FullStackRunner:
                                      test_scenes_dir=test_scenes_dir,
                                      verbose=self.verbose,
                                      logfile_name=logfile_name,
-                                     skip_on_exception=False)
+                                     on_exception='retry',
+                                     )
 
         if self.launch:
             self.service_provider.kill()

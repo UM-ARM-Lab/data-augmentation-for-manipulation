@@ -36,4 +36,88 @@
   {
     model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e
   }
+  learned_recovery:
+  {
+    0:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/0_metrics.pkl
+    }
+    1:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/1_metrics.pkl
+    }
+    2:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/2_metrics.pkl
+    }
+    3:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/3_metrics.pkl
+    }
+    4:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/4_metrics.pkl
+    }
+    5:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/5_metrics.pkl
+    }
+    6:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/6_metrics.pkl
+    }
+    7:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/7_metrics.pkl
+    }
+    8:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/8_metrics.pkl
+    }
+    9:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/9_metrics.pkl
+    }
+    10:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/10_metrics.pkl
+    }
+    11:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/11_metrics.pkl
+    }
+    12:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/12_metrics.pkl
+    }
+    13:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/13_metrics.pkl
+    }
+    14:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/14_metrics.pkl
+    }
+    15:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/15_metrics.pkl
+    }
+    16:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/16_metrics.pkl
+    }
+    17:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/17_metrics.pkl
+    }
+    18:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/18_metrics.pkl
+    }
+    19:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3/learned_recovery/19_metrics.pkl
+    }
+  }
+  planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_3
 }
