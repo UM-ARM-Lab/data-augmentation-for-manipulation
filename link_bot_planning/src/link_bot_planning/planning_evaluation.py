@@ -18,7 +18,7 @@ from link_bot_planning.get_planner import get_planner
 from link_bot_planning.my_planner import MyPlanner
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.job_chunking import JobChunker
-from link_bot_pycommon.serialization import dummy_proof_write, my_dump
+from link_bot_pycommon.serialization import dump_gzipped_pickle, my_dump
 from moonshine.moonshine_utils import numpify
 
 
@@ -115,8 +115,8 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
             'uuid':           uuid.uuid4(),
         }
         trial_data.update(extra_trial_data)
-        data_filename = self.outdir / f'{trial_idx}_metrics.pkl'
-        dummy_proof_write(trial_data, data_filename)
+        data_filename = self.outdir / f'{trial_idx}_metrics.pkl.gz'
+        dump_gzipped_pickle(trial_data, data_filename)
 
         if self.record:
             # TODO: maybe make this happen async?

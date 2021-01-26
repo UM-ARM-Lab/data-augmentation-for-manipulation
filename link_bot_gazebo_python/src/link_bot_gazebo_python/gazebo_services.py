@@ -4,6 +4,7 @@ from typing import Optional, List
 import rosbag
 import roslaunch
 import rospy
+from gazebo_msgs.msg import LinkStates
 from gazebo_msgs.srv import SetPhysicsPropertiesRequest, GetPhysicsPropertiesRequest, SetLinkState, SetLinkStateRequest
 from link_bot_pycommon.base_services import BaseServices
 from std_srvs.srv import EmptyRequest, Empty
@@ -23,7 +24,7 @@ class GazeboServices(BaseServices):
 
     def restore_from_bag(self, bagfile_name: pathlib.Path, excluded_models: Optional[List[str]] = None):
         with rosbag.Bag(bagfile_name) as bag:
-            saved_links_states = next(iter(bag.read_messages()))[1]
+            saved_links_states: LinkStates = next(iter(bag.read_messages()))[1]
             set_link_state_req = SetLinkStateRequest()
             set_link_state_req.link_state = saved_links_states
 

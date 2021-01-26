@@ -12,6 +12,7 @@ from link_bot_gazebo_python.gazebo_services import GazeboServices, gz_scope
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
+from moveit_msgs.msg import DisplayRobotState
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState
@@ -136,7 +137,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.detach_rope_from_gripper('right_gripper')
 
     def move_objects_out_of_scene(self, params: Dict):
-        position = ros_numpy.msgify(Point, np.array([0, 2, 0]))
+        position = ros_numpy.msgify(Point, np.array([0, 10, 0]))
         orientation = ros_numpy.msgify(Quaternion, np.array([0, 0, 0, 1]))
         er_params = params['environment_randomization']
         if er_params['type'] == 'random':
@@ -165,10 +166,21 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
             joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
         self.robot.plan_to_joint_config("whole_body", joint_config)
 
+        # joint_state = JointState(position=list(joint_config.values()), name=list(joint_config.keys()))
+        # self.publish_robot_state(joint_state)
+
         self.service_provider.pause()
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
         self.grasp_rope_endpoints()
         self.service_provider.play()
+
+    def publish_robot_state(self, joint_state):
+        pub = rospy.Publisher('display_robot_state', DisplayRobotState, queue_size=10)
+        display_robot_state_msg = DisplayRobotState()
+        display_robot_state_msg.state.joint_state = joint_state
+        display_robot_state_msg.state.joint_state.header.stamp = rospy.Time.now()
+        display_robot_state_msg.state.is_diff = False
+        pub.publish(display_robot_state_msg)
 
     @staticmethod
     def simple_name():

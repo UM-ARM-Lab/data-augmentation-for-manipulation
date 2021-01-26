@@ -75,7 +75,7 @@
         </include>
 
         <!-- start the controllers -->
-        <include file="$(find hdt_michigan_control)/launch/hdt_michigan_control.launch">
+        <include file="$(find hdt_michigan_control)/launch/hdt_michigan_gazebo_control.launch">
             <arg name="robot_namespace" value="$(arg robot_name)"/>
         </include>
 
