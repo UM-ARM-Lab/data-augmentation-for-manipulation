@@ -75,12 +75,7 @@ def my_hdumps(data):
     return hjson.dumps(data, cls=MyHjsonEncoder)
 
 
-def dummy_proof_write(data, filename):
-    """
-    takes your data, serializes it to json, then gzips the result.
-    works with pretty complicated "data", including arbitrarily nested numpy and tensorflow types,
-    as well as Enums and things decorated with dataclass_json. See MyEncoder for full support info
-    """
+def dump_gzipped_pickle(data, filename):
     while True:
         try:
             with gzip.open(filename, 'wb') as data_file:
@@ -88,6 +83,12 @@ def dummy_proof_write(data, filename):
             return
         except KeyboardInterrupt:
             pass
+
+
+def load_gzipped_pickle(filename):
+    with gzip.open(filename, 'rb') as file:
+        data = pickle.load(file)
+    return data
 
 
 class MyHJsonSerializer:

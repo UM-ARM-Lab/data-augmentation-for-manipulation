@@ -9,7 +9,7 @@ import colorama
 from link_bot_gazebo_python.gazebo_services import GazeboServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.ros_pycommon import get_environment_for_extents_3d
-from link_bot_pycommon.serialization import dummy_proof_write
+from link_bot_pycommon.serialization import dump_gzipped_pickle
 
 
 def main():
@@ -46,9 +46,9 @@ def main():
             break
 
     now = int(time.time())
-    outfilename = f'state_and_environment_{now}.json.gz'
+    outfilename = f'state_and_environment_{now}.pkl.gz'
     print(f"writing to {outfilename}")
-    dummy_proof_write(data, outfilename)
+    dump_gzipped_pickle(data, outfilename)
 
 
 if __name__ == "__main__":

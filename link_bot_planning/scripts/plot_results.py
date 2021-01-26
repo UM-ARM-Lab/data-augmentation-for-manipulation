@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import argparse
-import gzip
 import json
 import pathlib
 import threading
@@ -11,10 +10,14 @@ import colorama
 import numpy as np
 
 import rospy
+from link_bot_planning.my_planner import PlanningQuery, PlanningResult
+from link_bot_planning.plan_and_execute import ExecutionResult, TrialStatus
 from link_bot_planning.results_utils import labeling_params_from_planner_params
-from link_bot_pycommon.args import my_formatter, int_range_arg
+from link_bot_pycommon.args import my_formatter, int_range_arg, int_set_arg
+from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
-from merrrt_visualization.rviz_animation_controller import RvizAnimationController, RvizAnimation
+from link_bot_pycommon.serialization import load_gzipped_pickle
+from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.moonshine_utils import numpify
 
 
@@ -23,10 +26,12 @@ def main():
     np.set_printoptions(linewidth=250, precision=3, suppress=True)
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
-    parser.add_argument("trial_idx", type=int_range_arg, help='which plan to show')
+    parser.add_argument("trial_idx", type=int_set_arg, help='which plan(s) to show')
+    parser.add_argument("threshold", type=float)
     parser.add_argument("--save", action='store_true')
     parser.add_argument("--filter-by-status", type=str, nargs="+")
     parser.add_argument("--show-tree", action="store_true")
+    parser.add_argument("--verbose", '-v', action="count", default=0)
 
     rospy.init_node("plot_results")
 
@@ -38,58 +43,13 @@ def main():
     scenario = get_scenario(metadata['scenario'])
 
     for trial_idx in args.trial_idx:
-        with gzip.open(args.results_dir / f'{trial_idx}_metrics.json.gz', 'rb') as metrics_file:
-            metrics_str = metrics_file.read()
-        datum = json.loads(metrics_str.decode("utf-8"))
+        results_filename = args.results_dir / f'{trial_idx}_metrics.pkl.gz'
+        datum = load_gzipped_pickle(results_filename)
 
-        print(f"Trial {trial_idx} ...")
         if if_filter_with_status(datum, args.filter_by_status):
-            plot_steps(args, scenario, datum, metadata, {'threshold': 0.065})
-
-        print(f"... complete with status {datum['trial_status']}")
-
-
-def plot_recovery(args, scenario, step, metadata):
-    actual_path = step['execution_result']['path']
-    action = step['recovery_action']
-    environment = numpify(step['planning_query']['environment'])
-    scenario.plot_environment_rviz(environment)
-    scenario.plot_state_rviz(actual_path[0], idx=1, label='recovery')
-    scenario.plot_action_rviz(actual_path[0], action, label='recovery')
-    scenario.plot_state_rviz(actual_path[1], idx=2, label='recovery')
-
-
-def plot_plan(args, scenario, step, metadata, fallback_labeing_params: Dict):
-    planner_params = metadata['planner_params']
-    labeling_params = labeling_params_from_planner_params(planner_params, fallback_labeing_params)
-    goal = step['planning_query']['goal']
-    environment = numpify(step['planning_query']['environment'])
-    planned_path = step['planning_result']['path']
-    actual_path = step['execution_result']['path']
-
-    planned_actions = step['planning_result']['actions']
-
-    scenario.reset_planning_viz()
-    if args.show_tree:
-        def _draw_tree_function(scenario, tree_json):
-            print(f"n vertices {len(tree_json['vertices'])}")
-            for vertex in tree_json['vertices']:
-                scenario.plot_tree_state(vertex, color='#77777722')
-                sleep(0.001)
-
-        tree_thread = threading.Thread(target=_draw_tree_function, args=(scenario, step['tree_json'],))
-        tree_thread.start()
-
-    goal_threshold = get_goal_threshold(planner_params)
-    scenario.animate_evaluation_results(environment=environment,
-                                        actual_states=actual_path,
-                                        predicted_states=planned_path,
-                                        actions=planned_actions,
-                                        goal=goal,
-                                        goal_threshold=goal_threshold,
-                                        labeling_params=labeling_params,
-                                        accept_probabilities=None,
-                                        horizon=metadata['horizon'])
+            print(f"Trial {trial_idx} ...")
+            plot_steps(args.show_tree, scenario, datum, metadata, {'threshold': args.threshold}, args.verbose)
+            print(f"... complete with status {datum['trial_status']}")
 
 
 def get_goal_threshold(planner_params):
@@ -108,13 +68,18 @@ def if_filter_with_status(datum, filter_by_status):
     #     status = step['planning_result']['status']
     #     if status == 'MyPlannerStatus.NotProgressing':
     #         return True
-    if datum['trial_status'] == 'TrialStatus.Timeout':
+    if datum['trial_status'] == TrialStatus.Timeout:
         return True
 
     return False
 
 
-def plot_steps(args, scenario, datum, metadata, fallback_labeing_params: Dict):
+def plot_steps(show_tree: bool,
+               scenario: ExperimentScenario,
+               datum: Dict,
+               metadata: Dict,
+               fallback_labeing_params: Dict,
+               verbose: int):
     planner_params = metadata['planner_params']
     goal_threshold = get_goal_threshold(planner_params)
 
@@ -123,10 +88,10 @@ def plot_steps(args, scenario, datum, metadata, fallback_labeing_params: Dict):
     steps = datum['steps']
 
     if len(steps) == 0:
-        q = datum['planning_queries'][0]
-        start = q['start']
-        goal = q['goal']
-        environment = q['environment']
+        q: PlanningQuery = datum['planning_queries'][0]
+        start = q.start
+        goal = q.goal
+        environment = q.environment
         anim = RvizAnimationController(n_time_steps=1)
         scenario.plot_state_rviz(start, label='actual', color='#ff0000aa')
         scenario.plot_goal_rviz(goal, goal_threshold)
@@ -136,19 +101,31 @@ def plot_steps(args, scenario, datum, metadata, fallback_labeing_params: Dict):
 
     goal = datum['goal']
     first_step = steps[0]
-    environment = numpify(first_step['planning_query']['environment'])
+    planning_query: PlanningQuery = first_step['planning_query']
+    environment = numpify(planning_query.environment)
     all_actual_states = []
     types = []
     all_predicted_states = []
     all_actions = []
+
+    actual_states = None
+    predicted_states = None
+    if len(steps) == 0:
+        raise ValueError("no steps!")
+
     for step_idx, step in enumerate(steps):
+        if verbose >= 1:
+            print(step['type'])
         if step['type'] == 'executed_plan':
-            actions = step['planning_result']['actions']
-            actual_states = step['execution_result']['path']
-            predicted_states = step['planning_result']['path']
+            planning_result: PlanningResult = step['planning_result']
+            execution_result: ExecutionResult = step['execution_result']
+            actions = planning_result.actions
+            actual_states = execution_result.path
+            predicted_states = planning_result.path
         elif step['type'] == 'executed_recovery':
+            execution_result: ExecutionResult = step['execution_result']
             actions = [step['recovery_action']]
-            actual_states = step['execution_result']['path']
+            actual_states = execution_result.path
             predicted_states = [None, None]
         else:
             raise NotImplementedError(f"invalid step type {step['type']}")
@@ -162,15 +139,16 @@ def plot_steps(args, scenario, datum, metadata, fallback_labeing_params: Dict):
         all_actual_states.extend(actual_states[:-1])
         all_predicted_states.extend(predicted_states[:-1])
 
-        if args.show_tree and step['type'] == 'executed_plan':
+        if show_tree and step['type'] == 'executed_plan':
             def _draw_tree_function(scenario, tree_json):
                 print(f"n vertices {len(tree_json['vertices'])}")
                 for vertex in tree_json['vertices']:
                     scenario.plot_tree_state(vertex, color='#77777722')
                     sleep(0.001)
 
+            planning_result: PlanningResult = step['planning_result']
             tree_thread = threading.Thread(target=_draw_tree_function,
-                                           args=(scenario, step['planning_result']['tree'],))
+                                           args=(scenario, planning_result.tree,))
             tree_thread.start()
 
     # but do add the actual final states

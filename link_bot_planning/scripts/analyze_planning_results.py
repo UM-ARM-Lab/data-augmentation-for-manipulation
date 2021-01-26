@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 import argparse
-import gzip
 import json
 import pickle
 
 import colorama
 import hjson
-import orjson
 from colorama import Style
 from tabulate import tabulate
 
@@ -17,7 +15,7 @@ from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.metric_utils import dict_to_pvalue_table
 from link_bot_pycommon.pycommon import paths_from_json
-from link_bot_pycommon.serialization import my_hdump
+from link_bot_pycommon.serialization import my_hdump, load_gzipped_pickle
 
 
 def save_order(outdir: pathlib.Path, subfolders_ordered: List[pathlib.Path]):
@@ -34,7 +32,6 @@ def load_sort_order(outdir: pathlib.Path, unsorted_dirs: List[pathlib.Path]):
         subfolders_ordered = paths_from_json(subfolders_ordered)
         return subfolders_ordered
     return unsorted_dirs
-
 
 
 def metrics_main(args):
@@ -151,7 +148,7 @@ def generate_metrics(args, out_dir, subfolders_ordered):
         NPlanningAttempts(args, results_dir=out_dir),
     ]
     for subfolder in subfolders_ordered:
-        metrics_filenames = list(subfolder.glob("*_metrics.json.gz"))
+        metrics_filenames = list(subfolder.glob("*_metrics.pkl.gz"))
 
         with (subfolder / 'metadata.json').open('r') as metadata_file:
             metadata = json.load(metadata_file)
@@ -165,10 +162,7 @@ def generate_metrics(args, out_dir, subfolders_ordered):
         for plan_idx, metrics_filename in enumerate(metrics_filenames):
             if args.debug and plan_idx > 3:
                 break
-            with gzip.open(metrics_filename, 'rb') as metrics_file:
-                data_str = metrics_file.read()
-            # orjson is twice as fast, and yes it really matters here.
-            datum = orjson.loads(data_str.decode("utf-8"))
+            datum = load_gzipped_pickle(metrics_filename)
             datums.append(datum)
 
         # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
@@ -191,6 +185,7 @@ def main():
     parser.add_argument('results_dirs', help='results directory', type=pathlib.Path, nargs='+')
     parser.add_argument('analysis_params', type=pathlib.Path)
     parser.add_argument('--no-plot', action='store_true')
+    parser.add_argument('--show-all-trials', action='store_true')
     parser.add_argument('--final', action='store_true')
     parser.add_argument('--regenerate', action='store_true')
     parser.add_argument('--debug', action='store_true', help='will only run on a few examples to speed up debugging')

@@ -69,3 +69,33 @@ def int_range_arg(v):
     except ValueError:
         pass
     raise argparse.ArgumentTypeError(f"invalid int range {v}")
+
+
+def int_set_arg(v):
+    """
+    :param v: either a single int, or a range like 3-8 (both ends inclusive), or a csv list of ints
+    :return: list of ints
+    """
+    try:
+        i = int(v)
+        return [i]
+    except ValueError:
+        pass
+    # parse things like 1-4
+    m = re.fullmatch("(\d+)-(\d+)", v)
+    try:
+        if m:
+            start = int(m.group(1))
+            end = int(m.group(2))
+            return list(range(start, end + 1))
+    except ValueError:
+        pass
+    # parse things like 1,2,3,4
+    try:
+        ints = []
+        for v_i in v.split(","):
+            ints.append(int(v_i))
+        return ints
+    except ValueError:
+        pass
+    raise argparse.ArgumentTypeError(f"invalid int set {v}")

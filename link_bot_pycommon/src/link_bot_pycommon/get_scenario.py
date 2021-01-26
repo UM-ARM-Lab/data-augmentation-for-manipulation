@@ -1,3 +1,5 @@
+from typing import Type
+
 from colorama import Fore
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
