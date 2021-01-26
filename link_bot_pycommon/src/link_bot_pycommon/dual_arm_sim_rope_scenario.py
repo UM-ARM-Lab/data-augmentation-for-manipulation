@@ -153,17 +153,17 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.service_provider.play()
 
         self.move_objects_out_of_scene(params)
-        self.robot.open_left_gripper()
         self.detach_rope_from_grippers()
 
         with rosbag.Bag(bagfile_name) as bag:
             joint_state: JointState = next(iter(bag.read_messages(topics=['joint_state'])))[1]
 
         joint_config = {}
-        for joint_name in self.robot.get_move_group_commander("both_arms").get_active_joints():
+        # NOTE: this will not work on victor because grippers don't work the same way
+        for joint_name in self.robot.get_move_group_commander("whole_body").get_active_joints():
             index_of_joint_name_in_state_msg = joint_state.name.index(joint_name)
             joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
-        self.robot.plan_to_joint_config("both_arms", joint_config)
+        self.robot.plan_to_joint_config("whole_body", joint_config)
 
         self.service_provider.pause()
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
@@ -185,7 +185,7 @@ class SimVictorDualArmRopeScenario(SimDualArmRopeScenario):
 
     @staticmethod
     def simple_name():
-        return "sim_victor_dual_arm_rope"
+        return "dual_arm_rope_sim_victor"
 
     @staticmethod
     def robot_name():
@@ -202,7 +202,7 @@ class SimValDualArmRopeScenario(SimDualArmRopeScenario):
 
     @staticmethod
     def simple_name():
-        return "sim_val_dual_arm_rope"
+        return "sim_dual_arm_rope_val"
 
     @staticmethod
     def robot_name():
