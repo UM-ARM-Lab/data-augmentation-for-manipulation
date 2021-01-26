@@ -23,11 +23,6 @@ class ExperimentScenario:
 
         self.tf = TF2Wrapper()
 
-    def __eq__(self, other):
-        if isinstance(other, str):
-            return other == self.simple_name()
-        raise NotImplementedError()
-
     @staticmethod
     def simple_name():
         raise NotImplementedError()
