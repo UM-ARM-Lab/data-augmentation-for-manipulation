@@ -1,0 +1,40 @@
+{
+  nickname: val_car
+  filename: log/val_car_new_goals/logfile.hjson
+  collect_dynamics_data_1:
+  {
+    dynamics_dataset_dir: fwd_model_data/baseline_gt_rope_phase1_1606682161_1b3bea4d11_2048
+  }
+  collect_dynamics_data_2:
+  {
+    dynamics_dataset_dir: fwd_model_data/val_car_3_1611110783_d79d3faf49_5120+no-rgbd
+  }
+  learn_dynamics:
+  {
+    model_dirs:
+    [
+      dy_trials/baseline_gt_rope_1606788041_0/December_01_13-54-02_59e9b8dcee
+      dy_trials/baseline_gt_rope_1606788041_1/December_01_15-16-40_59e9b8dcee
+      dy_trials/baseline_gt_rope_1606788041_2/December_01_16-39-11_59e9b8dcee
+      dy_trials/baseline_gt_rope_1606788041_3/December_01_18-03-17_59e9b8dcee
+    ]
+    classifier_threshold: 0.07
+  }
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/val_car_3+nj
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/val_car_3/January_20_11-15-31_3b4c39a23d
+  }
+  make_recovery_dataset:
+  {
+    recovery_dataset_dir: recovery_data/val_car_1611326554
+  }
+  learn_recovery:
+  {
+    model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e
+  }
+  planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_car_new_goals
+}
