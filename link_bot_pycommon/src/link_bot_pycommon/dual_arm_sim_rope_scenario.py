@@ -36,8 +36,8 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.robot.connect()
 
         self.robot.store_tool_orientations({
-            self.robot.right_tool_name: quaternion_from_euler(np.pi, 0, 0),
-            self.robot.left_tool_name:  quaternion_from_euler(np.pi, 0, 0),
+            self.robot.right_tool_name: self.preferred_tool_orientation,
+            self.robot.left_tool_name:  self.preferred_tool_orientation,
         })
 
         # Mark the rope as a not-obstacle
@@ -194,6 +194,7 @@ class SimVictorDualArmRopeScenario(SimDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('victor')
+        self.preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
 
     @staticmethod
     def simple_name():
@@ -211,6 +212,7 @@ class SimValDualArmRopeScenario(SimDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('hdt_michigan')
+        self.preferred_tool_orientation = quaternion_from_euler(-np.pi / 2, np.pi / 2, 0)
 
     @staticmethod
     def simple_name():

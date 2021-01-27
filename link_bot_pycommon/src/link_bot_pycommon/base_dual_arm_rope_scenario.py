@@ -33,6 +33,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
                                                    queue_size=10)
         self.cdcpd_listener = Listener("cdcpd/output", PointCloud2)
 
+        # NOTE: you may want to override this for your specific robot/scenario
+        self.preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
+
         exclude_srv_name = ns_join(self.robot_namespace, "exclude_models_from_planning_scene")
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
         # FIXME: this blocks until the robot is available, we need lazy construction
@@ -74,10 +77,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         self.add_boxes_around_tools()
 
         # Set the preferred tool orientations
-        down = quaternion_from_euler(np.pi, 0, 0)
         self.robot.store_tool_orientations({
-            self.robot.left_tool_name:  down,
-            self.robot.right_tool_name: down,
+            self.robot.left_tool_name:  self.preferred_tool_orientation,
+            self.robot.right_tool_name: self.preferred_tool_orientation,
         })
 
     def get_state(self):
