@@ -7,6 +7,7 @@ import colorama
 from progressbar import progressbar
 
 import rospy
+from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_planning.results_metrics import *
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
@@ -28,8 +29,25 @@ def metrics_main(args):
         end_state = datum['end_state']
         goal = datum['goal']
         task_error = scenario.distance_to_goal(end_state, goal).numpy()
-        used_recovery = np.any([step['type'] == 'executed_recovery' for step in datum['steps']])
-        row = [trial_idx, status.name, f'{task_error:.3f}', int(used_recovery)]
+        used_recovery = False
+        recovery_successful = False
+        for step in datum['steps']:
+            if step['type'] == 'executed_recovery':
+                used_recovery = True
+            if used_recovery and step['type'] == 'executed_plan':
+                recovery_successful = True
+        solved = False
+        try:
+            final_planning_result: PlanningResult = datum['steps'][-1]['planning_result']
+            solved = final_planning_result.status == MyPlannerStatus.Solved
+        except Exception:
+            pass
+        row = [trial_idx,
+               status.name,
+               f'{task_error:.3f}',
+               int(used_recovery),
+               int(recovery_successful),
+               int(not solved)]
         rows.append(row)
 
     rows = sorted(rows)
