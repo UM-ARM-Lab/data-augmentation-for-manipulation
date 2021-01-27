@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import pathlib
+import pickle
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -68,7 +69,8 @@ class PlanAndExecute:
                  planner_params: Dict,
                  service_provider: BaseServices,
                  no_execution: bool, use_gt_rope,
-                 test_scenes_dir: Optional[pathlib.Path] = None):
+                 test_scenes_dir: Optional[pathlib.Path] = None,
+                 saved_goals_filename: Optional[pathlib.Path] = None):
         self.use_gt_rope = use_gt_rope
         self.planner = planner
         self.scenario = self.planner.scenario
@@ -82,6 +84,7 @@ class PlanAndExecute:
         self.goal_rng = np.random.RandomState(0)
         self.recovery_rng = np.random.RandomState(0)
         self.test_scenes_dir = test_scenes_dir
+        self.saved_goals_filename = saved_goals_filename
         if self.planner_params['recovery']['use_recovery']:
             recovery_model_dir = pathlib.Path(self.planner_params['recovery']['recovery_model_dir'])
             self.recovery_policy = recovery_policy_utils.load_generic_model(model_dir=recovery_model_dir,
@@ -104,15 +107,24 @@ class PlanAndExecute:
 
         goal_params = self.planner_params['goal_params']
         if goal_params['type'] == 'fixed':
-            def _fixed_goal_gen(e):
+            def _fixed_goal_gen(_: int, __: Dict):
                 goal = numpify(goal_params['goal_fixed'])
                 goal['goal_type'] = goal_params['goal_type']
                 return goal
 
             self.goal_generator = _fixed_goal_gen
+        elif goal_params['type'] == 'saved':
+            def _saved_goals_gen(trial_idx: int, _: Dict):
+                saved_goal_filename = self.test_scenes_dir / f'goal_{trial_idx:04d}.pkl'
+                with saved_goal_filename.open('rb') as goal_file:
+                    goal = pickle.load(goal_file)
+                goal['goal_type'] = goal_params['goal_type']
+                return goal
+
+            self.goal_generator = _saved_goals_gen
         elif goal_params['type'] == 'random':
-            def _rand_goal_gen(e):
-                goal = self.scenario.sample_goal(environment=e,
+            def _rand_goal_gen(_: int, env: Dict):
+                goal = self.scenario.sample_goal(environment=env,
                                                  rng=self.goal_rng,
                                                  planner_params=self.planner_params)
                 goal['goal_type'] = goal_params['goal_type']
@@ -124,7 +136,7 @@ class PlanAndExecute:
             tf_dataset = dataset.get_datasets(mode='val')
             goal_dataset_iterator = iter(tf_dataset)
 
-            def _dataset_goal_gen(e):
+            def _dataset_goal_gen(trial_idx: int, env: Dict):
                 example = next(goal_dataset_iterator)
                 example_t = dataset.index_time_batched(example_batched=add_batch(example), t=1)
                 goal = remove_batch(example_t)
@@ -205,7 +217,7 @@ class PlanAndExecute:
     def plan_and_execute(self, trial_idx: int):
         self.set_random_seeds_for_trial(trial_idx)
 
-        self.save_or_restore_test_scene(trial_idx)
+        self.setup_test_scene(trial_idx)
 
         self.on_start_trial(trial_idx)
 
@@ -213,7 +225,7 @@ class PlanAndExecute:
         total_timeout = self.planner_params['total_timeout']
 
         # Get the goal (default is to randomly sample one)
-        goal = self.get_goal(self.get_environment())
+        goal = self.get_goal(trial_idx, self.get_environment())
 
         attempt_idx = 0
         steps_data = []
@@ -318,7 +330,7 @@ class PlanAndExecute:
                 self.on_trial_complete(trial_data_dict, trial_idx)
                 return
 
-    def save_or_restore_test_scene(self, trial_idx):
+    def setup_test_scene(self, trial_idx: int):
         if self.test_scenes_dir is not None:
             # Gazebo specific
             bagfile_name = self.test_scenes_dir / f'scene_{trial_idx:04d}.bag'
@@ -328,7 +340,7 @@ class PlanAndExecute:
             rospy.loginfo(Fore.GREEN + f"Randomizing Environment")
             self.randomize_environment()
 
-    def set_random_seeds_for_trial(self, trial_idx):
+    def set_random_seeds_for_trial(self, trial_idx: int):
         self.env_rng.seed(trial_idx)
         self.recovery_rng.seed(trial_idx)
         self.goal_rng.seed(trial_idx)
@@ -341,8 +353,8 @@ class PlanAndExecute:
     def on_trial_complete(self, trial_data, trial_idx: int):
         pass
 
-    def get_goal(self, environment: Dict):
-        return self.goal_generator(environment)
+    def get_goal(self, trial_idx: int, environment: Dict):
+        return self.goal_generator(trial_idx, environment)
 
     def on_plan_complete(self,
                          planning_query: PlanningQuery,

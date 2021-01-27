@@ -65,6 +65,7 @@ def main():
                                verbose=args.verbose,
                                timeout=args.timeout,
                                test_scenes_dir=args.test_scenes_dir,
+                               saved_goals_filename=None,
                                logfile_name=args.logfile)
 
 

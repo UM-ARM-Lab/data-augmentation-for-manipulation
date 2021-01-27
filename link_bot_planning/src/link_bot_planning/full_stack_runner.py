@@ -285,6 +285,11 @@ class FullStackRunner:
         else:
             test_scenes_dir = None
 
+        if "saved_goals_filename" in planning_evaluation_params:
+            saved_goals_filename = pathlib.Path(planning_evaluation_params["saved_goals_filename"])
+        else:
+            saved_goals_filename = None
+
         n_trials = planning_evaluation_params['n_trials']
         trials = list(range(n_trials))
 
@@ -307,6 +312,7 @@ class FullStackRunner:
                                      verbose=self.verbose,
                                      logfile_name=logfile_name,
                                      on_exception='retry',
+                                     saved_goals_filename=saved_goals_filename,
                                      )
 
         if self.launch:

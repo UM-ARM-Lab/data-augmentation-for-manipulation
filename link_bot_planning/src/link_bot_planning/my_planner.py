@@ -5,7 +5,7 @@ from typing import Dict, Optional, List
 from dataclasses_json import dataclass_json
 
 from link_bot_planning.base_decoder_function import BaseDecoderFunction, PassThroughDecoderFunction
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.animatable_scenario import AnimatableScenario
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 from state_space_dynamics.base_filter_function import BaseFilterFunction, PassThroughFilter
 
@@ -46,7 +46,7 @@ class PlanningResult:
 
 class MyPlanner:
     def __init__(self,
-                 scenario: ExperimentScenario,
+                 scenario: AnimatableScenario,
                  fwd_model: BaseDynamicsFunction,
                  filter_model: BaseFilterFunction = PassThroughFilter(),
                  decoder: Optional[BaseDecoderFunction] = PassThroughDecoderFunction()):
