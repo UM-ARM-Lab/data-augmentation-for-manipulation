@@ -214,7 +214,7 @@ class SimValDualArmRopeScenario(SimDualArmRopeScenario):
 
     @staticmethod
     def simple_name():
-        return "sim_dual_arm_rope_val"
+        return "dual_arm_rope_sim_val"
 
     @staticmethod
     def robot_name():

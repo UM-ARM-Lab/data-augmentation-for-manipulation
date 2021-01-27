@@ -50,7 +50,6 @@ def main():
 
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument('results_dir', help='results directory', type=pathlib.Path)
-    parser.add_argument('--table-format', help='table format', type=str, choices=['plain', 'fancy_grid'])
 
     args = parser.parse_args()
 

@@ -158,16 +158,12 @@ def generate_metrics(args, out_dir, subfolders_ordered):
         for metric in metrics:
             metric.setup_method(method_name, metadata)
 
-        datums = []
+        # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
         for plan_idx, metrics_filename in enumerate(metrics_filenames):
             if args.debug and plan_idx > 3:
                 break
             datum = load_gzipped_pickle(metrics_filename)
-            datums.append(datum)
-
-        # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
-        for metric in metrics:
-            for datum in datums:
+            for metric in metrics:
                 metric.aggregate_trial(method_name, scenario, datum)
 
         for metric in metrics:
