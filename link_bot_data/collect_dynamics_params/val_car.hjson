@@ -66,7 +66,7 @@
           orientation: [0, 0, 3.14159]
         }
         car_hood: {
-          position: [0, 1.242, 0.157]
+          position: [0, 1.242, 0.20]
           orientation: [-0.908, 0, 0]
         }
         car_engine2: {

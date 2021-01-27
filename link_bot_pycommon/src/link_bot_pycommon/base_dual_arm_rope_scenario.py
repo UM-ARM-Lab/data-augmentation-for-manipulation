@@ -36,6 +36,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         # NOTE: you may want to override this for your specific robot/scenario
         self.preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
 
+        self.size_of_box_around_tool_for_planning = 0.05
         exclude_srv_name = ns_join(self.robot_namespace, "exclude_models_from_planning_scene")
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
         # FIXME: this blocks until the robot is available, we need lazy construction
@@ -44,17 +45,16 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
     def add_boxes_around_tools(self):
         # add spheres to prevent moveit from smooshing the rope and ends of grippers into obstacles
         self.moveit_scene = moveit_commander.PlanningSceneInterface(ns=self.robot_namespace)
-        self.robust_add_to_scene(self.robot.left_tool_name, 'left_tool_box',
-                                 self.robot.get_left_gripper_links())
-        self.robust_add_to_scene(self.robot.right_tool_name, 'right_tool_box',
-                                 self.robot.get_right_gripper_links())
+        self.robust_add_to_scene(self.robot.left_tool_name, 'left_tool_box', self.robot.get_left_gripper_links())
+        self.robust_add_to_scene(self.robot.right_tool_name, 'right_tool_box', self.robot.get_right_gripper_links())
 
     def robust_add_to_scene(self, link: str, new_object_name: str, touch_links: List[str]):
         box_pose = PoseStamped()
         box_pose.header.frame_id = link
         box_pose.pose.orientation.w = 1.0
+        box_size = self.size_of_box_around_tool_for_planning
         while True:
-            self.moveit_scene.add_box(new_object_name, box_pose, size=(0.05, 0.05, 0.05))
+            self.moveit_scene.add_box(new_object_name, box_pose, size=(box_size, box_size, box_size))
             self.moveit_scene.attach_box(link, new_object_name, touch_links=touch_links)
 
             rospy.sleep(0.1)
