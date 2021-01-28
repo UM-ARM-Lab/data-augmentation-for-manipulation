@@ -10,7 +10,7 @@ import tensorflow as tf
 from arc_utilities import ros_init
 from link_bot_data.dataset_utils import data_directory
 from link_bot_planning.planning_evaluation import planning_evaluation
-from link_bot_pycommon.args import my_formatter, int_range_arg
+from link_bot_pycommon.args import my_formatter, int_range_arg, int_set_arg
 
 
 def main():
@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument('planners_params', type=pathlib.Path, nargs='+',
                         help='json file(s) describing what should be compared')
-    parser.add_argument("trials", type=int_range_arg, default="0-50")
+    parser.add_argument("trials", type=int_set_arg, default="0-50")
     parser.add_argument("nickname", type=str, help='used in making the output directory')
     parser.add_argument("--test-scenes-dir", type=pathlib.Path)
     parser.add_argument("--saved-goals-filename", type=pathlib.Path)

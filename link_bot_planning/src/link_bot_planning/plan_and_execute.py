@@ -74,7 +74,6 @@ class PlanAndExecute:
         self.use_gt_rope = use_gt_rope
         self.planner = planner
         self.scenario = self.planner.scenario
-        self.scenario.on_before_get_state_or_execute_action()
         self.trials = trials
         self.planner_params = planner_params
         self.verbose = verbose

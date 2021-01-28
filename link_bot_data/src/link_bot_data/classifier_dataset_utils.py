@@ -74,6 +74,9 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
                                              batch_size: Optional[int] = None,
                                              start_at: Optional[int] = None,
                                              stop_at: Optional[int] = None):
+    if labeling_params.get('includes_starts_far'):
+        rospy.logwarn('including examples where the start actual vs predicted are far')
+
     # append "best_checkpoint" before loading
     if not isinstance(fwd_model_dir, List):
         fwd_model_dir = [fwd_model_dir]
@@ -242,9 +245,13 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
             else:
                 raise NotImplementedError(f"unrecognized perception reliability method {pr_method}")
 
-        is_first_predicted_state_close = is_close[:, 0]
-        valid_indices = tf.where(is_first_predicted_state_close)
-        valid_indices = tf.squeeze(valid_indices, axis=1)
+        if not labeling_params.get('includes_starts_far', False):
+            is_first_predicted_state_close = is_close[:, 0]
+            valid_indices = tf.where(is_first_predicted_state_close)
+            valid_indices = tf.squeeze(valid_indices, axis=1)
+        else:
+            valid_indices = tf.range(prediction_actual.batch_size, dtype=tf.int64)
+
         # keep only valid_indices from every key in out_example...
         valid_out_example = gather_dict(out_example, valid_indices)
         valid_out_examples.append(valid_out_example)

@@ -10,8 +10,8 @@ from gazebo_msgs.srv import SetModelState, SetModelStateRequest
 from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_data.dataset_utils import NULL_PAD_VALUE
 from link_bot_pycommon import grid_utils
+from link_bot_pycommon.animatable_scenario import AnimatableScenario
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import environment_to_occupancy_msg
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from mps_shape_completion_msgs.msg import OccupancyStamped
@@ -26,7 +26,7 @@ except ImportError:
     rospy.logwarn("ignoring failed import of BBox message")
 
 
-class Base3DScenario(ExperimentScenario):
+class Base3DScenario(AnimatableScenario):
     def __init__(self):
         super().__init__()
         self.world_control_srv = rospy.ServiceProxy("/world_control", WorldControl)

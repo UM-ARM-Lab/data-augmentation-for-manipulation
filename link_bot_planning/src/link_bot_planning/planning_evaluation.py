@@ -252,6 +252,7 @@ def planning_evaluation(outdir: pathlib.Path,
                              timeout=timeout,
                              test_scenes_dir=test_scenes_dir,
                              saved_goals_filename=saved_goals_filename,
+                             print_exception=True,
                              )
 
         rospy.loginfo(f"Results written to {outdir}")
