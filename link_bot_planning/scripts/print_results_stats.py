@@ -36,12 +36,8 @@ def metrics_main(args):
                 used_recovery = True
             if used_recovery and step['type'] == 'executed_plan':
                 recovery_successful = True
-        solved = False
-        try:
-            final_planning_result: PlanningResult = datum['steps'][-1]['planning_result']
-            solved = final_planning_result.status == MyPlannerStatus.Solved
-        except Exception:
-            pass
+        final_planning_result: PlanningResult = datum['steps'][-1]['planning_result']
+        solved = final_planning_result.status == MyPlannerStatus.Solved
         row = [trial_idx,
                status.name,
                f'{task_error:.3f}',

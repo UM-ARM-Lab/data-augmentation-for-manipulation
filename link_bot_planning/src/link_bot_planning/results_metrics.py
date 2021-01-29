@@ -4,10 +4,11 @@ from typing import Dict, List
 import matplotlib.pyplot as plt
 import numpy as np
 from colorama import Fore
+from matplotlib.lines import Line2D
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.latex_utils import make_cell
-from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout
+from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness
 from link_bot_pycommon.metric_utils import row_stats
 
 
@@ -150,6 +151,42 @@ class MyFigure:
         self.enumerate_methods()
 
 
+class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
+    def __init__(self, analysis_params: Dict, metric, ylabel: str):
+        super().__init__(analysis_params, metric, name="task_error_violinplot")
+        self.ax.set_xlabel("Method")
+        self.ax.set_ylabel(ylabel)
+        self.trendline = self.params.get('trendline', False)
+
+    def add_to_figure(self, method_name: str, values: List, color):
+        x = self.metric.method_indices[method_name]
+        if self.trendline:
+            self.ax.plot(x, np.mean(values, axis=0), c=color, zorder=2, label='mean')
+        if color is None:
+            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
+        parts = self.ax.violinplot(values, positions=[x], widths=0.9, showmeans=True)
+        for pc in parts['bodies']:
+            pc.set_facecolor(color)
+            pc.set_edgecolor(color)
+            pc.set_alpha(1)
+        for partname in ['cmeans',]:
+            vp = parts[partname]
+            vp.set_edgecolor('#dddddd')
+            vp.set_linewidth(3)
+        for partname in ['cbars', 'cmins', 'cmaxes']:
+            color_dark = adjust_lightness(color, 0.1)
+            vp = parts[partname]
+            vp.set_edgecolor(color_dark)
+            vp.set_linewidth(1)
+
+        plt.setp(self.ax.get_xticklabels(), rotation=18, horizontalalignment='right')
+
+    def finish_figure(self):
+        mean_line = [Line2D([0], [0], color='#dddddd', lw=2)]
+        self.ax.legend(mean_line, ['mean'])
+        self.ax.set_xticklabels(self.metric.values.keys())
+
+
 class BoxplotOverTrialsPerMethodFigure(MyFigure):
     def __init__(self, analysis_params: Dict, metric, ylabel: str):
         super().__init__(analysis_params, metric, name="task_error_boxplot")
@@ -160,7 +197,9 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
     def add_to_figure(self, method_name: str, values: List, color):
         x = self.metric.method_indices[method_name]
         if self.trendline:
-            self.ax.plot(x, np.mean(values, axis=0), c=color, zorder=2)
+            self.ax.plot(x, np.mean(values, axis=0), c=color, zorder=2, label='mean')
+        if color is None:
+            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
         self.ax.boxplot(values,
                         positions=[x],
                         widths=0.9,
@@ -170,13 +209,10 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
                         whiskerprops=dict(color=color),
                         medianprops=dict(color=color),
                         showfliers=False)
+
         plt.setp(self.ax.get_xticklabels(), rotation=18, horizontalalignment='right')
 
-    def get_table_header(self):
-        return ["Name", self.name]
-
     def finish_figure(self):
-        # don't a legend for these plots
         self.ax.set_xticklabels(self.metric.values.keys())
 
 
@@ -189,7 +225,6 @@ class TaskErrorLineFigure(MyFigure):
         self.ax.set_xlabel("Task Error Threshold (m)")
         self.ax.set_ylabel("Success Rate")
         self.ax.set_ylim([-0.1, 100.5])
-        self.fig.subplots_adjust(top=0.94)
 
     def add_to_figure(self, method_name: str, values: List, color):
         success_rate_at_thresholds = []
@@ -230,7 +265,6 @@ class TotalTimeBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
 class TaskErrorBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
     def __init__(self, analysis_params: Dict, metric):
         super().__init__(analysis_params, metric, "Task Error")
-        self.ax.set_ylim([0.0, self.params["max_error"]])
         self.fig.suptitle(self.params['experiment_name'])
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
@@ -247,13 +281,21 @@ class TaskErrorBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
         xs = [x] * n_values + np.random.RandomState(0).uniform(-0.08, 0.08, size=n_values)
         self.ax.scatter(xs, values, edgecolors='k', s=5, marker='o', facecolors='none')
 
-    def finish_figure(self):
-        values = np.array(list(self.metric.values.values()))
-        if values.ndim < 2:
-            return
+    def get_table_header(self):
+        return ["Name", "min", "max", "mean", "median", "std"]
 
-        self.ax.plot(range(len(values)), np.mean(values, axis=1), c='b', zorder=2)
-        self.ax.set_xticklabels(list(self.metric.values.keys()))
+
+class TaskErrorViolinPlotFigure(ViolinPlotOverTrialsPerMethodFigure):
+    def __init__(self, analysis_params: Dict, metric):
+        super().__init__(analysis_params, metric, "Task Error")
+        self.fig.suptitle(self.params['experiment_name'])
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        goal = trial_datum['goal']
+        final_actual_state = trial_datum['end_state']
+        self.thresholds = trial_datum['planner_params']
+        final_execution_to_goal_error = scenario.distance_to_goal(final_actual_state, goal)
+        return final_execution_to_goal_error
 
     def get_table_header(self):
         return ["Name", "min", "max", "mean", "median", "std"]

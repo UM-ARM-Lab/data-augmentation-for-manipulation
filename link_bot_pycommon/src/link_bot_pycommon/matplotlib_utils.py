@@ -1,3 +1,6 @@
+import colorsys
+
+import matplotlib.colors as mc
 import numpy as np
 from matplotlib import cm
 
@@ -23,3 +26,21 @@ def paste_over(i1, i2, binary_threshold=0.1):
     mask = np.any(i1 > binary_threshold, axis=2)
     i2[mask] = 0
     return i2 + i1
+
+
+def adjust_lightness(color, amount=1.0):
+    """
+    Adjusts the brightness/lightness of a color
+    Args:
+        color: any valid matplotlib color, could be hex string, or tuple, etc.
+        amount: 1 means no change, less than 1 is darker, more than 1 is brighter
+
+    Returns:
+
+    """
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])

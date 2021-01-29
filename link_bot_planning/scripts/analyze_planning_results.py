@@ -94,7 +94,8 @@ def metrics_main(args):
         # NRecoveryActions(analysis_params, metrics[1]),
         # TotalTime(analysis_params, metrics[2]),
         # NPlanningAttempts(analysis_params, metrics[3]),
-        TaskErrorBoxplotFigure(analysis_params, metrics[0]),
+        # TaskErrorBoxplotFigure(analysis_params, metrics[0]),
+        TaskErrorViolinPlotFigure(analysis_params, metrics[0]),
     ]
 
     for figure in figures:
