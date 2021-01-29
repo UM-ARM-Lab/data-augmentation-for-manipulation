@@ -2,7 +2,7 @@ import pathlib
 import random
 import string
 import warnings
-from typing import List, Union
+from typing import Union, List
 
 import numpy as np
 import tensorflow as tf
@@ -167,7 +167,11 @@ def make_dict_tf_float32(d):
 
 
 def make_dict_float32(d):
-    return {k: s_k.astype(np.float32) for k, s_k in d.items()}
+    out_d = {}
+    for k, s_k in d.items():
+        if k != 'joint_names':
+            out_d[k] = s_k.astype(np.float32)
+    return out_d
 
 
 def longest_reconverging_subsequence(x):

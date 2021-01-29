@@ -844,17 +844,6 @@ class FloatingRopeScenario(Base3DScenario):
     def dynamics_metrics_function(dataset_element, predictions):
         return dynamics_points_metrics_function(dataset_element, predictions)
 
-    def plot_tree_action(self, state: Dict, action: Dict, **kwargs):
-        r = kwargs.pop("r", 0.2)
-        g = kwargs.pop("g", 0.2)
-        b = kwargs.pop("b", 0.8)
-        a = kwargs.pop("a", 1.0)
-        ig = marker_index_generator(self.tree_action_idx)
-        idx1 = next(ig)
-        idx2 = next(ig)
-        self.plot_action_rviz(state, action, label='tree', color=[r, g, b, a], idx1=idx1, idx2=idx2, **kwargs)
-        self.tree_action_idx += 1
-
     def plot_state_rviz(self, state: Dict, label: str, **kwargs):
         r, g, b, a = colors.to_rgba(kwargs.get("color", "r"))
         idx = kwargs.get("idx", 0)

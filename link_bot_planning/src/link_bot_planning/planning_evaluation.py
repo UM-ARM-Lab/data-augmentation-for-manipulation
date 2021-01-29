@@ -171,6 +171,7 @@ def evaluate_planning_method(planner_params: Dict,
 
     # Start Services
     service_provider = gazebo_services.GazeboServices()
+    service_provider.play()  # time needs to be advancing while we setup the planner so it can use ROS to query things
     planner = get_planner(planner_params=planner_params, verbose=verbose)
 
     service_provider.setup_env(verbose=verbose,

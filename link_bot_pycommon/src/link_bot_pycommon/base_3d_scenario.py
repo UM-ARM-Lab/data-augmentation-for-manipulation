@@ -13,6 +13,7 @@ from link_bot_pycommon import grid_utils
 from link_bot_pycommon.animatable_scenario import AnimatableScenario
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.grid_utils import environment_to_occupancy_msg
+from link_bot_pycommon.marker_index_generator import marker_index_generator
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from mps_shape_completion_msgs.msg import OccupancyStamped
 from peter_msgs.msg import LabelStatus
@@ -121,6 +122,17 @@ class Base3DScenario(AnimatableScenario):
     def plot_tree_state(self, state: Dict, color='#777777'):
         self.plot_state_rviz(state, idx=self.tree_state_idx, label='tree', color=color)
         self.tree_state_idx += 1
+
+    def plot_tree_action(self, state: Dict, action: Dict, **kwargs):
+        r = kwargs.pop("r", 0.2)
+        g = kwargs.pop("g", 0.2)
+        b = kwargs.pop("b", 0.8)
+        a = kwargs.pop("a", 1.0)
+        ig = marker_index_generator(self.tree_action_idx)
+        idx1 = next(ig)
+        idx2 = next(ig)
+        self.plot_action_rviz(state, action, label='tree', color=[r, g, b, a], idx1=idx1, idx2=idx2, **kwargs)
+        self.tree_action_idx += 1
 
     def plot_state_closest_to_goal(self, state: Dict, color='#00C282'):
         self.plot_state_rviz(state, label='best', color=color)

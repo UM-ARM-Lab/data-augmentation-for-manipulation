@@ -26,10 +26,10 @@ def main():
     parser.add_argument("--saved-goals-filename", type=pathlib.Path)
     parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
     parser.add_argument("--no-execution", action="store_true", help='no execution')
+    parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
     parser.add_argument('--record', action='store_true', help='record')
     parser.add_argument('--use-gt-rope', action='store_true', help='use ground truth rope state')
-    parser.add_argument('--skip-on-exception', action='store_true', help='skip method if exception is raise')
 
     args = parser.parse_args()
 
@@ -51,7 +51,7 @@ def main():
     planning_evaluation(outdir=root,
                         planners_params=planners_params,
                         trials=args.trials,
-                        on_exception='retry',
+                        on_exception=args.on_exception,
                         use_gt_rope=args.use_gt_rope,
                         verbose=args.verbose,
                         timeout=args.timeout,

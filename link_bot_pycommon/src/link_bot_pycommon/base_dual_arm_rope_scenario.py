@@ -4,6 +4,8 @@ from typing import Dict, List
 import numpy as np
 
 import rosnode
+from moveit_msgs.msg import RobotState, RobotTrajectory
+from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -41,6 +43,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
         # FIXME: this blocks until the robot is available, we need lazy construction
         self.robot = get_moveit_robot(self.robot_namespace, raise_on_failure=True)
+        self.stored_joint_names = None
 
     def add_boxes_around_tools(self):
         # add spheres to prevent moveit from smooshing the rope and ends of grippers into obstacles
@@ -82,9 +85,19 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
             self.robot.right_tool_name: self.preferred_tool_orientation,
         })
 
+    def get_n_joints(self):
+        return len(self.get_joint_names())
+
+    def get_joint_names(self):
+        # by storing joint names here, we can query in the future while time is paused
+        if self.stored_joint_names is None:
+            self.stored_joint_names = self.robot.get_joint_names()
+
+        return self.stored_joint_names
+
     def get_state(self):
         # TODO: this should be composed of function calls to get_state for arm_no_rope and get_state for rope?
-        joint_state = self.robot._joint_state_listener.get()
+        joint_state: JointState = self.robot._joint_state_listener.get()
 
         left_gripper_position, right_gripper_position = self.robot.get_gripper_positions()
 
@@ -129,17 +142,21 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
     def plot_state_rviz(self, state: Dict, label: str, **kwargs):
         super().plot_state_rviz(state, label, **kwargs)
         if 'joint_positions' in state and 'joint_names' in state:
-            joint_msg = JointState()
-            joint_msg.header.stamp = rospy.Time.now()
-            joint_msg.position = state['joint_positions']
-            if isinstance(state['joint_names'][0], bytes):
-                joint_names = [n.decode("utf-8") for n in state['joint_names']]
-            elif isinstance(state['joint_names'][0], str):
-                joint_names = [str(n) for n in state['joint_names']]
-            else:
-                raise NotImplementedError(type(state['joint_names'][0]))
-            joint_msg.name = joint_names
-            self.joint_state_viz_pub.publish(joint_msg)
+            joint_state = self.joint_state_msg_from_state_dict(state)
+            self.robot.display_robot_state(joint_state)
+
+    def joint_state_msg_from_state_dict(self, state):
+        joint_state = JointState()
+        joint_state.header.stamp = rospy.Time.now()
+        joint_state.position = state['joint_positions']
+        if isinstance(state['joint_names'][0], bytes):
+            joint_names = [n.decode("utf-8") for n in state['joint_names']]
+        elif isinstance(state['joint_names'][0], str):
+            joint_names = [str(n) for n in state['joint_names']]
+        else:
+            raise NotImplementedError(type(state['joint_names'][0]))
+        joint_state.name = joint_names
+        return joint_state
 
     def dynamics_dataset_metadata(self):
         metadata = super().dynamics_dataset_metadata()
@@ -158,18 +175,55 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         res: ExcludeModelsResponse = self.exclude_from_planning_scene_srv(exclude)
         return res.all_model_names
 
-    def initial_obstacle_poses_with_noise(self, env_rng: np.random.RandomState, obstacles: List):
-        raise NotImplementedError()
+    def is_motion_feasible(self, environment: Dict, state: Dict, action: Dict):
+        joint_state = self.joint_state_msg_from_state_dict(state)
+        self.robot.display_robot_state(joint_state)
 
-    def execute_action(self, action: Dict):
         left_gripper_points = [action['left_gripper_position']]
         right_gripper_points = [action['right_gripper_position']]
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         grippers = [left_gripper_points, right_gripper_points]
-        self.robot.follow_jacobian_to_position("both_arms", tool_names, grippers, vel_scaling=0.1)
 
-        rope_settling_time = action.get('settling_time', 1.0)
-        rospy.sleep(rope_settling_time)
+        preferred_tool_orientations = [self.preferred_tool_orientation for _ in tool_names]
+        # NOTE: we don't use environment here because we assume the planning scenes is static,
+        #  so the jacobian follower will already have that information.
+        robot_state = RobotState()
+        robot_state.joint_state.name = state['joint_names']
+        robot_state.joint_state.position = state['joint_positions']
+        robot_state.joint_state.velocity = [0.0] * self.get_n_joints()
+        plan: RobotTrajectory
+        target_reached: bool
+        plan, target_reached = self.robot.jacobian_follower.plan_from_start_state(
+            start_state=robot_state,
+            group_name='both_arms',
+            tool_names=tool_names,
+            preferred_tool_orientations=preferred_tool_orientations,
+            grippers=grippers,
+            max_velocity_scaling_factor=0.1,
+            max_acceleration_scaling_factor=0.1,
+        )
+
+        if len(plan.joint_trajectory.points) == 0:
+            predicted_joint_positions = state['joint_positions']
+        else:
+            final_point: JointTrajectoryPoint = plan.joint_trajectory.points[-1]
+            robot_state.joint_state.position = state['joint_positions']
+            predicted_joint_positions = []
+            for joint_name in state['joint_names']:
+                if joint_name in plan.joint_trajectory.joint_names:
+                    joint_idx_in_final_point = plan.joint_trajectory.joint_names.index(joint_name)
+                    joint_position = final_point.positions[joint_idx_in_final_point]
+                elif joint_name in state['joint_names']:
+                    joint_idx_in_state = state['joint_names'].index(joint_name)
+                    joint_position = float(state['joint_positions'][joint_idx_in_state])
+                else:
+                    raise ValueError(f"joint {joint_name} is in neither the start state nor the the planed trajectory")
+                predicted_joint_positions.append(joint_position)
+
+        return target_reached, predicted_joint_positions
+
+    def initial_obstacle_poses_with_noise(self, env_rng: np.random.RandomState, obstacles: List):
+        raise NotImplementedError()
 
     def get_environment(self, params: Dict, **kwargs):
         default_res = 0.01

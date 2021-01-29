@@ -79,11 +79,10 @@ def sample_rope(rng, p, n_links, kd: float):
 
 class FloatingRopeOmpl(ScenarioOmpl):
 
-    def __init__(self, scenario: FloatingRopeScenario):
-        self.s = scenario
+    def __init__(self, scenario: FloatingRopeScenario, *args, **kwargs):
+        super().__init__(scenario, *args, **kwargs)
 
-    @staticmethod
-    def numpy_to_ompl_state(state_np: Dict, state_out: ob.CompoundState):
+    def numpy_to_ompl_state(self, state_np: Dict, state_out: ob.CompoundState):
         rope_points = np.reshape(state_np['rope'], [-1, 3])
         for i in range(3):
             state_out[0][i] = np.float64(state_np['left_gripper'][i])
@@ -95,8 +94,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
         state_out[FloatingRopeScenario.n_links + 2][0] = np.float64(state_np['stdev'][0])
         state_out[FloatingRopeScenario.n_links + 3][0] = np.float64(state_np['num_diverged'][0])
 
-    @staticmethod
-    def numpy_to_ompl_control(state_np: Dict, control_np: Dict, control_out: oc.CompoundControl):
+    def numpy_to_ompl_control(self, state_np: Dict, control_np: Dict, control_out: oc.CompoundControl):
         left_gripper_delta = control_np['left_gripper_position'] - state_np['left_gripper']
         left_r, left_phi, left_theta = vector3_to_spherical(left_gripper_delta)
 
@@ -111,8 +109,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
         control_out[1][1] = np.float_(right_phi)
         control_out[1][2] = np.float_(right_theta)
 
-    @staticmethod
-    def ompl_state_to_numpy(ompl_state: ob.CompoundState):
+    def ompl_state_to_numpy(self, ompl_state: ob.CompoundState):
         left_gripper = np.array([ompl_state[0][0], ompl_state[0][1], ompl_state[0][2]], np.float32)
         right_gripper = np.array([ompl_state[1][0], ompl_state[1][1], ompl_state[1][2]], np.float32)
         rope = []
@@ -185,8 +182,8 @@ class FloatingRopeOmpl(ScenarioOmpl):
         else:
             raise NotImplementedError()
 
-    def make_ompl_state_space(self, planner_params, state_sampler_rng: np.random.RandomState,
-                              plot: bool):
+    def make_state_space(self, planner_params, state_sampler_rng: np.random.RandomState,
+                         plot: bool):
         state_space = ob.CompoundStateSpace()
 
         min_x, max_x, min_y, max_y, min_z, max_z = planner_params['extent']
@@ -257,7 +254,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
 
         return state_space
 
-    def make_ompl_control_space(self, state_space, rng: np.random.RandomState, action_params: Dict):
+    def make_control_space(self, state_space, rng: np.random.RandomState, action_params: Dict):
         control_space = oc.CompoundControlSpace(state_space)
 
         left_gripper_control_space = oc.RealVectorControlSpace(state_space, 3)
@@ -519,8 +516,10 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
     def sampleGoal(self, state_out: ob.CompoundState):
         d = self.getThreshold()
         random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) @ np.array([d, 0, 0, 1])
+        random_distance = self.rng.uniform(0.0, d)
         random_direction = random_direction[:3]
-        random_point = self.goal['midpoint'] + random_direction
+        print('DIST:', random_distance)
+        random_point = self.goal['midpoint'] + random_direction * random_distance
 
         goal_state_np = {
             'left_gripper':  random_point,
@@ -570,8 +569,9 @@ class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
 
     def sampleGoal(self, state_out: ob.CompoundState):
         d = self.getThreshold()
+        random_distance = self.rng.uniform(0.0, d)
         random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) * np.array([d, 0, 0, 1])
-        random_point = self.goal['point'] + random_direction
+        random_point = self.goal['point'] + random_direction * random_distance
 
         goal_state_np = {
             'left_gripper':  random_point,

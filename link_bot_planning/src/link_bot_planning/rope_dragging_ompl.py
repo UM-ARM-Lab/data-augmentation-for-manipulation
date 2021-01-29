@@ -11,11 +11,13 @@ with warnings.catch_warnings():
     import ompl.base as ob
     import ompl.control as oc
 
+
 class RopeDraggingOmpl(ScenarioOmpl):
 
-    def __init__(self, scenario_ompl: RopeDraggingScenario):
-        self.s = scenario_ompl
+    def __init__(self, scenario: RopeDraggingScenario, *args, **kwargs):
+        super().__init__(scenario, *args, **kwargs)
 
+    # TODO: update this API
     @staticmethod
     def numpy_to_ompl_state(state_np: Dict, state_out: ob.CompoundState):
         for i in range(3):
@@ -62,7 +64,7 @@ class RopeDraggingOmpl(ScenarioOmpl):
                                       goal=goal,
                                       plot=plot)
 
-    def make_ompl_state_space(self, planner_params, state_sampler_rng: np.random.RandomState, plot: bool):
+    def make_state_space(self, planner_params, state_sampler_rng: np.random.RandomState, plot: bool):
         state_space = ob.CompoundStateSpace()
 
         min_x, max_x, min_y, max_y, min_z, max_z = planner_params['extent']
@@ -118,7 +120,7 @@ class RopeDraggingOmpl(ScenarioOmpl):
 
         return state_space
 
-    def make_ompl_control_space(self, state_space, rng: np.random.RandomState, action_params: Dict):
+    def make_control_space(self, state_space, rng: np.random.RandomState, action_params: Dict):
         control_space = oc.CompoundControlSpace(state_space)
 
         gripper_control_space = oc.RealVectorControlSpace(state_space, 3)

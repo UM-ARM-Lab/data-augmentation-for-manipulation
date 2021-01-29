@@ -178,6 +178,7 @@ class PlanAndExecute:
             if self.verbose >= 2 and not self.no_execution:
                 rospy.loginfo(Fore.CYAN + "Executing Plan" + Fore.RESET)
             self.service_provider.play()
+            rospy.sleep(1.0)  # FIXME: not sure why or if this is necessary I'm debugging something
             actual_path = execute_actions(scenario=self.scenario,
                                           environment=planning_query.environment,
                                           start_state=planning_query.start,
@@ -198,6 +199,7 @@ class PlanAndExecute:
             if self.use_gt_rope:
                 before_state = dataset_utils.use_gt_rope(before_state)
             self.service_provider.play()
+            rospy.sleep(1.0)
             self.scenario.execute_action(action)
             self.service_provider.pause()
             after_state = self.scenario.get_state()
@@ -216,6 +218,7 @@ class PlanAndExecute:
     def plan_and_execute(self, trial_idx: int):
         self.set_random_seeds_for_trial(trial_idx)
 
+        # rospy.logwarn("skipping setup")
         self.setup_test_scene(trial_idx)
 
         self.on_start_trial(trial_idx)
@@ -232,6 +235,7 @@ class PlanAndExecute:
         while True:
             # get start states
             self.service_provider.play()
+            rospy.sleep(1.0)
             start_state = self.scenario.get_state()
             if self.use_gt_rope:
                 start_state = dataset_utils.use_gt_rope(start_state)

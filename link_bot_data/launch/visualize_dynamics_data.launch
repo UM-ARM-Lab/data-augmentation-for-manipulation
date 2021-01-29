@@ -17,7 +17,7 @@
         <node pkg="tf2_ros" type="static_transform_publisher" name="robot_root" required="true"
               args="0 0 0 0 0 0 hdt_michigan_root robot_root">
         </node>
-        <node ns="hdt_michigan" pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+        <node ns="hdt_michigan" pkg="robot_state_publisher" type="robot_state_publisher" name="viz_robot_state_publisher">
             <remap from="joint_states" to="joint_states_viz"/>
         </node>
     </group>

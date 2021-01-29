@@ -30,6 +30,20 @@ class ExperimentScenario:
     def execute_action(self, action: Dict):
         raise NotImplementedError()
 
+    # noinspection PyMethodMayBeStatic
+    def is_motion_feasible(self, environment: Dict, state: Dict, action: Dict):
+        """
+
+        Args:
+            environment:
+            state:
+            action:
+
+        Returns: true if the motion is feasible
+
+        """
+        return True
+
     def sample_action_for_data_collection(self,
                                           action_rng: np.random.RandomState,
                                           environment: Dict,

@@ -9,6 +9,7 @@ class BaseConstraintChecker:
     def __init__(self, paths: List[pathlib.Path], scenario: ExperimentScenario):
         self.paths = paths
         self.scenario = scenario
+        self.horizon = 1
         self.hparams = {}
 
     def check_constraint_from_example(self, example: Dict, training: Optional[bool] = False):
