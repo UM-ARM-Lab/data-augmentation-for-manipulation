@@ -18,7 +18,7 @@
     joint6: 1.0175395063376493,
     joint7: 2.173908028268774,
   }
-  total_timeout: 180
+  total_timeout: 320
   termination_criteria: {
     attempted_extensions_threshold: 32
     timeout: 180
