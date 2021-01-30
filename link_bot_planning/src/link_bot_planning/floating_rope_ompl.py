@@ -180,7 +180,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
                                              goal=goal,
                                              plot=plot)
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(f"{goal['goal_type']}")
 
     def make_state_space(self, planner_params, state_sampler_rng: np.random.RandomState,
                          plot: bool):
@@ -518,7 +518,6 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
         random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) @ np.array([d, 0, 0, 1])
         random_distance = self.rng.uniform(0.0, d)
         random_direction = random_direction[:3]
-        print('DIST:', random_distance)
         random_point = self.goal['midpoint'] + random_direction * random_distance
 
         goal_state_np = {
@@ -570,7 +569,8 @@ class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
     def sampleGoal(self, state_out: ob.CompoundState):
         d = self.getThreshold()
         random_distance = self.rng.uniform(0.0, d)
-        random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) * np.array([d, 0, 0, 1])
+        random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) @ np.array([d, 0, 0, 1])
+        random_direction = random_direction[:3]
         random_point = self.goal['point'] + random_direction * random_distance
 
         goal_state_np = {

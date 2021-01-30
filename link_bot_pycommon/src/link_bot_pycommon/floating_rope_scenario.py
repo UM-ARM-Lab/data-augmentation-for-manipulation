@@ -589,7 +589,7 @@ class FloatingRopeScenario(Base3DScenario):
         n_from_ends = 5
         distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
                                    rope_points, axis=1)[n_from_ends:-n_from_ends]
-        rope_distance = tf.min(distances)
+        rope_distance = tf.reduce_min(distances)
 
         left_gripper = state['left_gripper']
         right_gripper = state['right_gripper']
@@ -600,11 +600,11 @@ class FloatingRopeScenario(Base3DScenario):
     @staticmethod
     def distance_to_any_point_goal(state: Dict, goal: Dict):
         rope_points = tf.reshape(state[rope_key_name], [-1, 3])
-        # well ok not _any_ node, but ones near the middle
+        # NOTE: well ok not _any_ node, but ones near the middle
         n_from_ends = 7
         distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
                                    rope_points, axis=1)[n_from_ends:-n_from_ends]
-        min_distance = tf.min(distances)
+        min_distance = tf.reduce_min(distances)
         return min_distance
 
     @staticmethod

@@ -13,7 +13,7 @@ import rospy
 from link_bot_planning.my_planner import PlanningQuery, PlanningResult
 from link_bot_planning.plan_and_execute import ExecutionResult, TrialStatus
 from link_bot_planning.results_utils import labeling_params_from_planner_params
-from link_bot_pycommon.args import my_formatter, int_range_arg, int_set_arg
+from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.serialization import load_gzipped_pickle
@@ -29,7 +29,7 @@ def main():
     parser.add_argument("trial_idx", type=int_set_arg, help='which plan(s) to show')
     parser.add_argument("threshold", type=float)
     parser.add_argument("--save", action='store_true')
-    parser.add_argument("--filter-by-status", type=str, nargs="+")
+    parser.add_argument("--only-timeouts", action='store_true')
     parser.add_argument("--show-tree", action="store_true")
     parser.add_argument("--verbose", '-v', action="count", default=0)
 
@@ -46,7 +46,7 @@ def main():
         results_filename = args.results_dir / f'{trial_idx}_metrics.pkl.gz'
         datum = load_gzipped_pickle(results_filename)
 
-        if if_filter_with_status(datum, args.filter_by_status):
+        if args.only_timeouts and datum['trial_status'] == TrialStatus.Timeout:
             print(f"Trial {trial_idx} ...")
             plot_steps(args.show_tree, scenario, datum, metadata, {'threshold': args.threshold}, args.verbose)
             print(f"... complete with status {datum['trial_status']}")
@@ -58,20 +58,6 @@ def get_goal_threshold(planner_params):
     else:
         goal_threshold = planner_params['goal_threshold']
     return goal_threshold
-
-
-def if_filter_with_status(datum, filter_by_status):
-    if not filter_by_status:
-        return True
-
-    # for step in datum['steps']:
-    #     status = step['planning_result']['status']
-    #     if status == 'MyPlannerStatus.NotProgressing':
-    #         return True
-    if datum['trial_status'] == TrialStatus.Timeout:
-        return True
-
-    return False
 
 
 def plot_steps(show_tree: bool,

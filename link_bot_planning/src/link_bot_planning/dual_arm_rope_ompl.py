@@ -133,21 +133,6 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
             'right_gripper_position': target_right_gripper_position,
         }
 
-    def make_goal_region(self,
-                         si: oc.SpaceInformation,
-                         rng: np.random.RandomState,
-                         params: Dict, goal: Dict,
-                         plot: bool):
-        if goal['goal_type'] == 'midpoint':
-            return RopeMidpointGoalRegion(si=si,
-                                          scenario_ompl=self,
-                                          rng=rng,
-                                          threshold=params['goal_params']['threshold'],
-                                          goal=goal,
-                                          plot=plot)
-        else:
-            raise NotImplementedError()
-
     def make_state_space(self, planner_params, state_sampler_rng: np.random.RandomState,
                          plot: bool):
         state_space = ob.CompoundStateSpace()
@@ -279,6 +264,28 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
 
         return control_space
 
+    def make_goal_region(self,
+                         si: oc.SpaceInformation,
+                         rng: np.random.RandomState,
+                         params: Dict, goal: Dict,
+                         plot: bool):
+        if goal['goal_type'] == 'midpoint':
+            return RopeMidpointGoalRegion(si=si,
+                                          scenario_ompl=self,
+                                          rng=rng,
+                                          threshold=params['goal_params']['threshold'],
+                                          goal=goal,
+                                          plot=plot)
+        elif goal['goal_type'] == 'any_point':
+            return RopeAnyPointGoalRegion(si=si,
+                                          scenario_ompl=self,
+                                          rng=rng,
+                                          threshold=params['goal_params']['threshold'],
+                                          goal=goal,
+                                          plot=plot)
+        else:
+            raise NotImplementedError()
+
 
 # noinspection PyMethodOverriding
 class DualGripperControlSampler(oc.ControlSampler):
@@ -393,6 +400,62 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
         random_distance = self.rng.uniform(0.0, d)
         random_direction = random_direction[:3]
         random_point = self.goal['midpoint'] + random_direction * random_distance
+
+        n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
+
+        goal_state_np = {
+            'left_gripper':    random_point,
+            'right_gripper':   random_point,
+            'rope':            [random_point] * self.scenario_ompl.s.n_links,
+            'num_diverged':    np.zeros(1, dtype=np.float64),
+            'stdev':           np.zeros(1, dtype=np.float64),
+            'joint_positions': np.zeros(n_joints, dtype=np.float64),
+        }
+
+        self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
+
+        if self.plot:
+            self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
+
+    def maxSampleCount(self):
+        return 100
+
+
+# noinspection PyMethodOverriding
+class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
+
+    def __init__(self,
+                 si: oc.SpaceInformation,
+                 scenario_ompl: FloatingRopeOmpl,
+                 rng: np.random.RandomState,
+                 threshold: float,
+                 goal: Dict,
+                 plot: bool):
+        super(RopeAnyPointGoalRegion, self).__init__(si)
+        self.setThreshold(threshold)
+        self.goal = goal
+        self.scenario_ompl = scenario_ompl
+        self.rng = rng
+        self.plot = plot
+
+    def distanceGoal(self, state: ob.CompoundState):
+        """
+        Uses the distance between a specific point in a specific subspace and the goal point
+        """
+        state_np = self.scenario_ompl.ompl_state_to_numpy(state)
+        distance = float(self.scenario_ompl.s.distance_to_any_point_goal(state_np, self.goal).numpy())
+
+        # this ensures the goal must have num_diverged = 0
+        if state_np['num_diverged'] > 0:
+            distance = 1e9
+        return distance
+
+    def sampleGoal(self, state_out: ob.CompoundState):
+        d = self.getThreshold()
+        random_distance = self.rng.uniform(0.0, d)
+        random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) @ np.array([d, 0, 0, 1])
+        random_direction = random_direction[:3]
+        random_point = self.goal['point'] + random_direction * random_distance
 
         n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 

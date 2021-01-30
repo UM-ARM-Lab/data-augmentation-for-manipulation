@@ -18,10 +18,10 @@
     joint6: 1.0175395063376493,
     joint7: 2.173908028268774,
   }
-  total_timeout: 320
+  total_timeout: 400
   termination_criteria: {
     attempted_extensions_threshold: 32
-    timeout: 320
+    timeout: 300
   }
   action_params: {
     max_distance_between_grippers: 1.0
@@ -45,7 +45,7 @@
   accept_threshold: 0.5
   goal_params: {
     type: saved
-    goal_type: midpoint
+    goal_type: any_point
     threshold: 0.05
     extent: [
       -0.5
