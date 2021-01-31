@@ -195,7 +195,7 @@ class RRT(MyPlanner):
                                                                              actions=all_actions)
         final_classifier_probability = classifier_probabilities[-1]
 
-        # If in general we have a controller which can tell us whether a motion is infeasible (w/o actually executing)
+        # If in general we have a controller which can tell us whether a motion is feasible (w/o actually executing)
         # then we can invoke that hear, and do a logical OR with the classifier's decision
         # we also need to set the joint values. This is breaking a lot of my nice abstractions but I am impatient
         feasible, predicted_joint_positions = self.scenario.is_motion_feasible(environment=self.environment,
@@ -207,7 +207,13 @@ class RRT(MyPlanner):
         if self.verbose >= 2:
             self.scenario.plot_accept_probability(final_classifier_probability)
 
-        if final_classifier_probability > self.params['accept_threshold'] and feasible:
+        classifier_accept = final_classifier_probability > self.params['accept_threshold']
+        if self.params.get("feasibility_checking", False):
+            accept = classifier_accept and feasible
+        else:
+            accept = classifier_accept
+
+        if accept:
             final_predicted_state['num_diverged'] = np.array([0.0])
         else:
             final_predicted_state['num_diverged'] = last_previous_state['num_diverged'] + 1

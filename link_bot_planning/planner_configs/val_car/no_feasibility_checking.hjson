@@ -1,5 +1,6 @@
 {
-  method_name: Classifier + Learned Recovery
+  method_name: no feasibility checking
+  feasibility_checking: false
   filter_model_dir: [
     filter_trials/none/none
   ]

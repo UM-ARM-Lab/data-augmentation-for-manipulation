@@ -46,7 +46,7 @@ def main():
         results_filename = args.results_dir / f'{trial_idx}_metrics.pkl.gz'
         datum = load_gzipped_pickle(results_filename)
 
-        if args.only_timeouts and datum['trial_status'] == TrialStatus.Timeout:
+        if args.only_timeouts is not None and datum['trial_status'] == TrialStatus.Timeout:
             print(f"Trial {trial_idx} ...")
             plot_steps(args.show_tree, scenario, datum, metadata, {'threshold': args.threshold}, args.verbose)
             print(f"... complete with status {datum['trial_status']}")
