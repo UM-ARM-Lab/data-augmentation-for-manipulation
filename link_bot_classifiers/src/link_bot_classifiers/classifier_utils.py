@@ -8,7 +8,7 @@ from link_bot_classifiers.nn_classifier import NNClassifierWrapper
 from link_bot_classifiers.none_classifier import NoneClassifier
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
-from shape_completion_training.model.filepath_tools import load_trial
+from moonshine.filepath_tools import load_trial
 
 
 def load_generic_model(model_dirs: List[pathlib.Path], scenario: Optional[ExperimentScenario] = None) -> BaseConstraintChecker:

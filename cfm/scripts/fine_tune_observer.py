@@ -17,8 +17,8 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from moonshine.gpu_config import limit_gpu_mem
 from moonshine.moonshine_utils import remove_batch, numpify
 from my_cfm.cfm import CFM
-from shape_completion_training.model.filepath_tools import load_trial
-from shape_completion_training.model_runner import ModelRunner
+from moonshine.filepath_tools import load_trial
+from moonshine.model_runner import ModelRunner
 from state_space_dynamics import train_test
 
 limit_gpu_mem(8)

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import logging
 import pathlib
-import warnings
 from typing import Dict, List, Optional, Tuple
 
 import tensorflow as tf
@@ -24,8 +23,8 @@ from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as ge
 from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors
 from moonshine.raster_3d import raster_3d
 from mps_shape_completion_msgs.msg import OccupancyStamped
-from shape_completion_training.model.filepath_tools import load_trial
-from shape_completion_training.my_keras_model import MyKerasModel
+from moonshine.filepath_tools import load_trial
+from moonshine.my_keras_model import MyKerasModel
 
 DEBUG_VIZ = False
 

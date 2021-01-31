@@ -12,8 +12,8 @@ from link_bot_data.dataset_utils import batch_tf_dataset
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_to_json
-from shape_completion_training.model import filepath_tools
-from shape_completion_training.model_runner import ModelRunner
+from moonshine import filepath_tools
+from moonshine.model_runner import ModelRunner
 
 
 def train_main(dataset_dirs: List[pathlib.Path],

@@ -13,8 +13,8 @@ from link_bot_data.dataset_utils import batch_tf_dataset
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.moonshine_utils import remove_batch
-from shape_completion_training.model import filepath_tools
-from shape_completion_training.model_runner import ModelRunner
+from moonshine import filepath_tools
+from moonshine.model_runner import ModelRunner
 from state_space_dynamics import dynamics_utils, common_train_hparams
 
 

@@ -5,13 +5,11 @@ from typing import List, Optional, Dict
 import hjson
 import numpy as np
 import tensorflow as tf
-from progressbar import progressbar
 
 import link_bot_classifiers
 import rospy
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.classifier_utils import load_generic_model
-from link_bot_data import base_dataset
 from link_bot_data.balance import balance
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset
@@ -24,8 +22,8 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metric import AccuracyMetric
 from moonshine.moonshine_utils import numpify
-from shape_completion_training.model import filepath_tools
-from shape_completion_training.model_runner import ModelRunner
+from moonshine import filepath_tools
+from moonshine.model_runner import ModelRunner
 from state_space_dynamics import common_train_hparams
 from state_space_dynamics.train_test import setup_training_paths
 from std_msgs.msg import Float32

@@ -7,8 +7,8 @@ import tensorflow as tf
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from moonshine.ensemble import Ensemble
-from moonshine.moonshine_utils import add_batch, remove_batch, numpify, flatten_after
-from shape_completion_training.my_keras_model import MyKerasModel
+from moonshine.moonshine_utils import add_batch, remove_batch, numpify
+from moonshine.my_keras_model import MyKerasModel
 
 
 # TODO: this is a misleading interface, a filter function doesn't need to be an ensemble of neural networks

@@ -3,7 +3,7 @@ from typing import Tuple, List
 
 from link_bot_pycommon.get_scenario import get_scenario
 from my_cfm.cfm import CFMLatentDynamics
-from shape_completion_training.model.filepath_tools import load_trial
+from moonshine.filepath_tools import load_trial
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 from state_space_dynamics.image_cond_dyn import ImageCondDynamicsWrapper
 from state_space_dynamics.unconstrained_dynamics_nn import UDNNWrapper

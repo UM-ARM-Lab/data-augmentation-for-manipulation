@@ -12,7 +12,7 @@ from moonshine.get_local_environment import get_local_env_and_origin_2d_tf
 from moonshine.raster_2d import raster_2d
 from moonshine.moonshine_utils import add_batch, remove_batch, \
     dict_of_sequences_to_sequence_of_dicts_tf
-from shape_completion_training.my_keras_model import MyKerasModel
+from moonshine.my_keras_model import MyKerasModel
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 

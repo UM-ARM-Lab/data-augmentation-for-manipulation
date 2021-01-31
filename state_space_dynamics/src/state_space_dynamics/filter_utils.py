@@ -4,7 +4,7 @@ from typing import List
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from my_cfm.cfm import CFMFilter
-from shape_completion_training.model.filepath_tools import load_trial
+from moonshine.filepath_tools import load_trial
 from state_space_dynamics.base_filter_function import BaseFilterFunction, PassThroughFilter
 
 

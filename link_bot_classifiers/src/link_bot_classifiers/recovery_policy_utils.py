@@ -6,7 +6,7 @@ from link_bot_classifiers.nn_recovery_policy import NNRecoveryPolicy
 from link_bot_classifiers.random_recovery_policy import RandomRecoveryPolicy
 from link_bot_classifiers.simple_recovery_policy import SimpleRecoveryPolicy
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from shape_completion_training.model.filepath_tools import load_trial
+from moonshine.filepath_tools import load_trial
 
 
 def load_generic_model(model_dir: pathlib.Path, scenario: ExperimentScenario, rng: np.random.RandomState):

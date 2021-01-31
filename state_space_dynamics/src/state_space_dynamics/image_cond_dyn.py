@@ -1,6 +1,5 @@
 from typing import Dict
 
-import rospy
 import tensorflow as tf
 import tensorflow.keras.layers as layers
 from tensorflow import keras
@@ -11,8 +10,7 @@ from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as ge
 from moonshine.matrix_operations import batch_outer_product
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors
 from moonshine.raster_3d import raster_3d
-from mps_shape_completion_msgs.msg import OccupancyStamped
-from shape_completion_training.my_keras_model import MyKerasModel
+from moonshine.my_keras_model import MyKerasModel
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 

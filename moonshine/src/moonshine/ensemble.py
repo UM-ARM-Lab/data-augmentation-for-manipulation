@@ -6,8 +6,8 @@ from colorama import Fore
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, flatten_after
-from shape_completion_training.model.filepath_tools import load_trial
-from shape_completion_training.my_keras_model import MyKerasModel
+from moonshine.filepath_tools import load_trial
+from moonshine.my_keras_model import MyKerasModel
 
 
 class Ensemble:

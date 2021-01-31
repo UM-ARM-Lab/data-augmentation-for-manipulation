@@ -19,7 +19,7 @@ from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as ge
 from moonshine.moonshine_utils import add_batch
 from moonshine.raster_3d import raster_3d
 from mps_shape_completion_msgs.msg import OccupancyStamped
-from shape_completion_training.my_keras_model import MyKerasModel
+from moonshine.my_keras_model import MyKerasModel
 
 
 class NNRecoveryModel(MyKerasModel):
