@@ -47,16 +47,24 @@ def execute_actions(
     pre_action_state = start_state
     actual_path = [pre_action_state]
     for action in actions:
+        if plot:
+            scenario.plot_environment_rviz(environment)
+            scenario.plot_state_rviz(pre_action_state, label='actual')
+            scenario.plot_executed_action(pre_action_state, action)
+
         scenario.execute_action(action)
         state_t = scenario.get_state()
         if use_gt_rope:
             state_t = dataset_utils.use_gt_rope(state_t)
+
         actual_path.append(state_t)
-        if plot:
-            scenario.plot_environment_rviz(environment)
-            scenario.plot_executed_action(pre_action_state, action)
-            scenario.plot_state_rviz(state_t, label='actual')
+
         pre_action_state = state_t
+
+    if plot:
+        scenario.plot_environment_rviz(environment)
+        scenario.plot_state_rviz(state_t, label='actual')
+
     return actual_path
 
 
