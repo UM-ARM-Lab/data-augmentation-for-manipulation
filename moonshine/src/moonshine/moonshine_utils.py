@@ -293,3 +293,10 @@ def flatten_after(x, axis: int = 0):
     """ [N1, N2, ...] -> [N1, ..., N[axis], -1] """
     new_shape = x.shape.as_list()[:axis + 1] + [-1]
     return tf.reshape(x, new_shape)
+
+
+def reduce_mean_dict(dict):
+    reduced_dict = {}
+    for k, v in dict.items():
+        reduced_dict[k] = tf.reduce_mean(tf.stack(v, axis=0), axis=0)
+    return reduced_dict

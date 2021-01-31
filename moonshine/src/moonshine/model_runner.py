@@ -8,33 +8,7 @@ import tensorflow as tf
 from colorama import Fore, Style
 
 from moonshine.metric import LossMetric
-from shape_completion_training.model.ae_vcnn import AE_VCNN
-from shape_completion_training.model.augmented_ae import Augmented_VAE
-from shape_completion_training.model.auto_encoder import AutoEncoder
-from shape_completion_training.model.conditional_vcnn import ConditionalVCNN
-from shape_completion_training.model.utils import (
-    reduce_mean_dict, sequence_of_dicts_to_dict_of_sequences)
-from shape_completion_training.model.vae import VAE, VAE_GAN
-from shape_completion_training.model.voxelcnn import VoxelCNN
-
-
-def get_model_type(network_type):
-    if network_type == 'VoxelCNN':
-        return VoxelCNN
-    elif network_type == 'AutoEncoder':
-        return AutoEncoder
-    elif network_type == 'VAE':
-        return VAE
-    elif network_type == 'VAE_GAN':
-        return VAE_GAN
-    elif network_type == 'Augmented_VAE':
-        return Augmented_VAE
-    elif network_type == 'Conditional_VCNN':
-        return ConditionalVCNN
-    elif network_type == 'AE_VCNN':
-        return AE_VCNN
-    else:
-        raise Exception('Unknown Model Type')
+from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_sequences, reduce_mean_dict
 
 
 class ModelRunner:
@@ -79,12 +53,14 @@ class ModelRunner:
         self.latest_ckpt = tf.train.Checkpoint(step=tf.Variable(1),
                                                epoch=tf.Variable(0),
                                                train_time=tf.Variable(0.0),
-                                               best_key_metric_value=tf.Variable(self.key_metric.worst(), dtype=tf.float32),
+                                               best_key_metric_value=tf.Variable(self.key_metric.worst(),
+                                                                                 dtype=tf.float32),
                                                model=self.model)
         self.best_ckpt = tf.train.Checkpoint(step=tf.Variable(1),
                                              epoch=tf.Variable(0),
                                              train_time=tf.Variable(0.0),
-                                             best_key_metric_value=tf.Variable(self.key_metric.worst(), dtype=tf.float32),
+                                             best_key_metric_value=tf.Variable(self.key_metric.worst(),
+                                                                               dtype=tf.float32),
                                              model=self.model)
 
         self.latest_checkpoint_path = self.trial_path / "latest_checkpoint"
