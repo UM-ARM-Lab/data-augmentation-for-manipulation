@@ -24,7 +24,7 @@ def labeling_params_from_planner_params(planner_params, fallback_labeling_params
     return labeling_params
 
 
-def get_paths(datum: Dict, scenario: ExperimentScenario, show_tree: bool, verbose: int):
+def get_paths(datum: Dict, scenario: ExperimentScenario, show_tree: bool=False, verbose: int=0):
     all_actual_states = []
     types = []
     all_predicted_states = []

@@ -16,6 +16,9 @@ from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.metric_utils import dict_to_pvalue_table
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.serialization import my_hdump, load_gzipped_pickle
+from moonshine.gpu_config import limit_gpu_mem
+
+limit_gpu_mem(0.1)
 
 
 def save_order(outdir: pathlib.Path, subfolders_ordered: List[pathlib.Path]):
@@ -43,9 +46,6 @@ def metrics_main(args):
     print(f"Writing analysis to {out_dir}")
 
     unique_comparison_name = "-".join([p.name for p in args.results_dirs])
-
-    # For saving metrics since this script is kind of slow
-    table_outfile = open(out_dir / 'tables.txt', 'w')
 
     subfolders = get_all_subfolders(args)
 
@@ -119,10 +119,14 @@ def metrics_main(args):
                          stralign='left')
         print(table)
         print()
-        table_outfile.write(figure.name)
-        table_outfile.write('\n')
-        table_outfile.write(table)
-        table_outfile.write('\n')
+
+        # For saving metrics since this script is kind of slow it's nice to save the output
+        tables_filename = out_dir / 'tables.txt'
+        with tables_filename.open("w") as tables_file:
+            tables_file.write(figure.name)
+            tables_file.write('\n')
+            tables_file.write(table)
+            tables_file.write('\n')
 
     for figure in figures:
         pvalue_table_title = f"p-value matrix [{figure.name}]"

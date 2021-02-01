@@ -177,7 +177,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
 
     def is_motion_feasible(self, environment: Dict, state: Dict, action: Dict):
         joint_state = self.joint_state_msg_from_state_dict(state)
-        self.robot.display_robot_state(joint_state)
+        self.robot.display_robot_state(joint_state, label='check_feasible')
 
         left_gripper_points = [action['left_gripper_position']]
         right_gripper_points = [action['right_gripper_position']]

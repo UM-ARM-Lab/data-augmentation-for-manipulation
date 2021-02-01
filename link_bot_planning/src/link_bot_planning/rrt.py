@@ -208,9 +208,9 @@ class RRT(MyPlanner):
             self.scenario.plot_accept_probability(final_classifier_probability)
 
         classifier_accept = final_classifier_probability > self.params['accept_threshold']
-        if self.params.get("feasibility_checking", False) and not self.params.get("no_classifier", False):
+        if self.params.get("feasibility_checking", False) and not self.params.get("classifier", False):
             accept = classifier_accept and feasible
-        elif self.params.get("feasibility_checking", False) and self.params.get("no_classifier", False):
+        elif self.params.get("feasibility_checking", False) and self.params.get("classifier", False):
             accept = feasible
         else:
             accept = classifier_accept

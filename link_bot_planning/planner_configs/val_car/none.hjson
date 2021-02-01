@@ -1,7 +1,7 @@
 {
-  method_name: feasibility checking
-  feasibility_checking: true
-  classifier: true
+  method_name: no feasibility checking
+  feasibility_checking: false
+  classifier: false
   filter_model_dir: [
     filter_trials/none/none
   ]

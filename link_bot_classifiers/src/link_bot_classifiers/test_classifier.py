@@ -8,7 +8,7 @@ import tensorflow as tf
 
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.nn_classifier import NNClassifierWrapper
-from link_bot_data.visualization import init_viz_env, viz_transition_for_model_t
+from link_bot_data.visualization import init_viz_env, viz_transition_for_model_t_batched
 from link_bot_gazebo_python.gazebo_services import GazeboServices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
@@ -67,7 +67,7 @@ def test_classifier(classifier_model_dir: pathlib.Path,
                          init_funcs=[init_viz_env],
                          t_funcs=[
                              lambda s, e, t: init_viz_env(s, e),
-                             viz_transition_for_model_t({}, fwd_model),
+                             viz_transition_for_model_t_batched({}, fwd_model),
                              ExperimentScenario.plot_accept_probability_t,
                          ],
                          )

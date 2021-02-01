@@ -8,7 +8,7 @@ from geometry_msgs.msg import Vector3
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.sample_object_positions import sample_object_position, sample_object_positions
-from moonshine.indexing import index_dict_of_batched_tensors_tf
+from moonshine.indexing import index_dict_of_batched_tensors_tf, index_time_2
 from peter_msgs.srv import GetPosition3DRequest, Position3DEnableRequest, Position3DActionRequest
 from std_msgs.msg import Int64, Float32
 
@@ -144,7 +144,8 @@ class ExperimentScenario:
         self.plot_recovery_probability(example['recovery_probability'][t])
 
     def plot_accept_probability_t(self, example: Dict, t: int):
-        self.plot_accept_probability(example['accept_probability'][t])
+        accept_probability_t = index_time_2(example, 'accept_probability', t)
+        self.plot_accept_probability(accept_probability_t)
 
     def plot_accept_probability(self, accept_probability_t: float):
         msg = Float32()
