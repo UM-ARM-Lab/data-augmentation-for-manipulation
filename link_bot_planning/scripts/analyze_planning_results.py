@@ -61,6 +61,8 @@ def metrics_main(args):
         table_format = 'fancy_grid'
         subfolders_ordered = load_sort_order(out_dir, subfolders)
 
+    tables_filename = out_dir / 'tables.txt'
+
     sort_order_dict = {}
     for sort_idx, subfolder in enumerate(subfolders_ordered):
         with (subfolder / 'metadata.json').open('r') as metadata_file:
@@ -91,10 +93,11 @@ def metrics_main(args):
 
     figures = [
         TaskErrorLineFigure(analysis_params, metrics[0]),
-        # NRecoveryActions(analysis_params, metrics[1]),
-        # TotalTime(analysis_params, metrics[2]),
-        # NPlanningAttempts(analysis_params, metrics[3]),
+        NRecoveryActionsFigure(analysis_params, metrics[1]),
+        TotalTimeBoxplotFigure(analysis_params, metrics[2]),
+        NPlanningAttemptsFigure(analysis_params, metrics[3]),
         NMERViolationsBoxPlotFigure(analysis_params, metrics[4]),
+        PlanningTimeBoxplotFigure(analysis_params, metrics[5]),
         # TaskErrorBoxplotFigure(analysis_params, metrics[0]),
         TaskErrorViolinPlotFigure(analysis_params, metrics[0]),
     ]
@@ -121,7 +124,6 @@ def metrics_main(args):
         print()
 
         # For saving metrics since this script is kind of slow it's nice to save the output
-        tables_filename = out_dir / 'tables.txt'
         with tables_filename.open("w") as tables_file:
             tables_file.write(figure.name)
             tables_file.write('\n')
@@ -133,10 +135,11 @@ def metrics_main(args):
         pvalue_table = dict_to_pvalue_table(figure.metric.values, table_format=table_format)
         print(Style.BRIGHT + pvalue_table_title + Style.NORMAL)
         print(pvalue_table)
-        table_outfile.write(pvalue_table_title)
-        table_outfile.write('\n')
-        table_outfile.write(pvalue_table)
-        table_outfile.write('\n')
+        with tables_filename.open("w") as tables_file:
+            tables_file.write(pvalue_table_title)
+            tables_file.write('\n')
+            tables_file.write(pvalue_table)
+            tables_file.write('\n')
 
     for figure in figures:
         figure.make_figure()
@@ -153,6 +156,7 @@ def generate_metrics(analysis_params: Dict, out_dir: pathlib.Path, subfolders_or
         TotalTime(analysis_params, results_dir=out_dir),
         NPlanningAttempts(analysis_params, results_dir=out_dir),
         NMERViolations(analysis_params, results_dir=out_dir),
+        PlanningTime(analysis_params, results_dir=out_dir),
     ]
     for subfolder in subfolders_ordered:
         metrics_filenames = list(subfolder.glob("*_metrics.pkl.gz"))

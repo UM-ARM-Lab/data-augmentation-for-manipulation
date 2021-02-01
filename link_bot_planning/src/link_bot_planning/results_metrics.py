@@ -39,14 +39,6 @@ class ResultsMetric:
             self.values[method_name] = np.array(metric_values)
 
 
-class BoxplotOverTrialsPerMethod(ResultsMetric):
-    def __init__(self, analysis_params, results_dir: pathlib.Path):
-        super().__init__(analysis_params, results_dir)
-
-    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
-        return trial_datum['total_time']
-
-
 class TaskError(ResultsMetric):
     def __init__(self, analysis_params, results_dir: pathlib.Path):
         super().__init__(analysis_params, results_dir)
@@ -67,7 +59,7 @@ class TaskError(ResultsMetric):
             self.goal_threshold = planner_params['goal_threshold']
 
 
-class NRecoveryActions(BoxplotOverTrialsPerMethod):
+class NRecoveryActions(ResultsMetric):
     def __init__(self, analysis_params, results_dir: pathlib.Path):
         super().__init__(analysis_params, results_dir)
 
@@ -80,7 +72,7 @@ class NRecoveryActions(BoxplotOverTrialsPerMethod):
         return n_recovery
 
 
-class NMERViolations(BoxplotOverTrialsPerMethod):
+class NMERViolations(ResultsMetric):
     def __init__(self, analysis_params, results_dir: pathlib.Path):
         super().__init__(analysis_params, results_dir)
 
@@ -96,7 +88,7 @@ class NMERViolations(BoxplotOverTrialsPerMethod):
         return n_mer_violated
 
 
-class NPlanningAttempts(BoxplotOverTrialsPerMethod):
+class NPlanningAttempts(ResultsMetric):
     def __init__(self, analysis_params, results_dir: pathlib.Path):
         super().__init__(analysis_params, results_dir)
 
@@ -104,12 +96,25 @@ class NPlanningAttempts(BoxplotOverTrialsPerMethod):
         return len(trial_datum['steps'])
 
 
-class TotalTime(BoxplotOverTrialsPerMethod):
+class TotalTime(ResultsMetric):
     def __init__(self, analysis_params, results_dir: pathlib.Path):
         super().__init__(analysis_params, results_dir)
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         return trial_datum['total_time']
+
+
+class PlanningTime(ResultsMetric):
+    def __init__(self, analysis_params, results_dir: pathlib.Path):
+        super().__init__(analysis_params, results_dir)
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        steps = trial_datum['steps']
+        planning_time = 0
+        for step in steps:
+            if step['type'] == 'executed_plan':
+                planning_time += step['planning_result'].time
+        return planning_time
 
 
 class MyFigure:
@@ -271,12 +276,17 @@ class TaskErrorLineFigure(MyFigure):
 
 class NRecoveryActionsFigure(BoxplotOverTrialsPerMethodFigure):
     def __init__(self, analysis_params: Dict, metric):
-        super().__init__(analysis_params, metric, name="Recovery Actions")
+        super().__init__(analysis_params, metric, "Recovery Actions")
 
 
 class NPlanningAttemptsFigure(BoxplotOverTrialsPerMethodFigure):
     def __init__(self, analysis_params: Dict, metric):
         super().__init__(analysis_params, metric, "Planning Attempts")
+
+
+class PlanningTimeBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
+    def __init__(self, analysis_params: Dict, metric):
+        super().__init__(analysis_params, metric, "Planning Time")
 
 
 class TotalTimeBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
