@@ -1,5 +1,6 @@
 {
   max_error: 0.25
+  mer_threshold: 0.1
   n_error_bins: 89
   experiment_name: Dual Arm Rope Manipulation
   colors: {
@@ -11,6 +12,7 @@
     "Classifier + Learned Recovery": "#7F59C2"
 
     "no feasibility checking": "#EF4650"
+    "only feasibility checking": "#0058AB"
     "feasibility checking": "#7F59C2"
   }
 }

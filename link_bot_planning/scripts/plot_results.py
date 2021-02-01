@@ -2,17 +2,15 @@
 import argparse
 import json
 import pathlib
-import threading
-from time import sleep
 from typing import Dict
 
 import colorama
 import numpy as np
 
 import rospy
-from link_bot_planning.my_planner import PlanningQuery, PlanningResult
-from link_bot_planning.plan_and_execute import ExecutionResult, TrialStatus
-from link_bot_planning.results_utils import labeling_params_from_planner_params
+from link_bot_planning.my_planner import PlanningQuery
+from link_bot_planning.plan_and_execute import TrialStatus
+from link_bot_planning.results_utils import labeling_params_from_planner_params, get_paths
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
@@ -46,10 +44,13 @@ def main():
         results_filename = args.results_dir / f'{trial_idx}_metrics.pkl.gz'
         datum = load_gzipped_pickle(results_filename)
 
-        if args.only_timeouts is not None and datum['trial_status'] == TrialStatus.Timeout:
-            print(f"Trial {trial_idx} ...")
-            plot_steps(args.show_tree, scenario, datum, metadata, {'threshold': args.threshold}, args.verbose)
-            print(f"... complete with status {datum['trial_status']}")
+        should_skip = args.only_timeouts and datum['trial_status'] != TrialStatus.Timeout
+        if should_skip:
+            continue
+
+        print(f"Trial {trial_idx} ...")
+        plot_steps(args.show_tree, scenario, datum, metadata, {'threshold': args.threshold}, args.verbose)
+        print(f"... complete with status {datum['trial_status']}")
 
 
 def get_goal_threshold(planner_params):
@@ -89,59 +90,9 @@ def plot_steps(show_tree: bool,
     first_step = steps[0]
     planning_query: PlanningQuery = first_step['planning_query']
     environment = numpify(planning_query.environment)
-    all_actual_states = []
-    types = []
-    all_predicted_states = []
-    all_actions = []
+    actions, actual_states, predicted_states, types = get_paths(datum, scenario, show_tree, verbose)
 
-    actual_states = None
-    predicted_states = None
-    if len(steps) == 0:
-        raise ValueError("no steps!")
-
-    for step_idx, step in enumerate(steps):
-        if verbose >= 1:
-            print(step['type'])
-        if step['type'] == 'executed_plan':
-            planning_result: PlanningResult = step['planning_result']
-            execution_result: ExecutionResult = step['execution_result']
-            actions = planning_result.actions
-            actual_states = execution_result.path
-            predicted_states = planning_result.path
-        elif step['type'] == 'executed_recovery':
-            execution_result: ExecutionResult = step['execution_result']
-            actions = [step['recovery_action']]
-            actual_states = execution_result.path
-            predicted_states = [None, None]
-        else:
-            raise NotImplementedError(f"invalid step type {step['type']}")
-
-        actions = numpify(actions)
-        actual_states = numpify(actual_states)
-        predicted_states = numpify(predicted_states)
-
-        all_actions.extend(actions)
-        types.extend([step['type']] * len(actions))
-        all_actual_states.extend(actual_states[:-1])
-        all_predicted_states.extend(predicted_states[:-1])
-
-        if show_tree and step['type'] == 'executed_plan':
-            def _draw_tree_function(scenario, tree_json):
-                print(f"n vertices {len(tree_json['vertices'])}")
-                for vertex in tree_json['vertices']:
-                    scenario.plot_tree_state(vertex, color='#77777722')
-                    sleep(0.001)
-
-            planning_result: PlanningResult = step['planning_result']
-            tree_thread = threading.Thread(target=_draw_tree_function,
-                                           args=(scenario, planning_result.tree,))
-            tree_thread.start()
-
-    # but do add the actual final states
-    all_actual_states.append(actual_states[-1])
-    all_predicted_states.append(predicted_states[-1])
-
-    anim = RvizAnimationController(n_time_steps=len(all_actual_states))
+    anim = RvizAnimationController(n_time_steps=len(actual_states))
 
     def _type_action_color(type_t: str):
         if type_t == 'executed_plan':
@@ -153,19 +104,19 @@ def plot_steps(show_tree: bool,
     while not anim.done:
         scenario.plot_environment_rviz(environment)
         t = anim.t()
-        s_t = all_actual_states[t]
-        s_t_pred = all_predicted_states[t]
+        s_t = actual_states[t]
+        s_t_pred = predicted_states[t]
         scenario.plot_state_rviz(s_t, label='actual', color='#ff0000aa')
         c = '#0000ffaa'
-        if len(all_actions) > 0:
+        if len(actions) > 0:
             if t < anim.max_t:
                 type_t = types[t]
                 action_color = _type_action_color(type_t)
-                scenario.plot_action_rviz(s_t, all_actions[t], color=action_color)
+                scenario.plot_action_rviz(s_t, actions[t], color=action_color)
             else:
                 type_t = types[t - 1]
                 action_color = _type_action_color(type_t)
-                scenario.plot_action_rviz(all_actual_states[t - 1], all_actions[t - 1], color=action_color)
+                scenario.plot_action_rviz(actual_states[t - 1], actions[t - 1], color=action_color)
 
         if s_t_pred is not None:
             scenario.plot_state_rviz(s_t_pred, label='predicted', color=c)

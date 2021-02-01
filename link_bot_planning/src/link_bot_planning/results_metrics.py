@@ -6,6 +6,7 @@ import numpy as np
 from colorama import Fore
 from matplotlib.lines import Line2D
 
+from link_bot_planning.results_utils import get_paths
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.latex_utils import make_cell
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness
@@ -13,9 +14,9 @@ from link_bot_pycommon.metric_utils import row_stats
 
 
 class ResultsMetric:
-    def __init__(self, args, results_dir: pathlib.Path):
+    def __init__(self, analysis_params, results_dir: pathlib.Path):
         super().__init__()
-        self.args = args
+        self.analysis_params = analysis_params
         self.results_dir = results_dir
         self.values = {}
         self.method_indices = {}
@@ -39,16 +40,16 @@ class ResultsMetric:
 
 
 class BoxplotOverTrialsPerMethod(ResultsMetric):
-    def __init__(self, args, results_dir: pathlib.Path):
-        super().__init__(args, results_dir)
+    def __init__(self, analysis_params, results_dir: pathlib.Path):
+        super().__init__(analysis_params, results_dir)
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         return trial_datum['total_time']
 
 
 class TaskError(ResultsMetric):
-    def __init__(self, args, results_dir: pathlib.Path):
-        super().__init__(args, results_dir)
+    def __init__(self, analysis_params, results_dir: pathlib.Path):
+        super().__init__(analysis_params, results_dir)
         self.goal_threshold = None
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
@@ -67,8 +68,8 @@ class TaskError(ResultsMetric):
 
 
 class NRecoveryActions(BoxplotOverTrialsPerMethod):
-    def __init__(self, args, results_dir: pathlib.Path):
-        super().__init__(args, results_dir)
+    def __init__(self, analysis_params, results_dir: pathlib.Path):
+        super().__init__(analysis_params, results_dir)
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         steps = trial_datum['steps']
@@ -79,17 +80,33 @@ class NRecoveryActions(BoxplotOverTrialsPerMethod):
         return n_recovery
 
 
+class NMERViolations(BoxplotOverTrialsPerMethod):
+    def __init__(self, analysis_params, results_dir: pathlib.Path):
+        super().__init__(analysis_params, results_dir)
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        n_mer_violated = 0
+        _, actual_states, predicted_states, types = get_paths(trial_datum, scenario, False, 0)
+        for actual_state_t, planned_state_t, type_t in zip(actual_states, predicted_states, types):
+            if type_t == 'executed_plan':
+                model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
+                mer_violated = model_error > self.analysis_params['mer_threshold']
+                if mer_violated:
+                    n_mer_violated += 1
+        return n_mer_violated
+
+
 class NPlanningAttempts(BoxplotOverTrialsPerMethod):
-    def __init__(self, args, results_dir: pathlib.Path):
-        super().__init__(args, results_dir)
+    def __init__(self, analysis_params, results_dir: pathlib.Path):
+        super().__init__(analysis_params, results_dir)
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         return len(trial_datum['steps'])
 
 
 class TotalTime(BoxplotOverTrialsPerMethod):
-    def __init__(self, args, results_dir: pathlib.Path):
-        super().__init__(args, results_dir)
+    def __init__(self, analysis_params, results_dir: pathlib.Path):
+        super().__init__(analysis_params, results_dir)
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         return trial_datum['total_time']
@@ -169,7 +186,7 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
             pc.set_facecolor(color)
             pc.set_edgecolor(color)
             pc.set_alpha(1)
-        for partname in ['cmeans',]:
+        for partname in ['cmeans', ]:
             vp = parts[partname]
             vp.set_edgecolor('#dddddd')
             vp.set_linewidth(3)
@@ -184,12 +201,14 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
     def finish_figure(self):
         mean_line = [Line2D([0], [0], color='#dddddd', lw=2)]
         self.ax.legend(mean_line, ['mean'])
-        self.ax.set_xticklabels(self.metric.values.keys())
+        self.ax.set_xticks(list(self.metric.method_indices.values()))
+        self.ax.set_xticklabels(list(self.metric.values.keys()))
 
 
 class BoxplotOverTrialsPerMethodFigure(MyFigure):
     def __init__(self, analysis_params: Dict, metric, ylabel: str):
-        super().__init__(analysis_params, metric, name="task_error_boxplot")
+        name = ylabel.lower().replace(" ", "_") + "_boxplot"
+        super().__init__(analysis_params, metric, name)
         self.ax.set_xlabel("Method")
         self.ax.set_ylabel(ylabel)
         self.trendline = self.params.get('trendline', False)
@@ -214,6 +233,9 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
 
     def finish_figure(self):
         self.ax.set_xticklabels(self.metric.values.keys())
+
+    def get_table_header(self):
+        return ["Name", "min", "max", "mean", "median", "std"]
 
 
 class TaskErrorLineFigure(MyFigure):
@@ -249,7 +271,7 @@ class TaskErrorLineFigure(MyFigure):
 
 class NRecoveryActionsFigure(BoxplotOverTrialsPerMethodFigure):
     def __init__(self, analysis_params: Dict, metric):
-        super().__init__(analysis_params, metric, "Recovery Actions")
+        super().__init__(analysis_params, metric, name="Recovery Actions")
 
 
 class NPlanningAttemptsFigure(BoxplotOverTrialsPerMethodFigure):
@@ -260,6 +282,11 @@ class NPlanningAttemptsFigure(BoxplotOverTrialsPerMethodFigure):
 class TotalTimeBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
     def __init__(self, analysis_params: Dict, metric):
         super().__init__(analysis_params, metric, "Total Time")
+
+
+class NMERViolationsBoxPlotFigure(BoxplotOverTrialsPerMethodFigure):
+    def __init__(self, analysis_params: Dict, metric):
+        super().__init__(analysis_params, metric, "MER Violations")
 
 
 class TaskErrorBoxplotFigure(BoxplotOverTrialsPerMethodFigure):

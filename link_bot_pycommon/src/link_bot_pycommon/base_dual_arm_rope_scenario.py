@@ -143,7 +143,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         super().plot_state_rviz(state, label, **kwargs)
         if 'joint_positions' in state and 'joint_names' in state:
             joint_state = self.joint_state_msg_from_state_dict(state)
-            self.robot.display_robot_state(joint_state)
+            self.robot.display_robot_state(joint_state, label, **kwargs)
 
     def joint_state_msg_from_state_dict(self, state):
         joint_state = JointState()

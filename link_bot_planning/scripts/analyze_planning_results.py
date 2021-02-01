@@ -83,7 +83,7 @@ def metrics_main(args):
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
     else:
         rospy.loginfo(Fore.GREEN + f"Generating metrics")
-        metrics = generate_metrics(args, out_dir, subfolders_ordered)
+        metrics = generate_metrics(analysis_params, out_dir, subfolders_ordered)
 
         with pickle_filename.open("wb") as pickle_file:
             pickle.dump(metrics, pickle_file)
@@ -94,6 +94,7 @@ def metrics_main(args):
         # NRecoveryActions(analysis_params, metrics[1]),
         # TotalTime(analysis_params, metrics[2]),
         # NPlanningAttempts(analysis_params, metrics[3]),
+        NMERViolationsBoxPlotFigure(analysis_params, metrics[4]),
         # TaskErrorBoxplotFigure(analysis_params, metrics[0]),
         TaskErrorViolinPlotFigure(analysis_params, metrics[0]),
     ]
@@ -141,12 +142,13 @@ def metrics_main(args):
         plt.show()
 
 
-def generate_metrics(args, out_dir, subfolders_ordered):
+def generate_metrics(analysis_params: Dict, out_dir: pathlib.Path, subfolders_ordered: List):
     metrics = [
-        TaskError(args, results_dir=out_dir),
-        NRecoveryActions(args, results_dir=out_dir),
-        TotalTime(args, results_dir=out_dir),
-        NPlanningAttempts(args, results_dir=out_dir),
+        TaskError(analysis_params, results_dir=out_dir),
+        NRecoveryActions(analysis_params, results_dir=out_dir),
+        TotalTime(analysis_params, results_dir=out_dir),
+        NPlanningAttempts(analysis_params, results_dir=out_dir),
+        NMERViolations(analysis_params, results_dir=out_dir),
     ]
     for subfolder in subfolders_ordered:
         metrics_filenames = list(subfolder.glob("*_metrics.pkl.gz"))
@@ -161,8 +163,6 @@ def generate_metrics(args, out_dir, subfolders_ordered):
 
         # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
         for plan_idx, metrics_filename in enumerate(metrics_filenames):
-            if args.debug and plan_idx > 3:
-                break
             datum = load_gzipped_pickle(metrics_filename)
             for metric in metrics:
                 metric.aggregate_trial(method_name, scenario, datum)
@@ -186,7 +186,7 @@ def main():
     parser.add_argument('--final', action='store_true')
     parser.add_argument('--regenerate', action='store_true')
     parser.add_argument('--debug', action='store_true', help='will only run on a few examples to speed up debugging')
-    parser.add_argument('--style', default='paper')
+    parser.add_argument('--style', default='slides')
     parser.set_defaults(func=metrics_main)
 
     args = parser.parse_args()
