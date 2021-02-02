@@ -107,10 +107,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         gt_rope_state_vector = np.array(gt_rope_state_vector, np.float32)
 
         # here we use ground-truth rope
-        rope_state_vector = gt_rope_state_vector
+        # rope_state_vector = gt_rope_state_vector
         # here we use cdcpd
-        # cdcpd_vector = self.get_cdcpd_state()
-        # rope_state_vector = np.array(cdcpd_vector, np.float32)
+        cdcpd_vector = self.get_cdcpd_state()
+        rope_state_vector = np.array(cdcpd_vector, np.float32)
 
         return {
             'joint_positions': np.array(joint_state.position),
@@ -144,6 +144,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         if 'joint_positions' in state and 'joint_names' in state:
             joint_state = self.joint_state_msg_from_state_dict(state)
             self.robot.display_robot_state(joint_state, label, **kwargs)
+        elif 'joint_positions' not in state:
+            rospy.logwarn_throttle(10, 'no joint positions in state')
+        elif 'joint_names' not in state:
+            rospy.logwarn_throttle(10, 'no joint names in state')
 
     def joint_state_msg_from_state_dict(self, state):
         joint_state = JointState()

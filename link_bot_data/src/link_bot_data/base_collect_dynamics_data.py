@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-from multiprocessing import Process
 import pathlib
-from threading import Thread
-from time import perf_counter, sleep
+from multiprocessing import Process
+from time import perf_counter
 from typing import Dict, Optional
 
-import hjson
 import numpy as np
 from colorama import Fore
 

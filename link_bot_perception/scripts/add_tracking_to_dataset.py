@@ -8,13 +8,14 @@ import numpy as np
 
 import ros_numpy
 import rospy
-from arc_utilities.listener import Listener
 from arc_utilities.tf2wrapper import TF2Wrapper
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.modify_dataset import modify_dataset
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.constants import KINECT_MAX_DEPTH
 from link_bot_pycommon.ros_pycommon import transform_points_to_robot_frame
+from moonshine.indexing import index_time_with_metadata
+from moonshine.moonshine_utils import numpify
 from rospy_message_converter import message_converter
 from sensor_msgs.msg import PointCloud2, Image, CameraInfo, JointState
 from tf import transformations
@@ -32,8 +33,6 @@ def main():
 
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+cdcpd"
 
-    cdcpd_listener = Listener("cdcpd/output", PointCloud2)
-
     color_pub = rospy.Publisher("kinect2/qhd/image_color_rect", Image, queue_size=10)
     depth_pub = rospy.Publisher("kinect2/qhd/image_depth_rect", Image, queue_size=10)
     info_pub = rospy.Publisher("kinect2/qhd/camera_info", CameraInfo, queue_size=10)
@@ -50,6 +49,9 @@ def main():
 
         tracked_rope = []
         for t in range(rgbd.shape[0]):
+            e_t = numpify(index_time_with_metadata(dataset.scenario_metadata, example, dataset.time_indexed_keys, t))
+            dataset.scenario.plot_state_rviz(e_t, label='')
+
             bgr_t = bgr[t].numpy().astype(np.uint8)
             depth_t = depth[t].numpy()
 
@@ -74,6 +76,10 @@ def main():
             def send():
                 now = rospy.Time.now()
 
+                tf.send_transform(translation=[0.0, 0, 0],
+                                  quaternion=[0, 0, 0, 1.0],
+                                  parent='world', child='robot_root',
+                                  is_static=False, time=now)
                 tf.send_transform(translation=left_gripper_translation_t,
                                   quaternion=[0, 0, 0, 1.0],
                                   parent='world', child='left_tool',
@@ -95,18 +101,19 @@ def main():
                 depth_pub.publish(depth_msg)
                 info_pub.publish(camera_info_msg)
 
-            send()
-            rospy.sleep(0.1)
-            # FIXME: there's no guarantee that cdcpd has updated at this point
+            for i in range(10):
+                send()
+                rospy.sleep(0.1)
+                # FIXME: there's no guarantee that cdcpd has updated at this point. which is why a library API would
+                #  be better than a node/pub/sub model
 
             # get the response
-            cdcpd_msg: PointCloud2 = cdcpd_listener.get()
-            cdcpd_listener.data = None
+            cdcpd_msg: PointCloud2 = rospy.wait_for_message("cdcpd/output", PointCloud2)
             points = transform_points_to_robot_frame(tf, cdcpd_msg)
             cdcpd_vector = points.flatten()
             tracked_rope.append(cdcpd_vector)
 
-            rospy.sleep(1.0)
+            # rospy.sleep(1.0)
 
         example['rope'] = tracked_rope
         yield example

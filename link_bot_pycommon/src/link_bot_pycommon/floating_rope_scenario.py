@@ -22,6 +22,7 @@ from link_bot_pycommon.collision_checking import inflate_tf_3d
 from link_bot_pycommon.constants import KINECT_MAX_DEPTH
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
+from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import default_if_none
 from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params, \
     transform_points_to_robot_frame
@@ -429,18 +430,18 @@ class FloatingRopeScenario(Base3DScenario):
         return self.get_rope_point_position('left'), self.get_rope_point_position('right')
 
     def get_state(self):
-        color_depth_cropped = self.get_rgbd()
+        # color_depth_cropped = self.get_rgbd()
 
         rope_state_vector = self.get_rope_state()
-        # cdcpd_vector = self.get_cdcpd_state()
+        cdcpd_vector = self.get_cdcpd_state()
         left_rope_point_position, right_rope_point_position = self.get_rope_point_positions()
 
         return {
             'left_gripper':     left_rope_point_position,
             'right_gripper':    right_rope_point_position,
             'gt_rope':          np.array(rope_state_vector, np.float32),
-            # rope_key_name:   np.array(cdcpd_vector, np.float32),
-            'rgbd':             color_depth_cropped,
+            rope_key_name:      np.array(cdcpd_vector, np.float32),
+            # 'rgbd':             color_depth_cropped,
             'is_overstretched': self.is_rope_overstretched(),
         }
 
@@ -859,6 +860,7 @@ class FloatingRopeScenario(Base3DScenario):
 
         if 'rope' in state:
             rope_points = np.reshape(state['rope'], [-1, 3])
+            r, g, b = adjust_lightness([r, g, b], 0.5)
             markers = make_rope_marker(rope_points, 'world', label + "_rope", next(ig), r, g, b, a, 0.01)
             msg.markers.extend(markers)
 

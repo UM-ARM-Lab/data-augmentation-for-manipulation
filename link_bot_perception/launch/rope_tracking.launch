@@ -5,9 +5,9 @@
     <param name="rope_length" value="0.80"/>
     <node pkg="cdcpd_ros" type="cdcpd_node" name="cdcpd_node" respawn="true">
         <param name="kinect_channel" value="qhd"/>
-        <param name="left_tf_name" value=""/>
-        <param name="right_tf_name" value=""/>
-        <param name="lambda" value="1.0"/>
+        <param name="left_tf_name" value="left_tool"/>
+        <param name="right_tf_name" value="right_tool"/>
+        <param name="lambda" value="1.5"/>
         <param name="left_node_idx" value="0"/>
         <param name="right_node_idx" value="24"/>
     </node>

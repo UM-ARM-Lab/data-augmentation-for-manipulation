@@ -34,14 +34,9 @@ def plot_3d(args, dataset: DynamicsDatasetLoader, tf_dataset: tf.data.Dataset):
         while not anim.done:
             t = anim.t()
             scenario.plot_environment_rviz(example)
-            example_t = index_time_np(example, dataset.time_indexed_keys, t)
+            example_t = index_time_np(example, dataset.time_indexed_keys, t, inclusive=True)
             scenario.plot_state_rviz(example_t, label='')
             scenario.plot_action_rviz_internal(example_t, label='')
-
-            if t < dataset.steps_per_traj - 1:
-                s_next = index_time_np(example, dataset.time_indexed_keys, t + 1)
-                # diff = s['rgbd'][:, :, :3] - s_next['rgbd'][:, :, :3]
-                # publish_color_image(image_diff_viz_pub, diff)
 
             # this will return when either the animation is "playing" or because the user stepped forward
             anim.step()

@@ -135,7 +135,7 @@ def metrics_main(args):
         pvalue_table = dict_to_pvalue_table(figure.metric.values, table_format=table_format)
         print(Style.BRIGHT + pvalue_table_title + Style.NORMAL)
         print(pvalue_table)
-        with tables_filename.open("w") as tables_file:
+        with tables_filename.open("a") as tables_file:
             tables_file.write(pvalue_table_title)
             tables_file.write('\n')
             tables_file.write(pvalue_table)

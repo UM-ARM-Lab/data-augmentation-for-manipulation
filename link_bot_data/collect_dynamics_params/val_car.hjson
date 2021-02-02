@@ -97,7 +97,7 @@
   max_distance_gripper_can_move: 0.10
   max_distance_between_grippers: 0.80  # this need not exactly match the rope length
   state_keys: [
-    rgbd
+    # rgbd
     gt_rope
     left_gripper
     right_gripper
