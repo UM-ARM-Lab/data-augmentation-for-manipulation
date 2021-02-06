@@ -3,7 +3,7 @@
 
     <param name="rope_num_points" value="25"/>
     <param name="rope_length" value="0.80"/>
-    <node pkg="cdcpd_ros" type="cdcpd_node" name="cdcpd_node" respawn="true">
+    <node pkg="cdcpd_ros" type="cdcpd_node" name="cdcpd_node" respawn="false">
         <param name="kinect_channel" value="qhd"/>
         <param name="left_tf_name" value="left_tool"/>
         <param name="right_tf_name" value="right_tool"/>

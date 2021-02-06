@@ -224,3 +224,4 @@ class SimValDualArmRopeScenario(SimDualArmRopeScenario):
 
     def __repr__(self):
         return "SimValDualArmRopeScenario"
+
