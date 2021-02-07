@@ -17,7 +17,7 @@ from link_bot_pycommon.collision_checking import inflate_tf_3d
 from link_bot_pycommon.grid_utils import point_to_idx_3d_in_env
 from link_bot_pycommon.make_rope_markers import make_rope_marker, make_gripper_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.ros_pycommon import get_environment_for_extents_3d
+from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
 from peter_msgs.srv import *
 from rosgraph.names import ns_join

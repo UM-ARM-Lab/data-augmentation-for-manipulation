@@ -5,7 +5,8 @@ from link_bot_gazebo_python.gazebo_services import GazeboServices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import point_to_idx_3d_in_env
 from link_bot_pycommon.pycommon import longest_reconverging_subsequence, trim_reconverging
-from link_bot_pycommon.ros_pycommon import make_movable_object_services, get_environment_for_extents_3d
+from link_bot_pycommon.ros_pycommon import make_movable_object_services
+from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 
 
 class Test(TestCase):

@@ -13,11 +13,11 @@ with warnings.catch_warnings():
 import ros_numpy
 import rospy
 from arc_utilities.listener import Listener
-from arm_robots.get_moveit_robot import get_moveit_robot
+from arm_robots.get_robot import get_moveit_robot
 from geometry_msgs.msg import PoseStamped
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
-from link_bot_pycommon.ros_pycommon import get_environment_for_extents_3d
+from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from arm_gazebo_msgs.srv import ExcludeModels, ExcludeModelsRequest, ExcludeModelsResponse
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState, PointCloud2

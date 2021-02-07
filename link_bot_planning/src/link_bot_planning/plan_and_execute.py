@@ -165,7 +165,6 @@ class PlanAndExecute:
 
         # rospy.logwarn("skipping setup")
         self.setup_test_scene(trial_idx)
-        return
 
         self.on_start_trial(trial_idx)
 

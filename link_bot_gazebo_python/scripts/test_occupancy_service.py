@@ -4,7 +4,7 @@ from time import sleep
 import rospy
 from link_bot_gazebo_python import gazebo_services
 from link_bot_pycommon import grid_utils
-from link_bot_pycommon.ros_pycommon import get_environment_for_extents_3d
+from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from mps_shape_completion_msgs.msg import OccupancyStamped
 import tf2_ros
 
