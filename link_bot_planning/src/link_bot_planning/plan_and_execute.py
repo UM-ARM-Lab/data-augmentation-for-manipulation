@@ -160,73 +160,12 @@ class PlanAndExecute:
 
         self.on_complete()
 
-    def plan(self, planning_query: PlanningQuery):
-        ############
-        # Planning #
-        ############
-        if self.verbose >= 1:
-            (Fore.MAGENTA + "Planning to {}".format(planning_query.goal) + Fore.RESET)
-        planning_result = self.planner.plan(planning_query=planning_query)
-        rospy.loginfo(f"Planning time: {planning_result.time:5.3f}s, Status: {planning_result.status}")
-
-        self.on_plan_complete(planning_query, planning_result)
-
-        return planning_result
-
-    def execute(self, planning_query: PlanningQuery, planning_result: PlanningResult):
-        # execute the plan, collecting the states that actually occurred
-        self.on_before_execute()
-        if self.no_execution:
-            state_t = self.scenario.get_state()
-            if self.use_gt_rope:
-                state_t = dataset_utils.use_gt_rope(state_t)
-            actual_path = [state_t]
-        else:
-            if self.verbose >= 2 and not self.no_execution:
-                rospy.loginfo(Fore.CYAN + "Executing Plan" + Fore.RESET)
-            self.service_provider.play()
-            rospy.sleep(1.0)  # FIXME: not sure why or if this is necessary I'm debugging something
-            actual_path = execute_actions(scenario=self.scenario,
-                                          environment=planning_query.environment,
-                                          start_state=planning_query.start,
-                                          actions=planning_result.actions,
-                                          use_gt_rope=self.use_gt_rope,
-                                          plot=True)
-            self.service_provider.pause()
-
-        # post-execution callback
-        execution_result = ExecutionResult(path=actual_path)
-        return execution_result
-
-    def execute_recovery_action(self, action: Dict):
-        if self.no_execution:
-            actual_path = []
-        else:
-            before_state = self.scenario.get_state()
-            if self.use_gt_rope:
-                before_state = dataset_utils.use_gt_rope(before_state)
-            self.service_provider.play()
-            rospy.sleep(1.0)
-            self.scenario.execute_action(action)
-            self.service_provider.pause()
-            after_state = self.scenario.get_state()
-            if self.use_gt_rope:
-                after_state = dataset_utils.use_gt_rope(after_state)
-            actual_path = [before_state, after_state]
-        execution_result = ExecutionResult(path=actual_path)
-        return execution_result
-
-    def get_environment(self):
-        # get the environment, which here means anything which is assumed constant during planning
-        get_env_params = self.planner_params.copy()
-        get_env_params['res'] = self.planner.fwd_model.data_collection_params['res']
-        return self.scenario.get_environment(get_env_params)
-
     def plan_and_execute(self, trial_idx: int):
         self.set_random_seeds_for_trial(trial_idx)
 
         # rospy.logwarn("skipping setup")
         self.setup_test_scene(trial_idx)
+        return
 
         self.on_start_trial(trial_idx)
 
@@ -350,6 +289,71 @@ class PlanAndExecute:
             rospy.loginfo(Fore.GREEN + f"Randomizing Environment")
             self.randomize_environment()
 
+    def plan(self, planning_query: PlanningQuery):
+        ############
+        # Planning #
+        ############
+        if self.verbose >= 1:
+            (Fore.MAGENTA + "Planning to {}".format(planning_query.goal) + Fore.RESET)
+        planning_result = self.planner.plan(planning_query=planning_query)
+        rospy.loginfo(f"Planning time: {planning_result.time:5.3f}s, Status: {planning_result.status}")
+
+        self.on_plan_complete(planning_query, planning_result)
+
+        return planning_result
+
+    def execute(self, planning_query: PlanningQuery, planning_result: PlanningResult):
+        # execute the plan, collecting the states that actually occurred
+        self.on_before_execute()
+        if self.no_execution:
+            state_t = self.scenario.get_state()
+            if self.use_gt_rope:
+                state_t = dataset_utils.use_gt_rope(state_t)
+            actual_path = [state_t]
+        else:
+            if self.verbose >= 2 and not self.no_execution:
+                rospy.loginfo(Fore.CYAN + "Executing Plan" + Fore.RESET)
+            self.service_provider.play()
+            rospy.sleep(1.0)  # FIXME: not sure why or if this is necessary I'm debugging something
+            actual_path = execute_actions(scenario=self.scenario,
+                                          environment=planning_query.environment,
+                                          start_state=planning_query.start,
+                                          actions=planning_result.actions,
+                                          use_gt_rope=self.use_gt_rope,
+                                          plot=True)
+            self.service_provider.pause()
+
+        # post-execution callback
+        execution_result = ExecutionResult(path=actual_path)
+        return execution_result
+
+    def execute_recovery_action(self, action: Dict):
+        if self.no_execution:
+            actual_path = []
+        else:
+            before_state = self.scenario.get_state()
+            if self.use_gt_rope:
+                before_state = dataset_utils.use_gt_rope(before_state)
+            self.service_provider.play()
+            rospy.sleep(1.0)
+            self.scenario.execute_action(action)
+            self.service_provider.pause()
+            after_state = self.scenario.get_state()
+            if self.use_gt_rope:
+                after_state = dataset_utils.use_gt_rope(after_state)
+            actual_path = [before_state, after_state]
+        execution_result = ExecutionResult(path=actual_path)
+        return execution_result
+
+    def randomize_environment(self):
+        self.scenario.randomize_environment(self.env_rng, self.planner_params)
+
+    def get_environment(self):
+        # get the environment, which here means anything which is assumed constant during planning
+        get_env_params = self.planner_params.copy()
+        get_env_params['res'] = self.planner.fwd_model.data_collection_params['res']
+        return self.scenario.get_environment(get_env_params)
+
     def set_random_seeds_for_trial(self, trial_idx: int):
         self.env_rng.seed(trial_idx)
         self.recovery_rng.seed(trial_idx)
@@ -389,6 +393,3 @@ class PlanAndExecute:
 
     def on_complete(self):
         pass
-
-    def randomize_environment(self):
-        self.scenario.randomize_environment(self.env_rng, self.planner_params)

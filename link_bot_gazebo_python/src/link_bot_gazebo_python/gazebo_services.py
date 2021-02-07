@@ -40,9 +40,7 @@ class GazeboServices(BaseServices):
 
                 model_name = name.split('::')[0]
                 if excluded_models is not None and model_name not in excluded_models:
-                    # run a few times to really make sure it happens
-                    for _ in range(4):
-                        self.set_link_state(set_req)
+                    self.set_link_state(set_req)
 
     def launch(self, params, **kwargs):
         gui = kwargs.get("gui", True)

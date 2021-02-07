@@ -2,22 +2,17 @@
 import argparse
 import logging
 import pathlib
-import pickle
-from typing import Optional, Dict
+from typing import Optional
 
 import colorama
 import hjson
-import numpy as np
 import tensorflow as tf
 
-import rosbag
-import rospy
 from arc_utilities import ros_init
-from gazebo_msgs.msg import LinkStates
 from link_bot_gazebo_python import gazebo_services
+from link_bot_planning.test_scenes import save_test_scene, create_randomized_start_state, get_states_to_save
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
-from sensor_msgs.msg import JointState
 
 
 def main():
@@ -76,7 +71,7 @@ def generate_test_scenes(scenario: str,
 
         joint_state, links_states = get_states_to_save()
 
-        bagfile_name = save(joint_state, links_states, save_test_scenes_dir, trial_idx)
+        bagfile_name = save_test_scene(joint_state, links_states, save_test_scenes_dir, trial_idx)
 
         if test_restore:
             scenario.robot.plan_to_joint_config("both_arms", 'home')
@@ -89,41 +84,6 @@ def generate_test_scenes(scenario: str,
             service_provider.pause()
             service_provider.restore_from_bag(bagfile_name=bagfile_name, excluded_models=['hdt_michigan'])
             service_provider.play()
-
-
-def create_randomized_start_state(params, scenario, trial_idx):
-    env_rng = np.random.RandomState(trial_idx)
-    action_rng = np.random.RandomState(trial_idx)
-    environment = scenario.get_environment(params)
-    scenario.randomize_environment(env_rng, params)
-    for i in range(10):
-        state = scenario.get_state()
-        action = scenario.sample_action(action_rng=action_rng,
-                                        environment=environment,
-                                        state=state,
-                                        action_params=params,
-                                        validate=True,
-                                        )
-        scenario.execute_action(action)
-
-
-def save(joint_state: JointState,
-         links_states: LinkStates,
-         save_test_scenes_dir: pathlib.Path,
-         trial_idx: int):
-    bagfile_name = save_test_scenes_dir / f'scene_{trial_idx:04d}.bag'
-    rospy.loginfo(f"Saving scene to {bagfile_name}")
-    with rosbag.Bag(bagfile_name, 'w') as bag:
-        bag.write('links_states', links_states)
-        bag.write('joint_state', joint_state)
-
-    return bagfile_name
-
-
-def get_states_to_save():
-    links_states: LinkStates = rospy.wait_for_message("gazebo/link_states", LinkStates)
-    joint_state: JointState = rospy.wait_for_message("hdt_michigan/joint_states", JointState)
-    return joint_state, links_states
 
 
 if __name__ == '__main__':
