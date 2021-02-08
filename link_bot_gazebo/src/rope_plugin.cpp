@@ -1,5 +1,6 @@
 #include "rope_plugin.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <memory>
 #include <sstream>
@@ -23,6 +24,8 @@
  *   - type: peter_msgs::GetOverstretching
  */
 
+auto is_ptr_valid = [&](auto p) { return p; };
+
 namespace gazebo
 {
 auto constexpr PLUGIN_NAME{"RopePlugin"};
@@ -40,16 +43,25 @@ void RopePlugin::Load(physics::ModelPtr const parent, sdf::ElementPtr const sdf)
   }
 
   n_links_ = model_->GetLinks().size() - 2;
-  auto const link1_idx = n_links_ / 2 - 1;
-  auto const link2_idx = n_links_ / 2;
-  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "checking overstretching between links " << link1_idx << " and " << link2_idx);
-  rope_link1_ = GetLink(PLUGIN_NAME, model_, "rope_link_" + std::to_string(link1_idx));
-  rope_link2_ = GetLink(PLUGIN_NAME, model_, "rope_link_" + std::to_string(link2_idx));
+  for (auto link_idx = 0u; link_idx < n_links_; ++link_idx)
+  {
+    rope_links_.push_back(GetLink(PLUGIN_NAME, model_, "rope_link_" + std::to_string(link_idx)));
+  }
   left_gripper_ = GetLink(PLUGIN_NAME, model_, "left_gripper");
   right_gripper_ = GetLink(PLUGIN_NAME, model_, "right_gripper");
-  if (left_gripper_ and rope_link1_)
+
+  if (not std::all_of(rope_links_.cbegin(), rope_links_.cend(), is_ptr_valid))
   {
-    rest_distance_ = (rope_link1_->WorldPose().Pos() - rope_link2_->WorldPose().Pos()).Length();
+    rest_distance_ = 0.0;
+    for (auto link_idx1 = 0u; link_idx1 < n_links_ - 1; ++link_idx1)
+    {
+      auto const link_idx2 = link_idx1 + 1;
+      auto const rope_link1_ = rope_links_[link_idx1];
+      auto const rope_link2_ = rope_links_[link_idx2];
+      rest_distance_ += (rope_link1_->WorldPose().Pos() - rope_link2_->WorldPose().Pos()).Length();
+
+    }
+    rest_distance_ = rest_distance_ / static_cast<double>(n_links_);
   }
 
   auto set_state_bind = [this](auto &&req, auto &&res) { return SetRopeState(req, res); };
@@ -175,14 +187,25 @@ bool RopePlugin::GetOverstretched(peter_msgs::GetOverstretchingRequest &req, pet
   (void) req;  // unused
 
   // check the distance between the position of rope_link_1 and gripper_1
-  if (not rope_link1_ or not rope_link2_)
+  if (not std::all_of(rope_links_.cbegin(), rope_links_.cend(), is_ptr_valid))
   {
     return false;
   }
-  auto const distance = (rope_link1_->WorldPose().Pos() - rope_link2_->WorldPose().Pos()).Length();
-  auto const overstretched = distance > (rest_distance_ * overstretching_factor_);
+
+  auto max_distance = 0.0;
+  for (auto link_idx1 = 0u; link_idx1 < n_links_ - 1; ++link_idx1)
+  {
+    auto const link_idx2 = link_idx1 + 1;
+    auto const rope_link1_ = rope_links_[link_idx1];
+    auto const rope_link2_ = rope_links_[link_idx2];
+    auto const d = (rope_link1_->WorldPose().Pos() - rope_link2_->WorldPose().Pos()).Length();
+    max_distance = std::max(max_distance, d);
+
+  }
+
+  auto const overstretched = max_distance > (rest_distance_ * overstretching_factor_);
   res.overstretched = overstretched;
-  res.magnitude = distance / rest_distance_;
+  res.magnitude = max_distance / rest_distance_;
   if (overstretched)
   {
     ROS_DEBUG_STREAM_THROTTLE_NAMED(1, PLUGIN_NAME, "overstretching detected!");

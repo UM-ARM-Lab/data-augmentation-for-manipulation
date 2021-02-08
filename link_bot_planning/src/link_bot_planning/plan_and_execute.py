@@ -159,6 +159,7 @@ class PlanAndExecute:
             self.plan_and_execute(trial_idx)
 
         self.on_complete()
+        self.service_provider.play()
 
     def plan_and_execute(self, trial_idx: int):
         self.set_random_seeds_for_trial(trial_idx)

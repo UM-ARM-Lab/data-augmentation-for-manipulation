@@ -40,8 +40,7 @@ private:
   void QueueThread();
 
   physics::ModelPtr model_;
-  physics::LinkPtr rope_link1_;
-  physics::LinkPtr rope_link2_;
+  physics::Link_V rope_links_;
   physics::LinkPtr left_gripper_;
   physics::LinkPtr right_gripper_;
   event::ConnectionPtr updateConnection_;
