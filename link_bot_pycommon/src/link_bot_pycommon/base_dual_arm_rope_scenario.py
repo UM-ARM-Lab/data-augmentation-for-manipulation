@@ -25,6 +25,7 @@ from tf.transformations import quaternion_from_euler
 
 
 class BaseDualArmRopeScenario(FloatingRopeScenario):
+    DISABLE_CDCPD = True
     ROPE_NAMESPACE = 'rope_3d'
 
     def __init__(self, robot_namespace):
@@ -101,25 +102,24 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
 
         left_gripper_position, right_gripper_position = self.robot.get_gripper_positions()
 
-        rgbd = self.get_rgbd()
+        # rgbd = self.get_rgbd()
 
         gt_rope_state_vector = self.get_rope_state()
         gt_rope_state_vector = np.array(gt_rope_state_vector, np.float32)
 
-        # here we use ground-truth rope
-        # rope_state_vector = gt_rope_state_vector
-        # here we use cdcpd
-        cdcpd_vector = self.get_cdcpd_state()
-        rope_state_vector = np.array(cdcpd_vector, np.float32)
+        if self.DISABLE_CDCPD:
+            cdcpd_rope_state_vector = gt_rope_state_vector
+        else:
+            cdcpd_rope_state_vector = self.get_cdcpd_state()
 
         return {
             'joint_positions': np.array(joint_state.position),
             'joint_names':     np.array(joint_state.name),
             'left_gripper':    ros_numpy.numpify(left_gripper_position),
             'right_gripper':   ros_numpy.numpify(right_gripper_position),
-            'rgbd':            rgbd,
+            # 'rgbd':            rgbd,
             'gt_rope':         gt_rope_state_vector,
-            'rope':            rope_state_vector,
+            'rope':            cdcpd_rope_state_vector,
         }
 
     def states_description(self) -> Dict:

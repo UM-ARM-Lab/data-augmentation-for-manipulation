@@ -1,5 +1,5 @@
 {
-  method_name: feasibility checking
+  method_name: both
   feasibility_checking: true
   classifier: true
   filter_model_dir: [

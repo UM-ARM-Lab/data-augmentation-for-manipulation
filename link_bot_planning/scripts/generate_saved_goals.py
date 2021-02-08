@@ -100,7 +100,7 @@ def rviz_marker_goal(scenario: ExperimentScenario, params: Dict, planner_params:
     input('press enter to save')
     feedback: InteractiveMarkerFeedback = listener.get()
     goal = {
-        'point': ros_numpy.numpify(feedback.pose.position)
+        'point': ros_numpy.numpify(feedback.pose.position).astype(np.float32)
     }
     return goal
 

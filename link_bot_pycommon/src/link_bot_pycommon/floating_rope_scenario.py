@@ -45,6 +45,7 @@ rope_key_name = 'rope'
 
 
 class FloatingRopeScenario(Base3DScenario):
+    DISABLE_CDCPD = True
     IMAGE_H = 90
     IMAGE_W = 160
     n_links = 25
@@ -432,14 +433,17 @@ class FloatingRopeScenario(Base3DScenario):
     def get_state(self):
         # color_depth_cropped = self.get_rgbd()
 
-        rope_state_vector = self.get_rope_state()
-        cdcpd_vector = self.get_cdcpd_state()
+        gt_rope_vector = self.get_rope_state()
+        if self.DISABLE_CDCPD:
+            cdcpd_vector = gt_rope_vector
+        else:
+            cdcpd_vector = self.get_cdcpd_state()
         left_rope_point_position, right_rope_point_position = self.get_rope_point_positions()
 
         return {
             'left_gripper':     left_rope_point_position,
             'right_gripper':    right_rope_point_position,
-            'gt_rope':          np.array(rope_state_vector, np.float32),
+            'gt_rope':          np.array(gt_rope_vector, np.float32),
             rope_key_name:      np.array(cdcpd_vector, np.float32),
             # 'rgbd':             color_depth_cropped,
             'is_overstretched': self.is_rope_overstretched(),
