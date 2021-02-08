@@ -1,6 +1,6 @@
 <launch>
     <arg name="gui" default="true"/>
-    <arg name="use_cdcpd" default="true"/>
+    <arg name="use_cdcpd" default="false"/>
 
     <include file="$(find link_bot_gazebo)/launch/robot_in_gazebo.launch">
         <arg name="world" value="dual_floating_grippers.world"/>
@@ -22,10 +22,10 @@
         </node>
     </group>
 
+    <include file="$(find link_bot_gazebo)/launch/kinect_static_transforms.launch"/>
+
     <group if="$(arg use_cdcpd)">
-        <include file="$(find link_bot_gazebo)/launch/kinect_static_transforms.launch">
-        </include>
-        <include file="$(find cdcpd_ros)/launch/rope_tracking.launch">
+        <include file="$(find link_bot_perception)/launch/rope_tracking.launch">
         </include>
 
     </group>

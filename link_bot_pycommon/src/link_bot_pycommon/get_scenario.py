@@ -48,6 +48,7 @@ scenario_map = {
     'dual_arm_rope':              make_dual_arm_sim_victor_scenario,
     'dual_floating_gripper_rope': make_floating_rope_scenario,
     'dual_floating':              make_floating_rope_scenario,
+    'floating_rope':              make_floating_rope_scenario,
     'dual_arm_no_rope':           make_dual_arm_scenario,
 }
 

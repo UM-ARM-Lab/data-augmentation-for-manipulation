@@ -14,4 +14,3 @@
         <param name="right_node_idx" value="24"/>
     </node>
 </launch>
-<!--node _kinect_channel:="qhd" _left_tf_name:="left_tool" _right_tf_name:="right_tool" _lambda:="10.0" _rope_length:="0.80" _left_node_idx:="0" _right_node_idx:="24" _rope_num_points:="25"-->

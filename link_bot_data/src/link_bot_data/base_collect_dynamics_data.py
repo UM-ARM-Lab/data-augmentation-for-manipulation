@@ -68,13 +68,13 @@ class BaseDataCollector:
             # get current state and sample action
             state = self.scenario.get_state()
 
-            # DEBUG
-            grippers_unchanged = np.allclose(state['left_gripper'], last_state['left_gripper'])
-            image_unchanged = np.allclose(state['rgbd'][:, :, :3], last_state['rgbd'][:, :, :3])
-            if image_unchanged and not grippers_unchanged:
-                rospy.logerr("previous RGB is the same!!!!")
-            last_state = state
-            # END DEBUG
+            # # DEBUG
+            # grippers_unchanged = np.allclose(state['left_gripper'], last_state['left_gripper'])
+            # image_unchanged = np.allclose(state['rgbd'][:, :, :3], last_state['rgbd'][:, :, :3])
+            # if image_unchanged and not grippers_unchanged:
+            #     rospy.logerr("previous RGB is the same!!!!")
+            # last_state = state
+            # # END DEBUG
 
             # TODO: sample the entire action sequence in advance?
             action = self.scenario.sample_action(action_rng=action_rng,
@@ -127,32 +127,10 @@ class BaseDataCollector:
         full_output_directory.mkdir(exist_ok=True)
         print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)
 
-        s_for_size = self.scenario.get_state()
-        a_for_size = self.scenario.sample_action(action_rng=np.random.RandomState(0),
-                                                 environment={},
-                                                 state=s_for_size,
-                                                 action_params=self.params,
-                                                 validate=False)
-        state_description = {k: v.shape[0] for k, v in s_for_size.items()}
-        action_description = {k: v.shape[0] for k, v in a_for_size.items()}
-
-        dataset_hparams = {
-            'nickname':               nickname,
-            'robot_namespace':        robot_namespace,
-            'seed':                   self.seed,
-            'n_trajs':                n_trajs,
-            'data_collection_params': self.params,
-            'scenario':               self.scenario_name,
-            # FIXME: rename this key?
-            'scenario_metadata':      self.scenario.dynamics_dataset_metadata(),
-            'state_description':      state_description,
-            'action_description':     action_description,
-        }
-        with (full_output_directory / 'hparams.hjson').open('w') as dataset_hparams_file:
-            my_hdump(dataset_hparams, dataset_hparams_file, indent=2)
-
         self.scenario.randomization_initialization(self.params)
         self.scenario.on_before_data_collection(self.params)
+
+        self.save_hparams(full_output_directory, n_trajs, nickname, robot_namespace)
 
         trial_start = perf_counter()
 
@@ -193,6 +171,30 @@ class BaseDataCollector:
 
         self.service_provider.pause()
         return files_dataset
+
+    def save_hparams(self, full_output_directory, n_trajs, nickname, robot_namespace):
+        s_for_size = self.scenario.get_state()
+        a_for_size = self.scenario.sample_action(action_rng=np.random.RandomState(0),
+                                                 environment={},
+                                                 state=s_for_size,
+                                                 action_params=self.params,
+                                                 validate=False)
+        state_description = {k: v.shape[0] for k, v in s_for_size.items()}
+        action_description = {k: v.shape[0] for k, v in a_for_size.items()}
+        dataset_hparams = {
+            'nickname':               nickname,
+            'robot_namespace':        robot_namespace,
+            'seed':                   self.seed,
+            'n_trajs':                n_trajs,
+            'data_collection_params': self.params,
+            'scenario':               self.scenario_name,
+            # FIXME: rename this key?
+            'scenario_metadata':      self.scenario.dynamics_dataset_metadata(),
+            'state_description':      state_description,
+            'action_description':     action_description,
+        }
+        with (full_output_directory / 'hparams.hjson').open('w') as dataset_hparams_file:
+            my_hdump(dataset_hparams, dataset_hparams_file, indent=2)
 
     def write_example(self, full_output_directory, example, traj_idx):
         raise NotImplementedError()

@@ -26,7 +26,7 @@
   ]
   res: 0.02
   max_step_size: 0.01
-  real_time_rate: 0.0
+  real_time_rate: 1.0
   steps_per_traj: 10
   no_objects: true
   randomize_n: null
@@ -34,7 +34,7 @@
   max_distance_gripper_can_move: 0.10
   max_distance_between_grippers: 0.55
   state_keys: [
-    rgbd
+    # rgbd
     gt_rope
     left_gripper
     right_gripper

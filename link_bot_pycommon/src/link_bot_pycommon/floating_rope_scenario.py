@@ -446,7 +446,7 @@ class FloatingRopeScenario(Base3DScenario):
             'gt_rope':          np.array(gt_rope_vector, np.float32),
             rope_key_name:      np.array(cdcpd_vector, np.float32),
             # 'rgbd':             color_depth_cropped,
-            'is_overstretched': self.is_rope_overstretched(),
+            'is_overstretched': np.array([self.is_rope_overstretched()]),
         }
 
     def get_rgbd(self):
