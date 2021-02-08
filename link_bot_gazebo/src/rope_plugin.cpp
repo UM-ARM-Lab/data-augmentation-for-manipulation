@@ -24,7 +24,7 @@
  *   - type: peter_msgs::GetOverstretching
  */
 
-auto is_ptr_valid = [&](auto p) { return p; };
+auto is_ptr_valid = [](auto p) { return p; };
 
 namespace gazebo
 {
@@ -43,14 +43,19 @@ void RopePlugin::Load(physics::ModelPtr const parent, sdf::ElementPtr const sdf)
   }
 
   n_links_ = model_->GetLinks().size() - 2;
-  for (auto link_idx = 0u; link_idx < n_links_; ++link_idx)
+  for (auto link_idx = 1u; link_idx <= n_links_; ++link_idx)
   {
-    rope_links_.push_back(GetLink(PLUGIN_NAME, model_, "rope_link_" + std::to_string(link_idx)));
+    auto const link_name = "rope_link_" + std::to_string(link_idx);
+    auto const rope_link = GetLink(PLUGIN_NAME, model_, link_name);
+    if (rope_link)
+    {
+      rope_links_.push_back(rope_link);
+    }
   }
   left_gripper_ = GetLink(PLUGIN_NAME, model_, "left_gripper");
   right_gripper_ = GetLink(PLUGIN_NAME, model_, "right_gripper");
 
-  if (not std::all_of(rope_links_.cbegin(), rope_links_.cend(), is_ptr_valid))
+  if (std::all_of(rope_links_.cbegin(), rope_links_.cend(), is_ptr_valid))
   {
     rest_distance_ = 0.0;
     for (auto link_idx1 = 0u; link_idx1 < n_links_ - 1; ++link_idx1)
@@ -58,11 +63,13 @@ void RopePlugin::Load(physics::ModelPtr const parent, sdf::ElementPtr const sdf)
       auto const link_idx2 = link_idx1 + 1;
       auto const rope_link1_ = rope_links_[link_idx1];
       auto const rope_link2_ = rope_links_[link_idx2];
-      rest_distance_ += (rope_link1_->WorldPose().Pos() - rope_link2_->WorldPose().Pos()).Length();
-
+      auto const d = (rope_link1_->WorldPose().Pos() - rope_link2_->WorldPose().Pos()).Length();
+      rest_distance_ += d;
+      ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "distance between link " << link_idx1 << " and " << link_idx2 << " is " << d);
     }
-    rest_distance_ = rest_distance_ / static_cast<double>(n_links_);
+    rest_distance_ = rest_distance_ / static_cast<double>(n_links_ - 1);
   }
+  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "rest distance " << rest_distance_);
 
   auto set_state_bind = [this](auto &&req, auto &&res) { return SetRopeState(req, res); };
   auto set_state_so = ros::AdvertiseServiceOptions::create<peter_msgs::SetRopeState>("set_rope_state", set_state_bind,
@@ -119,7 +126,7 @@ bool RopePlugin::SetRopeState(peter_msgs::SetRopeStateRequest &req, peter_msgs::
   {
     ROS_ERROR_STREAM("Tried to set link to pose but couldn't find the gripper links");
     ROS_ERROR_STREAM("Available link names are");
-    for (auto const l : model_->GetLinks())
+    for (auto const &l : model_->GetLinks())
     {
       ROS_ERROR_STREAM(l->GetName());
     }
@@ -200,10 +207,10 @@ bool RopePlugin::GetOverstretched(peter_msgs::GetOverstretchingRequest &req, pet
     auto const rope_link2_ = rope_links_[link_idx2];
     auto const d = (rope_link1_->WorldPose().Pos() - rope_link2_->WorldPose().Pos()).Length();
     max_distance = std::max(max_distance, d);
-
   }
 
   auto const overstretched = max_distance > (rest_distance_ * overstretching_factor_);
+  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "max distance " << max_distance << " vs rest distance " << rest_distance_);
   res.overstretched = overstretched;
   res.magnitude = max_distance / rest_distance_;
   if (overstretched)
