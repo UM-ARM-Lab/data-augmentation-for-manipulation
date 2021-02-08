@@ -559,12 +559,6 @@ class FloatingRopeScenario(Base3DScenario):
 
         env_inflated = inflate_tf_3d(env=environment['env'],
                                      radius_m=planner_params['goal_params']['threshold'], res=environment['res'])
-        # DEBUG visualize the inflated env
-        # from copy import deepcopy
-        # environment_ = deepcopy(environment)
-        # environment_['env'] = env_inflated
-        # self.plot_environment_rviz(environment_)
-        # END DEBUG
 
         while True:
             extent = np.array(goal_extent).reshape(3, 2)
