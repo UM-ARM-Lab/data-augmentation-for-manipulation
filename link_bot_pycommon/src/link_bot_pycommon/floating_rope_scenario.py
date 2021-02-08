@@ -45,7 +45,7 @@ rope_key_name = 'rope'
 
 
 class FloatingRopeScenario(Base3DScenario):
-    DISABLE_CDCPD = True
+    DISABLE_CDCPD = False
     IMAGE_H = 90
     IMAGE_W = 160
     n_links = 25
