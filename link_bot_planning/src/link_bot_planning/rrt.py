@@ -104,6 +104,8 @@ class RRT(MyPlanner):
         self.ss.setPlanner(self.rrt)
         self.si.setMinMaxControlDuration(1, self.params.get('max_steps', 50))
 
+        self.visualize_propogation_color = [0, 0, 0]
+
     def cleanup_before_plan(self, seed):
         self.ptc = None
         self.n_total_action = None
@@ -208,19 +210,21 @@ class RRT(MyPlanner):
             self.scenario.plot_accept_probability(final_classifier_probability)
 
         classifier_accept = final_classifier_probability > self.params['accept_threshold']
-        if self.params.get("feasibility_checking", False) and not self.params.get("classifier", False):
+        if self.params["feasibility_checking"] and self.params["classifier"]:
             accept = classifier_accept and feasible
-        elif self.params.get("feasibility_checking", False) and self.params.get("classifier", False):
+        elif self.params["feasibility_checking"] and not self.params["classifier"]:
             accept = feasible
-        else:
+        elif self.params["classifier"] and not self.params["feasibility_checking"]:
             accept = classifier_accept
+        else:
+            accept = True
 
         if accept:
             final_predicted_state['num_diverged'] = np.array([0.0])
         else:
             final_predicted_state['num_diverged'] = last_previous_state['num_diverged'] + 1
 
-        return final_predicted_state, final_classifier_probability
+        return final_predicted_state, accept, final_classifier_probability
 
     def propagate(self, motions, control, duration, state_out):
         del duration  # unused, multi-step propagation is handled inside propagateMotionsWhileValid
@@ -230,42 +234,52 @@ class RRT(MyPlanner):
         previous_state = previous_states[-1]
         previous_ompl_state = motions[-1].getState()
         new_action = self.scenario_ompl.ompl_control_to_numpy(previous_ompl_state, control)
-        np_final_state, final_classifier_probability = self.predict(previous_states, previous_actions, new_action)
+        np_final_state, accept, final_classifier_probability = self.predict(previous_states,
+                                                                            previous_actions,
+                                                                            new_action)
 
         # Convert back Numpy -> OMPL
         self.scenario_ompl.numpy_to_ompl_state(np_final_state, state_out)
 
+        # visualize
         if self.verbose >= 2:
-            alpha = final_classifier_probability * 0.8 + 0.2
-            classifier_probability_color = cm.Reds_r(final_classifier_probability)
-            if len(previous_actions) == 0:
-                random_color = cm.Dark2(self.control_sampler_rng.uniform(0, 1))
-                RRT.propagate.r = random_color[0]
-                RRT.propagate.g = random_color[1]
-                RRT.propagate.b = random_color[2]
-            elif not are_dicts_close_np(previous_actions[-1], new_action):
-                random_color = cm.Dark2(self.control_sampler_rng.uniform(0, 1))
-                RRT.propagate.r = random_color[0]
-                RRT.propagate.g = random_color[1]
-                RRT.propagate.b = random_color[2]
+            self.visualize_propogation(accept,
+                                       final_classifier_probability,
+                                       new_action,
+                                       np_final_state,
+                                       previous_actions,
+                                       previous_state,
+                                       state_out)
 
-            statisfies_bounds = self.scenario_ompl.state_space.satisfiesBounds(state_out)
-            if final_classifier_probability > 0.5 and statisfies_bounds:
-                self.scenario.plot_tree_state(np_final_state, color=classifier_probability_color)
-            self.scenario.plot_current_tree_state(np_final_state,
-                                                  horizon=self.classifier_model.horizon,
-                                                  color=classifier_probability_color)
+    def visualize_propogation(self,
+                              accept: bool,
+                              final_classifier_probability: np.float32,
+                              new_action: Dict,
+                              np_final_state: Dict,
+                              previous_actions: Dict,
+                              previous_state: Dict,
+                              state_out: ob.CompoundState):
+        # try to check if this is a new action, in which case we want to sample a new color
+        if len(previous_actions) == 0 or not are_dicts_close_np(previous_actions[-1], new_action):
+            random_color = cm.Dark2(self.control_sampler_rng.uniform(0, 1))
+            self.visualize_propogation_color = random_color
 
+        alpha = min(final_classifier_probability * 0.8 + 0.2, 1.0)
+        classifier_probability_color = cm.Reds_r(final_classifier_probability)
+
+        statisfies_bounds = self.scenario_ompl.state_space.satisfiesBounds(state_out)
+        if accept and statisfies_bounds:
+            self.scenario.plot_tree_state(np_final_state, color=classifier_probability_color)
             self.scenario.plot_tree_action(previous_state,
                                            new_action,
-                                           r=RRT.propagate.r,
-                                           g=RRT.propagate.g,
-                                           b=RRT.propagate.b,
+                                           r=self.visualize_propogation_color[0],
+                                           g=self.visualize_propogation_color[1],
+                                           b=self.visualize_propogation_color[2],
                                            a=alpha)
 
-    propagate.r = 0
-    propagate.g = 0
-    propagate.b = 0
+        self.scenario.plot_current_tree_state(np_final_state,
+                                              horizon=self.classifier_model.horizon,
+                                              color=classifier_probability_color)
 
     def plan(self, planning_query: PlanningQuery):
         self.cleanup_before_plan(planning_query.seed)
