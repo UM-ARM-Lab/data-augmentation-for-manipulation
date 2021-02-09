@@ -181,11 +181,10 @@ class PlanAndExecute:
         while True:
             # get start states
             self.service_provider.play()
-            rospy.sleep(1.0)
             start_state = self.scenario.get_state()
+            self.service_provider.pause()
             if self.use_gt_rope:
                 start_state = dataset_utils.use_gt_rope(start_state)
-            self.service_provider.pause()
 
             # get the environment, which here means anything which is assumed constant during planning
             # This includes the occupancy map but can also include things like the initial state of the tether
@@ -206,7 +205,9 @@ class PlanAndExecute:
             elif planning_result.status == MyPlannerStatus.NotProgressing:
                 if self.recovery_policy is None:
                     # Nothing else to do here, just give up
+                    self.service_provider.play()
                     end_state = self.scenario.get_state()
+                    self.service_provider.pause()
                     if self.use_gt_rope:
                         end_state = dataset_utils.use_gt_rope(end_state)
                     trial_status = TrialStatus.NotProgressingNoRecovery
@@ -232,7 +233,9 @@ class PlanAndExecute:
                     if self.verbose >= 3:
                         rospy.loginfo("Chosen Recovery Action:")
                         rospy.loginfo(recovery_action)
+                    self.service_provider.play()
                     execution_result = self.execute_recovery_action(recovery_action)
+                    self.service_provider.pause()
                     # Extract planner data now before it goes out of scope (in C++)
                     steps_data.append({
                         'type':             'executed_recovery',
@@ -243,7 +246,9 @@ class PlanAndExecute:
                         'time_since_start': time_since_start,
                     })
             else:
+                self.service_provider.play()
                 execution_result = self.execute(planning_query, planning_result)
+                self.service_provider.pause()
                 steps_data.append({
                     'type':             'executed_plan',
                     'planning_query':   planning_query,
@@ -253,7 +258,9 @@ class PlanAndExecute:
                 })
                 self.on_execution_complete(planning_query, planning_result, execution_result)
 
+            self.service_provider.play()
             end_state = self.scenario.get_state()
+            self.service_provider.pause()
             if self.use_gt_rope:
                 end_state = dataset_utils.use_gt_rope(end_state)
             d = self.scenario.distance_to_goal(end_state, planning_query.goal)
@@ -313,15 +320,12 @@ class PlanAndExecute:
         else:
             if self.verbose >= 2 and not self.no_execution:
                 rospy.loginfo(Fore.CYAN + "Executing Plan" + Fore.RESET)
-            self.service_provider.play()
-            rospy.sleep(1.0)  # FIXME: not sure why or if this is necessary I'm debugging something
             actual_path = execute_actions(scenario=self.scenario,
                                           environment=planning_query.environment,
                                           start_state=planning_query.start,
                                           actions=planning_result.actions,
                                           use_gt_rope=self.use_gt_rope,
                                           plot=True)
-            self.service_provider.pause()
 
         # post-execution callback
         execution_result = ExecutionResult(path=actual_path)
@@ -334,10 +338,7 @@ class PlanAndExecute:
             before_state = self.scenario.get_state()
             if self.use_gt_rope:
                 before_state = dataset_utils.use_gt_rope(before_state)
-            self.service_provider.play()
-            rospy.sleep(1.0)
             self.scenario.execute_action(action)
-            self.service_provider.pause()
             after_state = self.scenario.get_state()
             if self.use_gt_rope:
                 after_state = dataset_utils.use_gt_rope(after_state)
