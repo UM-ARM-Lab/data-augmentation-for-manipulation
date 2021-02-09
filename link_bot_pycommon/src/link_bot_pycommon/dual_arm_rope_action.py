@@ -33,7 +33,7 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, action: Dict):
 
     rospy.sleep(1.0)
     res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
-    if result.execution_result.action_client_state == GoalStatus.PREEMPTED:
+    if result.execution_result.action_client_state == GoalStatus.PREEMPTED or res.overstretched:
         rev_grippers = [[ros_numpy.numpify(start_left_gripper_pos)],
                         [ros_numpy.numpify(start_right_gripper_pos)]]
         robot.follow_jacobian_to_position("both_arms", tool_names, points=rev_grippers)
