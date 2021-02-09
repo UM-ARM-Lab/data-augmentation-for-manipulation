@@ -65,7 +65,7 @@ private:
   double overstretching_factor_{ 1.0 };
   unsigned long n_links_{1ul};
   MedianFilter<double, 100> rope_overstretching_filter_;
-  std::mutex filter_mutex_;
+  std::mutex mutex_;
   peter_msgs::GetOverstretchingResponse overstretching_response_;
 };
 }  // namespace gazebo

@@ -217,12 +217,8 @@ void RopePlugin::UpdateOverstretching()
     max_distance = std::max(max_distance, d);
   }
 
-  auto const filtered_max_distance = [&]()
-  {
-    std::lock_guard g(filter_mutex_);
-    rope_overstretching_filter_.addSample(max_distance);
-    return rope_overstretching_filter_.getMedian();
-  }();
+  rope_overstretching_filter_.addSample(max_distance);
+  auto const filtered_max_distance = rope_overstretching_filter_.getMedian();
   ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME,
                          "max distance " << filtered_max_distance << " vs rest distance " << rest_distance_);
 
@@ -232,9 +228,12 @@ void RopePlugin::UpdateOverstretching()
     ROS_DEBUG_STREAM_THROTTLE_NAMED(1, PLUGIN_NAME, "overstretching detected!");
   }
 
-  overstretching_response_.overstretched = overstretched;
   auto const magnitude = filtered_max_distance / rest_distance_;
-  overstretching_response_.magnitude = magnitude;
+  {
+    std::lock_guard g(mutex_);
+    overstretching_response_.overstretched = overstretched;
+    overstretching_response_.magnitude = magnitude;
+  }
 
   std_msgs::Float64 overstretching;
   overstretching.data = magnitude;
@@ -244,7 +243,10 @@ void RopePlugin::UpdateOverstretching()
 bool RopePlugin::GetOverstretched(peter_msgs::GetOverstretchingRequest &req, peter_msgs::GetOverstretchingResponse &res)
 {
   (void) req;  // unused
-  res = overstretching_response_;
+  {
+    std::lock_guard g(mutex_);
+    res = overstretching_response_;
+  }
   return true;
 }
 
