@@ -13,6 +13,7 @@ from link_bot_planning.planning_evaluation import planning_evaluation
 from link_bot_pycommon.args import my_formatter, int_range_arg, int_set_arg
 
 
+@ros_init.with_ros("planning_evaluation")
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
@@ -32,8 +33,6 @@ def main():
     parser.add_argument('--use-gt-rope', action='store_true', help='use ground truth rope state')
 
     args = parser.parse_args()
-
-    ros_init.rospy_and_cpp_init("planning_evaluation")
 
     root = data_directory(pathlib.Path('results') / f"{args.nickname}-planning-evaluation")
 
@@ -60,7 +59,6 @@ def main():
                         no_execution=args.no_execution,
                         logfile_name=None,
                         record=args.record)
-    ros_init.shutdown()
 
 
 if __name__ == '__main__':
