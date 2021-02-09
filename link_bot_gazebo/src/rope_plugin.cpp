@@ -9,6 +9,7 @@
 #include <gazebo/common/Time.hh>
 #include <ros/console.h>
 #include <std_srvs/EmptyRequest.h>
+#include <std_msgs/Float64.h>
 
 #include <arc_utilities/enumerate.h>
 #include <link_bot_gazebo/gazebo_plugin_utils.h>
@@ -87,6 +88,7 @@ void RopePlugin::Load(physics::ModelPtr const parent, sdf::ElementPtr const sdf)
   set_state_service_ = ros_node_->advertiseService(set_state_so);
   rope_overstretched_service_ = ros_node_->advertiseService(overstretched_so);
   get_state_service_ = ros_node_->advertiseService(get_state_so);
+  overstretching_pub_ = ros_node_->advertise<std_msgs::Float64>("overstretching", 10);
 
   ros_queue_thread_ = std::thread([this] { QueueThread(); });
 
@@ -105,6 +107,13 @@ void RopePlugin::Load(physics::ModelPtr const parent, sdf::ElementPtr const sdf)
     }
   }
   ROS_INFO("Rope Plugin finished initializing!");
+
+  update_conn_ = event::Events::ConnectWorldUpdateBegin(std::bind(&RopePlugin::OnUpdate, this));
+}
+
+void RopePlugin::OnUpdate()
+{
+  UpdateOverstretching();
 }
 
 bool RopePlugin::SetRopeState(peter_msgs::SetRopeStateRequest &req, peter_msgs::SetRopeStateResponse &)
@@ -189,14 +198,13 @@ bool RopePlugin::GetRopeState(peter_msgs::GetRopeStateRequest &, peter_msgs::Get
   return true;
 }
 
-bool RopePlugin::GetOverstretched(peter_msgs::GetOverstretchingRequest &req, peter_msgs::GetOverstretchingResponse &res)
-{
-  (void) req;  // unused
 
+void RopePlugin::UpdateOverstretching()
+{
   // check the distance between the position of rope_link_1 and gripper_1
   if (not std::all_of(rope_links_.cbegin(), rope_links_.cend(), is_ptr_valid))
   {
-    return false;
+    return;
   }
 
   auto max_distance = 0.0;
@@ -209,14 +217,34 @@ bool RopePlugin::GetOverstretched(peter_msgs::GetOverstretchingRequest &req, pet
     max_distance = std::max(max_distance, d);
   }
 
-  auto const overstretched = max_distance > (rest_distance_ * overstretching_factor_);
-  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "max distance " << max_distance << " vs rest distance " << rest_distance_);
-  res.overstretched = overstretched;
-  res.magnitude = max_distance / rest_distance_;
+  auto const filtered_max_distance = [&]()
+  {
+    std::lock_guard g(filter_mutex_);
+    rope_overstretching_filter_.addSample(max_distance);
+    return rope_overstretching_filter_.getMedian();
+  }();
+  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME,
+                         "max distance " << filtered_max_distance << " vs rest distance " << rest_distance_);
+
+  auto const overstretched = filtered_max_distance > (rest_distance_ * overstretching_factor_);
   if (overstretched)
   {
     ROS_DEBUG_STREAM_THROTTLE_NAMED(1, PLUGIN_NAME, "overstretching detected!");
   }
+
+  overstretching_response_.overstretched = overstretched;
+  auto const magnitude = filtered_max_distance / rest_distance_;
+  overstretching_response_.magnitude = magnitude;
+
+  std_msgs::Float64 overstretching;
+  overstretching.data = magnitude;
+  overstretching_pub_.publish(overstretching);
+}
+
+bool RopePlugin::GetOverstretched(peter_msgs::GetOverstretchingRequest &req, peter_msgs::GetOverstretchingResponse &res)
+{
+  (void) req;  // unused
+  res = overstretching_response_;
   return true;
 }
 

@@ -21,6 +21,8 @@
 #include <string>
 #include <thread>
 
+#include <link_bot_gazebo/median_filter.h>
+
 namespace gazebo
 {
 class RopePlugin : public ModelPlugin
@@ -36,9 +38,14 @@ public:
 
   bool GetOverstretched(peter_msgs::GetOverstretchingRequest &req, peter_msgs::GetOverstretchingResponse &res);
 
+  void OnUpdate();
+
+  void UpdateOverstretching();
+
 private:
   void QueueThread();
 
+  event::ConnectionPtr update_conn_;
   physics::ModelPtr model_;
   physics::Link_V rope_links_;
   physics::LinkPtr left_gripper_;
@@ -52,11 +59,13 @@ private:
   ros::ServiceServer set_state_service_;
   ros::ServiceServer rope_overstretched_service_;
   ros::ServiceServer get_state_service_;
-  ros::ServiceServer get_object_link_bot_service_;
-  ros::Publisher register_object_pub_;
+  ros::Publisher overstretching_pub_;
   ros::CallbackQueue queue_;
   std::thread ros_queue_thread_;
   double overstretching_factor_{ 1.0 };
   unsigned long n_links_{1ul};
+  MedianFilter<double, 100> rope_overstretching_filter_;
+  std::mutex filter_mutex_;
+  peter_msgs::GetOverstretchingResponse overstretching_response_;
 };
 }  // namespace gazebo
