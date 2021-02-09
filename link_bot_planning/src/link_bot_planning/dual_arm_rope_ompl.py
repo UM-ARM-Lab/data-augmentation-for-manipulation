@@ -133,8 +133,7 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
             'right_gripper_position': target_right_gripper_position,
         }
 
-    def make_state_space(self, planner_params, state_sampler_rng: np.random.RandomState,
-                         plot: bool):
+    def make_state_space(self, planner_params, state_sampler_rng: np.random.RandomState, plot: bool):
         state_space = ob.CompoundStateSpace()
 
         min_x, max_x, min_y, max_y, min_z, max_z = planner_params['extent']

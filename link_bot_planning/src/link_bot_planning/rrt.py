@@ -252,8 +252,9 @@ class RRT(MyPlanner):
             statisfies_bounds = self.scenario_ompl.state_space.satisfiesBounds(state_out)
             if final_classifier_probability > 0.5 and statisfies_bounds:
                 self.scenario.plot_tree_state(np_final_state, color=classifier_probability_color)
-            self.scenario.plot_current_tree_state(
-                np_final_state, horizon=self.classifier_model.horizon, color=classifier_probability_color)
+            self.scenario.plot_current_tree_state(np_final_state,
+                                                  horizon=self.classifier_model.horizon,
+                                                  color=classifier_probability_color)
 
             self.scenario.plot_tree_action(previous_state,
                                            new_action,
