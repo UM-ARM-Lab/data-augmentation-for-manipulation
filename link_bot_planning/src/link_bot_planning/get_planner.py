@@ -5,6 +5,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_from_json
 from state_space_dynamics import dynamics_utils, filter_utils
 
+
 def get_planner(planner_params: Dict, verbose: int):
     # TODO: remove when backwards compatibility no longer needed
     if 'planner_type' not in planner_params:
