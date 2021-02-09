@@ -1,9 +1,8 @@
 import pathlib
 import tempfile
-import traceback
 import uuid
 from time import time, sleep
-from typing import Optional, Dict, List, Tuple, Callable
+from typing import Optional, Dict, List, Tuple
 
 import numpy as np
 from colorama import Fore
@@ -18,34 +17,9 @@ from link_bot_planning.get_planner import get_planner
 from link_bot_planning.my_planner import MyPlanner
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.job_chunking import JobChunker
+from link_bot_pycommon.pycommon import deal_with_exceptions
 from link_bot_pycommon.serialization import dump_gzipped_pickle, my_dump
 from moonshine.moonshine_utils import numpify
-
-
-def deal_with_exceptions(on_exception: str,
-                         function: Callable,
-                         value_on_no_retry_exception=None,
-                         print_exception: bool = False,
-                         **kwargs):
-    def _print_exception():
-        if print_exception:
-            print("Caught an exception!")
-            traceback.print_exc()
-            print("End of caught exception.")
-
-    if on_exception == 'raise':
-        return function(**kwargs)
-    else:
-        for i in range(10):
-            try:
-                return function(**kwargs)
-            except Exception:
-                if on_exception == 'retry':
-                    _print_exception()
-                elif on_exception == 'catch':
-                    _print_exception()
-                    return value_on_no_retry_exception
-        return value_on_no_retry_exception
 
 
 class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):

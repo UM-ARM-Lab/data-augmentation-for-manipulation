@@ -1,8 +1,9 @@
 import pathlib
 import random
 import string
+import traceback
 import warnings
-from typing import Union, List
+from typing import Union, List, Callable
 
 import numpy as np
 import tensorflow as tf
@@ -259,3 +260,29 @@ def log_scale_0_to_1(x, k=10):
     larger is more squished
     """
     return np.log(k * x + 1) / np.log(k + 1)
+
+
+def deal_with_exceptions(on_exception: str,
+                         function: Callable,
+                         value_on_no_retry_exception=None,
+                         print_exception: bool = False,
+                         **kwargs):
+    def _print_exception():
+        if print_exception:
+            print("Caught an exception!")
+            traceback.print_exc()
+            print("End of caught exception.")
+
+    if on_exception == 'raise':
+        return function(**kwargs)
+    else:
+        for i in range(10):
+            try:
+                return function(**kwargs)
+            except Exception:
+                if on_exception == 'retry':
+                    _print_exception()
+                elif on_exception == 'catch':
+                    _print_exception()
+                    return value_on_no_retry_exception
+        return value_on_no_retry_exception

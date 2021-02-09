@@ -4,6 +4,7 @@ import ros_numpy
 import rospy
 from actionlib_msgs.msg import GoalStatus
 from arm_robots.robot import MoveitEnabledRobot
+from link_bot_pycommon.pycommon import deal_with_exceptions
 from peter_msgs.srv import GetOverstretching, GetOverstretchingResponse, GetOverstretchingRequest
 from rosgraph.names import ns_join
 
@@ -16,7 +17,9 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, action: Dict):
     grippers = [left_gripper_points, right_gripper_points]
 
     overstretching_srv = rospy.ServiceProxy(ns_join("rope_3d", "rope_overstretched"), GetOverstretching)
-    res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
+    res: GetOverstretchingResponse = deal_with_exceptions('retry',
+                                                          overstretching_srv(GetOverstretchingRequest()),
+                                                          GetOverstretchingResponse())
     if res.magnitude > 1.3:
         # just do nothing...
         rospy.logwarn("The rope is extremely overstretched -- refusing to execute action")
@@ -39,5 +42,7 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, action: Dict):
 
 
 def overstretching_stop_condition(overstretching_srv):
-    res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
+    res: GetOverstretchingResponse = deal_with_exceptions('retry',
+                                                          overstretching_srv(GetOverstretchingRequest()),
+                                                          GetOverstretchingResponse())
     return res.overstretched
