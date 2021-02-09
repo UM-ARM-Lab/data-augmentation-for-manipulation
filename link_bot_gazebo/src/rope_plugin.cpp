@@ -245,7 +245,8 @@ bool RopePlugin::GetOverstretched(peter_msgs::GetOverstretchingRequest &req, pet
   (void) req;  // unused
   {
     std::lock_guard g(mutex_);
-    res = overstretching_response_;
+    res.magnitude = overstretching_response_.magnitude;
+    res.overstretched = overstretching_response_.overstretched;
   }
   return true;
 }

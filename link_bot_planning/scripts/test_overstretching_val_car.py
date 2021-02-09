@@ -13,14 +13,15 @@ import rospy
 from arc_utilities import ros_init
 from link_bot_gazebo_python.gazebo_services import GazeboServices
 from link_bot_pycommon.args import my_formatter
+from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
 from link_bot_pycommon.get_scenario import get_scenario
-from peter_msgs.srv import GetOverstretching, GetOverstretchingResponse, GetOverstretchingRequest
 
 
 def print_state(state):
     print(state['left_gripper'], state['right_gripper'])
 
 
+@ros_init.with_ros("test_overstretching")
 def main():
     colorama.init(autoreset=True)
     np.set_printoptions(precision=3, suppress=True)
@@ -32,8 +33,6 @@ def main():
 
     args = parser.parse_args()
 
-    ros_init.rospy_and_cpp_init("test_overstretching")
-
     bagfile_name = args.test_scene
     rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
     with args.params.open("r") as planner_params_file:
@@ -44,28 +43,19 @@ def main():
     scenario.on_before_get_state_or_execute_action()
 
     # scenario.restore_from_bag(service_provider, planner_params, bagfile_name)
-    # scenario.grasp_rope_endpoints()
+    scenario.grasp_rope_endpoints()
 
-    srv = rospy.ServiceProxy("rope_3d/rope_overstretched", GetOverstretching)
+    service_provider.play()
 
-    # try to overstretch and record what's happening
+    rng = np.random.RandomState(0)
     for i in range(100):
-        req: GetOverstretchingResponse = srv(GetOverstretchingRequest())
-        print("Before Executing: ", req.overstretched, req.magnitude)
         state = scenario.get_state()
 
         action = {
-            'left_gripper_position':  state['left_gripper'] + np.array([0.0, -0.1, -0.1]) * 0.1,
-            'right_gripper_position': state['right_gripper'] + np.array([0.02, -0.03, -0.1]) * 0.1,
+            'left_gripper_position':  state['left_gripper'] + rng.normal(size=3) * 0.01,
+            'right_gripper_position': state['right_gripper'] + rng.normal(size=3) * 0.01,
         }
-        scenario.execute_action(action)
-
-        rospy.sleep(1)
-
-        req: GetOverstretchingResponse = srv(GetOverstretchingRequest())
-        print("After Executing: ", req.overstretched, req.magnitude)
-
-    ros_init.shutdown()
+        dual_arm_rope_execute_action(scenario.robot, action)
 
 
 if __name__ == '__main__':

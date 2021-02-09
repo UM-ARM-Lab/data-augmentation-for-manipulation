@@ -4,7 +4,6 @@ import ros_numpy
 import rospy
 from actionlib_msgs.msg import GoalStatus
 from arm_robots.robot import MoveitEnabledRobot
-from link_bot_pycommon.pycommon import deal_with_exceptions
 from peter_msgs.srv import GetOverstretching, GetOverstretchingResponse, GetOverstretchingRequest
 from rosgraph.names import ns_join
 
@@ -17,16 +16,15 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, action: Dict):
     grippers = [left_gripper_points, right_gripper_points]
 
     overstretching_srv = rospy.ServiceProxy(ns_join("rope_3d", "rope_overstretched"), GetOverstretching)
-    res: GetOverstretchingResponse = deal_with_exceptions('retry',
-                                                          overstretching_srv(GetOverstretchingRequest()),
-                                                          GetOverstretchingResponse())
+    res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
+
     if res.magnitude > 1.3:
         # just do nothing...
         rospy.logwarn("The rope is extremely overstretched -- refusing to execute action")
         return
 
     def _stop_condition(_):
-        return overstretching_stop_condition(overstretching_srv)
+        return overstretching_stop_condition()
 
     result = robot.follow_jacobian_to_position(group_name="both_arms",
                                                tool_names=tool_names,
@@ -35,14 +33,13 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, action: Dict):
 
     rospy.sleep(1.0)
     res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
-    if result.execution_result.action_client_state == GoalStatus.PREEMPTED or res.overstretched:
+    if result.execution_result.action_client_state == GoalStatus.PREEMPTED:
         rev_grippers = [[ros_numpy.numpify(start_left_gripper_pos)],
                         [ros_numpy.numpify(start_right_gripper_pos)]]
         robot.follow_jacobian_to_position("both_arms", tool_names, points=rev_grippers)
 
 
-def overstretching_stop_condition(overstretching_srv):
-    res: GetOverstretchingResponse = deal_with_exceptions('retry',
-                                                          overstretching_srv(GetOverstretchingRequest()),
-                                                          GetOverstretchingResponse())
+def overstretching_stop_condition():
+    overstretching_srv = rospy.ServiceProxy(ns_join("rope_3d", "rope_overstretched"), GetOverstretching)
+    res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
     return res.overstretched
