@@ -76,6 +76,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
     def on_before_get_state_or_execute_action(self):
         self.robot.connect()
 
+        # Mark the rope as a not-obstacle
+        exclude = ExcludeModelsRequest()
+        exclude.model_names.append("rope_3d")
+        exclude.model_names.append(self.robot_namespace)
+        self.exclude_from_planning_scene_srv(exclude)
+
     def on_before_data_collection(self, params: Dict):
         self.on_before_get_state_or_execute_action()
         self.add_boxes_around_tools()

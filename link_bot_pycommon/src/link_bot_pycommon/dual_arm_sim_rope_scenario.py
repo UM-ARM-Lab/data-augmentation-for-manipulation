@@ -33,17 +33,12 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         dual_arm_rope_execute_action(self.robot, action)
 
     def on_before_get_state_or_execute_action(self):
-        self.robot.connect()
+        super().on_before_get_state_or_execute_action()
 
         self.robot.store_tool_orientations({
             self.robot.right_tool_name: self.preferred_tool_orientation,
             self.robot.left_tool_name:  self.preferred_tool_orientation,
         })
-
-        # Mark the rope as a not-obstacle
-        exclude = ExcludeModelsRequest()
-        exclude.model_names.append("rope_3d")
-        self.exclude_from_planning_scene_srv(exclude)
 
         # register kinematic controllers for fake-grasping
         self.register_fake_grasping()
