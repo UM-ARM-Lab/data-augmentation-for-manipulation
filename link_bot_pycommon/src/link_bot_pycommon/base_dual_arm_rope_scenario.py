@@ -103,7 +103,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         # FIXME: "Joint values for monitored state are requested but the full state is not known"
         for _ in range(5):
             left_gripper_position, right_gripper_position = self.robot.get_gripper_positions()
-            rospy.sleep(0.01)
+            rospy.sleep(0.02)
 
         # rgbd = self.get_rgbd()
 
