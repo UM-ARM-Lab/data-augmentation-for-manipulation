@@ -5,7 +5,6 @@ import numpy as np
 import ros_numpy
 import rosbag
 import rospy
-from arm_gazebo_msgs.srv import ExcludeModelsRequest
 from control_msgs.msg import FollowJointTrajectoryResult as FJTR
 from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_gazebo_python.gazebo_services import GazeboServices, gz_scope
@@ -219,4 +218,3 @@ class SimValDualArmRopeScenario(SimDualArmRopeScenario):
 
     def __repr__(self):
         return "SimValDualArmRopeScenario"
-

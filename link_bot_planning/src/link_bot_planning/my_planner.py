@@ -1,7 +1,9 @@
+import pathlib
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Optional, List
 
+import numpy as np
 from dataclasses_json import dataclass_json
 
 from link_bot_planning.base_decoder_function import BaseDecoderFunction, PassThroughDecoderFunction
@@ -25,6 +27,60 @@ class MyPlannerStatus(Enum):
             return False
 
 
+def are_states_close(a: Dict, b: Dict):
+    assert (set(a.keys()) == set(b.keys()))
+    for k, v1 in a.items():
+        v2 = b[k]
+        if isinstance(v1, np.ndarray):
+            if v1.dtype in [np.float32, np.float64, np.int32, np.int64]:
+                if not np.allclose(v1, v2):
+                    return False
+    return True
+
+
+class LoggingTree:
+    """
+    This duplicates what OMPL does already, but the OMPL implementation is not python friendly
+    """
+
+    def __init__(self, state=None, action=None):
+        self.state = state
+        self.action = action
+        self.children: List[LoggingTree] = []
+
+    def add(self, before_state: Dict, action: Dict, after_state: Dict):
+        if len(self.children) == 0:
+            self.state = before_state
+            t = self
+        else:
+            t = self.find(before_state)
+
+        new_child = LoggingTree(state=after_state, action=action)
+        t.children.append(new_child)
+
+    def find(self, state: Dict):
+        if are_states_close(self.state, state):
+            return self
+        for child in self.children:
+            s = child.find(state)
+            if s is not None:
+                return s
+        return None
+
+    def __str__(self):
+        s = ""
+        for child in self.children:
+            s += child.__str__()
+        s += str(self.state)
+        return s
+
+
+@dataclass_json
+@dataclass
+class SetupInfo:
+    bagfile_name: Optional[pathlib.Path]
+
+
 @dataclass_json
 @dataclass
 class PlanningQuery:
@@ -40,7 +96,7 @@ class PlanningResult:
     path: Optional[List[Dict]]
     actions: Optional[List[Dict]]
     status: MyPlannerStatus
-    tree: Dict
+    tree: LoggingTree
     time: float
 
 

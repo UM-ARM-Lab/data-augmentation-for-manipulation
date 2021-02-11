@@ -6,7 +6,7 @@ import numpy as np
 from matplotlib import cm
 
 from link_bot_planning.get_ompl_scenario import get_ompl_scenario
-from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner
+from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, LoggingTree
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.base_3d_scenario import Base3DScenario
 from state_space_dynamics.base_filter_function import BaseFilterFunction
@@ -18,7 +18,6 @@ with warnings.catch_warnings():
 
 import rospy
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
-from link_bot_planning.ompl_viz import planner_data_to_json
 from link_bot_planning.timeout_or_not_progressing import TimeoutOrNotProgressing
 from moonshine.tests.testing_utils import are_dicts_close_np
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
@@ -107,6 +106,7 @@ class RRT(MyPlanner):
         self.visualize_propogation_color = [0, 0, 0]
 
     def cleanup_before_plan(self, seed):
+        self.tree = LoggingTree()
         self.ptc = None
         self.n_total_action = None
         self.goal_region = None
@@ -155,7 +155,8 @@ class RRT(MyPlanner):
             control = motion.getControl()
             state_t = self.scenario_ompl.ompl_state_to_numpy(state)
             states_sequence.append(state_t)
-            if t > 0:  # skip the first (null) action, because that would represent the action that brings us to the first state
+            # skip the first (null) action, because that would represent the action that brings us to the first state
+            if t > 0:
                 actions.append(self.scenario_ompl.ompl_control_to_numpy(state, control))
         actions = np.array(actions)
         return states_sequence, actions
@@ -240,6 +241,9 @@ class RRT(MyPlanner):
 
         # Convert back Numpy -> OMPL
         self.scenario_ompl.numpy_to_ompl_state(np_final_state, state_out)
+
+        # log the data
+        self.tree.add(before_state=previous_state, action=new_action, after_state=np_final_state)
 
         # visualize
         if self.verbose >= 2:
@@ -329,9 +333,6 @@ class RRT(MyPlanner):
         if planner_status == MyPlannerStatus.Solved:
             ompl_path = self.ss.getSolutionPath()
             actions, planned_path = self.convert_path(ompl_path)
-            planner_data = ob.PlannerData(self.si)
-            self.rrt.getPlannerData(planner_data)
-            tree = planner_data_to_json(planner_data, self.scenario_ompl)
         elif planner_status == MyPlannerStatus.Timeout:
             # Use the approximate solution, since it's usually pretty darn close, and sometimes
             # our goals are impossible to reach so this is important to have
@@ -342,26 +343,23 @@ class RRT(MyPlanner):
                 rospy.logerr("Timeout before any edges were added. Considering this as Not Progressing.")
                 planner_status = MyPlannerStatus.NotProgressing
                 actions = []
-                tree = {}
                 planned_path = [start_state]
-            else:  # if no exception was raised
-                planner_data = ob.PlannerData(self.si)
-                self.rrt.getPlannerData(planner_data)
-                tree = planner_data_to_json(planner_data, self.scenario_ompl)
         elif planner_status == MyPlannerStatus.Failure:
             rospy.logerr(f"Failed at starting state: {start_state}")
-            tree = {}
             actions = []
             planned_path = [start_state]
         elif planner_status == MyPlannerStatus.NotProgressing:
-            tree = {}
             actions = []
             planned_path = [start_state]
         else:
             raise ValueError(f"invalud planner status {planner_status}")
 
         print()
-        return PlanningResult(status=planner_status, path=planned_path, actions=actions, time=planning_time, tree=tree)
+        return PlanningResult(status=planner_status,
+                              path=planned_path,
+                              actions=actions,
+                              time=planning_time,
+                              tree=self.tree)
 
     def convert_path(self, ompl_path: oc.PathControl) -> Tuple[List[Dict], List[Dict]]:
         planned_path = []

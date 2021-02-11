@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import argparse
-import json
 import pathlib
 from typing import Dict
 
@@ -8,13 +7,12 @@ import colorama
 import numpy as np
 
 import rospy
+from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningQuery
 from link_bot_planning.plan_and_execute import TrialStatus
 from link_bot_planning.results_utils import labeling_params_from_planner_params, get_paths
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.get_scenario import get_scenario
-from link_bot_pycommon.serialization import load_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.moonshine_utils import numpify
 
@@ -24,7 +22,7 @@ def main():
     np.set_printoptions(linewidth=250, precision=3, suppress=True)
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
-    parser.add_argument("trial_idx", type=int_set_arg, help='which plan(s) to show')
+    parser.add_argument("trial_indices", type=int_set_arg, help='which plan(s) to show')
     parser.add_argument("threshold", type=float)
     parser.add_argument("--save", action='store_true')
     parser.add_argument("--only-timeouts", action='store_true')
@@ -35,20 +33,14 @@ def main():
 
     args = parser.parse_args()
 
-    with (args.results_dir / 'metadata.json').open('r') as metadata_file:
-        metadata_str = metadata_file.read()
-        metadata = json.loads(metadata_str)
-    scenario = get_scenario(metadata['scenario'])
+    scenario, metadata = results_utils.get_scenario_and_metadata(args.results_dir)
 
-    for trial_idx in args.trial_idx:
-        results_filename = args.results_dir / f'{trial_idx}_metrics.pkl.gz'
-        datum = load_gzipped_pickle(results_filename)
-
+    for trial_idx, datum in results_utils.trials_generator(args.results_dir, args.trial_indices):
         should_skip = args.only_timeouts and datum['trial_status'] != TrialStatus.Timeout
         if should_skip:
             continue
 
-        print(f"Trial {trial_idx} ...")
+        print(f"trial {trial_idx} ...")
         plot_steps(args.show_tree, scenario, datum, metadata, {'threshold': args.threshold}, args.verbose)
         print(f"... complete with status {datum['trial_status']}")
 

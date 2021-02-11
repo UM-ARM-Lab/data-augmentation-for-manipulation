@@ -116,7 +116,7 @@ class ExperimentScenario:
     def plot_environment_rviz(self, data: Dict):
         raise NotImplementedError()
 
-    def plot_state_rviz(self, data: Dict, label: str, **kwargs):
+    def plot_state_rviz(self, data: Dict, **kwargs):
         raise NotImplementedError()
 
     def plot_action_rviz(self, state: Dict, action: Dict, **kwargs):
@@ -329,5 +329,5 @@ class ExperimentScenario:
     def needs_reset(self, state: Dict, params: Dict):
         raise NotImplementedError()
 
-    def restore_from_bag(self, service_provider: BaseServices, planner_params: Dict, bagfile_name):
+    def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
         service_provider.restore_from_bag(bagfile_name)

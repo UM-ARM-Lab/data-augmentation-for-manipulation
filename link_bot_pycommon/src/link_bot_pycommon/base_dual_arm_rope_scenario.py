@@ -148,8 +148,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
             'rgbd':          self.IMAGE_H * self.IMAGE_W * 4,
         }
 
-    def plot_state_rviz(self, state: Dict, label: str, **kwargs):
-        super().plot_state_rviz(state, label, **kwargs)
+    def plot_state_rviz(self, state: Dict, **kwargs):
+        super().plot_state_rviz(state, **kwargs)
+        label = kwargs.pop("label", "")
         if 'joint_positions' in state and 'joint_names' in state:
             joint_state = self.joint_state_msg_from_state_dict(state)
             self.robot.display_robot_state(joint_state, label, **kwargs)

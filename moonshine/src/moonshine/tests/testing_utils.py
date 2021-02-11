@@ -1,9 +1,13 @@
+from typing import Dict
+
 import numpy as np
 import tensorflow as tf
 
 
-def are_dicts_close_np(a, b):
-    for v1, v2 in zip(a.values(), b.values()):
+def are_dicts_close_np(a: Dict, b: Dict):
+    assert (set(a.keys()) == set(b.keys()))
+    for k, v1 in a.items():
+        v2 = b[k]
         if not np.allclose(v1, v2):
             return False
     return True

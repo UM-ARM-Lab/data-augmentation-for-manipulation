@@ -7,7 +7,6 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 import numpy as np
-import tensorflow as tf
 from colorama import Fore
 from dataclasses_json import dataclass_json
 
@@ -18,7 +17,7 @@ from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers import recovery_policy_utils
 from link_bot_data import dataset_utils
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
-from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner
+from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, SetupInfo
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -165,7 +164,7 @@ class PlanAndExecute:
         self.set_random_seeds_for_trial(trial_idx)
 
         # rospy.logwarn("skipping setup")
-        self.setup_test_scene(trial_idx)
+        setup_info = self.setup_test_scene(trial_idx)
 
         self.on_start_trial(trial_idx)
 
@@ -214,13 +213,14 @@ class PlanAndExecute:
                     trial_msg = f"Trial {trial_idx} Ended: not progressing, no recovery. {time_since_start:.3f}s"
                     rospy.loginfo(Fore.BLUE + trial_msg + Fore.RESET)
                     trial_data_dict = {
+                        'setup_info':       setup_info,
                         'planning_queries': planning_queries,
                         'total_time':       time_since_start,
                         'trial_status':     trial_status,
                         'trial_idx':        trial_idx,
-                        'end_state':        end_state,
                         'goal':             goal,
                         'steps':            steps_data,
+                        'end_state': end_state,
                     }
                     self.on_trial_complete(trial_data_dict, trial_idx)
                     return
@@ -275,6 +275,7 @@ class PlanAndExecute:
                     trial_status = TrialStatus.Timeout
                     rospy.loginfo(Fore.BLUE + f"Trial {trial_idx} Ended: Timeout {time_since_start:.3f}s" + Fore.RESET)
                 trial_data_dict = {
+                    'setup_info':       setup_info,
                     'planning_queries': planning_queries,
                     'total_time':       time_since_start,
                     'trial_status':     trial_status,
@@ -292,9 +293,11 @@ class PlanAndExecute:
             bagfile_name = self.test_scenes_dir / f'scene_{trial_idx:04d}.bag'
             rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
             self.scenario.restore_from_bag(self.service_provider, self.planner_params, bagfile_name)
+            return SetupInfo(bagfile_name=bagfile_name)
         else:
             rospy.loginfo(Fore.GREEN + f"Randomizing Environment")
             self.randomize_environment()
+            return SetupInfo(bagfile_name=None)
 
     def plan(self, planning_query: PlanningQuery):
         ############

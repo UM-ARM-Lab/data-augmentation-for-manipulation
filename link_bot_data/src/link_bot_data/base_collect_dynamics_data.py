@@ -55,8 +55,8 @@ class BaseDataCollector:
             # over the course of this function
             environment = self.scenario.get_environment(self.params)
 
-        feature = environment
-        feature['traj_idx'] = traj_idx
+        example = environment
+        example['traj_idx'] = traj_idx
 
         # Visualization
         actions = {k: [] for k in self.params['action_keys']}
@@ -105,14 +105,14 @@ class BaseDataCollector:
                 states[state_component_name].append(state_component)
             time_indices.append(time_idx)
 
-        feature.update(states)
-        feature.update(actions)
-        feature['time_idx'] = time_indices
+        example.update(states)
+        example.update(actions)
+        example['time_idx'] = time_indices
 
         if verbose:
             print(Fore.GREEN + "Trajectory {} Complete".format(traj_idx) + Fore.RESET)
 
-        return feature
+        return example
 
     def collect_data(self,
                      n_trajs: int,
