@@ -22,7 +22,7 @@
   <depend>moveit_commander</depend>
 
   <exec_depend>gazebo_ros_link_attacher</exec_depend>
-  <exec_depend>ros-noetic-rospy-message-converter</exec_depend>
+  <depend>ros-noetic-rospy-message-converter</depend>
   <!-- TODO: properly list dependencies -->
 
 </package>

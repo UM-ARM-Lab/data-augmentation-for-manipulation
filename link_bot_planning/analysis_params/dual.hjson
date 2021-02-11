@@ -11,10 +11,12 @@
     "No Classifier": "#EF4650"
     "Classifier + Learned Recovery": "#7F59C2"
 
+    "no feasibility, no classifier": "#C36F00"
+    "neither": "#C36F00"
     "no feasibility checking": "#EF4650"
     "only classifier": "#EF4650"
     "only feasibility checking": "#0058AB"
     "feasibility checking": "#7F59C2"
-    "no feasibility, no classifier": "#C36F00"
+    "both": "#7F59C2"
   }
 }
