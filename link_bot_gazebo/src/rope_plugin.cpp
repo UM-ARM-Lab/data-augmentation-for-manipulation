@@ -8,8 +8,8 @@
 #include <boost/regex.hpp>
 #include <gazebo/common/Time.hh>
 #include <ros/console.h>
-#include <std_srvs/EmptyRequest.h>
 #include <std_msgs/Float64.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <arc_utilities/enumerate.h>
 #include <link_bot_gazebo/gazebo_plugin_utils.h>
@@ -89,6 +89,7 @@ void RopePlugin::Load(physics::ModelPtr const parent, sdf::ElementPtr const sdf)
   rope_overstretched_service_ = ros_node_->advertiseService(overstretched_so);
   get_state_service_ = ros_node_->advertiseService(get_state_so);
   overstretching_pub_ = ros_node_->advertise<std_msgs::Float64>("overstretching", 10);
+  viz_pub_ = ros_node_->advertise<visualization_msgs::MarkerArray>("rope_viz", 10);
 
   ros_queue_thread_ = std::thread([this] { QueueThread(); });
 
@@ -109,16 +110,78 @@ void RopePlugin::Load(physics::ModelPtr const parent, sdf::ElementPtr const sdf)
   ROS_INFO("Rope Plugin finished initializing!");
 
   update_conn_ = event::Events::ConnectWorldUpdateBegin(std::bind(&RopePlugin::OnUpdate, this));
+
+  auto periodic_update_func = [this]
+  {
+    while (true)
+    {
+      PeriodicUpdate();
+      ros::Duration(0.02).sleep();
+    }
+  };
+  periodic_event_thread_ = std::thread(periodic_update_func);
 }
 
 void RopePlugin::OnUpdate()
 {
   UpdateOverstretching();
 }
+void RopePlugin::PeriodicUpdate()
+{
+  visualization_msgs::MarkerArray rope_markers;
+  visualization_msgs::Marker points_marker;
+  points_marker.header.stamp = ros::Time::now();
+  points_marker.header.frame_id = "world";
+  points_marker.id = 0;
+  points_marker.action = visualization_msgs::Marker::ADD;
+  points_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  points_marker.pose.orientation.w = 1;
+  points_marker.color.r = 0.0;
+  points_marker.color.g = 1.0;
+  points_marker.color.b = 1.0;
+  points_marker.color.a = 1.0;
+  auto const s = 0.01;
+  points_marker.scale.x = s;
+  points_marker.scale.y = s;
+  points_marker.scale.z = s;
 
+  visualization_msgs::Marker line_marker;
+  line_marker.header.stamp = ros::Time::now();
+  line_marker.header.frame_id = "world";
+  line_marker.id = 1;
+  line_marker.action = visualization_msgs::Marker::ADD;
+  line_marker.type = visualization_msgs::Marker::LINE_STRIP;
+  line_marker.pose.orientation.w = 1;
+  line_marker.color.r = 0.2;
+  line_marker.color.g = 0.8;
+  line_marker.color.b = 0.8;
+  line_marker.color.a = 1.0;
+  line_marker.scale.x = s;
+
+  for (auto const &pair : enumerate(model_->GetLinks()))
+  {
+    auto const &[i, link] = pair;
+    auto const name = link->GetName();
+    boost::regex e(".*rope_link_\\d+");
+    if (boost::regex_match(name, e))
+    {
+      geometry_msgs::Point pt;
+      pt.x = link->WorldPose().Pos().X();
+      pt.y = link->WorldPose().Pos().Y();
+      pt.z = link->WorldPose().Pos().Z();
+      points_marker.points.push_back(pt);
+      line_marker.points.push_back(pt);
+    }
+  }
+
+  rope_markers.markers.push_back(points_marker);
+  rope_markers.markers.push_back(line_marker);
+
+  viz_pub_.publish(rope_markers);
+}
 bool RopePlugin::SetRopeState(peter_msgs::SetRopeStateRequest &req, peter_msgs::SetRopeStateResponse &)
 {
-  for (auto pair : enumerate(model_->GetJoints()))
+  for (const auto& pair : enumerate(model_->GetJoints()))
   {
     auto const &[i, joint] = pair;
     if (i < req.joint_angles_axis1.size())

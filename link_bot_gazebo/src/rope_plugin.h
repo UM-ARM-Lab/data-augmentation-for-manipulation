@@ -40,6 +40,8 @@ public:
 
   void OnUpdate();
 
+  void PeriodicUpdate();
+
   void UpdateOverstretching();
 
 private:
@@ -60,6 +62,7 @@ private:
   ros::ServiceServer rope_overstretched_service_;
   ros::ServiceServer get_state_service_;
   ros::Publisher overstretching_pub_;
+  ros::Publisher viz_pub_;
   ros::CallbackQueue queue_;
   std::thread ros_queue_thread_;
   double overstretching_factor_{ 1.0 };
@@ -67,5 +70,6 @@ private:
   MedianFilter<double, 100> rope_overstretching_filter_;
   std::mutex mutex_;
   peter_msgs::GetOverstretchingResponse overstretching_response_;
+  std::thread periodic_event_thread_;
 };
 }  // namespace gazebo

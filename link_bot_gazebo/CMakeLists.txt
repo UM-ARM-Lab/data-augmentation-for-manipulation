@@ -15,6 +15,7 @@ find_package(
         trajectory_msgs
         tf2_ros
         victor_hardware_interface
+        visualization_msgs
 )
 
 find_package(cnpy REQUIRED)
@@ -42,6 +43,7 @@ catkin_package(
         peter_msgs
         tf2_ros
         victor_hardware_interface
+        visualization_msgs
 )
 
 link_directories(${GAZEBO_LIBRARY_DIRS})

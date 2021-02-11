@@ -9,7 +9,7 @@
         <param name="right_tf_name" value="right_tool"/>
         <param name="obstacle_cost_weight" value="0.001"/>
         <param name="min_distance_threshold" value="0.01"/>
-        <param name="lambda" value="100.0"/>
+        <param name="lambda" value="1.4"/>
         <param name="left_node_idx" value="0"/>
         <param name="right_node_idx" value="24"/>
     </node>
