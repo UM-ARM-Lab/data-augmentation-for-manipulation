@@ -142,6 +142,7 @@ def evaluate_planning_method(planner_params: Dict,
     if timeout is not None:
         rospy.loginfo(f"Overriding with timeout {timeout}")
         planner_params["termination_criteria"]['timeout'] = timeout
+        planner_params['total_timeout'] = timeout
 
     # Start Services
     service_provider = gazebo_services.GazeboServices()
