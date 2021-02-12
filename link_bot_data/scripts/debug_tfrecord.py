@@ -12,7 +12,6 @@ def main():
     colorama.init(autoreset=True)
     parser = argparse.ArgumentParser()
     parser.add_argument('input', type=pathlib.Path)
-    parser.add_argument('--mode', choices=['train', 'test', 'val'], default='train')
     parser.add_argument('--print-limit', type=int, default=15)
 
     args = parser.parse_args()
@@ -23,7 +22,7 @@ def main():
         print("directory not found")
         return
     else:
-        filenames = [filename for filename in args.input.glob("{}/*.tfrecords".format(args.mode))]
+        filenames = [filename for filename in args.input.glob("*.tfrecords")]
         if len(filenames) == 0:
             print("No tfrecords found")
             return

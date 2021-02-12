@@ -13,6 +13,12 @@ def save_test_scene(joint_state: JointState,
                     save_test_scenes_dir: pathlib.Path,
                     trial_idx: int):
     bagfile_name = save_test_scenes_dir / f'scene_{trial_idx:04d}.bag'
+    return save_test_scene_given_name(joint_state, links_states, bagfile_name)
+
+
+def save_test_scene_given_name(joint_state: JointState,
+                               links_states: LinkStates,
+                               bagfile_name: pathlib.Path):
     if bagfile_name.exists():
         rospy.logerr(f"File {bagfile_name.as_posix()} already exists. Aborting")
         return None
