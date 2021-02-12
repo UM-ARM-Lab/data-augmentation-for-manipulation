@@ -1,9 +1,6 @@
-import time
-
 import numpy as np
 
 import ros_numpy
-import rosgraph
 import rospy
 from arc_utilities.listener import Listener
 from arc_utilities.tf2wrapper import TF2Wrapper
@@ -54,23 +51,3 @@ def transform_points_to_robot_frame(tf: TF2Wrapper, cdcpd_msg: PointCloud2, robo
     return points
 
 
-def get_oneshot_publisher(topic_path: str, *args, **kwargs):
-    pub = rospy.Publisher(topic_path, *args, **kwargs)
-    num_subs = len(_get_subscribers(topic_path))
-    for i in range(10):
-        num_cons = pub.get_num_connections()
-        if num_cons == num_subs:
-            return pub
-        time.sleep(0.1)
-    raise RuntimeError("failed to get publisher")
-
-
-def _get_subscribers(topic_path: str):
-    ros_master = rosgraph.Master('/rostopic')
-    topic_path = rosgraph.names.script_resolve_name('rostopic', topic_path)
-    state = ros_master.getSystemState()
-    subs = []
-    for sub in state[1]:
-        if sub[0] == topic_path:
-            subs.extend(sub[1])
-    return subs

@@ -132,7 +132,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         }
 
     def states_description(self) -> Dict:
-        n_joints = self.robot.get_n_joints()
+        n_joints = self.robot.get_num_joints()
         return {
             'left_gripper':    3,
             'right_gripper':   3,
@@ -153,7 +153,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         label = kwargs.pop("label", "")
         if 'joint_positions' in state and 'joint_names' in state:
             joint_state = self.joint_state_msg_from_state_dict(state)
-            self.robot.display_robot_state(joint_state, label, **kwargs)
+            self.robot.display_robot_state(joint_state, label, kwargs.get("color", None))
         elif 'joint_positions' not in state:
             rospy.logwarn_throttle(10, 'no joint positions in state')
         elif 'joint_names' not in state:

@@ -61,7 +61,7 @@ class DualArmRealVictorRopeScenario(BaseDualArmRopeScenario):
         }
 
     def states_description(self) -> Dict:
-        n_joints = self.robot.get_n_joints()
+        n_joints = self.robot.get_num_joints()
         return {
             'left_gripper': 3,
             'right_gripper': 3,

@@ -12,6 +12,7 @@ from link_bot_gazebo_python.gazebo_services import GazeboServices
 from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningResult, PlanningQuery, LoggingTree, SetupInfo
 from link_bot_pycommon.args import my_formatter, int_set_arg
+from link_bot_pycommon.pycommon import make_dict_tf_float32
 from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors
 
 
@@ -33,6 +34,7 @@ def main():
 class ResultsToDynamicsDataset:
 
     def __init__(self, results_dir: pathlib.Path, outdir: pathlib.Path, trial_indices: List[int]):
+        self.viz_id = 0
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
         self.scenario.on_before_get_state_or_execute_action()
         self.service_provider = GazeboServices()
@@ -40,12 +42,14 @@ class ResultsToDynamicsDataset:
         outdir.mkdir(exist_ok=True, parents=True)
 
         results_utils.save_dynamics_dataset_hparams(self.scenario, results_dir, outdir, self.metadata)
-        example_idx = 0
+        self.example_idx = 0
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
             print(f"trial {trial_idx}")
             for example in self.result_datum_to_dynamics_dataset(datum):
-                tf_write_example(outdir, example, example_idx)
-                example_idx += 1
+                example.pop('joint_names')
+                example = make_dict_tf_float32(example)
+                tf_write_example(outdir, example, self.example_idx)
+                self.example_idx += 1
 
     def result_datum_to_dynamics_dataset(self, datum: Dict):
         steps = datum['steps']
@@ -74,8 +78,7 @@ class ResultsToDynamicsDataset:
             planning_query: PlanningQuery,
             tree: LoggingTree,
             planned_states: List[Dict],
-            actions: List[Dict],
-            traj_idx=0):
+            actions: List[Dict]):
         if len(tree.children) == 0:
             start_state = planning_query.start
 
@@ -91,20 +94,19 @@ class ResultsToDynamicsDataset:
                 actual_states.append(after_state)
 
                 self.scenario.plot_environment_rviz(planning_query.environment)
-                self.scenario.plot_state_rviz(before_state, id=1)
-                self.scenario.plot_action_rviz(before_state, action)
-                self.scenario.plot_state_rviz(after_state, id=2)
+                self.scenario.plot_state_rviz(before_state, idx=2 * self.viz_id + 0)
+                self.scenario.plot_action_rviz(before_state, action, idx=2 * self.viz_id + 0)
+                self.scenario.plot_state_rviz(after_state, idx=2 * self.viz_id + 1)
+                self.viz_id += 1
 
                 example = planning_query.environment
-                example['traj_idx'] = None  # traj_idx
+                example['traj_idx'] = [self.example_idx, self.example_idx]
                 example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
                 example_actions = add_batch_single(action)
                 example.update(example_states)
                 example.update(example_actions)
                 example['time_idx'] = [0, 1]
                 yield example
-
-                traj_idx += 1
 
                 before_state = after_state
 
@@ -114,8 +116,7 @@ class ResultsToDynamicsDataset:
                                 planning_query,
                                 child,
                                 planned_states + [child.state],
-                                actions + [child.action],
-                                traj_idx)
+                                actions + [child.action])
 
 
 if __name__ == '__main__':
