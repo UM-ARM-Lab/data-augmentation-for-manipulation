@@ -148,7 +148,6 @@ class ResultsToDynamicsDataset:
 def store_bagfile():
     joint_state, links_states = get_states_to_save()
     bagfile_name = pathlib.Path(tempfile.NamedTemporaryFile().name)
-    print(f"Saving {bagfile_name.as_posix()}")
     return save_test_scene_given_name(joint_state, links_states, bagfile_name)
 
 
