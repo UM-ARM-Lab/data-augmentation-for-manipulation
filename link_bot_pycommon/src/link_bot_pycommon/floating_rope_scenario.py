@@ -870,11 +870,8 @@ class FloatingRopeScenario(Base3DScenario):
             msg.markers.extend(markers)
 
         if 'left_gripper' in state:
-            r = 0.2
-            g = 0.2
-            b = 0.8
-            left_gripper_sphere = make_gripper_marker(state['left_gripper'], next(ig), color_msg, label + '_l',
-                                                      Marker.SPHERE)
+            left_gripper_sphere = make_gripper_marker(state['left_gripper'], next(ig), ColorRGBA(0.2, 0.2, 0.8, 1.0),
+                                                      label + '_l', Marker.SPHERE)
             msg.markers.append(left_gripper_sphere)
 
         if 'right_gripper' in state:

@@ -44,6 +44,7 @@ def make_rope_marker(rope_points, frame_id, label, idx, color: ColorRGBA, s=0.02
     lines.pose.orientation.w = 1
     lines.scale.x = s
     lines.color = color
+
     points_marker = Marker()
     points_marker.action = Marker.ADD  # create or modify
     points_marker.type = points_marker_type
@@ -70,6 +71,7 @@ def make_rope_marker(rope_points, frame_id, label, idx, color: ColorRGBA, s=0.02
 
         points_marker.points.append(point)
         lines.points.append(point)
+
     midpoint_sphere = Marker()
     midpoint_sphere.action = Marker.ADD  # create or modify
     midpoint_sphere.type = Marker.SPHERE
@@ -89,6 +91,7 @@ def make_rope_marker(rope_points, frame_id, label, idx, color: ColorRGBA, s=0.02
     midpoint_sphere.pose.orientation.z = 0
     midpoint_sphere.pose.orientation.w = 1
     midpoint_sphere.color = adjust_lightness_msg(color, 0.8)
+
     first_point_text = Marker()
     first_point_text.action = Marker.ADD  # create or modify
     first_point_text.type = Marker.TEXT_VIEW_FACING
