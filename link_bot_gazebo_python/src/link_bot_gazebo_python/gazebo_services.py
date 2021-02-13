@@ -40,6 +40,8 @@ class GazeboServices(BaseServices):
 
                 model_name = name.split('::')[0]
                 if excluded_models is not None and model_name not in excluded_models:
+                    # TODO: write a gazebo plugin that sets a bunch of link states all at once
+                    #  because that would be faster. Right now waiting for all the service calls is slow
                     self.set_link_state(set_req)
 
     def launch(self, params, **kwargs):

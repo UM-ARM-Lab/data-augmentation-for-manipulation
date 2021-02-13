@@ -14,13 +14,14 @@ from link_bot_gazebo_python.position_3d import Position3D
 from link_bot_pycommon.base_3d_scenario import Base3DScenario
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.collision_checking import inflate_tf_3d
+from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from link_bot_pycommon.grid_utils import point_to_idx_3d_in_env
 from link_bot_pycommon.make_rope_markers import make_rope_marker, make_gripper_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
+from std_msgs.msg import ColorRGBA
 from std_srvs.srv import Empty
 from visualization_msgs.msg import MarkerArray, Marker
 
@@ -47,15 +48,17 @@ class RopeDraggingScenario(Base3DScenario):
     def __repr__(self):
         return "rope_dragging_scenario"
 
-    def plot_state_rviz(self, state: Dict, label: str, **kwargs):
-        r, g, b, a = colors.to_rgba(kwargs.get("color", "r"))
+    def plot_state_rviz(self, state: Dict, **kwargs):
+        label = kwargs.get("label", "")
+        color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
         idx = kwargs.get("idx", 0)
         ig = marker_index_generator(idx)
 
         msg = MarkerArray()
         if rope_key_name in state:
             rope_points = np.reshape(state[rope_key_name], [-1, 3])
-            rope_mrkrs = make_rope_marker(rope_points, 'world', label + "_gt_" + rope_key_name, next(ig), r, g, b, a, s=0.04)
+            rope_mrkrs = make_rope_marker(rope_points, 'world', label + "_gt_" + rope_key_name, next(ig), color_msg,
+                                          s=0.04)
             points_marker, lines, midpoint_sphere, first_point_text = rope_mrkrs
             msg.markers.append(lines)
             # msg.markers.append(points_marker)
@@ -63,17 +66,18 @@ class RopeDraggingScenario(Base3DScenario):
 
         if 'gripper' in state:
             gripper = state['gripper']
-            gripper_sphere = make_gripper_marker(gripper, next(ig), r, g, b, a, label + '_gt_gripper', Marker.SPHERE, s=0.04)
+            gripper_sphere = make_gripper_marker(gripper, next(ig), color_msg, label + '_gt_gripper', Marker.SPHERE,
+                                                 s=0.04)
             msg.markers.append(gripper_sphere)
 
         if add_predicted(rope_key_name) in state:
             rope_points = np.reshape(state[add_predicted(rope_key_name)], [-1, 3])
-            markers = make_rope_marker(rope_points, 'world', label + "_" + rope_key_name, next(ig), r, g, b, a)
+            markers = make_rope_marker(rope_points, 'world', label + "_" + rope_key_name, next(ig), color_msg)
             msg.markers.extend(markers)
 
         if add_predicted('gripper') in state:
             pred_gripper = state[add_predicted('gripper')]
-            gripper_sphere = make_gripper_marker(pred_gripper, next(ig), r, g, b, a, label + "_gripper", Marker.SPHERE)
+            gripper_sphere = make_gripper_marker(pred_gripper, next(ig), color_msg, label + "_gripper", Marker.SPHERE)
             msg.markers.append(gripper_sphere)
 
         self.state_viz_pub.publish(msg)
@@ -87,7 +91,7 @@ class RopeDraggingScenario(Base3DScenario):
     def plot_action_rviz_internal(self, data: Dict, label: str, **kwargs):
         r, g, b, a = colors.to_rgba(kwargs.get("color", "b"))
         z_offset = 0.05
-        gripper = np.reshape(get_maybe_predicted(data, 'gripper'), [3])+ [0, 0, z_offset]
+        gripper = np.reshape(get_maybe_predicted(data, 'gripper'), [3]) + [0, 0, z_offset]
         target_gripper = np.reshape(get_maybe_predicted(data, 'gripper_position'), [3]) + [0, 0, z_offset]
 
         idx = kwargs.get("idx", 0)

@@ -1,8 +1,7 @@
-import json
 import pathlib
 from typing import List, Dict
 
-import numpy as np
+import hjson
 import tensorflow as tf
 
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
@@ -18,8 +17,9 @@ class GripperDistanceClassifier(BaseConstraintChecker):
         super().__init__(paths, scenario)
         assert len(paths) == 1
         self.path = paths[0]
-        hparams_file = self.path.parent / 'params.json'
-        self.hparams = json.load(hparams_file.open('r'))
+        hparams_filename = self.path.parent / 'params.hjson'
+        with hparams_filename.open('r') as hparams_file:
+            self.hparams = hjson.load(hparams_file)
         self.horizon = 2
         self.max_d = self.hparams['max_distance_between_grippers']
 
@@ -29,15 +29,6 @@ class GripperDistanceClassifier(BaseConstraintChecker):
                             actions):
         del environment  # unused
         assert len(states_sequence) == 2
-        not_too_far = tf.linalg.norm(states_sequence[1]['gripper2'] - states_sequence[1]['gripper1']) < self.max_d
-        return tf.expand_dims(tf.cast(not_too_far, tf.float32), axis=0), None
-
-    def check_constraint(self,
-                         environment: Dict,
-                         states_sequence: List[Dict],
-                         actions: List[Dict]):
-        del environment  # unused
-        assert len(states_sequence) == 2
-        d = np.linalg.norm(states_sequence[1]['gripper2'] - states_sequence[1]['gripper1'])
+        d = tf.linalg.norm(states_sequence[1]['right_gripper'] - states_sequence[1]['left_gripper'])
         not_too_far = d < self.max_d
-        return [not_too_far.astype(np.float32)], None
+        return tf.expand_dims(tf.cast(not_too_far, tf.float32), axis=0), tf.constant(0)

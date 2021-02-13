@@ -1,10 +1,12 @@
 import rospy
 from geometry_msgs.msg import Point
 from link_bot_pycommon.marker_index_generator import marker_index_generator
+from link_bot_pycommon.matplotlib_utils import adjust_lightness_msg
+from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
 
 
-def make_gripper_marker(position, id, r, g, b, a, label, type, s = 0.02):
+def make_gripper_marker(position, id, color: ColorRGBA, label, type, s=0.02):
     gripper_marker = Marker()
     gripper_marker.action = Marker.ADD  # create or modify
     gripper_marker.type = type
@@ -19,14 +21,12 @@ def make_gripper_marker(position, id, r, g, b, a, label, type, s = 0.02):
     gripper_marker.pose.position.y = position[1]
     gripper_marker.pose.position.z = position[2]
     gripper_marker.pose.orientation.w = 1
-    gripper_marker.color.r = r
-    gripper_marker.color.g = g
-    gripper_marker.color.b = b
-    gripper_marker.color.a = a
+    gripper_marker.color = color
     return gripper_marker
 
 
-def make_rope_marker(rope_points, frame_id, label, idx, r, g, b, a, s=0.02, points_marker_type=Marker.SPHERE_LIST):
+def make_rope_marker(rope_points, frame_id, label, idx, color: ColorRGBA, s=0.02,
+                     points_marker_type=Marker.SPHERE_LIST):
     ig = marker_index_generator(idx)
     lines = Marker()
     lines.action = Marker.ADD  # create or modify
@@ -43,10 +43,7 @@ def make_rope_marker(rope_points, frame_id, label, idx, r, g, b, a, s=0.02, poin
     lines.pose.orientation.z = 0
     lines.pose.orientation.w = 1
     lines.scale.x = s
-    lines.color.r = r
-    lines.color.g = g
-    lines.color.b = b
-    lines.color.a = a
+    lines.color = color
     points_marker = Marker()
     points_marker.action = Marker.ADD  # create or modify
     points_marker.type = points_marker_type
@@ -64,10 +61,7 @@ def make_rope_marker(rope_points, frame_id, label, idx, r, g, b, a, s=0.02, poin
     points_marker.pose.orientation.y = 0
     points_marker.pose.orientation.z = 0
     points_marker.pose.orientation.w = 1
-    points_marker.color.r = r
-    points_marker.color.g = g
-    points_marker.color.b = b
-    points_marker.color.a = a
+    points_marker.color = color
     for i, (x, y, z) in enumerate(rope_points):
         point = Point()
         point.x = x
@@ -94,10 +88,7 @@ def make_rope_marker(rope_points, frame_id, label, idx, r, g, b, a, s=0.02, poin
     midpoint_sphere.pose.orientation.y = 0
     midpoint_sphere.pose.orientation.z = 0
     midpoint_sphere.pose.orientation.w = 1
-    midpoint_sphere.color.r = r * 0.8
-    midpoint_sphere.color.g = g * 0.8
-    midpoint_sphere.color.b = b * 0.8
-    midpoint_sphere.color.a = a
+    midpoint_sphere.color = adjust_lightness_msg(color, 0.8)
     first_point_text = Marker()
     first_point_text.action = Marker.ADD  # create or modify
     first_point_text.type = Marker.TEXT_VIEW_FACING

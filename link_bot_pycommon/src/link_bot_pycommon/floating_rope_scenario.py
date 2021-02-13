@@ -22,7 +22,7 @@ from link_bot_pycommon.collision_checking import inflate_tf_3d
 from link_bot_pycommon.constants import KINECT_MAX_DEPTH
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.matplotlib_utils import adjust_lightness
+from link_bot_pycommon.matplotlib_utils import adjust_lightness_msg
 from link_bot_pycommon.pycommon import default_if_none
 from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params, \
     transform_points_to_robot_frame
@@ -31,7 +31,7 @@ from moonshine.moonshine_utils import numpify
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import Image, PointCloud2, CameraInfo
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, ColorRGBA
 from std_srvs.srv import Empty, EmptyRequest
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
@@ -845,7 +845,7 @@ class FloatingRopeScenario(Base3DScenario):
 
     def plot_state_rviz(self, state: Dict, **kwargs):
         label = kwargs.get("label", "")
-        r, g, b, a = colors.to_rgba(kwargs.get("color", "r"))
+        color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
         idx = kwargs.get("idx", 0)
 
         msg = MarkerArray()
@@ -854,18 +854,18 @@ class FloatingRopeScenario(Base3DScenario):
 
         if 'gt_rope' in state:
             rope_points = np.reshape(state['gt_rope'], [-1, 3])
-            markers = make_rope_marker(rope_points, 'world', label + "_gt_rope", next(ig), r, g, b, a, 0.01)
+            markers = make_rope_marker(rope_points, 'world', label + "_gt_rope", next(ig), color_msg, 0.01)
             msg.markers.extend(markers)
 
         if 'rope' in state:
             rope_points = np.reshape(state['rope'], [-1, 3])
-            r, g, b = adjust_lightness([r, g, b], 0.5)
-            markers = make_rope_marker(rope_points, 'world', label + "_rope", next(ig), r, g, b, a, 0.01)
+            markers = make_rope_marker(rope_points, 'world', label + "_rope", next(ig),
+                                       adjust_lightness_msg(color_msg, 0.5), 0.01)
             msg.markers.extend(markers)
 
         if add_predicted('rope') in state:
             rope_points = np.reshape(state[add_predicted('rope')], [-1, 3])
-            markers = make_rope_marker(rope_points, 'world', label + "_pred_rope", next(ig), r, g, b, a, 0.01,
+            markers = make_rope_marker(rope_points, 'world', label + "_pred_rope", next(ig), color_msg, 0.01,
                                        Marker.CUBE_LIST)
             msg.markers.extend(markers)
 
@@ -873,32 +873,24 @@ class FloatingRopeScenario(Base3DScenario):
             r = 0.2
             g = 0.2
             b = 0.8
-            left_gripper_sphere = make_gripper_marker(state['left_gripper'], next(ig), r, g, b, a, label + '_l',
+            left_gripper_sphere = make_gripper_marker(state['left_gripper'], next(ig), color_msg, label + '_l',
                                                       Marker.SPHERE)
             msg.markers.append(left_gripper_sphere)
 
         if 'right_gripper' in state:
-            r = 0.8
-            g = 0.8
-            b = 0.2
-            right_gripper_sphere = make_gripper_marker(state['right_gripper'], next(ig), r, g, b, a, label + "_r",
-                                                       Marker.SPHERE)
+            right_gripper_sphere = make_gripper_marker(state['right_gripper'], next(ig), ColorRGBA(0.8, 0.8, 0.2, 1.0),
+                                                       label + "_r", Marker.SPHERE)
             msg.markers.append(right_gripper_sphere)
 
         if add_predicted('left_gripper') in state:
-            r = 0.2
-            g = 0.2
-            b = 0.8
             lgpp = state[add_predicted('left_gripper')]
-            left_gripper_sphere = make_gripper_marker(lgpp, next(ig), r, g, b, a, label + "_lp", Marker.CUBE)
+            left_gripper_sphere = make_gripper_marker(lgpp, next(ig), ColorRGBA(0.2, 0.2, 0.8, 1.0), label + "_lp",
+                                                      Marker.CUBE)
             msg.markers.append(left_gripper_sphere)
 
         if add_predicted('right_gripper') in state:
-            r = 0.8
-            g = 0.8
-            b = 0.2
             rgpp = state[add_predicted('right_gripper')]
-            right_gripper_sphere = make_gripper_marker(rgpp, next(ig), r, g, b, a, label + "_rp",
+            right_gripper_sphere = make_gripper_marker(rgpp, next(ig), ColorRGBA(0.8, 0.8, 0.2, 1.0), label + "_rp",
                                                        Marker.CUBE)
             msg.markers.append(right_gripper_sphere)
 

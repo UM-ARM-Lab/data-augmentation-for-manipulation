@@ -10,7 +10,7 @@ import tensorflow as tf
 from arc_utilities import ros_init
 from link_bot_data.dataset_utils import data_directory
 from link_bot_planning.planning_evaluation import planning_evaluation
-from link_bot_pycommon.args import my_formatter, int_range_arg, int_set_arg
+from link_bot_pycommon.args import my_formatter, int_set_arg
 
 
 @ros_init.with_ros("planning_evaluation")

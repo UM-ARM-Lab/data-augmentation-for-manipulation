@@ -163,7 +163,6 @@ class PlanAndExecute:
     def plan_and_execute(self, trial_idx: int):
         self.set_random_seeds_for_trial(trial_idx)
 
-        # rospy.logwarn("skipping setup")
         setup_info = self.setup_test_scene(trial_idx)
 
         self.on_start_trial(trial_idx)
@@ -292,7 +291,8 @@ class PlanAndExecute:
             # Gazebo specific
             bagfile_name = self.test_scenes_dir / f'scene_{trial_idx:04d}.bag'
             rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
-            self.scenario.restore_from_bag(self.service_provider, self.planner_params, bagfile_name)
+            # # rospy.logwarn("skipping restore")
+            # self.scenario.restore_from_bag(self.service_provider, self.planner_params, bagfile_name)
             return SetupInfo(bagfile_name=bagfile_name)
         else:
             rospy.loginfo(Fore.GREEN + f"Randomizing Environment")

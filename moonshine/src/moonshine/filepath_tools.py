@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Optional, Dict
 
 import git
+import hjson
 import rospkg
 from colorama import Fore
 
@@ -47,8 +48,16 @@ def load_trial(trial_path):
         raise ValueError("Cannot load, the path {} is not an existing directory".format(trial_path))
 
     params_filename = trial_path / 'params.json'
-    with params_filename.open("r") as params_file:
-        params = json.load(params_file)
+    if params_filename.is_file():
+        with params_filename.open("r") as params_file:
+            params = hjson.load(params_file)
+    else:
+        params_filename = trial_path / 'params.hjson'
+        if params_filename.exists():
+            with params_filename.open("r") as params_file:
+                params = hjson.load(params_file)
+        else:
+            raise RuntimeError(f"no params file in {trial_path.as_posix()}")
     return trial_path, params
 
 

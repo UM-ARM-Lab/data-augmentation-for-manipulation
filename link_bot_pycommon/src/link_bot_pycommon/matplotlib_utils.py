@@ -2,7 +2,9 @@ import colorsys
 
 import matplotlib.colors as mc
 import numpy as np
-from matplotlib import cm
+from matplotlib import cm, colors
+
+from std_msgs.msg import ColorRGBA
 
 
 def save_unconstrained_layout(fig, filename, dpi=250):
@@ -44,3 +46,23 @@ def adjust_lightness(color, amount=1.0):
         c = color
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
+
+
+def adjust_lightness_msg(color: ColorRGBA, amount=1.0):
+    """
+    Adjusts the brightness/lightness of a color
+    Args:
+        color:
+        amount: 1 means no change, less than 1 is darker, more than 1 is brighter
+
+    Returns:
+
+    """
+    mpl_color = [color.r, color.g, color.b, color.a]
+    try:
+        c = mc.cnames[mpl_color]
+    except:
+        c = mpl_color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    new_c = colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
+    return ColorRGBA(*new_c, color.a)

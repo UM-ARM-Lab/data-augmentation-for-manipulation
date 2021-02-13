@@ -1,7 +1,7 @@
-import json
 import pathlib
 from typing import List, Dict, Optional
 
+import hjson
 import tensorflow as tf
 
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
@@ -25,7 +25,7 @@ def check_collision(scenario, environment, states_sequence, collision_check_obje
                                                ys=ys,
                                                zs=zs,
                                                inflate_radius_m=DEFAULT_INFLATION_RADIUS)
-    prediction = tf.expand_dims(tf.logical_not(in_collision), axis=0)
+    prediction = tf.cast(tf.expand_dims(tf.logical_not(in_collision), axis=0), tf.float32)
     return prediction
 
 
@@ -40,8 +40,9 @@ class CollisionCheckerClassifier(BaseConstraintChecker):
         assert len(paths) == 1
         self.path = paths[0]
         self.inflation_radius = inflation_radius
-        hparams_file = self.path.parent / 'params.json'
-        self.hparams = json.load(hparams_file.open('r'))
+        hparams_filename = self.path.parent / 'params.hjson'
+        with hparams_filename.open('r') as hparams_file:
+            self.hparams = hjson.load(hparams_file)
         self.local_h_rows = self.hparams['local_h_rows']
         self.local_w_cols = self.hparams['local_w_cols']
         self.local_c_channels = self.hparams['local_c_channels']
@@ -55,14 +56,3 @@ class CollisionCheckerClassifier(BaseConstraintChecker):
                             states_sequence: List[Dict],
                             actions):
         return check_collision(self.scenario, environment, states_sequence), tf.ones([], dtype=tf.float32) * 1e-9
-
-    def check_constraint(self,
-                         environment: Dict,
-                         states_sequence: List[Dict],
-                         actions: List[Dict]):
-        assert len(states_sequence) == 2
-        c, s = self.check_constraint_tf(environment, states_sequence, actions)
-        return c.numpy, s.numpy()
-
-
-model = CollisionCheckerClassifier
