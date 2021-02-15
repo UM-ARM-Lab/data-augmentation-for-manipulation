@@ -12,7 +12,9 @@
     dy_trials/baseline_gt_rope_1606788041_3/December_01_18-03-17_59e9b8dcee/best_checkpoint
   ]
   classifier_model_dir: [
-    cl_trials/val_car_3/January_20_11-15-31_3b4c39a23d/best_checkpoint
+    [cl_trials/val_car_3/January_20_11-15-31_3b4c39a23d/best_checkpoint]
+    cl_trials/cc_baseline
+    cl_trials/feasibility_baseline
   ]
   recovery: {
     recovery_model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e/best_checkpoint

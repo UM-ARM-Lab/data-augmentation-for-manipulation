@@ -28,7 +28,7 @@ class RRT(MyPlanner):
     def __init__(self,
                  fwd_model: BaseDynamicsFunction,
                  filter_model: BaseFilterFunction,
-                 classifier_model: BaseConstraintChecker,
+                 classifier_models: [BaseConstraintChecker],
                  planner_params: Dict,
                  action_params: Dict,
                  scenario: Base3DScenario,
@@ -37,7 +37,7 @@ class RRT(MyPlanner):
         super().__init__(scenario=scenario, fwd_model=fwd_model, filter_model=filter_model)
         self.verbose = verbose
         self.fwd_model = fwd_model
-        self.classifier_model = classifier_model
+        self.classifier_models = classifier_models
         self.params = planner_params
         self.action_params = action_params
         # These RNGs get re-seeded before planning, don't bother changing these values
@@ -128,7 +128,7 @@ class RRT(MyPlanner):
         print(".", end='', flush=True)
         final_state = self.scenario_ompl.ompl_state_to_numpy(motions[-1].getState())
 
-        motions_valid = final_state['num_diverged'] < self.classifier_model.horizon - 1  # yes, minus 1
+        motions_valid = final_state['num_diverged'] < self.params['horizon'] - 1  # yes, minus 1
         motions_valid = bool(np.squeeze(motions_valid))
         if not motions_valid:
             if self.verbose >= 2:
@@ -175,13 +175,14 @@ class RRT(MyPlanner):
         """
         new_actions = [new_action]
         last_previous_state = previous_states[-1]
+        # final_predicted_state['joint_positions'] = predicted_joint_positions
+        # final_predicted_state['joint_names'] = last_previous_state['joint_names']
         mean_predicted_states, stdev_predicted_states = self.fwd_model.propagate(environment=self.environment,
                                                                                  start_states=last_previous_state,
                                                                                  actions=new_actions)
-        # get only the final state predicted
+        # get only the final state predicted, since *_predicted_states includes the start state
         final_predicted_state = mean_predicted_states[-1]
 
-        # compute new num_diverged by checking the constraint
         # walk back up the branch until num_diverged == 0
         all_states = [final_predicted_state]
         all_actions = [new_action]
@@ -193,39 +194,25 @@ class RRT(MyPlanner):
             # this goes after the break because action_i brings you TO state_i and we don't want that last action
             previous_action = previous_actions[previous_idx - 1]
             all_actions.insert(0, previous_action)
-        classifier_probabilities, _ = self.classifier_model.check_constraint(environment=self.environment,
-                                                                             states_sequence=all_states,
-                                                                             actions=all_actions)
-        final_classifier_probability = classifier_probabilities[-1]
 
-        # If in general we have a controller which can tell us whether a motion is feasible (w/o actually executing)
-        # then we can invoke that hear, and do a logical OR with the classifier's decision
-        # we also need to set the joint values. This is breaking a lot of my nice abstractions but I am impatient
-        feasible, predicted_joint_positions = self.scenario.is_motion_feasible(environment=self.environment,
-                                                                               state=last_previous_state,
-                                                                               action=new_action)
-        final_predicted_state['joint_positions'] = predicted_joint_positions
-        final_predicted_state['joint_names'] = last_previous_state['joint_names']
-
-        if self.verbose >= 2:
-            self.scenario.plot_accept_probability(final_classifier_probability)
-
-        classifier_accept = final_classifier_probability > self.params['accept_threshold']
-        if self.params["feasibility_checking"] and self.params["classifier"]:
-            accept = classifier_accept and feasible
-        elif self.params["feasibility_checking"] and not self.params["classifier"]:
-            accept = feasible
-        elif self.params["classifier"] and not self.params["feasibility_checking"]:
-            accept = classifier_accept
-        else:
-            accept = True
+        # compute new num_diverged by checking the constraint
+        accept = True
+        accept_probabilities = {}
+        for classifier in self.classifier_models:
+            p_accepts_for_model, _ = classifier.check_constraint(environment=self.environment,
+                                                                 states_sequence=all_states,
+                                                                 actions=all_actions)
+            p_accept_for_model = p_accepts_for_model[-1]
+            accept_probabilities[classifier.name] = p_accept_for_model
+            accept_for_model = p_accept_for_model > self.params['accept_threshold']
+            accept = accept and accept_for_model
 
         if accept:
             final_predicted_state['num_diverged'] = np.array([0.0])
         else:
             final_predicted_state['num_diverged'] = last_previous_state['num_diverged'] + 1
 
-        return final_predicted_state, accept, final_classifier_probability
+        return final_predicted_state, accept, accept_probabilities
 
     def propagate(self, motions, control, duration, state_out):
         del duration  # unused, multi-step propagation is handled inside propagateMotionsWhileValid
@@ -235,9 +222,9 @@ class RRT(MyPlanner):
         previous_state = previous_states[-1]
         previous_ompl_state = motions[-1].getState()
         new_action = self.scenario_ompl.ompl_control_to_numpy(previous_ompl_state, control)
-        np_final_state, accept, final_classifier_probability = self.predict(previous_states,
-                                                                            previous_actions,
-                                                                            new_action)
+        np_final_state, accept, accept_probabilities = self.predict(previous_states,
+                                                                    previous_actions,
+                                                                    new_action)
 
         # Convert back Numpy -> OMPL
         self.scenario_ompl.numpy_to_ompl_state(np_final_state, state_out)
@@ -248,7 +235,7 @@ class RRT(MyPlanner):
         # visualize
         if self.verbose >= 2:
             self.visualize_propogation(accept,
-                                       final_classifier_probability,
+                                       accept_probabilities,
                                        new_action,
                                        np_final_state,
                                        previous_actions,
@@ -257,7 +244,7 @@ class RRT(MyPlanner):
 
     def visualize_propogation(self,
                               accept: bool,
-                              final_classifier_probability: np.float32,
+                              accept_probabilities: Dict,
                               new_action: Dict,
                               np_final_state: Dict,
                               previous_actions: Dict,
@@ -268,8 +255,12 @@ class RRT(MyPlanner):
             random_color = cm.Dark2(self.control_sampler_rng.uniform(0, 1))
             self.visualize_propogation_color = random_color
 
-        alpha = min(final_classifier_probability * 0.8 + 0.2, 1.0)
-        classifier_probability_color = cm.Reds_r(final_classifier_probability)
+        if 'classifier' in accept_probabilities:
+            classifier_probability = accept_probabilities['classifier']
+            alpha = min(classifier_probability * 0.8 + 0.2, 1.0)
+            classifier_probability_color = cm.Reds_r(classifier_probability)
+        else:
+            classifier_probability_color = cm.Reds_r(0)
 
         statisfies_bounds = self.scenario_ompl.state_space.satisfiesBounds(state_out)
         if accept and statisfies_bounds:

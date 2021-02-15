@@ -4,8 +4,8 @@ from typing import List, Dict
 import tensorflow as tf
 
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
-from link_bot_classifiers.collision_checker_classifier import CollisionCheckerClassifier
-from link_bot_classifiers.gripper_distance_classifier import GripperDistanceClassifier
+from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
+from link_bot_classifiers.gripper_distance_checker import GripperDistanceChecker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 
 
@@ -16,8 +16,8 @@ class CollisionCheckerAndOverstretchingClassifier(BaseConstraintChecker):
                  scenario: ExperimentScenario,
                  ):
         super().__init__(paths, scenario)
-        self.cc = CollisionCheckerClassifier(paths, scenario)
-        self.gd = GripperDistanceClassifier(paths, scenario)
+        self.cc = PointsCollisionChecker(paths, scenario)
+        self.gd = GripperDistanceChecker(paths, scenario)
 
     def check_constraint_tf(self,
                             environment: Dict,

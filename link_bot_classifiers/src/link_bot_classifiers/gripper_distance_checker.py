@@ -1,26 +1,19 @@
 import pathlib
 from typing import List, Dict
 
-import hjson
 import tensorflow as tf
 
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 
 
-class GripperDistanceClassifier(BaseConstraintChecker):
+class GripperDistanceChecker(BaseConstraintChecker):
 
     def __init__(self,
-                 paths: List[pathlib.Path],
+                 path: pathlib.Path,
                  scenario: ExperimentScenario,
                  ):
-        super().__init__(paths, scenario)
-        assert len(paths) == 1
-        self.path = paths[0]
-        hparams_filename = self.path.parent / 'params.hjson'
-        with hparams_filename.open('r') as hparams_file:
-            self.hparams = hjson.load(hparams_file)
-        self.horizon = 2
+        super().__init__(path, scenario)
         self.max_d = self.hparams['max_distance_between_grippers']
 
     def check_constraint_tf(self,

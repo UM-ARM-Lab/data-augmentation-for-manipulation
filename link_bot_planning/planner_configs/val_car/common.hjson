@@ -105,6 +105,7 @@
   filter_model_dir: [
     filter_trials/none/none
   ]
+  horizon: 2
   # Local Planner Parameters
   use_local_planner: false
   iters: 2,

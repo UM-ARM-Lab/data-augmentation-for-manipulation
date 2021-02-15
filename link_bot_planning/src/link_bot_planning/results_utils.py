@@ -162,8 +162,11 @@ def save_dynamics_dataset_hparams(scenario: ExperimentScenario, results_dir: pat
     phase2_dataset_params = dynamics_dataset_params_from_classifier_params(classifier_params)
     dataset_hparams = phase2_dataset_params
     dataset_hparams_update = {
-        'from_results': results_dir,
-        'seed':         None,
+        'from_results':           results_dir,
+        'seed':                   None,
+        'data_collection_params': {
+            'steps_per_traj': 2,
+        },
     }
     dataset_hparams.update(dataset_hparams_update)
     with (outdir / 'hparams.hjson').open('w') as dataset_hparams_file:

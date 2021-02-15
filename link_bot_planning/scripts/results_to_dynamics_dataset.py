@@ -116,7 +116,7 @@ class ResultsToDynamicsDataset:
                                    planning_query)
 
             example = planning_query.environment
-            example['traj_idx'] = [self.example_idx, self.example_idx]
+            example['traj_idx'] = self.example_idx
             example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
             example_actions = add_batch_single(action)
             example.update(example_states)

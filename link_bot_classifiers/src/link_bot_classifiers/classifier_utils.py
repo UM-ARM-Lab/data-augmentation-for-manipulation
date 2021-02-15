@@ -2,11 +2,10 @@ import pathlib
 from typing import List, Optional
 
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
-from link_bot_classifiers.collision_and_overstretching_classifier import CollisionCheckerAndOverstretchingClassifier
-from link_bot_classifiers.collision_checker_classifier import CollisionCheckerClassifier
-from link_bot_classifiers.gripper_distance_classifier import GripperDistanceClassifier
+from link_bot_classifiers.feasibility_checker import FeasibilityChecker
+from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
+from link_bot_classifiers.gripper_distance_checker import GripperDistanceChecker
 from link_bot_classifiers.nn_classifier import NNClassifierWrapper
-from link_bot_classifiers.none_classifier import NoneClassifier
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_trial
@@ -24,12 +23,10 @@ def load_generic_model(model_dirs: List[pathlib.Path], scenario: Optional[Experi
     if model_type == 'rnn':
         return NNClassifierWrapper(model_dirs, batch_size=1, scenario=scenario)
     elif model_type == 'collision':
-        return CollisionCheckerClassifier(model_dirs, scenario=scenario)
-    elif model_type == 'none':
-        return NoneClassifier(model_dirs, scenario=scenario)
+        return PointsCollisionChecker(model_dirs, scenario=scenario)
     elif model_type == 'gripper_distance':
-        return GripperDistanceClassifier(model_dirs, scenario=scenario)
-    elif model_type == 'cc_and_os':
-        return CollisionCheckerAndOverstretchingClassifier(model_dirs, scenario=scenario)
+        return GripperDistanceChecker(model_dirs, scenario=scenario)
+    elif model_type == 'feasibility':
+        return FeasibilityChecker(model_dirs, scenario=scenario)
     else:
         raise NotImplementedError("invalid model type {}".format(model_type))

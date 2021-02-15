@@ -25,7 +25,8 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset: DynamicsDatasetLoader, example: Dict):
-        example.pop('rgbd')
+        traj_idx = example['traj_idx']
+        example['traj_idx'] = traj_idx[0]
         yield example
 
     hparams_update = {}

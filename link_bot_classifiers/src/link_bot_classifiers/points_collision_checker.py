@@ -29,7 +29,7 @@ def check_collision(scenario, environment, states_sequence, collision_check_obje
     return prediction
 
 
-class CollisionCheckerClassifier(BaseConstraintChecker):
+class PointsCollisionChecker(BaseConstraintChecker):
 
     def __init__(self,
                  paths: List[pathlib.Path],

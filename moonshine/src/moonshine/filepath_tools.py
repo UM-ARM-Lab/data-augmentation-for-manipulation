@@ -47,6 +47,11 @@ def load_trial(trial_path):
     if not trial_path.is_dir():
         raise ValueError("Cannot load, the path {} is not an existing directory".format(trial_path))
 
+    params = load_params(trial_path)
+    return trial_path, params
+
+
+def load_params(trial_path: pathlib.Path):
     params_filename = trial_path / 'params.json'
     if params_filename.is_file():
         with params_filename.open("r") as params_file:
@@ -58,7 +63,7 @@ def load_trial(trial_path):
                 params = hjson.load(params_file)
         else:
             raise RuntimeError(f"no params file in {trial_path.as_posix()}")
-    return trial_path, params
+    return params
 
 
 def get_trial_path(group_name, trials_directory=None):

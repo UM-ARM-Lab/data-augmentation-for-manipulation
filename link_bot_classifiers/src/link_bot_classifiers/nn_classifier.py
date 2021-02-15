@@ -305,11 +305,16 @@ class NNClassifier(MyKerasModel):
 class NNClassifierWrapper(BaseConstraintChecker):
 
     def __init__(self, paths: List[pathlib.Path], batch_size: int, scenario: ExperimentScenario):
-        super().__init__(paths, scenario)
+        """
+        Unlike the BaseConstraintChecker, this takes in list of paths, like cl_trials/dir1/dir2/best_checkpoint
+        Args:
+            paths:
+            batch_size:
+            scenario:
+        """
+        super().__init__(paths[0].parent, scenario)
         # FIXME: Bad API design
         assert isinstance(scenario, Base3DScenario)
-        representative_model_dir = paths[0]
-        _, self.hparams = load_trial(representative_model_dir.parent.absolute())
 
         self.dataset_labeling_params = self.hparams['classifier_dataset_hparams']['labeling_params']
         self.data_collection_params = self.hparams['classifier_dataset_hparams']['data_collection_params']
