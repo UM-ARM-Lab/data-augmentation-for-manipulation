@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--only-negative', action='store_true')
     parser.add_argument('--only-positive', action='store_true')
     parser.add_argument('--only-in-collision', action='store_true')
+    parser.add_argument('--only-starts-far', action='store_true')
     parser.add_argument('--only-reconverging', action='store_true')
     parser.add_argument('--perf', action='store_true', help='print time per iteration')
     parser.add_argument('--no-plot', action='store_true', help='only print statistics')

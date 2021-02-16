@@ -26,14 +26,7 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset: ClassifierDatasetLoader, example: Dict):
-        example['left_gripper'] = example.pop('gripper1')
-        example['right_gripper'] = example.pop('gripper2')
-        example['left_gripper_position'] = example.pop('gripper1_position')
-        example['right_gripper_position'] = example.pop('gripper2_position')
-        example['rope'] = example.pop('link_bot')
-        example[add_predicted('left_gripper')] = example.pop(add_predicted('gripper1'))
-        example[add_predicted('right_gripper')] = example.pop(add_predicted('gripper2'))
-        example[add_predicted('rope')] = example.pop(add_predicted('link_bot'))
+        example['prediction_start_t'] = 0
         yield example
 
     hparams_update = {}

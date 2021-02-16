@@ -1,4 +1,5 @@
 from time import perf_counter
+from typing import Dict
 
 import numpy as np
 from colorama import Style
@@ -17,12 +18,12 @@ def visualize_dataset(args, classifier_dataset):
 
     tf_dataset = tf_dataset.batch(1)
 
-    iterator = iter(tf_dataset)
     t0 = perf_counter()
 
     reconverging_count = 0
     positive_count = 0
     negative_count = 0
+    starts_far_count = 0
     count = 0
 
     stdevs = []
@@ -43,6 +44,7 @@ def visualize_dataset(args, classifier_dataset):
         n_far = is_close.shape[0] - n_close
         positive_count += n_close
         negative_count += n_far
+        starts_far = is_close[0] == 0
         reconverging = n_far > 0 and is_close[-1]
 
         if args.only_reconverging and not reconverging:
@@ -54,6 +56,9 @@ def visualize_dataset(args, classifier_dataset):
         if args.only_positive and not np.any(is_close[1:]):
             continue
 
+        if args.only_starts_far and not starts_far:
+            continue
+
         # print(f"Example {i}, Trajectory #{int(example['traj_idx'])}")
 
         if count == 0:
@@ -62,9 +67,18 @@ def visualize_dataset(args, classifier_dataset):
         if reconverging:
             reconverging_count += 1
 
+        if starts_far:
+            starts_far_count += 1
+
         # Print statistics intermittently
         if count % 1000 == 0:
-            print_stats_and_timing(args, count, reconverging_count, negative_count, positive_count)
+            print_stats_and_timing(args,
+                                   {'count':              count,
+                                    'reconverging_count': reconverging_count,
+                                    'negative_count':     negative_count,
+                                    'positive_count':     positive_count,
+                                    'starts_far_count':   starts_far_count
+                                    })
 
         #############################
         # Show Visualization
@@ -72,9 +86,6 @@ def visualize_dataset(args, classifier_dataset):
         if args.display_type == 'just_count':
             continue
         elif args.display_type == '3d':
-            # print(example['is_close'])
-            if example['is_close'][0] == 0:
-                continue
             classifier_dataset.anim_transition_rviz(example)
 
         elif args.display_type == 'stdev':
@@ -103,18 +114,23 @@ def visualize_dataset(args, classifier_dataset):
         plt.legend()
         plt.show()
 
-    print_stats_and_timing(args, count, reconverging_count, negative_count, positive_count, total_dt)
+    print_stats_and_timing(args,
+                           {'count':              count,
+                            'reconverging_count': reconverging_count,
+                            'negative_count':     negative_count,
+                            'positive_count':     positive_count,
+                            'starts_far_count':   starts_far_count
+                            },
+                           total_dt)
 
 
-def print_stats_and_timing(args, count, reconverging_count, negative_count, positive_count, total_dt=None):
+def print_stats_and_timing(args, counts: Dict, total_dt=None):
     if args.perf and total_dt is not None:
         print("Total iteration time = {:.4f}".format(total_dt))
-    class_balance = positive_count / count * 100
-    print("Number of examples: {}".format(count))
-    print("Number of reconverging examples: {}".format(reconverging_count))
-    print("Number positive: {}".format(positive_count))
-    print("Number negative: {}".format(negative_count))
-    print("Class balance: {:4.1f}% positive".format(class_balance))
+
+    for name, count in counts.items():
+        percentage = count / counts['count'] * 100
+        print(f"{name} {count} ({percentage:.1f}%)")
 
 
 def compare_examples_from_datasets(args, classifier_dataset1, classifier_dataset2):
