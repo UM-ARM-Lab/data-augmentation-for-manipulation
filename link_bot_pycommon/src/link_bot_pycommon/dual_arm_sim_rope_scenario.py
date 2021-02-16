@@ -144,6 +144,33 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         out_of_scene_object_poses = {k: out_of_scene_pose for k in objects}
         self.set_object_poses(out_of_scene_object_poses)
 
+    def restore_from_bag_rushed(self, service_provider: BaseServices, params: Dict, bagfile_name):
+        """
+        A less robust/accurate but way faster to restore
+        Args:
+            service_provider:
+            params:
+            bagfile_name:
+
+        Returns:
+
+        """
+        self.service_provider.play()
+
+        with rosbag.Bag(bagfile_name) as bag:
+            joint_state: JointState = next(iter(bag.read_messages(topics=['joint_state'])))[1]
+
+        joint_config = {}
+        # NOTE: this will not work on victor because grippers don't work the same way
+        for joint_name in self.robot.get_move_group_commander("whole_body").get_active_joints():
+            index_of_joint_name_in_state_msg = joint_state.name.index(joint_name)
+            joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
+        self.robot.plan_to_joint_config("whole_body", joint_config)
+
+        self.service_provider.pause()
+        self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
+        self.service_provider.play()
+
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
         self.service_provider.play()
 
@@ -160,12 +187,9 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
             joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
         self.robot.plan_to_joint_config("whole_body", joint_config)
 
-        # joint_state = JointState(position=list(joint_config.values()), name=list(joint_config.keys()))
-        # self.publish_robot_state(joint_state)
-
         self.service_provider.pause()
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
-        self.grasp_rope_endpoints(settling_time=0.0)
+        self.grasp_rope_endpoints(settling_time=1.0)
         self.service_provider.play()
 
     def publish_robot_state(self, joint_state):

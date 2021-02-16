@@ -30,15 +30,20 @@ def main():
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
     parser.add_argument("labeling_params", type=pathlib.Path, help='labeling params')
     parser.add_argument("outdir", type=pathlib.Path, help='output directory')
+    parser.add_argument("--visualize", action='store_true', help='visualize')
     parser.add_argument("--trial-indices", type=int_set_arg, help='which plan(s) to show')
     parser.add_argument("--verbose", '-v', action="count", default=0)
 
     args = parser.parse_args()
 
-    r = ResultsToDynamicsDataset(args.results_dir, args.outdir, args.labeling_params, args.trial_indices)
+    r = ResultsToDynamicsDataset(args.results_dir,
+                                 args.outdir,
+                                 args.labeling_params,
+                                 args.trial_indices,
+                                 args.visualize)
 
 
-def get_start_idx(outdir : pathlib.Path):
+def get_start_idx(outdir: pathlib.Path):
     existing_records = list(outdir.glob(".tfrecords"))
     if len(existing_records) == 0:
         return 0
@@ -54,11 +59,17 @@ def get_start_idx(outdir : pathlib.Path):
 
 class ResultsToDynamicsDataset:
 
-    def __init__(self, results_dir: pathlib.Path, outdir: pathlib.Path, labeling_params: pathlib.Path,
-                 trial_indices: List[int]):
+    def __init__(self,
+                 results_dir: pathlib.Path,
+                 outdir: pathlib.Path,
+                 labeling_params: pathlib.Path,
+                 trial_indices: List[int],
+                 visualize: bool):
+        self.visualize = visualize
         self.viz_id = 0
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
         self.scenario.on_before_get_state_or_execute_action()
+        self.grasp_rope_endpoints(settling_time=0.0)
         self.service_provider = GazeboServices()
 
         outdir.mkdir(exist_ok=True, parents=True)
@@ -75,13 +86,20 @@ class ResultsToDynamicsDataset:
 
         results_utils.save_dynamics_dataset_hparams(self.scenario, results_dir, outdir, self.metadata)
         self.example_idx = get_start_idx(outdir)
+
+        from time import perf_counter
+        t0 = perf_counter()
+
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
             print(f"trial {trial_idx}")
             for example in self.result_datum_to_dynamics_dataset(datum):
+                now = perf_counter()
+                print(f'dt {now - t0:.3f}')
                 example.pop('joint_names')
                 example = make_dict_tf_float32(example)
                 tf_write_example(outdir, example, self.example_idx)
                 self.example_idx += 1
+                t0 = now
 
     def result_datum_to_dynamics_dataset(self, datum: Dict):
         steps = datum['steps']
@@ -119,24 +137,24 @@ class ResultsToDynamicsDataset:
         for child in tree.children:
             # if we only have one child we can skip the restore, this speeds things up a lot
             if len(tree.children) > 1 or depth == 0:
-                self.scenario.restore_from_bag(service_provider=self.service_provider,
-                                               params=planner_params,
-                                               bagfile_name=bagfile_name)
+                self.scenario.restore_from_bag_rushed(service_provider=self.service_provider,
+                                                      params=planner_params,
+                                                      bagfile_name=bagfile_name)
 
-            before_state = self.scenario.get_state()
             action = child.action
-            self.scenario.execute_action(action)
-            after_state = self.scenario.get_state()
+            before_state, after_state = self.execute(action)
 
             before_state_pred = {k: v for k, v in tree.state.items()}
             after_state_pred = {k: v for k, v in child.state.items()}
 
-            self.visualize_example(action=action,
-                                   after_state=after_state,
-                                   before_state=before_state,
-                                   before_state_predicted={add_predicted(k): v for k, v in before_state_pred.items()},
-                                   after_state_predicted={add_predicted(k): v for k, v in after_state_pred.items()},
-                                   planning_query=planning_query)
+            if self.visualize:
+                self.visualize_example(action=action,
+                                       after_state=after_state,
+                                       before_state=before_state,
+                                       before_state_predicted={add_predicted(k): v for k, v in
+                                                               before_state_pred.items()},
+                                       after_state_predicted={add_predicted(k): v for k, v in after_state_pred.items()},
+                                       planning_query=planning_query)
 
             classifier_horizon = 2  # this script only handles this case
             classifier_start_t = depth
@@ -150,6 +168,7 @@ class ResultsToDynamicsDataset:
             example = {
                 'classifier_start_t': classifier_start_t,
                 'classifier_end_t':   classifier_start_t + classifier_horizon,
+                'prediction_start_t': 0,
                 'traj_idx':           self.example_idx,
                 'time_idx':           [0, 1],
             }
@@ -181,6 +200,12 @@ class ResultsToDynamicsDataset:
                 raise ValueError()
 
             yield from self.dfs(planner_params, planning_query, child, depth=depth + 1)
+
+    def execute(self, action: Dict):
+        before_state = self.scenario.get_state()
+        self.scenario.execute_action(action)
+        after_state = self.scenario.get_state()
+        return before_state, after_state
 
     def visualize_example(self,
                           action: Dict,
