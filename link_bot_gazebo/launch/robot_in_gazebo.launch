@@ -34,7 +34,7 @@
             <arg name="paused" default="$(arg pause)"/>
             <arg name="use_sim_time" value="$(arg use_sim_time)"/>
             <arg name="gui" value="$(arg gui)"/>
-            <arg name="debug" default="$(arg debug_gazebo)"/>
+            <arg name="respawn_gazebo" value="true"/>
         </include>
     </group>
 
