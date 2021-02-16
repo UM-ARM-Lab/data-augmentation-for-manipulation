@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from multiprocessing import Process
 import argparse
 import pathlib
 import re
@@ -95,11 +94,10 @@ class ResultsToDynamicsDataset:
             print(f"trial {trial_idx}")
             for example in self.result_datum_to_dynamics_dataset(datum):
                 now = perf_counter()
-                print(f'dt {now - t0:.3f}')
+                print(f'{self.example_idx} dt={now - t0:.3f}')
                 example.pop('joint_names')
                 example = make_dict_tf_float32(example)
-                p = Process(target=lambda: tf_write_example(outdir, example, self.example_idx))
-                p.start()
+                tf_write_example(outdir, example, self.example_idx)
                 self.example_idx += 1
                 t0 = now
 
