@@ -248,6 +248,8 @@ def remove_batch_single(x):
         x.is_batched = False
         if len(x.shape) == 0:
             return x
+        elif x.shape[0] == 0:
+            return tf.reshape(x, [0] + x.shape[2:])
         else:
             return x[0]
     else:

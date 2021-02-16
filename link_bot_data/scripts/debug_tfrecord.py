@@ -12,7 +12,7 @@ def main():
     colorama.init(autoreset=True)
     parser = argparse.ArgumentParser()
     parser.add_argument('input', type=pathlib.Path)
-    parser.add_argument('--print-limit', type=int, default=15)
+    parser.add_argument('--print-limit', type=int, default=25)
 
     args = parser.parse_args()
 

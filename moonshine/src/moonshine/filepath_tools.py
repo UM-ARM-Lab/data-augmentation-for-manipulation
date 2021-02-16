@@ -54,16 +54,20 @@ def load_trial(trial_path):
 def load_params(trial_path: pathlib.Path):
     params_filename = trial_path / 'params.json'
     if params_filename.is_file():
-        with params_filename.open("r") as params_file:
-            params = hjson.load(params_file)
+        params = load_json(params_filename)
     else:
         params_filename = trial_path / 'params.hjson'
         if params_filename.exists():
-            with params_filename.open("r") as params_file:
-                params = hjson.load(params_file)
+            params = load_json(params_filename)
         else:
             raise RuntimeError(f"no params file in {trial_path.as_posix()}")
     return params
+
+
+def load_json(path: pathlib.Path):
+    with path.open("r") as file:
+        data = hjson.load(file)
+    return data
 
 
 def get_trial_path(group_name, trials_directory=None):

@@ -185,18 +185,16 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
     labeling_params = prediction_actual.labeling_params
     prediction_horizon = prediction_actual.actual_prediction_horizon
     classifier_horizon = labeling_params['classifier_horizon']
+    batch_size = prediction_actual.batch_size
 
-    valid_out_examples = []
+    valid_out_example_batches = []
     for classifier_start_t in range(0, prediction_horizon - classifier_horizon + 1):
         classifier_end_t = classifier_start_t + classifier_horizon
 
         prediction_start_t = prediction_actual.prediction_start_t
-        prediction_start_t_batched = tf.cast(
-            tf.stack([prediction_start_t] * prediction_actual.batch_size, axis=0), tf.float32)
-        classifier_start_t_batched = tf.cast(
-            tf.stack([classifier_start_t] * prediction_actual.batch_size, axis=0), tf.float32)
-        classifier_end_t_batched = tf.cast(
-            tf.stack([classifier_end_t] * prediction_actual.batch_size, axis=0), tf.float32)
+        prediction_start_t_batched = int_scalar_to_batched_float(batch_size, prediction_start_t)
+        classifier_start_t_batched = int_scalar_to_batched_float(batch_size, classifier_start_t)
+        classifier_end_t_batched = int_scalar_to_batched_float(batch_size, classifier_end_t)
         out_example = {
             'env':                prediction_actual.dataset_element['env'],
             'origin':             prediction_actual.dataset_element['origin'],
@@ -209,54 +207,89 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
         }
 
         # this slice gives arrays of fixed length (ex, 5) which must be null padded from out_example_end_idx onwards
-        state_slice = slice(classifier_start_t, classifier_start_t + classifier_horizon)
-        action_slice = slice(classifier_start_t, classifier_start_t + classifier_horizon - 1)
-        sliced_actual = {}
-        for key, actual_state_component in prediction_actual.actual_states.items():
-            actual_state_component_sliced = actual_state_component[:, state_slice]
-            out_example[key] = actual_state_component_sliced
-            sliced_actual[key] = actual_state_component_sliced
+        sliced_actual, sliced_predictions = slice_to_fixed_length(classifier_horizon,
+                                                                  classifier_start_t,
+                                                                  out_example,
+                                                                  prediction_actual)
 
-        sliced_predictions = {}
-        for key, prediction_component in prediction_actual.predictions.items():
-            prediction_component_sliced = prediction_component[:, state_slice]
-            out_example[add_predicted(key)] = prediction_component_sliced
-            sliced_predictions[key] = prediction_component_sliced
-
-        # action
-        sliced_actions = {}
-        for key, action_component in prediction_actual.actions.items():
-            action_component_sliced = action_component[:, action_slice]
-            out_example[key] = action_component_sliced
-            sliced_actions[key] = action_component_sliced
+        add_perception_reliability(scenario=scenario,
+                                   actual=sliced_actual,
+                                   predictions=sliced_predictions,
+                                   labeling_params=labeling_params,
+                                   out_example=out_example)
 
         # compute label
-        threshold = labeling_params['threshold']
-        error = scenario.classifier_distance(sliced_actual, sliced_predictions)
-        is_close = error < threshold
-        out_example['error'] = tf.cast(error, dtype=tf.float32)
+        valid_out_examples = add_model_error(scenario, sliced_actual, sliced_predictions, out_example, labeling_params, prediction_actual.batch_size)
+        valid_out_example_batches.append(valid_out_examples)
 
-        # perception reliability
-        if 'perception_reliability_method' in labeling_params:
-            pr_method = labeling_params['perception_reliability_method']
-            if pr_method == 'gt':
-                perception_reliability = gt_perception_reliability(scenario, sliced_actual, sliced_predictions)
-                out_example['perception_reliability'] = perception_reliability
-            else:
-                raise NotImplementedError(f"unrecognized perception reliability method {pr_method}")
+    return valid_out_example_batches
 
-        if not labeling_params.get('includes_starts_far', False):
-            is_first_predicted_state_close = is_close[:, 0]
-            valid_indices = tf.where(is_first_predicted_state_close)
-            valid_indices = tf.squeeze(valid_indices, axis=1)
-        else:
-            valid_indices = tf.range(prediction_actual.batch_size, dtype=tf.int64)
 
-        # keep only valid_indices from every key in out_example...
-        valid_out_example = gather_dict(out_example, valid_indices)
-        valid_out_examples.append(valid_out_example)
+def add_model_error(scenario, actual, predictions, out_example, labeling_params: Dict, batch_size : int):
+    threshold = labeling_params['threshold']
+    error = scenario.classifier_distance(actual, predictions)
+    out_example['error'] = tf.cast(error, dtype=tf.float32)
+    is_close = error < threshold
 
+    valid_out_examples = filter_valid_example_batches(is_close,
+                                                      labeling_params,
+                                                      out_example,
+                                                      batch_size)
     return valid_out_examples
+
+
+def slice_to_fixed_length(classifier_horizon: int,
+                          classifier_start_t: int,
+                          out_example: Dict,
+                          prediction_actual: PredictionActualExample):
+    state_slice = slice(classifier_start_t, classifier_start_t + classifier_horizon)
+    action_slice = slice(classifier_start_t, classifier_start_t + classifier_horizon - 1)
+    sliced_actual = {}
+    for key, actual_state_component in prediction_actual.actual_states.items():
+        actual_state_component_sliced = actual_state_component[:, state_slice]
+        out_example[key] = actual_state_component_sliced
+        sliced_actual[key] = actual_state_component_sliced
+    sliced_predictions = {}
+    for key, prediction_component in prediction_actual.predictions.items():
+        prediction_component_sliced = prediction_component[:, state_slice]
+        out_example[add_predicted(key)] = prediction_component_sliced
+        sliced_predictions[key] = prediction_component_sliced
+    sliced_actions = {}
+    for key, action_component in prediction_actual.actions.items():
+        action_component_sliced = action_component[:, action_slice]
+        out_example[key] = action_component_sliced
+        sliced_actions[key] = action_component_sliced
+    return sliced_actual, sliced_predictions
+
+
+def int_scalar_to_batched_float(batch_size: int, t: int):
+    return tf.cast(tf.stack([t] * batch_size, axis=0), tf.float32)
+
+
+def filter_valid_example_batches(is_close, labeling_params: Dict, examples: Dict, batch_size: int):
+    if not labeling_params.get('includes_starts_far', False):
+        is_first_predicted_state_close = is_close[:, 0]
+        valid_indices = tf.where(is_first_predicted_state_close)
+        valid_indices = tf.squeeze(valid_indices, axis=1)
+    else:
+        valid_indices = tf.range(batch_size, dtype=tf.int64)
+    # keep only valid_indices from every key in out_example...
+    valid_out_examples = gather_dict(examples, valid_indices)
+    return valid_out_examples
+
+
+def add_perception_reliability(scenario: ExperimentScenario,
+                               actual: Dict,
+                               predictions: Dict,
+                               labeling_params: Dict,
+                               out_example: Dict):
+    if 'perception_reliability_method' in labeling_params:
+        pr_method = labeling_params['perception_reliability_method']
+        if pr_method == 'gt':
+            perception_reliability = gt_perception_reliability(scenario, actual, predictions)
+            out_example['perception_reliability'] = perception_reliability
+        else:
+            raise NotImplementedError(f"unrecognized perception reliability method {pr_method}")
 
 
 def zero_through_inf_to_one_through_zero(x):

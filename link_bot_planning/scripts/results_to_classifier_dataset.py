@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+import re
 import tempfile
 from typing import Dict, List, Optional
 
@@ -8,6 +9,7 @@ import colorama
 import numpy as np
 
 from arc_utilities import ros_init
+from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error
 from link_bot_data.dataset_utils import tf_write_example, add_predicted
 from link_bot_gazebo_python.gazebo_services import GazeboServices
 from link_bot_planning import results_utils
@@ -16,27 +18,44 @@ from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_gi
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import make_dict_tf_float32
-from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors
+from moonshine.filepath_tools import load_json
+from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch
 
 
-@ros_init.with_ros("results_to_dynamics_dataset")
+@ros_init.with_ros("results_to_dataset")
 def main():
     colorama.init(autoreset=True)
     np.set_printoptions(linewidth=250, precision=3, suppress=True)
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
+    parser.add_argument("labeling_params", type=pathlib.Path, help='labeling params')
     parser.add_argument("outdir", type=pathlib.Path, help='output directory')
     parser.add_argument("--trial-indices", type=int_set_arg, help='which plan(s) to show')
     parser.add_argument("--verbose", '-v', action="count", default=0)
 
     args = parser.parse_args()
 
-    r = ResultsToDynamicsDataset(args.results_dir, args.outdir, args.trial_indices)
+    r = ResultsToDynamicsDataset(args.results_dir, args.outdir, args.labeling_params, args.trial_indices)
+
+
+def get_start_idx(outdir : pathlib.Path):
+    existing_records = list(outdir.glob(".tfrecords"))
+    if len(existing_records) == 0:
+        return 0
+
+    start_idx = 0
+    for existing_record in existing_records:
+        m = re.fullmatch(r'.*?example_([0-9]+)\.tfrecords', existing_record.as_posix())
+        record_idx = int(m.group(1))
+        start_idx = max(start_idx, record_idx)
+
+    return start_idx
 
 
 class ResultsToDynamicsDataset:
 
-    def __init__(self, results_dir: pathlib.Path, outdir: pathlib.Path, trial_indices: List[int]):
+    def __init__(self, results_dir: pathlib.Path, outdir: pathlib.Path, labeling_params: pathlib.Path,
+                 trial_indices: List[int]):
         self.viz_id = 0
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
         self.scenario.on_before_get_state_or_execute_action()
@@ -51,8 +70,11 @@ class ResultsToDynamicsDataset:
         self.after_state_pred_idx = marker_index_generator(4)
         self.action_idx = marker_index_generator(5)
 
+        self.labeling_params = load_json(labeling_params)
+        self.threshold = self.labeling_params['threshold']
+
         results_utils.save_dynamics_dataset_hparams(self.scenario, results_dir, outdir, self.metadata)
-        self.example_idx = 0
+        self.example_idx = get_start_idx(outdir)
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
             print(f"trial {trial_idx}")
             for example in self.result_datum_to_dynamics_dataset(datum):
@@ -88,7 +110,8 @@ class ResultsToDynamicsDataset:
             planner_params: Dict,
             planning_query: PlanningQuery,
             tree: LoggingTree,
-            bagfile_name: Optional[pathlib.Path] = None):
+            bagfile_name: Optional[pathlib.Path] = None,
+            depth: int = 0):
 
         if bagfile_name is None:
             bagfile_name = store_bagfile()
@@ -105,26 +128,59 @@ class ResultsToDynamicsDataset:
             self.scenario.execute_action(action)
             after_state = self.scenario.get_state()
 
-            before_state_predicted = {add_predicted(k): v for k, v in tree.state.items()}
-            after_state_predicted = {add_predicted(k): v for k, v in child.state.items()}
+            before_state_pred = {k: v for k, v in tree.state.items()}
+            after_state_pred = {k: v for k, v in child.state.items()}
 
-            self.visualize_example(action,
-                                   after_state,
-                                   before_state,
-                                   after_state_predicted,
-                                   before_state_predicted,
-                                   planning_query)
+            self.visualize_example(action=action,
+                                   after_state=after_state,
+                                   before_state=before_state,
+                                   before_state_predicted={add_predicted(k): v for k, v in before_state_pred.items()},
+                                   after_state_predicted={add_predicted(k): v for k, v in after_state_pred.items()},
+                                   planning_query=planning_query)
 
-            example = planning_query.environment
-            example['traj_idx'] = self.example_idx
+            classifier_horizon = 2  # this script only handles this case
+            classifier_start_t = depth
+
             example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
+            example_states_pred = sequence_of_dicts_to_dict_of_tensors([before_state_pred, after_state_pred])
+            example_states_pred.pop("joint_names")
+            example_states_pred.pop("num_diverged")
             example_actions = add_batch_single(action)
-            example.update(example_states)
-            example.update(example_actions)
-            example['time_idx'] = [0, 1]
-            yield example
 
-            yield from self.dfs(planner_params, planning_query, child)
+            example = {
+                'classifier_start_t': classifier_start_t,
+                'classifier_end_t':   classifier_start_t + classifier_horizon,
+                'traj_idx':           self.example_idx,
+                'time_idx':           [0, 1],
+            }
+            example.update(planning_query.environment)
+            example.update(example_states)
+            example.update({add_predicted(k): v for k, v in example_states_pred.items()})
+            example.update(example_actions)
+
+            example_batched = add_batch(example)
+            actual_batched = add_batch(example_states)
+            predicted_batched = add_batch(example_states_pred)
+
+            add_perception_reliability(scenario=self.scenario,
+                                       actual=actual_batched,
+                                       predictions=predicted_batched,
+                                       out_example=example_batched,
+                                       labeling_params=self.labeling_params)
+
+            valid_out_examples_batched = add_model_error(self.scenario,
+                                                         actual=actual_batched,
+                                                         predictions=predicted_batched,
+                                                         out_example=example_batched,
+                                                         labeling_params=self.labeling_params,
+                                                         batch_size=1)
+            if valid_out_examples_batched['time_idx'].shape[0] == 1:
+                valid_out_example = remove_batch(valid_out_examples_batched)
+                yield valid_out_example
+            if valid_out_examples_batched['time_idx'].shape[0] > 1:
+                raise ValueError()
+
+            yield from self.dfs(planner_params, planning_query, child, depth=depth + 1)
 
     def visualize_example(self,
                           action: Dict,

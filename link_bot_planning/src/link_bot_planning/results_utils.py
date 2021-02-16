@@ -150,7 +150,8 @@ def trials_generator(results_dir: pathlib.Path, trial_indices: Optional[List[int
         for trial_idx in trial_indices:
             filenames.append((trial_idx, results_dir / f'{trial_idx}_metrics.pkl.gz'))
 
-    for trial_idx, results_filename in filenames:
+    sorted_filenames = sorted(filenames)
+    for trial_idx, results_filename in sorted_filenames:
         datum = load_gzipped_pickle(results_filename)
         yield trial_idx, datum
 
