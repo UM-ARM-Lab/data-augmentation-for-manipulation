@@ -47,8 +47,10 @@ class LoggingTree:
         self.state = state
         self.action = action
         self.children: List[LoggingTree] = []
+        self.size = 0
 
     def add(self, before_state: Dict, action: Dict, after_state: Dict):
+        self.size += 1
         if len(self.children) == 0:
             self.state = before_state
             t = self
