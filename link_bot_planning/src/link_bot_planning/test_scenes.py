@@ -23,7 +23,7 @@ def save_test_scene_given_name(joint_state: JointState,
         rospy.logerr(f"File {bagfile_name.as_posix()} already exists. Aborting")
         return None
 
-    rospy.loginfo(f"Saving scene to {bagfile_name}")
+    rospy.logdebug(f"Saving scene to {bagfile_name}")
     with rosbag.Bag(bagfile_name, 'w') as bag:
         bag.write('links_states', links_states)
         bag.write('joint_state', joint_state)

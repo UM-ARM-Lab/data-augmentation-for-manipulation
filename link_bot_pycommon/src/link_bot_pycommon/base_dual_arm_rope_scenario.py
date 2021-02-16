@@ -1,4 +1,5 @@
 import warnings
+from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
@@ -155,9 +156,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
             joint_state = self.joint_state_msg_from_state_dict(state)
             self.robot.display_robot_state(joint_state, label, kwargs.get("color", None))
         elif 'joint_positions' not in state:
-            rospy.logwarn_throttle(10, 'no joint positions in state')
+            rospy.logwarn_throttle(10, 'no joint positions in state', logger_name=Path(__file__).stem)
         elif 'joint_names' not in state:
-            rospy.logwarn_throttle(10, 'no joint names in state')
+            rospy.logwarn_throttle(10, 'no joint names in state', logger_name=Path(__file__).stem)
 
     def joint_state_msg_from_state_dict(self, state):
         joint_state = JointState()
@@ -242,7 +243,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
     def get_environment(self, params: Dict, **kwargs):
         default_res = 0.01
         if 'res' not in params:
-            rospy.logwarn(f"res not in params, using default {default_res}")
+            rospy.logwarn(f"res not in params, using default {default_res}", logger_name=Path(__file__).stem)
             res = default_res
         else:
             res = params["res"]

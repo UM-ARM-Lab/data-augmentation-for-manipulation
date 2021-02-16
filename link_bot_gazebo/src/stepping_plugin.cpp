@@ -9,91 +9,83 @@
 #include <ignition/math/Pose3.hh>
 #include <memory>
 
+// this is a free function because
+// (1) to remove a clang-tidy "complexity" warning
+// (2) because the string is long and doesn't look good when 3 levels on indent int
+void print_ros_init_error()
+{
+  ROS_FATAL("A ROS node for Gazebo has not been initialized, unable to load plugin. "
+            "Load the Gazebo system plugin 'libgazebo_ros_api_plugin.so' in the gazebo_ros package");
+}
+
+
 namespace gazebo
 {
 class SteppingPlugin : public WorldPlugin
 {
-private:
-  transport::PublisherPtr pub_;
-  event::ConnectionPtr step_connection__;
-  std::unique_ptr<ros::NodeHandle> ros_node_;
-  ros::ServiceServer service_;
-  ros::CallbackQueue queue_;
-  std::thread ros_queue_thread_;
-  std::atomic<int> step_count_{ 0 };
-  double seconds_per_step_{ 0.0 };
-
-  void QueueThread()
-  {
-    double constexpr timeout = 0.01;
-    while (ros_node_->ok())
-    {
-      queue_.callAvailable(ros::WallDuration(timeout));
-    }
-  }
-
-public:
+ public:
   void Load(physics::WorldPtr parent, sdf::ElementPtr /*_sdf*/) override
   {
     if (!ros::isInitialized())
     {
-      ROS_FATAL_STREAM("A ROS node for Gazebo has not been initialized, unable to load plugin. "
-        << "Load the Gazebo system plugin 'libgazebo_ros_api_plugin.so' in the gazebo_ros package)");
+      print_ros_init_error();
       return;
     }
-
     seconds_per_step_ = parent->Physics()->GetMaxStepSize();
 
     ros_node_ = std::make_unique<ros::NodeHandle>("stepping_plugin");
-    auto cb = [&](peter_msgs::WorldControlRequest &req, peter_msgs::WorldControlResponse &res) {
-      (void)res;
-      auto const steps = [this, req]() {
-        if (req.seconds > 0)
-        {
-          return static_cast<unsigned int>(req.seconds / seconds_per_step_);
-        }
-        else
-        {
-          return req.steps;
-        }
-      }();
-      step_count_ = steps;
-      msgs::WorldControl gz_msg;
-      gz_msg.set_multi_step(steps);
-      pub_->Publish(gz_msg);
-      while (step_count_ != 0)
-        ;
-      return true;
-    };
+    service_ = ros_node_->advertiseService("/world_control", &SteppingPlugin::onWorldControl, this);
 
-    auto so = ros::AdvertiseServiceOptions::create<peter_msgs::WorldControl>("/world_control", cb, ros::VoidConstPtr(),
-                                                                             &queue_);
-    service_ = ros_node_->advertiseService(so);
-    ros_queue_thread_ = std::thread(std::bind(&SteppingPlugin::QueueThread, this));
+    async_spinner_ = std::make_unique<ros::AsyncSpinner>(0);
+    async_spinner_->start();
 
-    // set up gazebo topic
     transport::NodePtr node(new transport::Node());
     node->Init(parent->Name());
-
     pub_ = node->Advertise<msgs::WorldControl>("~/world_control");
 
-    step_connection__ = event::Events::ConnectWorldUpdateEnd([&]() {
-      if (step_count_ > 0)
-      {
-        --step_count_;
-      }
-    });
+    step_connection__ = event::Events::ConnectWorldUpdateEnd([&]()
+                                                             {
+                                                               if (step_count_ > 0)
+                                                               { --step_count_; }
+                                                             });
 
     ROS_INFO("Finished loading stepping plugin!");
   }
 
+  bool onWorldControl(peter_msgs::WorldControlRequest &req, peter_msgs::WorldControlResponse &res)
+  {
+    (void) res;
+    auto const steps = [this, req]()
+    {
+      if (req.seconds > 0)
+      {
+        return static_cast<unsigned int>(req.seconds / seconds_per_step_);
+      } else
+      {
+        return req.steps;
+      }
+    }();
+    step_count_ = steps;
+    msgs::WorldControl gz_msg;
+    gz_msg.set_multi_step(steps);
+    pub_->Publish(gz_msg);
+    while (step_count_ != 0);
+    return true;
+  }
+
   ~SteppingPlugin() override
   {
-    queue_.clear();
-    queue_.disable();
-    ros_node_->shutdown();
-    ros_queue_thread_.join();
+    async_spinner_->stop();
   }
+
+  transport::PublisherPtr pub_;
+  event::ConnectionPtr step_connection__;
+  std::unique_ptr<ros::NodeHandle> ros_node_;
+  ros::ServiceServer service_;
+  std::unique_ptr<ros::AsyncSpinner> async_spinner_;
+  std::atomic<int> step_count_{0};
+  double seconds_per_step_{0.0};
+
 };
 
 // Register this plugin with the simulator

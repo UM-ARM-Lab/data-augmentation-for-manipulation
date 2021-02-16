@@ -18,6 +18,8 @@
             </sky>
         </scene>
 
+        <plugin name="stepping_plugin" filename="libstepping_plugin.so"/>
+
         <physics name="ode" type="ode">
             <max_step_size>0.01</max_step_size>
             <real_time_factor>1</real_time_factor>
