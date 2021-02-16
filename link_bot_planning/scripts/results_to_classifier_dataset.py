@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from multiprocessing import Process
 import argparse
 import pathlib
 import re
@@ -69,7 +70,7 @@ class ResultsToDynamicsDataset:
         self.viz_id = 0
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
         self.scenario.on_before_get_state_or_execute_action()
-        self.grasp_rope_endpoints(settling_time=0.0)
+        self.scenario.grasp_rope_endpoints(settling_time=0.0)
         self.service_provider = GazeboServices()
 
         outdir.mkdir(exist_ok=True, parents=True)
@@ -97,7 +98,8 @@ class ResultsToDynamicsDataset:
                 print(f'dt {now - t0:.3f}')
                 example.pop('joint_names')
                 example = make_dict_tf_float32(example)
-                tf_write_example(outdir, example, self.example_idx)
+                p = Process(target=lambda: tf_write_example(outdir, example, self.example_idx))
+                p.start()
                 self.example_idx += 1
                 t0 = now
 
