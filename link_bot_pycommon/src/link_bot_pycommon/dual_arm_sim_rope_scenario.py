@@ -95,11 +95,11 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         if not right_end_grasped:
             self.robot.open_right_gripper()
 
-    def grasp_rope_endpoints(self):
+    def grasp_rope_endpoints(self, settling_time=5.0):
         self.service_provider.pause()
         self.make_rope_endpoints_follow_gripper()
         self.service_provider.play()
-        rospy.sleep(5)
+        rospy.sleep(settling_time)
         self.robot.close_left_gripper()
         self.robot.close_right_gripper()
 
@@ -165,7 +165,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
         self.service_provider.pause()
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
-        self.grasp_rope_endpoints()
+        self.grasp_rope_endpoints(settling_time=0.0)
         self.service_provider.play()
 
     def publish_robot_state(self, joint_state):
