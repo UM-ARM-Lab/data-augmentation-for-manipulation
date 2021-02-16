@@ -5,8 +5,10 @@ from matplotlib import cm
 
 import ros_numpy
 import rospy
+from arm_gazebo_msgs.srv import SetModelStatesRequest, SetModelStates
+from gazebo_msgs.msg import ModelState
 from gazebo_msgs.srv import GetModelState, GetModelStateRequest, GetModelStateResponse
-from gazebo_msgs.srv import SetModelState, SetModelStateRequest
+from gazebo_msgs.srv import SetModelState
 from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_data.dataset_utils import NULL_PAD_VALUE
 from link_bot_pycommon import grid_utils
@@ -30,7 +32,7 @@ except ImportError:
 class Base3DScenario(AnimatableScenario):
     def __init__(self):
         super().__init__()
-        self.world_control_srv = rospy.ServiceProxy("/world_control", WorldControl)
+        self.world_control_srv = rospy.ServiceProxy("gz_world_control", WorldControl)
         self.env_viz_pub = rospy.Publisher('occupancy', OccupancyStamped, queue_size=10, latch=True)
         try:
             self.env_bbox_pub = rospy.Publisher('env_bbox', BoundingBox, queue_size=10, latch=True)
@@ -49,8 +51,9 @@ class Base3DScenario(AnimatableScenario):
         self.tree_action_idx = 0
         self.sample_idx = 0
 
-        self.set_model_state_srv = rospy.ServiceProxy("gazebo/set_model_state", SetModelState)
-        self.get_model_state_srv = rospy.ServiceProxy("gazebo/get_model_state", GetModelState)
+        self.set_model_states_srv = rospy.ServiceProxy("arm_gazebo/set_model_states", SetModelStates)
+        self.set_model_state_srv = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
+        self.get_model_state_srv = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
 
     def settle(self):
         req = WorldControlRequest()
@@ -288,11 +291,13 @@ class Base3DScenario(AnimatableScenario):
         return pose
 
     def set_object_poses(self, object_positions: Dict):
+        set_states_req = SetModelStatesRequest()
         for object_name, pose in object_positions.items():
-            set_req = SetModelStateRequest()
-            set_req.model_state.model_name = object_name
-            set_req.model_state.pose = pose
-            self.set_model_state_srv(set_req)
+            state = ModelState()
+            state.model_name = object_name
+            state.pose = pose
+            set_states_req.model_states.append(state)
+        self.set_model_states_srv(set_states_req)
 
     def get_object_poses(self, names: List):
         poses = {}

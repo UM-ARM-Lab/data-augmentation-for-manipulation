@@ -4,8 +4,9 @@ from typing import Optional, List
 import rosbag
 import roslaunch
 import rospy
-from gazebo_msgs.msg import LinkStates
-from gazebo_msgs.srv import SetPhysicsPropertiesRequest, GetPhysicsPropertiesRequest, SetLinkState, SetLinkStateRequest
+from arm_gazebo_msgs.srv import SetLinkStates, SetLinkStatesRequest
+from gazebo_msgs import msg as gz_msg
+from gazebo_msgs.srv import SetPhysicsPropertiesRequest, GetPhysicsPropertiesRequest
 from link_bot_pycommon.base_services import BaseServices
 from std_srvs.srv import EmptyRequest, Empty
 
@@ -18,31 +19,27 @@ class GazeboServices(BaseServices):
         self.gazebo_process = None
 
         # Yes, absolute paths here are what I want. I don't want these namespaced by the robot
-        self.set_link_state = self.add_required_service('/gazebo/set_link_state', SetLinkState)
+        self.set_link_states = self.add_required_service('arm_gazebo/set_link_states', SetLinkStates)
         self.pause_srv = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
         self.play_srv = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
 
     def restore_from_bag(self, bagfile_name: pathlib.Path, excluded_models: Optional[List[str]] = None):
         with rosbag.Bag(bagfile_name) as bag:
-            saved_links_states: LinkStates = next(iter(bag.read_messages()))[1]
-            set_link_state_req = SetLinkStateRequest()
-            set_link_state_req.link_state = saved_links_states
+            saved_links_states: gz_msg.LinkStates = next(iter(bag.read_messages()))[1]
 
-            n = len(saved_links_states.name)
-            for i in range(n):
-                name = saved_links_states.name[i]
-                pose = saved_links_states.pose[i]
-                twist = saved_links_states.twist[i]
-                set_req = SetLinkStateRequest()
-                set_req.link_state.link_name = name
-                set_req.link_state.pose = pose
-                set_req.link_state.twist = twist
+        set_states_req = SetLinkStatesRequest()
 
-                model_name = name.split('::')[0]
-                if excluded_models is not None and model_name not in excluded_models:
-                    # TODO: write a gazebo plugin that sets a bunch of link states all at once
-                    #  because that would be faster. Right now waiting for all the service calls is slow
-                    self.set_link_state(set_req)
+        for name, pose, twist in zip(saved_links_states.name, saved_links_states.pose, saved_links_states.twist):
+            model_name, link_name = name.split('::')
+            if excluded_models is not None and model_name not in excluded_models:
+                link_state = gz_msg.LinkState()
+                # name here is moel_name::link_name, what gazebo calls "scoped"
+                link_state.link_name = name
+                link_state.pose = pose
+                link_state.twist = twist
+                set_states_req.link_states.append(link_state)
+
+        self.set_link_states(set_states_req)
 
     def launch(self, params, **kwargs):
         gui = kwargs.get("gui", True)

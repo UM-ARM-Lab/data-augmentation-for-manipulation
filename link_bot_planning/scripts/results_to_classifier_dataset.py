@@ -118,7 +118,7 @@ class ResultsToDynamicsDataset:
 
         for child in tree.children:
             # if we only have one child we can skip the restore, this speeds things up a lot
-            if len(tree.children) > 1:
+            if len(tree.children) > 1 or depth == 0:
                 self.scenario.restore_from_bag(service_provider=self.service_provider,
                                                params=planner_params,
                                                bagfile_name=bagfile_name)

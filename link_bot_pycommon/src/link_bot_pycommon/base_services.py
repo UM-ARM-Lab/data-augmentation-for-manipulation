@@ -13,7 +13,7 @@ class BaseServices:
     def __init__(self):
         self.service_names = []
 
-        self.world_control = self.add_required_service('/world_control', WorldControl)
+        self.world_control = self.add_required_service('gz_world_control', WorldControl)
         self.get_physics = self.add_required_service('/gazebo/get_physics_properties', GetPhysicsProperties)
         self.set_physics = self.add_required_service('/gazebo/set_physics_properties', SetPhysicsProperties)
 
