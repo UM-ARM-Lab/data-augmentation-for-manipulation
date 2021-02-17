@@ -54,35 +54,35 @@
       ]
       nominal_poses: {
         car_engine2: {
-          position: [0, 0.9, -0.25]
+          position: [0, 0.8, -0.25]
           orientation: [0, 0, 0]
         }
         car_platform: {
-          position: [0, 1.07, -0.528]
+          position: [0, 0.97, -0.528]
           orientation: [0, 0, 1.5707]
         }
         car_front: {
-          position: [0, 0.474, -0.41]
+          position: [0, 0.35, -0.41]
           orientation: [0, 0, 3.14159]
         }
         car_hood: {
-          position: [0, 1.242, 0.20]
+          position: [0, 1.142, 0.20]
           orientation: [-0.908, 0, 0]
         }
         car_engine2: {
-          position: [0, 0.9, -0.25]
+          position: [0, 0.8, -0.25]
           orientation: [0, 0, 0]
         }
         car_tube_and_tank: {
-          position: [0.32, 1.25, -0.35]
+          position: [0.35, 1.25, -0.35]
           orientation: [0, 0, 0]
         }
         car_alternator: {
-          position: [-0.57, 0.807, -0.255]
+          position: [-0.57, 0.707, -0.255]
           orientation: [0, 0, 0]
         }
         car_pulley: {
-          position: [-0.641, 1.03, -0.25]
+          position: [-0.641, 0.93, -0.25]
           orientation: [0, 0, 0]
         }
       }

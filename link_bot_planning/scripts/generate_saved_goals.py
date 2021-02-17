@@ -33,7 +33,6 @@ def main():
     parser.add_argument("scenes_dir", type=pathlib.Path)
     parser.add_argument("method", type=str, choices=['rejection_sample', 'rviz_marker'])
     parser.add_argument("--n-trials", type=int, default=100)
-    parser.add_argument("--test-restore", action='store_true')
     parser.add_argument("--start-at", type=int, default=0)
 
     args = parser.parse_args()
@@ -85,9 +84,11 @@ def generate_saved_goals(method: str,
         rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
         scenario.restore_from_bag(service_provider, planner_params, bagfile_name)
 
+        print(trial_idx)
         if method == 'rejection_sample':
             goal = rejection_sample_goal(scenario, params, planner_params, trial_idx)
         elif method == 'rviz_marker':
+            # rosrun rviz_visual_tools imarker_simple_demo
             goal = rviz_marker_goal(scenario, params, planner_params, trial_idx)
         else:
             raise NotImplementedError()

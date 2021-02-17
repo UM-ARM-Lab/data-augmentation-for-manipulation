@@ -14,7 +14,7 @@ from link_bot_planning.test_scenes import save_test_scene, create_randomized_sta
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
 
-
+@ros_init.with_ros("generate_test_scenes")
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
@@ -29,14 +29,12 @@ def main():
 
     args = parser.parse_args()
 
-    ros_init.rospy_and_cpp_init('generate_test_scenes')
     generate_test_scenes(scenario=args.scenario,
                          n_trials=args.n_trials,
                          params_filename=args.params,
                          test_restore=args.test_restore,
                          save_test_scenes_dir=args.scenes_dir,
                          start_at=args.start_at)
-    ros_init.shutdown()
 
 
 def generate_test_scenes(scenario: str,

@@ -11,16 +11,18 @@ from sensor_msgs.msg import JointState
 def save_test_scene(joint_state: JointState,
                     links_states: LinkStates,
                     save_test_scenes_dir: pathlib.Path,
-                    trial_idx: int):
+                    trial_idx: int,
+                    force: bool):
     bagfile_name = save_test_scenes_dir / f'scene_{trial_idx:04d}.bag'
-    return save_test_scene_given_name(joint_state, links_states, bagfile_name)
+    return save_test_scene_given_name(joint_state, links_states, bagfile_name, force)
 
 
 def save_test_scene_given_name(joint_state: JointState,
                                links_states: LinkStates,
-                               bagfile_name: pathlib.Path):
-    if bagfile_name.exists():
-        rospy.logerr(f"File {bagfile_name.as_posix()} already exists. Aborting")
+                               bagfile_name: pathlib.Path,
+                               force: bool):
+    if bagfile_name.exists() and not force:
+        print(f"File {bagfile_name.as_posix()} already exists. Aborting")
         return None
 
     rospy.logdebug(f"Saving scene to {bagfile_name}")
