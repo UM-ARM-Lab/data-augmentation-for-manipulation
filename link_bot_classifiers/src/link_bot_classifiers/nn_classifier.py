@@ -313,6 +313,7 @@ class NNClassifierWrapper(BaseConstraintChecker):
             scenario:
         """
         super().__init__(paths[0].parent, scenario)
+        self.name = self.__class__.__name__
         # FIXME: Bad API design
         assert isinstance(scenario, Base3DScenario)
 

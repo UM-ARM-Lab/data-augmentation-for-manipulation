@@ -15,6 +15,7 @@ class GripperDistanceChecker(BaseConstraintChecker):
                  ):
         super().__init__(path, scenario)
         self.max_d = self.hparams['max_distance_between_grippers']
+        self.name = self.__class__.__name__
 
     def check_constraint_tf(self,
                             environment: Dict,

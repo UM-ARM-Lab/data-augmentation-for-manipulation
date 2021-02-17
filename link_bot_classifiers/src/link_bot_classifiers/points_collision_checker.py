@@ -32,17 +32,13 @@ def check_collision(scenario, environment, states_sequence, collision_check_obje
 class PointsCollisionChecker(BaseConstraintChecker):
 
     def __init__(self,
-                 paths: List[pathlib.Path],
+                 path: pathlib.Path,
                  scenario: ExperimentScenario,
                  inflation_radius: Optional[float] = DEFAULT_INFLATION_RADIUS,
                  ):
-        super().__init__(paths, scenario)
-        assert len(paths) == 1
-        self.path = paths[0]
+        super().__init__(path, scenario)
+        self.name = self.__class__.__name__
         self.inflation_radius = inflation_radius
-        hparams_filename = self.path.parent / 'params.hjson'
-        with hparams_filename.open('r') as hparams_file:
-            self.hparams = hjson.load(hparams_file)
         self.local_h_rows = self.hparams['local_h_rows']
         self.local_w_cols = self.hparams['local_w_cols']
         self.local_c_channels = self.hparams['local_c_channels']

@@ -11,7 +11,8 @@ class BaseConstraintChecker:
         self.path = path
         self.scenario = scenario
         self.horizon = 2
-        self.hparams = load_params(self.path)
+        self.hparams = load_params(self.path.parent)
+        self.name = self.__class__.__name__
 
     def check_constraint_from_example(self, example: Dict, training: Optional[bool] = False):
         raise NotImplementedError()

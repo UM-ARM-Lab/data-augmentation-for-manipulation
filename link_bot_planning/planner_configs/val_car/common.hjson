@@ -18,10 +18,10 @@
     joint6: 1.0175395063376493,
     joint7: 2.173908028268774,
   }
-  total_timeout: 120
+  total_timeout: 600
   termination_criteria: {
     attempted_extensions_threshold: 32
-    timeout: 120
+    timeout: 600
   }
   action_params: {
     max_distance_between_grippers: 1.0
@@ -66,6 +66,7 @@
         -0.1
         0.1
       ]
+      # NOTE these are not used when we provide a test scenes directory, as I usually do
       nominal_poses: {
         car_engine2: {
           position: [0, 0.9, -0.25]

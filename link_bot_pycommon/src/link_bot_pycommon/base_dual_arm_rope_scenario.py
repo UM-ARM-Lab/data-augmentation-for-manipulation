@@ -38,7 +38,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         self.cdcpd_listener = Listener("cdcpd/output", PointCloud2)
 
         # NOTE: you may want to override this for your specific robot/scenario
-        self.preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
+        self.left_preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
+        self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
 
         self.size_of_box_around_tool_for_planning = 0.05
         exclude_srv_name = ns_join(self.robot_namespace, "exclude_models_from_planning_scene")
@@ -89,8 +90,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
 
         # Set the preferred tool orientations
         self.robot.store_tool_orientations({
-            self.robot.left_tool_name:  self.preferred_tool_orientation,
-            self.robot.right_tool_name: self.preferred_tool_orientation,
+            self.robot.left_tool_name:  self.left_preferred_tool_orientation,
+            self.robot.right_tool_name: self.right_preferred_tool_orientation,
         })
 
     def get_n_joints(self):
@@ -199,7 +200,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         grippers = [left_gripper_points, right_gripper_points]
 
-        preferred_tool_orientations = [self.preferred_tool_orientation for _ in tool_names]
+        preferred_tool_orientations = []
+        for tool_name in tool_names:
+            if 'left' in tool_name:
+                preferred_tool_orientations.append(self.left_preferred_tool_orientation)
+            elif 'right' in tool_name:
+                preferred_tool_orientations.append(self.right_preferred_tool_orientation)
+            else:
+                raise NotImplementedError()
         # NOTE: we don't use environment here because we assume the planning scenes is static,
         #  so the jacobian follower will already have that information.
         robot_state = RobotState()

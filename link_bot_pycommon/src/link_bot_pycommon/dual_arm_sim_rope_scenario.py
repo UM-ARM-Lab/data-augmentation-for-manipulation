@@ -35,8 +35,8 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         super().on_before_get_state_or_execute_action()
 
         self.robot.store_tool_orientations({
-            self.robot.right_tool_name: self.preferred_tool_orientation,
-            self.robot.left_tool_name:  self.preferred_tool_orientation,
+            self.robot.right_tool_name: self.left_preferred_tool_orientation,
+            self.robot.left_tool_name:  self.right_preferred_tool_orientation
         })
 
         # register kinematic controllers for fake-grasping
@@ -212,7 +212,8 @@ class SimVictorDualArmRopeScenario(SimDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('victor')
-        self.preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
+        self.left_preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
+        self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
 
     @staticmethod
     def simple_name():
@@ -230,18 +231,8 @@ class SimValDualArmRopeScenario(SimDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('hdt_michigan')
-
-    def on_before_get_state_or_execute_action(self):
-        super().on_before_get_state_or_execute_action()
-
-        self.robot.store_tool_orientations({
-            self.robot.left_tool_name: quaternion_from_euler(3.054, -0.851, 0.98),
-            self.robot.right_tool_name: quaternion_from_euler(2.254, -0.747, 3.000),
-        })
-
-        # register kinematic controllers for fake-grasping
-        self.register_fake_grasping()
-
+        self.left_preferred_tool_orientation = quaternion_from_euler(3.054, -0.851, 0.98)
+        self.right_preferred_tool_orientation = quaternion_from_euler(2.254, -0.747, 3.000)
 
     @staticmethod
     def simple_name():

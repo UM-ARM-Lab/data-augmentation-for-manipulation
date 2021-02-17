@@ -64,7 +64,7 @@ class RRT(MyPlanner):
                                                              goal_type=self.params['goal_params']['goal_type'],
                                                              goal_state=goal_state)
             return goal_cost
-            # constraint_costs = compute_constraints_cost(classifier_model=self.classifier_model,
+            # constraint_costs = compute_constraints_cost(classifier_model=self.classifier_models[0],
             #                                             environment=environment,
             #                                             states=mean_predictions,
             #                                             actions=actions)
@@ -175,13 +175,21 @@ class RRT(MyPlanner):
         """
         new_actions = [new_action]
         last_previous_state = previous_states[-1]
-        # final_predicted_state['joint_positions'] = predicted_joint_positions
-        # final_predicted_state['joint_names'] = last_previous_state['joint_names']
         mean_predicted_states, stdev_predicted_states = self.fwd_model.propagate(environment=self.environment,
                                                                                  start_states=last_previous_state,
                                                                                  actions=new_actions)
         # get only the final state predicted, since *_predicted_states includes the start state
         final_predicted_state = mean_predicted_states[-1]
+        
+
+        # If in general we have a controller which can tell us whether a motion is feasible (w/o actually executing)
+        # then we can invoke that hear, and do a logical OR with the classifier's decision
+        # we also need to set the joint values. This is breaking a lot of my nice abstractions but I am impatient
+        feasible, predicted_joint_positions = self.scenario.is_motion_feasible(environment=self.environment,
+                                                                               state=last_previous_state,
+                                                                               action=new_action)
+        final_predicted_state['joint_positions'] = predicted_joint_positions
+        final_predicted_state['joint_names'] = last_previous_state['joint_names']
 
         # walk back up the branch until num_diverged == 0
         all_states = [final_predicted_state]
@@ -255,11 +263,12 @@ class RRT(MyPlanner):
             random_color = cm.Dark2(self.control_sampler_rng.uniform(0, 1))
             self.visualize_propogation_color = random_color
 
-        if 'classifier' in accept_probabilities:
-            classifier_probability = accept_probabilities['classifier']
+        if 'NNClassifier' in accept_probabilities:
+            classifier_probability = accept_probabilities['NNClassifier']
             alpha = min(classifier_probability * 0.8 + 0.2, 1.0)
             classifier_probability_color = cm.Reds_r(classifier_probability)
         else:
+            alpha = 0.8
             classifier_probability_color = cm.Reds_r(0)
 
         statisfies_bounds = self.scenario_ompl.state_space.satisfiesBounds(state_out)
@@ -273,7 +282,7 @@ class RRT(MyPlanner):
                                            a=alpha)
 
         self.scenario.plot_current_tree_state(np_final_state,
-                                              horizon=self.classifier_model.horizon,
+                                              horizon=self.classifier_models[0].horizon,
                                               color=classifier_probability_color)
 
     def plan(self, planning_query: PlanningQuery):
@@ -343,7 +352,7 @@ class RRT(MyPlanner):
             actions = []
             planned_path = [start_state]
         else:
-            raise ValueError(f"invalud planner status {planner_status}")
+            raise ValueError(f"invalid planner status {planner_status}")
 
         print()
         return PlanningResult(status=planner_status,
@@ -368,7 +377,7 @@ class RRT(MyPlanner):
 
     def get_metadata(self):
         return {
-            "horizon": self.classifier_model.horizon,
+            "horizon": self.classifier_models[0].horizon,
         }
 
 
