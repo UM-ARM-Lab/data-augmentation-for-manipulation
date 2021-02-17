@@ -13,6 +13,7 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.serialization import load_gzipped_pickle, my_hdump
+from moonshine.filepath_tools import load_json, load_params
 from moonshine.moonshine_utils import numpify
 
 
@@ -57,8 +58,8 @@ def classifier_params_from_planner_params(planner_params):
 def labeling_params_from_planner_params(planner_params, fallback_labeling_params: Dict):
     classifier_model_dirs = paths_from_json(planner_params['classifier_model_dir'])
     representative_classifier_model_dir = classifier_model_dirs[0]
-    classifier_hparams_filename = representative_classifier_model_dir.parent / 'params.json'
-    classifier_hparams = json.load(classifier_hparams_filename.open('r'))
+    classifier_hparams_filename = representative_classifier_model_dir.parent
+    classifier_hparams = load_params(classifier_hparams_filename)
     if 'labeling_params' in classifier_hparams:
         labeling_params = classifier_hparams['labeling_params']
     elif 'classifier_dataset_hparams' in classifier_hparams:
