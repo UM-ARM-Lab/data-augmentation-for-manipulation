@@ -1,4 +1,5 @@
 import tensorflow as tf
+from colorama import Fore
 
 import rospy
 from link_bot_data.dataset_utils import is_reconverging
@@ -69,7 +70,7 @@ def binary_classification_sequence_metrics_function(dataset_element, predictions
 
     false_positive_rate = metric.fp_rate(y_true=labels, y_pred=probabilities)
     false_negative_rate = metric.fn_rate(y_true=labels, y_pred=probabilities)
-    rospy.logwarn_once("WARNING! these metrics do not accumulate correctly!")
+    print(Fore.YELLOW + "WARNING! these metrics do not accumulate correctly!")
 
     return {
         'accuracy': average_accuracy,
