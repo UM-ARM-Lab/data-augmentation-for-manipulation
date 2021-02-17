@@ -1,15 +1,54 @@
+from time import sleep
 from unittest import TestCase
+
+import numpy as np
 
 import rospy
 from link_bot_gazebo_python.gazebo_services import GazeboServices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.grid_utils import point_to_idx_3d_in_env
-from link_bot_pycommon.pycommon import longest_reconverging_subsequence, trim_reconverging
-from link_bot_pycommon.ros_pycommon import make_movable_object_services
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
+from link_bot_pycommon.grid_utils import point_to_idx_3d_in_env
+from link_bot_pycommon.pycommon import longest_reconverging_subsequence, trim_reconverging, timeout, retry_on_timeout
+from link_bot_pycommon.ros_pycommon import make_movable_object_services
 
 
 class Test(TestCase):
+    def test_retry_on_timeout(self):
+        rng = np.random.RandomState(0)
+
+        s = np.linspace(0, 1, 5)
+
+        def generator():
+            for i in s:
+                if rng.random() > 0.1:
+                    yield i
+                else:
+                    sleep(5)
+
+        total = 0
+
+        def reset():
+            nonlocal total
+            total = 0
+
+        for i in retry_on_timeout(1, reset, generator):
+            total += i
+
+        self.assertEqual(total, s.sum())
+
+    def test_timeout(self):
+        for d in [1, 2, 4, 5]:
+            def f(_d):
+                sleep(_d)
+                return _d
+
+            d_out, timed_out = timeout(3, f, d)
+            if d > 3:
+                self.assertTrue(timed_out)
+            else:
+                self.assertFalse(timed_out)
+                self.assertEqual(d, d_out)
+
     def test_start_and_end_of_max_consecutive_zeros(self):
         # contains no reconverging
         self.assertEqual(longest_reconverging_subsequence([]), (0, 0))
@@ -58,9 +97,10 @@ class TestOccupancy(TestCase):
             }
             ExperimentScenario.move_objects_to_positions(movable_objects_services, object_positions, timeout=150)
             environment = get_environment_for_extents_3d(extent=extent, res=res, service_provider=service_provider,
-                                                         robot_name="test")
+                                                         excluded_models=["test"])
             # scale down to avoid out of bounds on the edges
-            row_i, col_i, channel_i = point_to_idx_3d_in_env(x=0.99 * x_i, y=0.99 * y_i, z=0.01, environment=environment)
+            row_i, col_i, channel_i = point_to_idx_3d_in_env(x=0.99 * x_i, y=0.99 * y_i, z=0.01,
+                                                             environment=environment)
             occupied = environment['env'][row_i, col_i, channel_i] > 0
             self.assertTrue(occupied)
 

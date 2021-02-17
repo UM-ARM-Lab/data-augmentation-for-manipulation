@@ -34,7 +34,6 @@
             <arg name="paused" default="$(arg pause)"/>
             <arg name="use_sim_time" value="$(arg use_sim_time)"/>
             <arg name="gui" value="$(arg gui)"/>
-            <arg name="respawn_gazebo" value="true"/>
         </include>
     </group>
 
@@ -65,7 +64,7 @@
               name="minimal_fake_control_mode_interface_node"/>
 
         <!-- spawn the robot -->
-        <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+        <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" output="screen"
               args="-urdf -model $(arg robot_name) -param robot_description"/>
     </group>
     <group if="$(arg use_val)">
@@ -87,7 +86,7 @@
         </include>
 
         <!-- spawn the robot -->
-        <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false"
+        <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
               args="-urdf -model $(arg robot_name) -param robot_description -z 0"/>
     </group>
 </launch>

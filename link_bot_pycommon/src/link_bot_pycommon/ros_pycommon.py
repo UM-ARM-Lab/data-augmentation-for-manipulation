@@ -49,5 +49,3 @@ def transform_points_to_robot_frame(tf: TF2Wrapper, cdcpd_msg: PointCloud2, robo
     z = cdcpd_points_array['z']
     points = np.stack([x, y, z], axis=-1)
     return points
-
-

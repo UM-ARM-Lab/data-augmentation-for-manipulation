@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import re
 import tempfile
 from typing import Dict, List, Optional
 
 import colorama
 import numpy as np
 
+import rospy
 from arc_utilities import ros_init
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error
 from link_bot_data.dataset_utils import tf_write_example, add_predicted
@@ -17,7 +17,7 @@ from link_bot_planning.my_planner import PlanningResult, PlanningQuery, LoggingT
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.pycommon import make_dict_tf_float32
+from link_bot_pycommon.pycommon import make_dict_tf_float32, retry_on_timeout, deal_with_exceptions
 from moonshine.filepath_tools import load_json
 from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch
 
@@ -31,8 +31,10 @@ def main():
     parser.add_argument("labeling_params", type=pathlib.Path, help='labeling params')
     parser.add_argument("outdir", type=pathlib.Path, help='output directory')
     parser.add_argument("--visualize", action='store_true', help='visualize')
+    parser.add_argument("--gui", action='store_true', help='show gzclient, the gazebo gui')
+    parser.add_argument("--launch", type=str, help='launch file name')
+    parser.add_argument("--world", type=str, help='world file name')
     parser.add_argument("--trial-indices", type=int_set_arg, help='which plan(s) to show')
-    parser.add_argument("--verbose", '-v', action="count", default=0)
 
     args = parser.parse_args()
 
@@ -40,21 +42,10 @@ def main():
                                  args.outdir,
                                  args.labeling_params,
                                  args.trial_indices,
-                                 args.visualize)
-
-
-def get_start_idx(outdir: pathlib.Path):
-    existing_records = list(outdir.glob(".tfrecords"))
-    if len(existing_records) == 0:
-        return 0
-
-    start_idx = 0
-    for existing_record in existing_records:
-        m = re.fullmatch(r'.*?example_([0-9]+)\.tfrecords', existing_record.as_posix())
-        record_idx = int(m.group(1))
-        start_idx = max(start_idx, record_idx)
-
-    return start_idx
+                                 args.visualize,
+                                 args.gui,
+                                 args.launch,
+                                 args.world)
 
 
 class ResultsToDynamicsDataset:
@@ -64,13 +55,27 @@ class ResultsToDynamicsDataset:
                  outdir: pathlib.Path,
                  labeling_params: pathlib.Path,
                  trial_indices: List[int],
-                 visualize: bool):
+                 visualize: bool,
+                 gui: bool,
+                 launch: str,
+                 world: str):
+        self.service_provider = GazeboServices()
+        self.launch = launch
+        self.gui = gui
+        self.world = world
+
+        launch_params = {
+            'launch': self.launch,
+            'world':  self.world,
+        }
+        if self.launch is not None:
+            self.service_provider.launch(launch_params, gui=self.gui, world=launch_params['world'])
+
         self.visualize = visualize
         self.viz_id = 0
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
         self.scenario.on_before_get_state_or_execute_action()
         self.scenario.grasp_rope_endpoints(settling_time=0.0)
-        self.service_provider = GazeboServices()
 
         outdir.mkdir(exist_ok=True, parents=True)
 
@@ -85,20 +90,28 @@ class ResultsToDynamicsDataset:
         self.threshold = self.labeling_params['threshold']
 
         results_utils.save_dynamics_dataset_hparams(self.scenario, results_dir, outdir, self.metadata)
-        self.example_idx = get_start_idx(outdir)
+        self.example_idx = 0
 
         from time import perf_counter
         t0 = perf_counter()
 
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
-            print(f"trial {trial_idx}")
-            for example in self.result_datum_to_dynamics_dataset(datum):
+            def on_timeout():
+                self.service_provider.kill()
+                self.service_provider.launch(launch_params, gui=self.gui, world=launch_params['world'])
+                rospy.sleep(5)
+                self.scenario.on_before_get_state_or_execute_action()
+                self.scenario.grasp_rope_endpoints(settling_time=0.0)
+
+            example_idx_for_trial = 0
+            for example in retry_on_timeout(10, on_timeout, self.result_datum_to_dynamics_dataset, datum):
                 now = perf_counter()
-                print(f'{self.example_idx} dt={now - t0:.3f}')
+                print(f'Trial {trial_idx} Example {self.example_idx} dt={now - t0:.3f}')
                 example.pop('joint_names')
                 example = make_dict_tf_float32(example)
                 tf_write_example(outdir, example, self.example_idx)
-                self.example_idx += 1
+                self.example_idx = 10000 * trial_idx + example_idx_for_trial
+                example_idx_for_trial += 1
                 t0 = now
 
     def result_datum_to_dynamics_dataset(self, datum: Dict):
@@ -137,9 +150,11 @@ class ResultsToDynamicsDataset:
         for child in tree.children:
             # if we only have one child we can skip the restore, this speeds things up a lot
             if len(tree.children) > 1 or depth == 0:
-                self.scenario.restore_from_bag_rushed(service_provider=self.service_provider,
-                                                      params=planner_params,
-                                                      bagfile_name=bagfile_name)
+                deal_with_exceptions('retry',
+                                     lambda: self.scenario.restore_from_bag_rushed(
+                                         service_provider=self.service_provider,
+                                         params=planner_params,
+                                         bagfile_name=bagfile_name))
 
             action = child.action
             before_state, after_state = self.execute(action)
