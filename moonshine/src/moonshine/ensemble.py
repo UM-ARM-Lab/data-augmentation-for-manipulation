@@ -23,6 +23,7 @@ class Ensemble:
         self.action_description = self.hparams['dynamics_dataset_hparams']['action_description']
 
         self.nets: List[MyKerasModel] = []
+        # NOTE: this abstraction assumes everything is a NN, specifically a MyKerasModel which is not great
         for model_dir in model_dirs:
             net, ckpt = self.make_net_and_checkpoint(batch_size, scenario)
             manager = tf.train.CheckpointManager(ckpt, model_dir, max_to_keep=1)
@@ -36,7 +37,16 @@ class Ensemble:
 
             self.nets.append(net)
 
-    def make_net_and_checkpoint(self, batch_size, scenario) -> Tuple[MyKerasModel, tf.train.Checkpoint]:
+    def make_net_and_checkpoint(self, batch_size, scenario):
+        """
+
+        Args:
+            batch_size:
+            scenario:
+
+        Returns:
+            A callable that takes in a dictionary of batched tensors and returns an output dictionary of batched tensors
+        """
         raise NotImplementedError()
 
     def from_example(self, example, training: bool = False):

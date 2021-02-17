@@ -6,7 +6,7 @@ from my_cfm.cfm import CFMLatentDynamics
 from moonshine.filepath_tools import load_trial
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 from state_space_dynamics.image_cond_dyn import ImageCondDynamicsWrapper
-from state_space_dynamics.unconstrained_dynamics_nn import UDNNWrapper
+from state_space_dynamics.unconstrained_dynamics_nn import UDNNWrapper, UDNNWithRobotKinematicsWrapper
 
 
 def load_generic_model(model_dirs: List[pathlib.Path]) -> Tuple[BaseDynamicsFunction, Tuple[str]]:
@@ -16,15 +16,18 @@ def load_generic_model(model_dirs: List[pathlib.Path]) -> Tuple[BaseDynamicsFunc
     _, common_hparams = load_trial(representative_model_dir.parent.absolute())
     scenario_name = common_hparams['dynamics_dataset_hparams']['scenario']
     scenario = get_scenario(scenario_name)
-    model_type = common_hparams['model_class']
-    if model_type == 'SimpleNN':
+    model_class = common_hparams['model_class']
+    if model_class == 'SimpleNN':
         nn = UDNNWrapper(model_dirs, batch_size=1, scenario=scenario)
         return nn, representative_model_dir.parts[1:]
-    elif model_type == 'ImageCondDyn':
+    elif model_class == 'UDNN+Robot':
+        nn = UDNNWithRobotKinematicsWrapper(model_dirs, batch_size=1, scenario=scenario)
+        return nn, representative_model_dir.parts[1:]
+    elif model_class == 'ImageCondDyn':
         nn = ImageCondDynamicsWrapper(model_dirs, batch_size=1, scenario=scenario)
         return nn, representative_model_dir.parts[1:]
-    elif model_type == 'CFM':
+    elif model_class == 'CFM':
         nn = CFMLatentDynamics(model_dirs, batch_size=1, scenario=scenario)
         return nn, representative_model_dir.parts[1:]
     else:
-        raise NotImplementedError("invalid model type {}".format(model_type))
+        raise NotImplementedError("invalid model type {}".format(model_class))

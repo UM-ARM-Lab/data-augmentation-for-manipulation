@@ -168,7 +168,7 @@ def eval_main(dataset_dirs: List[pathlib.Path],
 
     metrics = runner.val_epoch(tf_dataset)
     for metric_name, metric_value in metrics.items():
-        print(f"{metric_name:30s}: {metric_value}")
+        print(f"{metric_name:30s}: {metric_value:.4f}")
     return metrics
 
 

@@ -77,4 +77,40 @@ class UDNNWrapper(BaseDynamicsFunction):
         return net, ckpt
 
 
-model = UnconstrainedDynamicsNN
+class WithRobotKinematics:
+
+    def __init__(self, base_model):
+        self.base_model = base_model
+        for k, v in dir(base_model):
+            self.__setattr__(k, v)
+
+    def __call__(self, example, training: bool, **kwargs):
+        output: Dict = self.base_model(example, training, **kwargs)
+        output['joint_positions'] = example['joint_positions'] + example['joint_positions_action']
+        return output
+
+
+class UDNNWithRobotKinematics:
+
+    def __init__(self, net: UnconstrainedDynamicsNN):
+        self.net = net
+        # copy things we need, the reason I'm not just doing net.__call__ = my_overload is that for some reason that
+        # doesn't change net() from calling the TF __call__
+        self.preprocess_no_gradient = net.preprocess_no_gradient
+        self.state_keys = net.state_keys + ['joint_positions']
+        self.action_keys = net.action_keys
+        self.scenario = net.scenario
+
+    def __call__(self, example: Dict, training: bool, **kwargs):
+        out = self.net(example, training, **kwargs)
+        out['joint_positions'] = example['joint_positions_action']
+        return out
+
+
+class UDNNWithRobotKinematicsWrapper(BaseDynamicsFunction):
+
+    def make_net_and_checkpoint(self, batch_size, scenario):
+        net = UnconstrainedDynamicsNN(hparams=self.hparams, batch_size=batch_size, scenario=scenario)
+        ckpt = tf.train.Checkpoint(model=net)
+        net = UDNNWithRobotKinematics(net)
+        return net, ckpt

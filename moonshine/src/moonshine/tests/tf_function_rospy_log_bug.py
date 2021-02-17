@@ -13,13 +13,13 @@ def my_tf_function(x):
 
 
 def my_nontf_function_with_logging(x):
-    rospy.logerr_once("my_nontf_function_with_logging")
+    rospy.logerr("my_nontf_function_with_logging")
     return tf.square(x)
 
 
 @tf.function
 def my_tf_function_with_logging(x):
-    rospy.logerr_once("my_ntf_function_with_logging")
+    rospy.logerr("my_tf_function_with_logging")
     return tf.square(x)
 
 
