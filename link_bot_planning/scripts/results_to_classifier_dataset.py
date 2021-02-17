@@ -2,6 +2,7 @@
 import argparse
 import pathlib
 import tempfile
+from time import sleep
 from typing import Dict, List, Optional
 
 import colorama
@@ -99,7 +100,7 @@ class ResultsToDynamicsDataset:
             def on_timeout():
                 self.service_provider.kill()
                 self.service_provider.launch(launch_params, gui=self.gui, world=launch_params['world'])
-                rospy.sleep(5)
+                sleep(5)
                 self.scenario.on_before_get_state_or_execute_action()
                 self.scenario.grasp_rope_endpoints(settling_time=0.0)
 
