@@ -35,8 +35,8 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         super().on_before_get_state_or_execute_action()
 
         self.robot.store_tool_orientations({
-            self.robot.right_tool_name: self.left_preferred_tool_orientation,
-            self.robot.left_tool_name:  self.right_preferred_tool_orientation
+            self.robot.right_tool_name: self.right_preferred_tool_orientation,
+            self.robot.left_tool_name:  self.left_preferred_tool_orientation
         })
 
         # register kinematic controllers for fake-grasping
