@@ -2,18 +2,17 @@ import json
 import pathlib
 import re
 import threading
-from time import sleep
 from typing import Dict, Optional, List
 
 import hjson
 
-from link_bot_planning.my_planner import PlanningResult
+from link_bot_planning.my_planner import PlanningResult, LoggingTree
 from link_bot_planning.plan_and_execute import ExecutionResult
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.serialization import load_gzipped_pickle, my_hdump
-from moonshine.filepath_tools import load_json, load_params
+from moonshine.filepath_tools import load_params
 from moonshine.moonshine_utils import numpify
 
 
@@ -107,15 +106,23 @@ def get_paths(datum: Dict, scenario: ExperimentScenario, show_tree: bool = False
         all_predicted_states.extend(predicted_states[:-1])
 
         if show_tree and step['type'] == 'executed_plan':
-            def _draw_tree_function(scenario, tree_json):
-                print(f"n vertices {len(tree_json['vertices'])}")
-                for vertex in tree_json['vertices']:
-                    scenario.plot_tree_state(vertex, color='#77777722')
-                    sleep(0.001)
+            def _draw_tree_function(scenario: ExperimentScenario, tree: LoggingTree):
+                # DFS
+                stack = [tree]
+                while not len(stack) == 0:
+                    n = stack.pop(-1)
+                    scenario.plot_tree_state(n.state, a=0.3)
+                    for child in n.children:
+                        stack.append(child)
+
+                        # visualize
+                        scenario.plot_tree_state(child.state, a=0.3)
+                        if n.action is not None:
+                            scenario.plot_tree_action(n.state, child.action, a=0.3)
 
             planning_result: PlanningResult = step['planning_result']
             tree_thread = threading.Thread(target=_draw_tree_function,
-                                           args=(scenario, planning_result.tree,))
+                                           args=(scenario, planning_result.tree))
             tree_thread.start()
     # but do add the actual final states
     all_actual_states.append(actual_states[-1])

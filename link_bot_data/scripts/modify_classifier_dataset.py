@@ -7,7 +7,6 @@ import colorama
 
 import rospy
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.modify_dataset import modify_dataset
 from link_bot_pycommon.args import my_formatter
 

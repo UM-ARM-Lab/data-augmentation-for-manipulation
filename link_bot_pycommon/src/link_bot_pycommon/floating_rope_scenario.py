@@ -846,6 +846,11 @@ class FloatingRopeScenario(Base3DScenario):
     def plot_state_rviz(self, state: Dict, **kwargs):
         label = kwargs.get("label", "")
         color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
+        if 'a' in kwargs:
+            color_msg.a = kwargs['a']
+            a = kwargs['a']
+        else:
+            a = 1.0
         idx = kwargs.get("idx", 0)
 
         msg = MarkerArray()
@@ -870,24 +875,24 @@ class FloatingRopeScenario(Base3DScenario):
             msg.markers.extend(markers)
 
         if 'left_gripper' in state:
-            left_gripper_sphere = make_gripper_marker(state['left_gripper'], next(ig), ColorRGBA(0.2, 0.2, 0.8, 1.0),
+            left_gripper_sphere = make_gripper_marker(state['left_gripper'], next(ig), ColorRGBA(0.2, 0.2, 0.8, a),
                                                       label + '_l', Marker.SPHERE)
             msg.markers.append(left_gripper_sphere)
 
         if 'right_gripper' in state:
-            right_gripper_sphere = make_gripper_marker(state['right_gripper'], next(ig), ColorRGBA(0.8, 0.8, 0.2, 1.0),
+            right_gripper_sphere = make_gripper_marker(state['right_gripper'], next(ig), ColorRGBA(0.8, 0.8, 0.2, a),
                                                        label + "_r", Marker.SPHERE)
             msg.markers.append(right_gripper_sphere)
 
         if add_predicted('left_gripper') in state:
             lgpp = state[add_predicted('left_gripper')]
-            left_gripper_sphere = make_gripper_marker(lgpp, next(ig), ColorRGBA(0.2, 0.2, 0.8, 1.0), label + "_lp",
+            left_gripper_sphere = make_gripper_marker(lgpp, next(ig), ColorRGBA(0.2, 0.2, 0.8, a), label + "_lp",
                                                       Marker.CUBE)
             msg.markers.append(left_gripper_sphere)
 
         if add_predicted('right_gripper') in state:
             rgpp = state[add_predicted('right_gripper')]
-            right_gripper_sphere = make_gripper_marker(rgpp, next(ig), ColorRGBA(0.8, 0.8, 0.2, 1.0), label + "_rp",
+            right_gripper_sphere = make_gripper_marker(rgpp, next(ig), ColorRGBA(0.8, 0.8, 0.2, a), label + "_rp",
                                                        Marker.CUBE)
             msg.markers.append(right_gripper_sphere)
 

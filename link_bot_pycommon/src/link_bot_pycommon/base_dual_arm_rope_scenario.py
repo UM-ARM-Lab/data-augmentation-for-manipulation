@@ -243,69 +243,66 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         grippers_out_of_bounds = self.grippers_out_of_bounds(state['left_gripper'], state['right_gripper'], params)
         return super().needs_reset(state, params) or grippers_out_of_bounds
 
-        def is_motion_feasible(self, environment: Dict, state: Dict, action: Dict):
-            rospy.logerr_throttle(10, "Deprecated!")
-            return self.follow_jacobian_from_state_action(environment, state, action)
+    def is_motion_feasible(self, environment: Dict, state: Dict, action: Dict):
+        rospy.logerr_throttle(10, "Deprecated!")
+        return self.follow_jacobian_from_state_action(environment, state, action)
 
-        def follow_jacobian_from_state_action(self, environment: Dict, state: Dict, action: Dict):
-            example = {}
-            example.update(environment)
-            example.update(state)
-            example.update(action)
-            return self.follow_jacobian_from_example(example)
+    def follow_jacobian_from_state_action(self, environment: Dict, state: Dict, action: Dict):
+        example = {}
+        example.update(environment)
+        example.update(state)
+        example.update(action)
+        return self.follow_jacobian_from_example(example)
 
-        def follow_jacobian_from_example(self, example: Dict, j: Optional[JacobianFollower] = None):
-            """
-            The "environment" is not used here, instead the C++ library inside self.jacobian_follower queries the MoveIt
-            planning scene monitor, and that's what's used. environment here is, for now, only the voxel grid representation
-            Args:
-                environment:
-                state:
-                action:
+    def follow_jacobian_from_example(self, example: Dict):
+        """
+        The "environment" is not used here, instead the C++ library inside self.jacobian_follower queries the MoveIt
+        planning scene monitor, and that's what's used. environment here is, for now, only the voxel grid representation
+        Args:
+            environment:
+            state:
+            action:
 
-            Returns:
+        Returns:
 
-            """
-            if j is None:
-                j = self.no_cc_jacobian_follower
+        """
+        joint_state = self.joint_state_msg_from_state_dict(example)
+        self.robot.display_robot_state(joint_state, label='check_feasible')
 
-            joint_state = self.joint_state_msg_from_state_dict(example)
-            self.robot.display_robot_state(joint_state, label='check_feasible')
+        left_gripper_points = [example['left_gripper_position']]
+        right_gripper_points = [example['right_gripper_position']]
+        tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
+        grippers = [left_gripper_points, right_gripper_points]
 
-            left_gripper_points = [example['left_gripper_position']]
-            right_gripper_points = [example['right_gripper_position']]
-            tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
-            grippers = [left_gripper_points, right_gripper_points]
+        preferred_tool_orientations = []
+        for tool_name in tool_names:
+            if 'left' in tool_name:
+                preferred_tool_orientations.append(self.left_preferred_tool_orientation)
+            elif 'right' in tool_name:
+                preferred_tool_orientations.append(self.right_preferred_tool_orientation)
+            else:
+                raise NotImplementedError()
+        # NOTE: we don't use environment here because we assume the planning scenes is static,
+        #  so the jacobian follower will already have that information.
+        robot_state = RobotState()
+        robot_state.joint_state.name = example['joint_names']
+        robot_state.joint_state.position = example['joint_positions']
+        robot_state.joint_state.velocity = [0.0] * self.get_n_joints()
+        plan: RobotTrajectory
+        target_reached: bool
+        plan, target_reached = self.robot.jacobian_follower.plan_from_start_state(
+            start_state=robot_state,
+            group_name='both_arms',
+            tool_names=tool_names,
+            preferred_tool_orientations=preferred_tool_orientations,
+            grippers=grippers,
+            max_velocity_scaling_factor=0.1,
+            max_acceleration_scaling_factor=0.1,
+        )
 
-            preferred_tool_orientations = []
-            for tool_name in tool_names:
-                if 'left' in tool_name:
-                    preferred_tool_orientations.append(self.left_preferred_tool_orientation)
-                elif 'right' in tool_name:
-                    preferred_tool_orientations.append(self.right_preferred_tool_orientation)
-                else:
-                    raise NotImplementedError()
-            # NOTE: we don't use environment here because we assume the planning scenes is static,
-            #  so the jacobian follower will already have that information.
-            robot_state = RobotState()
-            robot_state.joint_state.name = example['joint_names']
-            robot_state.joint_state.position = example['joint_positions']
-            robot_state.joint_state.velocity = [0.0] * self.get_n_joints()
-            plan: RobotTrajectory
-            target_reached: bool
-            plan, target_reached = j.plan_from_start_state(
-                start_state=robot_state,
-                group_name='both_arms',
-                tool_names=tool_names,
-                preferred_tool_orientations=preferred_tool_orientations,
-                grippers=grippers,
-                max_velocity_scaling_factor=0.1,
-                max_acceleration_scaling_factor=0.1,
-            )
+        predicted_joint_positions = get_joint_positions_given_state_and_plan(plan, example)
 
-            predicted_joint_positions = get_joint_positions_given_state_and_plan(plan, example)
-
-            return target_reached, predicted_joint_positions
+        return target_reached, predicted_joint_positions
 
     def is_moveit_robot_in_collision(self, environment: Dict, state: Dict, action: Dict):
         example = {}

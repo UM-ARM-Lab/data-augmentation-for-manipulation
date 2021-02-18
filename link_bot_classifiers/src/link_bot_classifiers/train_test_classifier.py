@@ -215,7 +215,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
     ###############
     tf_dataset = batch_tf_dataset(tf_dataset, batch_size, drop_remainder=True)
 
-    model = classifier_utils.load_generic_model([checkpoint])
+    model = classifier_utils.load_generic_model(checkpoint)
 
     fn = 0
     fp = 0
@@ -288,13 +288,10 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                                           ExperimentScenario.plot_stdev_t,
                                           ])
 
-            print(f'{batch_idx}\t{b}\t{probabilities[b, 0, 0]:.2f}')
-
             with open("debugging.hjson", 'w') as f:
                 example_b_np = numpify(example_b)
                 my_hdump(example_b_np, f)
             anim.play(example_b)
-            # print(fn / (fn + fp), fp / (fn + fp))
 
     print(fn / (fn + fp), fp / (fn + fp))
 
