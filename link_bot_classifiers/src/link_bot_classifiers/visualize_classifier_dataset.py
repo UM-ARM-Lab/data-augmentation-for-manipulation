@@ -38,22 +38,22 @@ def visualize_dataset(args, classifier_dataset):
         example = remove_batch(example)
 
         is_close = example['is_close'].numpy().squeeze()
-        count += is_close.shape[0]
+        count += 1
 
         n_close = np.count_nonzero(is_close[-1])
         n_far = is_close.shape[0] - n_close
-        positive_count += n_close
-        negative_count += n_far
         starts_far = is_close[0] == 0
+        negative = np.any(is_close[1:])
+        positive = not negative
         reconverging = n_far > 0 and is_close[-1]
 
         if args.only_reconverging and not reconverging:
             continue
 
-        if args.only_negative and np.any(is_close[1:]):
+        if args.only_negative and negative:
             continue
 
-        if args.only_positive and not np.any(is_close[1:]):
+        if args.only_positive and positive:
             continue
 
         if args.only_starts_far and not starts_far:
@@ -61,8 +61,11 @@ def visualize_dataset(args, classifier_dataset):
 
         # print(f"Example {i}, Trajectory #{int(example['traj_idx'])}")
 
-        if count == 0:
-            print_dict(example)
+        if positive:
+            positive_count += 1
+
+        if negative:
+            negative_count += 1
 
         if reconverging:
             reconverging_count += 1
@@ -73,12 +76,13 @@ def visualize_dataset(args, classifier_dataset):
         # Print statistics intermittently
         if count % 1000 == 0:
             print_stats_and_timing(args,
-                                   {'count':              count,
-                                    'reconverging_count': reconverging_count,
-                                    'negative_count':     negative_count,
-                                    'positive_count':     positive_count,
-                                    'starts_far_count':   starts_far_count
-                                    })
+                                   {
+                                       'count':  count,
+                                       'reconverging_count': reconverging_count,
+                                       'negative_count':     negative_count,
+                                       'positive_count':     positive_count,
+                                       'starts_far_count':   starts_far_count
+                                   })
 
         #############################
         # Show Visualization

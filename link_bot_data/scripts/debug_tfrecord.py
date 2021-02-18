@@ -27,7 +27,7 @@ def main():
             print("No tfrecords found")
             return
 
-    for filename in filenames:
+    for filename in sorted(filenames):
         example = next(iter(tf.data.TFRecordDataset(filename.as_posix(), compression_type='ZLIB'))).numpy()
         message = tf.train.Example.FromString(example)
         dict_message = MessageToDict(message)
