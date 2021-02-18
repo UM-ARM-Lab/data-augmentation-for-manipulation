@@ -25,6 +25,25 @@ from sensor_msgs.msg import JointState, PointCloud2
 from tf.transformations import quaternion_from_euler
 
 
+def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, state: Dict):
+    if len(plan.joint_trajectory.points) == 0:
+        predicted_joint_positions = state['joint_positions']
+    else:
+        final_point: JointTrajectoryPoint = plan.joint_trajectory.points[-1]
+        predicted_joint_positions = []
+        for joint_name in state['joint_names']:
+            if joint_name in plan.joint_trajectory.joint_names:
+                joint_idx_in_final_point = plan.joint_trajectory.joint_names.index(joint_name)
+                joint_position = final_point.positions[joint_idx_in_final_point]
+            elif joint_name in state['joint_names']:
+                joint_idx_in_state = state['joint_names'].index(joint_name)
+                joint_position = float(state['joint_positions'][joint_idx_in_state])
+            else:
+                raise ValueError(f"joint {joint_name} is in neither the start state nor the the planed trajectory")
+            predicted_joint_positions.append(joint_position)
+    return predicted_joint_positions
+
+
 class BaseDualArmRopeScenario(FloatingRopeScenario):
     DISABLE_CDCPD = True
     ROPE_NAMESPACE = 'rope_3d'
@@ -192,11 +211,33 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         return res.all_model_names
 
     def is_motion_feasible(self, environment: Dict, state: Dict, action: Dict):
-        joint_state = self.joint_state_msg_from_state_dict(state)
+        rospy.logerr_throttle(10, "Deprecated!")
+        return self.follow_jacobian_from_state_action(environment, state, action)
+
+    def follow_jacobian_from_state_action(self, environment: Dict, state: Dict, action: Dict):
+        example = {}
+        example.update(environment)
+        example.update(state)
+        example.update(action)
+        return self.follow_jacobian_from_example(example)
+
+    def follow_jacobian_from_example(self, example: Dict):
+        """
+        The "environment" is not used here, instead the C++ library inside self.jacobian_follower queries the MoveIt
+        planning scene monitor, and that's what's used. environment here is, for now, only the voxel grid representation
+        Args:
+            environment:
+            state:
+            action:
+
+        Returns:
+
+        """
+        joint_state = self.joint_state_msg_from_state_dict(example)
         self.robot.display_robot_state(joint_state, label='check_feasible')
 
-        left_gripper_points = [action['left_gripper_position']]
-        right_gripper_points = [action['right_gripper_position']]
+        left_gripper_points = [example['left_gripper_position']]
+        right_gripper_points = [example['right_gripper_position']]
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         grippers = [left_gripper_points, right_gripper_points]
 
@@ -211,12 +252,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         # NOTE: we don't use environment here because we assume the planning scenes is static,
         #  so the jacobian follower will already have that information.
         robot_state = RobotState()
-        robot_state.joint_state.name = state['joint_names']
-        robot_state.joint_state.position = state['joint_positions']
+        robot_state.joint_state.name = example['joint_names']
+        robot_state.joint_state.position = example['joint_positions']
         robot_state.joint_state.velocity = [0.0] * self.get_n_joints()
         plan: RobotTrajectory
         target_reached: bool
-        plan, target_reached = self.robot.jacobian_follower.plan_from_start_state(
+        plan, target_reached = self.robot.jacobian_follower.plan_from_start_state_no_cc(
             start_state=robot_state,
             group_name='both_arms',
             tool_names=tool_names,
@@ -226,22 +267,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
             max_acceleration_scaling_factor=0.1,
         )
 
-        if len(plan.joint_trajectory.points) == 0:
-            predicted_joint_positions = state['joint_positions']
-        else:
-            final_point: JointTrajectoryPoint = plan.joint_trajectory.points[-1]
-            robot_state.joint_state.position = state['joint_positions']
-            predicted_joint_positions = []
-            for joint_name in state['joint_names']:
-                if joint_name in plan.joint_trajectory.joint_names:
-                    joint_idx_in_final_point = plan.joint_trajectory.joint_names.index(joint_name)
-                    joint_position = final_point.positions[joint_idx_in_final_point]
-                elif joint_name in state['joint_names']:
-                    joint_idx_in_state = state['joint_names'].index(joint_name)
-                    joint_position = float(state['joint_positions'][joint_idx_in_state])
-                else:
-                    raise ValueError(f"joint {joint_name} is in neither the start state nor the the planed trajectory")
-                predicted_joint_positions.append(joint_position)
+        predicted_joint_positions = get_joint_positions_given_state_and_plan(plan, example)
 
         return target_reached, predicted_joint_positions
 

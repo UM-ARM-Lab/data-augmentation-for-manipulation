@@ -8,7 +8,6 @@ from typing import Dict, List, Optional
 import colorama
 import numpy as np
 
-import rospy
 from arc_utilities import ros_init
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error
 from link_bot_data.dataset_utils import tf_write_example, add_predicted
@@ -18,7 +17,7 @@ from link_bot_planning.my_planner import PlanningResult, PlanningQuery, LoggingT
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.pycommon import make_dict_tf_float32, retry_on_timeout, deal_with_exceptions
+from link_bot_pycommon.pycommon import make_dict_tf_float32, deal_with_exceptions, skip_on_timeout
 from moonshine.filepath_tools import load_json
 from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch
 
@@ -93,6 +92,8 @@ class ResultsToDynamicsDataset:
         results_utils.save_dynamics_dataset_hparams(self.scenario, results_dir, outdir, self.metadata)
         self.example_idx = 0
 
+        timeout = 30
+
         from time import perf_counter
         t0 = perf_counter()
 
@@ -100,22 +101,36 @@ class ResultsToDynamicsDataset:
             def on_timeout():
                 self.service_provider.kill()
                 self.service_provider.launch(launch_params, gui=self.gui, world=launch_params['world'])
-                sleep(5)
+                sleep(30)
                 self.scenario.on_before_get_state_or_execute_action()
                 self.scenario.grasp_rope_endpoints(settling_time=0.0)
 
             example_idx_for_trial = 0
-            for example in retry_on_timeout(10, on_timeout, self.result_datum_to_dynamics_dataset, datum):
-                now = perf_counter()
-                print(f'Trial {trial_idx} Example {self.example_idx} dt={now - t0:.3f}')
-                example.pop('joint_names')
-                example = make_dict_tf_float32(example)
-                tf_write_example(outdir, example, self.example_idx)
-                self.example_idx = 10000 * trial_idx + example_idx_for_trial
-                example_idx_for_trial += 1
-                t0 = now
 
-    def result_datum_to_dynamics_dataset(self, datum: Dict):
+            itr = skip_on_timeout(30, on_timeout, self.result_datum_to_dynamics_dataset, datum, trial_idx)
+            while True:
+                try:
+                    t0 = perf_counter()
+                    # example, timed_out = catch_timeout(timeout, next, itr)
+                    example = next(itr)
+                    timed_out = False
+                    now = perf_counter()
+                    dt = now - t0
+
+                    if timed_out:
+                        on_timeout()
+                        break
+                    else:
+                        print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}')
+                        example.pop('joint_names')
+                        example = make_dict_tf_float32(example)
+                        tf_write_example(outdir, example, self.example_idx)
+                        self.example_idx = 10000 * trial_idx + example_idx_for_trial
+                        example_idx_for_trial += 1
+                except StopIteration:
+                    break
+
+    def result_datum_to_dynamics_dataset(self, datum: Dict, trial_idx: int):
         steps = datum['steps']
         setup_info = datum['setup_info']
         planner_params = datum['planner_params']
@@ -209,10 +224,11 @@ class ResultsToDynamicsDataset:
                                                          out_example=example_batched,
                                                          labeling_params=self.labeling_params,
                                                          batch_size=1)
-            if valid_out_examples_batched['time_idx'].shape[0] == 1:
+            test_shape = valid_out_examples_batched['time_idx'].shape[0]
+            if test_shape == 1:
                 valid_out_example = remove_batch(valid_out_examples_batched)
                 yield valid_out_example
-            if valid_out_examples_batched['time_idx'].shape[0] > 1:
+            elif test_shape > 1:
                 raise ValueError()
 
             yield from self.dfs(planner_params, planning_query, child, depth=depth + 1)
@@ -245,7 +261,7 @@ class ResultsToDynamicsDataset:
 def store_bagfile():
     joint_state, links_states = get_states_to_save()
     bagfile_name = pathlib.Path(tempfile.NamedTemporaryFile().name)
-    return save_test_scene_given_name(joint_state, links_states, bagfile_name)
+    return save_test_scene_given_name(joint_state, links_states, bagfile_name, force=True)
 
 
 if __name__ == '__main__':

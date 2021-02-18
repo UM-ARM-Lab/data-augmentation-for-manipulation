@@ -8,7 +8,7 @@ from link_bot_gazebo_python.gazebo_services import GazeboServices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from link_bot_pycommon.grid_utils import point_to_idx_3d_in_env
-from link_bot_pycommon.pycommon import longest_reconverging_subsequence, trim_reconverging, timeout, retry_on_timeout
+from link_bot_pycommon.pycommon import longest_reconverging_subsequence, trim_reconverging, catch_timeout, retry_on_timeout
 from link_bot_pycommon.ros_pycommon import make_movable_object_services
 
 
@@ -42,7 +42,7 @@ class Test(TestCase):
                 sleep(_d)
                 return _d
 
-            d_out, timed_out = timeout(3, f, d)
+            d_out, timed_out = catch_timeout(3, f, d)
             if d > 3:
                 self.assertTrue(timed_out)
             else:

@@ -304,7 +304,7 @@ class NNClassifier(MyKerasModel):
 # FIXME: inherit from Ensemble
 class NNClassifierWrapper(BaseConstraintChecker):
 
-    def __init__(self, paths: List[pathlib.Path], batch_size: int, scenario: ExperimentScenario):
+    def __init__(self, path: pathlib.Path, batch_size: int, scenario: ExperimentScenario):
         """
         Unlike the BaseConstraintChecker, this takes in list of paths, like cl_trials/dir1/dir2/best_checkpoint
         Args:
@@ -312,7 +312,7 @@ class NNClassifierWrapper(BaseConstraintChecker):
             batch_size:
             scenario:
         """
-        super().__init__(paths[0].parent, scenario)
+        super().__init__(path, scenario)
         self.name = self.__class__.__name__
         # FIXME: Bad API design
         assert isinstance(scenario, Base3DScenario)
@@ -324,7 +324,8 @@ class NNClassifierWrapper(BaseConstraintChecker):
         net_class_name = self.get_net_class()
 
         self.nets = []
-        for model_dir in paths:
+        # FIXME: hack
+        for model_dir in [path]:
             net = net_class_name(hparams=self.hparams, batch_size=batch_size, scenario=scenario)
 
             ckpt = tf.train.Checkpoint(model=net)

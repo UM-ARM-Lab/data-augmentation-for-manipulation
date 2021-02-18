@@ -103,7 +103,8 @@ class UDNNWithRobotKinematics:
 
     def __call__(self, example: Dict, training: bool, **kwargs):
         out = self.net(example, training, **kwargs)
-        out['joint_positions'] = example['joint_positions_action']
+        _, predicted_joint_positions = self.follow_jacobian_from_example(example)
+        out['joint_positions'] = predicted_joint_positions
         return out
 
 
