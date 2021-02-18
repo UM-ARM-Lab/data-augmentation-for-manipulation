@@ -1,0 +1,7 @@
+{
+  model_class: collision
+  local_h_rows: 100
+  local_w_cols: 100
+  local_c_channels: 100
+  res: 0.01
+}
