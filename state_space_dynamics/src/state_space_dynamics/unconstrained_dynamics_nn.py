@@ -4,7 +4,7 @@ import tensorflow as tf
 import tensorflow.keras.layers as layers
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
+from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict, numpify
 from moonshine.my_keras_model import MyKerasModel
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
@@ -103,7 +103,8 @@ class UDNNWithRobotKinematics:
 
     def __call__(self, example: Dict, training: bool, **kwargs):
         out = self.net(example, training, **kwargs)
-        _, predicted_joint_positions = self.follow_jacobian_from_example(example)
+        example_np = numpify(example)
+        _, predicted_joint_positions = self.scenario.follow_jacobian_from_example(example_np, check_collision=False)
         out['joint_positions'] = predicted_joint_positions
         return out
 

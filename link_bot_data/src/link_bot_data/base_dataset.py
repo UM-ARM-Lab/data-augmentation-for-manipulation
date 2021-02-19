@@ -104,7 +104,7 @@ class BaseDatasetLoader:
                     msg = "Datasets have differing values for the hparam {}, using value {}".format(k, self.hparams[k])
                     print(Fore.RED + msg + Fore.RESET)
 
-        self.scenario_metadata = self.hparams.get('scenario_metadata', {})
+        self.scenario_metadata = dict(self.hparams.get('scenario_metadata', {}))
 
     def get_datasets(self,
                      mode: str,

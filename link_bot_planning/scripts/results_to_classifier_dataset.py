@@ -17,7 +17,7 @@ from link_bot_planning.my_planner import PlanningResult, PlanningQuery, LoggingT
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.pycommon import make_dict_tf_float32, deal_with_exceptions, skip_on_timeout
+from link_bot_pycommon.pycommon import make_dict_tf_float32, deal_with_exceptions, skip_on_timeout, catch_timeout
 from moonshine.filepath_tools import load_json
 from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch
 
@@ -46,6 +46,10 @@ def main():
                                  args.gui,
                                  args.launch,
                                  args.world)
+
+
+def compute_example_idx(trial_idx, example_idx_for_trial):
+    return 1000 * trial_idx + example_idx_for_trial
 
 
 class ResultsToDynamicsDataset:
@@ -90,14 +94,14 @@ class ResultsToDynamicsDataset:
         self.threshold = self.labeling_params['threshold']
 
         results_utils.save_dynamics_dataset_hparams(self.scenario, results_dir, outdir, self.metadata)
-        self.example_idx = 0
-
         timeout = 30
 
         from time import perf_counter
         t0 = perf_counter()
 
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
+            example_idx_for_trial = 0
+
             def on_timeout():
                 self.service_provider.kill()
                 self.service_provider.launch(launch_params, gui=self.gui, world=launch_params['world'])
@@ -105,15 +109,13 @@ class ResultsToDynamicsDataset:
                 self.scenario.on_before_get_state_or_execute_action()
                 self.scenario.grasp_rope_endpoints(settling_time=0.0)
 
-            example_idx_for_trial = 0
 
             itr = skip_on_timeout(30, on_timeout, self.result_datum_to_dynamics_dataset, datum, trial_idx)
             while True:
                 try:
                     t0 = perf_counter()
-                    # example, timed_out = catch_timeout(timeout, next, itr)
-                    example = next(itr)
-                    timed_out = False
+                    example, timed_out = catch_timeout(timeout, next, itr)
+                    # example = next(itr); timed_out = False
                     now = perf_counter()
                     dt = now - t0
 
@@ -121,11 +123,11 @@ class ResultsToDynamicsDataset:
                         on_timeout()
                         break
                     else:
+                        self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                         print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}')
                         example.pop('joint_names')
                         example = make_dict_tf_float32(example)
                         tf_write_example(outdir, example, self.example_idx)
-                        self.example_idx = 10000 * trial_idx + example_idx_for_trial
                         example_idx_for_trial += 1
                 except StopIteration:
                     break

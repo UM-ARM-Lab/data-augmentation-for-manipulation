@@ -3,6 +3,7 @@ from time import perf_counter
 from typing import Dict, List, Optional
 
 import hjson
+import numpy as np
 import tensorflow as tf
 
 import rospy
@@ -84,9 +85,10 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
     fwd_model_dir = [p / 'best_checkpoint' for p in fwd_model_dir]
 
     dynamics_hparams = hjson.load((dataset_dir / 'hparams.hjson').open('r'))
-    fwd_models, _ = dynamics_utils.load_generic_model(fwd_model_dir)
 
     dataset = DynamicsDatasetLoader([dataset_dir], use_gt_rope=use_gt_rope)
+
+    fwd_models, _ = dynamics_utils.load_generic_model(fwd_model_dir, dataset.scenario)
 
     new_hparams_filename = outdir / 'hparams.hjson'
     classifier_dataset_hparams = dynamics_hparams
@@ -164,6 +166,7 @@ def generate_classifier_examples(fwd_model: BaseDynamicsFunction,
             actual_prediction_horizon = prediction_end_t - start_t
             actual_states_from_start_t = {k: example[k][:, start_t:prediction_end_t] for k in dataset.state_keys}
             actions_from_start_t = {k: example[k][:, start_t:prediction_end_t - 1] for k in dataset.action_keys}
+            actual_states_from_start_t['joint_names'] = np.array(dataset.scenario_metadata['joint_names'])
 
             predictions_from_start_t, _ = fwd_model.propagate_differentiable_batched(environment={},
                                                                                      state=actual_states_from_start_t,
@@ -220,13 +223,14 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
                                    out_example=out_example)
 
         # compute label
-        valid_out_examples = add_model_error(scenario, sliced_actual, sliced_predictions, out_example, labeling_params, prediction_actual.batch_size)
+        valid_out_examples = add_model_error(scenario, sliced_actual, sliced_predictions, out_example, labeling_params,
+                                             prediction_actual.batch_size)
         valid_out_example_batches.append(valid_out_examples)
 
     return valid_out_example_batches
 
 
-def add_model_error(scenario, actual, predictions, out_example, labeling_params: Dict, batch_size : int):
+def add_model_error(scenario, actual, predictions, out_example, labeling_params: Dict, batch_size: int):
     threshold = labeling_params['threshold']
     error = scenario.classifier_distance(actual, predictions)
     out_example['error'] = tf.cast(error, dtype=tf.float32)
