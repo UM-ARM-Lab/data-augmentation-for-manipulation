@@ -37,10 +37,11 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
                  no_execution: Optional[bool] = False,
                  test_scenes_dir: Optional[pathlib.Path] = None,
                  saved_goals_filename: Optional[pathlib.Path] = None,
+                 seed: int = 0,
                  ):
         super().__init__(planner, trials=trials, verbose=verbose, planner_params=planner_params,
                          service_provider=service_provider, no_execution=no_execution, use_gt_rope=use_gt_rope,
-                         test_scenes_dir=test_scenes_dir, saved_goals_filename=saved_goals_filename)
+                         test_scenes_dir=test_scenes_dir, seed=seed)
         self.record = record
         self.outdir = outdir
         self.job_chunker = job_chunker
@@ -137,6 +138,7 @@ def evaluate_planning_method(planner_params: Dict,
                              timeout: Optional[int] = None,
                              test_scenes_dir: Optional[pathlib.Path] = None,
                              saved_goals_filename: Optional[pathlib.Path] = None,
+                             seed: int = 0,
                              ):
     # override some arguments
     if timeout is not None:
@@ -169,7 +171,8 @@ def evaluate_planning_method(planner_params: Dict,
                                 record=record,
                                 no_execution=no_execution,
                                 test_scenes_dir=test_scenes_dir,
-                                saved_goals_filename=saved_goals_filename)
+                                saved_goals_filename=saved_goals_filename,
+                                seed=seed)
     return runner.run()
 
 
@@ -187,6 +190,7 @@ def planning_evaluation(outdir: pathlib.Path,
                         timeout: Optional[int] = None,
                         test_scenes_dir: Optional[pathlib.Path] = None,
                         saved_goals_filename: Optional[pathlib.Path] = None,
+                        seed: int = 0,
                         ):
     ou.setLogLevel(ou.LOG_ERROR)
 
@@ -229,6 +233,7 @@ def planning_evaluation(outdir: pathlib.Path,
                              test_scenes_dir=test_scenes_dir,
                              saved_goals_filename=saved_goals_filename,
                              print_exception=True,
+                             seed=seed,
                              )
 
         rospy.loginfo(f"Results written to {outdir}")

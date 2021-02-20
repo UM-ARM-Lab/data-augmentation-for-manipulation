@@ -119,8 +119,11 @@ class Base3DScenario(AnimatableScenario):
         self.plot_state_rviz(state, idx=self.maybe_rejected_state_idx, label='rejected', color='#fac57f')
         self.maybe_rejected_state_idx += 1
 
-    def plot_current_tree_state(self, state: Dict, horizon: int, **kwargs):
+    def plot_current_tree_state(self, state: Dict, **kwargs):
         self.plot_state_rviz(state, idx=1, label='current_tree_state', **kwargs)
+
+    def plot_current_tree_action(self, state: Dict, action: Dict, **kwargs):
+        self.plot_action_rviz(state, action, idx=1, label='current_tree_action', **kwargs)
 
     def plot_tree_state(self, state: Dict, **kwargs):
         self.plot_state_rviz(state, idx=self.tree_state_idx, label='tree', **kwargs)

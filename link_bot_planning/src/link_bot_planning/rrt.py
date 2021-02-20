@@ -99,7 +99,7 @@ class RRT(MyPlanner):
 
         self.rrt = oc.RRT(self.si)
         self.rrt.setIntermediateStates(True)  # this is necessary, because we use this to generate datasets
-        # self.rrt.setGoalBias(0.5)
+        self.rrt.setGoalBias(0.5)
         self.ss.setPlanner(self.rrt)
         self.si.setMinMaxControlDuration(1, self.params.get('max_steps', 50))
 
@@ -265,7 +265,7 @@ class RRT(MyPlanner):
 
         if 'NNClassifier' in accept_probabilities:
             classifier_probability = accept_probabilities['NNClassifier']
-            alpha = min(classifier_probability * 0.8 + 0.2, 1.0)
+            alpha = min(classifier_probability * 0.8 + 0.2, 0.8)
             classifier_probability_color = cm.Reds_r(classifier_probability)
         else:
             alpha = 0.8
@@ -281,9 +281,12 @@ class RRT(MyPlanner):
                                            b=self.visualize_propogation_color[2],
                                            a=alpha)
 
-        self.scenario.plot_current_tree_state(np_final_state,
-                                              horizon=self.classifier_models[0].horizon,
-                                              color=classifier_probability_color)
+        self.scenario.plot_current_tree_state(np_final_state, color=classifier_probability_color)
+        self.scenario.plot_current_tree_action(previous_state, new_action,
+                                               r=self.visualize_propogation_color[0],
+                                               g=self.visualize_propogation_color[1],
+                                               b=self.visualize_propogation_color[2],
+                                               a=alpha)
 
     def plan(self, planning_query: PlanningQuery):
         self.cleanup_before_plan(planning_query.seed)

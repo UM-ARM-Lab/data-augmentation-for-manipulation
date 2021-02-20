@@ -4,7 +4,7 @@ from typing import Dict
 import numpy as np
 
 from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
-from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl
+from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl, DualGripperControlSampler
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.scenario_ompl import ScenarioOmpl
@@ -284,43 +284,6 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
                                           plot=plot)
         else:
             raise NotImplementedError()
-
-
-# noinspection PyMethodOverriding
-class DualGripperControlSampler(oc.ControlSampler):
-    def __init__(self,
-                 control_space: oc.CompoundControlSpace,
-                 scenario_ompl: ScenarioOmpl,
-                 rng: np.random.RandomState,
-                 action_params: Dict):
-        super().__init__(control_space)
-        self.scenario_ompl = scenario_ompl
-        self.rng = rng
-        self.control_space = control_space
-        self.action_params = action_params
-
-    def sampleNext(self, control_out, previous_control, state):
-        del previous_control
-        del state
-
-        left_phi = self.rng.uniform(-np.pi, np.pi)
-        right_phi = self.rng.uniform(-np.pi, np.pi)
-        left_theta = self.rng.uniform(-np.pi, np.pi)
-        right_theta = self.rng.uniform(-np.pi, np.pi)
-        left_r = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
-        right_r = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
-
-        control_out[0][0] = left_r
-        control_out[0][1] = left_phi
-        control_out[0][2] = left_theta
-
-        control_out[1][0] = right_r
-        control_out[1][1] = right_phi
-        control_out[1][2] = right_theta
-
-    def sampleStepCount(self, min_steps, max_steps):
-        step_count = self.rng.randint(min_steps, max_steps)
-        return step_count
 
 
 # noinspection PyMethodOverriding

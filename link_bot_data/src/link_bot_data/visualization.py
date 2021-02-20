@@ -1,17 +1,15 @@
 from typing import Dict, Optional, List
 
 import numpy as np
-from matplotlib import cm
+from matplotlib import colors
 
 import rospy
 from geometry_msgs.msg import Point
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import vector_to_points_2d
-from moonshine.indexing import index_time_with_metadata, index_time, index_batch_time_with_metadata, index_batch_time, \
-    index_state_action_with_metadata
-from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
-from std_msgs.msg import Float32
+from moonshine.indexing import index_time_with_metadata, index_time
+from std_msgs.msg import Float32, ColorRGBA
 from visualization_msgs.msg import Marker
 
 
@@ -67,15 +65,36 @@ def plot_extents(ax, extent, linewidth=6, **kwargs):
     return line
 
 
+def color_from_kwargs(kwargs, r, g, b, a=1.0):
+    """
+
+    Args:
+        kwargs:
+        r:  default red
+        g:  default green
+        b:  default blue
+        a:  refault alpha
+
+    Returns:
+
+    """
+    if 'color' in kwargs:
+        return ColorRGBA(*colors.to_rgba(kwargs["color"]))
+    else:
+        r = float(kwargs.get("r", r))
+        g = float(kwargs.get("g", g))
+        b = float(kwargs.get("b", b))
+        a = float(kwargs.get("a", a))
+        return ColorRGBA(r, g, b, a)
+
+
 def rviz_arrow(position: np.ndarray,
                target_position: np.ndarray,
-               r: float,
-               g: float,
-               b: float,
-               a: float,
                label: str = 'arrow',
-               idx: int = 0,
                **kwargs):
+    idx = kwargs.get("idx", 0)
+    color = color_from_kwargs(kwargs, 0, 0, 1.0)
+
     arrow = Marker()
     arrow.action = Marker.ADD  # create or modify
     arrow.type = Marker.ARROW
@@ -101,10 +120,7 @@ def rviz_arrow(position: np.ndarray,
     arrow.points.append(start)
     arrow.points.append(end)
 
-    arrow.color.r = r
-    arrow.color.g = g
-    arrow.color.b = b
-    arrow.color.a = a
+    arrow.color = color
 
     return arrow
 
@@ -144,62 +160,6 @@ def classifier_transition_viz_t(metadata: Dict, predicted_state_keys, true_state
             scenario.plot_state_rviz(true_t, label='actual', color='#ff0000ff', scale=1.1)
 
     return _classifier_transition_viz_t
-
-
-def viz_state_action_for_model_t(metadata: Dict, fwd_model: BaseDynamicsFunction):
-    def _viz_state_action_t(scenario: ExperimentScenario, example: Dict, t: int):
-        s_t = index_time_with_metadata(metadata, example, fwd_model.state_keys, t=t)
-        action_s_t, a_t = index_state_action_with_metadata(metadata,
-                                                           example,
-                                                           fwd_model.state_keys,
-                                                           fwd_model.action_keys, t=t)
-        scenario.plot_state_rviz(s_t, label='', color='#ff0000ff')
-        scenario.plot_action_rviz(action_s_t, a_t, label='')
-
-    return _viz_state_action_t
-
-
-def viz_transition_for_model_t(metadata: Dict, fwd_model: BaseDynamicsFunction):
-    def _viz_transition_t(scenario: ExperimentScenario, example: Dict, t: int):
-        action = index_time(example, fwd_model.action_keys, t=t, inclusive=False)
-        s0 = index_time_with_metadata(metadata, example, fwd_model.state_keys, t=0)
-        s1 = index_time_with_metadata(metadata, example, fwd_model.state_keys, t=1)
-        if 'accept_probablity' in example:
-            accept_probability_t = example['accept_probability'][t]
-            color = cm.Reds(accept_probability_t)
-        else:
-            color = "#aa2222aa"
-        scenario.plot_state_rviz(s0, label='', color='#ff0000ff')
-        scenario.plot_state_rviz(s1, label='predicted', color=color)
-        scenario.plot_action_rviz(s0, action, label='')
-
-    return _viz_transition_t
-
-
-def viz_transition_for_model_t_batched(metadata: Dict, fwd_model: BaseDynamicsFunction):
-    def _viz_transition_t(scenario: ExperimentScenario, example: Dict, t: int):
-        action = index_batch_time(example, fwd_model.action_keys, b=t, t=0)
-        s0 = index_batch_time_with_metadata(metadata, example, fwd_model.state_keys, b=t, t=0)
-        s1 = index_batch_time_with_metadata(metadata, example, fwd_model.state_keys, b=t, t=1)
-        if 'accept_probablity' in example:
-            accept_probability_t = example['accept_probability'][t]
-            color = cm.Reds(accept_probability_t)
-        else:
-            color = "#aa2222aa"
-        scenario.plot_state_rviz(s0, label='', color='#ff0000ff')
-        scenario.plot_state_rviz(s1, label='predicted', color=color)
-        scenario.plot_action_rviz(s0, action, label='')
-
-    return _viz_transition_t
-
-
-def init_viz_action_for_model(metadata: Dict, fwd_model: BaseDynamicsFunction):
-    def _init_viz_action(scenario: ExperimentScenario, example: Dict):
-        action = {k: example[k][0] for k in fwd_model.action_keys}
-        pred_0 = index_time_with_metadata(metadata, example, fwd_model.state_keys, t=0)
-        scenario.plot_action_rviz(pred_0, action)
-
-    return _init_viz_action
 
 
 def init_viz_action(metadata: Dict, action_keys, state_keys):

@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--test-scenes-dir", type=pathlib.Path)
     parser.add_argument("--saved-goals-filename", type=pathlib.Path)
     parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
+    parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
     parser.add_argument("--no-execution", action="store_true", help='no execution')
     parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
@@ -58,7 +59,8 @@ def main():
                         saved_goals_filename=args.saved_goals_filename,
                         no_execution=args.no_execution,
                         logfile_name=None,
-                        record=args.record)
+                        record=args.record,
+                        seed=args.seed)
 
 
 if __name__ == '__main__':

@@ -75,9 +75,10 @@ class PlanAndExecute:
                  verbose: int,
                  planner_params: Dict,
                  service_provider: BaseServices,
-                 no_execution: bool, use_gt_rope,
+                 no_execution: bool,
+                 use_gt_rope,
                  test_scenes_dir: Optional[pathlib.Path] = None,
-                 saved_goals_filename: Optional[pathlib.Path] = None):
+                 seed: int = 0):
         self.use_gt_rope = use_gt_rope
         self.planner = planner
         self.scenario = self.planner.scenario
@@ -89,6 +90,7 @@ class PlanAndExecute:
         self.env_rng = np.random.RandomState(0)
         self.goal_rng = np.random.RandomState(0)
         self.recovery_rng = np.random.RandomState(0)
+        self.seed = seed
         self.test_scenes_dir = test_scenes_dir
         if self.planner_params['recovery']['use_recovery']:
             recovery_model_dir = pathlib.Path(self.planner_params['recovery']['recovery_model_dir'])
@@ -171,7 +173,8 @@ class PlanAndExecute:
         total_timeout = self.planner_params['total_timeout']
 
         # Get the goal (default is to randomly sample one)
-        goal = self.get_goal(trial_idx, self.get_environment())
+        environment = self.get_environment()
+        goal = self.get_goal(trial_idx, environment)
 
         attempt_idx = 0
         steps_data = []
@@ -184,13 +187,13 @@ class PlanAndExecute:
             if self.use_gt_rope:
                 start_state = dataset_utils.use_gt_rope(start_state)
 
-            # get the environment, which here means anything which is assumed constant during planning
-            # This includes the occupancy map but can also include things like the initial state of the tether
-            environment = self.get_environment()
+            # NOTE: we have assumed the environment does not change after executing, this is a performance optimization
+            #  because getting the environment can be slow (~10 seconds)
+            # environment = self.get_environment()
 
             # Try to make the seeds reproducible, but it needs to change based on attempt idx or we would just keep
             # trying the same plans over and over
-            seed = 100000 * trial_idx + attempt_idx
+            seed = 100000 * trial_idx + attempt_idx + self.seed
             planning_query = PlanningQuery(goal=goal, environment=environment, start=start_state, seed=seed)
             planning_queries.append(planning_query)
 
@@ -219,7 +222,7 @@ class PlanAndExecute:
                         'trial_idx':        trial_idx,
                         'goal':             goal,
                         'steps':            steps_data,
-                        'end_state': end_state,
+                        'end_state':        end_state,
                     }
                     self.on_trial_complete(trial_data_dict, trial_idx)
                     return
@@ -266,7 +269,7 @@ class PlanAndExecute:
             rospy.loginfo(f"distance to goal after execution is {d:.3f}")
             reached_goal = (d <= self.planner_params['goal_params']['threshold'] + 1e-6)
 
-            if reached_goal or time_since_start > total_timeout:
+            if reached_goal or time_since_start > total_timeout or self.no_execution:
                 if reached_goal:
                     trial_status = TrialStatus.Reached
                     rospy.loginfo(Fore.BLUE + f"Trial {trial_idx} Ended: Goal reached!" + Fore.RESET)
@@ -359,9 +362,9 @@ class PlanAndExecute:
         return self.scenario.get_environment(get_env_params)
 
     def set_random_seeds_for_trial(self, trial_idx: int):
-        self.env_rng.seed(trial_idx)
-        self.recovery_rng.seed(trial_idx)
-        self.goal_rng.seed(trial_idx)
+        self.env_rng.seed(trial_idx + self.seed)
+        self.recovery_rng.seed(trial_idx + self.seed)
+        self.goal_rng.seed(trial_idx + self.seed)
 
     def on_trial_complete(self, trial_data, trial_idx: int):
         pass

@@ -39,7 +39,10 @@ def numpify(x, dtype=np.float32):
             else:
                 return l
     elif isinstance(x, tf.Tensor):
-        return x.numpy()
+        if x.dtype == tf.string:
+            return x.numpy().astype(np.str_)
+        else:
+            return x.numpy()
     elif isinstance(x, tf.Variable):
         return x.numpy()
     elif isinstance(x, dict):

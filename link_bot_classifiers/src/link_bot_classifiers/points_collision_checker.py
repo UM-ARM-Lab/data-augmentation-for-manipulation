@@ -1,14 +1,13 @@
 import pathlib
 from typing import List, Dict, Optional
 
-import hjson
 import tensorflow as tf
 
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 
-DEFAULT_INFLATION_RADIUS = 0.02
+DEFAULT_INFLATION_RADIUS = 0.01
 
 
 def check_collision(scenario, environment, states_sequence, collision_check_object=True):

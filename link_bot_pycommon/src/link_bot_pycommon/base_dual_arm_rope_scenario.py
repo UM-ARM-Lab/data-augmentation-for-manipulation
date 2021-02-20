@@ -1,10 +1,9 @@
 import warnings
-import tensorflow as tf
 from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
-from pyjacobian_follower import JacobianFollower
+import tensorflow as tf
 
 import rosnode
 from moveit_msgs.msg import RobotState, RobotTrajectory
@@ -18,6 +17,7 @@ import rospy
 from arc_utilities.listener import Listener
 from arm_robots.get_robot import get_moveit_robot
 from geometry_msgs.msg import PoseStamped
+from pyjacobian_follower import JacobianFollower
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
@@ -38,7 +38,7 @@ def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, state: Dict)
                 joint_idx_in_final_point = plan.joint_trajectory.joint_names.index(joint_name)
                 joint_position = final_point.positions[joint_idx_in_final_point]
             elif joint_name in state['joint_names']:
-                joint_idx_in_state = state['joint_names'].index(joint_name)
+                joint_idx_in_state = list(state['joint_names']).index(joint_name)
                 joint_position = float(state['joint_positions'][joint_idx_in_state])
             else:
                 raise ValueError(f"joint {joint_name} is in neither the start state nor the the planed trajectory")
@@ -46,19 +46,53 @@ def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, state: Dict)
     return predicted_joint_positions
 
 
-class MyMetaClass(type):
-    @property
-    def no_cc_jacobian_follower(cls):
-        if getattr(cls, '_MY_DATA', None) is None:
-            j = JacobianFollower(robot_namespace=cls.robot_namespace,
-                                 translation_step_size=0.005,
-                                 minimize_rotation=True,
-                                 collision_check=False)
-            cls._MY_DATA = j
-        return cls._MY_DATA
+def joint_state_msg_from_state_dict(state: Dict):
+    joint_state = JointState()
+    joint_state.header.stamp = rospy.Time.now()
+    joint_state.position = state['joint_positions']
+    if isinstance(state['joint_names'][0], bytes):
+        joint_names = [n.decode("utf-8") for n in state['joint_names']]
+    elif isinstance(state['joint_names'][0], str):
+        joint_names = [str(n) for n in state['joint_names']]
+    elif isinstance(state['joint_names'], tf.Tensor):
+        joint_names = [n.decode("utf-8") for n in state['joint_names'].numpy()]
+    else:
+        raise NotImplementedError(type(state['joint_names'][0]))
+    joint_state.name = joint_names
+    return joint_state
 
 
-class BaseDualArmRopeScenario(FloatingRopeScenario, metaclass=MyMetaClass):
+def follow_jacobian_from_example(example: Dict,
+                                 j: JacobianFollower,
+                                 tool_names: List[str],
+                                 preferred_tool_orientations: List):
+    joint_state = joint_state_msg_from_state_dict(example)
+
+    left_gripper_points = [example['left_gripper_position']]
+    right_gripper_points = [example['right_gripper_position']]
+    grippers = [left_gripper_points, right_gripper_points]
+
+    # NOTE: we don't use environment here because we assume the planning scenes is static,
+    #  so the jacobian follower will already have that information.
+    robot_state = RobotState()
+    robot_state.joint_state.name = joint_state.name
+    robot_state.joint_state.position = joint_state.position
+    robot_state.joint_state.velocity = [0.0] * len(example['joint_names'])
+    plan: RobotTrajectory
+    target_reached: bool
+    plan, target_reached = j.plan_from_start_state(start_state=robot_state,
+                                                   group_name='both_arms',
+                                                   tool_names=tool_names,
+                                                   preferred_tool_orientations=preferred_tool_orientations,
+                                                   grippers=grippers,
+                                                   max_velocity_scaling_factor=0.1,
+                                                   max_acceleration_scaling_factor=0.1)
+
+    predicted_joint_positions = get_joint_positions_given_state_and_plan(plan, example)
+    return joint_state, target_reached, predicted_joint_positions
+
+
+class BaseDualArmRopeScenario(FloatingRopeScenario):
     DISABLE_CDCPD = True
     ROPE_NAMESPACE = 'rope_3d'
 
@@ -80,11 +114,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, metaclass=MyMetaClass):
         # FIXME: this blocks until the robot is available, we need lazy construction
         self.robot = get_moveit_robot(self.robot_namespace, raise_on_failure=True)
         self.stored_joint_names = None
-
-        self.no_cc_jacobian_follower = JacobianFollower(robot_namespace=self.robot_namespace,
-                                                        translation_step_size=0.005,
-                                                        minimize_rotation=True,
-                                                        collision_check=False)
 
     def add_boxes_around_tools(self):
         # add spheres to prevent moveit from smooshing the rope and ends of grippers into obstacles
@@ -192,27 +221,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, metaclass=MyMetaClass):
         super().plot_state_rviz(state, **kwargs)
         label = kwargs.pop("label", "")
         if 'joint_positions' in state and 'joint_names' in state:
-            joint_state = self.joint_state_msg_from_state_dict(state)
+            joint_state = joint_state_msg_from_state_dict(state)
             self.robot.display_robot_state(joint_state, label, kwargs.get("color", None))
         elif 'joint_positions' not in state:
             rospy.logwarn_throttle(10, 'no joint positions in state', logger_name=Path(__file__).stem)
         elif 'joint_names' not in state:
             rospy.logwarn_throttle(10, 'no joint names in state', logger_name=Path(__file__).stem)
-
-    def joint_state_msg_from_state_dict(self, state: Dict):
-        joint_state = JointState()
-        joint_state.header.stamp = rospy.Time.now()
-        joint_state.position = state['joint_positions']
-        if isinstance(state['joint_names'][0], bytes):
-            joint_names = [n.decode("utf-8") for n in state['joint_names']]
-        elif isinstance(state['joint_names'][0], str):
-            joint_names = [str(n) for n in state['joint_names']]
-        elif isinstance(state['joint_names'], tf.Tensor):
-            joint_names = [n.decode("utf-8") for n in state['joint_names'].numpy()]
-        else:
-            raise NotImplementedError(type(state['joint_names'][0]))
-        joint_state.name = joint_names
-        return joint_state
 
     def dynamics_dataset_metadata(self):
         metadata = super().dynamics_dataset_metadata()
@@ -263,13 +277,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, metaclass=MyMetaClass):
         return self.follow_jacobian_from_state_action(environment, state, action)
 
     def follow_jacobian_from_state_action(self, environment: Dict, state: Dict, action: Dict):
-        example = {}
-        example.update(environment)
-        example.update(state)
-        example.update(action)
-        return self.follow_jacobian_from_example(example)
-
-    def follow_jacobian_from_example(self, example: Dict, check_collision=True):
         """
         The "environment" is not used here, instead the C++ library inside self.jacobian_follower queries the MoveIt
         planning scene monitor, and that's what's used. environment here is, for now, only the voxel grid representation
@@ -281,19 +288,31 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, metaclass=MyMetaClass):
         Returns:
 
         """
-        if not check_collision:
-            j = self.no_cc_jacobian_follower
-        else:
-            j = self.robot.jacobian_follower
+        example = {}
+        example.update(environment)
+        example.update(state)
+        example.update(action)
+        return self.follow_jacobian_from_example(example)
 
-        joint_state = self.joint_state_msg_from_state_dict(example)
-        self.robot.display_robot_state(joint_state, label='check_feasible')
-
-        left_gripper_points = [example['left_gripper_position']]
-        right_gripper_points = [example['right_gripper_position']]
+    def follow_jacobian_from_example(self, example: Dict):
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
-        grippers = [left_gripper_points, right_gripper_points]
+        preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
+        joint_state, target_reached, pred_joint_positions = follow_jacobian_from_example(example,
+                                                                                         self.robot.jacobian_follower,
+                                                                                         tool_names,
+                                                                                         preferred_tool_orientations)
+        self.robot.display_robot_state(joint_state, label='check_feasible')
+        return target_reached, pred_joint_positions
 
+    def get_preferred_tool_orientations(self, tool_names: List[str]):
+        """
+        The purpose of this function it to make sure the tool orientations are in the order of tool_names
+        Args:
+            tool_names:
+
+        Returns:
+
+        """
         preferred_tool_orientations = []
         for tool_name in tool_names:
             if 'left' in tool_name:
@@ -302,25 +321,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, metaclass=MyMetaClass):
                 preferred_tool_orientations.append(self.right_preferred_tool_orientation)
             else:
                 raise NotImplementedError()
-        # NOTE: we don't use environment here because we assume the planning scenes is static,
-        #  so the jacobian follower will already have that information.
-        robot_state = RobotState()
-        robot_state.joint_state.name = joint_state.name
-        robot_state.joint_state.position = joint_state.position
-        robot_state.joint_state.velocity = [0.0] * len(example['joint_names'])
-        plan: RobotTrajectory
-        target_reached: bool
-        plan, target_reached = j.plan_from_start_state(start_state=robot_state,
-                                                       group_name='both_arms',
-                                                       tool_names=tool_names,
-                                                       preferred_tool_orientations=preferred_tool_orientations,
-                                                       grippers=grippers,
-                                                       max_velocity_scaling_factor=0.1,
-                                                       max_acceleration_scaling_factor=0.1)
-
-        predicted_joint_positions = get_joint_positions_given_state_and_plan(plan, example)
-
-        return target_reached, predicted_joint_positions
+        return preferred_tool_orientations
 
     def is_moveit_robot_in_collision(self, environment: Dict, state: Dict, action: Dict):
         example = {}

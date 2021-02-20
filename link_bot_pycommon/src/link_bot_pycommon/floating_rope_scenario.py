@@ -922,7 +922,6 @@ class FloatingRopeScenario(Base3DScenario):
         self.plot_action_rviz_internal(state_action, label=label, **kwargs)
 
     def plot_action_rviz_internal(self, data: Dict, label: str, **kwargs):
-        r, g, b, a = colors.to_rgba(kwargs.get("color", "b"))
         s1 = np.reshape(get_maybe_predicted(data, 'left_gripper'), [3])
         s2 = np.reshape(get_maybe_predicted(data, 'right_gripper'), [3])
         a1 = np.reshape(get_maybe_predicted(data, 'left_gripper_position'), [3])
@@ -938,8 +937,8 @@ class FloatingRopeScenario(Base3DScenario):
             idx2 = kwargs.pop("idx2", 1)
 
         msg = MarkerArray()
-        msg.markers.append(rviz_arrow(s1, a1, r, g, b, a, idx=idx1, label=label, **kwargs))
-        msg.markers.append(rviz_arrow(s2, a2, r, g, b, a, idx=idx2, label=label, **kwargs))
+        msg.markers.append(rviz_arrow(s1, a1, idx=idx1, label=label, **kwargs))
+        msg.markers.append(rviz_arrow(s2, a2, idx=idx2, label=label, **kwargs))
 
         self.action_viz_pub.publish(msg)
 

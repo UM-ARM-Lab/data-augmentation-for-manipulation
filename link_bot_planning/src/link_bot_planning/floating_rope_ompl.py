@@ -6,6 +6,7 @@ import numpy as np
 from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
+from link_bot_pycommon.pycommon import wrap_angle
 from link_bot_pycommon.scenario_ompl import ScenarioOmpl
 from moonshine.moonshine_utils import numpify
 from tf import transformations
@@ -370,11 +371,22 @@ class DualGripperControlSampler(oc.ControlSampler):
         del state
 
         left_phi = self.rng.uniform(-np.pi, np.pi)
-        right_phi = self.rng.uniform(-np.pi, np.pi)
         left_theta = self.rng.uniform(-np.pi, np.pi)
-        right_theta = self.rng.uniform(-np.pi, np.pi)
-        left_r = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
-        right_r = self.rng.uniform(0, self.action_params['max_distance_gripper_can_move'])
+        m = self.action_params['max_distance_gripper_can_move']
+        left_r = self.rng.uniform(0, m)
+
+        # right_phi = self.rng.uniform(-np.pi, np.pi)
+        # right_theta = self.rng.uniform(-np.pi, np.pi)
+        # m = self.action_params['max_distance_gripper_can_move']
+        # right_r = self.rng.uniform(0, m)
+
+        # NOTE: here we make left/right correlated.
+        #  On the tasks I've tested, I have found this speeds up planning
+        #  this is just a rough heuristic though. The intuition is that moving the grippers in the same way
+        #  is more useful than moving them in different directions
+        right_phi = wrap_angle(left_phi + self.rng.normal(0.0, 0.5))
+        right_theta = wrap_angle(left_theta + self.rng.normal(0, 0.5))
+        right_r = min(max(0, left_r + self.rng.normal(0, 0.02)), m)
 
         control_out[0][0] = left_r
         control_out[0][1] = left_phi

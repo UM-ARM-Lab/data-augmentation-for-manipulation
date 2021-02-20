@@ -25,8 +25,10 @@ class BaseDynamicsFunction(Ensemble):
 
     def propagate_differentiable(self, environment: Dict, start_state: Dict, actions: List[Dict]) -> Tuple[
         List[Dict], List[Dict]]:
+        net_inputs = {}
+        net_inputs.update(start_state)
         # add time dimension of size 1
-        net_inputs = {k: tf.expand_dims(start_state[k], axis=0) for k in self.state_keys}
+        net_inputs.update({k: tf.expand_dims(start_state[k], axis=0) for k in self.state_keys})
         net_inputs.update(environment)
         net_inputs.update(sequence_of_dicts_to_dict_of_tensors(actions))
         net_inputs = add_batch(net_inputs)

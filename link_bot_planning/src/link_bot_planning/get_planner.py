@@ -18,7 +18,7 @@ def get_planner(planner_params: Dict, verbose: int):
     scenario = get_scenario(planner_params["scenario"])
 
     if planner_type == 'rrt':
-        fwd_model = load_fwd_model(planner_params)
+        fwd_model = load_fwd_model(planner_params, scenario)
         filter_model = load_filter(planner_params, scenario)
         classifier_models = load_classifier(planner_params, scenario)
 
@@ -63,7 +63,7 @@ def load_filter(planner_params: Dict, scenario: ExperimentScenario):
     return filter_model
 
 
-def load_fwd_model(planner_params: Dict):
+def load_fwd_model(planner_params: Dict, scenario: ExperimentScenario):
     fwd_model_dirs = paths_from_json(planner_params['fwd_model_dir'])
-    fwd_model, _ = dynamics_utils.load_generic_model(fwd_model_dirs)
+    fwd_model, _ = dynamics_utils.load_generic_model(fwd_model_dirs, scenario)
     return fwd_model

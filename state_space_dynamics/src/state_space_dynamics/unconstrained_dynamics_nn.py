@@ -1,9 +1,13 @@
 from typing import Dict, List
 
+import numpy as np
 import tensorflow as tf
 import tensorflow.keras.layers as layers
+from pyjacobian_follower import JacobianFollower
 
+from link_bot_pycommon.base_dual_arm_rope_scenario import follow_jacobian_from_example
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from moonshine.indexing import index_batch_time
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict, numpify
 from moonshine.my_keras_model import MyKerasModel
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
@@ -30,7 +34,7 @@ class UnconstrainedDynamicsNN(MyKerasModel):
 
         self.dense_layers.append(layers.Dense(self.total_state_dimensions, activation=None))
 
-    @tf.function
+    # @tf.function
     def call(self, example, training, mask=None):
         actions = {k: example[k] for k in self.action_keys}
         input_sequence_length = actions[self.action_keys[0]].shape[1]
@@ -101,12 +105,43 @@ class UDNNWithRobotKinematics:
         self.action_keys = net.action_keys
         self.scenario = net.scenario
 
+        self.j = JacobianFollower(robot_namespace=self.scenario.robot_namespace,
+                                  translation_step_size=0.005,
+                                  minimize_rotation=True,
+                                  collision_check=False)
+
     def __call__(self, example: Dict, training: bool, **kwargs):
         out = self.net(example, training, **kwargs)
         example_np = numpify(example)
-        _, predicted_joint_positions = self.scenario.follow_jacobian_from_example(example_np, check_collision=False)
-        out['joint_positions'] = predicted_joint_positions
+        _, predicted_joint_positions = self.follow_jacobian_from_example(example_np)
+        out['joint_positions'] = tf.convert_to_tensor(predicted_joint_positions, dtype=tf.float32)
         return out
+
+    def follow_jacobian_from_example(self, example: Dict):
+        batch_size = example.pop("batch_size")
+        tool_names = [self.scenario.robot.left_tool_name, self.scenario.robot.right_tool_name]
+        preferred_tool_orientations = self.scenario.get_preferred_tool_orientations(tool_names)
+        target_reached_batched = []
+        pred_joint_positions_batched = []
+        for b in range(batch_size):
+            input_sequence_length = example[self.action_keys[0]].shape[1]
+            target_reached = [True]
+            pred_joint_positions = [index_batch_time(example, ['joint_positions'], b, 0)['joint_positions']]
+            for t in range(input_sequence_length):
+                example_b_t = index_batch_time(example, self.state_keys + self.action_keys, b, t)
+                example_b_t['joint_names'] = example['joint_names'][b]
+                _, reached_t, joint_positions_t = follow_jacobian_from_example(example_b_t,
+                                                                               self.j,
+                                                                               tool_names,
+                                                                               preferred_tool_orientations)
+                target_reached.append(reached_t)
+                pred_joint_positions.append(joint_positions_t)
+            target_reached_batched.append(target_reached)
+            pred_joint_positions_batched.append(pred_joint_positions)
+
+        pred_joint_positions_batched = np.array(pred_joint_positions_batched)
+        target_reached_batched = np.array(target_reached_batched)
+        return target_reached_batched, pred_joint_positions_batched
 
 
 class UDNNWithRobotKinematicsWrapper(BaseDynamicsFunction):
