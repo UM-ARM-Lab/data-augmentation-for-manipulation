@@ -1,6 +1,7 @@
 {
   "model_class": "SimpleNN",
   "sequence_length": 10,
+  "shuffle_buffer_size": 64,
   "state_keys": [
     "gripper",
     "rope"
