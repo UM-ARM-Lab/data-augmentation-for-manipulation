@@ -59,11 +59,12 @@ class RRT(MyPlanner):
         def _cost_function(actions: List[Dict],
                            environment: Dict,
                            goal_state: Dict,
-                           mean_predictions: List[Dict]):
-            goal_cost = self.scenario.distance_to_goal_state(state=mean_predictions[1],
+                           states: List[Dict]):
+            goal_cost = self.scenario.distance_to_goal_state(state=states[1],
                                                              goal_type=self.params['goal_params']['goal_type'],
                                                              goal_state=goal_state)
-            return goal_cost
+            action_cost = self.scenario.actions_cost(states, actions, self.action_params)
+            return goal_cost * self.params['goal_alpha'] + action_cost * self.params['action_alpha']
             # constraint_costs = compute_constraints_cost(classifier_model=self.classifier_models[0],
             #                                             environment=environment,
             #                                             states=mean_predictions,
@@ -99,7 +100,7 @@ class RRT(MyPlanner):
 
         self.rrt = oc.RRT(self.si)
         self.rrt.setIntermediateStates(True)  # this is necessary, because we use this to generate datasets
-        self.rrt.setGoalBias(0.5)
+        # self.rrt.setGoalBias(0.5)
         self.ss.setPlanner(self.rrt)
         self.si.setMinMaxControlDuration(1, self.params.get('max_steps', 50))
 

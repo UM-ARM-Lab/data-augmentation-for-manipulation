@@ -4,11 +4,10 @@ from typing import Dict
 import numpy as np
 
 from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
+from link_bot_planning import floating_rope_ompl
 from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl, DualGripperControlSampler
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
-from link_bot_pycommon.scenario_ompl import ScenarioOmpl
-from tf import transformations
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -328,7 +327,7 @@ class DualGripperStateSampler(ob.CompoundStateSampler):
 
 
 # noinspection PyMethodOverriding
-class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
+class RopeMidpointGoalRegion(floating_rope_ompl.RopeMidpointGoalRegion):
 
     def __init__(self,
                  si: oc.SpaceInformation,
@@ -337,54 +336,23 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
                  threshold: float,
                  goal: Dict,
                  plot: bool):
-        super(RopeMidpointGoalRegion, self).__init__(si)
-        self.setThreshold(threshold)
-        self.goal = goal
-        self.scenario_ompl = scenario_ompl
-        self.rng = rng
-        self.plot = plot
+        super().__init__(si, scenario_ompl, rng, threshold, goal, plot)
+        self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
-    def distanceGoal(self, state: ob.CompoundState):
-        """
-        Uses the distance between a specific point in a specific subspace and the goal point
-        """
-        state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = float(self.scenario_ompl.s.distance_to_midpoint_goal(state_np, self.goal).numpy())
-
-        # this ensures the goal must have num_diverged = 0
-        if state_np['num_diverged'] > 0:
-            distance = 1e9
-        return distance
-
-    def sampleGoal(self, state_out: ob.CompoundState):
-        d = self.getThreshold()
-        random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) @ np.array([d, 0, 0, 1])
-        random_distance = self.rng.uniform(0.0, d)
-        random_direction = random_direction[:3]
-        random_point = self.goal['midpoint'] + random_direction * random_distance
-
-        n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
-
+    def make_goal_state(self, random_point):
         goal_state_np = {
             'left_gripper':    random_point,
             'right_gripper':   random_point,
             'rope':            [random_point] * self.scenario_ompl.s.n_links,
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
-            'joint_positions': np.zeros(n_joints, dtype=np.float64),
+            'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
         }
-
-        self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
-
-        if self.plot:
-            self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
-
-    def maxSampleCount(self):
-        return 100
+        return goal_state_np
 
 
 # noinspection PyMethodOverriding
-class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
+class RopeAnyPointGoalRegion(floating_rope_ompl.RopeAnyPointGoalRegion):
 
     def __init__(self,
                  si: oc.SpaceInformation,
@@ -393,47 +361,16 @@ class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
                  threshold: float,
                  goal: Dict,
                  plot: bool):
-        super(RopeAnyPointGoalRegion, self).__init__(si)
-        self.setThreshold(threshold)
-        self.goal = goal
-        self.scenario_ompl = scenario_ompl
-        self.rng = rng
-        self.plot = plot
+        super().__init__(si, scenario_ompl, rng, threshold, goal, plot)
+        self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
-    def distanceGoal(self, state: ob.CompoundState):
-        """
-        Uses the distance between a specific point in a specific subspace and the goal point
-        """
-        state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = float(self.scenario_ompl.s.distance_to_any_point_goal(state_np, self.goal).numpy())
-
-        # this ensures the goal must have num_diverged = 0
-        if state_np['num_diverged'] > 0:
-            distance = 1e9
-        return distance
-
-    def sampleGoal(self, state_out: ob.CompoundState):
-        d = self.getThreshold()
-        random_distance = self.rng.uniform(0.0, d)
-        random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) @ np.array([d, 0, 0, 1])
-        random_direction = random_direction[:3]
-        random_point = self.goal['point'] + random_direction * random_distance
-
-        n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
-
+    def make_goal_state(self, random_point: np.array):
         goal_state_np = {
             'left_gripper':    random_point,
             'right_gripper':   random_point,
             'rope':            [random_point] * self.scenario_ompl.s.n_links,
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
-            'joint_positions': np.zeros(n_joints, dtype=np.float64),
+            'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
         }
-
-        self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
-
-        if self.plot:
-            self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
-
-    def maxSampleCount(self):
-        return 100
+        return goal_state_np

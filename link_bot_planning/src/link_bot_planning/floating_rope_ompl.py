@@ -6,7 +6,6 @@ import numpy as np
 from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
-from link_bot_pycommon.pycommon import wrap_angle
 from link_bot_pycommon.scenario_ompl import ScenarioOmpl
 from moonshine.moonshine_utils import numpify
 from tf import transformations
@@ -331,23 +330,27 @@ class DualGripperDirectedControlSampler(oc.DirectedControlSampler):
         self.max_steps = max_steps
 
     def sampleTo(self, control_out: oc.CompoundControl, _, source: ob.CompoundState, dest: ob.CompoundState):
-        current_state_np = self.scenario_ompl.ompl_state_to_numpy(source)
-        goal_state_np = self.scenario_ompl.ompl_state_to_numpy(dest)
-        initial_actions = [{
-            'left_gripper_position':  current_state_np['left_gripper'],
-            'right_gripper_position': current_state_np['right_gripper'],
-        }]
-        control_out_tf, path = self.opt.optimize(environment=self.opt.env,  # FIXME: horrible hack
-                                                 goal_state=goal_state_np,
-                                                 initial_actions=initial_actions,
-                                                 start_state=current_state_np)
-        control_out_np = numpify(control_out_tf[0])
-        next_state_np = numpify(path[0])
-        # FIXME: this is wrong, we actually need to "set" these the same way we do in propagate... right?
-        next_state_np['stdev'] = current_state_np['stdev']
-        next_state_np['num_diverged'] = current_state_np['num_diverged']
-        self.scenario_ompl.numpy_to_ompl_control(current_state_np, control_out_np, control_out)
-        self.scenario_ompl.numpy_to_ompl_state(next_state_np, dest)
+        r = self.rng.uniform(0, 1)  # sometimes randomly sampling is good, because the local planner biases search
+        if r > 0.7:
+            DualGripperControlSampler.sample_dual_gripper_control(self.rng, self.action_params, control_out)
+        else:
+            current_state_np = self.scenario_ompl.ompl_state_to_numpy(source)
+            goal_state_np = self.scenario_ompl.ompl_state_to_numpy(dest)
+            initial_actions = [{
+                'left_gripper_position':  current_state_np['left_gripper'],
+                'right_gripper_position': current_state_np['right_gripper'],
+            }]
+            control_out_tf, path = self.opt.optimize(environment=self.opt.env,  # FIXME: horrible hack
+                                                     goal_state=goal_state_np,
+                                                     initial_actions=initial_actions,
+                                                     start_state=current_state_np)
+            control_out_np = numpify(control_out_tf[0])
+            next_state_np = numpify(path[0])
+            # FIXME: this is wrong, we actually need to "set" these the same way we do in propagate... right?
+            next_state_np['stdev'] = current_state_np['stdev']
+            next_state_np['num_diverged'] = current_state_np['num_diverged']
+            self.scenario_ompl.numpy_to_ompl_control(current_state_np, control_out_np, control_out)
+            self.scenario_ompl.numpy_to_ompl_state(next_state_np, dest)
 
         step_count = self.rng.randint(1, self.max_steps)
         return step_count
@@ -365,33 +368,31 @@ class DualGripperControlSampler(oc.ControlSampler):
         self.rng = rng
         self.control_space = control_space
         self.action_params = action_params
+        self.setNumControlSamples(1)
 
-    def sampleNext(self, control_out, previous_control, state):
-        del previous_control
-        del state
+    def sampleNext(self, control_out: oc.CompoundControl, _, __):
+        self.sample_dual_gripper_control(self.rng, self.action_params, control_out)
 
-        left_phi = self.rng.uniform(-np.pi, np.pi)
-        left_theta = self.rng.uniform(-np.pi, np.pi)
-        m = self.action_params['max_distance_gripper_can_move']
-        left_r = self.rng.uniform(0, m)
-
-        # right_phi = self.rng.uniform(-np.pi, np.pi)
-        # right_theta = self.rng.uniform(-np.pi, np.pi)
-        # m = self.action_params['max_distance_gripper_can_move']
-        # right_r = self.rng.uniform(0, m)
-
-        # NOTE: here we make left/right correlated.
-        #  On the tasks I've tested, I have found this speeds up planning
-        #  this is just a rough heuristic though. The intuition is that moving the grippers in the same way
-        #  is more useful than moving them in different directions
-        right_phi = wrap_angle(left_phi + self.rng.normal(0.0, 0.5))
-        right_theta = wrap_angle(left_theta + self.rng.normal(0, 0.5))
-        right_r = min(max(0, left_r + self.rng.normal(0, 0.02)), m)
-
+    @staticmethod
+    def sample_dual_gripper_control(rng: np.random.RandomState, action_params: Dict, control_out: oc.CompoundControl):
+        left_phi = rng.uniform(-np.pi, np.pi)
+        left_theta = rng.uniform(-np.pi, np.pi)
+        m = action_params['max_distance_gripper_can_move']
+        left_r = rng.uniform(0, m)
+        right_phi = rng.uniform(-np.pi, np.pi)
+        right_theta = rng.uniform(-np.pi, np.pi)
+        m = action_params['max_distance_gripper_can_move']
+        right_r = rng.uniform(0, m)
+        # # NOTE: here we make left/right correlated.
+        # #  On the tasks I've tested, I have found this speeds up planning
+        # #  this is just a rough heuristic though. The intuition is that moving the grippers in the same way
+        # #  is more useful than moving them in different directions
+        # right_phi = wrap_angle(left_phi + self.rng.normal(0.0, 0.5))
+        # right_theta = wrap_angle(left_theta + self.rng.normal(0, 0.5))
+        # right_r = min(max(0, left_r + self.rng.normal(0, 0.02)), m)
         control_out[0][0] = left_r
         control_out[0][1] = left_phi
         control_out[0][2] = left_theta
-
         control_out[1][0] = right_r
         control_out[1][1] = right_phi
         control_out[1][2] = right_theta
@@ -493,7 +494,7 @@ class DualGripperGoalRegion(ob.GoalSampleableRegion):
             self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
 
     def maxSampleCount(self):
-        return 100
+        return 1000
 
 
 # noinspection PyMethodOverriding
@@ -532,6 +533,14 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
         random_direction = random_direction[:3]
         random_point = self.goal['midpoint'] + random_direction * random_distance
 
+        goal_state_np = self.make_goal_state(random_point)
+
+        self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
+
+        if self.plot:
+            self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
+
+    def make_goal_state(self, random_point):
         goal_state_np = {
             'left_gripper':  random_point,
             'right_gripper': random_point,
@@ -539,14 +548,10 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
         }
-
-        self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
-
-        if self.plot:
-            self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
+        return goal_state_np
 
     def maxSampleCount(self):
-        return 100
+        return 1000
 
 
 # noinspection PyMethodOverriding
@@ -581,10 +586,19 @@ class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
     def sampleGoal(self, state_out: ob.CompoundState):
         d = self.getThreshold()
         random_distance = self.rng.uniform(0.0, d)
-        random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) @ np.array([d, 0, 0, 1])
+        v = np.array([random_distance, 0, 0, 1])
+        random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) @ v
         random_direction = random_direction[:3]
-        random_point = self.goal['point'] + random_direction * random_distance
+        random_point = self.goal['point'] + random_direction
 
+        goal_state_np = self.make_goal_state(random_point)
+
+        self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
+
+        if self.plot:
+            self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
+
+    def make_goal_state(self, random_point: np.array):
         goal_state_np = {
             'left_gripper':  random_point,
             'right_gripper': random_point,
@@ -592,14 +606,10 @@ class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
         }
-
-        self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
-
-        if self.plot:
-            self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
+        return goal_state_np
 
     def maxSampleCount(self):
-        return 100
+        return 1000
 
 
 # noinspection PyMethodOverriding
@@ -636,6 +646,14 @@ class RopeAndGrippersGoalRegion(ob.GoalSampleableRegion):
             FloatingRopeScenario.n_links,
             kd)
 
+        goal_state_np = self.make_goal_state(rope)
+
+        self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
+
+        if self.plot:
+            self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
+
+    def make_goal_state(self, rope):
         goal_state_np = {
             'left_gripper':  self.goal['left_gripper'],
             'right_gripper': self.goal['right_gripper'],
@@ -643,14 +661,10 @@ class RopeAndGrippersGoalRegion(ob.GoalSampleableRegion):
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
         }
-
-        self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
-
-        if self.plot:
-            self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
+        return goal_state_np
 
     def maxSampleCount(self):
-        return 100
+        return 1000
 
 
 # noinspection PyMethodOverriding
@@ -724,4 +738,4 @@ class RopeAndGrippersBoxesGoalRegion(ob.GoalSampleableRegion):
         return distance
 
     def maxSampleCount(self):
-        return 100
+        return 1000

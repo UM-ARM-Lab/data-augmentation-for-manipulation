@@ -41,13 +41,7 @@ class TrajectoryOptimizer:
         self.goal_alpha = params["goal_alpha"]
         self.constraints_alpha = params["constraints_alpha"]
         self.action_alpha = params["action_alpha"]
-
-        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(params["initial_learning_rate"],
-                                                                     decay_steps=1,
-                                                                     decay_rate=0.95,
-                                                                     staircase=True)
-
-        self.optimizer = tf.keras.optimizers.SGD(learning_rate=lr_schedule)
+        self.initial_learning_rate = params['initial_learning_rate']
         self.cost_function = cost_function
 
     def optimize(self,
@@ -56,6 +50,14 @@ class TrajectoryOptimizer:
                  initial_actions: List[Dict],
                  start_state: Dict,
                  ):
+        # Currently creating this every time because I can't figure out how to reset the step Variable in the optimizer
+        #  which controls the learning rate calculation
+        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(self.initial_learning_rate,
+                                                                     decay_steps=1,
+                                                                     decay_rate=0.95,
+                                                                     staircase=True)
+        self.optimizer = tf.keras.optimizers.SGD(learning_rate=lr_schedule)
+
         actions = make_tf_variables(initial_actions)
 
         start_smoothing_time = perf_counter()
@@ -64,8 +66,8 @@ class TrajectoryOptimizer:
             actions, planned_path, cost = self.step(environment, goal_state, actions, start_state)
 
             if self.verbose >= 2:
-                self.scenario.plot_state_rviz(numpify(planned_path[1]), label='opt', idx=i, color=cm.Reds(cost))
-                self.scenario.plot_action_rviz(numpify(planned_path[0]), numpify(actions[0]), label='opt', idx=i)
+                self.scenario.plot_state_rviz(numpify(planned_path[1]), label='opt', color=cm.Reds(cost))
+                self.scenario.plot_action_rviz(numpify(planned_path[0]), numpify(actions[0]), label='opt')
         smoothing_time = perf_counter() - start_smoothing_time
 
         if self.verbose >= 3:
@@ -93,9 +95,15 @@ class TrajectoryOptimizer:
         # clip for stability
         valid_grads_and_vars = [(tf.clip_by_value(g, -0.1, 0.1), v) for (g, v) in valid_grads_and_vars]
 
+        # this updates actions
         self.optimizer.apply_gradients(valid_grads_and_vars)
 
-        return actions, mean_predictions, cost
+        # re-run the forward pass nwo that actions have been updated
+        planned_path, _ = self.fwd_model.propagate_differentiable(environment=environment,
+                                                                  start_state=start_state,
+                                                                  actions=actions)
+
+        return actions, planned_path, cost
 
 
 def compute_goal_cost(scenario, goal_state, mean_predictions):

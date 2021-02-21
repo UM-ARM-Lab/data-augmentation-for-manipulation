@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import numpy as np
 import tensorflow as tf
@@ -230,6 +230,22 @@ class FloatingRopeScenario(Base3DScenario):
         too_far = gripper_d > max_gripper_d
 
         return not out_of_bounds and not too_far
+
+    def actions_cost(self, states: List[Dict], actions: List[Dict], action_params: Dict):
+        cost = 0
+        for state, action in zip(states, actions):
+            max_gripper_delta = tf.cast(action_params['max_distance_gripper_can_move'], tf.float32)
+            max_gripper_d = tf.cast(action_params['max_distance_between_grippers'], tf.float32)
+            gripper_d = tf.linalg.norm(action['left_gripper_position'] - action['right_gripper_position'])
+            left_gripper_delta = tf.linalg.norm(action['left_gripper_position'] - state['left_gripper'])
+            right_gripper_delta = tf.linalg.norm(action['right_gripper_position'] - state['right_gripper'])
+            left_gripper_delta_cost = tf.nn.relu(left_gripper_delta - max_gripper_delta)
+            right_gripper_delta_cost = tf.nn.relu(right_gripper_delta - max_gripper_delta)
+            max_gripper_d_cost = tf.nn.relu(gripper_d - max_gripper_d)
+            cost_t = max_gripper_d_cost + left_gripper_delta_cost + right_gripper_delta_cost
+            cost += cost_t
+
+        return cost
 
     def get_action_sample_extent(self, action_params: Dict, prefix: str):
         k = prefix + '_gripper_action_sample_extent'
