@@ -25,7 +25,7 @@ from std_msgs.msg import ColorRGBA
 from std_srvs.srv import Empty
 from visualization_msgs.msg import MarkerArray, Marker
 
-rope_key_name = 'link_bot'
+rope_key_name = 'rope'
 gazebo_model_name = "dragging_rope"
 
 
@@ -120,8 +120,11 @@ class RopeDraggingScenario(Base3DScenario):
                                                                 max_force=50.0,
                                                                 max_vel=1.0))
 
+    def on_before_data_collection(self, params: Dict):
+        self.on_before_get_state_or_execute_action()
+
     def execute_action(self, action: Dict):
-        timeout_s = action.get('timeout_s', 1.0)
+        timeout_s = action.get('timeout_s', [1.0])[0]
         speed_mps = action.get('speed', 0.15)
         pos_msg: Point = ros_numpy.msgify(Point, action['gripper_position'])
         get_res = self.pos3d.get(scoped_link_name=self.ROPE_LINK_NAME)
@@ -160,10 +163,11 @@ class RopeDraggingScenario(Base3DScenario):
             action = {
                 'gripper_position':       gripper_position,
                 'gripper_delta_position': gripper_delta_position,
-                'timeout_s':              action_params['dt'],
+                'timeout_s':              np.array([action_params['dt']]),
             }
 
-            if not validate or self.is_action_valid(action, action_params):
+            valid = self.is_action_valid(action, action_params)
+            if not validate or valid:
                 self.last_action = action
                 return action
 
@@ -358,7 +362,7 @@ class RopeDraggingScenario(Base3DScenario):
             'gripper_delta': gripper_delta,
         }
 
-    def randomization_initialization(self):
+    def randomization_initialization(self, params: Dict):
         pass
 
     def randomize_environment(self, env_rng, params: Dict):
@@ -466,3 +470,6 @@ class RopeDraggingScenario(Base3DScenario):
 
     def get_excluded_models_for_env(self):
         return ['dragging_rope']
+
+    def needs_reset(self, state: Dict, params: Dict):
+        return False

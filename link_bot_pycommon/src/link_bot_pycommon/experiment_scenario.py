@@ -315,7 +315,7 @@ class ExperimentScenario:
         pass
 
     def on_before_data_collection(self, params: Dict):
-        pass
+        raise NotImplementedError()
 
     def get_excluded_models_for_env(self):
         raise NotImplementedError()

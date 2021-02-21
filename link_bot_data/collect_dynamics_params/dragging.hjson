@@ -1,0 +1,34 @@
+{
+  extent: [
+    -0.75
+    0.75
+    -0.75
+    0.75
+    0
+    0.3
+  ]
+  gripper_action_sample_extent: [
+    -0.5
+    0.5
+    -0.5
+    0.5
+    0
+    0.04
+  ]
+  res: 0.01
+  real_time_rate: 0.0
+  dt: 1.0
+  max_step_size: 0.01
+  max_distance_gripper_can_move: 0.15
+  steps_per_traj: 10
+  trajs_per_file: 64
+  randomize_n: null
+  no_objects: true
+  state_keys: [
+    gripper
+    rope
+  ]
+  action_keys: [
+    gripper_position
+  ]
+}

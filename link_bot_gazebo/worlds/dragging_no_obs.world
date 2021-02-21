@@ -25,13 +25,16 @@
             <max_step_size>0.01</max_step_size>
             <real_time_update_rate>0</real_time_update_rate>
         </physics>
+
+        <plugin name="stepping_plugin" filename="libstepping_plugin.so"/>
+        <plugin name="position_3d_plugin" filename="libposition_3d_plugin.so"/>
+
         <include>
             <uri>model://my_ground_plane</uri>
         </include>
         <include>
             <uri>model://sun</uri>
         </include>
-        <plugin name="stepping_plugin" filename="libstepping_plugin.so"/>
         <include>
             <pose>0 0 0.01 0 0 0</pose>
             <uri>model://dragging_rope</uri>
