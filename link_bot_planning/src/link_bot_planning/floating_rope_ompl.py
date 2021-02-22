@@ -42,15 +42,15 @@ def sample_rope_and_grippers(rng: RandomState, gripper1, gripper2, fixed_point, 
     k = rng.randint(n_exclude, n_links + 1 - n_exclude)
     rope = [gripper2]
     for i in range(1, k - 1):
-        noise = rng.uniform([-noise, -noise, -noise], [noise, noise, noise], 3)
+        noise_sample = rng.uniform([-noise, -noise, -noise], [noise, noise, noise], 3)
         new_p = (fixed_point - gripper2) * (i / (k - 1))
-        new_p = gripper2 + new_p + noise
+        new_p = gripper2 + new_p + noise_sample
         rope.append(new_p)
     rope.append(fixed_point)
     for i in range(1, n_links - k + 1):
-        noise = rng.uniform([-noise, -noise, -noise], [noise, noise, noise], 3)
+        noise_sample = rng.uniform([-noise, -noise, -noise], [noise, noise, noise], 3)
         new_p = (gripper1 - fixed_point) * i / (n_links - k)
-        new_p = fixed_point + new_p + noise
+        new_p = fixed_point + new_p + noise_sample
         rope.append(new_p)
     rope = np.array(rope)
     return rope
