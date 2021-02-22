@@ -113,7 +113,7 @@ class OmplRRTWrapper(MyPlanner):
         self.rrt = oc.RRT(self.si)
         self.rrt.setIntermediateStates(True)  # this is necessary, because we use this to generate datasets
         self.initial_goal_bias = 0.05
-        max_goal_bias = 0.6
+        max_goal_bias = 0.05  # not sure setting this higher actually helps
         self.goal_bias_schedule = LinearSchedule(self.initial_goal_bias, max_goal_bias)
 
         self.rrt.setGoalBias(self.initial_goal_bias)
