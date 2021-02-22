@@ -41,7 +41,6 @@ class NewFeasibilityChecker(BaseConstraintChecker):
         assert len(states_sequence) == 2
         state = states_sequence[0]
         action = actions[0]
-        # TODO: load this instead of the above model in the "cc_and_feasibility.hjson" planner config
         feasible = self.scenario.is_moveit_robot_in_collision(environment=environment,
                                                               state=state,
                                                               action=action)
@@ -53,8 +52,4 @@ class NewFeasibilityChecker(BaseConstraintChecker):
                                     actions: Dict,
                                     batch_size: int,
                                     state_sequence_length: int):
-        for b in range(batch_size):
-            feasible = self.scenario.is_moveit_robot_in_collision(environment=environment,
-                                                                  state=state,
-                                                                  action=action)
-        return tf.expand_dims(tf.cast(feasible, tf.float32), axis=0), tf.constant(0)
+        raise NotImplementedError()

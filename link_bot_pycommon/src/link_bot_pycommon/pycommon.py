@@ -351,7 +351,7 @@ def skip_on_timeout(t: int, on_timeout: Optional[Callable], f: Callable, *args, 
 
 
 def are_states_close(a: Dict, b: Dict):
-    assert (set(a.keys()) == set(b.keys()))
+    # assert (set(a.keys()) == set(b.keys()))
     for k, v1 in a.items():
         v2 = b[k]
         if isinstance(v1, np.ndarray):

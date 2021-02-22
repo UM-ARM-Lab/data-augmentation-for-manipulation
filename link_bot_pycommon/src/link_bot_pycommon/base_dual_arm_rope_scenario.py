@@ -301,7 +301,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
                                                                                          self.robot.jacobian_follower,
                                                                                          tool_names,
                                                                                          preferred_tool_orientations)
-        self.robot.display_robot_state(joint_state, label='check_feasible')
         return target_reached, pred_joint_positions
 
     def get_preferred_tool_orientations(self, tool_names: List[str]):

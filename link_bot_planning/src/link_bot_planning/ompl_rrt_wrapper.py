@@ -23,6 +23,23 @@ from link_bot_planning.timeout_or_not_progressing import TimeoutOrNotProgressing
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 
+class LinearSchedule:
+    def __init__(self, begin: float, end: float):
+        self.begin = begin
+        self.end = end
+
+    def __call__(self, theta):
+        """
+
+        Args:
+            theta: between 0 and 1 inclusive
+
+        Returns:
+
+        """
+        return theta * (self.end - self.begin) + self.begin
+
+
 class OmplRRTWrapper(MyPlanner):
 
     def __init__(self,
@@ -95,7 +112,11 @@ class OmplRRTWrapper(MyPlanner):
 
         self.rrt = oc.RRT(self.si)
         self.rrt.setIntermediateStates(True)  # this is necessary, because we use this to generate datasets
-        # self.rrt.setGoalBias(0.5)
+        self.initial_goal_bias = 0.05
+        max_goal_bias = 0.6
+        self.goal_bias_schedule = LinearSchedule(self.initial_goal_bias, max_goal_bias)
+
+        self.rrt.setGoalBias(self.initial_goal_bias)
         self.ss.setPlanner(self.rrt)
         self.si.setMinMaxControlDuration(1, self.params.get('max_steps', 50))
 
@@ -245,6 +266,9 @@ class OmplRRTWrapper(MyPlanner):
                                        previous_actions,
                                        previous_state,
                                        state_out)
+
+        # At the end of propagation, update the goal bias
+        self.rrt.setGoalBias(self.goal_bias_schedule(self.ptc.dt_s / self.params['termination_criteria']['timeout']))
 
     def visualize_propogation(self,
                               accept: bool,
