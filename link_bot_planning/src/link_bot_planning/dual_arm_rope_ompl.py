@@ -6,6 +6,7 @@ import numpy as np
 from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
 from link_bot_planning import floating_rope_ompl
 from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl, DualGripperControlSampler
+from link_bot_planning.my_planner import SharedPlanningStateOMPL
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 
@@ -20,9 +21,6 @@ from link_bot_pycommon.bbox_visualization import extent_to_bbox
 
 
 class DualArmRopeOmpl(FloatingRopeOmpl):
-
-    def __init__(self, scenario: BaseDualArmRopeScenario, *args, **kwargs):
-        super().__init__(scenario, *args, **kwargs)
 
     def numpy_to_ompl_state(self, state_np: Dict, state_out: ob.CompoundState):
         rope_points = np.reshape(state_np['rope'], [-1, 3])
@@ -132,10 +130,10 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
             'right_gripper_position': target_right_gripper_position,
         }
 
-    def make_state_space(self, planner_params, state_sampler_rng: np.random.RandomState, plot: bool):
+    def make_state_space(self):
         state_space = ob.CompoundStateSpace()
 
-        min_x, max_x, min_y, max_y, min_z, max_z = planner_params['extent']
+        min_x, max_x, min_y, max_y, min_z, max_z = self.planner_params['extent']
 
         left_gripper_subspace = ob.RealVectorStateSpace(3)
         left_gripper_bounds = ob.RealVectorBounds(3)
@@ -210,18 +208,18 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
         def _state_sampler_allocator(state_space):
             return DualGripperStateSampler(state_space,
                                            scenario_ompl=self,
-                                           extent=planner_params['state_sampler_extent'],
-                                           rng=state_sampler_rng,
-                                           plot=plot)
+                                           extent=self.planner_params['state_sampler_extent'],
+                                           rng=self.state_sampler_rng,
+                                           plot=self.plot)
 
         state_space.setStateSamplerAllocator(ob.StateSamplerAllocator(_state_sampler_allocator))
 
         return state_space
 
-    def make_control_space(self, state_space, rng: np.random.RandomState, action_params: Dict):
-        control_space = oc.CompoundControlSpace(state_space)
+    def make_control_space(self):
+        control_space = oc.CompoundControlSpace(self.state_space)
 
-        left_gripper_control_space = oc.RealVectorControlSpace(state_space, 3)
+        left_gripper_control_space = oc.RealVectorControlSpace(self.state_space, 3)
         left_gripper_control_bounds = ob.RealVectorBounds(3)
         # Pitch
         left_gripper_control_bounds.setLow(0, -np.pi)
@@ -230,13 +228,13 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
         left_gripper_control_bounds.setLow(1, -np.pi)
         left_gripper_control_bounds.setHigh(1, np.pi)
         # Displacement
-        max_d = action_params['max_distance_gripper_can_move']
+        max_d = self.action_params['max_distance_gripper_can_move']
         left_gripper_control_bounds.setLow(2, 0)
         left_gripper_control_bounds.setHigh(2, max_d)
         left_gripper_control_space.setBounds(left_gripper_control_bounds)
         control_space.addSubspace(left_gripper_control_space)
 
-        right_gripper_control_space = oc.RealVectorControlSpace(state_space, 3)
+        right_gripper_control_space = oc.RealVectorControlSpace(self.state_space, 3)
         right_gripper_control_bounds = ob.RealVectorBounds(3)
         # Pitch
         right_gripper_control_bounds.setLow(0, -np.pi)
@@ -245,7 +243,7 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
         right_gripper_control_bounds.setLow(1, -np.pi)
         right_gripper_control_bounds.setHigh(1, np.pi)
         # Displacement
-        max_d = action_params['max_distance_gripper_can_move']
+        max_d = self.action_params['max_distance_gripper_can_move']
         right_gripper_control_bounds.setLow(2, 0)
         right_gripper_control_bounds.setHigh(2, max_d)
 
@@ -253,7 +251,11 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
         control_space.addSubspace(right_gripper_control_space)
 
         def _allocator(cs):
-            return DualGripperControlSampler(cs, scenario_ompl=self, rng=rng, action_params=action_params)
+            return DualGripperControlSampler(cs,
+                                             scenario_ompl=self,
+                                             rng=self.control_sampler_rng,
+                                             shared_planning_state=self.sps,
+                                             action_params=self.action_params)
 
         # I override the sampler here so I can use numpy RNG to make things more deterministic.
         # ompl does not allow resetting of seeds, which causes problems when evaluating multiple
@@ -280,6 +282,7 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
                                           rng=rng,
                                           threshold=params['goal_params']['threshold'],
                                           goal=goal,
+                                          shared_planning_state=self.sps,
                                           plot=plot)
         else:
             raise NotImplementedError()
@@ -360,8 +363,10 @@ class RopeAnyPointGoalRegion(floating_rope_ompl.RopeAnyPointGoalRegion):
                  rng: np.random.RandomState,
                  threshold: float,
                  goal: Dict,
-                 plot: bool):
-        super().__init__(si, scenario_ompl, rng, threshold, goal, plot)
+                 shared_planning_state: SharedPlanningStateOMPL,
+                 plot: bool,
+                 ):
+        super().__init__(si, scenario_ompl, rng, threshold, goal, shared_planning_state, plot)
         self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
     def make_goal_state(self, random_point: np.array):

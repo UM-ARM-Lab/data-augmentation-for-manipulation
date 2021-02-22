@@ -3,6 +3,7 @@ from typing import Dict
 
 from numpy.random import RandomState
 
+from link_bot_planning.my_planner import SharedPlanningStateOMPL
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 
@@ -20,6 +21,7 @@ class ScenarioOmpl:
                  action_params: Dict,
                  state_sampler_rng: RandomState,
                  control_sampler_rng: RandomState,
+                 shared_planning_state: SharedPlanningStateOMPL,
                  plot: bool,
                  ):
         self.s = scenario
@@ -28,9 +30,9 @@ class ScenarioOmpl:
         self.state_sampler_rng = state_sampler_rng
         self.control_sampler_rng = control_sampler_rng
         self.plot = plot
-        self.state_space = self.make_state_space(self.planner_params, self.state_sampler_rng, self.plot)
-        self.control_space = self.make_control_space(self.state_space, self.control_sampler_rng,
-                                                     self.action_params)
+        self.sps = shared_planning_state
+        self.state_space = self.make_state_space()
+        self.control_space = self.make_control_space()
 
     def numpy_to_ompl_state(self, state_np: Dict, state_out: ob.CompoundState):
         raise NotImplementedError()
@@ -44,13 +46,18 @@ class ScenarioOmpl:
     def ompl_control_to_numpy(self, ompl_state: ob.CompoundState, ompl_control: oc.CompoundControl):
         raise NotImplementedError()
 
-    def make_goal_region(self, si: oc.SpaceInformation, rng: RandomState, params: Dict, goal: Dict, plot: bool):
+    def make_goal_region(self,
+                         si: oc.SpaceInformation,
+                         rng: RandomState,
+                         params: Dict,
+                         goal: Dict,
+                         plot: bool):
         raise NotImplementedError()
 
-    def make_state_space(self, planner_params, state_sampler_rng: RandomState, plot: bool):
+    def make_state_space(self):
         raise NotImplementedError()
 
-    def make_control_space(self, state_space, rng: RandomState, action_params: Dict):
+    def make_control_space(self):
         raise NotImplementedError()
 
     def make_directed_control_sampler(self,

@@ -1,4 +1,5 @@
 {
+  planner_type: new-rrt
   method_name: cc, os, feasibility
   feasibility_checking: true
   classifier: true

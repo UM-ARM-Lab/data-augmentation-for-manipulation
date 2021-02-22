@@ -6,7 +6,8 @@ import numpy as np
 from matplotlib import cm
 
 from link_bot_planning.get_ompl_scenario import get_ompl_scenario
-from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, LoggingTree
+from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, LoggingTree, \
+    SharedPlanningStateOMPL
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.base_3d_scenario import Base3DScenario
 from state_space_dynamics.base_filter_function import BaseFilterFunction
@@ -19,7 +20,6 @@ with warnings.catch_warnings():
 import rospy
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_planning.timeout_or_not_progressing import TimeoutOrNotProgressing
-from moonshine.tests.testing_utils import are_dicts_close_np
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 
@@ -45,40 +45,35 @@ class OmplRRTWrapper(MyPlanner):
         self.goal_sampler_rng = np.random.RandomState(0)
         self.control_sampler_rng = np.random.RandomState(0)
         self.scenario = scenario
+        self.sps = SharedPlanningStateOMPL()
         self.scenario_ompl = get_ompl_scenario(self.scenario,
                                                planner_params=self.params,
                                                action_params=self.action_params,
                                                state_sampler_rng=self.state_sampler_rng,
                                                control_sampler_rng=self.control_sampler_rng,
+                                               shared_planning_state=self.sps,
                                                plot=self.verbose >= 2)
 
         self.ss = oc.SimpleSetup(self.scenario_ompl.control_space)
 
         self.si: oc.SpaceInformation = self.ss.getSpaceInformation()
 
-        def _cost_function(actions: List[Dict],
-                           environment: Dict,
-                           goal_state: Dict,
-                           states: List[Dict]):
+        def _local_planner_cost_function(actions: List[Dict],
+                                         environment: Dict,
+                                         goal_state: Dict,
+                                         states: List[Dict]):
             goal_cost = self.scenario.distance_to_goal_state(state=states[1],
                                                              goal_type=self.params['goal_params']['goal_type'],
                                                              goal_state=goal_state)
             action_cost = self.scenario.actions_cost(states, actions, self.action_params)
             return goal_cost * self.params['goal_alpha'] + action_cost * self.params['action_alpha']
-            # constraint_costs = compute_constraints_cost(classifier_model=self.classifier_models[0],
-            #                                             environment=environment,
-            #                                             states=mean_predictions,
-            #                                             actions=actions)
-            # constraint_cost = tf.math.reduce_sum(constraint_costs)
-            # alpha = 1.0
-            # return goal_cost + alpha * constraint_cost
 
         self.opt = TrajectoryOptimizer(fwd_model=self.fwd_model,
                                        classifier_model=None,
                                        scenario=self.scenario,
                                        params=self.params,
                                        verbose=self.verbose,
-                                       cost_function=_cost_function)
+                                       cost_function=_local_planner_cost_function)
 
         if self.params['use_local_planner']:
             def _dcs_allocator(si):
@@ -176,7 +171,7 @@ class OmplRRTWrapper(MyPlanner):
         """
         new_actions = [new_action]
         last_previous_state = previous_states[-1]
-        mean_predicted_states, stdev_predicted_states = self.fwd_model.propagate(environment=self.environment,
+        mean_predicted_states, stdev_predicted_states = self.fwd_model.propagate(environment=self.sps.environment,
                                                                                  start_state=last_previous_state,
                                                                                  action=new_actions)
         # get only the final state predicted, since *_predicted_states includes the start state
@@ -186,7 +181,7 @@ class OmplRRTWrapper(MyPlanner):
         # If in general we have a controller which can tell us whether a motion is feasible (w/o actually executing)
         # then we can invoke that hear, and do a logical OR with the classifier's decision
         # we also need to set the joint values. This is breaking a lot of my nice abstractions but I am impatient
-        feasible, predicted_joint_positions = self.scenario.is_motion_feasible(environment=self.environment,
+        feasible, predicted_joint_positions = self.scenario.is_motion_feasible(environment=self.sps.environment,
                                                                                state=last_previous_state,
                                                                                action=new_action)
         final_predicted_state['joint_positions'] = np.array(predicted_joint_positions)
@@ -208,7 +203,7 @@ class OmplRRTWrapper(MyPlanner):
         accept = True
         accept_probabilities = {}
         for classifier in self.classifier_models:
-            p_accepts_for_model, _ = classifier.check_constraint(environment=self.environment,
+            p_accepts_for_model, _ = classifier.check_constraint(environment=self.sps.environment,
                                                                  states_sequence=all_states,
                                                                  actions=all_actions)
             p_accept_for_model = p_accepts_for_model[-1]
@@ -259,8 +254,9 @@ class OmplRRTWrapper(MyPlanner):
                               previous_actions: Dict,
                               previous_state: Dict,
                               state_out: ob.CompoundState):
-        # try to check if this is a new action, in which case we want to sample a new color
-        if len(previous_actions) == 0 or not are_dicts_close_np(previous_actions[-1], new_action):
+        # check if this is a new action, in which case we want to sample a new color
+        if self.sps.just_sampled_new_action:
+            self.sps.just_sampled_new_action = False
             random_color = cm.Dark2(self.control_sampler_rng.uniform(0, 1))
             self.visualize_propogation_color = random_color
 
@@ -292,9 +288,7 @@ class OmplRRTWrapper(MyPlanner):
     def plan(self, planning_query: PlanningQuery):
         self.cleanup_before_plan(planning_query.seed)
 
-        self.environment = planning_query.environment
-        # FIXME: horrible hack. the environment isn't in the OMPL state so I have to do something like this
-        self.opt.env = self.environment
+        self.sps.environment = planning_query.environment
 
         self.goal_region = self.scenario_ompl.make_goal_region(self.si,
                                                                rng=self.goal_sampler_rng,

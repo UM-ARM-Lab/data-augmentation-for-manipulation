@@ -55,7 +55,11 @@ class RopeDraggingOmpl(ScenarioOmpl):
             'gripper_position': target_gripper_position,
         }
 
-    def make_goal_region(self, si: oc.SpaceInformation, rng: np.random.RandomState, params: Dict, goal: Dict,
+    def make_goal_region(self,
+                         si: oc.SpaceInformation,
+                         rng: np.random.RandomState,
+                         params: Dict,
+                         goal: Dict,
                          plot: bool):
         return RopeDraggingGoalRegion(si=si,
                                       scenario_ompl=self,
@@ -64,10 +68,10 @@ class RopeDraggingOmpl(ScenarioOmpl):
                                       goal=goal,
                                       plot=plot)
 
-    def make_state_space(self, planner_params, state_sampler_rng: np.random.RandomState, plot: bool):
+    def make_state_space(self):
         state_space = ob.CompoundStateSpace()
 
-        min_x, max_x, min_y, max_y, min_z, max_z = planner_params['extent']
+        min_x, max_x, min_y, max_y, min_z, max_z = self.planner_params['extent']
 
         gripper_subspace = ob.RealVectorStateSpace(3)
         gripper_bounds = ob.RealVectorBounds(3)
@@ -112,32 +116,34 @@ class RopeDraggingOmpl(ScenarioOmpl):
         def _state_sampler_allocator(state_space):
             return RopeDraggingStateSampler(state_space,
                                             scenario_ompl=self,
-                                            extent=planner_params['extent'],
-                                            rng=state_sampler_rng,
-                                            plot=plot)
+                                            extent=self.planner_params['extent'],
+                                            rng=self.state_sampler_rng,
+                                            plot=self.plot)
 
         state_space.setStateSamplerAllocator(ob.StateSamplerAllocator(_state_sampler_allocator))
 
         return state_space
 
-    def make_control_space(self, state_space, rng: np.random.RandomState, action_params: Dict):
-        control_space = oc.CompoundControlSpace(state_space)
+    def make_control_space(self):
+        control_space = oc.CompoundControlSpace(self.state_space)
 
-        gripper_control_space = oc.RealVectorControlSpace(state_space, 3)
+        gripper_control_space = oc.RealVectorControlSpace(self.state_space, 3)
         gripper_control_bounds = ob.RealVectorBounds(3)
         # Direction (in XY plane)
         gripper_control_bounds.setLow(1, -np.pi)
         gripper_control_bounds.setHigh(1, np.pi)
         # Displacement
-        self.action_params = action_params  # FIXME: terrible API
-        max_d = action_params['max_distance_gripper_can_move']
+        max_d = self.action_params['max_distance_gripper_can_move']
         gripper_control_bounds.setLow(2, 0)
         gripper_control_bounds.setHigh(2, max_d)
         gripper_control_space.setBounds(gripper_control_bounds)
         control_space.addSubspace(gripper_control_space)
 
         def _allocator(cs):
-            return RopeDraggingControlSampler(cs, scenario_ompl=self, rng=rng, action_params=action_params)
+            return RopeDraggingControlSampler(cs,
+                                              scenario_ompl=self,
+                                              rng=self.control_sampler_rng,
+                                              action_params=self.action_params)
 
         # I override the sampler here so I can use numpy RNG to make things more deterministic.
         # ompl does not allow resetting of seeds, which causes problems when evaluating multiple

@@ -91,6 +91,13 @@ class PlanningResult:
     time: float
 
 
+@dataclass
+class SharedPlanningStateOMPL:
+    environment: Optional[Dict] = None
+    just_sampled_goal: bool = False
+    just_sampled_new_action: bool = False
+
+
 class MyPlanner:
     def __init__(self,
                  scenario: AnimatableScenario,

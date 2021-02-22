@@ -21,7 +21,7 @@ class Ensemble:
         self.data_collection_params = self.hparams['dynamics_dataset_hparams']['data_collection_params']
         self.state_description = self.hparams['dynamics_dataset_hparams']['state_description']
         self.action_description = self.hparams['dynamics_dataset_hparams']['action_description']
-        self.state_metadata_keys = self.hparams['state_metadata_keys']
+        self.state_metadata_keys = self.hparams.get('state_metadata_keys', [])
 
         self.nets: List[MyKerasModel] = []
         # NOTE: this abstraction assumes everything is a NN, specifically a MyKerasModel which is not great
