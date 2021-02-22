@@ -1,4 +1,3 @@
-import pathlib
 from copy import deepcopy
 from typing import Dict, List
 
@@ -107,10 +106,10 @@ class UDNNWithRobotKinematics:  # FIXME: inherit from something?
         self.action_keys = net.action_keys
         self.scenario = net.scenario
 
-        self.j = JacobianFollower(robot_namespace=self.scenario.robot_namespace,
-                                  translation_step_size=0.005,
-                                  minimize_rotation=True,
-                                  collision_check=False)
+        self.jacobian_follower_no_cc = JacobianFollower(robot_namespace=self.scenario.robot_namespace,
+                                                        translation_step_size=0.005,
+                                                        minimize_rotation=True,
+                                                        collision_check=False)
 
     def __call__(self, example: Dict, training: bool, **kwargs):
         out = self.net(example, training, **kwargs)
@@ -135,7 +134,7 @@ class UDNNWithRobotKinematics:  # FIXME: inherit from something?
                 example_b_t = index_batch_time(example, self.state_keys + self.action_keys, b, t)
                 example_b_t['joint_names'] = example['joint_names'][b, t]
                 _, reached_t, joint_positions_t = follow_jacobian_from_example(example_b_t,
-                                                                               self.j,
+                                                                               self.jacobian_follower_no_cc,
                                                                                tool_names,
                                                                                preferred_tool_orientations)
                 target_reached.append(reached_t)
@@ -160,4 +159,3 @@ class UDNNWithRobotKinematicsWrapper(BaseDynamicsFunction):
 
     def get_output_keys(self):
         return self.state_keys
-
