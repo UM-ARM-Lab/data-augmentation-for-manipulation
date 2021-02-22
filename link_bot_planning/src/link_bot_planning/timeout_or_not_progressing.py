@@ -20,15 +20,15 @@ class TimeoutOrNotProgressing(ob.PlannerTerminationCondition):
         self.not_progressing = None
         self.timed_out = False
         self.threshold = self.params['attempted_extensions_threshold']
+        self.all_rejected = True
 
     def condition(self):
-        all_rejected = self.attempted_extensions > 0
-        self.not_progressing = self.attempted_extensions >= self.threshold and all_rejected
+        self.not_progressing = self.attempted_extensions >= self.threshold and self.all_rejected
         now = perf_counter()
         dt_s = now - self.t0
         self.timed_out = dt_s > self.params['timeout']
         should_terminate = self.timed_out or self.not_progressing
         if self.verbose >= 3:
-            msg = f"PTC: {dt_s:.1f}s/{self.params['timeout']:.1f}s {self.attempted_extensions:5d}, {all_rejected}"
+            msg = f"PTC: {dt_s:.1f}s/{self.params['timeout']:.1f}s {self.attempted_extensions:5d}, {self.all_rejected}"
             rospy.loginfo(msg)
         return should_terminate

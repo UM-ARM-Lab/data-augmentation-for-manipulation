@@ -399,8 +399,8 @@ class DualArmRopeActionSpace:
 
     def null_action(self):
         return {
-            'left_gripper_position':  np.ones([3]) * -1,
-            'right_gripper_position': np.ones([3]) * -1,
+            'left_gripper_position':  np.ones([3]) * -10,
+            'right_gripper_position': np.ones([3]) * -10,
         }
 
     def action_dict_to_vector_batched(self, action: Dict, batch_size: int):
@@ -562,12 +562,13 @@ class NewRRT(MyPlanner):
 
         if start_state_valid:
             while True:
+                ptc.condition()
                 if ptc.timed_out:
                     planner_status = MyPlannerStatus.Timeout
                     break
-                elif ptc.not_progressing:
-                    planner_status = MyPlannerStatus.NotProgressing
-                    break
+                # elif ptc.not_progressing:
+                #     planner_status = MyPlannerStatus.NotProgressing
+                #     break
 
                 selected_indices, selected_states = tree.sample()
 
@@ -747,14 +748,15 @@ class NewRRT(MyPlanner):
         node_index = index_of_state_nearest_goal
         actions = []
         while True:
+            action = {k: v[node_index] for k, v in tree.actions.items()}
+
             node_index = tree.parent_indices[node_index]
             if node_index == MyTree.NO_PARENT:
                 break
 
-            state = {k: v[node_index] for k, v in tree.states.items()}
-            action = {k: v[node_index] for k, v in tree.actions.items()}
-
-            states.append(state)
             actions.append(action)
+
+            state = {k: v[node_index] for k, v in tree.states.items()}
+            states.append(state)
 
         return states, actions
