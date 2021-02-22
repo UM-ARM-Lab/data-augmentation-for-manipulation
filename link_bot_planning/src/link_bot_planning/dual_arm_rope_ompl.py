@@ -5,9 +5,9 @@ import numpy as np
 
 from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
 from link_bot_planning import floating_rope_ompl
-from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl, DualGripperControlSampler
+from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl, DualGripperControlSampler, sample_rope_and_grippers, \
+    make_random_rope_and_grippers_for_goal_point, sample_rope_and_grippers_from_extent
 from link_bot_planning.my_planner import SharedPlanningStateOMPL
-from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 
 with warnings.catch_warnings():
@@ -289,36 +289,17 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
 
 
 # noinspection PyMethodOverriding
-class DualGripperStateSampler(ob.CompoundStateSampler):
-
-    def __init__(self,
-                 state_space,
-                 scenario_ompl: FloatingRopeOmpl,
-                 extent,
-                 rng: np.random.RandomState,
-                 plot: bool):
-        super().__init__(state_space)
-        self.state_space = state_space
-        self.scenario_ompl = scenario_ompl
-        self.extent = np.array(extent).reshape(3, 2)
-        self.rng = rng
-        self.plot = plot
-
-        bbox_msg = extent_to_bbox(extent)
-        bbox_msg.header.frame_id = 'world'
-        self.sampler_extents_bbox_pub = rospy.Publisher('sampler_extents', BoundingBox, queue_size=10, latch=True)
-        self.sampler_extents_bbox_pub.publish(bbox_msg)
+class DualGripperStateSampler(floating_rope_ompl.DualGripperStateSampler):
 
     def sampleUniform(self, state_out: ob.CompoundState):
-        random_point = self.rng.uniform(self.extent[:, 0], self.extent[:, 1])
-        random_point_rope = np.concatenate([random_point] * FloatingRopeScenario.n_links)
+        left_gripper, random_rope, right_gripper = sample_rope_and_grippers_from_extent(self.rng, self.extent)
 
         n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
         joint_positions = np.zeros(n_joints, dtype=np.float64)
         state_np = {
-            'left_gripper':    random_point,
-            'right_gripper':   random_point,
-            'rope':            random_point_rope,
+            'left_gripper':    left_gripper,
+            'right_gripper':   right_gripper,
+            'rope':            random_rope,
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
             'joint_positions': joint_positions,
@@ -343,10 +324,12 @@ class RopeMidpointGoalRegion(floating_rope_ompl.RopeMidpointGoalRegion):
         self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
     def make_goal_state(self, random_point):
+        left_gripper, random_rope, right_gripper = make_random_rope_and_grippers_for_goal_point(self.rng, random_point)
+
         goal_state_np = {
-            'left_gripper':    random_point,
-            'right_gripper':   random_point,
-            'rope':            [random_point] * self.scenario_ompl.s.n_links,
+            'left_gripper':    left_gripper,
+            'right_gripper':   right_gripper,
+            'rope':            random_rope,
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
             'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
@@ -370,10 +353,12 @@ class RopeAnyPointGoalRegion(floating_rope_ompl.RopeAnyPointGoalRegion):
         self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
     def make_goal_state(self, random_point: np.array):
+        left_gripper, random_rope, right_gripper = make_random_rope_and_grippers_for_goal_point(self.rng, random_point)
+
         goal_state_np = {
-            'left_gripper':    random_point,
-            'right_gripper':   random_point,
-            'rope':            [random_point] * self.scenario_ompl.s.n_links,
+            'left_gripper':    left_gripper,
+            'right_gripper':   right_gripper,
+            'rope':            random_rope,
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
             'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
