@@ -32,9 +32,9 @@ def predict(fwd_model: BaseDynamicsFunction,
     start_states_tiled = {k: tf.concat([v] * n_actions_sampled, axis=0) for k, v in start_states.items()}
 
     # Actually do the predictions
-    predictions_dict, _ = fwd_model.propagate_differentiable_batched(environment=environment,
-                                                                     state=start_states_tiled,
-                                                                     actions=actions_batched)
+    predictions_dict, _ = fwd_model.propagate_tf_batched(environment=environment,
+                                                         state=start_states_tiled,
+                                                         actions=actions_batched)
 
     # break out the num actions and num start states
     n_states = n_actions + 1
@@ -89,8 +89,8 @@ def predict_and_classify(fwd_model: Ensemble,
                                                                   actions=actions_batched)
 
     # Run classifier
-    accept_probabilities = classifier.check_constraint_batched_tf(environment=environment_batched,
-                                                                  predictions=predictions_dict,
+    accept_probabilities = classifier.check_constraint_tf_batched(environment=environment_batched,
+                                                                  states=predictions_dict,
                                                                   actions=actions_batched,
                                                                   state_sequence_length=state_sequence_length,
                                                                   batch_size=n_start_states * n_actions_sampled)

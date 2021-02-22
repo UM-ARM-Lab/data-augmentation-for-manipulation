@@ -17,6 +17,14 @@ class BaseConstraintChecker:
     def check_constraint_from_example(self, example: Dict, training: Optional[bool] = False):
         raise NotImplementedError()
 
+    def check_constraint_tf_batched(self,
+                                    environment: Dict,
+                                    states: Dict,
+                                    actions: Dict,
+                                    batch_size: int,
+                                    state_sequence_length: int):
+        raise NotImplementedError()
+
     def check_constraint_tf(self,
                             environment: Dict,
                             states_sequence: List[Dict],

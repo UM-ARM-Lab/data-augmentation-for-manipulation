@@ -21,10 +21,9 @@ from moonshine.classifier_losses_and_metrics import binary_classification_sequen
     class_weighted_mean_loss
 from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
 from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors
+from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
 from mps_shape_completion_msgs.msg import OccupancyStamped
-from moonshine.filepath_tools import load_trial
-from moonshine.my_keras_model import MyKerasModel
 
 DEBUG_VIZ = False
 
@@ -308,7 +307,7 @@ class NNClassifierWrapper(BaseConstraintChecker):
         """
         Unlike the BaseConstraintChecker, this takes in list of paths, like cl_trials/dir1/dir2/best_checkpoint
         Args:
-            paths:
+            path:
             batch_size:
             scenario:
         """
@@ -356,9 +355,9 @@ class NNClassifierWrapper(BaseConstraintChecker):
         stdev_predictions = {k: tf.math.reduce_std(v, axis=0) for k, v in predictions_dict.items()}
         return mean_predictions, stdev_predictions
 
-    def check_constraint_batched_tf(self,
+    def check_constraint_tf_batched(self,
                                     environment: Dict,
-                                    predictions: Dict,
+                                    states: Dict,
                                     actions: Dict,
                                     batch_size: int,
                                     state_sequence_length: int):
@@ -374,10 +373,10 @@ class NNClassifierWrapper(BaseConstraintChecker):
 
         for state_key in self.state_keys:
             planned_state_key = add_predicted(state_key)
-            net_inputs[planned_state_key] = tf.cast(predictions[state_key], tf.float32)
+            net_inputs[planned_state_key] = tf.cast(states[state_key], tf.float32)
 
         if self.hparams['stdev']:
-            net_inputs[add_predicted('stdev')] = tf.cast(predictions['stdev'], tf.float32)
+            net_inputs[add_predicted('stdev')] = tf.cast(states['stdev'], tf.float32)
 
         net_inputs = make_dict_tf_float32(net_inputs)
         mean_predictions, stdev_predictions = self.check_constraint_from_example(net_inputs, training=False)
@@ -397,8 +396,8 @@ class NNClassifierWrapper(BaseConstraintChecker):
         state_sequence_length = len(states_sequence)
         actions_dict = sequence_of_dicts_to_dict_of_tensors(actions)
         actions_dict = add_batch(actions_dict)
-        mean_probabilities, stdev_probabilities = self.check_constraint_batched_tf(environment=environment,
-                                                                                   predictions=states_sequence_dict,
+        mean_probabilities, stdev_probabilities = self.check_constraint_tf_batched(environment=environment,
+                                                                                   states=states_sequence_dict,
                                                                                    actions=actions_dict,
                                                                                    batch_size=1,
                                                                                    state_sequence_length=state_sequence_length)

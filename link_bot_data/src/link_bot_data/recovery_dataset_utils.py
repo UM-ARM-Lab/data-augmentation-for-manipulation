@@ -287,14 +287,14 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
 
         def _predict_and_classify(_actual_states, _random_actions_dict):
             # Predict
-            mean_dynamics_predictions, _ = fwd_model.propagate_differentiable_batched(environment=environment,
-                                                                                      state=_actual_states,
-                                                                                      actions=_random_actions_dict)
+            mean_dynamics_predictions, _ = fwd_model.propagate_tf_batched(environment=environment,
+                                                                          state=_actual_states,
+                                                                          actions=_random_actions_dict)
 
             # Check classifier
             environment_tiled = {k: tf.concat([v] * n_action_samples, axis=0) for k, v in environment.items()}
-            accept_probabilities, _ = classifier_model.check_constraint_batched_tf(environment=environment_tiled,
-                                                                                   predictions=mean_dynamics_predictions,
+            accept_probabilities, _ = classifier_model.check_constraint_tf_batched(environment=environment_tiled,
+                                                                                   states=mean_dynamics_predictions,
                                                                                    actions=_random_actions_dict,
                                                                                    batch_size=bs,
                                                                                    state_sequence_length=classifier_horizon)

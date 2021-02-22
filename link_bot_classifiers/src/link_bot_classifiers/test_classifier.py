@@ -51,14 +51,14 @@ def test_classifier(classifier_model_dir: pathlib.Path,
     environment_tiled = repeat(environment, n_actions, axis=0, new_axis=True)
     actions_dict = sequence_of_dicts_to_dict_of_tensors(actions)
     actions_dict = add_time_dim(actions_dict)
-    predictions, _ = fwd_model.propagate_differentiable_batched(environment=environment_tiled,
-                                                                state=start_states_tiled,
-                                                                actions=actions_dict)
+    predictions, _ = fwd_model.propagate_tf_batched(environment=environment_tiled,
+                                                    state=start_states_tiled,
+                                                    actions=actions_dict)
 
     # Run classifier
     state_sequence_length = 2
-    accept_probabilities, _ = classifier.check_constraint_batched_tf(environment=environment_tiled,
-                                                                     predictions=predictions,
+    accept_probabilities, _ = classifier.check_constraint_tf_batched(environment=environment_tiled,
+                                                                     states=predictions,
                                                                      actions=actions_dict,
                                                                      state_sequence_length=state_sequence_length,
                                                                      batch_size=n_actions)

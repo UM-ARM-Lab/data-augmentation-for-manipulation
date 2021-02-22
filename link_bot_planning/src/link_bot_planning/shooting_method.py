@@ -51,9 +51,9 @@ class ShootingMethod(MyPlanner):
         environment_batched = {k: tf.stack([v] * self.n_samples, axis=0) for k, v in planning_query.environment.items()}
         start_state_batched = {k: tf.expand_dims(tf.stack([v] * self.n_samples, axis=0), axis=1) for k, v in
                                planning_query.start.items()}
-        mean_predictions, _ = self.fwd_model.propagate_differentiable_batched(environment=environment_batched,
-                                                                              state=start_state_batched,
-                                                                              actions=random_actions)
+        mean_predictions, _ = self.fwd_model.propagate_tf_batched(environment=environment_batched,
+                                                                  state=start_state_batched,
+                                                                  actions=random_actions)
 
         final_states = {k: v[:, -1] for k, v in mean_predictions.items()}
         goal_state_batched = {k: tf.stack([v] * self.n_samples, axis=0) for k, v in planning_query.goal.items()}

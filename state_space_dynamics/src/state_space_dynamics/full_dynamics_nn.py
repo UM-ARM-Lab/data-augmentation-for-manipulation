@@ -202,12 +202,12 @@ class ObstacleNNWrapper(BaseDynamicsFunction):
     def propagate_from_example(self, dataset_element, training=False):
         return self.net(dataset_element, training=training)
 
-    def propagate_differentiable(self,
-                                 full_env: np.ndarray,
-                                 full_env_origin: np.ndarray,
-                                 res: float,
-                                 start_state: Dict[str, np.ndarray],
-                                 actions: tf.Variable) -> List[Dict]:
+    def propagate_tf(self,
+                     full_env: np.ndarray,
+                     full_env_origin: np.ndarray,
+                     res: float,
+                     start_state: Dict[str, np.ndarray],
+                     actions: tf.Variable) -> List[Dict]:
         """
         :param full_env:        (H, W)
         :param full_env_origin: (2)

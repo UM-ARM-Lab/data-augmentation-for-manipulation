@@ -4,7 +4,7 @@ import signal
 import string
 import traceback
 import warnings
-from typing import Union, List, Callable, Optional
+from typing import Union, List, Callable, Optional, Dict
 
 import numpy as np
 import tensorflow as tf
@@ -155,7 +155,6 @@ def vector_to_points_2d(x):
     xs = x_points[:, 0]
     ys = x_points[:, 1]
     return xs, ys
-
 
 def make_dict_tf_float32(d):
     f32d = {}
@@ -349,3 +348,14 @@ def skip_on_timeout(t: int, on_timeout: Optional[Callable], f: Callable, *args, 
                 yield i
         except StopIteration:
             return
+
+
+def are_states_close(a: Dict, b: Dict):
+    assert (set(a.keys()) == set(b.keys()))
+    for k, v1 in a.items():
+        v2 = b[k]
+        if isinstance(v1, np.ndarray):
+            if v1.dtype in [np.float32, np.float64, np.int32, np.int64]:
+                if not np.allclose(v1, v2):
+                    return False
+    return True

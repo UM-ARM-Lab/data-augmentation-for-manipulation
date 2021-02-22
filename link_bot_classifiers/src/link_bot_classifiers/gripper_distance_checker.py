@@ -26,3 +26,14 @@ class GripperDistanceChecker(BaseConstraintChecker):
         d = tf.linalg.norm(states_sequence[1]['right_gripper'] - states_sequence[1]['left_gripper'])
         not_too_far = d < self.max_d
         return tf.expand_dims(tf.cast(not_too_far, tf.float32), axis=0), tf.constant(0)
+
+    def check_constraint_tf_batched(self,
+                                    environment: Dict,
+                                    states: Dict,
+                                    actions: Dict,
+                                    batch_size: int,
+                                    state_sequence_length: int):
+        del environment  # unused
+        d = tf.linalg.norm(states['right_gripper'] - states['left_gripper'], axis=-1)[:, -1]
+        not_too_far = d < self.max_d
+        return tf.expand_dims(tf.cast(not_too_far, tf.float32), axis=0), tf.zeros([1, batch_size], tf.float32)

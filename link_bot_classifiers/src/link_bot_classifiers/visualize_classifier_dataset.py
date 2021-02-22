@@ -31,6 +31,8 @@ def visualize_dataset(args, classifier_dataset):
     stdevs_for_negative = []
     stdevs_for_positive = []
 
+    print_dict(next(iter(tf_dataset)))
+
     for i, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
         if i < args.start_at:
             continue

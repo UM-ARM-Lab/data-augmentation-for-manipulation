@@ -18,3 +18,12 @@ def get_ompl_scenario(scenario: ExperimentScenario, *args, **kwargs) -> Scenario
         return FloatingRopeOmpl(scenario, *args, **kwargs)
     else:
         raise NotImplementedError(f"unimplemented scenario {scenario}")
+
+
+# def get_planning_scenario(scenario: ExperimentScenario, *args, **kwargs) -> PlanningScenario:
+#     # order matters here, because of inheritence
+#     if isinstance(scenario, SimDualArmRopeScenario):
+#         return DualArmRopePlanning(scenario, *args, **kwargs)
+#     else:
+#         raise NotImplementedError(f"unimplemented scenario {scenario}")
+#

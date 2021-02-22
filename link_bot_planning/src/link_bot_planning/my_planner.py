@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Optional, List
 
-import numpy as np
 from dataclasses_json import dataclass_json
 
 from link_bot_planning.base_decoder_function import BaseDecoderFunction, PassThroughDecoderFunction
 from link_bot_pycommon.animatable_scenario import AnimatableScenario
+from link_bot_pycommon.pycommon import are_states_close
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 from state_space_dynamics.base_filter_function import BaseFilterFunction, PassThroughFilter
 
@@ -25,17 +25,6 @@ class MyPlannerStatus(Enum):
             return True
         else:
             return False
-
-
-def are_states_close(a: Dict, b: Dict):
-    assert (set(a.keys()) == set(b.keys()))
-    for k, v1 in a.items():
-        v2 = b[k]
-        if isinstance(v1, np.ndarray):
-            if v1.dtype in [np.float32, np.float64, np.int32, np.int64]:
-                if not np.allclose(v1, v2):
-                    return False
-    return True
 
 
 class LoggingTree:

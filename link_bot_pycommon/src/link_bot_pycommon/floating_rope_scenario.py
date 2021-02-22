@@ -260,7 +260,8 @@ class FloatingRopeScenario(Base3DScenario):
         gripper_bbox_msg.header.frame_id = 'world'
         gripper_bbox_pub.publish(gripper_bbox_msg)
 
-    def sample_delta_position(self, action_params, action_rng):
+    @staticmethod
+    def sample_delta_position(action_params: Dict, action_rng: np.random.RandomState):
         pitch = action_rng.uniform(-np.pi, np.pi)
         yaw = action_rng.uniform(-np.pi, np.pi)
         displacement = action_rng.uniform(0, action_params['max_distance_gripper_can_move'])

@@ -19,12 +19,11 @@ class BaseDynamicsFunction(Ensemble):
         self.state_keys = self.nets[0].state_keys
         self.action_keys = self.nets[0].action_keys
 
-    def propagate(self, environment: Dict, start_states: Dict, actions: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
-        mean_predictions, stdev_predictions = self.propagate_differentiable(environment, start_states, actions)
+    def propagate(self, environment: Dict, start_state: Dict, action: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+        mean_predictions, stdev_predictions = self.propagate_tf(environment, start_state, action)
         return numpify(mean_predictions), numpify(stdev_predictions)
 
-    def propagate_differentiable(self, environment: Dict, start_state: Dict, actions: List[Dict]) -> Tuple[
-        List[Dict], List[Dict]]:
+    def propagate_tf(self, environment: Dict, start_state: Dict, actions: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
         net_inputs = {}
         net_inputs.update(start_state)
         # add time dimension of size 1
@@ -43,7 +42,7 @@ class BaseDynamicsFunction(Ensemble):
         stdev_predictions = dict_of_sequences_to_sequence_of_dicts_tf(stdev_predictions)
         return mean_predictions, stdev_predictions
 
-    def propagate_differentiable_batched(self, environment: Dict, state: Dict, actions: Dict) -> Tuple[Dict, Dict]:
+    def propagate_tf_batched(self, environment: Dict, state: Dict, actions: Dict) -> Tuple[Dict, Dict]:
         net_inputs = {}
         net_inputs.update(state)
         net_inputs.update(actions)

@@ -78,9 +78,9 @@ class TrajectoryOptimizer:
     def step(self, environment: Dict, goal_state: Dict, actions: List[Dict], start_state: Dict):
         with tf.GradientTape(watch_accessed_variables=True, persistent=True) as tape:
             # Compute the states predicted given the actions
-            mean_predictions, _ = self.fwd_model.propagate_differentiable(environment=environment,
-                                                                          start_state=start_state,
-                                                                          actions=actions)
+            mean_predictions, _ = self.fwd_model.propagate_tf(environment=environment,
+                                                              start_state=start_state,
+                                                              actions=actions)
 
             cost = self.cost_function(actions, environment, goal_state, mean_predictions)
 
@@ -99,9 +99,9 @@ class TrajectoryOptimizer:
         self.optimizer.apply_gradients(valid_grads_and_vars)
 
         # re-run the forward pass nwo that actions have been updated
-        planned_path, _ = self.fwd_model.propagate_differentiable(environment=environment,
-                                                                  start_state=start_state,
-                                                                  actions=actions)
+        planned_path, _ = self.fwd_model.propagate_tf(environment=environment,
+                                                      start_state=start_state,
+                                                      actions=actions)
 
         return actions, planned_path, cost
 

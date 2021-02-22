@@ -1,12 +1,12 @@
 import pathlib
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import tensorflow as tf
 from colorama import Fore
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, flatten_after
 from moonshine.filepath_tools import load_trial
+from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, flatten_after
 from moonshine.my_keras_model import MyKerasModel
 
 
@@ -21,6 +21,7 @@ class Ensemble:
         self.data_collection_params = self.hparams['dynamics_dataset_hparams']['data_collection_params']
         self.state_description = self.hparams['dynamics_dataset_hparams']['state_description']
         self.action_description = self.hparams['dynamics_dataset_hparams']['action_description']
+        self.state_metadata_keys = self.hparams['state_metadata_keys']
 
         self.nets: List[MyKerasModel] = []
         # NOTE: this abstraction assumes everything is a NN, specifically a MyKerasModel which is not great
@@ -56,11 +57,14 @@ class Ensemble:
 
         outputs = [net(net.preprocess_no_gradient(example, training), training=training) for net in self.nets]
         outputs_dict = sequence_of_dicts_to_dict_of_tensors(outputs)
+        outputs_state_metadata = {k: outputs_dict[k][0] for k in self.state_metadata_keys}
 
-        outputs_dict = {k: flatten_after(outputs_dict[k], axis=self.get_num_batch_axes()) for k in self.get_output_keys()}
+        outputs_dict = {k: flatten_after(outputs_dict[k], axis=self.get_num_batch_axes()) for k in
+                        self.get_output_keys()}
 
         # axis 0 is the different networks
         mean = {k: tf.math.reduce_mean(outputs_dict[k], axis=0) for k in self.get_output_keys()}
+        mean.update(outputs_state_metadata)
         stdev = {k: tf.math.reduce_std(outputs_dict[k], axis=0) for k in self.get_output_keys()}
 
         # each output variable has its own vector of variances,

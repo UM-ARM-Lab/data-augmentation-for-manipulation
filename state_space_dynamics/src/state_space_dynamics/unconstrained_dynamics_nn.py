@@ -1,3 +1,5 @@
+import pathlib
+from copy import deepcopy
 from typing import Dict, List
 
 import numpy as np
@@ -34,7 +36,7 @@ class UnconstrainedDynamicsNN(MyKerasModel):
 
         self.dense_layers.append(layers.Dense(self.total_state_dimensions, activation=None))
 
-    # @tf.function
+    @tf.function
     def call(self, example, training, mask=None):
         actions = {k: example[k] for k in self.action_keys}
         input_sequence_length = actions[self.action_keys[0]].shape[1]
@@ -94,7 +96,7 @@ class WithRobotKinematics:
         return output
 
 
-class UDNNWithRobotKinematics:
+class UDNNWithRobotKinematics:  # FIXME: inherit from something?
 
     def __init__(self, net: UnconstrainedDynamicsNN):
         self.net = net
@@ -115,6 +117,8 @@ class UDNNWithRobotKinematics:
         example_np = numpify(example)
         _, predicted_joint_positions = self.follow_jacobian_from_example(example_np)
         out['joint_positions'] = tf.convert_to_tensor(predicted_joint_positions, dtype=tf.float32)
+        sequence_length = example[self.state_keys[0]].shape[1] + 1
+        out['joint_names'] = tf.tile(example['joint_names'], [1, sequence_length, 1])
         return out
 
     def follow_jacobian_from_example(self, example: Dict):
@@ -129,7 +133,7 @@ class UDNNWithRobotKinematics:
             pred_joint_positions = [index_batch_time(example, ['joint_positions'], b, 0)['joint_positions']]
             for t in range(input_sequence_length):
                 example_b_t = index_batch_time(example, self.state_keys + self.action_keys, b, t)
-                example_b_t['joint_names'] = example['joint_names'][b]
+                example_b_t['joint_names'] = example['joint_names'][b, t]
                 _, reached_t, joint_positions_t = follow_jacobian_from_example(example_b_t,
                                                                                self.j,
                                                                                tool_names,
@@ -147,7 +151,13 @@ class UDNNWithRobotKinematics:
 class UDNNWithRobotKinematicsWrapper(BaseDynamicsFunction):
 
     def make_net_and_checkpoint(self, batch_size, scenario):
-        net = UnconstrainedDynamicsNN(hparams=self.hparams, batch_size=batch_size, scenario=scenario)
+        modified_hparams = deepcopy(self.hparams)
+        modified_hparams['state_keys'].remove('joint_positions')
+        net = UnconstrainedDynamicsNN(hparams=modified_hparams, batch_size=batch_size, scenario=scenario)
         ckpt = tf.train.Checkpoint(model=net)
         net = UDNNWithRobotKinematics(net)
         return net, ckpt
+
+    def get_output_keys(self):
+        return self.state_keys
+
