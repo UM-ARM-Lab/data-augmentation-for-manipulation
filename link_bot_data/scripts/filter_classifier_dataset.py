@@ -35,7 +35,8 @@ def main():
                    dataset=dataset,
                    outdir=outdir,
                    should_keep=_should_keep_example,
-                   hparams_update=hparams_update)
+                   hparams_update=hparams_update,
+                   do_not_process=False)
 
 
 if __name__ == '__main__':

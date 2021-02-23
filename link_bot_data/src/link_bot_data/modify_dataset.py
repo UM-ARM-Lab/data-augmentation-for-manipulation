@@ -31,9 +31,10 @@ def modify_dataset(dataset_dir: pathlib.Path,
                    dataset: BaseDatasetLoader,
                    outdir: pathlib.Path,
                    process_example: Callable,
-                   hparams_update: Optional[Dict] = None):
+                   hparams_update: Optional[Dict] = None,
+                   do_not_process: bool = True):
     total_count = 0
-    for full_output_directory, i, example in dataset_generator_all_modes(dataset_dir, dataset, outdir, hparams_update):
+    for full_output_directory, i, example in dataset_generator_all_modes(dataset_dir, dataset, outdir, hparams_update, do_not_process):
         for out_example in process_example(dataset, example):
             tf_write_example(full_output_directory, out_example, total_count)
             total_count += 1
@@ -44,9 +45,10 @@ def filter_dataset(dataset_dir: pathlib.Path,
                    dataset: BaseDatasetLoader,
                    outdir: pathlib.Path,
                    should_keep: Callable,
-                   hparams_update: Optional[Dict] = None):
+                   hparams_update: Optional[Dict] = None,
+                   do_not_process: bool = True):
     total_count = 0
-    for full_output_directory, i, example in dataset_generator_all_modes(dataset_dir, dataset, outdir, hparams_update):
+    for full_output_directory, i, example in dataset_generator_all_modes(dataset_dir, dataset, outdir, hparams_update, do_not_process):
         if should_keep(dataset, example):
             tf_write_example(full_output_directory, example, total_count)
     print(Fore.GREEN + f"Kept {total_count} examples")
@@ -55,14 +57,15 @@ def filter_dataset(dataset_dir: pathlib.Path,
 def dataset_generator_all_modes(dataset_dir: pathlib.Path,
                                 dataset: BaseDatasetLoader,
                                 outdir: pathlib.Path,
-                                hparams_update: Optional[Dict] = None):
+                                hparams_update: Optional[Dict] = None,
+                                do_not_process: bool = True):
     if hparams_update is None:
         hparams_update = {}
 
     modify_hparams(dataset_dir, outdir, hparams_update)
 
     for mode in ['train', 'test', 'val']:
-        tf_dataset = dataset.get_datasets(mode=mode, shuffle_files=False, do_not_process=True)
+        tf_dataset = dataset.get_datasets(mode=mode, shuffle_files=False, do_not_process=do_not_process)
         full_output_directory = outdir / mode
         full_output_directory.mkdir(parents=True, exist_ok=True)
 
