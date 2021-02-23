@@ -50,6 +50,9 @@ def filter_dataset(dataset_dir: pathlib.Path,
     total_count = 0
     for full_output_directory, i, example in dataset_generator_all_modes(dataset_dir, dataset, outdir, hparams_update, do_not_process):
         if should_keep(dataset, example):
+            total_count += 1
+            for k in dataset.scenario_metadata.keys():
+                example.pop(k)
             tf_write_example(full_output_directory, example, total_count)
     print(Fore.GREEN + f"Kept {total_count} examples")
 
