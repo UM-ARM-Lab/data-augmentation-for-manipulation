@@ -14,12 +14,14 @@ from colorama import Fore
 import ros_numpy
 import rospy
 from arc_utilities import ros_init
-from arc_utilities.listener import Listener
+from geometry_msgs.msg import Point, Pose
+from link_bot.link_bot_pycommon.scripts.basic_3d_pose_marker_server import Basic3DPoseInteractiveMarker
 from link_bot_gazebo_python import gazebo_services
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
-from visualization_msgs.msg import InteractiveMarkerFeedback
+from std_msgs.msg import ColorRGBA
+from visualization_msgs.msg import Marker
 
 
 def main():
@@ -71,9 +73,19 @@ def generate_saved_goals(method: str,
     scenario.on_before_data_collection(params)
     scenario.randomization_initialization(params)
 
+    goal_radius = planner_params['goal_params']['threshold']
+
     if method == 'rviz_marker':
         print("Run the following: rosrun rviz_visual_tools imarker_simple_demo")
         print("drag the marker to where you want and hit enter...")
+
+    def make_marker(scale: float):
+        marker = Marker(type=Marker.SPHERE)
+        marker.scale = Point(2 * goal_radius, 2 * goal_radius, 2 * goal_radius)
+        marker.color = ColorRGBA(0.5, 1.0, 0.5, 0.7)
+        return marker
+
+    goal_im = Basic3DPoseInteractiveMarker(make_marker=make_marker)
 
     for trial_idx in range(n_trials):
         if trial_idx < start_at:
@@ -84,24 +96,26 @@ def generate_saved_goals(method: str,
         rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
         scenario.restore_from_bag(service_provider, planner_params, bagfile_name)
 
+        current_goal = load(save_test_scenes_dir, trial_idx)
+        scenario.plot_goal_rviz(current_goal, goal_threshold=goal_radius)
+
         print(trial_idx)
         if method == 'rejection_sample':
             goal = rejection_sample_goal(scenario, params, planner_params, trial_idx)
         elif method == 'rviz_marker':
-            # rosrun rviz_visual_tools imarker_simple_demo
-            goal = rviz_marker_goal(scenario, params, planner_params, trial_idx)
+            goal_im.set_pose(Pose(position=ros_numpy.msgify(Point, current_goal['point'])))
+            goal = rviz_marker_goal(goal_im)
         else:
             raise NotImplementedError()
 
         save(save_test_scenes_dir, trial_idx, goal)
 
 
-def rviz_marker_goal(scenario: ExperimentScenario, params: Dict, planner_params: Dict, trial_idx: int):
-    listener = Listener('/imarker_simple_demo/imarker/feedback', InteractiveMarkerFeedback)
-    input('press enter to save')
-    feedback: InteractiveMarkerFeedback = listener.get()
+def rviz_marker_goal(goal_im: Basic3DPoseInteractiveMarker):
+    input("press enter to save")
+    pose = goal_im.get_pose()
     goal = {
-        'point': ros_numpy.numpify(feedback.pose.position).astype(np.float32)
+        'point': ros_numpy.numpify(pose.position).astype(np.float32)
     }
     return goal
 
@@ -115,6 +129,13 @@ def rejection_sample_goal(scenario: ExperimentScenario, params: Dict, planner_pa
         if input("ok? [Y/n]") in ['y', 'Y', 'yes', '']:
             break
 
+    return goal
+
+
+def load(save_test_scenes_dir: pathlib.Path, trial_idx: int):
+    saved_goal_filename = save_test_scenes_dir / f'goal_{trial_idx:04d}.pkl'
+    with saved_goal_filename.open("rb") as saved_goal_file:
+        goal = pickle.load(saved_goal_file)
     return goal
 
 
