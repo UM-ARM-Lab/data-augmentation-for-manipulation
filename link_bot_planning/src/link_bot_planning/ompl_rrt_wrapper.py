@@ -113,7 +113,7 @@ class OmplRRTWrapper(MyPlanner):
         self.rrt = oc.RRT(self.si)
         self.rrt.setIntermediateStates(True)  # this is necessary, because we use this to generate datasets
         self.initial_goal_bias = 0.05
-        max_goal_bias = 0.05  # not sure setting this higher actually helps
+        max_goal_bias = 0.6  # not sure setting this higher actually helps
         self.goal_bias_schedule = LinearSchedule(self.initial_goal_bias, max_goal_bias)
 
         self.rrt.setGoalBias(self.initial_goal_bias)
@@ -198,15 +198,15 @@ class OmplRRTWrapper(MyPlanner):
         # get only the final state predicted, since *_predicted_states includes the start state
         final_predicted_state = mean_predicted_states[-1]
 
-        # # NOTE: this should not needed if we used UDNNWithRobotKinematics
-        # # If in general we have a controller which can tell us whether a motion is feasible (w/o actually executing)
-        # # then we can invoke that hear, and do a logical OR with the classifier's decision
-        # # we also need to set the joint values. This is breaking a lot of my nice abstractions but I am impatient
-        # feasible, predicted_joint_positions = self.scenario.is_motion_feasible(environment=self.sps.environment,
-        #                                                                        state=last_previous_state,
-        #                                                                        action=new_action)
-        # final_predicted_state['joint_positions'] = np.array(predicted_joint_positions)
-        # final_predicted_state['joint_names'] = last_previous_state['joint_names']
+        # NOTE: this should not needed if we used UDNNWithRobotKinematics
+        # If in general we have a controller which can tell us whether a motion is feasible (w/o actually executing)
+        # then we can invoke that hear, and do a logical OR with the classifier's decision
+        # we also need to set the joint values. This is breaking a lot of my nice abstractions but I am impatient
+        feasible, predicted_joint_positions = self.scenario.is_motion_feasible(environment=self.sps.environment,
+                                                                               state=last_previous_state,
+                                                                               action=new_action)
+        final_predicted_state['joint_positions'] = np.array(predicted_joint_positions)
+        final_predicted_state['joint_names'] = last_previous_state['joint_names']
 
         # walk back up the branch until num_diverged == 0
         all_states = [final_predicted_state]

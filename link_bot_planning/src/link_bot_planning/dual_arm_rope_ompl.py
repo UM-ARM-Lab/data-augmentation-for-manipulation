@@ -289,17 +289,13 @@ class DualGripperStateSampler(floating_rope_ompl.DualGripperStateSampler):
 
     def sampleUniform(self, state_out: ob.CompoundState):
         left_gripper, random_rope, right_gripper = sample_rope_and_grippers_from_extent(self.rng, self.extent)
-        random_point = self.rng.uniform(self.extent[:, 0], self.extent[:, 1])
 
         n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
         joint_positions = np.zeros(n_joints, dtype=np.float64)
         state_np = {
-            # 'left_gripper':    left_gripper,
-            # 'right_gripper':   right_gripper,
-            # 'rope':            random_rope,
-            'left_gripper':    random_point,
-            'right_gripper':   random_point,
-            'rope':            [random_point] * self.scenario_ompl.s.n_links,
+            'left_gripper':    left_gripper,
+            'right_gripper':   right_gripper,
+            'rope':            random_rope,
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
             'joint_positions': joint_positions,
@@ -356,12 +352,9 @@ class RopeAnyPointGoalRegion(floating_rope_ompl.RopeAnyPointGoalRegion):
         left_gripper, random_rope, right_gripper = make_random_rope_and_grippers_for_goal_point(self.rng, random_point)
 
         goal_state_np = {
-            'left_gripper':    random_point,
-            'right_gripper':   random_point,
-            'rope':            [random_point] * self.scenario_ompl.s.n_links,
-            # 'left_gripper':    left_gripper,
-            # 'right_gripper':   right_gripper,
-            # 'rope':            random_rope,
+            'left_gripper':    left_gripper,
+            'right_gripper':   right_gripper,
+            'rope':            random_rope,
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
             'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
