@@ -40,7 +40,10 @@ def numpify(x, dtype=np.float32):
                 return l
     elif isinstance(x, tf.Tensor):
         if x.dtype == tf.string:
-            return x.numpy().astype(np.str_)
+            if len(x.shape) == 0:
+                return x.numpy().decode("utf-8")
+            else:
+                return x.numpy().astype(np.str_)
         else:
             return x.numpy()
     elif isinstance(x, tf.Variable):

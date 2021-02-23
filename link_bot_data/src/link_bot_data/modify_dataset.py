@@ -32,21 +32,39 @@ def modify_dataset(dataset_dir: pathlib.Path,
                    outdir: pathlib.Path,
                    process_example: Callable,
                    hparams_update: Optional[Dict] = None):
+    total_count = 0
+    for full_output_directory, i, example in dataset_generator_all_modes(dataset_dir, dataset, outdir, hparams_update):
+        for out_example in process_example(dataset, example):
+            tf_write_example(full_output_directory, out_example, total_count)
+            total_count += 1
+    print(Fore.GREEN + f"Modified {total_count} examples")
+
+
+def filter_dataset(dataset_dir: pathlib.Path,
+                   dataset: BaseDatasetLoader,
+                   outdir: pathlib.Path,
+                   process_example: Callable,
+                   hparams_update: Optional[Dict] = None):
+    total_count = 0
+    for full_output_directory, i, example in dataset_generator_all_modes(dataset_dir, dataset, outdir, hparams_update):
+        if process_example(dataset, example):
+            tf_write_example(full_output_directory, example, total_count)
+    print(Fore.GREEN + f"Kept {total_count} examples")
+
+
+def dataset_generator_all_modes(dataset_dir: pathlib.Path,
+                                dataset: BaseDatasetLoader,
+                                outdir: pathlib.Path,
+                                hparams_update: Optional[Dict] = None):
     if hparams_update is None:
         hparams_update = {}
 
-    # hparams
     modify_hparams(dataset_dir, outdir, hparams_update)
 
-    # tfrecords
-    total_count = 0
     for mode in ['train', 'test', 'val']:
         tf_dataset = dataset.get_datasets(mode=mode, shuffle_files=False, do_not_process=True)
         full_output_directory = outdir / mode
         full_output_directory.mkdir(parents=True, exist_ok=True)
 
         for i, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
-            for out_example in process_example(dataset, example):
-                tf_write_example(full_output_directory, out_example, total_count)
-                total_count += 1
-    print(Fore.GREEN + f"Modified {total_count} examples")
+            yield full_output_directory, i, example

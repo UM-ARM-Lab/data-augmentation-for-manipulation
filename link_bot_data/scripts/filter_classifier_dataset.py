@@ -24,17 +24,17 @@ def main():
 
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
-    def _process_example(dataset: ClassifierDatasetLoader, example: Dict):
-        example['prediction_start_t'] = 0
-        yield example
+    def _should_keep_example(dataset: ClassifierDatasetLoader, example: Dict):
+        starts_far = (example['is_close'][0] == 0)
+        return not starts_far
 
     hparams_update = {}
 
     dataset = ClassifierDatasetLoader([args.dataset_dir], use_gt_rope=False, load_true_states=True)
-    modify_dataset(dataset_dir=args.dataset_dir,
+    filter_dataset(dataset_dir=args.dataset_dir,
                    dataset=dataset,
                    outdir=outdir,
-                   process_example=_process_example,
+                   should_keep=_should_keep_example,
                    hparams_update=hparams_update)
 
 

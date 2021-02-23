@@ -45,8 +45,8 @@ def visualize_dataset(args, classifier_dataset):
         n_close = np.count_nonzero(is_close[-1])
         n_far = is_close.shape[0] - n_close
         starts_far = is_close[0] == 0
-        negative = np.any(is_close[1:])
-        positive = not negative
+        positive = is_close[1]
+        negative = not positive
         reconverging = n_far > 0 and is_close[-1]
 
         if args.only_reconverging and not reconverging:
@@ -79,7 +79,7 @@ def visualize_dataset(args, classifier_dataset):
         if count % 1000 == 0:
             print_stats_and_timing(args,
                                    {
-                                       'count':  count,
+                                       'count':              count,
                                        'reconverging_count': reconverging_count,
                                        'negative_count':     negative_count,
                                        'positive_count':     positive_count,
@@ -92,6 +92,7 @@ def visualize_dataset(args, classifier_dataset):
         if args.display_type == 'just_count':
             continue
         elif args.display_type == '3d':
+            classifier_dataset.scenario.plot_traj_idx_rviz(i)
             classifier_dataset.anim_transition_rviz(example)
 
         elif args.display_type == 'stdev':

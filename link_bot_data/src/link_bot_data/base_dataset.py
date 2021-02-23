@@ -12,6 +12,7 @@ import tensorflow as tf
 from colorama import Fore
 
 from link_bot_data.dataset_utils import parse_and_deserialize
+from moonshine.filepath_tools import load_params
 
 DEFAULT_VAL_SPLIT = 0.125
 DEFAULT_TEST_SPLIT = 0.125
@@ -89,12 +90,7 @@ class BaseDatasetLoader:
         self.dataset_dirs = dataset_dirs
         self.hparams = {}
         for dataset_dir in dataset_dirs:
-            dataset_hparams_filename = dataset_dir / 'hparams.json'
-            if not dataset_hparams_filename.exists():
-                dataset_hparams_filename = dataset_dir / 'hparams.hjson'
-
-            # to merge dataset hparams
-            hparams = hjson.load(dataset_hparams_filename.open('r'))
+            hparams = load_params(dataset_dir)
             for k, v in hparams.items():
                 if k not in self.hparams:
                     self.hparams[k] = v

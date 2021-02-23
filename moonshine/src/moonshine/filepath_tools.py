@@ -52,7 +52,13 @@ def load_trial(trial_path):
 
 
 def load_params(directory: pathlib.Path):
-    return load_json_or_hjson(directory, "params")
+    possible_names = ['hparams.json', 'hparams.hjson', 'params.json', 'hparams.hjson']
+    for n in possible_names:
+        filename = directory / n
+        if filename.is_file():
+            params = load_hjson(filename)
+            return params
+    raise RuntimeError(f"no params file in {directory.as_posix()}")
 
 
 def load_json_or_hjson(directory: pathlib.Path, prefix: str):
