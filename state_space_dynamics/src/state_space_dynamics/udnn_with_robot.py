@@ -50,6 +50,8 @@ class UDNNWithRobotKinematics:
         out['joint_positions'] = tf.convert_to_tensor(predicted_joint_positions, dtype=tf.float32)
         sequence_length = example[self.state_keys[0]].shape[1] + 1
         out['joint_names'] = tf.tile(example['joint_names'], [1, sequence_length, 1])
+        # TODO: return reached somehow
+        # out['reached'] = tf.convert_to_tensor(reached)
         return out
 
     def follow_jacobian_from_example(self, example: Dict):

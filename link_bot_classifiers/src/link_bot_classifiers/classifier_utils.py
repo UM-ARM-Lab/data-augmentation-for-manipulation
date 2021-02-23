@@ -2,7 +2,7 @@ import pathlib
 from typing import List, Optional
 
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
-from link_bot_classifiers.feasibility_checker import FeasibilityChecker, NewFeasibilityChecker
+from link_bot_classifiers.feasibility_checker import RobotFeasibilityChecker, FastRobotFeasibilityChecker
 from link_bot_classifiers.gripper_distance_checker import GripperDistanceChecker
 from link_bot_classifiers.nn_classifier import NNClassifierWrapper
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
@@ -27,8 +27,8 @@ def load_generic_model(path: pathlib.Path,
     elif model_type == 'gripper_distance':
         return GripperDistanceChecker(path, scenario=scenario)
     elif model_type == 'feasibility':
-        return FeasibilityChecker(path, scenario=scenario)
+        return RobotFeasibilityChecker(path, scenario=scenario)
     elif model_type == 'new_feasibility':
-        return NewFeasibilityChecker(path, scenario=scenario)
+        return FastRobotFeasibilityChecker(path, scenario=scenario)
     else:
         raise NotImplementedError("invalid model type {}".format(model_type))

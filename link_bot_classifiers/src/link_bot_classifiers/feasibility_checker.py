@@ -7,7 +7,7 @@ from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 
 
-class FeasibilityChecker(BaseConstraintChecker):
+class RobotFeasibilityChecker(BaseConstraintChecker):
 
     def __init__(self,
                  path: pathlib.Path,
@@ -27,7 +27,7 @@ class FeasibilityChecker(BaseConstraintChecker):
         return tf.expand_dims(tf.cast(feasible, tf.float32), axis=0), tf.constant(0)
 
 
-class NewFeasibilityChecker(BaseConstraintChecker):
+class FastRobotFeasibilityChecker(BaseConstraintChecker):
 
     def __init__(self,
                  path: pathlib.Path,
@@ -45,7 +45,9 @@ class NewFeasibilityChecker(BaseConstraintChecker):
                                                               state=state,
                                                               action=action)
         feasible = not collision
-        return tf.expand_dims(tf.cast(feasible, tf.float32), axis=0), tf.constant(0)
+        reached = self.scenario.moveit_robot_reached(states_sequence[0], action, states_sequence[1])
+        constraint_satisfied = feasible and reached
+        return tf.expand_dims(tf.cast(constraint_satisfied, tf.float32), axis=0), tf.constant(0)
 
     def check_constraint_tf_batched(self,
                                     environment: Dict,

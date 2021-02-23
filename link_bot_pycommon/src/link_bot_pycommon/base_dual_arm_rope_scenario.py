@@ -46,6 +46,13 @@ def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, state: Dict)
     return predicted_joint_positions
 
 
+def robot_state_msg_from_state_dict(state: Dict):
+    robot_state = RobotState()
+    robot_state.joint_state = joint_state_msg_from_state_dict(state)
+    robot_state.joint_state.velocity = [0.0] * len(robot_state.joint_state.name)
+    return robot_state
+
+
 def joint_state_msg_from_state_dict(state: Dict):
     joint_state = JointState()
     joint_state.header.stamp = rospy.Time.now()
@@ -74,10 +81,7 @@ def follow_jacobian_from_example(example: Dict,
 
     # NOTE: we don't use environment here because we assume the planning scenes is static,
     #  so the jacobian follower will already have that information.
-    robot_state = RobotState()
-    robot_state.joint_state.name = joint_state.name
-    robot_state.joint_state.position = joint_state.position
-    robot_state.joint_state.velocity = [0.0] * len(example['joint_names'])
+    robot_state = robot_state_msg_from_state_dict(example)
     plan: RobotTrajectory
     target_reached: bool
     plan, target_reached = j.plan_from_start_state(start_state=robot_state,
@@ -323,9 +327,17 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         return preferred_tool_orientations
 
     def is_moveit_robot_in_collision(self, environment: Dict, state: Dict, action: Dict):
-        joint_state = joint_state_msg_from_state_dict(state)
-        robot_state = RobotState()
-        robot_state.joint_state = joint_state
-        robot_state.joint_state.velocity = [0.0] * len(state['joint_names'])
+        robot_state = robot_state_msg_from_state_dict(state)
         in_collision = self.robot.jacobian_follower.check_collision(robot_state)
         return in_collision
+
+    def moveit_robot_reached(self, state: Dict, action: Dict, next_state: Dict):
+        tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
+        predicted_robot_state = robot_state_msg_from_state_dict(next_state)
+        desired_tool_positions = [action['left_gripper_position'], action['right_gripper_position']]
+        pred_tool_positions = self.robot.jacobian_follower.get_tool_positions(tool_names, predicted_robot_state)
+        for pred_tool_position, desired_tool_position in zip(pred_tool_positions, desired_tool_positions):
+            reached = np.allclose(desired_tool_position, pred_tool_position, atol=5e-3)
+            if not reached:
+                return False
+        return True
