@@ -323,16 +323,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         return preferred_tool_orientations
 
     def is_moveit_robot_in_collision(self, environment: Dict, state: Dict, action: Dict):
-        example = {}
-        example.update(environment)
-        example.update(state)
-        example.update(action)
-        return self.is_moveit_robot_in_collision_from_example(example)
-
-    def is_moveit_robot_in_collision_from_example(self, environment: Dict, state: Dict, action: Dict):
-        # planning_scene = ()
-        # req = CollisionRequest()
-        # res = CollisionResponse()
-        # checkCollision(req, res)
-        # return res.collision
-        return False
+        joint_state = joint_state_msg_from_state_dict(state)
+        robot_state = RobotState()
+        robot_state.joint_state = joint_state
+        robot_state.joint_state.velocity = [0.0] * len(state['joint_names'])
+        in_collision = self.robot.jacobian_follower.check_collision(robot_state)
+        return in_collision

@@ -1,5 +1,5 @@
 import pathlib
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 import tensorflow as tf
 
@@ -36,11 +36,9 @@ class PointsCollisionChecker(BaseConstraintChecker):
     def __init__(self,
                  path: pathlib.Path,
                  scenario: ExperimentScenario,
-                 inflation_radius: Optional[float] = DEFAULT_INFLATION_RADIUS,
                  ):
         super().__init__(path, scenario)
         self.name = self.__class__.__name__
-        self.inflation_radius = inflation_radius
         self.local_h_rows = self.hparams['local_h_rows']
         self.local_w_cols = self.hparams['local_w_cols']
         self.local_c_channels = self.hparams['local_c_channels']
@@ -53,7 +51,8 @@ class PointsCollisionChecker(BaseConstraintChecker):
                             environment: Dict,
                             states_sequence: List[Dict],
                             actions):
-        return check_collision(self.scenario, environment, states_sequence[-1])[tf.newaxis], tf.ones([], dtype=tf.float32) * 1e-9
+        return check_collision(self.scenario, environment, states_sequence[-1])[tf.newaxis], tf.ones([],
+                                                                                                     dtype=tf.float32) * 1e-9
 
     def check_constraint_tf_batched(self,
                                     environment: Dict,

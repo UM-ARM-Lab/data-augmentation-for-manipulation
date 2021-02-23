@@ -32,7 +32,11 @@ def batch_in_collision_tf_3d(environment: Dict,
     res = environment['res']
     env = environment['env']
     rows, cols, channels = batch_point_to_idx_tf_3d(xs, ys, zs, res, origin)
-    inflated_env = inflate_tf_3d(env=env, res=res, radius_m=inflate_radius_m)
+    # performance optimization: skip inflation
+    if inflate_radius_m > 1e-9:
+        inflated_env = inflate_tf_3d(env=env, res=res, radius_m=inflate_radius_m)
+    else:
+        inflated_env = env
     indices = tf.stack([rows, cols, channels], axis=1)
     in_collision = tf.reduce_any(tf.gather_nd(inflated_env, indices) > occupied_threshold)
     return in_collision, inflated_env

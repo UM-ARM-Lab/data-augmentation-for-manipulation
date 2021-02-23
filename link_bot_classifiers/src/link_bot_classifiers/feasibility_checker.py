@@ -41,9 +41,10 @@ class NewFeasibilityChecker(BaseConstraintChecker):
         assert len(states_sequence) == 2
         state = states_sequence[0]
         action = actions[0]
-        feasible = self.scenario.is_moveit_robot_in_collision(environment=environment,
+        collision = self.scenario.is_moveit_robot_in_collision(environment=environment,
                                                               state=state,
                                                               action=action)
+        feasible = not collision
         return tf.expand_dims(tf.cast(feasible, tf.float32), axis=0), tf.constant(0)
 
     def check_constraint_tf_batched(self,
