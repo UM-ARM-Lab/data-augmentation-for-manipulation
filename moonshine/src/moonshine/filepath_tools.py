@@ -51,20 +51,25 @@ def load_trial(trial_path):
     return trial_path, params
 
 
-def load_params(trial_path: pathlib.Path):
-    params_filename = trial_path / 'params.json'
+def load_params(directory: pathlib.Path):
+    return load_json_or_hjson(directory, "params")
+
+
+def load_json_or_hjson(directory: pathlib.Path, prefix: str):
+    params_filename = directory / f'{prefix}.json'
     if params_filename.is_file():
-        params = load_json(params_filename)
+        params = load_hjson(params_filename)
     else:
-        params_filename = trial_path / 'params.hjson'
+        params_filename = directory / f'{prefix}.hjson'
         if params_filename.exists():
-            params = load_json(params_filename)
+            params = load_hjson(params_filename)
         else:
-            raise RuntimeError(f"no params file in {trial_path.as_posix()}")
+            either_or_name = directory / f'{prefix}.(h)json'
+            raise RuntimeError(f"no such file {either_or_name.as_posix()}")
     return params
 
 
-def load_json(path: pathlib.Path):
+def load_hjson(path: pathlib.Path):
     with path.open("r") as file:
         data = hjson.load(file)
     return data

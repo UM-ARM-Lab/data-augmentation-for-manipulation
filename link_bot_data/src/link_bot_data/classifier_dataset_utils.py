@@ -12,7 +12,7 @@ from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset, add_lab
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
-from moonshine.filepath_tools import load_json
+from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.moonshine_utils import gather_dict
 from state_space_dynamics import dynamics_utils
@@ -50,7 +50,7 @@ def make_classifier_dataset(dataset_dir: pathlib.Path,
                             stop_at: Optional[int] = None,
                             custom_threshold: Optional[float] = None,
                             ):
-    labeling_params = load_json(labeling_params)
+    labeling_params = load_hjson(labeling_params)
     make_classifier_dataset_from_params_dict(dataset_dir=dataset_dir,
                                              fwd_model_dir=fwd_model_dir,
                                              labeling_params=labeling_params,

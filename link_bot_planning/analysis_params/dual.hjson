@@ -18,5 +18,6 @@
     "only feasibility checking": "#0058AB"
     "feasibility checking": "#7F59C2"
     "both": "#7F59C2"
+    "cc, os, feasibility": "#333333"
   }
 }

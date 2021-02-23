@@ -198,6 +198,7 @@ class OmplRRTWrapper(MyPlanner):
         # get only the final state predicted, since *_predicted_states includes the start state
         final_predicted_state = mean_predicted_states[-1]
 
+        rospy.logwarn("Using extra feasibility check")
         # NOTE: this should not needed if we used UDNNWithRobotKinematics
         # If in general we have a controller which can tell us whether a motion is feasible (w/o actually executing)
         # then we can invoke that hear, and do a logical OR with the classifier's decision

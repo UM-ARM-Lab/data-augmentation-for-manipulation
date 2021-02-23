@@ -18,7 +18,7 @@ from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_gi
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import make_dict_tf_float32, deal_with_exceptions, skip_on_timeout, catch_timeout
-from moonshine.filepath_tools import load_json
+from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch
 
 
@@ -90,7 +90,7 @@ class ResultsToDynamicsDataset:
         self.after_state_pred_idx = marker_index_generator(4)
         self.action_idx = marker_index_generator(5)
 
-        self.labeling_params = load_json(labeling_params)
+        self.labeling_params = load_hjson(labeling_params)
         self.threshold = self.labeling_params['threshold']
 
         results_utils.save_dynamics_dataset_hparams(self.scenario, results_dir, outdir, self.metadata)

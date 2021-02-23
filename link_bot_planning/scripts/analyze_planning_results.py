@@ -16,6 +16,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.metric_utils import dict_to_pvalue_table
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.serialization import my_hdump, load_gzipped_pickle
+from moonshine.filepath_tools import load_params, load_json_or_hjson
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -65,8 +66,7 @@ def metrics_main(args):
 
     sort_order_dict = {}
     for sort_idx, subfolder in enumerate(subfolders_ordered):
-        with (subfolder / 'metadata.json').open('r') as metadata_file:
-            metadata = json.load(metadata_file)
+        metadata = load_json_or_hjson(subfolder, 'metadata')
         method_name = metadata['planner_params'].get('method_name', subfolder.name)
         sort_order_dict[method_name] = sort_idx
 
@@ -161,8 +161,8 @@ def generate_metrics(analysis_params: Dict, out_dir: pathlib.Path, subfolders_or
     for subfolder in subfolders_ordered:
         metrics_filenames = list(subfolder.glob("*_metrics.pkl.gz"))
 
-        with (subfolder / 'metadata.json').open('r') as metadata_file:
-            metadata = json.load(metadata_file)
+        metadata = load_json_or_hjson(subfolder, 'metadata')
+
         method_name = metadata['planner_params'].get('method_name', subfolder.name)
         scenario = get_scenario(metadata['scenario'])
 
