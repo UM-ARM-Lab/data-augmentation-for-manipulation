@@ -93,7 +93,7 @@ class ResultsToDynamicsDataset:
         self.labeling_params = load_hjson(labeling_params)
         self.threshold = self.labeling_params['threshold']
 
-        results_utils.save_dynamics_dataset_hparams(self.scenario, results_dir, outdir, self.metadata)
+        results_utils.save_dynamics_dataset_hparams(results_dir, outdir, self.metadata)
         timeout = 30
 
         from time import perf_counter

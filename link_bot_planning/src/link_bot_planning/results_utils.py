@@ -1,4 +1,3 @@
-import json
 import pathlib
 import re
 import threading
@@ -12,7 +11,7 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.serialization import load_gzipped_pickle, my_hdump
-from moonshine.filepath_tools import load_params
+from moonshine.filepath_tools import load_params, load_json_or_hjson
 from moonshine.moonshine_utils import numpify
 
 
@@ -137,9 +136,7 @@ def get_paths(datum: Dict, scenario: ExperimentScenario, show_tree: bool = False
 
 
 def get_scenario_and_metadata(results_dir: pathlib.Path):
-    with (results_dir / 'metadata.json').open('r') as metadata_file:
-        metadata_str = metadata_file.read()
-        metadata = json.loads(metadata_str)
+    metadata = load_json_or_hjson(results_dir, 'metadata')
     scenario = get_scenario(metadata['scenario'])
     return scenario, metadata
 
@@ -164,8 +161,7 @@ def trials_generator(results_dir: pathlib.Path, trial_indices: Optional[List[int
         yield trial_idx, datum
 
 
-def save_dynamics_dataset_hparams(scenario: ExperimentScenario, results_dir: pathlib.Path, outdir: pathlib.Path,
-                                  metadata: Dict):
+def save_dynamics_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.Path, metadata: Dict):
     planner_params = metadata['planner_params']
     classifier_params = classifier_params_from_planner_params(planner_params)
     phase2_dataset_params = dynamics_dataset_params_from_classifier_params(classifier_params)
@@ -180,7 +176,3 @@ def save_dynamics_dataset_hparams(scenario: ExperimentScenario, results_dir: pat
     dataset_hparams.update(dataset_hparams_update)
     with (outdir / 'hparams.hjson').open('w') as dataset_hparams_file:
         my_hdump(dataset_hparams, dataset_hparams_file, indent=2)
-
-
-def edges_and_vertices_to_tree(edges: List[Dict], vertices: List[Dict]):
-    pass
