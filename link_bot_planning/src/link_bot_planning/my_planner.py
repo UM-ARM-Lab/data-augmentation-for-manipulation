@@ -38,16 +38,24 @@ class LoggingTree:
         self.children: List[LoggingTree] = []
         self.size = 0
 
+        self.cached = self
+
     def add(self, before_state: Dict, action: Dict, after_state: Dict):
         self.size += 1
         if len(self.children) == 0:
             self.state = before_state
             t = self
         else:
-            t = self.find(before_state)
+            # perf optimization
+            if are_states_close(self.cached.state, before_state):
+                t = self.cached
+            else:
+                t = self.find(before_state)
+            # t = self.find(before_state)
 
         new_child = LoggingTree(state=after_state, action=action)
         t.children.append(new_child)
+        self.cached = new_child
 
     def find(self, state: Dict):
         if are_states_close(self.state, state):
