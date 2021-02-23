@@ -1,7 +1,6 @@
 from time import perf_counter
 from typing import Dict
 
-import numpy as np
 from colorama import Style
 from matplotlib import pyplot as plt
 from progressbar import progressbar
@@ -20,7 +19,6 @@ def visualize_dataset(args, classifier_dataset):
 
     t0 = perf_counter()
 
-    reconverging_count = 0
     positive_count = 0
     negative_count = 0
     starts_far_count = 0
@@ -40,22 +38,15 @@ def visualize_dataset(args, classifier_dataset):
         example = remove_batch(example)
 
         is_close = example['is_close'].numpy().squeeze()
-        count += 1
 
-        n_close = np.count_nonzero(is_close[-1])
-        n_far = is_close.shape[0] - n_close
         starts_far = is_close[0] == 0
-        positive = is_close[1]
+        positive = bool(is_close[1])
         negative = not positive
-        reconverging = n_far > 0 and is_close[-1]
 
-        if args.only_reconverging and not reconverging:
+        if args.only_negative and not negative:
             continue
 
-        if args.only_negative and negative:
-            continue
-
-        if args.only_positive and positive:
+        if args.only_positive and not positive:
             continue
 
         if args.only_starts_far and not starts_far:
@@ -63,14 +54,13 @@ def visualize_dataset(args, classifier_dataset):
 
         # print(f"Example {i}, Trajectory #{int(example['traj_idx'])}")
 
+        count += 1
+
         if positive:
             positive_count += 1
 
         if negative:
             negative_count += 1
-
-        if reconverging:
-            reconverging_count += 1
 
         if starts_far:
             starts_far_count += 1
@@ -79,11 +69,10 @@ def visualize_dataset(args, classifier_dataset):
         if count % 1000 == 0:
             print_stats_and_timing(args,
                                    {
-                                       'count':              count,
-                                       'reconverging_count': reconverging_count,
-                                       'negative_count':     negative_count,
-                                       'positive_count':     positive_count,
-                                       'starts_far_count':   starts_far_count
+                                       'count':            count,
+                                       'negative_count':   negative_count,
+                                       'positive_count':   positive_count,
+                                       'starts_far_count': starts_far_count
                                    })
 
         #############################
@@ -122,11 +111,10 @@ def visualize_dataset(args, classifier_dataset):
         plt.show()
 
     print_stats_and_timing(args,
-                           {'count':              count,
-                            'reconverging_count': reconverging_count,
-                            'negative_count':     negative_count,
-                            'positive_count':     positive_count,
-                            'starts_far_count':   starts_far_count
+                           {'count':            count,
+                            'negative_count':   negative_count,
+                            'positive_count':   positive_count,
+                            'starts_far_count': starts_far_count
                             },
                            total_dt)
 

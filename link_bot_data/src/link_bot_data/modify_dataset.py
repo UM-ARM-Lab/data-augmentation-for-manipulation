@@ -43,11 +43,11 @@ def modify_dataset(dataset_dir: pathlib.Path,
 def filter_dataset(dataset_dir: pathlib.Path,
                    dataset: BaseDatasetLoader,
                    outdir: pathlib.Path,
-                   process_example: Callable,
+                   should_keep: Callable,
                    hparams_update: Optional[Dict] = None):
     total_count = 0
     for full_output_directory, i, example in dataset_generator_all_modes(dataset_dir, dataset, outdir, hparams_update):
-        if process_example(dataset, example):
+        if should_keep(dataset, example):
             tf_write_example(full_output_directory, example, total_count)
     print(Fore.GREEN + f"Kept {total_count} examples")
 
