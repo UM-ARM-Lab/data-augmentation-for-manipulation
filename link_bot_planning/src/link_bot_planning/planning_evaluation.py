@@ -11,6 +11,7 @@ from ompl import util as ou
 import rosbag
 import rospy
 from arc_utilities.algorithms import is_list_unique
+from link_bot_data.dataset_utils import git_sha
 from link_bot_gazebo_python import gazebo_services
 from link_bot_planning import plan_and_execute
 from link_bot_planning.get_planner import get_planner
@@ -18,7 +19,7 @@ from link_bot_planning.my_planner import MyPlanner
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.pycommon import deal_with_exceptions
-from link_bot_pycommon.serialization import dump_gzipped_pickle, my_dump
+from link_bot_pycommon.serialization import dump_gzipped_pickle, my_hdump
 from moonshine.moonshine_utils import numpify
 
 
@@ -53,10 +54,11 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
             "trials":         self.trials,
             "planner_params": self.planner_params,
             "scenario":       self.planner.scenario.simple_name(),
+            "commit":         git_sha(),
         }
         metadata.update(self.planner.get_metadata())
-        with (self.outdir / 'metadata.json').open("w") as metadata_file:
-            my_dump(metadata, metadata_file, indent=2)
+        with (self.outdir / 'metadata.hjson').open("w") as metadata_file:
+            my_hdump(metadata, metadata_file, indent=2)
 
         self.bag = None
         self.final_execution_to_goal_errors = []

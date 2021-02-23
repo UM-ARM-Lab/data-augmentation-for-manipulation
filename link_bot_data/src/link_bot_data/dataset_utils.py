@@ -147,11 +147,14 @@ def cachename(mode: Optional[str] = None):
         tmpname = cache_root / f"{pycommon.rand_str()}"
     return str(tmpname)
 
+def git_sha():
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha[:10]
+    return sha
 
 def data_directory(outdir: pathlib.Path, *names):
     now = str(int(time.time()))
-    repo = git.Repo(search_parent_directories=True)
-    sha = repo.head.object.hexsha[:10]
+    sha = git_sha()
     format_string = "{}_{}_{}" + len(names) * '_{}'
     full_output_directory = pathlib.Path(format_string.format(outdir, now, sha, *names))
     if outdir:

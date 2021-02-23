@@ -412,7 +412,6 @@ class DualGripperControlSampler(oc.ControlSampler):
         self.rng = rng
         self.control_space = control_space
         self.action_params = action_params
-        self.setNumControlSamples(1)
         self.sps = shared_planning_state
 
     def sampleNext(self, control_out: oc.CompoundControl, _, __):
