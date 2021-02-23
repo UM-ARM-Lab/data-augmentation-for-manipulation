@@ -301,6 +301,8 @@ class OmplRRTWrapper(MyPlanner):
                                            g=self.visualize_propogation_color[1],
                                            b=self.visualize_propogation_color[2],
                                            a=alpha)
+        else:
+            self.scenario.plot_rejected_state(np_final_state)
 
         self.scenario.plot_current_tree_state(np_final_state, color=classifier_probability_color)
         self.scenario.plot_current_tree_action(previous_state, new_action,

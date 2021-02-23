@@ -61,7 +61,6 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
         control_out[1][1] = np.float_(right_phi)
         control_out[1][2] = np.float_(right_theta)
 
-    @profile
     def ompl_state_to_numpy(self, ompl_state: ob.CompoundState):
         state_component_idx = 0
         left_gripper = np.array([ompl_state[state_component_idx][0],
