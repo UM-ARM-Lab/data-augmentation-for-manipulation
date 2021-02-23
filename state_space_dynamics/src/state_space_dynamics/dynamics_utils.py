@@ -7,7 +7,8 @@ from moonshine.filepath_tools import load_trial
 from my_cfm.cfm import CFMLatentDynamics
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 from state_space_dynamics.image_cond_dyn import ImageCondDynamicsWrapper
-from state_space_dynamics.unconstrained_dynamics_nn import UDNNWrapper, UDNNWithRobotKinematicsWrapper
+from state_space_dynamics.unconstrained_dynamics_nn import UDNNWrapper
+from state_space_dynamics.udnn_with_robot import UDNNWithRobotKinematicsWrapper
 
 
 def load_generic_model(model_dirs: List[pathlib.Path],
