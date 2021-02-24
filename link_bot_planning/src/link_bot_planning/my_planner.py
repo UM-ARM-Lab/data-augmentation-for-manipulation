@@ -87,6 +87,7 @@ class PlanningQuery:
     environment: Dict
     start: Dict
     seed: int
+    trial_start_time_seconds: float  # seconds, based on perf_counter()
 
 
 @dataclass_json
@@ -127,7 +128,8 @@ class MyPlanner:
         latent_planning_query = PlanningQuery(start=mean_start,
                                               goal=mean_goal,
                                               environment=planning_query.environment,
-                                              seed=planning_query.seed)
+                                              seed=planning_query.seed,
+                                              trial_start_time_seconds=planning_query.trial_start_time_seconds)
         planning_result = self.plan_internal(planning_query=latent_planning_query)
 
         return planning_result

@@ -194,7 +194,11 @@ class PlanAndExecute:
             # Try to make the seeds reproducible, but it needs to change based on attempt idx or we would just keep
             # trying the same plans over and over
             seed = 100000 * trial_idx + attempt_idx + self.seed
-            planning_query = PlanningQuery(goal=goal, environment=environment, start=start_state, seed=seed)
+            planning_query = PlanningQuery(goal=goal,
+                                           environment=environment,
+                                           start=start_state,
+                                           seed=seed,
+                                           trial_start_time_seconds=start_time)
             planning_queries.append(planning_query)
 
             planning_result = self.plan(planning_query)

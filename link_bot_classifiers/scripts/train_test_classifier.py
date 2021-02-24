@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+import logging
 import pathlib
 
 import colorama
@@ -36,6 +37,7 @@ def viz_ensemble_main(args):
 
 def main():
     colorama.init(autoreset=True)
+    tf.get_logger().setLevel(logging.ERROR)
 
     rospy.init_node("train_test_classifier")
 

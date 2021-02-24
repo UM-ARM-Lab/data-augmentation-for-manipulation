@@ -52,7 +52,7 @@ def load_trial(trial_path):
 
 
 def load_params(directory: pathlib.Path):
-    possible_names = ['hparams.json', 'hparams.hjson', 'params.json', 'hparams.hjson']
+    possible_names = ['hparams.json', 'hparams.hjson', 'params.json', 'params.hjson']
     for n in possible_names:
         filename = directory / n
         if filename.is_file():
