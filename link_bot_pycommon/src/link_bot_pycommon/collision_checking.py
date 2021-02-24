@@ -3,8 +3,7 @@ from typing import Dict
 import numpy as np
 import tensorflow as tf
 
-from link_bot_pycommon.grid_utils import point_to_idx, OccupancyData, batch_point_to_idx_tf, batch_point_to_idx_tf_3d
-from moonshine.gpu_config import limit_gpu_mem
+from link_bot_pycommon.grid_utils import OccupancyData, batch_point_to_idx_tf, batch_point_to_idx_tf_3d
 
 
 def batch_out_of_bounds_tf(environment: Dict,
