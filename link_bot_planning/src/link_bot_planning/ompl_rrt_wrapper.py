@@ -330,7 +330,7 @@ class OmplRRTWrapper(MyPlanner):
         self.ss.setStartState(ompl_start_scoped)
         self.ss.setGoal(self.goal_region)
 
-        self.ptc = TimeoutOrNotProgressing(self, self.params['termination_criteria'], self.verbose)
+        self.ptc = TimeoutOrNotProgressing(planning_query, self.params['termination_criteria'], self.verbose)
 
         # START TIMING
         t0 = time.time()

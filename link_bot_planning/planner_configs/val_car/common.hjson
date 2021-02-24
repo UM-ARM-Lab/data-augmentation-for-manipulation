@@ -18,10 +18,10 @@
     joint6: 1.0175395063376493,
     joint7: 2.173908028268774,
   }
-  total_timeout: 180
   termination_criteria: {
-    attempted_extensions_threshold: 32
+    total_timeout: 180
     timeout: 120
+    attempted_extensions_threshold: 32
   }
   action_params: {
     max_distance_between_grippers: 1.0

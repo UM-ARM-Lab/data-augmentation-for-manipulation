@@ -170,7 +170,7 @@ class PlanAndExecute:
         self.on_start_trial(trial_idx)
 
         start_time = time.perf_counter()
-        total_timeout = self.planner_params['total_timeout']
+        total_timeout = self.planner_params['termination_criteria']['total_timeout']
 
         # Get the goal (default is to randomly sample one)
         environment = self.get_environment()
