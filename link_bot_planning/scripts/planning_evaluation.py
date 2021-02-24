@@ -31,6 +31,7 @@ def main():
     parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
     parser.add_argument('--record', action='store_true', help='record')
+    parser.add_argument('--log-full-tree', action='store_true', help='log the full planning tree. slow.')
     parser.add_argument('--use-gt-rope', action='store_true', help='use ground truth rope state')
 
     args = parser.parse_args()
@@ -60,7 +61,9 @@ def main():
                         no_execution=args.no_execution,
                         logfile_name=None,
                         record=args.record,
-                        seed=args.seed)
+                        seed=args.seed,
+                        log_full_tree=args.log_full_tree,
+                        )
 
 
 if __name__ == '__main__':

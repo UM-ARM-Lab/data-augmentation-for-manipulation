@@ -37,7 +37,6 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
                  record: Optional[bool] = False,
                  no_execution: Optional[bool] = False,
                  test_scenes_dir: Optional[pathlib.Path] = None,
-                 saved_goals_filename: Optional[pathlib.Path] = None,
                  seed: int = 0,
                  ):
         super().__init__(planner, trials=trials, verbose=verbose, planner_params=planner_params,
@@ -141,6 +140,7 @@ def evaluate_planning_method(planner_params: Dict,
                              test_scenes_dir: Optional[pathlib.Path] = None,
                              saved_goals_filename: Optional[pathlib.Path] = None,
                              seed: int = 0,
+                             log_full_tree: bool = False,
                              ):
     # override some arguments
     if timeout is not None:
@@ -151,7 +151,7 @@ def evaluate_planning_method(planner_params: Dict,
     # Start Services
     service_provider = gazebo_services.GazeboServices()
     service_provider.play()  # time needs to be advancing while we setup the planner so it can use ROS to query things
-    planner = get_planner(planner_params=planner_params, verbose=verbose)
+    planner = get_planner(planner_params=planner_params, verbose=verbose, log_full_tree=log_full_tree)
 
     service_provider.setup_env(verbose=verbose,
                                real_time_rate=planner_params['real_time_rate'],
@@ -173,8 +173,8 @@ def evaluate_planning_method(planner_params: Dict,
                                 record=record,
                                 no_execution=no_execution,
                                 test_scenes_dir=test_scenes_dir,
-                                saved_goals_filename=saved_goals_filename,
-                                seed=seed)
+                                seed=seed,
+                                )
     return runner.run()
 
 
@@ -193,6 +193,7 @@ def planning_evaluation(outdir: pathlib.Path,
                         test_scenes_dir: Optional[pathlib.Path] = None,
                         saved_goals_filename: Optional[pathlib.Path] = None,
                         seed: int = 0,
+                        log_full_tree: bool = False,
                         ):
     ou.setLogLevel(ou.LOG_ERROR)
 
@@ -236,6 +237,7 @@ def planning_evaluation(outdir: pathlib.Path,
                              saved_goals_filename=saved_goals_filename,
                              print_exception=True,
                              seed=seed,
+                             log_full_tree=log_full_tree,
                              )
 
         rospy.loginfo(f"Results written to {outdir}")

@@ -50,8 +50,10 @@ class OmplRRTWrapper(MyPlanner):
                  action_params: Dict,
                  scenario: Base3DScenario,
                  verbose: int,
+                 log_full_tree: bool = False,
                  ):
         super().__init__(scenario=scenario, fwd_model=fwd_model, filter_model=filter_model)
+        self.log_full_tree = log_full_tree
         self.verbose = verbose
         self.fwd_model = fwd_model
         self.classifier_models = classifier_models
@@ -132,6 +134,9 @@ class OmplRRTWrapper(MyPlanner):
         self.state_sampler_rng.seed(seed)
         self.goal_sampler_rng.seed(seed)
         self.control_sampler_rng.seed(seed)
+
+        self.last_propagate_time = time.perf_counter()
+        self.progagate_dts = []
 
     def is_valid(self, state):
         valid = self.scenario_ompl.state_space.satisfiesBounds(state)
@@ -228,6 +233,12 @@ class OmplRRTWrapper(MyPlanner):
     def propagate(self, motions, control, duration, state_out):
         del duration  # unused, multi-step propagation is handled inside propagateMotionsWhileValid
 
+        # measure performance
+        now = time.perf_counter()
+        dt = now - self.last_propagate_time
+        self.progagate_dts.append(dt)
+        self.last_propagate_time = now
+
         # Convert from OMPL -> Numpy
         previous_states, previous_actions = self.motions_to_numpy(motions)
         previous_state = previous_states[-1]
@@ -241,7 +252,8 @@ class OmplRRTWrapper(MyPlanner):
         self.scenario_ompl.numpy_to_ompl_state(np_final_state, state_out)
 
         # log the data
-        self.tree.add(before_state=previous_state, action=new_action, after_state=np_final_state)
+        if self.log_full_tree:
+            self.tree.add(before_state=previous_state, action=new_action, after_state=np_final_state)
 
         # visualize
         if self.verbose >= 2:
@@ -333,6 +345,9 @@ class OmplRRTWrapper(MyPlanner):
 
         # END TIMING
         planning_time = time.time() - t0
+
+        if self.verbose >= 1:
+            print(f"Mean Propagate Time = {np.mean(self.progagate_dts):.4f}s")
 
         # handle results and cleanup
         planner_status = interpret_planner_status(ob_planner_status, self.ptc)

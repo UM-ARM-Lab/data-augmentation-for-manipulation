@@ -9,7 +9,7 @@ from link_bot_pycommon.pycommon import paths_from_json
 from state_space_dynamics import dynamics_utils, filter_utils
 
 
-def get_planner(planner_params: Dict, verbose: int):
+def get_planner(planner_params: Dict, verbose: int, log_full_tree):
     # TODO: remove when backwards compatibility no longer needed
     if 'planner_type' not in planner_params:
         planner_type = 'rrt'
@@ -31,7 +31,8 @@ def get_planner(planner_params: Dict, verbose: int):
                                  planner_params=planner_params,
                                  action_params=action_params_with_defaults,
                                  scenario=scenario,
-                                 verbose=verbose)
+                                 verbose=verbose,
+                                 log_full_tree=log_full_tree)
     elif planner_type == 'new-rrt':
         fwd_model = load_fwd_model(planner_params, scenario)
         filter_model = load_filter(planner_params, scenario)

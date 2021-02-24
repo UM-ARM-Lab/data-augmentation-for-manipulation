@@ -8,7 +8,7 @@ from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from moonshine.moonshine_utils import dict_of_sequences_to_sequence_of_dicts
 
-DEFAULT_INFLATION_RADIUS = 0.01
+DEFAULT_INFLATION_RADIUS = 0.00
 
 
 def check_collision(scenario: ExperimentScenario,
