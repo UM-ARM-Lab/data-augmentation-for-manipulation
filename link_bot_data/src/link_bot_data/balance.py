@@ -17,16 +17,11 @@ def flatten_concat_pairs(ex_pos, ex_neg):
 
 
 def balance(dataset: SizedTFDataset):
-    # FIXME: redo this when I redo my dataset code
-    positive_examples = dataset.filter(label_is(1))
-    negative_examples = dataset.filter(label_is(0))
+    # # print("UP-SAMPLING POSITIVE EXAMPLES!!!")
+    #
+    # # print("DOWN-SAMPLING TO BALANCE")
+    # balanced_dataset = tf.data.Dataset.zip((positive_examples.dataset, negative_examples.dataset))
+    # balanced_dataset = balanced_dataset.flat_map(flatten_concat_pairs)
 
-    # negative_examples = negative_examples.repeat()
-    # print("UP-SAMPLING POSITIVE EXAMPLES!!!")
-    # positive_examples = positive_examples.repeat()
-
-    print("DOWN-SAMPLING TO BALANCE")
-    balanced_dataset = tf.data.Dataset.zip((positive_examples.dataset, negative_examples.dataset))
-    balanced_dataset = balanced_dataset.flat_map(flatten_concat_pairs)
-
+    balanced_dataset = SizedTFDataset.balance(positive_examples, negative_examples)
     return balanced_dataset

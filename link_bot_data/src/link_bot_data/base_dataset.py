@@ -5,7 +5,6 @@ import csv
 import pathlib
 from typing import List, Optional, Dict, Callable, Any
 
-import hjson
 import numpy as np
 import progressbar
 import tensorflow as tf
@@ -27,12 +26,20 @@ widgets = [
 ]
 
 
+def label_is(label_is, key='is_close'):
+    def __filter(example):
+        result = tf.squeeze(tf.equal(example[key][1], label_is))
+        return result
+
+    return __filter
+
+
 class SizedTFDataset:
 
     def __init__(self, dataset: tf.data.Dataset, records: List, size: Optional[int] = None):
         self.dataset = dataset
         self.records = records
-        if size is None:
+        if size is None:  # do I really want to do this?
             self.size = len(self.records)
         else:
             self.size = size
@@ -81,6 +88,16 @@ class SizedTFDataset:
     def zip(self, dataset2: SizedTFDataset):
         dataset = tf.data.Dataset.zip((self.dataset, dataset2.dataset))
         return SizedTFDataset(dataset, self.records + dataset2.records, size=min(self.size, dataset2.size))
+
+    def balance(self):
+        positive_dataset = self.dataset.filter(label_is(1))
+        negative_dataset = self.dataset.filter(label_is(0))
+        negative_dataset = negative_dataset.repeat()
+        positive_dataset = positive_dataset.repeat()
+
+        datasets = [positive_dataset, negative_dataset]
+        balanced_dataset = tf.data.experimental.sample_from_datasets(datasets=datasets, weights=[0.5, 0.5])
+        return SizedTFDataset(balanced_dataset, records=[], size=None)
 
 
 class BaseDatasetLoader:

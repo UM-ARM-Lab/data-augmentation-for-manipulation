@@ -2,7 +2,6 @@
 import pathlib
 from typing import List, Optional, Dict
 
-import hjson
 import numpy as np
 import tensorflow as tf
 
@@ -19,11 +18,12 @@ from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
+from moonshine import filepath_tools
+from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metric import AccuracyMetric
-from moonshine.moonshine_utils import numpify
-from moonshine import filepath_tools
 from moonshine.model_runner import ModelRunner
+from moonshine.moonshine_utils import numpify
 from state_space_dynamics import common_train_hparams
 from state_space_dynamics.train_test import setup_training_paths
 from std_msgs.msg import Float32
@@ -72,7 +72,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                validate: bool = True,
                trials_directory: Optional[pathlib.Path] = None,
                **kwargs):
-    model_hparams = hjson.load(model_hparams.open('r'))
+    model_hparams = load_hjson(model_hparams)
     model_class = link_bot_classifiers.get_model(model_hparams['model_class'])
 
     # set load_true_states=True when debugging
