@@ -45,8 +45,8 @@ def setup_datasets(model_hparams, batch_size, seed, train_dataset, val_dataset, 
     train_tf_dataset = train_tf_dataset.shuffle(model_hparams['shuffle_buffer_size'], reshuffle_each_iteration=True)
 
     # rospy.logerr_once("NOT BALANCING!")
-    train_tf_dataset = balance(train_tf_dataset)
-    val_tf_dataset = balance(val_tf_dataset)
+    train_tf_dataset = train_tf_dataset.balance()
+    val_tf_dataset = val_tf_dataset.balance()
 
     train_tf_dataset = batch_tf_dataset(train_tf_dataset, batch_size, drop_remainder=True)
     val_tf_dataset = batch_tf_dataset(val_tf_dataset, batch_size, drop_remainder=True)
@@ -149,7 +149,7 @@ def eval_main(dataset_dirs: List[pathlib.Path],
                                       old_compat=old_compat,
                                       threshold=threshold)
     tf_dataset = dataset.get_datasets(mode=mode, take=take)
-    tf_dataset = balance(tf_dataset)
+    tf_dataset = tf_dataset.balance()
 
     ###############
     # Evaluate

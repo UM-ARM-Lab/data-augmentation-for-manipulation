@@ -90,6 +90,8 @@ class SizedTFDataset:
         return SizedTFDataset(dataset, self.records + dataset2.records, size=min(self.size, dataset2.size))
 
     def balance(self):
+        # double it, because want to up-sample the underrepresented class. This approximates that.
+        original_dataset_size = self.size * 2
         positive_dataset = self.dataset.filter(label_is(1))
         negative_dataset = self.dataset.filter(label_is(0))
         negative_dataset = negative_dataset.repeat()
@@ -97,6 +99,7 @@ class SizedTFDataset:
 
         datasets = [positive_dataset, negative_dataset]
         balanced_dataset = tf.data.experimental.sample_from_datasets(datasets=datasets, weights=[0.5, 0.5])
+        balanced_dataset = balanced_dataset.take(original_dataset_size)
         return SizedTFDataset(balanced_dataset, records=[], size=None)
 
 
