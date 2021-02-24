@@ -112,11 +112,7 @@ class OmplRRTWrapper(MyPlanner):
 
         self.rrt = oc.RRT(self.si)
         self.rrt.setIntermediateStates(True)  # this is necessary, because we use this to generate datasets
-        self.initial_goal_bias = 0.05
-        max_goal_bias = 0.6  # not sure setting this higher actually helps
-        self.goal_bias_schedule = LinearSchedule(self.initial_goal_bias, max_goal_bias)
 
-        self.rrt.setGoalBias(self.initial_goal_bias)
         self.ss.setPlanner(self.rrt)
         self.si.setMinMaxControlDuration(1, self.params.get('max_steps', 50))
 
@@ -256,9 +252,6 @@ class OmplRRTWrapper(MyPlanner):
                                        previous_actions,
                                        previous_state,
                                        state_out)
-
-        # At the end of propagation, update the goal bias
-        self.rrt.setGoalBias(self.goal_bias_schedule(self.ptc.dt_s / self.params['termination_criteria']['timeout']))
 
     def visualize_propogation(self,
                               accept: bool,
