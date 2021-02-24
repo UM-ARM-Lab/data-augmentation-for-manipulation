@@ -1,7 +1,5 @@
 {
   method_name: cc, os, feasibility
-  feasibility_checking: true
-  classifier: true
   filter_model_dir: [
     filter_trials/none/none
   ]
