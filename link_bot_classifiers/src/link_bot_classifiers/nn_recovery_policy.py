@@ -2,9 +2,9 @@
 import pathlib
 from typing import Dict
 
-import numpy as np
 import tensorflow as tf
 from colorama import Fore
+from numpy.random import RandomState
 from tensorflow import keras
 from tensorflow.keras import layers
 
@@ -17,9 +17,9 @@ from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
 from moonshine.moonshine_utils import add_batch
+from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
 from mps_shape_completion_msgs.msg import OccupancyStamped
-from moonshine.my_keras_model import MyKerasModel
 
 
 class NNRecoveryModel(MyKerasModel):
@@ -260,18 +260,16 @@ class NNRecoveryModel(MyKerasModel):
         probabilities = self.sigmoid(logits)
 
         return {
-            'logits': logits,
+            'logits':        logits,
             'probabilities': probabilities,
         }
 
 
 class NNRecoveryPolicy(BaseRecoveryPolicy):
 
-    def __init__(self, hparams: Dict, model_dir: pathlib.Path, scenario: ExperimentScenario,
-                 rng: np.random.RandomState):
+    def __init__(self, hparams: Dict, model_dir: pathlib.Path, scenario: ExperimentScenario, rng: RandomState):
         super().__init__(hparams, model_dir, scenario, rng)
 
-        # load the model?
         self.model = NNRecoveryModel(hparams=self.hparams, batch_size=1, scenario=self.scenario)
         self.ckpt = tf.train.Checkpoint(model=self.model)
         self.manager = tf.train.CheckpointManager(self.ckpt, model_dir, max_to_keep=1)
@@ -282,12 +280,12 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
         else:
             raise RuntimeError("Failed to restore!!!")
 
-        self.action_rng = np.random.RandomState(0)
+        self.action_rng = RandomState(0)
         self.dataset_params = self.hparams['recovery_dataset_hparams']
         self.data_collection_params = self.dataset_params['data_collection_params']
         self.n_action_samples = self.dataset_params['labeling_params']['n_action_samples']
 
-        self.noise_rng = np.random.RandomState(0)
+        self.noise_rng = RandomState(0)
 
     def __call__(self, environment: Dict, state: Dict):
         # sample a bunch of actions (batched?) and pick the best one
@@ -297,11 +295,13 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
         # while not anim.done:
         for _ in range(self.n_action_samples):
             self.scenario.last_action = None
-            action = self.scenario.sample_action(action_rng=self.action_rng, environment=environment, state=state,
-                                                 action_params=self.data_collection_params, validate=True)
-
-            # TODO: use the unconstrained dynamics to predict the state resulting from (e, s, a)
-            # then add that to the recovery_model_input
+            action = self.scenario.sample_action(action_rng=self.action_rng,
+                                                 environment=environment,
+                                                 state=state,
+                                                 action_params=self.data_collection_params,
+                                                 validate=True)
+            action = self.scenario.add_action_noise(action, self.noise_rng)
+            self.scenario.is_action_valid(action, self.data_collection_params)
 
             recovery_model_input = environment
             recovery_model_input.update(add_batch(state))  # add time dimension to state and action
@@ -309,7 +309,7 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
             recovery_model_input = make_dict_tf_float32(add_batch(recovery_model_input))
             recovery_model_input.update({
                 'batch_size': 1,
-                'time': 2,
+                'time':       2,
             })
             recovery_model_output = self.model(recovery_model_input, training=False)
             recovery_probability = recovery_model_output['probabilities']
@@ -325,6 +325,6 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
                 best_action = action
                 # print(max_unstuck_probability)
                 # self.scenario.plot_action_rviz(state, action, label='best_proposed', color='g', idx=2)
+
             # anim.step()
-        best_action_noisy = self.scenario.add_noise(best_action, self.noise_rng)
-        return best_action_noisy
+        return best_action

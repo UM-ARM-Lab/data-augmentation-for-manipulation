@@ -45,6 +45,9 @@ class ExperimentScenario:
                                   action_params=action_params,
                                   validate=True,
                                   stateless=stateless)
+    @staticmethod
+    def add_action_noise(action: Dict, noise_rng: np.random.RandomState):
+        return action
 
     def is_action_valid(self, action: Dict, action_params: Dict):
         return True

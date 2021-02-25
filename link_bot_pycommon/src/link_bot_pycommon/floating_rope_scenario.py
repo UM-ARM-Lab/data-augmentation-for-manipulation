@@ -362,7 +362,7 @@ class FloatingRopeScenario(ScenarioWithVisualization):
         }
 
     @staticmethod
-    def add_noise(action: Dict, noise_rng: np.random.RandomState):
+    def add_action_noise(action: Dict, noise_rng: np.random.RandomState):
         left_gripper_noise = noise_rng.normal(scale=0.01, size=[3])
         right_gripper_noise = noise_rng.normal(scale=0.01, size=[3])
         return {

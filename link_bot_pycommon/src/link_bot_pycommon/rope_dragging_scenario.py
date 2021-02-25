@@ -198,7 +198,7 @@ class RopeDraggingScenario(ScenarioWithVisualization):
         return interpolated_actions
 
     @staticmethod
-    def add_noise(action: Dict, noise_rng: np.random.RandomState):
+    def add_action_noise(action: Dict, noise_rng: np.random.RandomState):
         gripper_noise = noise_rng.normal(scale=0.01, size=[3])
         return {
             'gripper_position': action['gripper_position'] + gripper_noise
