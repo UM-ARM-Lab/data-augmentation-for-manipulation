@@ -416,6 +416,8 @@ class OmplRRTWrapper(MyPlanner):
         env = planning_query.environment
         goal = planning_query.goal
 
+        print(f"v{self.verbose=}")
+
         smoothing_rng = np.random.RandomState(0)
         n_shortcut_attempts = 25
         t0 = time.perf_counter()

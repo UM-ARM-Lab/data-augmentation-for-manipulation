@@ -17,6 +17,8 @@ from link_bot_pycommon.args import my_formatter, int_set_arg
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
+    logging.getLogger().setLevel(logging.ERROR)
+    logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument('planners_params', type=pathlib.Path, nargs='+',
