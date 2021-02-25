@@ -361,14 +361,16 @@ class OmplRRTWrapper(MyPlanner):
         if planner_status == MyPlannerStatus.Solved:
             ompl_path = self.ss.getSolutionPath()
             actions, planned_path = self.convert_path(ompl_path)
-            actions, planned_path = self.smooth(planning_query, actions, planned_path)
+            if self.params['smooth']:
+                actions, planned_path = self.smooth(planning_query, actions, planned_path)
         elif planner_status == MyPlannerStatus.Timeout:
             # Use the approximate solution, since it's usually pretty darn close, and sometimes
             # our goals are impossible to reach so this is important to have
             try:
                 ompl_path = self.ss.getSolutionPath()
                 actions, planned_path = self.convert_path(ompl_path)
-                actions, planned_path = self.smooth(planning_query, actions, planned_path)
+                if self.params['smooth']:
+                    actions, planned_path = self.smooth(planning_query, actions, planned_path)
             except RuntimeError:
                 rospy.logerr("Timeout before any edges were added. Considering this as Not Progressing.")
                 planner_status = MyPlannerStatus.NotProgressing
@@ -415,18 +417,19 @@ class OmplRRTWrapper(MyPlanner):
         goal = planning_query.goal
 
         smoothing_rng = np.random.RandomState(0)
-        n_shortcut_attempts = 50
+        n_shortcut_attempts = 25
         t0 = time.perf_counter()
         for j in range(n_shortcut_attempts):
-            self.clear_smoothing_markers()
 
             plan_length = len(state_sequence)
+            if plan_length < 3:
+                return action_sequence, state_sequence
 
             # randomly sample a start index
             start_t = smoothing_rng.randint(0, plan_length - 2)
 
             # sample an end index
-            end_t = smoothing_rng.randint(min(start_t, plan_length - 2), min(start_t + 10, plan_length - 1))
+            end_t = smoothing_rng.randint(min(start_t, plan_length - 2), min(start_t + 2, plan_length - 1))
 
             # interpolate the grippers
             start_state = state_sequence[start_t]
@@ -442,12 +445,6 @@ class OmplRRTWrapper(MyPlanner):
             # goal_threshold = self.params['goal_params']['threshold']
             # still_reaches_goal = self.scenario.distance_to_goal(final_state, goal) < goal_threshold + 1e-3
 
-            # VIS
-            if self.verbose >= 2:
-                self.plot_path(proposed_action_seq, proposed_state_seq)
-                self.scenario.plot_state_rviz(start_state, idx=0, label='from', color='y')
-                self.scenario.plot_state_rviz(end_state, idx=1, label='to', color='m')
-
             # if the shortcut was successful, save that as the new path
             # accept = tf.logical_and(classifier_accept, still_reaches_goal)
             accept = classifier_accept
@@ -456,9 +453,12 @@ class OmplRRTWrapper(MyPlanner):
                 action_sequence = proposed_action_seq
 
                 if self.verbose >= 2:
+                    self.clear_smoothing_markers()
+                    self.scenario.plot_state_rviz(start_state, idx=0, label='from', color='y')
+                    self.scenario.plot_state_rviz(end_state, idx=1, label='to', color='m')
                     self.plot_path(proposed_action_seq, proposed_state_seq)
                 if self.verbose >= 1:
-                    print("smoothed")
+                    print("shortcut accepted")
 
         # Plot the smoothed result
         if self.verbose >= 2:
@@ -468,17 +468,19 @@ class OmplRRTWrapper(MyPlanner):
 
         return action_sequence, state_sequence
 
-    def plot_path(self, action_sequence, state_sequence):
+    def plot_path(self, action_sequence, state_sequence, label='smoothed'):
         for t, (state_t, action_t) in enumerate(
                 itertools.zip_longest(state_sequence, action_sequence)):
-            self.scenario.plot_state_rviz(state_t, label='interpolated', idx=t)
+            self.scenario.plot_state_rviz(state_t, label=label, idx=t)
             if action_t:
-                self.scenario.plot_action_rviz(state_t, action_t, label='interpolated', idx=t)
+                self.scenario.plot_action_rviz(state_t, action_t, label=label, idx=t)
 
     def clear_smoothing_markers(self):
-        for t in range(1000):
-            self.scenario.delete_state_rviz(t)
-            self.scenario.delete_action_rviz(t)
+        # FIXME: temporary hack
+        self.scenario.reset_planning_viz()
+        self.scenario.mm.delete(label='from')
+        self.scenario.mm.delete(label='to')
+        self.scenario.mm.delete(label='smoothed')
 
 
 def interpret_planner_status(planner_status: ob.PlannerStatus, ptc: TimeoutOrNotProgressing):

@@ -290,11 +290,11 @@ class FloatingRopeScenario(ScenarioWithVisualization):
 
         interpolated_actions = []
         for t in np.linspace(step_size, 1, steps):
-            left_gripper_i = left_gripper_start + left_gripper_delta * t
-            right_gripper_i = right_gripper_start + right_gripper_delta * t
+            left_gripper_t = left_gripper_start + left_gripper_delta * t
+            right_gripper_t = right_gripper_start + right_gripper_delta * t
             action = {
-                'left_gripper_position':  left_gripper_i,
-                'right_gripper_position': right_gripper_i,
+                'left_gripper_position':  left_gripper_t,
+                'right_gripper_position': right_gripper_t,
             }
             interpolated_actions.append(action)
 
@@ -920,29 +920,6 @@ class FloatingRopeScenario(ScenarioWithVisualization):
             error_msg.data = error_t
             self.error_pub.publish(error_msg)
 
-    def delete_state_rviz(self, label: str, index: int):
-        ig = marker_index_generator(index)
-
-        namespaces = [
-            '_rope',
-            '_pred_rope',
-            '_gt_rope',
-            '_rp',
-            '_lp',
-            '_r',
-            '_l',
-        ]
-        for _ in range(1000):
-            for ns in namespaces:
-                marker_id = next(ig)
-                msg = self.make_delete_marker(marker_id, ns)
-                self.state_viz_pub.publish(msg)
-
-    def make_delete_marker(self, marker_id: int, ns: str):
-        m = Marker(action=Marker.DELETE, ns=ns, id=marker_id)
-        msg = MarkerArray(markers=[m])
-        return msg
-
     def plot_action_rviz(self, state: Dict, action: Dict, label: str = 'action', **kwargs):
         state_action = {}
         state_action.update(state)
@@ -969,15 +946,6 @@ class FloatingRopeScenario(ScenarioWithVisualization):
         msg.markers.append(rviz_arrow(s2, a2, idx=idx2, label=label, **kwargs))
 
         self.action_viz_pub.publish(msg)
-
-    def delete_action_rviz(self, label: str, index: Optional[int] = None):
-        if label in self.markers:
-            markers_for_label = self.markers[label]
-            if index is not None:
-                if index in markers_for_label:
-                    marker_to_delete = markers_for_label[index]
-                    msg = self.make_delete_marker(marker_id, label)
-                    self.action_viz_pub.publish(msg)
 
     def register_fake_grasping(self):
         register_left_req = RegisterPosition3DControllerRequest()

@@ -54,6 +54,8 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.set_model_state_srv = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
         self.get_model_state_srv = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
 
+        self.mm = RVizMarkerManager()
+
     def settle(self):
         req = WorldControlRequest()
         req.seconds = 5
@@ -70,11 +72,8 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         clear_marker_msg = Marker()
         clear_marker_msg.action = Marker.DELETEALL
         clear_msg.markers.append(clear_marker_msg)
-        from time import sleep
-        for i in range(10):
-            self.state_viz_pub.publish(clear_msg)
-            self.action_viz_pub.publish(clear_msg)
-            sleep(0.1)
+        self.state_viz_pub.publish(clear_msg)
+        self.action_viz_pub.publish(clear_msg)
         self.sampled_goal_marker_idx = 0
         self.tree_state_idx = 0
         self.rejected_state_idx = 0

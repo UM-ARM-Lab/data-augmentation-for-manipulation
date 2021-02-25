@@ -19,8 +19,8 @@
     joint7: 2.173908028268774,
   }
   termination_criteria: {
-    total_timeout: 180
-    timeout: 120
+    total_timeout: 300
+    timeout: 300
     attempted_extensions_threshold: 32
   }
   action_params: {
@@ -48,7 +48,7 @@
   goal_params: {
     type: saved
     goal_type: any_point
-    threshold: 0.045
+    threshold: 0.04
     extent: [
       -0.5
       0.5
@@ -109,6 +109,7 @@
     filter_trials/none/none
   ]
   horizon: 2
+  smooth: true
   # Local Planner Parameters
   use_local_planner: true
   iters: 3,

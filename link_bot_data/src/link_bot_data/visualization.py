@@ -10,7 +10,7 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import vector_to_points_2d
 from moonshine.indexing import index_time_with_metadata, index_time
 from std_msgs.msg import Float32, ColorRGBA
-from visualization_msgs.msg import Marker
+from visualization_msgs.msg import Marker, MarkerArray
 
 
 def plot_rope_configuration(ax, rope_configuration, linewidth=None, linestyle=None, s=1, label=None, scatt=True,
@@ -209,3 +209,9 @@ def float32_viz_t(pub: rospy.Publisher, key: str):
         pub.publish(data_msg)
 
     return _data_viz_t
+
+
+def make_delete_marker(marker_id: int, ns: str):
+    m = Marker(action=Marker.DELETE, ns=ns, id=marker_id)
+    msg = MarkerArray(markers=[m])
+    return msg

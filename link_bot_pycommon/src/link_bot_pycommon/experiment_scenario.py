@@ -7,7 +7,6 @@ from arc_utilities.tf2wrapper import TF2Wrapper
 from geometry_msgs.msg import Vector3
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.base_services import BaseServices
-from link_bot_pycommon.rviz_marker_manager import RVizMarkerManager
 from link_bot_pycommon.sample_object_positions import sample_object_position, sample_object_positions
 from moonshine.indexing import index_dict_of_batched_tensors_tf, index_time_2
 from peter_msgs.srv import GetPosition3DRequest, Position3DEnableRequest, Position3DActionRequest
@@ -26,8 +25,6 @@ class ExperimentScenario:
         self.action_viz_pub = rospy.Publisher("action_viz", MarkerArray, queue_size=10, latch=True)
 
         self.tf = TF2Wrapper()
-
-        self.mm = RVizMarkerManager()
 
     @staticmethod
     def simple_name():
