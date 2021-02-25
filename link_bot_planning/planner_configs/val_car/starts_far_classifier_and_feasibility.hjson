@@ -10,7 +10,7 @@
     dy_trials/gt_rope_w_robot_3/best_checkpoint
   ]
   classifier_model_dir: [
-    cl_trials/val_car_3_includes_starts_far/February_17_10-35-59_0bcf64aa23/
+    cl_trials/val_car_3_includes_starts_far/February_17_10-35-59_0bcf64aa23/best_checkpoint
     cl_trials/new_feasibility_baseline/none
   ]
   recovery: {
