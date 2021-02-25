@@ -35,6 +35,5 @@ class BaseConstraintChecker:
                          environment: Dict,
                          states_sequence: List[Dict],
                          actions: List[Dict]):
-        assert len(states_sequence) == 2
         c, s = self.check_constraint_tf(environment, states_sequence, actions)
         return c.numpy(), s.numpy()

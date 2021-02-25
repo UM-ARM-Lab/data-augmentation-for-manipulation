@@ -17,8 +17,8 @@ class BaseDynamicsFunction(Ensemble):
         self.state_keys = self.nets[0].state_keys
         self.action_keys = self.nets[0].action_keys
 
-    def propagate(self, environment: Dict, start_state: Dict, action: List[Dict]):
-        mean_predictions, stdev_predictions = self.propagate_tf(environment, start_state, action)
+    def propagate(self, environment: Dict, start_state: Dict, action_sequence: List[Dict]):
+        mean_predictions, stdev_predictions = self.propagate_tf(environment, start_state, action_sequence)
         return numpify(mean_predictions), numpify(stdev_predictions)
 
     def propagate_tf(self, environment: Dict, start_state: Dict, actions: List[Dict]):

@@ -11,7 +11,7 @@ from link_bot_data.dataset_utils import add_predicted, get_maybe_predicted
 from link_bot_data.visualization import rviz_arrow
 from link_bot_gazebo_python.gazebo_services import gz_scope
 from link_bot_gazebo_python.position_3d import Position3D
-from link_bot_pycommon.base_3d_scenario import Base3DScenario
+from link_bot_pycommon.base_3d_scenario import ScenarioWithVisualization
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.collision_checking import inflate_tf_3d
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
@@ -29,7 +29,7 @@ rope_key_name = 'rope'
 gazebo_model_name = "dragging_rope"
 
 
-class RopeDraggingScenario(Base3DScenario):
+class RopeDraggingScenario(ScenarioWithVisualization):
     n_links = 10
     ROPE_NAMESPACE = 'dragging_rope'
     ROPE_LINK_NAME = gz_scope(ROPE_NAMESPACE, 'gripper1')

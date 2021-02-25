@@ -76,47 +76,50 @@ def main():
     print(Fore.GREEN + f"Wrote {outfilename}" + Fore.RESET)
 
 
-def postprocess_step(scenario, fwd_model, classifier, environment, step, goal, planner_params):
-    # visualize the initial plan
+def postprocess_step(scenario, fwd_model, classifier, environment, step, goal, planner_params, verbose: int):
     actions = step['planning_result']['actions']
     predicted_states = step['planning_result']['path']
-    T = len(predicted_states)
+    plan_length = len(predicted_states)
 
-    scenario.reset_planning_viz()
-    scenario.plot_environment_rviz(environment)
-    for t, s_t in enumerate(predicted_states):
-        scenario.plot_state_rviz(s_t, idx=t, label='planned', color='#ff000033')
-        if t < T - 1:
-            a_t = actions[t]
-            scenario.plot_action_rviz(s_t, a_t, idx=t, color="#0000ff33")
-        sleep(0.02)
+    # if verbose >= 2:
+    #     # visualize the initial plan
+    #     scenario.reset_planning_viz()
+    #     scenario.plot_environment_rviz(environment)
+    #     for t, s_t in enumerate(predicted_states):
+    #         scenario.plot_state_rviz(s_t, idx=t, label='planned', color='#ff000033')
+    #         if t < plan_length - 1:
+    #             a_t = actions[t]
+    #             scenario.plot_action_rviz(s_t, a_t, idx=t, color="#0000ff33")
+    #         sleep(0.02)
 
     rng = np.random.RandomState(0)
 
     for j in range(200):
-        T = len(predicted_states)
 
         # randomly sample a start index
-        start_t = rng.randint(0, T - 2)
+        start_t = rng.randint(0, plan_length - 2)
 
-        # sample a end index
-        end_t = rng.randint(min(start_t, T - 2), min(start_t + 10, T - 1))
+        # sample an end index
+        end_t = rng.randint(min(start_t, plan_length - 2), min(start_t + 10, plan_length - 1))
 
         # interpolate the grippers
         start_state = predicted_states[start_t]
         end_state = predicted_states[end_t]
         interpolated_actions = scenario.interpolate(start_state, end_state)
 
-        # scenario.plot_state_rviz(start_state, idx=0, label='from', color='y')
-        # scenario.plot_state_rviz(end_state, idx=1, label='to', color='m')
+        if verbose >= 2:
+            scenario.plot_state_rviz(start_state, idx=0, label='from', color='y')
+            scenario.plot_state_rviz(end_state, idx=1, label='to', color='m')
+
         accept_shortcut = True
         interpolated_state = start_state
         interpolated_states = [start_state]
         for interpolated_action in interpolated_actions:
-            # scenario.plot_state_rviz(interpolated_state, label='interpolated')
-            # scenario.plot_action_rviz(interpolated_state, interpolated_action, label='interpolated')
+            if verbose >= 2:
+                scenario.plot_state_rviz(interpolated_state, label='interpolated')
+                scenario.plot_action_rviz(interpolated_state, interpolated_action, label='interpolated')
 
-            # propogate and check the classifier
+            # propagate and check the classifier
             states = fwd_model.propagate(environment, interpolated_state, [interpolated_action])
             assert len(states) == 2
             accept_probabilities, _ = classifier.check_constraint(environment, states, [interpolated_action])
@@ -134,26 +137,28 @@ def postprocess_step(scenario, fwd_model, classifier, environment, step, goal, p
             actions = actions[:start_t] + interpolated_actions + actions[end_t:]
             predicted_states = predicted_states[:start_t] + interpolated_states + predicted_states[end_t + 1:]
 
-            # for t, s_t in enumerate(predicted_states):
-            #     scenario.plot_state_rviz(s_t, idx=t, label='smoothed', color='#00ff0099')
-            #     if t < len(predicted_states) - 1:
-            #         scenario.plot_action_rviz(s_t, actions[t], idx=t, color="#ffffff99", label='smoothed')
-            #     sleep(0.01)
-            # print("smoothed")
+            if verbose >= 2:
+                for t, s_t in enumerate(predicted_states):
+                    scenario.plot_state_rviz(s_t, idx=t, label='smoothed', color='#00ff0099')
+                    if t < len(predicted_states) - 1:
+                        scenario.plot_action_rviz(s_t, actions[t], idx=t, color="#ffffff99", label='smoothed')
+                    sleep(0.01)
+            print("smoothed")
 
     # Plot the smoothed result
-    final_states = fwd_model.propagate(environment, predicted_states[0], actions)
-    T = len(predicted_states)
-    # for t, s_t in enumerate(final_states):
-    #     scenario.plot_state_rviz(s_t, idx=t, label='smoothed', color='#00ff0099')
-    #     if t < T - 1:
-    #         scenario.plot_action_rviz(s_t, actions[t], idx=t, color="#ffffff99", label='smoothed')
-    #     sleep(0.02)
+    if verbose >= 2:
+        final_states = fwd_model.propagate(environment, predicted_states[0], actions)
+        plan_length = len(predicted_states)
+        for t, s_t in enumerate(final_states):
+            scenario.plot_state_rviz(s_t, idx=t, label='smoothed', color='#00ff0099')
+            if t < plan_length - 1:
+                scenario.plot_action_rviz(s_t, actions[t], idx=t, color="#ffffff99", label='smoothed')
+            sleep(0.02)
 
-    final_final_state = final_states[-1]
-    goal_threshold = planner_params['goal_params']['threshold']
-    still_reaches_goal = scenario.distance_to_goal(goal, final_final_state) < goal_threshold + 1e-3
-    print(f"Still near goal? {still_reaches_goal}")
+        final_final_state = final_states[-1]
+        goal_threshold = planner_params['goal_params']['threshold']
+        still_reaches_goal = scenario.distance_to_goal(goal, final_final_state) < goal_threshold + 1e-3
+        print(f"Still near goal? {still_reaches_goal}")
 
     return actions
 

@@ -15,7 +15,7 @@ from link_bot_gazebo_python.gazebo_services import gz_scope
 from link_bot_gazebo_python.gazebo_utils import get_gazebo_kinect_pose
 from link_bot_gazebo_python.position_3d import Position3D
 from link_bot_pycommon import grid_utils
-from link_bot_pycommon.base_3d_scenario import Base3DScenario
+from link_bot_pycommon.base_3d_scenario import ScenarioWithVisualization
 from link_bot_pycommon.bbox_marker_utils import make_box_marker_from_extents
 from link_bot_pycommon.bbox_visualization import extent_array_to_bbox
 from link_bot_pycommon.collision_checking import inflate_tf_3d
@@ -44,7 +44,7 @@ except ImportError:
 rope_key_name = 'rope'
 
 
-class FloatingRopeScenario(Base3DScenario):
+class FloatingRopeScenario(ScenarioWithVisualization):
     DISABLE_CDCPD = False
     IMAGE_H = 90
     IMAGE_W = 160
@@ -932,6 +932,29 @@ class FloatingRopeScenario(Base3DScenario):
             error_msg.data = error_t
             self.error_pub.publish(error_msg)
 
+    def delete_state_rviz(self, label: str, index: int):
+        ig = marker_index_generator(index)
+
+        namespaces = [
+            '_rope',
+            '_pred_rope',
+            '_gt_rope',
+            '_rp',
+            '_lp',
+            '_r',
+            '_l',
+        ]
+        for _ in range(1000):
+            for ns in namespaces:
+                marker_id = next(ig)
+                msg = self.make_delete_marker(marker_id, ns)
+                self.state_viz_pub.publish(msg)
+
+    def make_delete_marker(self, marker_id : int, ns : str):
+        m = Marker(action=Marker.DELETE, ns=ns, id=marker_id)
+        msg = MarkerArray(markers=[m])
+        return msg
+
     def plot_action_rviz(self, state: Dict, action: Dict, label: str = 'action', **kwargs):
         state_action = {}
         state_action.update(state)
@@ -958,6 +981,15 @@ class FloatingRopeScenario(Base3DScenario):
         msg.markers.append(rviz_arrow(s2, a2, idx=idx2, label=label, **kwargs))
 
         self.action_viz_pub.publish(msg)
+
+    def delete_action_rviz(self, label: str, index: Optional[int] = None):
+        if label in self.markers:
+            markers_for_label = self.markers[label]
+            if index is not None:
+                if index in markers_for_label:
+                    marker_to_delete = markers_for_label[index]
+                    msg = self.make_delete_marker(marker_id, label)
+                    self.action_viz_pub.publish(msg)
 
     def register_fake_grasping(self):
         register_left_req = RegisterPosition3DControllerRequest()

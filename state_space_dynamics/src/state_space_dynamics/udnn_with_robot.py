@@ -49,7 +49,7 @@ class UDNNWithRobotKinematics:
         example_np = numpify(example)
         reached, predicted_joint_positions = self.follow_jacobian_from_example(example_np)
         out['joint_positions'] = tf.convert_to_tensor(predicted_joint_positions, dtype=tf.float32)
-        sequence_length = example[self.state_keys[0]].shape[1] + 1
+        sequence_length = example[self.action_keys[0]].shape[1] + 1
         out['joint_names'] = tf.tile(example['joint_names'], [1, sequence_length, 1])
         # TODO: return reached somehow
         # out['reached'] = tf.convert_to_tensor(reached)
@@ -64,14 +64,17 @@ class UDNNWithRobotKinematics:
         for b in range(batch_size):
             input_sequence_length = example[self.action_keys[0]].shape[1]
             target_reached = [True]
-            pred_joint_positions = [index_batch_time(example, ['joint_positions'], b, 0)['joint_positions']]
+            example_b_t = index_batch_time(example, self.state_keys + self.action_keys, b, 0)
+            pred_joint_positions = [example_b_t['joint_positions']]
+            example_b_t['joint_names'] = example['joint_names'][b, 0]
             for t in range(input_sequence_length):
-                example_b_t = index_batch_time(example, self.state_keys + self.action_keys, b, t)
-                example_b_t['joint_names'] = example['joint_names'][b, t]
+                example_b_t['left_gripper_position'] = example['left_gripper_position'][b, t]
+                example_b_t['right_gripper_position'] = example['right_gripper_position'][b, t]
                 _, reached_t, joint_positions_t = follow_jacobian_from_example(example_b_t,
                                                                                self.jacobian_follower_no_cc,
                                                                                tool_names,
                                                                                preferred_tool_orientations)
+                example_b_t['joint_positions'] = joint_positions_t
                 target_reached.append(reached_t)
                 pred_joint_positions.append(joint_positions_t)
             target_reached_batched.append(target_reached)

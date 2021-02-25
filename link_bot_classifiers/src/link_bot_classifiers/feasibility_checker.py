@@ -38,15 +38,16 @@ class FastRobotFeasibilityChecker(BaseConstraintChecker):
                             environment: Dict,
                             states_sequence: List[Dict],
                             actions: List[Dict]):
-        assert len(states_sequence) == 2
-        state = states_sequence[0]
-        action = actions[0]
-        collision = self.scenario.is_moveit_robot_in_collision(environment=environment,
-                                                              state=state,
-                                                              action=action)
-        feasible = not collision
-        reached = self.scenario.moveit_robot_reached(states_sequence[0], action, states_sequence[1])
-        constraint_satisfied = feasible and reached
+        constraint_satisfied = True
+        for state, action, next_state in zip(states_sequence, actions, states_sequence[1:]):
+            collision = self.scenario.is_moveit_robot_in_collision(environment=environment,
+                                                                   state=next_state,
+                                                                   action=action)
+            feasible = not collision
+            reached = self.scenario.moveit_robot_reached(state, action, next_state)
+            constraint_satisfied = feasible and reached
+            if not constraint_satisfied:
+                break
         return tf.expand_dims(tf.cast(constraint_satisfied, tf.float32), axis=0), tf.constant(0)
 
     def check_constraint_tf_batched(self,

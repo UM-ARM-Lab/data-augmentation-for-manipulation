@@ -12,7 +12,7 @@ import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_pycommon.base_3d_scenario import Base3DScenario
+from link_bot_pycommon.base_3d_scenario import ScenarioWithVisualization
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
     batch_point_to_idx_tf_3d_in_batched_envs
@@ -29,7 +29,7 @@ DEBUG_VIZ = False
 
 
 class NNClassifier(MyKerasModel):
-    def __init__(self, hparams: Dict, batch_size: int, scenario: Base3DScenario):
+    def __init__(self, hparams: Dict, batch_size: int, scenario: ScenarioWithVisualization):
         super().__init__(hparams, batch_size)
         self.scenario = scenario
 
@@ -314,7 +314,7 @@ class NNClassifierWrapper(BaseConstraintChecker):
         super().__init__(path, scenario)
         self.name = self.__class__.__name__
         # FIXME: Bad API design
-        assert isinstance(scenario, Base3DScenario)
+        assert isinstance(scenario, ScenarioWithVisualization)
 
         self.dataset_labeling_params = self.hparams['classifier_dataset_hparams']['labeling_params']
         self.data_collection_params = self.hparams['classifier_dataset_hparams']['data_collection_params']

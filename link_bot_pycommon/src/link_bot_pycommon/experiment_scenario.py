@@ -7,6 +7,7 @@ from arc_utilities.tf2wrapper import TF2Wrapper
 from geometry_msgs.msg import Vector3
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.base_services import BaseServices
+from link_bot_pycommon.rviz_marker_manager import RVizMarkerManager
 from link_bot_pycommon.sample_object_positions import sample_object_position, sample_object_positions
 from moonshine.indexing import index_dict_of_batched_tensors_tf, index_time_2
 from peter_msgs.srv import GetPosition3DRequest, Position3DEnableRequest, Position3DActionRequest
@@ -107,6 +108,10 @@ class ExperimentScenario:
         return action_sequence
 
     @staticmethod
+    def interpolate(start_state, end_state, step_size=0.05):
+        raise NotImplementedError()
+
+    @staticmethod
     def local_environment_center_differentiable(state):
         raise NotImplementedError()
 
@@ -116,10 +121,16 @@ class ExperimentScenario:
     def plot_environment_rviz(self, data: Dict):
         raise NotImplementedError()
 
+    def delete_state_rviz(self, label: str, index: int):
+        raise NotImplementedError()
+
     def plot_state_rviz(self, data: Dict, **kwargs):
         raise NotImplementedError()
 
     def plot_action_rviz(self, state: Dict, action: Dict, **kwargs):
+        raise NotImplementedError()
+
+    def delete_action_rviz(self, label: str, index: int):
         raise NotImplementedError()
 
     def plot_is_close(self, label_t):

@@ -12,8 +12,8 @@ from gazebo_msgs.srv import SetModelState
 from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_data.dataset_utils import NULL_PAD_VALUE
 from link_bot_pycommon import grid_utils
-from link_bot_pycommon.animatable_scenario import AnimatableScenario
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
+from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import environment_to_occupancy_msg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -29,7 +29,12 @@ except ImportError:
     rospy.logwarn("ignoring failed import of BBox message")
 
 
-class Base3DScenario(AnimatableScenario):
+class ScenarioWithVisualization(ExperimentScenario):
+    """
+    In order to avoid circular dependency between the base ExperimentScenario class,
+    we introduce this class which can depend on all sorts of visualization code
+    """
+
     def __init__(self):
         super().__init__()
         self.world_control_srv = rospy.ServiceProxy("gz_world_control", WorldControl)
@@ -54,6 +59,8 @@ class Base3DScenario(AnimatableScenario):
         self.set_model_states_srv = rospy.ServiceProxy("arm_gazebo/set_model_states", SetModelStates)
         self.set_model_state_srv = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
         self.get_model_state_srv = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
+
+        self.mm = RVizMarkerManager()
 
     def settle(self):
         req = WorldControlRequest()
@@ -310,3 +317,24 @@ class Base3DScenario(AnimatableScenario):
             res: GetModelStateResponse = self.get_model_state_srv(get_req)
             poses[object_name] = res.pose
         return poses
+
+    def animate_final_path(self,
+                           environment: Dict,
+                           planned_path: List[Dict],
+                           actions: List[Dict]):
+        time_steps = np.arange(len(planned_path))
+        self.plot_environment_rviz(environment)
+
+        anim = RvizAnimationController(time_steps)
+
+        while not anim.done:
+            t = anim.t()
+            s_t_planned = planned_path[t]
+            self.plot_state_rviz(s_t_planned, label='planned', color='#FF4616')
+            if len(actions) > 0:
+                if t < anim.max_t:
+                    self.plot_action_rviz(s_t_planned, actions[t])
+                else:
+                    self.plot_action_rviz(planned_path[t - 1], actions[t - 1])
+
+            anim.step()

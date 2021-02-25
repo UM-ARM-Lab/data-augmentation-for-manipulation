@@ -27,8 +27,7 @@ def check_collision(scenario: ExperimentScenario,
                                                ys=ys,
                                                zs=zs,
                                                inflate_radius_m=DEFAULT_INFLATION_RADIUS)
-    prediction = tf.cast(tf.logical_not(in_collision), tf.float32)
-    return prediction
+    return in_collision
 
 
 class PointsCollisionChecker(BaseConstraintChecker):
@@ -51,8 +50,13 @@ class PointsCollisionChecker(BaseConstraintChecker):
                             environment: Dict,
                             states_sequence: List[Dict],
                             actions):
-        return check_collision(self.scenario, environment, states_sequence[-1])[tf.newaxis], tf.ones([],
-                                                                                                     dtype=tf.float32) * 1e-9
+        in_collision = False
+        for state in states_sequence:
+            in_collision = check_collision(self.scenario, environment, state)
+            if in_collision:
+                break
+        constraint_satisfied = tf.cast(tf.logical_not(in_collision), tf.float32)[tf.newaxis]
+        return constraint_satisfied, tf.ones([], dtype=tf.float32) * 1e-9
 
     def check_constraint_tf_batched(self,
                                     environment: Dict,

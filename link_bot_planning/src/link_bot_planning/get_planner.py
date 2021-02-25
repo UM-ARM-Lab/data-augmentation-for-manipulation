@@ -2,7 +2,7 @@ from typing import Dict
 
 from link_bot_classifiers import classifier_utils
 from link_bot_planning.ompl_rrt_wrapper import OmplRRTWrapper
-from link_bot_planning.rrt import NewRRT
+from link_bot_planning.parallel_rrt import NewRRT
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_from_json

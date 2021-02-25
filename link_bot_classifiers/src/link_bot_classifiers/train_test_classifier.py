@@ -13,7 +13,7 @@ from link_bot_data.balance import balance
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset
 from link_bot_data.visualization import init_viz_env
-from link_bot_pycommon.base_3d_scenario import Base3DScenario
+from link_bot_pycommon.base_3d_scenario import ScenarioWithVisualization
 from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
@@ -267,7 +267,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 if tf.reduce_all(classifier_is_correct[b]):
                     continue
 
-            def _custom_viz_t(scenario: Base3DScenario, e: Dict, t: int):
+            def _custom_viz_t(scenario: ScenarioWithVisualization, e: Dict, t: int):
                 if t > 0:
                     accept_probability_t = predictions['probabilities'][b, t - 1, 0].numpy()
                 else:

@@ -1,3 +1,4 @@
+import itertools
 import time
 import warnings
 from typing import Dict, List, Tuple
@@ -9,7 +10,7 @@ from link_bot_planning.get_ompl_scenario import get_ompl_scenario
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, LoggingTree, \
     SharedPlanningStateOMPL
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
-from link_bot_pycommon.base_3d_scenario import Base3DScenario
+from link_bot_pycommon.base_3d_scenario import ScenarioWithVisualization
 from state_space_dynamics.base_filter_function import BaseFilterFunction
 
 with warnings.catch_warnings():
@@ -48,7 +49,7 @@ class OmplRRTWrapper(MyPlanner):
                  classifier_models: [BaseConstraintChecker],
                  planner_params: Dict,
                  action_params: Dict,
-                 scenario: Base3DScenario,
+                 scenario: ScenarioWithVisualization,
                  verbose: int,
                  log_full_tree: bool = False,
                  ):
@@ -195,7 +196,7 @@ class OmplRRTWrapper(MyPlanner):
         last_previous_state = previous_states[-1]
         mean_predicted_states, stdev_predicted_states = self.fwd_model.propagate(environment=self.sps.environment,
                                                                                  start_state=last_previous_state,
-                                                                                 action=new_actions)
+                                                                                 action_sequence=new_actions)
         # get only the final state predicted, since *_predicted_states includes the start state
         final_predicted_state = mean_predicted_states[-1]
 
@@ -212,16 +213,7 @@ class OmplRRTWrapper(MyPlanner):
             all_actions.insert(0, previous_action)
 
         # compute new num_diverged by checking the constraint
-        accept = True
-        accept_probabilities = {}
-        for classifier in self.classifier_models:
-            p_accepts_for_model, _ = classifier.check_constraint(environment=self.sps.environment,
-                                                                 states_sequence=all_states,
-                                                                 actions=all_actions)
-            p_accept_for_model = p_accepts_for_model[-1]
-            accept_probabilities[classifier.name] = p_accept_for_model
-            accept_for_model = p_accept_for_model > self.params['accept_threshold']
-            accept = accept and accept_for_model
+        accept, accept_probabilities = self.check_constraint(all_states, all_actions)
 
         if accept:
             final_predicted_state['num_diverged'] = np.array([0.0])
@@ -229,6 +221,20 @@ class OmplRRTWrapper(MyPlanner):
             final_predicted_state['num_diverged'] = last_previous_state['num_diverged'] + 1
 
         return final_predicted_state, accept, accept_probabilities
+
+    def check_constraint(self, states: List[Dict], actions: List[Dict]):
+        accept = True
+        accept_probabilities = {}
+        for classifier in self.classifier_models:
+            p_accepts_for_model, _ = classifier.check_constraint(environment=self.sps.environment,
+                                                                 states_sequence=states,
+                                                                 actions=actions)
+            p_accept_for_model = p_accepts_for_model[-1]
+            accept_probabilities[classifier.name] = p_accept_for_model
+            accept = p_accept_for_model > self.params['accept_threshold']
+            if not accept:
+                break
+        return accept, accept_probabilities
 
     def propagate(self, motions, control, duration, state_out):
         del duration  # unused, multi-step propagation is handled inside propagateMotionsWhileValid
@@ -355,12 +361,14 @@ class OmplRRTWrapper(MyPlanner):
         if planner_status == MyPlannerStatus.Solved:
             ompl_path = self.ss.getSolutionPath()
             actions, planned_path = self.convert_path(ompl_path)
+            actions, planned_path = self.smooth(planning_query, actions, planned_path)
         elif planner_status == MyPlannerStatus.Timeout:
             # Use the approximate solution, since it's usually pretty darn close, and sometimes
             # our goals are impossible to reach so this is important to have
             try:
                 ompl_path = self.ss.getSolutionPath()
                 actions, planned_path = self.convert_path(ompl_path)
+                actions, planned_path = self.smooth(planning_query, actions, planned_path)
             except RuntimeError:
                 rospy.logerr("Timeout before any edges were added. Considering this as Not Progressing.")
                 planner_status = MyPlannerStatus.NotProgressing
@@ -401,6 +409,76 @@ class OmplRRTWrapper(MyPlanner):
         return {
             "horizon": self.classifier_models[0].horizon,
         }
+
+    def smooth(self, planning_query: PlanningQuery, action_sequence: List[Dict], state_sequence: List[Dict]):
+        env = planning_query.environment
+        goal = planning_query.goal
+
+        smoothing_rng = np.random.RandomState(0)
+        n_shortcut_attempts = 50
+        t0 = time.perf_counter()
+        for j in range(n_shortcut_attempts):
+            self.clear_smoothing_markers()
+
+            plan_length = len(state_sequence)
+
+            # randomly sample a start index
+            start_t = smoothing_rng.randint(0, plan_length - 2)
+
+            # sample an end index
+            end_t = smoothing_rng.randint(min(start_t, plan_length - 2), min(start_t + 10, plan_length - 1))
+
+            # interpolate the grippers
+            start_state = state_sequence[start_t]
+            end_state = state_sequence[end_t]
+            shortcut_action_seq = self.scenario.interpolate(start_state, end_state)
+            proposed_action_seq = action_sequence[:start_t] + shortcut_action_seq + action_sequence[end_t:]
+
+            proposed_state_seq, _ = self.fwd_model.propagate(env, state_sequence[0], proposed_action_seq)
+            classifier_accept, accept_probabilities = self.check_constraint(proposed_state_seq, proposed_action_seq)
+
+            # NOTE: we don't check this because smoothing is run even when we Timeout and the goal wasn't reached
+            # final_state = proposed_state_seq[-1]
+            # goal_threshold = self.params['goal_params']['threshold']
+            # still_reaches_goal = self.scenario.distance_to_goal(final_state, goal) < goal_threshold + 1e-3
+
+            # VIS
+            if self.verbose >= 2:
+                self.plot_path(proposed_action_seq, proposed_state_seq)
+                self.scenario.plot_state_rviz(start_state, idx=0, label='from', color='y')
+                self.scenario.plot_state_rviz(end_state, idx=1, label='to', color='m')
+
+            # if the shortcut was successful, save that as the new path
+            # accept = tf.logical_and(classifier_accept, still_reaches_goal)
+            accept = classifier_accept
+            if accept:
+                state_sequence = proposed_state_seq
+                action_sequence = proposed_action_seq
+
+                if self.verbose >= 2:
+                    self.plot_path(proposed_action_seq, proposed_state_seq)
+                if self.verbose >= 1:
+                    print("smoothed")
+
+        # Plot the smoothed result
+        if self.verbose >= 2:
+            self.plot_path(action_sequence, state_sequence)
+            dt = time.perf_counter() - t0
+            print(f"Smoothing Time = {dt:.3f}s")
+
+        return action_sequence, state_sequence
+
+    def plot_path(self, action_sequence, state_sequence):
+        for t, (state_t, action_t) in enumerate(
+                itertools.zip_longest(state_sequence, action_sequence)):
+            self.scenario.plot_state_rviz(state_t, label='interpolated', idx=t)
+            if action_t:
+                self.scenario.plot_action_rviz(state_t, action_t, label='interpolated', idx=t)
+
+    def clear_smoothing_markers(self):
+        for t in range(1000):
+            self.scenario.delete_state_rviz(t)
+            self.scenario.delete_action_rviz(t)
 
 
 def interpret_planner_status(planner_status: ob.PlannerStatus, ptc: TimeoutOrNotProgressing):
