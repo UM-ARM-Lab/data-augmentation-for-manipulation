@@ -12,6 +12,7 @@ from link_bot_pycommon.sample_object_positions import sample_object_position, sa
 from moonshine.indexing import index_dict_of_batched_tensors_tf, index_time_2
 from peter_msgs.srv import GetPosition3DRequest, Position3DEnableRequest, Position3DActionRequest
 from std_msgs.msg import Int64, Float32
+from visualization_msgs.msg import MarkerArray
 
 
 class ExperimentScenario:
@@ -21,8 +22,12 @@ class ExperimentScenario:
         self.recovery_prob_viz_pub = rospy.Publisher("recovery_probability_viz", Float32, queue_size=10, latch=True)
         self.accept_probability_viz_pub = rospy.Publisher("accept_probability_viz", Float32, queue_size=10, latch=True)
         self.stdev_viz_pub = rospy.Publisher("stdev", Float32, queue_size=10)
+        self.state_viz_pub = rospy.Publisher("state_viz", MarkerArray, queue_size=10, latch=True)
+        self.action_viz_pub = rospy.Publisher("action_viz", MarkerArray, queue_size=10, latch=True)
 
         self.tf = TF2Wrapper()
+
+        self.mm = RVizMarkerManager()
 
     @staticmethod
     def simple_name():
@@ -30,20 +35,6 @@ class ExperimentScenario:
 
     def execute_action(self, action: Dict):
         raise NotImplementedError()
-
-    # noinspection PyMethodMayBeStatic
-    def is_motion_feasible(self, environment: Dict, state: Dict, action: Dict):
-        """
-
-        Args:
-            environment:
-            state:
-            action:
-
-        Returns: true if the motion is feasible
-
-        """
-        return True
 
     def sample_action_for_data_collection(self,
                                           action_rng: np.random.RandomState,

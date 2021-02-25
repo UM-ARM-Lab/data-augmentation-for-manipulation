@@ -15,7 +15,7 @@ from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_planning.my_planner import PlanningQuery, MyPlanner, PlanningResult, MyPlannerStatus
 from link_bot_planning.timeout_or_not_progressing import TimeoutOrNotProgressing
-from link_bot_pycommon.base_3d_scenario import ScenarioWithVisualization
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32

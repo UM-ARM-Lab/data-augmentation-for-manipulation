@@ -9,13 +9,13 @@ import rospy
 from arc_utilities.listener import Listener
 from arc_utilities.marker_utils import scale_marker_array
 from geometry_msgs.msg import Point
+from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted
 from link_bot_data.visualization import rviz_arrow
 from link_bot_gazebo_python.gazebo_services import gz_scope
 from link_bot_gazebo_python.gazebo_utils import get_gazebo_kinect_pose
 from link_bot_gazebo_python.position_3d import Position3D
 from link_bot_pycommon import grid_utils
-from link_bot_pycommon.base_3d_scenario import ScenarioWithVisualization
 from link_bot_pycommon.bbox_marker_utils import make_box_marker_from_extents
 from link_bot_pycommon.bbox_visualization import extent_array_to_bbox
 from link_bot_pycommon.collision_checking import inflate_tf_3d
@@ -26,6 +26,7 @@ from link_bot_pycommon.matplotlib_utils import adjust_lightness_msg
 from link_bot_pycommon.pycommon import default_if_none
 from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params, \
     transform_points_to_robot_frame
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
 from moonshine.moonshine_utils import numpify
 from peter_msgs.srv import *
@@ -35,11 +36,6 @@ from std_msgs.msg import Float32, ColorRGBA
 from std_srvs.srv import Empty, EmptyRequest
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
-
-try:
-    from jsk_recognition_msgs.msg import BoundingBox
-except ImportError:
-    rospy.logwarn("ignoring failed import of BBox message")
 
 rope_key_name = 'rope'
 
@@ -62,9 +58,6 @@ class FloatingRopeScenario(ScenarioWithVisualization):
     }
     ROPE_NAMESPACE = 'rope_3d'
 
-    # TODO: break out the different pieces of get_state to make them composable,
-    #  since there are just a few shared amongst all the scenarios
-    # TODO: about this... maybe they should all be pure functions? do we really need "self" at all?
     def __init__(self):
         super().__init__()
         self.color_image_listener = Listener(self.COLOR_IMAGE_TOPIC, Image)
@@ -82,13 +75,8 @@ class FloatingRopeScenario(ScenarioWithVisualization):
         self.set_rope_state_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set_rope_state"), SetRopeState)
         self.reset_srv = rospy.ServiceProxy("/gazebo/reset_simulation", Empty)
 
-        try:
-            self.left_gripper_bbox_pub = rospy.Publisher('/left_gripper_bbox_pub', BoundingBox, queue_size=10,
-                                                         latch=True)
-            self.right_gripper_bbox_pub = rospy.Publisher('/right_gripper_bbox_pub', BoundingBox, queue_size=10,
-                                                          latch=True)
-        except NameError:
-            pass
+        self.left_gripper_bbox_pub = rospy.Publisher('/left_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
+        self.right_gripper_bbox_pub = rospy.Publisher('/right_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
         self.overstretching_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "rope_overstretched"),
                                                      GetOverstretching)
         self.error_pub = rospy.Publisher("error", Float32, queue_size=10)
@@ -950,7 +938,7 @@ class FloatingRopeScenario(ScenarioWithVisualization):
                 msg = self.make_delete_marker(marker_id, ns)
                 self.state_viz_pub.publish(msg)
 
-    def make_delete_marker(self, marker_id : int, ns : str):
+    def make_delete_marker(self, marker_id: int, ns: str):
         m = Marker(action=Marker.DELETE, ns=ns, id=marker_id)
         msg = MarkerArray(markers=[m])
         return msg

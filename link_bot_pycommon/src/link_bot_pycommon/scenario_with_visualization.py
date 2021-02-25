@@ -1,3 +1,4 @@
+from abc import ABC
 from typing import Dict, List
 
 import numpy as np
@@ -10,12 +11,14 @@ from gazebo_msgs.msg import ModelState
 from gazebo_msgs.srv import GetModelState, GetModelStateRequest, GetModelStateResponse
 from gazebo_msgs.srv import SetModelState
 from geometry_msgs.msg import Pose, Point, Quaternion
+from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import NULL_PAD_VALUE
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import environment_to_occupancy_msg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
+from link_bot_pycommon.rviz_marker_manager import RVizMarkerManager
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from mps_shape_completion_msgs.msg import OccupancyStamped
 from peter_msgs.msg import LabelStatus
@@ -23,29 +26,20 @@ from peter_msgs.srv import WorldControl, WorldControlRequest
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
-try:
-    from jsk_recognition_msgs.msg import BoundingBox
-except ImportError:
-    rospy.logwarn("ignoring failed import of BBox message")
 
-
-class ScenarioWithVisualization(ExperimentScenario):
+class ScenarioWithVisualization(ExperimentScenario, ABC):
     """
-    In order to avoid circular dependency between the base ExperimentScenario class,
-    we introduce this class which can depend on all sorts of visualization code
+    A lot of our visualization code takes ExperimentScenario as an argument, or at least uses it as a type hint.
+    Therefore, in order to avoid circular dependency between the base ExperimentScenario class and visualization code,
+    we introduce this class. This class can safely depend on all sorts of visualization code
     """
 
     def __init__(self):
         super().__init__()
         self.world_control_srv = rospy.ServiceProxy("gz_world_control", WorldControl)
         self.env_viz_pub = rospy.Publisher('occupancy', OccupancyStamped, queue_size=10, latch=True)
-        try:
-            self.env_bbox_pub = rospy.Publisher('env_bbox', BoundingBox, queue_size=10, latch=True)
-            self.obs_bbox_pub = rospy.Publisher('obs_bbox', BoundingBox, queue_size=10, latch=True)
-        except NameError:
-            pass
-        self.state_viz_pub = rospy.Publisher("state_viz", MarkerArray, queue_size=10, latch=True)
-        self.action_viz_pub = rospy.Publisher("action_viz", MarkerArray, queue_size=10, latch=True)
+        self.env_bbox_pub = rospy.Publisher('env_bbox', BoundingBox, queue_size=10, latch=True)
+        self.obs_bbox_pub = rospy.Publisher('obs_bbox', BoundingBox, queue_size=10, latch=True)
         self.label_viz_pub = rospy.Publisher("label_viz", LabelStatus, queue_size=10, latch=True)
 
         self.sampled_goal_marker_idx = 0
@@ -59,8 +53,6 @@ class ScenarioWithVisualization(ExperimentScenario):
         self.set_model_states_srv = rospy.ServiceProxy("arm_gazebo/set_model_states", SetModelStates)
         self.set_model_state_srv = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
         self.get_model_state_srv = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
-
-        self.mm = RVizMarkerManager()
 
     def settle(self):
         req = WorldControlRequest()

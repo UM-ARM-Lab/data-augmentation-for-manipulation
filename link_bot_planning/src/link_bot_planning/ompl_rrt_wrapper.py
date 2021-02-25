@@ -10,7 +10,7 @@ from link_bot_planning.get_ompl_scenario import get_ompl_scenario
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, LoggingTree, \
     SharedPlanningStateOMPL
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
-from link_bot_pycommon.base_3d_scenario import ScenarioWithVisualization
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from state_space_dynamics.base_filter_function import BaseFilterFunction
 
 with warnings.catch_warnings():
