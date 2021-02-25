@@ -2,7 +2,7 @@
 import argparse
 import pathlib
 import tempfile
-from time import sleep
+from time import sleep, perf_counter
 from typing import Dict, List, Optional
 
 import colorama
@@ -96,9 +96,6 @@ class ResultsToDynamicsDataset:
         results_utils.save_dynamics_dataset_hparams(results_dir, outdir, self.metadata)
         timeout = 30
 
-        from time import perf_counter
-        t0 = perf_counter()
-
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
             example_idx_for_trial = 0
 
@@ -108,7 +105,6 @@ class ResultsToDynamicsDataset:
                 sleep(30)
                 self.scenario.on_before_get_state_or_execute_action()
                 self.scenario.grasp_rope_endpoints(settling_time=0.0)
-
 
             itr = skip_on_timeout(30, on_timeout, self.result_datum_to_dynamics_dataset, datum, trial_idx)
             while True:
