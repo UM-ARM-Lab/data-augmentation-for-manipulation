@@ -56,11 +56,9 @@ def train_main(args):
                          batch_metadata=train_dataset.batch_metadata,
                          trial_path=trial_path)
 
-    train_tf_dataset, val_tf_dataset = train_test.setup_datasets(model_hparams=params,
-                                                                 batch_size=batch_size,
-                                                                 seed=seed,
-                                                                 train_dataset=train_dataset,
-                                                                 val_dataset=val_dataset)
+    train_tf_dataset, val_tf_dataset = train_test.setup_datasets(model_hparams=params, batch_size=batch_size,
+                                                                 train_dataset=train_dataset, val_dataset=val_dataset,
+                                                                 take=)
 
     runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
 

@@ -9,13 +9,12 @@ import link_bot_classifiers
 import rospy
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.classifier_utils import load_generic_model
-from link_bot_data.balance import balance
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset
 from link_bot_data.visualization import init_viz_env
-from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine import filepath_tools
@@ -37,7 +36,7 @@ def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
     return hparams
 
 
-def setup_datasets(model_hparams, batch_size, seed, train_dataset, val_dataset, take):
+def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: Optional[int] = None):
     # Dataset preprocessing
     train_tf_dataset = train_dataset.get_datasets(mode='train', shuffle_files=True, take=take)
     val_tf_dataset = val_dataset.get_datasets(mode='val', shuffle_files=True, take=take)
@@ -116,7 +115,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          save_every_n_minutes=save_every_n_minutes,
                          validate_first=validate_first,
                          batch_metadata=train_dataset.batch_metadata)
-    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, seed, train_dataset, val_dataset, take)
+    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take)
 
     final_val_metrics = runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
 

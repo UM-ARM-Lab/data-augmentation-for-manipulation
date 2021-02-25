@@ -76,35 +76,29 @@ class ModelRunner:
             self.restore()
 
     def restore(self):
-        restore_latest_checkpoint_path = self.checkpoint.parent / "latest_checkpoint"
-        restore_best_checkpoint_path = self.checkpoint.parent / "best_checkpoint"
-        restore_latest_checkpoint_manager = tf.train.CheckpointManager(self.latest_ckpt,
-                                                                       restore_latest_checkpoint_path.as_posix(),
-                                                                       max_to_keep=1)
-        restore_best_checkpoint_manager = tf.train.CheckpointManager(self.best_ckpt,
-                                                                     restore_best_checkpoint_path.as_posix(),
-                                                                     max_to_keep=1)
-        self.best_ckpt.restore(restore_best_checkpoint_manager.latest_checkpoint)
+        best_checkpoint_manager = self.get_checkpoint_manager('best_checkpoint', self.best_ckpt)
+        latest_checkpoint_manager = self.get_checkpoint_manager('latest_checkpoint', self.latest_ckpt)
+        self.best_ckpt.restore(best_checkpoint_manager.latest_checkpoint)
         if self.checkpoint.name == 'latest_checkpoint':
-            status = self.latest_ckpt.restore(restore_latest_checkpoint_manager.latest_checkpoint)
-            if restore_latest_checkpoint_manager.latest_checkpoint is not None:
-                print(Fore.CYAN + "Restoring latest {}".format(restore_latest_checkpoint_manager.latest_checkpoint))
+            status = self.latest_ckpt.restore(latest_checkpoint_manager.latest_checkpoint)
+            if latest_checkpoint_manager.latest_checkpoint is not None:
+                print(Fore.CYAN + "Restoring latest {}".format(latest_checkpoint_manager.latest_checkpoint))
                 status.assert_existing_objects_matched()
             else:
                 raise ValueError("Failed to restore! wrong checkpoint path?")
 
-    def count_params(self):
-        self.model.summary()
+    def get_checkpoint_manager(self, name: str, ckpt: tf.train.Checkpoint):
+        checkpoint_path = self.checkpoint.parent / name
+        checkpoint_manager = tf.train.CheckpointManager(ckpt, checkpoint_path.as_posix(), max_to_keep=1)
+        return checkpoint_manager
 
-    def build_model(self, dataset):
-        elem = next(iter(dataset))
-        tf.summary.trace_on(graph=True, profiler=False)
-        self.model(elem, training=True)
-        with self.train_summary_writer.as_default():
-            tf.summary.trace_export(name='train_trace', step=self.latest_ckpt.step.numpy())
-
-        model_image_path = self.trial_path / 'network.png'
-        tf.keras.utils.plot_model(self.model, model_image_path.as_posix(), show_shapes=True)
+    def set_best_ckpt_step_from_latest_ckpt(self):
+        latest_checkpoint_manager = self.get_checkpoint_manager('latest_checkpoint', self.latest_ckpt)
+        self.latest_ckpt.restore(latest_checkpoint_manager.latest_checkpoint)
+        if latest_checkpoint_manager.latest_checkpoint is not None:
+            self.best_ckpt.step.assign(self.latest_ckpt.step)
+        else:
+            raise ValueError("Failed to restore! wrong checkpoint path?")
 
     def write_individual_summary(self, k, v):
         if v.ndim == 0:

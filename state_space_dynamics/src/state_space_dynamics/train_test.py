@@ -12,9 +12,9 @@ import state_space_dynamics
 from link_bot_data.dataset_utils import batch_tf_dataset
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
-from moonshine.moonshine_utils import remove_batch
 from moonshine import filepath_tools
 from moonshine.model_runner import ModelRunner
+from moonshine.moonshine_utils import remove_batch
 from state_space_dynamics import dynamics_utils, common_train_hparams
 
 
@@ -50,7 +50,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          batch_metadata=train_dataset.batch_metadata,
                          trial_path=trial_path)
 
-    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, seed, train_dataset, val_dataset, take)
+    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take)
 
     runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
 
@@ -82,7 +82,7 @@ def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
     return hparams
 
 
-def setup_datasets(model_hparams, batch_size, seed, train_dataset, val_dataset, take):
+def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: Optional[int] = None):
     # Dataset preprocessing
     train_tf_dataset = train_dataset.get_datasets(mode='train', take=take)
     val_tf_dataset = val_dataset.get_datasets(mode='val')
