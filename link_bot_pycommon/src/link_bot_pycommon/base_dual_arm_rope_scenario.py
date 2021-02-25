@@ -73,8 +73,6 @@ def follow_jacobian_from_example(example: Dict,
                                  j: JacobianFollower,
                                  tool_names: List[str],
                                  preferred_tool_orientations: List):
-    from time import perf_counter
-    t0 = perf_counter()
     joint_state = joint_state_msg_from_state_dict(example)
 
     left_gripper_points = [example['left_gripper_position']]
@@ -95,7 +93,6 @@ def follow_jacobian_from_example(example: Dict,
                                                    max_acceleration_scaling_factor=0.1)
 
     predicted_joint_positions = get_joint_positions_given_state_and_plan(plan, example)
-    print('bdars', perf_counter() - t0)
     return joint_state, target_reached, predicted_joint_positions
 
 

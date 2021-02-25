@@ -67,6 +67,5 @@ def main():
                         log_full_tree=args.log_full_tree,
                         )
 
-
 if __name__ == '__main__':
     main()
