@@ -352,8 +352,7 @@ class OmplRRTWrapper(MyPlanner):
         # END TIMING
         planning_time = time.time() - t0
 
-        if self.verbose >= 1:
-            print(f"Mean Propagate Time = {np.mean(self.progagate_dts):.4f}s")
+        print(f"\nMean Propagate Time = {np.mean(self.progagate_dts):.4f}s")
 
         # handle results and cleanup
         planner_status = interpret_planner_status(ob_planner_status, self.ptc)
@@ -415,8 +414,6 @@ class OmplRRTWrapper(MyPlanner):
     def smooth(self, planning_query: PlanningQuery, action_sequence: List[Dict], state_sequence: List[Dict]):
         env = planning_query.environment
         goal = planning_query.goal
-
-        print(f"v{self.verbose=}")
 
         smoothing_rng = np.random.RandomState(0)
         n_shortcut_attempts = 25
