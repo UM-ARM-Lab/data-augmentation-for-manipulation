@@ -254,7 +254,8 @@ class RNNRecoveryModelWrapper(BaseRecoveryActionsModels):
         self.ckpt.restore(self.manager.latest_checkpoint)
 
     def sample(self, environment: Dict, state: Dict):
-        input_dict = environment
+        input_dict = {}
+        input_dict.update(environment)
         input_dict.update({add_predicted(k): tf.expand_dims(v, axis=0) for k, v in state.items()})
         input_dict = add_batch(input_dict)
         input_dict = {k: tf.cast(v, tf.float32) for k, v in input_dict.items()}

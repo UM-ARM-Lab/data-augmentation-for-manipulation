@@ -303,7 +303,8 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
             action = self.scenario.add_action_noise(action, self.noise_rng)
             self.scenario.is_action_valid(action, self.data_collection_params)
 
-            recovery_model_input = environment
+            recovery_model_input = {}
+            recovery_model_input.update(environment)
             recovery_model_input.update(add_batch(state))  # add time dimension to state and action
             recovery_model_input.update(add_batch(action))
             recovery_model_input = make_dict_tf_float32(add_batch(recovery_model_input))
