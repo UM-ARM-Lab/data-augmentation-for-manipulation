@@ -423,13 +423,16 @@ class OmplRRTWrapper(MyPlanner):
         for j in range(n_shortcut_attempts):
 
             plan_length = len(state_sequence)
-            if plan_length < 3:
+            if plan_length < 4:
                 return action_sequence, state_sequence
 
             # randomly sample a start index
             start_t = smoothing_rng.randint(0, plan_length - 3)
 
             # sample an end index
+            if start_t + 2 >= plan_length - 1:
+                rospy.logerr(f"smoothing sampling bug?! {start_t=}, {plan_length=}")
+                continue
             end_t = smoothing_rng.randint(start_t + 2, plan_length - 1)
 
             # interpolate the grippers to make a new action sequence
