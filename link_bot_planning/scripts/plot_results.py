@@ -10,7 +10,8 @@ import rospy
 from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningQuery
 from link_bot_planning.plan_and_execute import TrialStatus
-from link_bot_planning.results_utils import labeling_params_from_planner_params, get_paths
+from link_bot_planning.results_utils import labeling_params_from_planner_params, get_paths, \
+    classifier_params_from_planner_params
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -23,7 +24,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
     parser.add_argument("trial_indices", type=int_set_arg, help='which plan(s) to show')
-    parser.add_argument("threshold", type=float)
+    parser.add_argument("--threshold", type=float)
     parser.add_argument("--save", action='store_true')
     parser.add_argument("--only-timeouts", action='store_true')
     parser.add_argument("--show-tree", action="store_true")
@@ -34,6 +35,9 @@ def main():
     args = parser.parse_args()
 
     scenario, metadata = results_utils.get_scenario_and_metadata(args.results_dir)
+    classifier_params = classifier_params_from_planner_params(metadata['planner_params'])
+    default_threshold = classifier_params['classifier_dataset_hparams']['labeling_params']['threshold']
+    threshold = args.threshold if args.threshold is not None else default_threshold
 
     for trial_idx, datum in results_utils.trials_generator(args.results_dir, args.trial_indices):
         should_skip = args.only_timeouts and datum['trial_status'] != TrialStatus.Timeout
@@ -41,7 +45,7 @@ def main():
             continue
 
         print(f"trial {trial_idx} ...")
-        plot_steps(args.show_tree, scenario, datum, metadata, {'threshold': args.threshold}, args.verbose)
+        plot_steps(args.show_tree, scenario, datum, metadata, {'threshold': threshold}, args.verbose)
         print(f"... complete with status {datum['trial_status']}")
 
 
