@@ -3,8 +3,6 @@ import re
 import threading
 from typing import Dict, Optional, List
 
-import hjson
-
 from link_bot_planning.my_planner import PlanningResult, LoggingTree
 from link_bot_planning.plan_and_execute import ExecutionResult
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -18,18 +16,14 @@ from moonshine.moonshine_utils import numpify
 def fwd_model_params_from_planner_params(planner_params: Dict):
     fwd_model_dirs = paths_from_json(planner_params['fwd_model_dir'])
     representative_fwd_model_dir = fwd_model_dirs[0]
-    fwd_hparams_filename = representative_fwd_model_dir.parent / 'params.json'
-    with fwd_hparams_filename.open('r') as fwd_hparams_file:
-        fwd_hparams = hjson.load(fwd_hparams_file)
+    fwd_hparams = load_params(representative_fwd_model_dir.parent)
     return fwd_hparams
 
 
 def dynamics_dataset_params_from_classifier_params(classifier_params: Dict):
     dataset_dirs = paths_from_json(classifier_params['datasets'])
     representative_dataset_dir = dataset_dirs[0]
-    dataset_hparams_filename = representative_dataset_dir / 'hparams.hjson'
-    with dataset_hparams_filename.open('r') as dataset_hparams_file:
-        dataset_hparams = hjson.load(dataset_hparams_file)
+    dataset_hparams = load_params(representative_dataset_dir)
     return dataset_hparams
 
 
@@ -38,18 +32,14 @@ def dynamics_dataset_params_from_planner_params(planner_params: Dict):
 
     dataset_dirs = paths_from_json(fwd_model_params['datasets'])
     representative_dataset_dir = dataset_dirs[0]
-    dataset_hparams_filename = representative_dataset_dir / 'hparams.hjson'
-    with dataset_hparams_filename.open('r') as dataset_hparams_file:
-        dataset_hparams = hjson.load(dataset_hparams_file)
+    dataset_hparams = load_params(representative_dataset_dir)
     return dataset_hparams
 
 
 def classifier_params_from_planner_params(planner_params):
     classifier_model_dirs = paths_from_json(planner_params['classifier_model_dir'])
     representative_classifier_model_dir = classifier_model_dirs[0]
-    classifier_hparams_filename = representative_classifier_model_dir.parent / 'params.json'
-    with classifier_hparams_filename.open('r') as classifier_hparams_file:
-        classifier_hparams = hjson.load(classifier_hparams_file)
+    classifier_hparams = load_params(representative_classifier_model_dir.parent)
     return classifier_hparams
 
 

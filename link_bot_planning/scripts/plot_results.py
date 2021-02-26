@@ -36,8 +36,10 @@ def main():
 
     scenario, metadata = results_utils.get_scenario_and_metadata(args.results_dir)
     classifier_params = classifier_params_from_planner_params(metadata['planner_params'])
-    default_threshold = classifier_params['classifier_dataset_hparams']['labeling_params']['threshold']
-    threshold = args.threshold if args.threshold is not None else default_threshold
+    if args.threshold is None:
+        threshold = classifier_params['classifier_dataset_hparams']['labeling_params']['threshold']
+    else:
+        threshold = args.threshold
 
     for trial_idx, datum in results_utils.trials_generator(args.results_dir, args.trial_indices):
         should_skip = args.only_timeouts and datum['trial_status'] != TrialStatus.Timeout
