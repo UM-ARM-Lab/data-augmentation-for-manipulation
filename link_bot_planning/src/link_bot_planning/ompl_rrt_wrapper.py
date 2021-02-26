@@ -4,6 +4,7 @@ import warnings
 from typing import Dict, List, Tuple
 
 import numpy as np
+import tensorflow as tf
 from matplotlib import cm
 
 from link_bot_planning.get_ompl_scenario import get_ompl_scenario
@@ -127,7 +128,6 @@ class OmplRRTWrapper(MyPlanner):
         self.n_total_action = None
         self.goal_region = None
         # a Dictionary containing the parts of state which are not predicted/planned for, i.e. the environment
-        self.environment = None
         self.start_state = None
         self.closest_state_to_goal = None
         self.min_dist_to_goal = 10000
@@ -414,6 +414,8 @@ class OmplRRTWrapper(MyPlanner):
     def smooth(self, planning_query: PlanningQuery, action_sequence: List[Dict], state_sequence: List[Dict]):
         env = planning_query.environment
         goal = planning_query.goal
+        initial_final_state = state_sequence[-1]
+        initial_distance_to_goal = self.scenario.distance_to_goal(initial_final_state, goal)
 
         smoothing_rng = np.random.RandomState(0)
         n_shortcut_attempts = 25
@@ -425,28 +427,34 @@ class OmplRRTWrapper(MyPlanner):
                 return action_sequence, state_sequence
 
             # randomly sample a start index
-            start_t = smoothing_rng.randint(0, plan_length - 2)
+            start_t = smoothing_rng.randint(0, plan_length - 3)
 
             # sample an end index
-            end_t = smoothing_rng.randint(min(start_t, plan_length - 2), min(start_t + 2, plan_length - 1))
+            end_t = smoothing_rng.randint(start_t + 2, plan_length - 1)
 
-            # interpolate the grippers
+            # interpolate the grippers to make a new action sequence
             start_state = state_sequence[start_t]
             end_state = state_sequence[end_t]
             shortcut_action_seq = self.scenario.interpolate(start_state, end_state)
-            proposed_action_seq = action_sequence[:start_t] + shortcut_action_seq + action_sequence[end_t:]
+            # these actions need to be re-propagated
+            proposed_action_seq_to_end = shortcut_action_seq + action_sequence[end_t:]
+            proposed_action_seq = action_sequence[:start_t] + proposed_action_seq_to_end
 
-            proposed_state_seq, _ = self.fwd_model.propagate(env, state_sequence[0], proposed_action_seq)
-            classifier_accept, accept_probabilities = self.check_constraint(proposed_state_seq, proposed_action_seq)
+            proposed_state_seq_to_end, _ = self.fwd_model.propagate(env,
+                                                                    state_sequence[start_t],
+                                                                    proposed_action_seq_to_end)
+            classifier_accept, accept_probabilities = self.check_constraint(proposed_state_seq_to_end,
+                                                                            proposed_action_seq_to_end)
+            proposed_state_seq = state_sequence[:start_t] + proposed_state_seq_to_end
 
             # NOTE: we don't check this because smoothing is run even when we Timeout and the goal wasn't reached
-            # final_state = proposed_state_seq[-1]
-            # goal_threshold = self.params['goal_params']['threshold']
-            # still_reaches_goal = self.scenario.distance_to_goal(final_state, goal) < goal_threshold + 1e-3
+            distance_to_goal = self.scenario.distance_to_goal(proposed_state_seq[-1], goal)
+            much_further_from_goal = distance_to_goal - initial_distance_to_goal > 0.03  # FIXME: hardcoded parameter
+            if classifier_accept and much_further_from_goal:
+                rospy.logwarn("smoothing would have made distance to goal higher")
 
             # if the shortcut was successful, save that as the new path
-            # accept = tf.logical_and(classifier_accept, still_reaches_goal)
-            accept = classifier_accept
+            accept = tf.logical_and(classifier_accept, tf.logical_not(much_further_from_goal))
             if accept:
                 state_sequence = proposed_state_seq
                 action_sequence = proposed_action_seq
@@ -457,13 +465,14 @@ class OmplRRTWrapper(MyPlanner):
                     self.scenario.plot_state_rviz(end_state, idx=1, label='to', color='m')
                     self.plot_path(proposed_action_seq, proposed_state_seq)
                 if self.verbose >= 1:
-                    print("shortcut accepted")
+                    print(f"shortcut from {start_t} to {end_t} accepted. Plan length is now {plan_length}")
 
         # Plot the smoothed result
         if self.verbose >= 2:
             self.plot_path(action_sequence, state_sequence)
-            dt = time.perf_counter() - t0
-            print(f"Smoothing Time = {dt:.3f}s")
+
+        dt = time.perf_counter() - t0
+        print(f"Smoothing Time = {dt:.3f}s")
 
         return action_sequence, state_sequence
 
