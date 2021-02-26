@@ -2,6 +2,7 @@
     <arg name="gui" default="true"/>
     <arg name="world" default="empty.world"/>
     <arg name="use_cdcpd" default="false"/>
+    <arg name="debug_gazebo" default="false"/>
 
     <include file="$(find link_bot_gazebo)/launch/robot_in_gazebo.launch">
         <arg name="world" value="$(arg world)"/>
@@ -11,7 +12,7 @@
         <arg name="verbose" value="false"/>
         <arg name="gui" value="$(arg gui)"/>
         <arg name="pause" value="true"/>
-        <arg name="debug_gazebo" value="false"/>
+        <arg name="debug_gazebo" value="$(arg debug_gazebo)"/>
         <arg name="debug_moveit" value="false"/>
     </include>
 

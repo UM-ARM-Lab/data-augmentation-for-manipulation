@@ -13,11 +13,20 @@
 
     "no feasibility, no classifier": "#C36F00"
     "neither": "#C36F00"
+
     "no feasibility checking": "#EF4650"
     "only classifier": "#EF4650"
-    "only feasibility checking": "#0058AB"
+
+    "only feasibility checking": "#0028FB"
+    "feasibility": "#0028FB"
+
     "feasibility checking": "#7F59C2"
+    "classifier, feasibility": "#7F59C2"
     "both": "#7F59C2"
-    "cc, os, feasibility": "#333333"
+
+    "cc, os, feasibility": "#F33333"
+    "cc, gd, feasibility": "#F33333"
+
+    "classifier (starts far), feasibility": "#4F2982"
   }
 }

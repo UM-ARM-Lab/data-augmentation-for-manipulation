@@ -100,18 +100,20 @@ class ResultsToDynamicsDataset:
             example_idx_for_trial = 0
 
             def on_timeout():
-                self.service_provider.kill()
-                self.service_provider.launch(launch_params, gui=self.gui, world=launch_params['world'])
-                sleep(30)
-                self.scenario.on_before_get_state_or_execute_action()
-                self.scenario.grasp_rope_endpoints(settling_time=0.0)
+                if self.launch is not None:
+                    self.service_provider.kill()
+                    self.service_provider.launch(launch_params, gui=self.gui, world=launch_params['world'])
+                    sleep(30)
+                    self.scenario.on_before_get_state_or_execute_action()
+                    self.scenario.grasp_rope_endpoints(settling_time=0.0)
 
             itr = skip_on_timeout(30, on_timeout, self.result_datum_to_dynamics_dataset, datum, trial_idx)
+            self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
             while True:
                 try:
                     t0 = perf_counter()
-                    example, timed_out = catch_timeout(timeout, next, itr)
-                    # example = next(itr); timed_out = False
+                    # example, timed_out = catch_timeout(timeout, next, itr)
+                    example = next(itr); timed_out = False
                     now = perf_counter()
                     dt = now - t0
 
@@ -232,6 +234,7 @@ class ResultsToDynamicsDataset:
             yield from self.dfs(planner_params, planning_query, child, depth=depth + 1)
 
     def execute(self, action: Dict):
+        self.service_provider.play()
         before_state = self.scenario.get_state()
         self.scenario.execute_action(action)
         after_state = self.scenario.get_state()
