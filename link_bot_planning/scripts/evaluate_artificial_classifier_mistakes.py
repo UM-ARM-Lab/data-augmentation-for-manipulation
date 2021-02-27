@@ -25,6 +25,7 @@ def main():
     parser.add_argument("trials", type=int_set_arg, default="0-50")
     parser.add_argument("nickname", type=str, help='used in making the output directory')
     parser.add_argument("--test-scenes-dir", type=pathlib.Path)
+    parser.add_argument('--logfile', type=pathlib.Path)
     parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
     parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
     parser.add_argument("--no-execution", action="store_true", help='no execution')
@@ -34,7 +35,10 @@ def main():
 
     args = parser.parse_args()
 
-    root = data_directory(pathlib.Path('results') / f"{args.nickname}-planning-evaluation")
+    if args.logfile is None:
+        root = data_directory(pathlib.Path('results') / f"{args.nickname}-planning-evaluation")
+    else:
+        root = pathlib.Path('results') / f"{args.nickname}"
 
     planners_params = []
     for cmp in np.linspace(0, 1, 8):
@@ -46,8 +50,8 @@ def main():
             planner_params_str = planner_params_file.read()
         planner_params.update(hjson.loads(planner_params_str))
         planner_params['classifier_mistake_probability'] = cmp
-        method_name = planner_params['method_name'] + f" {cmp=}"
-        planner_params['method_name'] = method_name.replace(" ", "-")
+        method_name = f"{cmp=:.3f}"
+        planner_params['method_name'] = method_name
         planners_params.append((method_name, planner_params))
 
     planning_evaluation(outdir=root,
@@ -59,7 +63,7 @@ def main():
                         timeout=args.timeout,
                         test_scenes_dir=args.test_scenes_dir,
                         no_execution=args.no_execution,
-                        logfile_name=None,
+                        logfile_name=args.logfile,
                         record=args.record,
                         seed=args.seed,
                         log_full_tree=False,
