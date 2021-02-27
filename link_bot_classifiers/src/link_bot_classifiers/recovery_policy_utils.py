@@ -1,4 +1,5 @@
 import pathlib
+from typing import Optional, Dict
 
 import numpy as np
 
@@ -9,8 +10,13 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from moonshine.filepath_tools import load_trial
 
 
-def load_generic_model(model_dir: pathlib.Path, scenario: ExperimentScenario, rng: np.random.RandomState):
+def load_generic_model(model_dir: pathlib.Path,
+                       scenario: ExperimentScenario,
+                       rng: np.random.RandomState,
+                       update_hparams: Optional[Dict] = None):
     _, hparams = load_trial(model_dir.parent.absolute())
+    if update_hparams is not None:
+        hparams.update(update_hparams)
 
     model_class = hparams['model_class']
     if model_class == 'simple':

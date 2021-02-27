@@ -63,6 +63,8 @@ def metrics_main(args):
         subfolders_ordered = load_sort_order(out_dir, subfolders)
 
     tables_filename = out_dir / 'tables.txt'
+    with tables_filename.open("w") as tables_file:
+        tables_file.truncate()
 
     sort_order_dict = {}
     for sort_idx, subfolder in enumerate(subfolders_ordered):
@@ -93,13 +95,14 @@ def metrics_main(args):
 
     figures = [
         TaskErrorLineFigure(analysis_params, metrics[0]),
-        NRecoveryActionsFigure(analysis_params, metrics[1]),
-        TotalTimeBoxplotFigure(analysis_params, metrics[2]),
-        NPlanningAttemptsFigure(analysis_params, metrics[3]),
-        NMERViolationsBoxPlotFigure(analysis_params, metrics[4]),
-        PlanningTimeBoxplotFigure(analysis_params, metrics[5]),
-        # TaskErrorBoxplotFigure(analysis_params, metrics[0]),
-        TaskErrorViolinPlotFigure(analysis_params, metrics[0]),
+        violin_plot(analysis_params, metrics[0], 'Task Error'),
+        box_plot(analysis_params, metrics[1], "Num Recovery Actions"),
+        box_plot(analysis_params, metrics[2], 'Total Time'),
+        violin_plot(analysis_params, metrics[2], 'Total Time'),
+        box_plot(analysis_params, metrics[3], 'Num Planning Attempts'),
+        box_plot(analysis_params, metrics[4], 'Num MER Violations'),
+        box_plot(analysis_params, metrics[5], 'Planning Time'),
+        box_plot(analysis_params, metrics[6], '% MER Violations'),
     ]
 
     for figure in figures:
@@ -124,7 +127,7 @@ def metrics_main(args):
         print()
 
         # For saving metrics since this script is kind of slow it's nice to save the output
-        with tables_filename.open("w") as tables_file:
+        with tables_filename.open("a") as tables_file:
             tables_file.write(figure.name)
             tables_file.write('\n')
             tables_file.write(table)
@@ -157,6 +160,7 @@ def generate_metrics(analysis_params: Dict, out_dir: pathlib.Path, subfolders_or
         NPlanningAttempts(analysis_params, results_dir=out_dir),
         NMERViolations(analysis_params, results_dir=out_dir),
         PlanningTime(analysis_params, results_dir=out_dir),
+        PercentageMERViolations(analysis_params, results_dir=out_dir),
     ]
     for subfolder in subfolders_ordered:
         metrics_filenames = list(subfolder.glob("*_metrics.pkl.gz"))

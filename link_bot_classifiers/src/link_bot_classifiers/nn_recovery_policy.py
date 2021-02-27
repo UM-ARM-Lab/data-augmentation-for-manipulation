@@ -281,9 +281,9 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
             raise RuntimeError("Failed to restore!!!")
 
         self.action_rng = RandomState(0)
-        self.dataset_params = self.hparams['recovery_dataset_hparams']
-        self.data_collection_params = self.dataset_params['data_collection_params']
-        self.n_action_samples = self.dataset_params['labeling_params']['n_action_samples']
+        dataset_params = self.hparams['recovery_dataset_hparams']
+        self.data_collection_params = dataset_params['data_collection_params']
+        self.n_action_samples = dataset_params['labeling_params']['n_action_samples']
 
         self.noise_rng = RandomState(0)
 
@@ -299,9 +299,11 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
                                                  environment=environment,
                                                  state=state,
                                                  action_params=self.data_collection_params,
-                                                 validate=True)
+                                                 validate=False)  # not checking here since we check after adding noise
             action = self.scenario.add_action_noise(action, self.noise_rng)
-            self.scenario.is_action_valid(action, self.data_collection_params)
+            valid = self.scenario.is_action_valid(action, self.data_collection_params)
+            if not valid:
+                continue
 
             recovery_model_input = {}
             recovery_model_input.update(environment)

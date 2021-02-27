@@ -19,8 +19,8 @@
     joint7: 2.173908028268774,
   }
   termination_criteria: {
-    total_timeout: 300
-    timeout: 300
+    total_timeout: 600
+    timeout: 600
     attempted_extensions_threshold: 32
   }
   action_params: {

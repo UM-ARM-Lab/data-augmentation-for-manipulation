@@ -72,6 +72,24 @@ class NRecoveryActions(ResultsMetric):
         return n_recovery
 
 
+class PercentageMERViolations(ResultsMetric):
+    def __init__(self, analysis_params, results_dir: pathlib.Path):
+        super().__init__(analysis_params, results_dir)
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        n_mer_violated = 0
+        n_total_actions = 0
+        _, actual_states, predicted_states, types = get_paths(trial_datum, scenario, False, 0)
+        for actual_state_t, planned_state_t, type_t in zip(actual_states, predicted_states, types):
+            if type_t == 'executed_plan':
+                model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
+                mer_violated = model_error > self.analysis_params['mer_threshold']
+                if mer_violated:
+                    n_mer_violated += 1
+                n_total_actions += 1
+        return n_mer_violated / n_total_actions
+
+
 class NMERViolations(ResultsMetric):
     def __init__(self, analysis_params, results_dir: pathlib.Path):
         super().__init__(analysis_params, results_dir)
@@ -186,7 +204,7 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
             self.ax.plot(x, np.mean(values, axis=0), c=color, zorder=2, label='mean')
         if color is None:
             print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
-        parts = self.ax.violinplot(values, positions=[x], widths=0.9, showmeans=True)
+        parts = self.ax.violinplot(values, positions=[x], widths=0.9, showmeans=True, bw_method=0.3)
         for pc in parts['bodies']:
             pc.set_facecolor(color)
             pc.set_edgecolor(color)
@@ -203,11 +221,19 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
 
         plt.setp(self.ax.get_xticklabels(), rotation=18, horizontalalignment='right')
 
+        x = self.metric.method_indices[method_name]
+        n_values = len(values)
+        xs = [x] * n_values + np.random.RandomState(0).uniform(-0.08, 0.08, size=n_values)
+        self.ax.scatter(xs, values, edgecolors='k', s=50, marker='o', facecolors='none')
+
     def finish_figure(self):
         mean_line = [Line2D([0], [0], color='#dddddd', lw=2)]
         self.ax.legend(mean_line, ['mean'])
         self.ax.set_xticks(list(self.metric.method_indices.values()))
         self.ax.set_xticklabels(list(self.metric.values.keys()))
+
+    def get_table_header(self):
+        return ["Name", "min", "max", "mean", "median", "std"]
 
 
 class BoxplotOverTrialsPerMethodFigure(MyFigure):
@@ -274,65 +300,9 @@ class TaskErrorLineFigure(MyFigure):
         return row
 
 
-class NRecoveryActionsFigure(BoxplotOverTrialsPerMethodFigure):
-    def __init__(self, analysis_params: Dict, metric):
-        super().__init__(analysis_params, metric, "Recovery Actions")
+def box_plot(analysis_params: Dict, metric: ResultsMetric, name: str):
+    return BoxplotOverTrialsPerMethodFigure(analysis_params, metric, name)
 
 
-class NPlanningAttemptsFigure(BoxplotOverTrialsPerMethodFigure):
-    def __init__(self, analysis_params: Dict, metric):
-        super().__init__(analysis_params, metric, "Planning Attempts")
-
-
-class PlanningTimeBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
-    def __init__(self, analysis_params: Dict, metric):
-        super().__init__(analysis_params, metric, "Planning Time")
-
-
-class TotalTimeBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
-    def __init__(self, analysis_params: Dict, metric):
-        super().__init__(analysis_params, metric, "Total Time")
-
-
-class NMERViolationsBoxPlotFigure(BoxplotOverTrialsPerMethodFigure):
-    def __init__(self, analysis_params: Dict, metric):
-        super().__init__(analysis_params, metric, "MER Violations")
-
-
-class TaskErrorBoxplotFigure(BoxplotOverTrialsPerMethodFigure):
-    def __init__(self, analysis_params: Dict, metric):
-        super().__init__(analysis_params, metric, "Task Error")
-        self.fig.suptitle(self.params['experiment_name'])
-
-    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
-        goal = trial_datum['goal']
-        final_actual_state = trial_datum['end_state']
-        self.thresholds = trial_datum['planner_params']
-        final_execution_to_goal_error = scenario.distance_to_goal(final_actual_state, goal)
-        return final_execution_to_goal_error
-
-    def add_to_figure(self, method_name: str, values: List, color):
-        super().add_to_figure(method_name, values, color)
-        x = self.metric.method_indices[method_name]
-        n_values = len(values)
-        xs = [x] * n_values + np.random.RandomState(0).uniform(-0.08, 0.08, size=n_values)
-        self.ax.scatter(xs, values, edgecolors='k', s=5, marker='o', facecolors='none')
-
-    def get_table_header(self):
-        return ["Name", "min", "max", "mean", "median", "std"]
-
-
-class TaskErrorViolinPlotFigure(ViolinPlotOverTrialsPerMethodFigure):
-    def __init__(self, analysis_params: Dict, metric):
-        super().__init__(analysis_params, metric, "Task Error")
-        self.fig.suptitle(self.params['experiment_name'])
-
-    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
-        goal = trial_datum['goal']
-        final_actual_state = trial_datum['end_state']
-        self.thresholds = trial_datum['planner_params']
-        final_execution_to_goal_error = scenario.distance_to_goal(final_actual_state, goal)
-        return final_execution_to_goal_error
-
-    def get_table_header(self):
-        return ["Name", "min", "max", "mean", "median", "std"]
+def violin_plot(analysis_params: Dict, metric: ResultsMetric, name: str):
+    return ViolinPlotOverTrialsPerMethodFigure(analysis_params, metric, name)

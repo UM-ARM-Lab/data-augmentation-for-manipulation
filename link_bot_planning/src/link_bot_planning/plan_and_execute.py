@@ -97,7 +97,9 @@ class PlanAndExecute:
             recovery_model_dir = pathlib.Path(self.planner_params['recovery']['recovery_model_dir'])
             self.recovery_policy = recovery_policy_utils.load_generic_model(model_dir=recovery_model_dir,
                                                                             scenario=self.scenario,
-                                                                            rng=self.recovery_rng)
+                                                                            rng=self.recovery_rng,
+                                                                            # FIXME: hacky is heck
+                                                                            update_hparams={'extent': self.planner_params['extent']})
         else:
             self.recovery_policy = None
 
