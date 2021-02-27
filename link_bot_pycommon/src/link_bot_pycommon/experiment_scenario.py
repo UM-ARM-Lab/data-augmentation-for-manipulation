@@ -30,7 +30,7 @@ class ExperimentScenario:
     def simple_name():
         raise NotImplementedError()
 
-    def execute_action(self, action: Dict):
+    def execute_action(self, action: Dict) -> bool:
         raise NotImplementedError()
 
     def sample_action_for_data_collection(self,

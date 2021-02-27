@@ -21,7 +21,7 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, action: Dict):
     if res.magnitude > 1.25:
         # just do nothing...
         rospy.logwarn("The rope is extremely overstretched -- refusing to execute action")
-        return
+        return (end_trial := True)
 
     def _stop_condition(_):
         return overstretching_stop_condition()
@@ -38,6 +38,7 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, action: Dict):
                         [ros_numpy.numpify(start_right_gripper_pos)]]
         robot.follow_jacobian_to_position("both_arms", tool_names, points=rev_grippers)
 
+    return (end_trial := False)
 
 def overstretching_stop_condition():
     overstretching_srv = rospy.ServiceProxy(ns_join("rope_3d", "rope_overstretched"), GetOverstretching)

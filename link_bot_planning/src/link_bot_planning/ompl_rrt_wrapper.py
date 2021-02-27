@@ -65,6 +65,7 @@ class OmplRRTWrapper(MyPlanner):
         self.state_sampler_rng = np.random.RandomState(0)
         self.goal_sampler_rng = np.random.RandomState(0)
         self.control_sampler_rng = np.random.RandomState(0)
+        self.misc_rng = np.random.RandomState(0)
         self.scenario = scenario
         self.sps = SharedPlanningStateOMPL()
         self.scenario_ompl = get_ompl_scenario(self.scenario,
@@ -133,6 +134,7 @@ class OmplRRTWrapper(MyPlanner):
         self.min_dist_to_goal = 10000
 
         self.state_sampler_rng.seed(seed)
+        self.misc_rng.seed(seed)
         self.goal_sampler_rng.seed(seed)
         self.control_sampler_rng.seed(seed)
 
@@ -234,6 +236,14 @@ class OmplRRTWrapper(MyPlanner):
             accept = p_accept_for_model > self.params['accept_threshold']
             if not accept:
                 break
+
+        cmp = self.params.get('classifier_mistake_probability', None)
+        if cmp is not None:
+            if self.misc_rng.uniform() > cmp:
+                accept = bool(self.misc_rng.uniform() > 0.5)
+                if self.verbose >= 2:
+                    print("artifical classifier mistake!")
+
         return accept, accept_probabilities
 
     def propagate(self, motions, control, duration, state_out):

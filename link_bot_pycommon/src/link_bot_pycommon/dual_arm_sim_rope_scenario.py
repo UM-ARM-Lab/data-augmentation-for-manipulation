@@ -29,7 +29,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.set_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set"), Position3DAction)
 
     def execute_action(self, action: Dict):
-        dual_arm_rope_execute_action(self.robot, action)
+        return dual_arm_rope_execute_action(self.robot, action)
 
     def on_before_get_state_or_execute_action(self):
         super().on_before_get_state_or_execute_action()

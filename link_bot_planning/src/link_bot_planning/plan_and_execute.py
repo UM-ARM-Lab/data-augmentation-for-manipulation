@@ -34,6 +34,7 @@ class TrialStatus(Enum):
 @dataclass
 class ExecutionResult:
     path: List[Dict]
+    end_trial: bool
 
 
 def execute_actions(
@@ -51,7 +52,7 @@ def execute_actions(
             scenario.plot_state_rviz(pre_action_state, label='actual')
             scenario.plot_executed_action(pre_action_state, action)
 
-        scenario.execute_action(action)
+        end_trial = scenario.execute_action(action)
         state_t = scenario.get_state()
         if use_gt_rope:
             state_t = dataset_utils.use_gt_rope(state_t)
@@ -64,7 +65,7 @@ def execute_actions(
         scenario.plot_environment_rviz(environment)
         scenario.plot_state_rviz(state_t, label='actual')
 
-    return actual_path
+    return actual_path, end_trial
 
 
 class PlanAndExecute:
@@ -269,11 +270,12 @@ class PlanAndExecute:
             self.service_provider.pause()
             if self.use_gt_rope:
                 end_state = dataset_utils.use_gt_rope(end_state)
+
             d = self.scenario.distance_to_goal(end_state, planning_query.goal)
             rospy.loginfo(f"distance to goal after execution is {d:.3f}")
             reached_goal = (d <= self.planner_params['goal_params']['threshold'] + 1e-6)
 
-            if reached_goal or time_since_start > total_timeout or self.no_execution:
+            if reached_goal or time_since_start > total_timeout or self.no_execution or execution_result.end_trial:
                 if reached_goal:
                     trial_status = TrialStatus.Reached
                     rospy.loginfo(Fore.BLUE + f"Trial {trial_idx} Ended: Goal reached!" + Fore.RESET)
@@ -322,6 +324,7 @@ class PlanAndExecute:
     def execute(self, planning_query: PlanningQuery, planning_result: PlanningResult):
         # execute the plan, collecting the states that actually occurred
         self.on_before_execute()
+        end_trial = False
         if self.no_execution:
             state_t = self.scenario.get_state()
             if self.use_gt_rope:
@@ -330,7 +333,7 @@ class PlanAndExecute:
         else:
             if self.verbose >= 2 and not self.no_execution:
                 rospy.loginfo(Fore.CYAN + "Executing Plan" + Fore.RESET)
-            actual_path = execute_actions(scenario=self.scenario,
+            actual_path, end_trial = execute_actions(scenario=self.scenario,
                                           environment=planning_query.environment,
                                           start_state=planning_query.start,
                                           actions=planning_result.actions,
@@ -338,22 +341,23 @@ class PlanAndExecute:
                                           plot=True)
 
         # post-execution callback
-        execution_result = ExecutionResult(path=actual_path)
+        execution_result = ExecutionResult(path=actual_path, end_trial=end_trial)
         return execution_result
 
     def execute_recovery_action(self, action: Dict):
+        end_trial = False
         if self.no_execution:
             actual_path = []
         else:
             before_state = self.scenario.get_state()
             if self.use_gt_rope:
                 before_state = dataset_utils.use_gt_rope(before_state)
-            self.scenario.execute_action(action)
+            end_trial = self.scenario.execute_action(action)
             after_state = self.scenario.get_state()
             if self.use_gt_rope:
                 after_state = dataset_utils.use_gt_rope(after_state)
             actual_path = [before_state, after_state]
-        execution_result = ExecutionResult(path=actual_path)
+        execution_result = ExecutionResult(path=actual_path, end_trial=end_trial)
         return execution_result
 
     def randomize_environment(self):
