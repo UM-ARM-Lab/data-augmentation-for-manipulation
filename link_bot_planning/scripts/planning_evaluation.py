@@ -58,13 +58,13 @@ def main():
                         verbose=args.verbose,
                         timeout=args.timeout,
                         test_scenes_dir=args.test_scenes_dir,
-                        saved_goals_filename=args.saved_goals_filename,
                         no_execution=args.no_execution,
                         logfile_name=None,
                         record=args.record,
                         seed=args.seed,
                         log_full_tree=args.log_full_tree,
                         )
+
 
 if __name__ == '__main__':
     main()
