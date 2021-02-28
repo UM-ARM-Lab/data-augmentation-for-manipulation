@@ -6,6 +6,7 @@ import numpy as np
 from colorama import Fore
 from matplotlib.lines import Line2D
 
+from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_planning.results_utils import get_paths
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.latex_utils import make_cell
@@ -135,6 +136,20 @@ class PlanningTime(ResultsMetric):
         return planning_time
 
 
+class PlannerSolved(ResultsMetric):
+    def __init__(self, analysis_params, results_dir: pathlib.Path):
+        super().__init__(analysis_params, results_dir)
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        solved = False
+        for step in trial_datum['steps']:
+            if step['type'] == 'executed_plan':
+                planning_result : PlanningResult = step['planning_result']
+                if planning_result.status == MyPlannerStatus.Solved:
+                    solved = True
+        return solved
+
+
 class MyFigure:
     def __init__(self, analysis_params: Dict, metric: ResultsMetric, name: str):
         super().__init__()
@@ -236,6 +251,33 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
         return ["Name", "min", "max", "mean", "median", "std"]
 
 
+class BarChartPercentagePerMethodFigure(MyFigure):
+    def __init__(self, analysis_params: Dict, metric, ylabel: str):
+        name = ylabel.lower().replace(" ", "_") + "_barchart"
+        super().__init__(analysis_params, metric, name)
+        self.ax.set_xlabel("Method")
+        self.ax.set_ylabel(ylabel)
+        self.ax.set_ylim([-0.1, 100.5])
+
+    def add_to_figure(self, method_name: str, values: List, color):
+        x = self.metric.method_indices[method_name]
+        if color is None:
+            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
+        percentage_solved = np.sum(values) / values.shape[0] * 100
+        self.ax.bar(x, percentage_solved, color=color)
+
+    def finish_figure(self):
+        self.ax.set_xticks(range(len(self.metric.values.keys())))
+        self.ax.set_xticklabels(self.metric.values.keys())
+
+    def make_row(self, method_name: str, values_for_method: np.array, table_format: str):
+        row = [make_cell(method_name, table_format), values_for_method[0]]
+        return row
+
+    def get_table_header(self):
+        return ["Name", "Value"]
+
+
 class BoxplotOverTrialsPerMethodFigure(MyFigure):
     def __init__(self, analysis_params: Dict, metric, ylabel: str):
         name = ylabel.lower().replace(" ", "_") + "_boxplot"
@@ -259,6 +301,10 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
                         whiskerprops=dict(color=color),
                         medianprops=dict(color=color),
                         showfliers=False)
+
+        n_values = len(values)
+        xs = [x] * n_values + np.random.RandomState(0).uniform(-0.08, 0.08, size=n_values)
+        self.ax.scatter(xs, values, edgecolors='k', s=50, marker='o', facecolors='none')
 
         plt.setp(self.ax.get_xticklabels(), rotation=18, horizontalalignment='right')
 

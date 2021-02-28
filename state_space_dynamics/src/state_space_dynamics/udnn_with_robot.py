@@ -12,19 +12,6 @@ from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 from state_space_dynamics.unconstrained_dynamics_nn import UnconstrainedDynamicsNN
 
 
-class WithRobotKinematics:
-
-    def __init__(self, base_model):
-        self.base_model = base_model
-        for k, v in dir(base_model):
-            self.__setattr__(k, v)
-
-    def __call__(self, example, training: bool, **kwargs):
-        output: Dict = self.base_model(example, training, **kwargs)
-        output['joint_positions'] = example['joint_positions'] + example['joint_positions_action']
-        return output
-
-
 # FIXME: inherit from BaseDynamicsFunction, but it's not that simple because the Ensemble/BaseDynamicsFunction
 #  inheritance relationship is backwards?
 class UDNNWithRobotKinematics:
@@ -38,6 +25,7 @@ class UDNNWithRobotKinematics:
         self.action_keys = net.action_keys
         self.scenario = net.scenario
 
+        # TODO: use the new jacobian stuff so avoid having to connect to ROS things in this constructor
         self.jacobian_follower_no_cc = JacobianFollower(robot_namespace=self.scenario.robot_namespace,
                                                         translation_step_size=0.005,
                                                         minimize_rotation=True,
