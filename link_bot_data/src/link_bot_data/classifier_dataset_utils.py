@@ -164,9 +164,10 @@ def generate_classifier_examples(fwd_model: BaseDynamicsFunction,
         for start_t in range(0, dataset.steps_per_traj - classifier_horizon + 1, labeling_params['start_step']):
             prediction_end_t = dataset.steps_per_traj
             actual_prediction_horizon = prediction_end_t - start_t
-            actual_states_from_start_t = {k: example[k][:, start_t:prediction_end_t] for k in dataset.state_keys}
+            dataset.state_metadata_keys = ['joint_names']
+            state_keys = dataset.state_keys # + dataset.state_metadata_keys
+            actual_states_from_start_t = {k: example[k][:, start_t:prediction_end_t] for k in state_keys}
             actions_from_start_t = {k: example[k][:, start_t:prediction_end_t - 1] for k in dataset.action_keys}
-            actual_states_from_start_t['joint_names'] = np.array(dataset.scenario_metadata['joint_names'])
 
             predictions_from_start_t, _ = fwd_model.propagate_tf_batched(environment={},
                                                                          state=actual_states_from_start_t,

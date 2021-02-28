@@ -1,7 +1,7 @@
 {
   threshold: 0.0303
   classifier_horizon: 2
-  start_step: 4
+  start_step: 1
   perception_reliability_method: gt
   includes_starts_far: false
 }

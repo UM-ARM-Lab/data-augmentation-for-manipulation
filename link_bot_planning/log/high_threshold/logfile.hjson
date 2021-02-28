@@ -1,0 +1,40 @@
+{
+  nickname: high_threshold
+  filename: log/high_threshold/logfile.hjson
+  collect_dynamics_data_1:
+  {
+    dynamics_dataset_dir: fwd_model_data/baseline_gt_rope_phase1_1606682161_1b3bea4d11_2048
+  }
+  collect_dynamics_data_2:
+  {
+    dynamics_dataset_dir: fwd_model_data/val_car_4
+  }
+  learn_dynamics:
+  {
+    model_dirs:
+    [
+      dy_trials/baseline_gt_rope_0
+      dy_trials/baseline_gt_rope_1
+      dy_trials/baseline_gt_rope_2
+      dy_trials/baseline_gt_rope_3
+    ]
+    classifier_threshold: 0.1
+  }
+  make_recovery_dataset:
+  {
+    recovery_dataset_dir: recovery_data/val_car_1611326554
+  }
+  learn_recovery:
+  {
+    model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e
+  }
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/high_threshold_1614478614
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/high_threshold_1614478614/February_27_21-26-31_b90cc7099d
+  }
+  learned_recovery: {}
+}

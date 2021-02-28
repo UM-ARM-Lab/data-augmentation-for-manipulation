@@ -285,17 +285,15 @@ class FullStackRunner:
         else:
             test_scenes_dir = None
 
-        if "saved_goals_filename" in planning_evaluation_params:
-            saved_goals_filename = pathlib.Path(planning_evaluation_params["saved_goals_filename"])
-        else:
-            saved_goals_filename = None
-
         n_trials = planning_evaluation_params['n_trials']
         trials = list(range(n_trials))
 
         planners_params_common_filename = pathlib.Path(planning_evaluation_params['planners_params_common'])
-        planners_params = self.make_planners_params(classifier_model_dir, full_dynamics_model_dirs, udnn_model_dirs,
-                                                    planners_params_common_filename, planning_evaluation_params,
+        planners_params = self.make_planners_params(classifier_model_dir,
+                                                    full_dynamics_model_dirs,
+                                                    udnn_model_dirs,
+                                                    planners_params_common_filename,
+                                                    planning_evaluation_params,
                                                     recovery_model_dir)
 
         if self.launch:
@@ -312,7 +310,6 @@ class FullStackRunner:
                                      verbose=self.verbose,
                                      logfile_name=logfile_name,
                                      on_exception='retry',
-                                     saved_goals_filename=saved_goals_filename,
                                      )
 
         if self.launch:

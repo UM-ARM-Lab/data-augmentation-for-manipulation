@@ -55,8 +55,8 @@
   planning_evaluation: {
     n_trials: 100
     planners_params_common: planner_configs/val_car/common.hjson
-    test_scenes_dir: test_scenes/val_car
-    launch: main.launch
+    test_scenes_dir: test_scenes/val_car_hooks
+    launch: val.launch
     world: car.world
     methods: [
      learned_recovery

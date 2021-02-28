@@ -1,0 +1,86 @@
+{
+  nickname: high_threshold
+  filename: log/high_threshold2/logfile.hjson
+  collect_dynamics_data_1:
+  {
+    dynamics_dataset_dir: fwd_model_data/baseline_gt_rope_phase1_1606682161_1b3bea4d11_2048
+  }
+  collect_dynamics_data_2:
+  {
+    dynamics_dataset_dir: fwd_model_data/val_car_4
+  }
+  learn_dynamics:
+  {
+    model_dirs:
+    [
+      dy_trials/gt_rope_w_robot_0
+      dy_trials/gt_rope_w_robot_1
+      dy_trials/gt_rope_w_robot_2
+      dy_trials/gt_rope_w_robot_3
+    ]
+    classifier_threshold: 0.1
+  }
+  make_recovery_dataset:
+  {
+    recovery_dataset_dir: recovery_data/val_car_1611326554
+  }
+  learn_recovery:
+  {
+    model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e
+  }
+  learned_recovery:
+  {
+    0:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/0_metrics.pkl.gz
+    }
+    1:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/1_metrics.pkl.gz
+    }
+    2:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/2_metrics.pkl.gz
+    }
+    3:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/3_metrics.pkl.gz
+    }
+    4:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/4_metrics.pkl.gz
+    }
+    5:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/5_metrics.pkl.gz
+    }
+    6:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/6_metrics.pkl.gz
+    }
+    7:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/7_metrics.pkl.gz
+    }
+    8:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/8_metrics.pkl.gz
+    }
+    9:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/9_metrics.pkl.gz
+    }
+    10:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/high_threshold2/learned_recovery/10_metrics.pkl.gz
+    }
+  }
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/high_threshold_1614493331
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/high_threshold_1614493331/February_28_01-47-05_b90cc7099d
+  }
+}
