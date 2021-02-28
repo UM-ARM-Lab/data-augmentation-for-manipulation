@@ -149,6 +149,8 @@ def metrics_main(args):
         figure.save_figure()
 
     if not args.no_plot:
+        for figure in figures:
+            figure.fig.set_tight_layout(True)
         plt.show()
 
 
