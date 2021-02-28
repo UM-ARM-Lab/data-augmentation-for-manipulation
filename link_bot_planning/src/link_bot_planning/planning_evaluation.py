@@ -101,7 +101,7 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
             self.service_provider.stop_record_trial()
             self.bag.close()
 
-        # compute the current running average success
+        # print some useful information
         goal = trial_data['planning_queries'][0].goal
         final_actual_state = numpify(trial_data['end_state'])
         final_execution_to_goal_error = self.planner.scenario.distance_to_goal(final_actual_state, goal)
@@ -110,8 +110,12 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
         n = len(self.final_execution_to_goal_errors)
         success_percentage = np.count_nonzero(np.array(self.final_execution_to_goal_errors) < goal_threshold) / n * 100
         current_mean_error = np.mean(np.array(self.final_execution_to_goal_errors))
-        update_msg = f"Current Success Rate={success_percentage:.2f}%, Mean Error={current_mean_error:.3f}"
-        rospy.loginfo(Fore.LIGHTBLUE_EX + f"[{self.outdir.name}]" + Fore.RESET + update_msg)
+        update_msg = [
+            f"Success Rate={success_percentage:.2f}%",
+            f"Mean Error={current_mean_error:.3f}",
+            f"Trial Time={trial_data['total_time']:.3f}s",
+        ]
+        rospy.loginfo(Fore.LIGHTBLUE_EX + f"[{self.outdir.name}] " + Fore.RESET + ', '.join(update_msg))
 
         jobkey = self.jobkey(trial_idx)
         self.job_chunker.store_result(jobkey, {'data_filename': data_filename})

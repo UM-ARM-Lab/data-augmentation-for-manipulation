@@ -37,6 +37,18 @@ class ExecutionResult:
     end_trial: bool
 
 
+@dataclass
+class TrialResult:
+    setup_info: SetupInfo
+    planning_queries: List[PlanningQuery]
+    total_time: float
+    trial_status: TrialStatus
+    trial_idx: int
+    goal: Dict
+    steps: int
+    end_state: Dict
+
+
 def execute_actions(
         scenario: ExperimentScenario,
         environment: Dict,
