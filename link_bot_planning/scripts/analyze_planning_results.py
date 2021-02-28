@@ -1,14 +1,19 @@
 #!/usr/bin/env python
 import argparse
+import pathlib
 import pickle
+from typing import List, Dict
 
 import colorama
 import hjson
-from colorama import Style
+import matplotlib.pyplot as plt
+import numpy as np
+from colorama import Style, Fore
 from tabulate import tabulate
 
 import rospy
 from arc_utilities.filesystem_utils import get_all_subfolders
+from link_bot_planning.results_figures import *
 from link_bot_planning.results_metrics import *
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
