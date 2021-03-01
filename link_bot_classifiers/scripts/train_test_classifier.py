@@ -84,6 +84,8 @@ def main():
     viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='test')
     viz_parser.add_argument('--batch-size', type=int, default=8)
     viz_parser.add_argument('--verbose', '-v', action='count', default=0)
+    viz_parser.add_argument('--only-negative', action='store_true')
+    viz_parser.add_argument('--only-positive', action='store_true')
     viz_parser.add_argument('--only-errors', action='store_true')
     viz_parser.add_argument('--only-fp', action='store_true')
     viz_parser.add_argument('--only-fn', action='store_true')

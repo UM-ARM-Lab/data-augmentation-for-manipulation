@@ -181,6 +181,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              only_fn: bool,
              only_tp: bool,
              only_tn: bool,
+             only_negative: bool,
+             only_positive: bool,
              use_gt_rope: bool,
              old_compat: bool = False,
              threshold: Optional[float] = None,
@@ -241,6 +243,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
         is_tn = tf.logical_and(tf.logical_not(labels), tf.logical_not(decisions))
         is_fp = tf.logical_and(tf.logical_not(labels), decisions)
         is_fn = tf.logical_and(labels, tf.logical_not(decisions))
+        is_negative = tf.logical_not(labels)
+        is_positive = labels
         for b in range(batch_size):
             example_b = index_dict_of_batched_tensors_tf(example, b)
 
@@ -250,6 +254,12 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 fn += 1
 
             # if the classifier is correct at all time steps, ignore
+            if only_negative:
+                if not tf.reduce_all(is_negative[b]):
+                    continue
+            if only_positive:
+                if not tf.reduce_all(is_positive[b]):
+                    continue
             if only_tp:
                 if not tf.reduce_all(is_tp[b]):
                     continue

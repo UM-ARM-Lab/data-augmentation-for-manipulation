@@ -171,14 +171,6 @@ def init_viz_action(metadata: Dict, action_keys, state_keys):
     return _init_viz_action
 
 
-def viz_env_t(env_keys):
-    def _viz_env_t(scenario: ExperimentScenario, example: Dict, t: Optional[int] = None):
-        env_t = index_time(e=example, time_indexed_keys=env_keys, t=t, inclusive=True)
-        scenario.plot_environment_rviz(env_t)
-
-    return _viz_env_t
-
-
 def init_viz_env(scenario: ExperimentScenario, example: Dict, t: Optional[int] = None):
     # the unused t arg makes it so we can pass this as either a t_func or a init_func
     scenario.plot_environment_rviz(example)

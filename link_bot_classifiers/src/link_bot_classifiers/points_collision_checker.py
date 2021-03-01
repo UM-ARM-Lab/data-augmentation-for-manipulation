@@ -1,5 +1,5 @@
 import pathlib
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import tensorflow as tf
 
@@ -56,7 +56,7 @@ class PointsCollisionChecker(BaseConstraintChecker):
             if in_collision:
                 break
         constraint_satisfied = tf.cast(tf.logical_not(in_collision), tf.float32)[tf.newaxis]
-        return constraint_satisfied, tf.ones([], dtype=tf.float32) * 1e-9
+        return constraint_satisfied, tf.zeros([], dtype=tf.float32)
 
     def check_constraint_tf_batched(self,
                                     environment: Dict,
@@ -72,4 +72,17 @@ class PointsCollisionChecker(BaseConstraintChecker):
             state = dict_of_sequences_to_sequence_of_dicts(states_list[b])[1]
             c_b = check_collision(self.scenario, environments_list[b], state)
             c_s.append(c_b)
-        return tf.stack(c_s, axis=0)[tf.newaxis], tf.ones([1, batch_size], dtype=tf.float32) * 1e-9
+        return tf.stack(c_s, axis=0)[tf.newaxis], tf.zeros([1, batch_size], dtype=tf.float32)
+
+    def check_constraint_from_example(self, example: Dict, training: Optional[bool] = False):
+        # TODO: where should this come from?
+        env_keys = ['env', 'res', 'origin', 'extent']
+        state_keys = ['rope', 'left_gripper', 'right_gripper']
+        action_keys = ['left_gripper_position', 'right_gripper_position']
+        environment = {k: example[k] for k in env_keys}
+        states = {k: example[k] for k in state_keys}
+        actions = {k: example[k] for k in action_keys}
+        states_list = dict_of_sequences_to_sequence_of_dicts(states)
+        actions_list = dict_of_sequences_to_sequence_of_dicts(actions)
+
+        return self.check_constraint_tf(environment, states_list, actions_list)
