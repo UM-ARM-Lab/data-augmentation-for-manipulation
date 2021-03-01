@@ -145,6 +145,7 @@ def evaluate_planning_method(planner_params: Dict,
                              test_scenes_dir: Optional[pathlib.Path] = None,
                              seed: int = 0,
                              log_full_tree: bool = False,
+                             how_to_handle: str = 'retry',
                              ):
     # override some arguments
     if timeout is not None:
@@ -179,7 +180,17 @@ def evaluate_planning_method(planner_params: Dict,
                                 test_scenes_dir=test_scenes_dir,
                                 seed=seed,
                                 )
-    return runner.run()
+
+    def _on_exception():
+        pass
+        # planner.scenario.robot.disconnect()
+
+    deal_with_exceptions(how_to_handle=how_to_handle,
+                         function=runner.run,
+                         exception_callback=_on_exception,
+                         )
+    runner.run()
+    planner.scenario.robot.disconnect()
 
 
 def planning_evaluation(outdir: pathlib.Path,
@@ -189,7 +200,7 @@ def planning_evaluation(outdir: pathlib.Path,
                         use_gt_rope: bool,
                         start_idx: int = 0,
                         stop_idx: int = -1,
-                        on_exception: Optional[str] = 'raise',
+                        how_to_handle: Optional[str] = 'raise',
                         verbose: int = 0,
                         record: bool = False,
                         no_execution: bool = False,
@@ -225,22 +236,20 @@ def planning_evaluation(outdir: pathlib.Path,
         rospy.loginfo(Fore.GREEN + f"Running method {method_name}")
         comparison_root_dir = outdir / method_name
 
-        deal_with_exceptions(on_exception=on_exception,
-                             function=evaluate_planning_method,
-                             planner_params=planner_params,
-                             job_chunker=sub_job_chunker,
-                             use_gt_rope=use_gt_rope,
-                             trials=trials,
-                             comparison_root_dir=comparison_root_dir,
-                             verbose=verbose,
-                             record=record,
-                             no_execution=no_execution,
-                             timeout=timeout,
-                             test_scenes_dir=test_scenes_dir,
-                             print_exception=True,
-                             seed=seed,
-                             log_full_tree=log_full_tree,
-                             )
+        evaluate_planning_method(planner_params=planner_params,
+                                 job_chunker=sub_job_chunker,
+                                 use_gt_rope=use_gt_rope,
+                                 trials=trials,
+                                 comparison_root_dir=comparison_root_dir,
+                                 verbose=verbose,
+                                 record=record,
+                                 no_execution=no_execution,
+                                 timeout=timeout,
+                                 test_scenes_dir=test_scenes_dir,
+                                 seed=seed,
+                                 log_full_tree=log_full_tree,
+                                 how_to_handle=how_to_handle,
+                                 )
 
         rospy.loginfo(f"Results written to {outdir}")
 

@@ -57,7 +57,7 @@ def main():
     planning_evaluation(outdir=root,
                         planners_params=planners_params,
                         trials=args.trials,
-                        on_exception=args.on_exception,
+                        how_to_handle=args.on_exception,
                         use_gt_rope=True,
                         verbose=args.verbose,
                         timeout=args.timeout,

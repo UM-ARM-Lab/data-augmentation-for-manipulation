@@ -31,6 +31,7 @@ class UDNNWithRobotKinematics:
                                                         minimize_rotation=True,
                                                         collision_check=False,
                                                         visualize=False)
+        # self.jacobian_follower_no_cc.connect()
 
     def __call__(self, example: Dict, training: bool, **kwargs):
         out = self.net(example, training, **kwargs)

@@ -309,7 +309,7 @@ class FullStackRunner:
                                      test_scenes_dir=test_scenes_dir,
                                      verbose=self.verbose,
                                      logfile_name=logfile_name,
-                                     on_exception='retry',
+                                     how_to_handle='retry',
                                      )
 
         if self.launch:

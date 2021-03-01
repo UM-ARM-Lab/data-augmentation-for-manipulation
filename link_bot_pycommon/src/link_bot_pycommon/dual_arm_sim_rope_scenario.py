@@ -182,7 +182,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
         joint_config = {}
         # NOTE: this will not work on victor because grippers don't work the same way
-        for joint_name in self.robot.get_move_group_commander("whole_body").get_active_joints():
+        for joint_name in self.robot.get_joint_names("whole_body"):
             index_of_joint_name_in_state_msg = joint_state.name.index(joint_name)
             joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
         self.robot.plan_to_joint_config("whole_body", joint_config)
