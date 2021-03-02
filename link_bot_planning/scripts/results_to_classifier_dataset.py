@@ -49,8 +49,7 @@ def main():
 
 
 def compute_example_idx(trial_idx, example_idx_for_trial):
-    # FIXME: this should be 10_000 ont 1_000
-    return 1000 * trial_idx + example_idx_for_trial
+    return 10_000 * trial_idx + example_idx_for_trial
 
 
 class ResultsToDynamicsDataset:
