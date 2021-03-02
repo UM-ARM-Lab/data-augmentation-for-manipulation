@@ -25,7 +25,6 @@ def main():
     parser.add_argument("trials", type=int_set_arg, default="0-50")
     parser.add_argument("nickname", type=str, help='used in making the output directory')
     parser.add_argument("--test-scenes-dir", type=pathlib.Path)
-    parser.add_argument("--saved-goals-filename", type=pathlib.Path)
     parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
     parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
     parser.add_argument("--no-execution", action="store_true", help='no execution')

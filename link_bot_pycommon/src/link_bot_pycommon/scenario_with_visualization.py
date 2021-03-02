@@ -82,15 +82,16 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.tree_action_idx = 0
         self.sample_idx = 0
 
-    def plot_environment_rviz(self, data: Dict):
-        self.send_occupancy_tf(data)
+    def plot_environment_rviz(self, environment: Dict):
+        if 'env' in environment and 'res' in environment and 'origin' in environment:
+            self.send_occupancy_tf(environment)
 
-        env_msg = environment_to_occupancy_msg(data)
-        self.env_viz_pub.publish(env_msg)
+            env_msg = environment_to_occupancy_msg(environment)
+            self.env_viz_pub.publish(env_msg)
 
-        bbox_msg = extent_to_bbox(data['extent'])
-        bbox_msg.header.frame_id = 'world'
-        self.env_bbox_pub.publish(bbox_msg)
+            bbox_msg = extent_to_bbox(environment['extent'])
+            bbox_msg.header.frame_id = 'world'
+            self.env_bbox_pub.publish(bbox_msg)
 
     def send_occupancy_tf(self, environment: Dict):
         grid_utils.send_occupancy_tf(self.tf.tf_broadcaster, environment)

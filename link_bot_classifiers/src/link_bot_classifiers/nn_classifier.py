@@ -390,6 +390,8 @@ class NNClassifierWrapper(BaseConstraintChecker):
             'batch_size': batch_size,
             'time':       state_sequence_length,
         }
+        if 'scene_msg' in environment:
+            environment.pop('scene_msg')
         net_inputs.update(make_dict_tf_float32(environment))
 
         for action_key in self.action_keys:

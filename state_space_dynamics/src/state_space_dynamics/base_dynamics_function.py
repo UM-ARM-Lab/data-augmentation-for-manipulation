@@ -29,6 +29,8 @@ class BaseDynamicsFunction(Ensemble):
         net_inputs.update(environment)
         net_inputs.update(sequence_of_dicts_to_dict_of_tensors(actions))
         net_inputs = add_batch(net_inputs)
+        if 'scene_msg' in environment:
+            net_inputs.pop('scene_msg')
         net_inputs = make_dict_tf_float32(net_inputs)
         # the network returns a dictionary where each value is [T, n_state]
         # which is what you'd want for training, but for planning and execution and everything else
@@ -45,6 +47,8 @@ class BaseDynamicsFunction(Ensemble):
         net_inputs.update(state)
         net_inputs.update(actions)
         net_inputs.update(environment)
+        if 'scene_msg' in environment:
+            net_inputs.pop('scene_msg')
         net_inputs = make_dict_tf_float32(net_inputs)
         mean_predictions, stdev_predictions = self.from_example(net_inputs, training=False)
         return mean_predictions, stdev_predictions

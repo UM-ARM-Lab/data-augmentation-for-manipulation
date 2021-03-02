@@ -156,6 +156,7 @@ def vector_to_points_2d(x):
     ys = x_points[:, 1]
     return xs, ys
 
+
 def make_dict_tf_float32(d):
     f32d = {}
     for k, s_k in d.items():

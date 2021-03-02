@@ -6,7 +6,9 @@ import numpy as np
 import tensorflow as tf
 
 import rosnode
+from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from moveit_msgs.msg import RobotState, RobotTrajectory
+from moveit_msgs.srv import GetPlanningScene, GetPlanningSceneRequest, GetPlanningSceneResponse
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():
@@ -96,16 +98,18 @@ def follow_jacobian_from_example(example: Dict,
     return joint_state, target_reached, predicted_joint_positions
 
 
-class BaseDualArmRopeScenario(FloatingRopeScenario):
+class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioMixin):
     DISABLE_CDCPD = True
     ROPE_NAMESPACE = 'rope_3d'
 
-    def __init__(self, robot_namespace):
-        super().__init__()
+    def __init__(self, robot_namespace: str):
+        FloatingRopeScenario.__init__(self)
+        MoveitPlanningSceneScenarioMixin.__init__(self, robot_namespace)
+
         self.robot_namespace = robot_namespace
         self.service_provider = BaseServices()
-        self.joint_state_viz_pub = rospy.Publisher(ns_join(self.robot_namespace, "joint_states_viz"), JointState,
-                                                   queue_size=10)
+        joint_state_viz_topic = ns_join(self.robot_namespace, "joint_states_viz")
+        self.joint_state_viz_pub = rospy.Publisher(joint_state_viz_topic, JointState, queue_size=10)
         self.cdcpd_listener = Listener("cdcpd/output", PointCloud2)
 
         # NOTE: you may want to override this for your specific robot/scenario
@@ -117,7 +121,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
         # FIXME: this blocks until the robot is available, we need lazy construction
         self.robot = get_moveit_robot(self.robot_namespace, raise_on_failure=True)
-        self.stored_joint_names = None
 
     def add_boxes_around_tools(self):
         # add spheres to prevent moveit from smooshing the rope and ends of grippers into obstacles
@@ -169,11 +172,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         return len(self.get_joint_names())
 
     def get_joint_names(self):
-        # by storing joint names here, we can query in the future while time is paused
-        if self.stored_joint_names is None:
-            self.stored_joint_names = self.robot.get_joint_names()
-
-        return self.stored_joint_names
+        return self.robot.get_joint_names()
 
     def get_state(self):
         # TODO: this should be composed of function calls to get_state for arm_no_rope and get_state for rope?
@@ -223,7 +222,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
         }
 
     def plot_state_rviz(self, state: Dict, **kwargs):
-        super().plot_state_rviz(state, **kwargs)
+        FloatingRopeScenario.plot_state_rviz(self, state, **kwargs)
         label = kwargs.pop("label", "")
         if 'joint_positions' in state and 'joint_names' in state:
             joint_state = joint_state_msg_from_state_dict(state)
@@ -234,7 +233,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
             rospy.logwarn_throttle(10, 'no joint names in state', logger_name=Path(__file__).stem)
 
     def dynamics_dataset_metadata(self):
-        metadata = super().dynamics_dataset_metadata()
+        metadata = FloatingRopeScenario.dynamics_dataset_metadata(self)
         joint_state: JointState = self.robot._joint_state_listener.get()
         metadata.update({
             'joint_names': joint_state.name,
@@ -260,10 +259,16 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
             res = default_res
         else:
             res = params["res"]
-        return get_environment_for_extents_3d(extent=params['extent'],
-                                              res=res,
-                                              service_provider=self.service_provider,
-                                              excluded_models=self.get_excluded_models_for_env())
+        voxel_grid_env = get_environment_for_extents_3d(extent=params['extent'],
+                                                        res=res,
+                                                        service_provider=self.service_provider,
+                                                        excluded_models=self.get_excluded_models_for_env())
+
+        env = {}
+        env.update(voxel_grid_env)
+        env.update(MoveitPlanningSceneScenarioMixin.get_environment(self))
+
+        return env
 
     @staticmethod
     def robot_name():
@@ -275,7 +280,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario):
 
     def needs_reset(self, state: Dict, params: Dict):
         grippers_out_of_bounds = self.grippers_out_of_bounds(state['left_gripper'], state['right_gripper'], params)
-        return super().needs_reset(state, params) or grippers_out_of_bounds
+        return FloatingRopeScenario.needs_reset(self, state, params) or grippers_out_of_bounds
 
     def is_motion_feasible(self, environment: Dict, state: Dict, action: Dict):
         rospy.logerr_throttle(10, "Deprecated!")

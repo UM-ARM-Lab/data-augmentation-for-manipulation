@@ -46,6 +46,7 @@ class BaseDataCollector:
                            action_rng: np.random.RandomState,
                            ):
         if self.params['no_objects']:
+            rospy.logwarn("Not collecting the environment", logger_name='base_collect_dynamics_data')
             rows, cols, channels = extent_to_env_shape(self.params['extent'], self.params['res'])
             origin = np.array([rows // 2, cols // 2, channels // 2], dtype=np.int32)
             env = np.zeros([rows, cols, channels], dtype=np.float32)

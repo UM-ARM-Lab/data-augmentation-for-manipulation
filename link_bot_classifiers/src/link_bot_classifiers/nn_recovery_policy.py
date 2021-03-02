@@ -309,7 +309,10 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
             recovery_model_input.update(environment)
             recovery_model_input.update(add_batch(state))  # add time dimension to state and action
             recovery_model_input.update(add_batch(action))
-            recovery_model_input = make_dict_tf_float32(add_batch(recovery_model_input))
+            recovery_model_input = add_batch(recovery_model_input)
+            if 'scene_msg' in environment:
+                recovery_model_input.pop('scene_msg')
+            recovery_model_input = make_dict_tf_float32(recovery_model_input)
             recovery_model_input.update({
                 'batch_size': 1,
                 'time':       2,

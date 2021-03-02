@@ -23,6 +23,7 @@ from link_bot_pycommon.constants import KINECT_MAX_DEPTH
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.matplotlib_utils import adjust_lightness_msg
+from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.pycommon import default_if_none
 from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params, \
     transform_points_to_robot_frame
@@ -40,8 +41,8 @@ from visualization_msgs.msg import MarkerArray, Marker
 rope_key_name = 'rope'
 
 
-class FloatingRopeScenario(ScenarioWithVisualization):
-    DISABLE_CDCPD = False
+class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenarioMixin):
+    DISABLE_CDCPD = True
     IMAGE_H = 90
     IMAGE_W = 160
     n_links = 25
@@ -59,7 +60,8 @@ class FloatingRopeScenario(ScenarioWithVisualization):
     ROPE_NAMESPACE = 'rope_3d'
 
     def __init__(self):
-        super().__init__()
+        ScenarioWithVisualization.__init__(self)
+        MoveitPlanningSceneScenarioMixin.__init__(self, robot_namespace='')
         self.color_image_listener = Listener(self.COLOR_IMAGE_TOPIC, Image)
         self.depth_image_listener = Listener(self.DEPTH_IMAGE_TOPIC, Image)
         self.camera_info_listener = Listener(self.CAMERA_INFO_TOPIC, CameraInfo)
@@ -102,7 +104,9 @@ class FloatingRopeScenario(ScenarioWithVisualization):
         return tf.math.reduce_sum(tf.math.square(z1 - z2), axis=-1, keepdims=True)
 
     def get_environment(self, params: Dict, **kwargs):
-        return {}
+        env = {}
+        env.update(MoveitPlanningSceneScenarioMixin.get_environment(self))
+        return env
 
     def hard_reset(self):
         self.reset_srv(EmptyRequest())
@@ -155,7 +159,7 @@ class FloatingRopeScenario(ScenarioWithVisualization):
         self.set_rope_state_srv(reset)
 
     def dynamics_dataset_metadata(self):
-        metadata = super().dynamics_dataset_metadata()
+        metadata = ScenarioWithVisualization.dynamics_dataset_metadata(self)
         kinect_pose = get_gazebo_kinect_pose()
         kinect_params = get_camera_params(self.KINECT_NAME)
         metadata.update({
@@ -847,6 +851,10 @@ class FloatingRopeScenario(ScenarioWithVisualization):
     @staticmethod
     def dynamics_metrics_function(dataset_element, predictions):
         return dynamics_points_metrics_function(dataset_element, predictions)
+
+    def plot_environment_rviz(self, environment: Dict):
+        ScenarioWithVisualization.plot_environment_rviz(self, environment)
+        MoveitPlanningSceneScenarioMixin.plot_environment_rviz(self, environment)
 
     def plot_state_rviz(self, state: Dict, **kwargs):
         label = kwargs.get("label", "")
