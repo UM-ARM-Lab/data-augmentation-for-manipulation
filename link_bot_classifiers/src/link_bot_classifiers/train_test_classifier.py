@@ -4,11 +4,13 @@ from typing import List, Optional, Dict
 
 import numpy as np
 import tensorflow as tf
+from progressbar import progressbar
 
 import link_bot_classifiers
 import rospy
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.classifier_utils import load_generic_model
+from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset
 from link_bot_data.visualization import init_viz_env
@@ -220,8 +222,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
 
     fn = 0
     fp = 0
-    # for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
-    for batch_idx, example in enumerate(tf_dataset):
+    for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+    # for batch_idx, example in enumerate(tf_dataset):
 
         if batch_idx < start_at:
             continue

@@ -166,3 +166,10 @@ def save_dynamics_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.Pat
     dataset_hparams.update(dataset_hparams_update)
     with (outdir / 'hparams.hjson').open('w') as dataset_hparams_file:
         my_hdump(dataset_hparams, dataset_hparams_file, indent=2)
+
+
+def print_percentage(description: str, numerator: int, denominator: int):
+    if denominator == 0:
+        print(description + f' {numerator}/0 (division by zero)')
+    else:
+        print(description + f' {numerator}/{denominator}, {numerator / denominator * 100:.1f}%')

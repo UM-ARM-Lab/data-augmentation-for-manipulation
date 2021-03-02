@@ -149,6 +149,7 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
         for (auto z_idx{0l}; z_idx < grid_.GetNumZCells(); ++z_idx)
         {
           auto const grid_location = grid_.GridIndexToLocation(x_idx, y_idx, z_idx);
+          ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "Checking " << grid_location[0] << " " << grid_location[1] << " " << grid_location[2]);
           m_->SetWorldPose({grid_location[0], grid_location[1], grid_location[2], 0, 0, 0});
           MyIntersection intersection;
           auto const collision_space = (dGeomID) (ode_->GetSpaceId());

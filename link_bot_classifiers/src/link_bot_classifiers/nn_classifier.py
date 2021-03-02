@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import logging
 import pathlib
 from typing import Dict, List, Optional, Tuple
 
@@ -12,11 +11,11 @@ import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
     batch_point_to_idx_tf_3d_in_batched_envs
 from link_bot_pycommon.pycommon import make_dict_float32, make_dict_tf_float32
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.classifier_losses_and_metrics import binary_classification_sequence_metrics_function, \
     class_weighted_mean_loss
 from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
@@ -75,12 +74,12 @@ class NNClassifier(MyKerasModel):
                                  bias_regularizer=keras.regularizers.l2(self.hparams['bias_reg']))
             self.dense_layers.append(dense)
 
-        # self.local_env_shape = (self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels)
-        # self.encoder = tf.keras.applications.ResNet50(include_top=False, weights=None, input_shape=self.local_env_shape)
-
         self.lstm = layers.LSTM(self.hparams['rnn_size'], unroll=True, return_sequences=True)
         self.output_layer = layers.Dense(1, activation=None)
         self.sigmoid = layers.Activation("sigmoid")
+
+        if self.hparams.get('uncertainty_head', False):
+            self.uncertainty_head = layers.Dense(8, activation=None)  # 8 was chosen without testing
 
     def make_traj_voxel_grids_from_input_dict(self, input_dict: Dict, batch_size, time: int):
         # Construct a [b, h, w, c, 3] grid of the indices which make up the local environment
@@ -180,12 +179,24 @@ class NNClassifier(MyKerasModel):
         # mini-batches may not be balanced, weight the losses for positive and negative examples to balance
         total_bce = class_weighted_mean_loss(perception_reliability_weighted_bce, is_close_after_start)
 
+        if self.hparams.get('uncertainty_head', False):
+            # NOTE: loosely based on Tagasovska & Lopez-Paz, NeurIPS 2019
+            uncertainty_loss = self.orthogonal_certificates_uncertainty_loss(outputs)
+            total_loss = total_bce + uncertainty_loss
+        else:
+            total_loss = total_bce
+
         return {
-            'loss': total_bce
+            'loss': total_loss
         }
 
+    def orthogonal_certificates_uncertainty_loss(self, outputs):
+        return tf.reduce_max(tf.abs(outputs['uncertainty']))
+
     def compute_metrics(self, dataset_element, outputs):
-        return binary_classification_sequence_metrics_function(dataset_element, outputs)
+        m = binary_classification_sequence_metrics_function(dataset_element, outputs)
+        m['uncertainty'] = self.orthogonal_certificates_uncertainty_loss(outputs)
+        return m
 
     @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
@@ -195,6 +206,9 @@ class NNClassifier(MyKerasModel):
         conv_output, debug_info_seq = self.make_traj_voxel_grids_from_input_dict(input_dict, batch_size, time)
 
         out_h = self.fc(conv_output, input_dict, training)
+
+        if self.hparams.get('uncertainty_head', False):
+            out_uncertainty = self.uncertainty_head(out_h)
 
         # for every timestep's output, map down to a single scalar, the logit for accept probability
         all_accept_logits = self.output_layer(out_h)
@@ -208,6 +222,7 @@ class NNClassifier(MyKerasModel):
         return {
             'logits':        valid_accept_logits,
             'probabilities': valid_accept_probabilities,
+            'uncertainty':   out_uncertainty,
         }
 
     def fc(self, conv_output, input_dict, training):
