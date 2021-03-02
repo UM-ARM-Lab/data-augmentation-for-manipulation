@@ -80,11 +80,10 @@ class NNClassifier(MyKerasModel):
 
         self.certs_k = 100
         if self.hparams.get('uncertainty_head', False):
-            self.uncertainty_head = layers.Dense(self.certs_k, activation=None)
-            # self.uncertainty_head = keras.Sequential([layers.Dense(128, activation='relu'),
-            #                                           layers.Dense(128, activation='relu'),
-            #                                           layers.Dense(self.certs_k, activation=None),
-            #                                           ])
+            self.uncertainty_head = keras.Sequential([layers.Dense(128, activation='relu'),
+                                                      layers.Dense(128, activation='relu'),
+                                                      layers.Dense(self.certs_k, activation=None),
+                                                      ])
 
     def make_traj_voxel_grids_from_input_dict(self, input_dict: Dict, batch_size, time: int):
         # Construct a [b, h, w, c, 3] grid of the indices which make up the local environment
