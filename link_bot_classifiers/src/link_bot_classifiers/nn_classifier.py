@@ -198,8 +198,8 @@ class NNClassifier(MyKerasModel):
         w = self.uncertainty_head.weights[0]
         # loss = tf.reduce_max(tf.abs(outputs['uncertainty']))
         loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(outputs['uncertainty']), y_pred=outputs['uncertainty'], from_logits=True))
-        diversity = tf.reduce_mean(tf.square(tf.matmul(tf.transpose(w), w) - tf.eye(self.certs_k)))
-        return loss + diversity
+        # diversity = tf.reduce_mean(tf.square(tf.matmul(tf.transpose(w), w) - tf.eye(self.certs_k)))
+        return loss #+ diversity
 
     def compute_metrics(self, dataset_element, outputs):
         m = binary_classification_sequence_metrics_function(dataset_element, outputs)
