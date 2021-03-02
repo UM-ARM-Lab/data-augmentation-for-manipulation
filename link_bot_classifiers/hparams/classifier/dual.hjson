@@ -14,11 +14,11 @@
   rope_image_k: 2000
   rnn_size: 128
   fc_layer_sizes: [ 128 ]
-  pooling: [ 2 2 2 ]
+  pooling: [ 2, 2, 2 ]
   conv_filters: [
-    [ 26 [ 3 3 3 ] ]
-    [ 26 [ 3 3 3 ] ]
-    [ 26 [ 3 3 3 ] ]
+    [ 26, [ 3, 3, 3 ] ]
+    [ 26, [ 3, 3, 3 ] ]
+    [ 26, [ 3, 3, 3 ] ]
   ]
   kernel_reg: 0.05
   bias_reg: 0.05

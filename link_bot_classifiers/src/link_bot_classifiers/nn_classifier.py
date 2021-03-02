@@ -203,7 +203,8 @@ class NNClassifier(MyKerasModel):
 
     def compute_metrics(self, dataset_element, outputs):
         m = binary_classification_sequence_metrics_function(dataset_element, outputs)
-        m['uncertainty'] = self.orthogonal_certificates_uncertainty_loss(outputs)
+        if self.hparams.get('uncertainty_head', False):
+            m['uncertainty'] = self.orthogonal_certificates_uncertainty_loss(outputs)
         return m
 
     @tf.function
@@ -227,11 +228,14 @@ class NNClassifier(MyKerasModel):
         if DEBUG_VIZ:
             self.debug_rviz(input_dict, debug_info_seq)
 
-        return {
+        outputs = {
             'logits':        valid_accept_logits,
             'probabilities': valid_accept_probabilities,
-            'uncertainty':   out_uncertainty,
         }
+        if self.hparams.get('uncertainty_head', False):
+            outputs['uncertainty'] = out_uncertainty
+
+        return outputs
 
     def fc(self, conv_output, input_dict, training):
         states = {k: input_dict[add_predicted(k)] for k in self.state_keys}

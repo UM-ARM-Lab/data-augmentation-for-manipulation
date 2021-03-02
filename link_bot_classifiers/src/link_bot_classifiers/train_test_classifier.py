@@ -149,8 +149,9 @@ def eval_main(dataset_dirs: List[pathlib.Path],
                                       use_gt_rope=use_gt_rope,
                                       old_compat=old_compat,
                                       threshold=threshold)
-    tf_dataset = dataset.get_datasets(mode=mode, take=take)
+    tf_dataset = dataset.get_datasets(mode=mode)
     tf_dataset = tf_dataset.balance()
+    tf_dataset = tf_dataset.take(take)
 
     ###############
     # Evaluate

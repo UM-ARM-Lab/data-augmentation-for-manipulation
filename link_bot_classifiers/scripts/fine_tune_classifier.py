@@ -54,7 +54,8 @@ def main():
                          params=model_hparams,
                          checkpoint=args.checkpoint,
                          batch_metadata=train_dataset.batch_metadata,
-                         val_every_n_batches=1000,
+                         validate_first=True,
+                         val_every_n_batches=500,
                          mid_epoch_val_batches=100,
                          trial_path=trial_path)
 
