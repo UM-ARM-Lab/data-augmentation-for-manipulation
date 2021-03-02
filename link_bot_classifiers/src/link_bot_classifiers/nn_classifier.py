@@ -78,8 +78,13 @@ class NNClassifier(MyKerasModel):
         self.output_layer = layers.Dense(1, activation=None)
         self.sigmoid = layers.Activation("sigmoid")
 
+        self.certs_k = 100
         if self.hparams.get('uncertainty_head', False):
-            self.uncertainty_head = layers.Dense(8, activation=None)  # 8 was chosen without testing
+            self.uncertainty_head = layers.Dense(self.certs_k, activation=None)
+            # self.uncertainty_head = keras.Sequential([layers.Dense(128, activation='relu'),
+            #                                           layers.Dense(128, activation='relu'),
+            #                                           layers.Dense(self.certs_k, activation=None),
+            #                                           ])
 
     def make_traj_voxel_grids_from_input_dict(self, input_dict: Dict, batch_size, time: int):
         # Construct a [b, h, w, c, 3] grid of the indices which make up the local environment
@@ -191,7 +196,11 @@ class NNClassifier(MyKerasModel):
         }
 
     def orthogonal_certificates_uncertainty_loss(self, outputs):
-        return tf.reduce_max(tf.abs(outputs['uncertainty']))
+        w = self.uncertainty_head.weights[0]
+        # loss = tf.reduce_max(tf.abs(outputs['uncertainty']))
+        loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(outputs['uncertainty']), y_pred=outputs['uncertainty'], from_logits=True))
+        diversity = tf.reduce_mean(tf.square(tf.matmul(tf.transpose(w), w) - tf.eye(self.certs_k)))
+        return loss + diversity
 
     def compute_metrics(self, dataset_element, outputs):
         m = binary_classification_sequence_metrics_function(dataset_element, outputs)

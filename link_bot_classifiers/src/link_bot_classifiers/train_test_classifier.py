@@ -170,6 +170,10 @@ def eval_main(dataset_dirs: List[pathlib.Path],
     metrics = runner.val_epoch(tf_dataset)
     for metric_name, metric_value in metrics.items():
         print(f"{metric_name:30s}: {metric_value:.4f}")
+
+    print(model.uncertainty_head.weights[0].numpy())
+    print(model.uncertainty_head.weights[1].numpy())
+
     return metrics
 
 
