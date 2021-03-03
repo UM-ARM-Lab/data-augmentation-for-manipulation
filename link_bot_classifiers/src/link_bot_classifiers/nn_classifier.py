@@ -168,6 +168,11 @@ class NNClassifier(MyKerasModel):
         labels = tf.expand_dims(is_close_after_start, axis=2)
         logits = outputs['logits']
         bce = tf.keras.losses.binary_crossentropy(y_true=labels, y_pred=logits, from_logits=True)
+        alpha = self.hparams.get('negative_label_weight', 0.5)
+        # alpha = 1 means label everything as 0
+        # alpha = 0 means label everything as 1
+        label_weight = tf.abs(labels - alpha)
+        bce = bce * label_weight
 
         # mask out / ignore examples where is_close [0] is 0
         is_close_at_start = dataset_element['is_close'][:, 0]
