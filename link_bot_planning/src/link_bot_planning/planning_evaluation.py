@@ -256,14 +256,14 @@ def planning_evaluation(outdir: pathlib.Path,
 
 
 def make_method_names_are_unique(planners_params):
-    unique_method_names = []
+    unique_method_params = []
     for original_method_name, _ in planners_params:
         d = 1
         method_name = original_method_name
-        while method_name in unique_method_names:
+        while method_name in [n for n, _ in unique_method_params]:
             method_name = original_method_name + f"_{d}"
             d += 1
         if original_method_name != method_name:
             rospy.logwarn(f"Making method name {original_method_name} unique -> {method_name}")
-        unique_method_names.append(method_name)
-    return unique_method_names
+        unique_method_params.append((method_name, _))
+    return unique_method_params
