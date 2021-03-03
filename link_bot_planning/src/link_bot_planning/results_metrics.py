@@ -61,9 +61,6 @@ class PercentageSuccess(TaskError):
 
 
 class NRecoveryActions(ResultsMetric):
-    def __init__(self, analysis_params, results_dir: pathlib.Path):
-        super().__init__(analysis_params, results_dir)
-
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         steps = trial_datum['steps']
         n_recovery = 0
@@ -74,9 +71,6 @@ class NRecoveryActions(ResultsMetric):
 
 
 class PercentageMERViolations(ResultsMetric):
-    def __init__(self, analysis_params, results_dir: pathlib.Path):
-        super().__init__(analysis_params, results_dir)
-
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         n_mer_violated = 0
         n_total_actions = 0
@@ -92,9 +86,6 @@ class PercentageMERViolations(ResultsMetric):
 
 
 class NMERViolations(ResultsMetric):
-    def __init__(self, analysis_params, results_dir: pathlib.Path):
-        super().__init__(analysis_params, results_dir)
-
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         n_mer_violated = 0
         _, actual_states, predicted_states, types = get_paths(trial_datum, scenario, False, 0)
@@ -108,25 +99,16 @@ class NMERViolations(ResultsMetric):
 
 
 class NPlanningAttempts(ResultsMetric):
-    def __init__(self, analysis_params, results_dir: pathlib.Path):
-        super().__init__(analysis_params, results_dir)
-
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         return len(trial_datum['steps'])
 
 
 class TotalTime(ResultsMetric):
-    def __init__(self, analysis_params, results_dir: pathlib.Path):
-        super().__init__(analysis_params, results_dir)
-
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         return trial_datum['total_time']
 
 
 class PlanningTime(ResultsMetric):
-    def __init__(self, analysis_params, results_dir: pathlib.Path):
-        super().__init__(analysis_params, results_dir)
-
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         steps = trial_datum['steps']
         planning_time = 0
@@ -137,9 +119,6 @@ class PlanningTime(ResultsMetric):
 
 
 class PlannerSolved(ResultsMetric):
-    def __init__(self, analysis_params, results_dir: pathlib.Path):
-        super().__init__(analysis_params, results_dir)
-
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         solved = False
         for step in trial_datum['steps']:

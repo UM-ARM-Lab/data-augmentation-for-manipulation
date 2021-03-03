@@ -111,7 +111,9 @@ class PlanAndExecute:
                                                                             scenario=self.scenario,
                                                                             rng=self.recovery_rng,
                                                                             # FIXME: hacky is heck
-                                                                            update_hparams={'extent': self.planner_params['extent']})
+                                                                            update_hparams={
+                                                                                'extent': self.planner_params[
+                                                                                              'extent']})
         else:
             self.recovery_policy = None
 
@@ -194,6 +196,7 @@ class PlanAndExecute:
         attempt_idx = 0
         steps_data = []
         planning_queries = []
+        max_attempts = 20  # to save time, since it's unlikely we succeed after this many attempts
         while True:
             # get start states
             self.service_provider.play()
@@ -289,7 +292,15 @@ class PlanAndExecute:
             rospy.loginfo(f"distance to goal after execution is {d:.3f}")
             reached_goal = (d <= self.planner_params['goal_params']['threshold'] + 1e-6)
 
-            if reached_goal or time_since_start > total_timeout or self.no_execution or execution_result.end_trial:
+            end_conditions = [
+                reached_goal,
+                time_since_start > total_timeout,
+                self.no_execution,
+                execution_result.end_trial,
+                attempt_idx > max_attempts,
+            ]
+            end_trial = np.any(end_conditions)
+            if end_trial:
                 if reached_goal:
                     trial_status = TrialStatus.Reached
                     rospy.loginfo(Fore.BLUE + f"Trial {trial_idx} Ended: Goal reached!" + Fore.RESET)
@@ -348,11 +359,11 @@ class PlanAndExecute:
             if self.verbose >= 2 and not self.no_execution:
                 rospy.loginfo(Fore.CYAN + "Executing Plan" + Fore.RESET)
             actual_path, end_trial = execute_actions(scenario=self.scenario,
-                                          environment=planning_query.environment,
-                                          start_state=planning_query.start,
-                                          actions=planning_result.actions,
-                                          use_gt_rope=self.use_gt_rope,
-                                          plot=True)
+                                                     environment=planning_query.environment,
+                                                     start_state=planning_query.start,
+                                                     actions=planning_result.actions,
+                                                     use_gt_rope=self.use_gt_rope,
+                                                     plot=True)
 
         # post-execution callback
         execution_result = ExecutionResult(path=actual_path, end_trial=end_trial)

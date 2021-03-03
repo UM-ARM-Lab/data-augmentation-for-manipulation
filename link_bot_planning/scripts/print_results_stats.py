@@ -2,22 +2,22 @@
 import argparse
 import csv
 import json
+import pathlib
 
 import colorama
+import numpy as np
 from progressbar import progressbar
 
 import rospy
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
-from link_bot_planning.results_metrics import *
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.serialization import load_gzipped_pickle
+from moonshine.filepath_tools import load_json_or_hjson
 
 
 def metrics_main(args):
-    with (args.results_dir / 'metadata.json').open('r') as metadata_file:
-        metadata_str = metadata_file.read()
-        metadata = json.loads(metadata_str)
+    metadata = load_json_or_hjson(args.results_dir, 'metadata')
     scenario = get_scenario(metadata['scenario'])
 
     rows = []
@@ -31,8 +31,10 @@ def metrics_main(args):
         task_error = scenario.distance_to_goal(end_state, goal).numpy()
         used_recovery = False
         recovery_successful = False
+        num_recoveries = 0
         for step in datum['steps']:
             if step['type'] == 'executed_recovery':
+                num_recoveries += 1
                 used_recovery = True
             if used_recovery and step['type'] == 'executed_plan':
                 recovery_successful = True
@@ -43,7 +45,8 @@ def metrics_main(args):
                f'{task_error:.3f}',
                int(used_recovery),
                int(recovery_successful),
-               int(not solved)]
+               int(not solved),
+               num_recoveries]
         rows.append(row)
 
     rows = sorted(rows)
