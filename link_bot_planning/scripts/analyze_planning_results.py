@@ -99,6 +99,7 @@ def metrics_main(args):
 
     figures = [
         TaskErrorLineFigure(analysis_params, metrics[TaskError]),
+        BarChartPercentagePerMethodFigure(analysis_params, metrics[PercentageSuccess], '% Success'),
         violin_plot(analysis_params, metrics[TaskError], 'Task Error'),
         box_plot(analysis_params, metrics[NRecoveryActions], "Num Recovery Actions"),
         box_plot(analysis_params, metrics[TotalTime], 'Total Time'),
@@ -166,7 +167,7 @@ def generate_metrics(analysis_params: Dict, out_dir: pathlib.Path, subfolders_or
         metrics[metric.__class__] = metric
 
     _include_metric(TaskError(analysis_params, results_dir=out_dir))
-    _include_metric(TaskError(analysis_params, results_dir=out_dir))
+    _include_metric(PercentageSuccess(analysis_params, results_dir=out_dir))
     _include_metric(NRecoveryActions(analysis_params, results_dir=out_dir))
     _include_metric(TotalTime(analysis_params, results_dir=out_dir))
     _include_metric(NPlanningAttempts(analysis_params, results_dir=out_dir))

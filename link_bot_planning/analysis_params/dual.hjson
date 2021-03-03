@@ -24,6 +24,9 @@
     "classifier, feasibility": "#7F59C2"
     "both": "#7F59C2"
     "classifier (no starts far), feasibility": "#7F59C2"
+    "original classifier": "#7F59C2"
+
+    "fine-tuned classifier": "#D12C7C"
 
     "cc, os, feasibility": "#F33333"
     "cc, gd, feasibility": "#F33333"

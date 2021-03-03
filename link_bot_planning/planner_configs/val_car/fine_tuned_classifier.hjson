@@ -1,5 +1,5 @@
 {
-  method_name: both
+  method_name: fine-tuned classifier
   filter_model_dir: [
     filter_trials/none/none
   ]

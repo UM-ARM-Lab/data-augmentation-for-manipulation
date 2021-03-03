@@ -54,6 +54,12 @@ class TaskError(ResultsMetric):
             self.goal_threshold = planner_params['goal_threshold']
 
 
+class PercentageSuccess(TaskError):
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        final_execution_to_goal_error = super().get_metric(scenario, trial_datum)
+        return final_execution_to_goal_error < self.goal_threshold
+
+
 class NRecoveryActions(ResultsMetric):
     def __init__(self, analysis_params, results_dir: pathlib.Path):
         super().__init__(analysis_params, results_dir)
@@ -147,6 +153,7 @@ class PlannerSolved(ResultsMetric):
 __all__ = [
     'ResultsMetric',
     'TaskError',
+    'PercentageSuccess',
     'NRecoveryActions',
     'PercentageMERViolations',
     'NMERViolations',

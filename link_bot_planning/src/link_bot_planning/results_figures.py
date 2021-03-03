@@ -41,8 +41,17 @@ class MyFigure:
     def make_figure(self):
         # Methods need to have consistent colors across different plots
         for method_name, values_for_method in self.metric.values.items():
+            color = 'k'
             colors = self.params["colors"]
-            color = colors.get(method_name, None)
+            if method_name in colors:
+                color = colors[method_name]
+            else:
+                for i in range(10):
+                    numbered_method_name = method_name + f" ({i})"
+                    if numbered_method_name in colors:
+                        color = colors[numbered_method_name]
+                        break
+                print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
             self.add_to_figure(method_name=method_name, values=values_for_method, color=color)
         self.finish_figure()
 
@@ -80,6 +89,7 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
             self.ax.plot(x, np.mean(values, axis=0), c=color, zorder=2, label='mean')
         if color is None:
             print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
+            color = 'k'
         parts = self.ax.violinplot(values, positions=[x], widths=0.9, showmeans=True, bw_method=0.3)
         for pc in parts['bodies']:
             pc.set_facecolor(color)
