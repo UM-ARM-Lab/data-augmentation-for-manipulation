@@ -65,7 +65,7 @@ def binary_classification_sequence_metrics_function(dataset_element, predictions
     recall = metric.recall(y_true=labels, y_pred=probabilities)
     average_recall = tf.reduce_mean(recall)
 
-    negative_accuracy = metric.accuray_on_negatives(y_true=labels, y_pred=probabilities)
+    negative_accuracy = metric.accuracy_on_negatives(y_true=labels, y_pred=probabilities)
     average_negative_accuracy = tf.reduce_mean(negative_accuracy)
 
     false_positive_rate = metric.fp_rate(y_true=labels, y_pred=probabilities)

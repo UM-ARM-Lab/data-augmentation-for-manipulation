@@ -170,6 +170,6 @@ def save_dynamics_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.Pat
 
 def print_percentage(description: str, numerator: int, denominator: int):
     if denominator == 0:
-        print(description + f' {numerator}/0 (division by zero)')
+        print(f'{description:80s} {numerator}/0 (division by zero)')
     else:
-        print(description + f' {numerator}/{denominator}, {numerator / denominator * 100:.1f}%')
+        print(f'{description:80s} {numerator}/{denominator}, {numerator / denominator * 100:.1f}%')

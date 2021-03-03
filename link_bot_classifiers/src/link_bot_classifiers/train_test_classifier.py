@@ -4,6 +4,7 @@ from typing import List, Optional, Dict
 
 import numpy as np
 import tensorflow as tf
+from colorama import Fore
 from progressbar import progressbar
 
 import link_bot_classifiers
@@ -150,6 +151,7 @@ def eval_main(dataset_dirs: List[pathlib.Path],
                                       old_compat=old_compat,
                                       threshold=threshold)
     tf_dataset = dataset.get_datasets(mode=mode)
+    rospy.loginfo(Fore.CYAN + "NOTE! These metrics are on the balanced dataset")
     tf_dataset = tf_dataset.balance()
     tf_dataset = tf_dataset.take(take)
 
@@ -171,9 +173,6 @@ def eval_main(dataset_dirs: List[pathlib.Path],
     metrics = runner.val_epoch(tf_dataset)
     for metric_name, metric_value in metrics.items():
         print(f"{metric_name:30s}: {metric_value:.4f}")
-
-    print(model.uncertainty_head.weights[0].numpy())
-    print(model.uncertainty_head.weights[1].numpy())
 
     return metrics
 

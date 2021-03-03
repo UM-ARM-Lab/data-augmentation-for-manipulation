@@ -67,10 +67,11 @@ def tp(y_true, y_pred, threshold=0.5):
     return tf.cast(tf.math.count_nonzero(y_true * tf.cast(y_pred > threshold, tf.float32)), tf.float32)
 
 
-def accuray_on_negatives(y_true, y_pred, threshold=0.5):
+def accuracy_on_negatives(y_true, y_pred, threshold=0.5):
     true_negatives = tn(y_true, y_pred, threshold=threshold)
     false_positives = fp(y_true, y_pred, threshold=threshold)
-    return tf.math.divide_no_nan(true_negatives, true_negatives + false_positives)
+    accuracy = tf.math.divide_no_nan(true_negatives, true_negatives + false_positives)
+    return accuracy
 
 
 def recall(y_true, y_pred, threshold=0.5):

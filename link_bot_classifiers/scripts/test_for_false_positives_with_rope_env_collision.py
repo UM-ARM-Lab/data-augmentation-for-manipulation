@@ -15,7 +15,7 @@ from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import batch_tf_dataset, remove_predicted
+from link_bot_data.dataset_utils import remove_predicted
 from link_bot_data.visualization import init_viz_env
 from link_bot_planning.results_utils import print_percentage
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -40,7 +40,7 @@ def main():
     parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
     parser.add_argument('checkpoint', type=pathlib.Path)
     parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
-    parser.add_argument('--batch-size', type=int, default=8)
+    parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--verbose', '-v', action='count', default=0)
     parser.add_argument('--use-gt-rope', action='store_true')
     parser.add_argument('--only-fp', action='store_true')
@@ -76,7 +76,7 @@ def main():
     ###############
     # Evaluate
     ###############
-    tf_dataset = batch_tf_dataset(tf_dataset, args.batch_size, drop_remainder=True)
+    tf_dataset = tf_dataset.batch(args.batch_size, drop_remainder=True)
 
     model = classifier_utils.load_generic_model(args.checkpoint)
     assert len(model.nets) == 1
@@ -94,7 +94,9 @@ def main():
     predicted_in_collision_fp = 0
     predicted_in_collision_fn = 0
     count = 0
+    n_correct = 0
     metrics = []
+
     # for batch_idx, example in enumerate(tf_dataset):
     for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
 
@@ -102,24 +104,27 @@ def main():
             continue
 
         example.update(dataset.batch_metadata)
+
+        # run the standard metrics as well
+        _, batch_metrics = net.val_step(example)
+        metrics.append(batch_metrics)
+
         predictions, _ = model.check_constraint_from_example(example, training=False)
 
         is_close = tf.expand_dims(example['is_close'][:, 1:], axis=2)
 
         probabilities = predictions['probabilities']
 
-        # run the standard metrics as well
-        _, batch_metrics = net.val_step(example)
-        metrics.append(batch_metrics)
-
-        # specific mistake testing
         example.pop("time")
         example.pop("batch_size")
-        decisions = tf.squeeze(probabilities > 0.5, axis=-1)
-        is_close = tf.squeeze(tf.cast(is_close, tf.bool), axis=-1)
-        is_tn = tf.logical_and(tf.logical_not(is_close), tf.logical_not(decisions))
-        is_fp = tf.logical_and(tf.logical_not(is_close), decisions)
-        is_fn = tf.logical_and(is_close, tf.logical_not(decisions))
+        is_predicted_close = tf.squeeze(tf.squeeze(probabilities > 0.5, axis=-1), axis=-1)
+        is_close = tf.squeeze(tf.squeeze(tf.cast(is_close, tf.bool), axis=-1), axis=-1)
+        classifier_is_correct = tf.equal(is_predicted_close, is_close)
+        is_tn = tf.logical_and(tf.logical_not(is_close), tf.logical_not(is_predicted_close))
+        is_fp = tf.logical_and(tf.logical_not(is_close), is_predicted_close)
+        is_fn = tf.logical_and(is_close, tf.logical_not(is_predicted_close))
+
+        # iterate over each example in batch, it's easier to visualize and compute some metrics this way
         for b in range(args.batch_size):
             example_b = index_dict_of_batched_tensors_tf(example, b)
 
@@ -139,32 +144,34 @@ def main():
                     continue
 
             if args.only_fp:
-                if not tf.reduce_all(is_fp[b]):
+                if not is_fp[b]:
                     continue
 
             if args.only_tn:
-                if not tf.reduce_all(is_tn[b]):
+                if not is_tn[b]:
                     continue
 
             count += 1
-            if not is_close[b, 0]:
+            if not is_close[b]:
                 labeled_0 += 1
             if rope_points_not_in_collision:
                 predicted_not_in_collision += 1
             if rope_points_in_collision:
                 predicted_in_collision += 1
-                if is_close[b, 0]:
+                if is_close[b]:
                     predicted_in_collision_labeled_1 += 1
                 else:
                     predicted_in_collision_labeled_0 += 1
-                if tf.reduce_all(is_fp[b]):
+                if is_fp[b]:
                     predicted_in_collision_fp += 1
-                if tf.reduce_all(is_fn[b]):
+                if is_fn[b]:
                     predicted_in_collision_fn += 1
-            if tf.reduce_all(is_fp[b]):
+            if is_fp[b]:
                 fp += 1
-            if tf.reduce_all(is_fn[b]):
+            if is_fn[b]:
                 fn += 1
+            if classifier_is_correct[b]:
+                n_correct += 1
 
             if not args.no_viz:
                 def _custom_viz_t(scenario: ScenarioWithVisualization, e: Dict, t: int):
@@ -193,6 +200,7 @@ def main():
                 anim.play(example_b)
 
     print_percentage("% labeled 0", labeled_0, count)
+    print_percentage("% correct (accuracy)", n_correct, count)
     print_percentage('% predicted state is in collision',
                      predicted_in_collision, count)
     print_percentage('% predicted state is in collision and the label is 0 ',
@@ -205,7 +213,7 @@ def main():
     metrics = sequence_of_dicts_to_dict_of_sequences(metrics)
     mean_metrics = reduce_mean_dict(metrics)
     for metric_name, metric_value in mean_metrics.items():
-        print(f"{metric_name:30s}: {metric_value:.4f}")
+        print(f"{metric_name:80s}: {metric_value * 100:.3f}")
 
 
 if __name__ == '__main__':

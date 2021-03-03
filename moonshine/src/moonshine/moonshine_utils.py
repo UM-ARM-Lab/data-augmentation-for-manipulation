@@ -306,5 +306,5 @@ def flatten_after(x, axis: int = 0):
 def reduce_mean_dict(dict):
     reduced_dict = {}
     for k, v in dict.items():
-        reduced_dict[k] = tf.reduce_mean(tf.stack(v, axis=0), axis=0)
+        reduced_dict[k] = tf.reduce_mean(tf.stack(v, axis=0))
     return reduced_dict

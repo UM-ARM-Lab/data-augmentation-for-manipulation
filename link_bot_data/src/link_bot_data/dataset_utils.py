@@ -117,15 +117,19 @@ def float_feature(values):
     return tf.train.Feature(float_list=tf.train.FloatList(value=values))
 
 
-def batch_tf_dataset(dataset: tf.data.Dataset, batch_size: int, drop_remainder: bool = True):
+def make_add_batch_func(batch_size: int):
     def _add_batch(example: Dict):
         for v in example.values():
             v.is_batched = True
         example['batch_size'] = tf.cast(batch_size, tf.int64)
         return example
 
+    return _add_batch
+
+
+def batch_tf_dataset(dataset: tf.data.Dataset, batch_size: int, drop_remainder: bool = True):
     dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-    dataset = dataset.map(_add_batch)
+    dataset = dataset.map(make_add_batch_func(batch_size))
     return dataset
 
 
@@ -147,10 +151,12 @@ def cachename(mode: Optional[str] = None):
         tmpname = cache_root / f"{pycommon.rand_str()}"
     return str(tmpname)
 
+
 def git_sha():
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha[:10]
     return sha
+
 
 def data_directory(outdir: pathlib.Path, *names):
     now = str(int(time.time()))
@@ -320,5 +326,3 @@ def count_up_to_next_record_idx(full_output_directory):
             break
         record_idx += 1
     return record_idx
-
-
