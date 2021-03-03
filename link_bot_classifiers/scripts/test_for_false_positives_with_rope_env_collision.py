@@ -24,6 +24,8 @@ from link_bot_pycommon.serialization import dump_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine import filepath_tools
 from moonshine.indexing import index_dict_of_batched_tensors_tf
+from moonshine.moonshine_utils import reduce_mean_dict, sequence_of_dicts_to_dict_of_sequences
+from moonshine.my_keras_model import MyKerasModel
 from std_msgs.msg import Float32
 
 
@@ -77,11 +79,14 @@ def main():
     tf_dataset = batch_tf_dataset(tf_dataset, args.batch_size, drop_remainder=True)
 
     model = classifier_utils.load_generic_model(args.checkpoint)
+    assert len(model.nets) == 1
+    net: MyKerasModel = model.nets[0]
 
     cc = PointsCollisionChecker(pathlib.Path('trials/cc_baseline/none'), scenario)
 
     fp = 0
     fn = 0
+    labeled_0 = 0
     predicted_in_collision = 0
     predicted_not_in_collision = 0
     predicted_in_collision_labeled_0 = 0
@@ -89,6 +94,7 @@ def main():
     predicted_in_collision_fp = 0
     predicted_in_collision_fn = 0
     count = 0
+    metrics = []
     # for batch_idx, example in enumerate(tf_dataset):
     for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
 
@@ -102,12 +108,15 @@ def main():
 
         probabilities = predictions['probabilities']
 
-        # Visualization
+        # run the standard metrics as well
+        _, batch_metrics = net.val_step(example)
+        metrics.append(batch_metrics)
+
+        # specific mistake testing
         example.pop("time")
         example.pop("batch_size")
         decisions = tf.squeeze(probabilities > 0.5, axis=-1)
         is_close = tf.squeeze(tf.cast(is_close, tf.bool), axis=-1)
-        classifier_is_correct = tf.equal(decisions, is_close)
         is_tn = tf.logical_and(tf.logical_not(is_close), tf.logical_not(decisions))
         is_fp = tf.logical_and(tf.logical_not(is_close), decisions)
         is_fn = tf.logical_and(is_close, tf.logical_not(decisions))
@@ -138,6 +147,8 @@ def main():
                     continue
 
             count += 1
+            if not is_close[b, 0]:
+                labeled_0 += 1
             if rope_points_not_in_collision:
                 predicted_not_in_collision += 1
             if rope_points_in_collision:
@@ -181,6 +192,7 @@ def main():
                 dump_gzipped_pickle(example_b, pathlib.Path('debugging.pkl.gzip'))
                 anim.play(example_b)
 
+    print_percentage("% labeled 0", labeled_0, count)
     print_percentage('% predicted state is in collision',
                      predicted_in_collision, count)
     print_percentage('% predicted state is in collision and the label is 0 ',
@@ -189,6 +201,11 @@ def main():
                      predicted_in_collision_fp, predicted_in_collision_labeled_0)
     print_percentage('% false negatives and predicted state is in collision but labeled 1 ',
                      predicted_in_collision_fn, predicted_in_collision_labeled_1)
+
+    metrics = sequence_of_dicts_to_dict_of_sequences(metrics)
+    mean_metrics = reduce_mean_dict(metrics)
+    for metric_name, metric_value in mean_metrics.items():
+        print(f"{metric_name:30s}: {metric_value:.4f}")
 
 
 if __name__ == '__main__':

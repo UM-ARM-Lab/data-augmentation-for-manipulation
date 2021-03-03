@@ -8,7 +8,6 @@ import tensorflow as tf
 import rosnode
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from moveit_msgs.msg import RobotState, RobotTrajectory
-from moveit_msgs.srv import GetPlanningScene, GetPlanningSceneRequest, GetPlanningSceneResponse
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():

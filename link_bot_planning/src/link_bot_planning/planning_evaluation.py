@@ -10,7 +10,6 @@ from ompl import util as ou
 
 import rosbag
 import rospy
-from arc_utilities.algorithms import is_list_unique
 from link_bot_data.dataset_utils import git_sha
 from link_bot_gazebo_python import gazebo_services
 from link_bot_planning import plan_and_execute
@@ -222,7 +221,7 @@ def planning_evaluation(outdir: pathlib.Path,
         outdir.mkdir(parents=True)
 
     # NOTE: if method names are not unique, we would overwrite results. Very bad!
-    make_method_names_are_unique(planners_params)
+    planners_params = make_method_names_are_unique(planners_params)
 
     for comparison_idx, (method_name, planner_params) in enumerate(planners_params):
         if comparison_idx < start_idx:
