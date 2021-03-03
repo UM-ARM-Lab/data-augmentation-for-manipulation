@@ -9,7 +9,7 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 
 
 class ResultsMetric:
-    def __init__(self, analysis_params, results_dir: pathlib.Path):
+    def __init__(self, analysis_params: Dict, results_dir: pathlib.Path):
         super().__init__()
         self.analysis_params = analysis_params
         self.results_dir = results_dir
@@ -35,7 +35,7 @@ class ResultsMetric:
 
 
 class TaskError(ResultsMetric):
-    def __init__(self, analysis_params, results_dir: pathlib.Path):
+    def __init__(self, analysis_params: Dict, results_dir: pathlib.Path):
         super().__init__(analysis_params, results_dir)
         self.goal_threshold = None
 
@@ -98,6 +98,20 @@ class NMERViolations(ResultsMetric):
         return n_mer_violated
 
 
+class NormalizedModelError(ResultsMetric):
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        # NOTE: we could also normalize by action "size"?
+        total_model_error = 0.0
+        n_total_actions = 0
+        _, actual_states, predicted_states, types = get_paths(trial_datum, scenario, False, 0)
+        for actual_state_t, planned_state_t, type_t in zip(actual_states, predicted_states, types):
+            if type_t == 'executed_plan':
+                model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
+                total_model_error += model_error
+                n_total_actions += 1
+        return total_model_error / n_total_actions
+
+
 class NPlanningAttempts(ResultsMetric):
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         return len(trial_datum['steps'])
@@ -136,6 +150,7 @@ __all__ = [
     'NRecoveryActions',
     'PercentageMERViolations',
     'NMERViolations',
+    'NormalizedModelError',
     'NPlanningAttempts',
     'TotalTime',
     'PlanningTime',

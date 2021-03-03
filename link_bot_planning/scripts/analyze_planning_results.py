@@ -106,6 +106,7 @@ def metrics_main(args):
         violin_plot(analysis_params, metrics[TotalTime], 'Total Time'),
         box_plot(analysis_params, metrics[NPlanningAttempts], 'Num Planning Attempts'),
         box_plot(analysis_params, metrics[NMERViolations], 'Num MER Violations'),
+        box_plot(analysis_params, metrics[NormalizedModelError], 'Normalized Model Error'),
         box_plot(analysis_params, metrics[PlanningTime], 'Planning Time'),
         box_plot(analysis_params, metrics[PercentageMERViolations], '% MER Violations'),
         BarChartPercentagePerMethodFigure(analysis_params, metrics[PlannerSolved], '% Planner Returned Solved'),
@@ -163,18 +164,19 @@ def metrics_main(args):
 def generate_metrics(analysis_params: Dict, out_dir: pathlib.Path, subfolders_ordered: List):
     metrics = {}
 
-    def _include_metric(metric: ResultsMetric):
-        metrics[metric.__class__] = metric
+    def _include_metric(metric: type):
+        metrics[metric] = metric(analysis_params=analysis_params, results_dir=out_dir)
 
-    _include_metric(TaskError(analysis_params, results_dir=out_dir))
-    _include_metric(PercentageSuccess(analysis_params, results_dir=out_dir))
-    _include_metric(NRecoveryActions(analysis_params, results_dir=out_dir))
-    _include_metric(TotalTime(analysis_params, results_dir=out_dir))
-    _include_metric(NPlanningAttempts(analysis_params, results_dir=out_dir))
-    _include_metric(NMERViolations(analysis_params, results_dir=out_dir))
-    _include_metric(PlanningTime(analysis_params, results_dir=out_dir))
-    _include_metric(PercentageMERViolations(analysis_params, results_dir=out_dir))
-    _include_metric(PlannerSolved(analysis_params, results_dir=out_dir))
+    _include_metric(TaskError)
+    _include_metric(PercentageSuccess)
+    _include_metric(NRecoveryActions)
+    _include_metric(TotalTime)
+    _include_metric(NPlanningAttempts)
+    _include_metric(NMERViolations)
+    _include_metric(NormalizedModelError)
+    _include_metric(PlanningTime)
+    _include_metric(PercentageMERViolations)
+    _include_metric(PlannerSolved)
 
     for subfolder in subfolders_ordered:
         metrics_filenames = list(subfolder.glob("*_metrics.pkl.gz"))

@@ -170,7 +170,7 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
                         boxprops=dict(facecolor='#00000000', color=color),
                         capprops=dict(color=color),
                         whiskerprops=dict(color=color),
-                        medianprops=dict(color=color),
+                        medianprops=dict(color=color, linewidth=8),
                         showfliers=False)
 
         n_values = len(values)
