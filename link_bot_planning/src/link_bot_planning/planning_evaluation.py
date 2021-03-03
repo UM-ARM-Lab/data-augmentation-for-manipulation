@@ -222,7 +222,7 @@ def planning_evaluation(outdir: pathlib.Path,
         outdir.mkdir(parents=True)
 
     # NOTE: if method names are not unique, we would overwrite results. Very bad!
-    assert_method_names_are_unique(planners_params)
+    make_method_names_are_unique(planners_params)
 
     for comparison_idx, (method_name, planner_params) in enumerate(planners_params):
         if comparison_idx < start_idx:
@@ -256,7 +256,15 @@ def planning_evaluation(outdir: pathlib.Path,
     return outdir
 
 
-def assert_method_names_are_unique(planners_params):
-    method_names = [method_name for method_name, _ in planners_params]
-    method_names_are_unique = is_list_unique(method_names)
-    assert method_names_are_unique, f"Method names must be unique, but are {method_names}"
+def make_method_names_are_unique(planners_params):
+    unique_method_names = []
+    for original_method_name, _ in planners_params:
+        d = 1
+        method_name = original_method_name
+        while method_name in unique_method_names:
+            method_name = original_method_name + f"_{d}"
+            d += 1
+        if original_method_name != method_name:
+            rospy.logwarn(f"Making method name {original_method_name} unique -> {method_name}")
+        unique_method_names.append(method_name)
+    return unique_method_names
