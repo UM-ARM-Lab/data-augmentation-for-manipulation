@@ -51,7 +51,7 @@ class ExperimentScenario:
     def add_action_noise(action: Dict, noise_rng: np.random.RandomState):
         return action
 
-    def is_action_valid(self, action: Dict, action_params: Dict):
+    def is_action_valid(self, environment: Dict, state: Dict, action: Dict, action_params: Dict):
         return True
 
     def sample_action(self,

@@ -166,7 +166,7 @@ class RopeDraggingScenario(ScenarioWithVisualization):
                 'timeout_s':              np.array([action_params['dt']]),
             }
 
-            valid = self.is_action_valid(action, action_params)
+            valid = self.is_action_valid(environment, state, action, action_params)
             if not validate or valid:
                 self.last_action = action
                 return action
@@ -174,7 +174,7 @@ class RopeDraggingScenario(ScenarioWithVisualization):
         rospy.logwarn("Could not find a valid action, executing an invalid one")
         return action
 
-    def is_action_valid(self, action: Dict, action_params: Dict):
+    def is_action_valid(self, environment: Dict, state: Dict, action: Dict, action_params: Dict):
         out_of_bounds = self.gripper_out_of_bounds(action['gripper_position'], action_params)
         return not out_of_bounds
 

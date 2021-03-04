@@ -7,7 +7,7 @@ import tensorflow as tf
 
 import rosnode
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
-from moveit_msgs.msg import RobotState, RobotTrajectory
+from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():
@@ -18,7 +18,6 @@ import rospy
 from arc_utilities.listener import Listener
 from arm_robots.get_robot import get_moveit_robot
 from geometry_msgs.msg import PoseStamped
-from pyjacobian_follower import JacobianFollower
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
@@ -28,19 +27,19 @@ from sensor_msgs.msg import JointState, PointCloud2
 from tf.transformations import quaternion_from_euler
 
 
-def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, state: Dict):
+def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, robot_state: RobotState):
     if len(plan.joint_trajectory.points) == 0:
-        predicted_joint_positions = state['joint_positions']
+        predicted_joint_positions = robot_state.joint_state.position
     else:
         final_point: JointTrajectoryPoint = plan.joint_trajectory.points[-1]
         predicted_joint_positions = []
-        for joint_name in state['joint_names']:
+        for joint_name in robot_state.joint_state.name:
             if joint_name in plan.joint_trajectory.joint_names:
                 joint_idx_in_final_point = plan.joint_trajectory.joint_names.index(joint_name)
                 joint_position = final_point.positions[joint_idx_in_final_point]
-            elif joint_name in state['joint_names']:
-                joint_idx_in_state = list(state['joint_names']).index(joint_name)
-                joint_position = float(state['joint_positions'][joint_idx_in_state])
+            elif joint_name in robot_state.joint_state.name:
+                joint_idx_in_state = list(robot_state.joint_state.name).index(joint_name)
+                joint_position = float(robot_state.joint_state.position[joint_idx_in_state])
             else:
                 raise ValueError(f"joint {joint_name} is in neither the start state nor the the planed trajectory")
             predicted_joint_positions.append(joint_position)
@@ -58,45 +57,19 @@ def joint_state_msg_from_state_dict(state: Dict):
     joint_state = JointState()
     joint_state.header.stamp = rospy.Time.now()
     joint_state.position = state['joint_positions']
-    if isinstance(state['joint_names'][0], bytes):
-        joint_names = [n.decode("utf-8") for n in state['joint_names']]
-    elif isinstance(state['joint_names'][0], str):
-        joint_names = [str(n) for n in state['joint_names']]
-    elif isinstance(state['joint_names'], tf.Tensor):
-        joint_names = [n.decode("utf-8") for n in state['joint_names'].numpy()]
-    else:
-        raise NotImplementedError(type(state['joint_names'][0]))
-    joint_state.name = joint_names
+    joint_state.name = to_list_of_strings(state['joint_names'])
     return joint_state
 
 
-def follow_jacobian_from_example(example: Dict,
-                                 j: JacobianFollower,
-                                 tool_names: List[str],
-                                 preferred_tool_orientations: List):
-    joint_state = joint_state_msg_from_state_dict(example)
-
-    left_gripper_points = [example['left_gripper_position']]
-    right_gripper_points = [example['right_gripper_position']]
-    grippers = [left_gripper_points, right_gripper_points]
-    scene_msg = example['scene_msg']
-
-    # NOTE: we don't use environment here because we assume the planning scenes is static,
-    #  so the jacobian follower will already have that information.
-    robot_state = robot_state_msg_from_state_dict(example)
-    plan: RobotTrajectory
-    target_reached: bool
-    plan, target_reached = j.plan_from_scene_and_state(group_name='both_arms',
-                                                       tool_names=tool_names,
-                                                       preferred_tool_orientations=preferred_tool_orientations,
-                                                       start_state=robot_state,
-                                                       scene=scene_msg,
-                                                       grippers=grippers,
-                                                       max_velocity_scaling_factor=0.1,
-                                                       max_acceleration_scaling_factor=0.1)
-
-    predicted_joint_positions = get_joint_positions_given_state_and_plan(plan, example)
-    return joint_state, target_reached, predicted_joint_positions
+def to_list_of_strings(x):
+    if isinstance(x[0], bytes):
+        return [n.decode("utf-8") for n in x]
+    elif isinstance(x[0], str):
+        return [str(n) for n in x]
+    elif isinstance(x, tf.Tensor):
+        return [n.decode("utf-8") for n in x.numpy()]
+    else:
+        raise NotImplementedError()
 
 
 class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioMixin):
@@ -317,3 +290,47 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             if not reached:
                 return False
         return True
+
+    def follow_jacobian_from_example(self, example: Dict):
+        j = self.robot.jacobian_follower
+        batch_size = example["batch_size"]
+        tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
+        preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
+        target_reached_batched = []
+        pred_joint_positions_batched = []
+        for b in range(batch_size):
+            input_sequence_length = example['left_gripper_position'].shape[1]
+            target_reached = [True]
+            pred_joint_positions = [example['joint_positions'][b, 0]]
+            pred_joint_positions_t = example['joint_positions'][b, 0]
+            joint_names = example['joint_names'][b, 0]
+            for t in range(input_sequence_length):
+                left_gripper_points = [example['left_gripper_position'][b, t]]
+                right_gripper_points = [example['right_gripper_position'][b, t]]
+                grippers = [left_gripper_points, right_gripper_points]
+
+                robot_state = RobotState()
+                robot_state.joint_state.position = pred_joint_positions_t
+                robot_state.joint_state.name = to_list_of_strings(joint_names)
+                robot_state.joint_state.velocity = [0.0] * len(robot_state.joint_state.name)
+                plan: RobotTrajectory
+                reached_t: bool
+                scene_msg = example['scene_msg']
+                plan, reached_t = j.plan_from_scene_and_state(group_name='both_arms',
+                                                              tool_names=tool_names,
+                                                              preferred_tool_orientations=preferred_tool_orientations,
+                                                              start_state=robot_state,
+                                                              scene=scene_msg,
+                                                              grippers=grippers,
+                                                              max_velocity_scaling_factor=0.1,
+                                                              max_acceleration_scaling_factor=0.1)
+                pred_joint_positions_t = get_joint_positions_given_state_and_plan(plan, robot_state)
+
+                target_reached.append(reached_t)
+                pred_joint_positions.append(pred_joint_positions_t)
+            target_reached_batched.append(target_reached)
+            pred_joint_positions_batched.append(pred_joint_positions)
+
+        pred_joint_positions_batched = np.array(pred_joint_positions_batched)
+        target_reached_batched = np.array(target_reached_batched)
+        return target_reached_batched, pred_joint_positions_batched
