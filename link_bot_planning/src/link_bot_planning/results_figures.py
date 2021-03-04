@@ -1,3 +1,4 @@
+import re
 from typing import Dict, List
 
 import matplotlib.pyplot as plt
@@ -46,10 +47,11 @@ class MyFigure:
             if method_name in colors:
                 color = colors[method_name]
             else:
-                for i in range(10):
-                    numbered_method_name = method_name + f" ({i})"
-                    if numbered_method_name in colors:
-                        color = colors[numbered_method_name]
+                m = re.fullmatch(r"(.*?) \((\d+)\)", method_name)
+                if m:
+                    method_name_without_number = m.group(0)
+                    if method_name_without_number in colors:
+                        color = colors[method_name_without_number]
                         break
                 print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
             self.add_to_figure(method_name=method_name, values=values_for_method, color=color)

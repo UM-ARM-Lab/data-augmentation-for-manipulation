@@ -16,6 +16,7 @@ from visualization_msgs.msg import MarkerArray
 
 class ExperimentScenario:
     def __init__(self):
+        self.tf_features_converters = {}
         self.time_viz_pub = rospy.Publisher("rviz_anim/time", Int64, queue_size=10, latch=True)
         self.traj_idx_viz_pub = rospy.Publisher("traj_idx_viz", Float32, queue_size=10, latch=True)
         self.recovery_prob_viz_pub = rospy.Publisher("recovery_probability_viz", Float32, queue_size=10, latch=True)
@@ -45,6 +46,7 @@ class ExperimentScenario:
                                   action_params=action_params,
                                   validate=True,
                                   stateless=stateless)
+
     @staticmethod
     def add_action_noise(action: Dict, noise_rng: np.random.RandomState):
         return action
@@ -333,3 +335,7 @@ class ExperimentScenario:
 
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
         service_provider.restore_from_bag(bagfile_name)
+
+    def make_tf_features(self, example: Dict):
+        features = {k: self.tf_features_converters[k](v) for k, v in example.items()}
+        return features

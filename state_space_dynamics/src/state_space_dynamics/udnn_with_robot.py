@@ -25,13 +25,11 @@ class UDNNWithRobotKinematics:
         self.action_keys = net.action_keys
         self.scenario = net.scenario
 
-        # TODO: use the new jacobian stuff so avoid having to connect to ROS things in this constructor
         self.jacobian_follower_no_cc = JacobianFollower(robot_namespace=self.scenario.robot_namespace,
                                                         translation_step_size=0.005,
                                                         minimize_rotation=True,
-                                                        collision_check=False,
+                                                        collision_check=True,
                                                         visualize=False)
-        # self.jacobian_follower_no_cc.connect()
 
     def __call__(self, example: Dict, training: bool, **kwargs):
         out = self.net(example, training, **kwargs)

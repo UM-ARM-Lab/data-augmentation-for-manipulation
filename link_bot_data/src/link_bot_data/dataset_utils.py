@@ -2,6 +2,7 @@
 import os
 import pathlib
 import time
+from io import BytesIO
 from typing import Optional, Dict
 
 import git
@@ -15,6 +16,7 @@ from moonshine.moonshine_utils import remove_batch, add_batch
 
 NULL_PAD_VALUE = -10000
 
+# FIXME this is hacky as hell
 STRING_KEYS = [
     'tfrecord_path'
 ]
@@ -94,6 +96,17 @@ def infer_shapes(parsed_dataset: tf.data.Dataset):
 
 def dict_of_float_tensors_to_bytes_feature(d):
     return {k: float_tensor_to_bytes_feature(v) for k, v in d.items()}
+
+
+def ros_msg_to_bytes_feature(msg):
+    buff = BytesIO()
+    msg.serialize(buff)
+    serialized_bytes = buff.getvalue()
+    return bytes_feature(tf.io.serialize_tensor(tf.convert_to_tensor(serialized_bytes)).numpy())
+
+
+def generic_to_bytes_feature(value):
+    return bytes_feature(tf.io.serialize_tensor(tf.convert_to_tensor(value)).numpy())
 
 
 def float_tensor_to_bytes_feature(value):
@@ -198,12 +211,6 @@ def add_next(feature_name):
 
 def add_predicted(feature_name: str):
     return PREDICTED_PREFIX + feature_name
-
-
-def strip_predicted(feature_name: str):
-    if feature_name.startswith(PREDICTED_PREFIX):
-        return feature_name.lstrip(PREDICTED_PREFIX)
-    return feature_name
 
 
 def null_pad(sequence, start=None, end=None):

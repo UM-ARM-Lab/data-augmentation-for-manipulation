@@ -10,7 +10,8 @@ from arc_utilities.listener import Listener
 from arc_utilities.marker_utils import scale_marker_array
 from geometry_msgs.msg import Point
 from jsk_recognition_msgs.msg import BoundingBox
-from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted
+from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted, \
+    float_tensor_to_bytes_feature, ros_msg_to_bytes_feature, generic_to_bytes_feature
 from link_bot_data.visualization import rviz_arrow
 from link_bot_gazebo_python.gazebo_services import gz_scope
 from link_bot_gazebo_python.gazebo_utils import get_gazebo_kinect_pose
@@ -86,6 +87,25 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         self.max_action_attempts = 100
 
         self.robot_reset_rng = np.random.RandomState(0)
+
+        self.tf_features_converters = {
+            'env':                    float_tensor_to_bytes_feature,
+            'res':                    float_tensor_to_bytes_feature,
+            'origin':                 float_tensor_to_bytes_feature,
+            'extent':                 float_tensor_to_bytes_feature,
+            'scene_msg':              ros_msg_to_bytes_feature,
+            'traj_idx':               float_tensor_to_bytes_feature,
+            'time_idx':               float_tensor_to_bytes_feature,
+            'gt_rope':                float_tensor_to_bytes_feature,
+            'left_gripper':           float_tensor_to_bytes_feature,
+            'right_gripper':          float_tensor_to_bytes_feature,
+            'joint_positions':        float_tensor_to_bytes_feature,
+            'joint_names':            generic_to_bytes_feature,
+            'left_gripper_position':  float_tensor_to_bytes_feature,
+            'right_gripper_position': float_tensor_to_bytes_feature,
+            'rgbd':                   float_tensor_to_bytes_feature,
+            'rope':                   float_tensor_to_bytes_feature,
+        }
 
     def needs_reset(self, state: Dict, params: Dict):
         return self.is_rope_overstretched()

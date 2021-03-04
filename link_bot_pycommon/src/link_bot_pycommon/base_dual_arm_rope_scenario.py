@@ -79,19 +79,21 @@ def follow_jacobian_from_example(example: Dict,
     left_gripper_points = [example['left_gripper_position']]
     right_gripper_points = [example['right_gripper_position']]
     grippers = [left_gripper_points, right_gripper_points]
+    scene_msg = example['scene_msg']
 
     # NOTE: we don't use environment here because we assume the planning scenes is static,
     #  so the jacobian follower will already have that information.
     robot_state = robot_state_msg_from_state_dict(example)
     plan: RobotTrajectory
     target_reached: bool
-    plan, target_reached = j.plan_from_start_state(start_state=robot_state,
-                                                   group_name='both_arms',
-                                                   tool_names=tool_names,
-                                                   preferred_tool_orientations=preferred_tool_orientations,
-                                                   grippers=grippers,
-                                                   max_velocity_scaling_factor=0.1,
-                                                   max_acceleration_scaling_factor=0.1)
+    plan, target_reached = j.plan_from_scene_and_state(group_name='both_arms',
+                                                       tool_names=tool_names,
+                                                       preferred_tool_orientations=preferred_tool_orientations,
+                                                       start_state=robot_state,
+                                                       scene=scene_msg,
+                                                       grippers=grippers,
+                                                       max_velocity_scaling_factor=0.1,
+                                                       max_acceleration_scaling_factor=0.1)
 
     predicted_joint_positions = get_joint_positions_given_state_and_plan(plan, example)
     return joint_state, target_reached, predicted_joint_positions
@@ -280,37 +282,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def needs_reset(self, state: Dict, params: Dict):
         grippers_out_of_bounds = self.grippers_out_of_bounds(state['left_gripper'], state['right_gripper'], params)
         return FloatingRopeScenario.needs_reset(self, state, params) or grippers_out_of_bounds
-
-    def is_motion_feasible(self, environment: Dict, state: Dict, action: Dict):
-        rospy.logerr_throttle(10, "Deprecated!")
-        return self.follow_jacobian_from_state_action(environment, state, action)
-
-    def follow_jacobian_from_state_action(self, environment: Dict, state: Dict, action: Dict):
-        """
-        The "environment" is not used here, instead the C++ library inside self.jacobian_follower queries the MoveIt
-        planning scene monitor, and that's what's used. environment here is, for now, only the voxel grid representation
-        Args:
-            environment:
-            state:
-            action:
-
-        Returns:
-
-        """
-        example = {}
-        example.update(environment)
-        example.update(state)
-        example.update(action)
-        return self.follow_jacobian_from_example(example)
-
-    def follow_jacobian_from_example(self, example: Dict):
-        tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
-        preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
-        joint_state, target_reached, pred_joint_positions = follow_jacobian_from_example(example,
-                                                                                         self.robot.jacobian_follower,
-                                                                                         tool_names,
-                                                                                         preferred_tool_orientations)
-        return target_reached, pred_joint_positions
 
     def get_preferred_tool_orientations(self, tool_names: List[str]):
         """

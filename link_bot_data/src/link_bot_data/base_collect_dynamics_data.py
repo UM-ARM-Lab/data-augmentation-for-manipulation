@@ -8,7 +8,7 @@ import numpy as np
 from colorama import Fore
 
 import rospy
-from link_bot_data.dataset_utils import data_directory, tf_write_example
+from link_bot_data.dataset_utils import data_directory, tf_write_features
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.get_scenario import get_scenario
@@ -52,11 +52,11 @@ class BaseDataCollector:
             env = np.zeros([rows, cols, channels], dtype=np.float32)
             environment = {'env': env, 'res': self.params['res'], 'origin': origin, 'extent': self.params['extent']}
         else:
-            # At this point, we hope all of the objects have stopped moving, so we can get the environment and assume it never changes
-            # over the course of this function
+            # we assume environment does not change during an individual trajectory
             environment = self.scenario.get_environment(self.params)
 
-        example = environment
+        example = {}
+        example.update(environment)
         example['traj_idx'] = traj_idx
 
         # Visualization
@@ -165,6 +165,7 @@ class BaseDataCollector:
                 write_process.join()
             write_process = Process(target=_write)
             write_process.start()
+            # _write()
 
         self.scenario.on_after_data_collection(self.params)
 
@@ -216,7 +217,8 @@ class TfDataCollector(BaseDataCollector):
                          verbose=verbose)
 
     def write_example(self, full_output_directory, example, traj_idx):
-        return tf_write_example(full_output_directory, example, traj_idx)
+        tf_features = self.scenario.make_tf_features(example)
+        return tf_write_features(traj_idx, tf_features, full_output_directory)
 
 
 class H5DataCollector(BaseDataCollector):
