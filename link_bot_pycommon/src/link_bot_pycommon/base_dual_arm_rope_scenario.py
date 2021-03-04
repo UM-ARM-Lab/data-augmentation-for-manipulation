@@ -97,7 +97,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         self.robot = get_moveit_robot(self.robot_namespace, raise_on_failure=True)
 
     def add_boxes_around_tools(self):
-        # add spheres to prevent moveit from smooshing the rope and ends of grippers into obstacles
+        # add attached collision object to prevent moveit from smooshing the rope and ends of grippers into obstacles
         self.moveit_scene = moveit_commander.PlanningSceneInterface(ns=self.robot_namespace)
         self.robust_add_to_scene(self.robot.left_tool_name, 'left_tool_box', self.robot.get_left_gripper_links())
         self.robust_add_to_scene(self.robot.right_tool_name, 'right_tool_box', self.robot.get_right_gripper_links())
@@ -199,8 +199,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         FloatingRopeScenario.plot_state_rviz(self, state, **kwargs)
         label = kwargs.pop("label", "")
         if 'joint_positions' in state and 'joint_names' in state:
-            joint_state = joint_state_msg_from_state_dict(state)
-            self.robot.display_robot_state(joint_state, label, kwargs.get("color", None))
+            robot_state = RobotState(joint_state=joint_state_msg_from_state_dict(state))
+            # FIXME: the ACOs are part of the "environment", but they are needed to plot the state. leaky abstraction :(
+            if 'attached_collision_objects' in kwargs:
+                robot_state.attached_collision_objects = kwargs['attached_collision_objects']
+            self.robot.display_robot_state(robot_state, label, kwargs.get("color", None))
         elif 'joint_positions' not in state:
             rospy.logwarn_throttle(10, 'no joint positions in state', logger_name=Path(__file__).stem)
         elif 'joint_names' not in state:
@@ -309,13 +312,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 right_gripper_points = [example['right_gripper_position'][b, t]]
                 grippers = [left_gripper_points, right_gripper_points]
 
+                scene_msg : PlanningScene = example['scene_msg']
                 robot_state = RobotState()
+                robot_state.attached_collision_objects = scene_msg.robot_state.attached_collision_objects
                 robot_state.joint_state.position = pred_joint_positions_t
                 robot_state.joint_state.name = to_list_of_strings(joint_names)
                 robot_state.joint_state.velocity = [0.0] * len(robot_state.joint_state.name)
                 plan: RobotTrajectory
                 reached_t: bool
-                scene_msg = example['scene_msg']
                 plan, reached_t = j.plan_from_scene_and_state(group_name='both_arms',
                                                               tool_names=tool_names,
                                                               preferred_tool_orientations=preferred_tool_orientations,
