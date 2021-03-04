@@ -40,12 +40,12 @@ def create_randomized_start_state(params, scenario, trial_idx):
     scenario.randomize_environment(env_rng, params)
     for i in range(10):
         state = scenario.get_state()
-        action = scenario.sample_action(action_rng=action_rng,
-                                        environment=environment,
-                                        state=state,
-                                        action_params=params,
-                                        validate=True,
-                                        )
+        action, invalid = scenario.sample_action(action_rng=action_rng,
+                                                 environment=environment,
+                                                 state=state,
+                                                 action_params=params,
+                                                 validate=True,
+                                                 )
         scenario.execute_action(action)
 
 

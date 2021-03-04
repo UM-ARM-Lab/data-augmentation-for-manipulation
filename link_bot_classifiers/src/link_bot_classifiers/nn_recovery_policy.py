@@ -295,7 +295,7 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
         # while not anim.done:
         for _ in range(self.n_action_samples):
             self.scenario.last_action = None
-            action = self.scenario.sample_action(action_rng=self.action_rng,
+            action, _ = self.scenario.sample_action(action_rng=self.action_rng,
                                                  environment=environment,
                                                  state=state,
                                                  action_params=self.data_collection_params,

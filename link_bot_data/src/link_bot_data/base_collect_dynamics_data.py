@@ -78,7 +78,7 @@ class BaseDataCollector:
             # # END DEBUG
 
             # TODO: sample the entire action sequence in advance?
-            action = self.scenario.sample_action(action_rng=action_rng,
+            action, invalid = self.scenario.sample_action(action_rng=action_rng,
                                                  environment=environment,
                                                  state=state,
                                                  action_params=self.params,
@@ -176,7 +176,7 @@ class BaseDataCollector:
 
     def save_hparams(self, full_output_directory, n_trajs, nickname, robot_namespace):
         s_for_size = self.scenario.get_state()
-        a_for_size = self.scenario.sample_action(action_rng=np.random.RandomState(0),
+        a_for_size, _ = self.scenario.sample_action(action_rng=np.random.RandomState(0),
                                                  environment={},
                                                  state=s_for_size,
                                                  action_params=self.params,

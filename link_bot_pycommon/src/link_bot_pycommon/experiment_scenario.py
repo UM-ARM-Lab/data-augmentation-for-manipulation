@@ -34,19 +34,6 @@ class ExperimentScenario:
     def execute_action(self, action: Dict) -> bool:
         raise NotImplementedError()
 
-    def sample_action_for_data_collection(self,
-                                          action_rng: np.random.RandomState,
-                                          environment: Dict,
-                                          state: Dict,
-                                          action_params: Dict,
-                                          stateless: Optional[bool] = False):
-        return self.sample_action(action_rng=action_rng,
-                                  environment=environment,
-                                  state=state,
-                                  action_params=action_params,
-                                  validate=True,
-                                  stateless=stateless)
-
     @staticmethod
     def add_action_noise(action: Dict, noise_rng: np.random.RandomState):
         return action
@@ -91,12 +78,12 @@ class ExperimentScenario:
                             action_rng: np.random.RandomState):
         action_sequence = []
         for i in range(batch_size):
-            action = self.sample_action(action_rng=action_rng,
-                                        environment=environment,
-                                        state=index_dict_of_batched_tensors_tf(state, i),
-                                        action_params=action_params,
-                                        validate=validate,
-                                        stateless=True)
+            action, invalid = self.sample_action(action_rng=action_rng,
+                                                 environment=environment,
+                                                 state=index_dict_of_batched_tensors_tf(state, i),
+                                                 action_params=action_params,
+                                                 validate=validate,
+                                                 stateless=True)
             action_sequence.append(action)
         return action_sequence
 
