@@ -9,24 +9,26 @@ import numpy as np
 import tensorflow as tf
 
 import rospy
+from link_bot_data.dataset_utils import deserialize_scene_msg
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_pycommon.args import my_formatter
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.indexing import index_time_np
 from moonshine.moonshine_utils import numpify
-from sensor_msgs.msg import Image
 
 
 def plot_3d(args, dataset: DynamicsDatasetLoader, tf_dataset: tf.data.Dataset):
     scenario = dataset.scenario
-    image_diff_viz_pub = rospy.Publisher("image_diff_viz", Image, queue_size=10, latch=True)
     for i, example in enumerate(tf_dataset):
         if args.start_at is not None and i < args.start_at:
             continue
 
+        deserialize_scene_msg(example)
+
         example = numpify(example)
 
-        print(f"Example {i}, Trajectory #{int(example['traj_idx'])}")
+        traj_idx = int(example['traj_idx'])
+        print(f"Example {i}, Trajectory #{traj_idx}")
 
         time_steps = example['time_idx']
         anim = RvizAnimationController(time_steps)
@@ -37,6 +39,8 @@ def plot_3d(args, dataset: DynamicsDatasetLoader, tf_dataset: tf.data.Dataset):
             example_t = index_time_np(example, dataset.time_indexed_keys, t, inclusive=True)
             scenario.plot_state_rviz(example_t, label='')
             scenario.plot_action_rviz_internal(example_t, label='')
+            scenario.plot_traj_idx_rviz(traj_idx)
+            scenario.plot_time_idx_rviz(t)
 
             # this will return when either the animation is "playing" or because the user stepped forward
             anim.step()

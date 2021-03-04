@@ -1,5 +1,6 @@
 from typing import Dict, Optional
 
+import genpy
 import numpy as np
 import tensorflow as tf
 
@@ -72,6 +73,8 @@ def numpify(x, dtype=np.float32):
         return x
     elif x is None:
         return None
+    elif isinstance(x, genpy.Message):
+        return x
     else:
         raise NotImplementedError(type(x))
 

@@ -26,16 +26,14 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
         self.data_collection_params = self.hparams['data_collection_params']
         self.state_keys = self.data_collection_params['state_keys']
         self.state_keys.append('time_idx')
+        self.env_keys = self.data_collection_params['env_keys']
 
         self.action_keys = self.data_collection_params['action_keys']
 
         self.constant_feature_names = [
-            'env',
-            'extent',
-            'origin',
-            'res',
             'traj_idx',
         ]
+        self.constant_feature_names.extend(self.env_keys)
 
         self.time_indexed_keys = self.state_keys + self.action_keys
 

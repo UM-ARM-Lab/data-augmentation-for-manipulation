@@ -47,8 +47,8 @@
       jitter_extent: [
         -0.1
         0.1
-        -0.1
-        0.1
+        -0.05
+        0.05
         -0.1
         0.1
       ]
@@ -101,7 +101,14 @@
     rope
   ]
   action_keys: [
-      left_gripper_position
-      right_gripper_position
+    left_gripper_position
+    right_gripper_position
+  ]
+  env_keys: [
+    env
+    extent
+    origin
+    res
+    scene_msg
   ]
 }

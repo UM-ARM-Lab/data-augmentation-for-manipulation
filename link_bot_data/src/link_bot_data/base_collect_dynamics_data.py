@@ -59,12 +59,12 @@ class BaseDataCollector:
         example.update(environment)
         example['traj_idx'] = traj_idx
 
-        # Visualization
+        self.scenario.plot_environment_rviz(environment)
+
         actions = {k: [] for k in self.params['action_keys']}
         states = {k: [] for k in self.params['state_keys']}
-
         time_indices = []
-        last_state = self.scenario.get_state()
+        last_state = self.scenario.get_state()  # for debugging
         for time_idx in range(self.params['steps_per_traj']):
             # get current state and sample action
             state = self.scenario.get_state()

@@ -13,12 +13,14 @@ from colorama import Fore
 from arc_utilities.filesystem_utils import mkdir_and_ask
 from link_bot_pycommon import pycommon
 from moonshine.moonshine_utils import remove_batch, add_batch
+from moveit_msgs.msg import PlanningScene
 
 NULL_PAD_VALUE = -10000
 
 # FIXME this is hacky as hell
 STRING_KEYS = [
-    'tfrecord_path'
+    'tfrecord_path',
+    'scene_msg',
 ]
 
 
@@ -65,7 +67,7 @@ def parse_dataset(dataset, feature_description, n_parallel_calls=None):
 
 def deserialize(parsed_dataset: tf.data.Dataset, n_parallel_calls=None):
     # get shapes of everything
-    inferred_shapes = infer_shapes(parsed_dataset)
+    # inferred_shapes = infer_shapes(parsed_dataset)
 
     def _deserialize(serialized_dict):
         deserialized_dict = {}
@@ -74,7 +76,7 @@ def deserialize(parsed_dataset: tf.data.Dataset, n_parallel_calls=None):
                 _deserialized_tensor = tf.io.parse_tensor(_serialized_tensor, tf.string)
             else:
                 _deserialized_tensor = tf.io.parse_tensor(_serialized_tensor, tf.float32)
-                _deserialized_tensor = tf.ensure_shape(_deserialized_tensor, inferred_shapes[_key])
+                # _deserialized_tensor = tf.ensure_shape(_deserialized_tensor, inferred_shapes[_key])
             deserialized_dict[_key] = _deserialized_tensor
         return deserialized_dict
 
@@ -96,6 +98,12 @@ def infer_shapes(parsed_dataset: tf.data.Dataset):
 
 def dict_of_float_tensors_to_bytes_feature(d):
     return {k: float_tensor_to_bytes_feature(v) for k, v in d.items()}
+
+
+def bytes_to_ros_msg(bytes, msg_type: type):
+    msg = msg_type()
+    msg.deserialize(bytes)
+    return msg
 
 
 def ros_msg_to_bytes_feature(msg):
@@ -333,3 +341,9 @@ def count_up_to_next_record_idx(full_output_directory):
             break
         record_idx += 1
     return record_idx
+
+
+def deserialize_scene_msg(example):
+    if 'scene_msg' in example:
+        scene_msg = bytes_to_ros_msg(example["scene_msg"].numpy(), PlanningScene)
+        example['scene_msg'] = scene_msg
