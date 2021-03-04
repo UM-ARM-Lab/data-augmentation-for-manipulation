@@ -24,7 +24,6 @@ from link_bot_pycommon.serialization import dump_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine import filepath_tools
 from moonshine.indexing import index_dict_of_batched_tensors_tf
-from moonshine.moonshine_utils import reduce_mean_dict, sequence_of_dicts_to_dict_of_sequences
 from moonshine.my_keras_model import MyKerasModel
 from std_msgs.msg import Float32
 
@@ -41,6 +40,7 @@ def main():
     parser.add_argument('checkpoint', type=pathlib.Path)
     parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     parser.add_argument('--batch-size', type=int, default=16)
+    parser.add_argument('--take', type=int)
     parser.add_argument('--verbose', '-v', action='count', default=0)
     parser.add_argument('--use-gt-rope', action='store_true')
     parser.add_argument('--only-fp', action='store_true')
@@ -77,6 +77,7 @@ def main():
     # Evaluate
     ###############
     tf_dataset = tf_dataset.batch(args.batch_size, drop_remainder=True)
+    tf_dataset = tf_dataset.take(args.take)
 
     model = classifier_utils.load_generic_model(args.checkpoint)
     assert len(model.nets) == 1
@@ -90,12 +91,15 @@ def main():
     predicted_in_collision = 0
     predicted_not_in_collision = 0
     predicted_in_collision_labeled_0 = 0
+    not_predicted_in_collision_labeled_0 = 0
     predicted_in_collision_labeled_1 = 0
+    not_predicted_in_collision_labeled_1 = 0
     predicted_in_collision_fp = 0
+    not_predicted_in_collision_fp = 0
     predicted_in_collision_fn = 0
     count = 0
     n_correct = 0
-    metrics = []
+    metrics = net.create_metrics()
 
     # for batch_idx, example in enumerate(tf_dataset):
     for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
@@ -106,8 +110,7 @@ def main():
         example.update(dataset.batch_metadata)
 
         # run the standard metrics as well
-        _, batch_metrics = net.val_step(example)
-        metrics.append(batch_metrics)
+        _, batch_losses = net.val_step(example, metrics)
 
         predictions, _ = model.check_constraint_from_example(example, training=False)
 
@@ -156,6 +159,12 @@ def main():
                 labeled_0 += 1
             if rope_points_not_in_collision:
                 predicted_not_in_collision += 1
+                if is_close[b]:
+                    not_predicted_in_collision_labeled_1 += 1
+                else:
+                    not_predicted_in_collision_labeled_0 += 1
+                if is_fp[b]:
+                    not_predicted_in_collision_fp += 1
             if rope_points_in_collision:
                 predicted_in_collision += 1
                 if is_close[b]:
@@ -201,19 +210,25 @@ def main():
 
     print_percentage("% labeled 0", labeled_0, count)
     print_percentage("% correct (accuracy)", n_correct, count)
+    print_percentage('% FP',
+                     fp, count)
+    print_percentage('% FP that are in collision',
+                     predicted_in_collision_fp, fp)
+    print_percentage('% FP that are in not collision',
+                     not_predicted_in_collision_fp, fp)
     print_percentage('% predicted state is in collision',
                      predicted_in_collision, count)
     print_percentage('% predicted state is in collision and the label is 0 ',
                      predicted_in_collision_labeled_0, predicted_in_collision)
-    print_percentage('% false positives and predicted state is in collision and labeled 0',
+    print_percentage('% false positives and predicted state is in collision',
                      predicted_in_collision_fp, predicted_in_collision_labeled_0)
-    print_percentage('% false negatives and predicted state is in collision but labeled 1 ',
+    print_percentage('% false positives and predicted state is not in collision',
+                     not_predicted_in_collision_fp, not_predicted_in_collision_labeled_0)
+    print_percentage('% false negatives and predicted state is in collision',
                      predicted_in_collision_fn, predicted_in_collision_labeled_1)
 
-    metrics = sequence_of_dicts_to_dict_of_sequences(metrics)
-    mean_metrics = reduce_mean_dict(metrics)
-    for metric_name, metric_value in mean_metrics.items():
-        print(f"{metric_name:80s}: {metric_value * 100:.3f}")
+    for metric_name, metric in metrics.items():
+        print(f"{metric_name:80s}: {metric.result().numpy() * 100:.2f}")
 
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ import tensorflow as tf
 from colorama import Fore
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
@@ -16,9 +17,11 @@ from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
     batch_point_to_idx_tf_3d_in_batched_envs
 from link_bot_pycommon.pycommon import make_dict_float32, make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.classifier_losses_and_metrics import binary_classification_sequence_metrics_function, \
-    class_weighted_mean_loss
+from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
 from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
+from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
+    FalsePositiveMistakeRate, \
+    FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
 from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
@@ -202,15 +205,38 @@ class NNClassifier(MyKerasModel):
     def orthogonal_certificates_uncertainty_loss(self, outputs):
         w = self.uncertainty_head.weights[0]
         # loss = tf.reduce_max(tf.abs(outputs['uncertainty']))
-        loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(outputs['uncertainty']), y_pred=outputs['uncertainty'], from_logits=True))
+        loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(outputs['uncertainty']),
+                                                                  y_pred=outputs['uncertainty'], from_logits=True))
         # diversity = tf.reduce_mean(tf.square(tf.matmul(tf.transpose(w), w) - tf.eye(self.certs_k)))
-        return loss #+ diversity
+        return loss  # + diversity
 
-    def compute_metrics(self, dataset_element, outputs):
-        m = binary_classification_sequence_metrics_function(dataset_element, outputs)
-        if self.hparams.get('uncertainty_head', False):
-            m['uncertainty'] = self.orthogonal_certificates_uncertainty_loss(outputs)
-        return m
+    def create_metrics(self):
+        return {
+            'accuracy':              BinaryAccuracy(),
+            'accuracy on negatives': BinaryAccuracyOnNegatives(),
+            'accuracy on positives': BinaryAccuracyOnPositives(),
+            'precision':             Precision(),
+            'recall':                Recall(),
+            'fp/mistakes':           FalsePositiveMistakeRate(),
+            'fn/mistakes':           FalseNegativeMistakeRate(),
+            'fp/total':              FalsePositiveOverallRate(),
+            'fn/total':              FalseNegativeOverallRate(),
+            # don't forget to include metrics for loss
+            'loss':                  LossMetric(),
+        }
+
+    def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
+        labels = tf.expand_dims(dataset_element['is_close'][:, 1:], axis=2)
+        probabilities = outputs['probabilities']
+        metrics['accuracy'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['precision'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['recall'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['fp/mistakes'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['fn/mistakes'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['fp/total'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['fn/total'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
 
     @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
@@ -334,7 +360,6 @@ class NNClassifier(MyKerasModel):
 
 # FIXME: inherit from Ensemble
 class NNClassifierWrapper(BaseConstraintChecker):
-
     def __init__(self, path: pathlib.Path, batch_size: int, scenario: ExperimentScenario):
         """
         Unlike the BaseConstraintChecker, this takes in list of paths, like cl_trials/dir1/dir2/best_checkpoint

@@ -1,6 +1,8 @@
 from copy import deepcopy
+from typing import Dict, Optional
 
 import tensorflow as tf
+from tensorflow.keras.metrics import Metric, MeanTensor
 
 
 class MyKerasModel(tf.keras.Model):
@@ -8,7 +10,7 @@ class MyKerasModel(tf.keras.Model):
     def get_config(self):
         super_config = super(self).get_config()
         super_config.update({
-            'hparams': self.hparams,
+            'hparams':    self.hparams,
             'batch_size': self.batch_size,
         })
         return super_config
@@ -39,13 +41,13 @@ class MyKerasModel(tf.keras.Model):
         """
         raise NotImplementedError()
 
-    def compute_metrics(self, dataset_element, outputs):
+    def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
         return {}
 
     # No tf.function is needed here, since train_step is decorated
     # adding tf.function here kills the gradients for some unknown reason, something to due with "losses" being passed in
     # potentially it gets copied?
-    def apply_gradients(self, tape, train_element, train_outputs, losses):
+    def apply_gradients(self, tape, train_element, train_outputs, losses, metrics: Dict[str, Metric]):
         """
         Applies gradients to the optimizers and returns metrics for losses and gradients
         :param tape: gradient tape
@@ -60,38 +62,41 @@ class MyKerasModel(tf.keras.Model):
         gradients = tape.gradient(train_batch_loss, variables)
         self.optimizer.apply_gradients(zip(gradients, variables))
 
-        # By default, the losses are assumed to be a dictionary, and all losses will be treated as metrics
         return {}
 
     def preprocess_no_gradient(self, element, training: bool):
         return element
 
     @tf.function
-    def train_step(self, train_element):
+    def train_step(self, train_element, metrics: Dict[str, Metric]):
+
         train_element = self.preprocess_no_gradient(train_element, training=True)
         with tf.GradientTape(persistent=True) as tape:
             train_outputs = self.call(train_element, training=True)
             train_losses = self.compute_loss(train_element, train_outputs)
 
-        gradient_metrics = self.apply_gradients(tape, train_element, train_outputs, train_losses)
-        other_metrics = self.compute_metrics(train_element, train_outputs)
+        self.apply_gradients(tape, train_element, train_outputs, train_losses, metrics)
 
-        metrics = {}
-        metrics.update(train_losses)
-        metrics.update(gradient_metrics)
-        metrics.update(other_metrics)
+        self.compute_metrics(metrics, train_losses, train_element, train_outputs)
+        for loss_name_k, batch_loss_k in train_losses.items():
+            metrics[loss_name_k].update_state(batch_loss_k)
 
-        return train_outputs, metrics
+        return train_outputs
 
-    @tf.function
-    def val_step(self, val_element):
+    # @tf.function
+    def val_step(self, val_element, metrics: Dict[str, Metric]):
+        if metrics is None:
+            metrics = self.create_metrics()
+
         val_element = self.preprocess_no_gradient(val_element, training=False)
         val_outputs = self.call(val_element, training=False)
         val_losses = self.compute_loss(val_element, val_outputs)
-        other_metrics = self.compute_metrics(val_element, val_outputs)
 
-        metrics = {}
-        metrics.update(val_losses)
-        metrics.update(other_metrics)
+        self.compute_metrics(metrics, val_losses, val_element, val_outputs)
+        for loss_name_k, batch_loss_k in val_losses.items():
+            metrics[loss_name_k].update_state(batch_loss_k)
 
-        return val_outputs, metrics
+        return val_outputs
+
+    def create_metrics(self):
+        return {}

@@ -7,18 +7,19 @@ import progressbar
 import tensorflow as tf
 from colorama import Fore, Style
 
-from moonshine.metric import LossMetric
+from moonshine.metrics import LossCheckpointMetric
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_sequences, reduce_mean_dict
+from moonshine.my_keras_model import MyKerasModel
 
 
 class ModelRunner:
     def __init__(self,
-                 model,
+                 model: MyKerasModel,
                  training,
                  trial_path,
                  params,
                  checkpoint: Optional[pathlib.Path] = None,
-                 key_metric=LossMetric,
+                 key_metric=LossCheckpointMetric,
                  val_every_n_batches=None,
                  mid_epoch_val_batches=None,
                  save_every_n_minutes: int = 60,
@@ -146,11 +147,12 @@ class ModelRunner:
                 self.num_train_batches += 1
                 self.latest_ckpt.step.assign_add(1)
 
-                _, train_batch_metrics = self.model.train_step(train_batch)
+                train_batch_metrics = self.model.create_metrics()
+                _ = self.model.train_step(train_batch, train_batch_metrics)
                 time_str = str(datetime.timedelta(seconds=int(self.latest_ckpt.train_time.numpy())))
                 bar.update(self.num_train_batches,
-                           Loss=train_batch_metrics['loss'].numpy().squeeze(), TrainTime=time_str)
-                self.write_train_summary(train_batch_metrics)
+                           Loss=train_batch_metrics['loss'].result().numpy().squeeze(), TrainTime=time_str)
+                self.write_train_summary({k: m.result() for k, m in train_batch_metrics.items()})
 
                 # Measure training time
                 now = time.time()
@@ -175,17 +177,14 @@ class ModelRunner:
                     print("Saving " + save_path)
 
     def mid_epoch_validation(self, val_dataset):
-        val_metrics = []
+        val_metrics = self.model.create_metrics()
         for i, val_batch in enumerate(val_dataset.take(self.mid_epoch_val_batches)):
             val_batch.update(self.batch_metadata)
-            _, val_batch_metrics = self.model.val_step(val_batch)
-            val_metrics.append(val_batch_metrics)
+            _ = self.model.val_step(val_batch, val_metrics)
 
-        val_metrics = sequence_of_dicts_to_dict_of_sequences(val_metrics)
-        mean_val_metrics = reduce_mean_dict(val_metrics)
-        self.write_val_summary(mean_val_metrics)
+        self.write_val_summary({k: m.result() for k, m in val_metrics.items()})
         self.latest_checkpoint_manager.save()
-        return mean_val_metrics
+        return val_metrics
 
     def val_epoch(self, val_dataset):
         if self.num_val_batches is not None:
@@ -199,20 +198,16 @@ class ModelRunner:
             ' (', progressbar.ETA(), ') ',
         ]
 
+        val_metrics = self.model.create_metrics()
         with progressbar.ProgressBar(widgets=widgets, max_value=self.num_val_batches) as bar:
             self.num_val_batches = 0
-            val_metrics = []
             for val_batch in val_dataset:
                 val_batch.update(self.batch_metadata)
                 self.num_val_batches += 1
-                _, val_batch_metrics = self.model.val_step(val_batch)
-                val_metrics.append(val_batch_metrics)
+                _ = self.model.val_step(val_batch, val_metrics)
                 bar.update(self.num_val_batches)
 
-        val_metrics = sequence_of_dicts_to_dict_of_sequences(val_metrics)
-        # TODO: we could get rid of this reduce mean if we used keras metrics properly... not all metrics should be averaged.
-        mean_val_metrics = reduce_mean_dict(val_metrics)
-        return mean_val_metrics
+        return {k: m.result() for k, m in val_metrics.items()}
 
     def train(self, train_dataset, val_dataset, num_epochs):
         last_epoch = self.latest_ckpt.epoch + num_epochs

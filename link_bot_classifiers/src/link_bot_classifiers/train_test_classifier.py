@@ -23,7 +23,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine import filepath_tools
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_dict_of_batched_tensors_tf
-from moonshine.metric import AccuracyMetric
+from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import numpify
 from state_space_dynamics import common_train_hparams
@@ -41,8 +41,8 @@ def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
 
 def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: Optional[int] = None):
     # Dataset preprocessing
-    train_tf_dataset = train_dataset.get_datasets(mode='train', shuffle_files=True, take=take)
-    val_tf_dataset = val_dataset.get_datasets(mode='val', shuffle_files=True, take=take)
+    train_tf_dataset = train_dataset.get_datasets(mode='train', shuffle_files=True)
+    val_tf_dataset = val_dataset.get_datasets(mode='val', shuffle_files=True)
 
     train_tf_dataset = train_tf_dataset.shuffle(model_hparams['shuffle_buffer_size'], reshuffle_each_iteration=True)
 
@@ -52,6 +52,9 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: 
 
     train_tf_dataset = batch_tf_dataset(train_tf_dataset, batch_size, drop_remainder=True)
     val_tf_dataset = batch_tf_dataset(val_tf_dataset, batch_size, drop_remainder=True)
+
+    train_tf_dataset = train_tf_dataset.take(take)
+    val_tf_dataset = val_tf_dataset.take(take)
 
     train_tf_dataset = train_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
     val_tf_dataset = val_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
@@ -111,7 +114,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          training=True,
                          params=model_hparams,
                          trial_path=trial_path,
-                         key_metric=AccuracyMetric,
+                         key_metric=AccuracyCheckpointMetric,
                          checkpoint=checkpoint,
                          mid_epoch_val_batches=mid_epoch_val_batches,
                          val_every_n_batches=val_every_n_batches,
@@ -167,7 +170,7 @@ def eval_main(dataset_dirs: List[pathlib.Path],
                          params=params,
                          checkpoint=checkpoint,
                          trial_path=trial_path,
-                         key_metric=AccuracyMetric,
+                         key_metric=AccuracyCheckpointMetric,
                          batch_metadata=dataset.batch_metadata)
 
     metrics = runner.val_epoch(tf_dataset)

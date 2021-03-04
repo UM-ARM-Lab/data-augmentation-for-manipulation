@@ -1,9 +1,8 @@
+from typing import Dict
+
 import tensorflow as tf
 from colorama import Fore
-
-import rospy
-from link_bot_data.dataset_utils import is_reconverging
-from moonshine import metric
+from tensorflow.keras.metrics import *
 
 
 def class_weighted_binary_classification_sequence_loss_function(dataset_element, predictions, key='is_close'):
@@ -37,49 +36,6 @@ def class_weighted_mean_loss(bce, positives):
     # mean over batch & time
     total_bce = tf.reduce_mean(weighted_bce)
     return total_bce
-
-
-def reconverging_weighted_binary_classification_sequence_loss_function(dataset_element, predictions):
-    # skip the first element, the label will always be 1
-    is_close = dataset_element['is_close'][:, 1:]
-    labels = tf.expand_dims(is_close, axis=2)
-    logits = predictions['logits']
-    bce = tf.keras.losses.binary_crossentropy(y_true=labels, y_pred=logits, from_logits=True)
-    reconverging = tf.cast(is_reconverging(dataset_element['is_close']), tf.float32)
-    T = is_close.shape[1]
-    reconverging_per_step = tf.stack([reconverging] * T, axis=1)
-    total_bce = class_weighted_mean_loss(bce, reconverging_per_step, indices)
-    return total_bce
-
-
-def binary_classification_sequence_metrics_function(dataset_element, predictions):
-    labels = tf.expand_dims(dataset_element['is_close'][:, 1:], axis=2)
-    total = tf.cast(tf.size(labels), tf.float32)
-    probabilities = predictions['probabilities']
-    accuracy = tf.keras.metrics.binary_accuracy(y_true=labels, y_pred=probabilities)
-    average_accuracy = tf.reduce_mean(accuracy)
-
-    precision = metric.precision(y_true=labels, y_pred=probabilities)
-    average_precision = tf.reduce_mean(precision)
-
-    recall = metric.recall(y_true=labels, y_pred=probabilities)
-    average_recall = tf.reduce_mean(recall)
-
-    negative_accuracy = metric.accuracy_on_negatives(y_true=labels, y_pred=probabilities)
-    average_negative_accuracy = tf.reduce_mean(negative_accuracy)
-
-    false_positive_rate = metric.fp_rate(y_true=labels, y_pred=probabilities)
-    false_negative_rate = metric.fn_rate(y_true=labels, y_pred=probabilities)
-    print(Fore.YELLOW + "WARNING! these metrics do not accumulate correctly!")
-
-    return {
-        'accuracy': average_accuracy,
-        'negative_accuracy': average_negative_accuracy,
-        'false_positive_rate': false_positive_rate,
-        'false_negative_rate': false_negative_rate,
-        'precision': average_precision,
-        'recall': average_recall,
-    }
 
 
 def binary_classification_loss_function(dataset_element, predictions):

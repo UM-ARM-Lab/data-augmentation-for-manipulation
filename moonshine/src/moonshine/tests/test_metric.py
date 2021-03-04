@@ -3,7 +3,7 @@ import unittest
 
 import tensorflow as tf
 
-from moonshine.metric import fn_rate, fp_rate
+from moonshine.metrics import fn_rate, fp_rate
 
 
 class Test(unittest.TestCase):

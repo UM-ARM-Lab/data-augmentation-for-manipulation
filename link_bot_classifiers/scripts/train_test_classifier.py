@@ -71,7 +71,7 @@ def main():
     eval_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
     eval_parser.add_argument('checkpoint', type=pathlib.Path)
     eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='test')
-    eval_parser.add_argument('--batch-size', type=int, default=8)
+    eval_parser.add_argument('--batch-size', type=int, default=16)
     eval_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_parser.add_argument('--take', type=int)
     eval_parser.add_argument('--use-gt-rope', action='store_true')
