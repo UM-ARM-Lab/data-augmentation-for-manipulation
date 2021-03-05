@@ -100,7 +100,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
     checkpoint_name, trial_path = setup_training_paths(checkpoint, ensemble_idx, log, model_hparams, trials_directory)
 
     if validate:
-        mid_epoch_val_batches = 100
+        mid_epoch_val_batches = 50
         val_every_n_batches = 100
         save_every_n_minutes = 20
         validate_first = True
