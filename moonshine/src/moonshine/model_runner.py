@@ -8,7 +8,6 @@ import tensorflow as tf
 from colorama import Fore, Style
 
 from moonshine.metrics import LossCheckpointMetric
-from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_sequences, reduce_mean_dict
 from moonshine.my_keras_model import MyKerasModel
 
 
@@ -104,6 +103,8 @@ class ModelRunner:
     def write_individual_summary(self, k, v):
         if v.ndim == 0:
             tf.summary.scalar(k, v, step=self.latest_ckpt.step.numpy())
+        elif v.ndim == 1 and tf.size(v).numpy() == 1:
+            tf.summary.scalar(k, v[0], step=self.latest_ckpt.step.numpy())
         elif v.ndim == 4:
             tf.summary.image(k, v, step=self.latest_ckpt.step.numpy())
         else:
@@ -138,6 +139,8 @@ class ModelRunner:
             ' (', progressbar.ETA(), ') ',
         ]
 
+        train_batch_metrics = self.model.create_metrics()
+
         with progressbar.ProgressBar(widgets=widgets, max_value=self.num_train_batches) as bar:
             self.num_train_batches = 0
             t0 = time.time()
@@ -147,11 +150,12 @@ class ModelRunner:
                 self.num_train_batches += 1
                 self.latest_ckpt.step.assign_add(1)
 
-                train_batch_metrics = self.model.create_metrics()
+                for v in train_batch_metrics.values():
+                    v.reset_states()
                 _ = self.model.train_step(train_batch, train_batch_metrics)
                 time_str = str(datetime.timedelta(seconds=int(self.latest_ckpt.train_time.numpy())))
-                bar.update(self.num_train_batches,
-                           Loss=train_batch_metrics['loss'].result().numpy().squeeze(), TrainTime=time_str)
+                train_batch_loss = train_batch_metrics['loss'].result().numpy().squeeze()
+                bar.update(self.num_train_batches, Loss=train_batch_loss, TrainTime=time_str)
                 self.write_train_summary({k: m.result() for k, m in train_batch_metrics.items()})
 
                 # Measure training time

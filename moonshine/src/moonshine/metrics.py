@@ -121,11 +121,6 @@ class BinaryAccuracyOnPositives(Metric):
         positive_count = tf.reduce_sum(tf.cast(true_is_positive, tf.float32))
         self.positive_count.assign_add(positive_count)
 
-    def reset_states(self):
-        super().reset_states()
-        self.positive_count.assign(0)
-        self.true_positives_count.assign(0)
-
 
 class BinaryAccuracyOnNegatives(Metric):
     def __init__(self):
@@ -147,11 +142,6 @@ class BinaryAccuracyOnNegatives(Metric):
         negative_count = tf.reduce_sum(tf.cast(true_is_negative, tf.float32))
         self.negative_count.assign_add(negative_count)
 
-    def reset_states(self):
-        super().reset_states()
-        self.negative_count.assign(0)
-        self.true_negative_count.assign(0)
-
 
 class LossMetric(Metric):
     """ just takes the average assuming it's a scalar """
@@ -168,18 +158,14 @@ class LossMetric(Metric):
         self.sum.assign_add(tf.reduce_sum(loss))
         self.count.assign_add(1)
 
-    def reset_states(self):
-        super().reset_states()
-        self.sum.assign(0)
-        self.count.assign(0)
-
 
 class FalsePositiveMistakeRate(FalsePositives):
     """ Ratio of FP to total Mistakes """
 
     def __init__(self):
         super().__init__()
-        self.mistakes_count = self.add_weight(name='mistakes', initializer='zeros')
+        self.shape = tf.shape(self.thresholds)
+        self.mistakes_count = self.add_weight(name='mistakes', shape=self.shape, initializer='zeros')
 
     def result(self):
         return super().result() / self.mistakes_count
@@ -188,11 +174,7 @@ class FalsePositiveMistakeRate(FalsePositives):
         super().update_state(y_true, y_pred, **kwargs)
         y_pred_binary = tf.cast(y_pred > self.thresholds, tf.float32)
         mistakes = tf.cast(tf.logical_not(tf.equal(y_true, y_pred_binary)), tf.float32)
-        self.mistakes_count.assign_add(tf.reduce_sum(mistakes))
-
-    def reset_states(self):
-        super().reset_states()
-        self.mistakes_count.assign(0)
+        self.mistakes_count.assign_add(tf.reshape(tf.reduce_sum(mistakes, axis=0), self.shape))
 
 
 class FalseNegativeMistakeRate(FalseNegatives):
@@ -200,7 +182,8 @@ class FalseNegativeMistakeRate(FalseNegatives):
 
     def __init__(self):
         super().__init__()
-        self.mistakes_count = self.add_weight(name='mistakes', initializer='zeros')
+        self.shape = tf.shape(self.thresholds)
+        self.mistakes_count = self.add_weight(name='mistakes', shape=self.shape, initializer='zeros')
 
     def result(self):
         return super().result() / self.mistakes_count
@@ -209,29 +192,23 @@ class FalseNegativeMistakeRate(FalseNegatives):
         super().update_state(y_true, y_pred, **kwargs)
         y_pred_binary = tf.cast(y_pred > self.thresholds, tf.float32)
         mistakes = tf.cast(tf.logical_not(tf.equal(y_true, y_pred_binary)), tf.float32)
-        self.mistakes_count.assign_add(tf.reduce_sum(mistakes))
+        self.mistakes_count.assign_add(tf.reshape(tf.reduce_sum(mistakes, axis=0), self.shape))
 
-    def reset_states(self):
-        super().reset_states()
-        self.mistakes_count.assign(0)
 
 class FalsePositiveOverallRate(FalsePositives):
     """ Ratio of FP to total Overalls """
 
     def __init__(self):
         super().__init__()
-        self.count = self.add_weight(name='mistakes', initializer='zeros')
+        self.shape = tf.shape(self.thresholds)
+        self.count = self.add_weight(name='count', shape=self.shape, initializer='zeros')
 
     def result(self):
         return super().result() / self.count
 
     def update_state(self, y_true, y_pred, **kwargs):
         super().update_state(y_true, y_pred, **kwargs)
-        self.count.assign_add(tf.cast(tf.size(y_true), tf.float32))
-
-    def reset_states(self):
-        super().reset_states()
-        self.count.assign(0)
+        self.count.assign_add(tf.reshape(tf.cast(tf.size(y_true), tf.float32), self.shape))
 
 
 class FalseNegativeOverallRate(FalseNegatives):
@@ -239,15 +216,12 @@ class FalseNegativeOverallRate(FalseNegatives):
 
     def __init__(self):
         super().__init__()
-        self.count = self.add_weight(name='mistakes', initializer='zeros')
+        self.shape = tf.shape(self.thresholds)
+        self.count = self.add_weight(name='count', shape=self.shape, initializer='zeros')
 
     def result(self):
         return super().result() / self.count
 
     def update_state(self, y_true, y_pred, **kwargs):
         super().update_state(y_true, y_pred, **kwargs)
-        self.count.assign_add(tf.cast(tf.size(y_true), tf.float32))
-
-    def reset_states(self):
-        super().reset_states()
-        self.count.assign(0)
+        self.count.assign_add(tf.reshape(tf.cast(tf.size(y_true), tf.float32), self.shape))
