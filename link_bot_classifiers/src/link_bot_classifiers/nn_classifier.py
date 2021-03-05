@@ -211,6 +211,7 @@ class NNClassifier(MyKerasModel):
         return loss  # + diversity
 
     def create_metrics(self):
+        super().create_metrics()
         return {
             'accuracy':              BinaryAccuracy(),
             'accuracy on negatives': BinaryAccuracyOnNegatives(),

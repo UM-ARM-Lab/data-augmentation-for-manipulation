@@ -7,7 +7,7 @@ import colorama
 import numpy as np
 import tensorflow as tf
 
-import rospy
+from arc_utilities import ros_init
 from link_bot_classifiers import train_test_classifier
 
 
@@ -35,11 +35,10 @@ def viz_ensemble_main(args):
     train_test_classifier.viz_ensemble_main(**vars(args))
 
 
+@ros_init.with_ros("train_test_classifier")
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
-
-    rospy.init_node("train_test_classifier")
 
     np.set_printoptions(linewidth=250, precision=4, suppress=True)
     parser = argparse.ArgumentParser()
