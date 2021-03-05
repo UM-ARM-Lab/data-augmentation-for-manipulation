@@ -3,7 +3,6 @@ from time import perf_counter
 from typing import Dict, List, Optional
 
 import hjson
-import numpy as np
 import tensorflow as tf
 
 import rospy
@@ -96,6 +95,7 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
     classifier_dataset_hparams['dataset_dir'] = dataset_dir.as_posix()
     classifier_dataset_hparams['fwd_model_hparams'] = fwd_models.hparams
     classifier_dataset_hparams['labeling_params'] = labeling_params
+    classifier_dataset_hparams['env_keys'] = dataset.env_keys
     classifier_dataset_hparams['true_state_keys'] = dataset.state_keys
     classifier_dataset_hparams['predicted_state_keys'] = fwd_models.state_keys
     classifier_dataset_hparams['action_keys'] = dataset.action_keys
@@ -164,8 +164,8 @@ def generate_classifier_examples(fwd_model: BaseDynamicsFunction,
         for start_t in range(0, dataset.steps_per_traj - classifier_horizon + 1, labeling_params['start_step']):
             prediction_end_t = dataset.steps_per_traj
             actual_prediction_horizon = prediction_end_t - start_t
-            dataset.state_metadata_keys = ['joint_names']
-            state_keys = dataset.state_keys # + dataset.state_metadata_keys
+            dataset.state_metadata_keys = ['joint_names']  # NOTE: perhaps ACOs should be state metadata?
+            state_keys = dataset.state_keys  # + dataset.state_metadata_keys
             actual_states_from_start_t = {k: example[k][:, start_t:prediction_end_t] for k in state_keys}
             actions_from_start_t = {k: example[k][:, start_t:prediction_end_t - 1] for k in dataset.action_keys}
 
