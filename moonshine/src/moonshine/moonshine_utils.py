@@ -287,7 +287,13 @@ def gather_dict(d: Dict, indices, axis: int = 0):
     :param axis: the axis to gather along
     :return:
     """
-    return {k: tf.gather(v, indices, axis=axis) for k, v in d.items()}
+    out_d = {}
+    for k, v in d.items():
+        if isinstance(v[0], genpy.Message):
+            out_d[k] = np.take(v, indices, axis=axis)
+        else:
+            out_d[k] = tf.gather(v, indices, axis=axis)
+    return out_d
 
 
 def vector_to_dict(description: Dict, z):

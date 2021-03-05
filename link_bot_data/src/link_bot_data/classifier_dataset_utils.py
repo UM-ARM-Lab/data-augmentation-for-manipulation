@@ -1,4 +1,5 @@
 import pathlib
+from dataclasses import dataclass
 from time import perf_counter
 from typing import Dict, List, Optional
 
@@ -19,24 +20,17 @@ from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 
+@dataclass
 class PredictionActualExample:
-    def __init__(self,
-                 example: Dict,
-                 actual_states: Dict,
-                 actions: Dict,
-                 predictions: Dict,
-                 start_t: int,
-                 labeling_params: Dict,
-                 actual_prediction_horizon: int,
-                 batch_size: int):
-        self.dataset_element = example
-        self.actual_states = actual_states
-        self.actions = actions
-        self.predictions = predictions
-        self.prediction_start_t = start_t
-        self.labeling_params = labeling_params
-        self.actual_prediction_horizon = actual_prediction_horizon
-        self.batch_size = batch_size
+    example: Dict
+    actual_states: Dict
+    actions: Dict
+    predictions: Dict
+    env_keys: List[str]
+    start_t: int
+    labeling_params: Dict
+    actual_prediction_horizon: int
+    batch_size: int
 
 
 def make_classifier_dataset(dataset_dir: pathlib.Path,
@@ -98,6 +92,7 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
     classifier_dataset_hparams['labeling_params'] = labeling_params
     classifier_dataset_hparams['env_keys'] = dataset.env_keys
     classifier_dataset_hparams['true_state_keys'] = dataset.state_keys
+    classifier_dataset_hparams['state_metadata_keys'] = dataset.state_metadata_keys
     classifier_dataset_hparams['predicted_state_keys'] = fwd_models.state_keys
     classifier_dataset_hparams['action_keys'] = dataset.action_keys
     classifier_dataset_hparams['scenario_metadata'] = dataset.hparams['scenario_metadata']
@@ -107,6 +102,7 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
     my_hdump(classifier_dataset_hparams, new_hparams_filename.open("w"), indent=2)
 
     # because we're currently making this dataset, we can't call "get_dataset" but we can still use it to visualize
+    # a bit hacky...
     classifier_dataset_for_viz = ClassifierDatasetLoader([outdir], use_gt_rope=use_gt_rope)
 
     if custom_threshold is not None:
@@ -181,6 +177,7 @@ def generate_classifier_examples(fwd_model: BaseDynamicsFunction,
                                                         actual_states=actual_states_from_start_t,
                                                         predictions=predictions_from_start_t,
                                                         start_t=start_t,
+                                                        env_keys=dataset.env_keys,
                                                         labeling_params=labeling_params,
                                                         actual_prediction_horizon=actual_prediction_horizon,
                                                         batch_size=actual_batch_size)
@@ -200,20 +197,17 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
     for classifier_start_t in range(0, prediction_horizon - classifier_horizon + 1):
         classifier_end_t = classifier_start_t + classifier_horizon
 
-        prediction_start_t = prediction_actual.prediction_start_t
+        prediction_start_t = prediction_actual.start_t
         prediction_start_t_batched = int_scalar_to_batched_float(batch_size, prediction_start_t)
         classifier_start_t_batched = int_scalar_to_batched_float(batch_size, classifier_start_t)
         classifier_end_t_batched = int_scalar_to_batched_float(batch_size, classifier_end_t)
         out_example = {
-            'env':                prediction_actual.dataset_element['env'],
-            'origin':             prediction_actual.dataset_element['origin'],
-            'extent':             prediction_actual.dataset_element['extent'],
-            'res':                prediction_actual.dataset_element['res'],
-            'traj_idx':           prediction_actual.dataset_element['traj_idx'],
+            'traj_idx':           prediction_actual.example['traj_idx'],
             'prediction_start_t': prediction_start_t_batched,
             'classifier_start_t': classifier_start_t_batched,
             'classifier_end_t':   classifier_end_t_batched,
         }
+        out_example.update({k: prediction_actual.example[k] for k in prediction_actual.env_keys})
 
         # this slice gives arrays of fixed length (ex, 5) which must be null padded from out_example_end_idx onwards
         sliced_actual, sliced_predictions = slice_to_fixed_length(classifier_horizon,

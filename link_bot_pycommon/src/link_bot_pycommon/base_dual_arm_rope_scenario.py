@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 import rosnode
+from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
@@ -14,7 +15,6 @@ from trajectory_msgs.msg import JointTrajectoryPoint
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
     import moveit_commander
-import ros_numpy
 import rospy
 from arc_utilities.listener import Listener
 from arm_robots.get_robot import get_moveit_robot
@@ -55,10 +55,15 @@ def robot_state_msg_from_state_dict(state: Dict):
 
 
 def joint_state_msg_from_state_dict(state: Dict):
-    joint_state = JointState()
+    joint_state = JointState(position=state['joint_positions'], name=to_list_of_strings(state['joint_names']))
     joint_state.header.stamp = rospy.Time.now()
-    joint_state.position = state['joint_positions']
-    joint_state.name = to_list_of_strings(state['joint_names'])
+    return joint_state
+
+
+def joint_state_msg_from_state_dict_predicted(state: Dict):
+    joint_state = JointState(position=state[add_predicted('joint_positions')],
+                             name=to_list_of_strings(state['joint_names']))
+    joint_state.header.stamp = rospy.Time.now()
     return joint_state
 
 
@@ -200,11 +205,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def plot_state_rviz(self, state: Dict, **kwargs):
         FloatingRopeScenario.plot_state_rviz(self, state, **kwargs)
         label = kwargs.pop("label", "")
+        # FIXME: the ACOs are part of the "environment", but they are needed to plot the state. leaky abstraction :(
         if 'joint_positions' in state and 'joint_names' in state:
             robot_state = RobotState(joint_state=joint_state_msg_from_state_dict(state))
-            # FIXME: the ACOs are part of the "environment", but they are needed to plot the state. leaky abstraction :(
-            if 'attached_collision_objects' in kwargs:
-                robot_state.attached_collision_objects = kwargs['attached_collision_objects']
+            self.robot.display_robot_state(robot_state, label, kwargs.get("color", None))
+        if add_predicted('joint_positions') in state and 'joint_names' in state:
+            robot_state = RobotState(joint_state=joint_state_msg_from_state_dict_predicted(state))
             self.robot.display_robot_state(robot_state, label, kwargs.get("color", None))
         elif 'joint_positions' not in state:
             rospy.logwarn_throttle(10, 'no joint positions in state', logger_name=Path(__file__).stem)
@@ -213,10 +219,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
     def dynamics_dataset_metadata(self):
         metadata = FloatingRopeScenario.dynamics_dataset_metadata(self)
-        joint_state: JointState = self.robot._joint_state_listener.get()
-        metadata.update({
-            'joint_names': joint_state.name,
-        })
         return metadata
 
     @staticmethod

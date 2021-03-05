@@ -1,4 +1,5 @@
 from typing import Dict, List
+import numpy as np
 
 import tensorflow as tf
 
@@ -147,5 +148,11 @@ def index_dict_of_batched_tensors_tf(in_dict: Dict, index: int, batch_axis: int 
                 v_i = tf.expand_dims(v_i, axis=batch_axis)
             out_dict[k] = v_i
         except ValueError:
-            pass
+            try:
+                v_i = np.take(v, index, axis=batch_axis)
+                if keep_dims:
+                    v_i = np.expand_dims(v_i, axis=batch_axis)
+                out_dict[k] = v_i
+            except ValueError:
+                pass
     return out_dict

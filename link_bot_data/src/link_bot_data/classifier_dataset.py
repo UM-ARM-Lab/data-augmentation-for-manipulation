@@ -7,10 +7,10 @@ from colorama import Fore
 import rospy
 from link_bot_data.base_dataset import BaseDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, use_gt_rope, add_label
-from moonshine.indexing import index_time_with_metadata
 from link_bot_data.visualization import classifier_transition_viz_t, init_viz_action, init_viz_env
 from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
+from moonshine.indexing import index_time_with_metadata
 
 
 class ClassifierDatasetLoader(BaseDatasetLoader):
@@ -42,6 +42,7 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         else:
             self.true_state_keys.append('error')
 
+        self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.predicted_state_keys = [add_predicted(k) for k in self.hparams['predicted_state_keys']]
         self.predicted_state_keys.append(add_predicted('stdev'))
 
@@ -118,6 +119,7 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
 
     def classifier_transition_viz_t(self):
         return classifier_transition_viz_t(metadata=self.scenario_metadata,
+                                           state_metadata_keys=self.state_metadata_keys,
                                            predicted_state_keys=self.predicted_state_keys,
                                            true_state_keys=self.true_state_keys)
 

@@ -8,7 +8,7 @@ from geometry_msgs.msg import Point
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import vector_to_points_2d
-from moonshine.indexing import index_time_with_metadata, index_time
+from moonshine.indexing import index_time_with_metadata
 from std_msgs.msg import Float32, ColorRGBA
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -147,16 +147,16 @@ def recovery_transition_viz_t(metadata: Dict, state_keys: List[str]):
     return _recovery_transition_viz_t
 
 
-def classifier_transition_viz_t(metadata: Dict, predicted_state_keys, true_state_keys: Optional):
+def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_state_keys, true_state_keys: Optional):
     def _classifier_transition_viz_t(scenario: ExperimentScenario, example: Dict, t: int):
-        pred_t = index_time_with_metadata(metadata, example, predicted_state_keys, t=t)
+        pred_t = index_time_with_metadata(metadata, example, state_metadata_keys + predicted_state_keys, t=t)
         scenario.plot_state_rviz(pred_t, label='predicted', color='#0000ffff')
 
         label_t = example['is_close'][t]
         scenario.plot_is_close(label_t)
 
         if true_state_keys is not None:
-            true_t = index_time_with_metadata(metadata, example, true_state_keys, t=t)
+            true_t = index_time_with_metadata(metadata, example, state_metadata_keys + true_state_keys, t=t)
             scenario.plot_state_rviz(true_t, label='actual', color='#ff0000ff', scale=1.1)
 
     return _classifier_transition_viz_t
