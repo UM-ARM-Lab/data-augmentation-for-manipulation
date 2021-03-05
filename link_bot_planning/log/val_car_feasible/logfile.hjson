@@ -18,6 +18,10 @@
       dy_trials/baseline_gt_rope_2
       dy_trials/baseline_gt_rope_3
     ]
-    classifier_threshold: 0.05 # this was set by hand
+    classifier_threshold: 0.05
+  }
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/val_car_feasible_1614919664
   }
 }

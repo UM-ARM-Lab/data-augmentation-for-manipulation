@@ -83,7 +83,7 @@ class MyKerasModel(tf.keras.Model):
 
         return train_outputs
 
-    # @tf.function
+    @tf.function
     def val_step(self, val_element, metrics: Dict[str, Metric]):
         if metrics is None:
             metrics = self.create_metrics()
