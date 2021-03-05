@@ -208,6 +208,8 @@ def main():
                 dump_gzipped_pickle(example_b, pathlib.Path('debugging.pkl.gzip'))
                 anim.play(example_b)
 
+    print(args.dataset_dirs[0].as_posix())
+    print(args.checkpoint.as_posix())
     print_percentage("% labeled 0", labeled_0, count)
     print_percentage("% correct (accuracy)", n_correct, count)
     print_percentage('% FP',
@@ -228,7 +230,7 @@ def main():
                      predicted_in_collision_fn, predicted_in_collision_labeled_1)
 
     for metric_name, metric in metrics.items():
-        print(f"{metric_name:80s}: {metric.result().numpy() * 100:.2f}")
+        print(f"{metric_name:80s} {metric.result().numpy() * 100:.2f}")
 
 
 if __name__ == '__main__':
