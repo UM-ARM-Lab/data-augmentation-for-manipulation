@@ -1,8 +1,9 @@
 from copy import deepcopy
-from typing import Dict, Optional
+from typing import Dict
 
 import tensorflow as tf
-from tensorflow.keras.metrics import Metric, MeanTensor
+from colorama import Fore
+from tensorflow.keras.metrics import Metric
 
 
 class MyKerasModel(tf.keras.Model):
@@ -95,4 +96,5 @@ class MyKerasModel(tf.keras.Model):
         return val_outputs
 
     def create_metrics(self):
+        print(Fore.YELLOW + "Creating Metrics")
         return {}

@@ -125,7 +125,7 @@ class ModelRunner:
     def write_val_summary(self, summary_dict):
         self.write_summary(self.val_summary_writer, summary_dict)
 
-    def train_epoch(self, train_dataset, val_dataset):
+    def train_epoch(self, train_dataset, val_dataset, train_metrics, val_metrics):
         if self.num_train_batches is not None:
             max_size = str(self.num_train_batches)
         else:
@@ -139,8 +139,6 @@ class ModelRunner:
             ' (', progressbar.ETA(), ') ',
         ]
 
-        train_batch_metrics = self.model.create_metrics()
-
         with progressbar.ProgressBar(widgets=widgets, max_value=self.num_train_batches) as bar:
             self.num_train_batches = 0
             t0 = time.time()
@@ -150,13 +148,13 @@ class ModelRunner:
                 self.num_train_batches += 1
                 self.latest_ckpt.step.assign_add(1)
 
-                for v in train_batch_metrics.values():
+                for v in train_metrics.values():
                     v.reset_states()
-                _ = self.model.train_step(train_batch, train_batch_metrics)
+                _ = self.model.train_step(train_batch, train_metrics)
                 time_str = str(datetime.timedelta(seconds=int(self.latest_ckpt.train_time.numpy())))
-                train_batch_loss = train_batch_metrics['loss'].result().numpy().squeeze()
+                train_batch_loss = train_metrics['loss'].result().numpy().squeeze()
                 bar.update(self.num_train_batches, Loss=train_batch_loss, TrainTime=time_str)
-                self.write_train_summary({k: m.result() for k, m in train_batch_metrics.items()})
+                self.write_train_summary({k: m.result() for k, m in train_metrics.items()})
 
                 # Measure training time
                 now = time.time()
@@ -168,7 +166,7 @@ class ModelRunner:
                 if self.val_every_n_batches is not None \
                         and batch_idx % self.val_every_n_batches == 0 \
                         and batch_idx > 0:
-                    self.mid_epoch_validation(val_dataset)
+                    self.mid_epoch_validation(val_dataset, val_metrics)
 
                 # Mid-epoch checkpointing
                 overall_job_dt = now - self.overall_job_start_time
@@ -180,17 +178,18 @@ class ModelRunner:
                     save_path = self.latest_checkpoint_manager.save()
                     print("Saving " + save_path)
 
-    def mid_epoch_validation(self, val_dataset):
-        val_metrics = self.model.create_metrics()
+    def mid_epoch_validation(self, val_dataset, val_metrics):
+        for v in val_metrics.values():
+            v.reset_states()
+
         for i, val_batch in enumerate(val_dataset.take(self.mid_epoch_val_batches)):
             val_batch.update(self.batch_metadata)
             _ = self.model.val_step(val_batch, val_metrics)
 
         self.write_val_summary({k: m.result() for k, m in val_metrics.items()})
         self.latest_checkpoint_manager.save()
-        return val_metrics
 
-    def val_epoch(self, val_dataset):
+    def val_epoch(self, val_dataset, val_metrics):
         if self.num_val_batches is not None:
             max_size = str(self.num_val_batches)
         else:
@@ -202,7 +201,9 @@ class ModelRunner:
             ' (', progressbar.ETA(), ') ',
         ]
 
-        val_metrics = self.model.create_metrics()
+        for v in val_metrics.values():
+            v.reset_states()
+
         with progressbar.ProgressBar(widgets=widgets, max_value=self.num_val_batches) as bar:
             self.num_val_batches = 0
             for val_batch in val_dataset:
@@ -211,16 +212,17 @@ class ModelRunner:
                 _ = self.model.val_step(val_batch, val_metrics)
                 bar.update(self.num_val_batches)
 
-        return {k: m.result() for k, m in val_metrics.items()}
-
     def train(self, train_dataset, val_dataset, num_epochs):
+        val_metrics = self.model.create_metrics()
+        train_metrics = self.model.create_metrics()
+
         last_epoch = self.latest_ckpt.epoch + num_epochs
         try:
             # Validation before anything
             if self.validate_first:
-                validation_metrics = self.val_epoch(val_dataset)
-                self.write_val_summary(validation_metrics)
-                key_metric_value = validation_metrics[self.key_metric.key()]
+                self.val_epoch(val_dataset, val_metrics)
+                self.write_val_summary({k: m.result() for k, m in val_metrics.items()})
+                key_metric_value = val_metrics[self.key_metric.key()].result()
                 print(Style.BRIGHT + "Val: {}={}".format(self.key_metric.key(), key_metric_value) + Style.NORMAL)
 
             while self.latest_ckpt.epoch < last_epoch:
@@ -229,15 +231,15 @@ class ModelRunner:
                 print('')
                 msg_fmt = Fore.GREEN + Style.BRIGHT + 'Epoch {:3d}/{}, Group Name [{}]' + Style.RESET_ALL
                 print(msg_fmt.format(self.latest_ckpt.epoch.numpy(), last_epoch, self.group_name))
-                self.train_epoch(train_dataset, val_dataset)
+                self.train_epoch(train_dataset, val_dataset, train_metrics, val_metrics)
                 self.latest_checkpoint_manager.save()
                 save_path = self.latest_checkpoint_manager.save()
                 print(Fore.CYAN + "Saving " + save_path + Fore.RESET)
 
                 # Validation at end of epoch
-                validation_metrics = self.val_epoch(val_dataset)
-                self.write_val_summary(validation_metrics)
-                key_metric_value = validation_metrics[self.key_metric.key()]
+                self.val_epoch(val_dataset, val_metrics)
+                self.write_val_summary({k: m.result() for k, m in val_metrics.items()})
+                key_metric_value = val_metrics[self.key_metric.key()].result()
                 print(Style.BRIGHT + "Val: {}={}".format(self.key_metric.key(), key_metric_value) + Style.NORMAL)
                 if self.key_metric.is_better_than(key_metric_value, self.best_ckpt.best_key_metric_value):
                     self.best_ckpt.best_key_metric_value.assign(key_metric_value)
@@ -248,4 +250,4 @@ class ModelRunner:
         except KeyboardInterrupt:
             print(Fore.YELLOW + "Interrupted." + Fore.RESET)
 
-        return validation_metrics
+        return val_metrics
