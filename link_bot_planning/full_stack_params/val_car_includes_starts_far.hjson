@@ -36,7 +36,7 @@
     evaluate: false
   }
   make_classifier_dataset: {
-    labeling_params: labeling_params/classifier/val_car_includes_starts_far.hjson
+    labeling_params: labeling_params/classifier/dual_includes_starts_far.hjson
   }
   learn_classifier: {
     epochs: 10
