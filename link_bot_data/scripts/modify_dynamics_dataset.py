@@ -5,12 +5,13 @@ from typing import Dict
 
 import colorama
 
-import rospy
+from arc_utilities import ros_init
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.modify_dataset import modify_dataset
 from link_bot_pycommon.args import my_formatter
 
 
+@ros_init.with_ros("modify_dynamics_dataset")
 def main():
     colorama.init(autoreset=True)
 
@@ -20,13 +21,33 @@ def main():
 
     args = parser.parse_args()
 
-    rospy.init_node("modify_dynamics_dataset")
-
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset: DynamicsDatasetLoader, example: Dict):
-        traj_idx = example['traj_idx']
-        example['traj_idx'] = traj_idx[0]
+        n = [
+            'joint56',
+            'joint57',
+            'joint41',
+            'joint42',
+            'joint43',
+            'joint44',
+            'joint45',
+            'joint46',
+            'joint47',
+            'leftgripper',
+            'leftgripper2',
+            'joint1',
+            'joint2',
+            'joint3',
+            'joint4',
+            'joint5',
+            'joint6',
+            'joint7',
+            'rightgripper',
+            'rightgripper2',
+        ]
+
+        example['joint_names'] = 10 * [n]
         yield example
 
     hparams_update = {}

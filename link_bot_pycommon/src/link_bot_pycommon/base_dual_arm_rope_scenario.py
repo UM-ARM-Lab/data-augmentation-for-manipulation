@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 import rosnode
+from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
 from trajectory_msgs.msg import JointTrajectoryPoint
@@ -96,6 +97,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         # FIXME: this blocks until the robot is available, we need lazy construction
         self.robot = get_moveit_robot(self.robot_namespace, raise_on_failure=True)
 
+        self.get_gripper_positions = DualArmGetGripperPositions(self.robot)
+
     def add_boxes_around_tools(self):
         # add attached collision object to prevent moveit from smooshing the rope and ends of grippers into obstacles
         self.moveit_scene = moveit_commander.PlanningSceneInterface(ns=self.robot_namespace)
@@ -153,7 +156,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         joint_state: JointState = self.robot._joint_state_listener.get()
 
         # FIXME: "Joint values for monitored state are requested but the full state is not known"
-        left_gripper_position, right_gripper_position = self.robot.get_gripper_positions()
         # for _ in range(5):
         #     left_gripper_position, right_gripper_position = self.robot.get_gripper_positions()
         #     rospy.sleep(0.02)
@@ -168,15 +170,15 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         else:
             cdcpd_rope_state_vector = self.get_cdcpd_state()
 
-        return {
-            'joint_positions': np.array(joint_state.position),
+        state = {
+            'joint_positions': np.array(joint_state.position, np.float32),
             'joint_names':     np.array(joint_state.name),
-            'left_gripper':    ros_numpy.numpify(left_gripper_position),
-            'right_gripper':   ros_numpy.numpify(right_gripper_position),
             # 'rgbd':            rgbd,
             'gt_rope':         gt_rope_state_vector,
             'rope':            cdcpd_rope_state_vector,
         }
+        state.update(self.get_gripper_positions.get_state())
+        return state
 
     def states_description(self) -> Dict:
         n_joints = self.robot.get_num_joints()
@@ -242,7 +244,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                                         excluded_models=self.get_excluded_models_for_env())
 
         env = {}
-        env.update(voxel_grid_env)
+        env.update({k: np.array(v).astype(np.float32) for k, v in voxel_grid_env.items()})
         env.update(MoveitPlanningSceneScenarioMixin.get_environment(self))
 
         return env
@@ -297,11 +299,13 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def follow_jacobian_from_example(self, example: Dict):
         j = self.robot.jacobian_follower
         batch_size = example["batch_size"]
+        scene_msg = example['scene_msg']
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
         target_reached_batched = []
         pred_joint_positions_batched = []
         for b in range(batch_size):
+            scene_msg_b: PlanningScene = scene_msg[b]
             input_sequence_length = example['left_gripper_position'].shape[1]
             target_reached = [True]
             pred_joint_positions = [example['joint_positions'][b, 0]]
@@ -312,9 +316,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 right_gripper_points = [example['right_gripper_position'][b, t]]
                 grippers = [left_gripper_points, right_gripper_points]
 
-                scene_msg : PlanningScene = example['scene_msg']
                 robot_state = RobotState()
-                robot_state.attached_collision_objects = scene_msg.robot_state.attached_collision_objects
+                robot_state.attached_collision_objects = scene_msg_b.robot_state.attached_collision_objects
                 robot_state.joint_state.position = pred_joint_positions_t
                 robot_state.joint_state.name = to_list_of_strings(joint_names)
                 robot_state.joint_state.velocity = [0.0] * len(robot_state.joint_state.name)
@@ -324,7 +327,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                                               tool_names=tool_names,
                                                               preferred_tool_orientations=preferred_tool_orientations,
                                                               start_state=robot_state,
-                                                              scene=scene_msg,
+                                                              scene=scene_msg_b,
                                                               grippers=grippers,
                                                               max_velocity_scaling_factor=0.1,
                                                               max_acceleration_scaling_factor=0.1)

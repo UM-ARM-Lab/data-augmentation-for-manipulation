@@ -88,25 +88,6 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         self.robot_reset_rng = np.random.RandomState(0)
 
-        self.tf_features_converters = {
-            'env':                    float_tensor_to_bytes_feature,
-            'res':                    float_tensor_to_bytes_feature,
-            'origin':                 float_tensor_to_bytes_feature,
-            'extent':                 float_tensor_to_bytes_feature,
-            'scene_msg':              ros_msg_to_bytes_feature,
-            'traj_idx':               float_tensor_to_bytes_feature,
-            'time_idx':               float_tensor_to_bytes_feature,
-            'gt_rope':                float_tensor_to_bytes_feature,
-            'left_gripper':           float_tensor_to_bytes_feature,
-            'right_gripper':          float_tensor_to_bytes_feature,
-            'joint_positions':        float_tensor_to_bytes_feature,
-            'joint_names':            generic_to_bytes_feature,
-            'left_gripper_position':  float_tensor_to_bytes_feature,
-            'right_gripper_position': float_tensor_to_bytes_feature,
-            'rgbd':                   float_tensor_to_bytes_feature,
-            'rope':                   float_tensor_to_bytes_feature,
-        }
-
     def needs_reset(self, state: Dict, params: Dict):
         return self.is_rope_overstretched()
 
@@ -278,8 +259,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         pitch = action_rng.uniform(-np.pi, np.pi)
         yaw = action_rng.uniform(-np.pi, np.pi)
         displacement = action_rng.uniform(0, action_params['max_distance_gripper_can_move'])
-        rotation_matrix = transformations.euler_matrix(0, pitch, yaw)
-        gripper_delta_position_homo = rotation_matrix @ np.array([1, 0, 0, 1]) * displacement
+        rotation_matrix = transformations.euler_matrix(0, pitch, yaw).astype(np.float32)
+        gripper_delta_position_homo = rotation_matrix @ np.array([1, 0, 0, 1], np.float32) * displacement
         gripper_delta_position = gripper_delta_position_homo[:3]
         return gripper_delta_position
 
@@ -471,8 +452,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         left_rope_point_position, right_rope_point_position = self.get_rope_point_positions()
 
         return {
-            'left_gripper':     left_rope_point_position,
-            'right_gripper':    right_rope_point_position,
+            'left_gripper':     np.array(left_rope_point_position, np.float32),
+            'right_gripper':    np.array(right_rope_point_position, np.float32),
             'gt_rope':          np.array(gt_rope_vector, np.float32),
             rope_key_name:      np.array(cdcpd_vector, np.float32),
             # 'rgbd':             color_depth_cropped,

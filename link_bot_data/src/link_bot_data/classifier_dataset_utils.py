@@ -7,7 +7,8 @@ import tensorflow as tf
 
 import rospy
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset, add_label, tf_write_example
+from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset, add_label, tf_write_example, \
+    deserialize_scene_msg
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
@@ -156,6 +157,8 @@ def generate_classifier_examples(fwd_model: BaseDynamicsFunction,
 
     t0 = perf_counter()
     for idx, example in enumerate(tf_dataset):
+        deserialize_scene_msg(example)
+
         dt = perf_counter() - t0
         print(f"{idx} / {n_total_batches} batches in {dt:.3f} seconds")
         actual_batch_size = int(example['traj_idx'].shape[0])
@@ -165,11 +168,12 @@ def generate_classifier_examples(fwd_model: BaseDynamicsFunction,
             prediction_end_t = dataset.steps_per_traj
             actual_prediction_horizon = prediction_end_t - start_t
             dataset.state_metadata_keys = ['joint_names']  # NOTE: perhaps ACOs should be state metadata?
-            state_keys = dataset.state_keys  # + dataset.state_metadata_keys
+            state_keys = dataset.state_keys + dataset.state_metadata_keys
             actual_states_from_start_t = {k: example[k][:, start_t:prediction_end_t] for k in state_keys}
             actions_from_start_t = {k: example[k][:, start_t:prediction_end_t - 1] for k in dataset.action_keys}
+            environment = {k: example[k] for k in dataset.env_keys}
 
-            predictions_from_start_t, _ = fwd_model.propagate_tf_batched(environment={},
+            predictions_from_start_t, _ = fwd_model.propagate_tf_batched(environment=environment,
                                                                          state=actual_states_from_start_t,
                                                                          actions=actions_from_start_t)
             prediction_actual = PredictionActualExample(example=example,

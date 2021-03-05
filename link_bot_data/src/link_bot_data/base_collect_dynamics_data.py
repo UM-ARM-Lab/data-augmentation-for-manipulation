@@ -8,7 +8,7 @@ import numpy as np
 from colorama import Fore
 
 import rospy
-from link_bot_data.dataset_utils import data_directory, tf_write_features
+from link_bot_data.dataset_utils import data_directory, tf_write_features, tf_write_example
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.get_scenario import get_scenario
@@ -57,12 +57,14 @@ class BaseDataCollector:
 
         example = {}
         example.update(environment)
-        example['traj_idx'] = traj_idx
+        example['traj_idx'] = np.float32(traj_idx)
 
         self.scenario.plot_environment_rviz(environment)
 
         actions = {k: [] for k in self.params['action_keys']}
-        states = {k: [] for k in self.params['state_keys']}
+        # NOTE: state metadata is information that is constant, possibly non-numeric, and convenient to have with state
+        #  in most cases it could be considered part of the environment, but sometimes having it with state is better
+        states = {k: [] for k in self.params['state_keys'] + self.params['state_metadata_keys']}
         time_indices = []
         last_state = self.scenario.get_state()  # for debugging
         for time_idx in range(self.params['steps_per_traj']):
@@ -101,14 +103,14 @@ class BaseDataCollector:
                 for action_name in self.params['action_keys']:
                     action_component = action[action_name]
                     actions[action_name].append(action_component)
-            for state_component_name in self.params['state_keys']:
+            for state_component_name in self.params['state_keys'] + self.params['state_metadata_keys']:
                 state_component = state[state_component_name]
                 states[state_component_name].append(state_component)
             time_indices.append(time_idx)
 
         example.update(states)
         example.update(actions)
-        example['time_idx'] = time_indices
+        example['time_idx'] = np.array(time_indices).astype(np.float32)
 
         if verbose:
             print(Fore.GREEN + "Trajectory {} Complete".format(traj_idx) + Fore.RESET)
@@ -217,8 +219,7 @@ class TfDataCollector(BaseDataCollector):
                          verbose=verbose)
 
     def write_example(self, full_output_directory, example, traj_idx):
-        tf_features = self.scenario.make_tf_features(example)
-        return tf_write_features(traj_idx, tf_features, full_output_directory)
+        return tf_write_example(example=example, full_output_directory=full_output_directory, example_idx=traj_idx)
 
 
 class H5DataCollector(BaseDataCollector):

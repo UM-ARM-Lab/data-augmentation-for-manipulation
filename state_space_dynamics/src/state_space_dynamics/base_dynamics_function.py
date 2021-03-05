@@ -47,9 +47,6 @@ class BaseDynamicsFunction(Ensemble):
         net_inputs.update(state)
         net_inputs.update(actions)
         net_inputs.update(environment)
-        if 'scene_msg' in environment:
-            net_inputs.pop('scene_msg')
-        net_inputs = make_dict_tf_float32(net_inputs)
         mean_predictions, stdev_predictions = self.from_example(net_inputs, training=False)
         return mean_predictions, stdev_predictions
 

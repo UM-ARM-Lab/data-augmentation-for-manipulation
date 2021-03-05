@@ -53,7 +53,7 @@ def main():
             features = {k: float_tensor_to_bytes_feature(v) for k, v in example.items()}
             features['tfrecord_path'] = bytes_feature(
                 tf.io.serialize_tensor(tf.convert_to_tensor(tfrecord_path, dtype=tf.string)).numpy())
-            tf_write_features(total_count, features, full_output_directory)
+            tf_write_features(full_output_directory, features, total_count)
             total_count += 1
     print(Fore.GREEN + f"Modified {total_count} examples")
 

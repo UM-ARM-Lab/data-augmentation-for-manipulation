@@ -123,8 +123,6 @@ class ResultsToDynamicsDataset:
                     else:
                         self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                         print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}')
-                        example.pop('joint_names')
-                        example = make_dict_tf_float32(example)
                         tf_write_example(outdir, example, self.example_idx)
                         example_idx_for_trial += 1
                 except StopIteration:

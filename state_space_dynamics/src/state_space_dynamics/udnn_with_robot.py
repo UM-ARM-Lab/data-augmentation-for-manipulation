@@ -31,8 +31,10 @@ class UDNNWithRobotKinematics:
                                                         visualize=False)
 
     def __call__(self, example: Dict, training: bool, **kwargs):
+        scene_msg = example.pop("scene_msg")
         out = self.net(example, training, **kwargs)
         example_np = numpify(example)
+        example_np['scene_msg'] = scene_msg
         reached, predicted_joint_positions = self.scenario.follow_jacobian_from_example(example_np)
         out['joint_positions'] = tf.convert_to_tensor(predicted_joint_positions, dtype=tf.float32)
         sequence_length = example[self.action_keys[0]].shape[1] + 1

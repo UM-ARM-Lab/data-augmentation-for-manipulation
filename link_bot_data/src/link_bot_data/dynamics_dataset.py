@@ -6,8 +6,8 @@ from colorama import Fore
 
 from link_bot_data.base_dataset import BaseDatasetLoader
 from link_bot_data.dataset_utils import use_gt_rope
-from moonshine.indexing import index_time_batched
 from link_bot_pycommon.get_scenario import get_scenario
+from moonshine.indexing import index_time_batched
 from moonshine.moonshine_utils import numpify, remove_batch
 
 
@@ -25,6 +25,7 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
 
         self.data_collection_params = self.hparams['data_collection_params']
         self.state_keys = self.data_collection_params['state_keys']
+        self.state_metadata_keys = self.data_collection_params['state_metadata_keys']
         self.state_keys.append('time_idx')
         self.env_keys = self.data_collection_params['env_keys']
 
@@ -35,7 +36,7 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
         ]
         self.constant_feature_names.extend(self.env_keys)
 
-        self.time_indexed_keys = self.state_keys + self.action_keys
+        self.time_indexed_keys = self.state_keys + self.state_metadata_keys + self.action_keys
 
         self.int64_keys = ['time_idx']
 
@@ -53,6 +54,8 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
             features_description[feature_name] = tf.io.FixedLenFeature([], tf.string)
 
         for feature_name in self.state_keys:
+            features_description[feature_name] = tf.io.FixedLenFeature([], tf.string)
+        for feature_name in self.state_metadata_keys:
             features_description[feature_name] = tf.io.FixedLenFeature([], tf.string)
         for feature_name in self.action_keys:
             features_description[feature_name] = tf.io.FixedLenFeature([], tf.string)

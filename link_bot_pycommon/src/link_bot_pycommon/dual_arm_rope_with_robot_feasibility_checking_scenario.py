@@ -16,7 +16,8 @@ class DualArmRopeWithRobotFeasibilityCheckingScenario:
 
         # further checks for if the motion is feasible under the controller
         example = {}
-        example.update(environment)
+        # add batch dimension
+        example.update(add_batch(environment))
         # add batch and time dimensions
         example.update(add_batch(add_batch(state)))
         example.update(add_batch(add_batch(action)))

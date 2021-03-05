@@ -5,6 +5,7 @@ import time
 from io import BytesIO
 from typing import Optional, Dict
 
+import genpy
 import git
 import numpy as np
 import tensorflow as tf
@@ -20,6 +21,7 @@ NULL_PAD_VALUE = -10000
 # FIXME this is hacky as hell
 STRING_KEYS = [
     'tfrecord_path',
+    'joint_names',
     'scene_msg',
 ]
 
@@ -66,9 +68,6 @@ def parse_dataset(dataset, feature_description, n_parallel_calls=None):
 
 
 def deserialize(parsed_dataset: tf.data.Dataset, n_parallel_calls=None):
-    # get shapes of everything
-    # inferred_shapes = infer_shapes(parsed_dataset)
-
     def _deserialize(serialized_dict):
         deserialized_dict = {}
         for _key, _serialized_tensor in serialized_dict.items():
@@ -76,7 +75,6 @@ def deserialize(parsed_dataset: tf.data.Dataset, n_parallel_calls=None):
                 _deserialized_tensor = tf.io.parse_tensor(_serialized_tensor, tf.string)
             else:
                 _deserialized_tensor = tf.io.parse_tensor(_serialized_tensor, tf.float32)
-                # _deserialized_tensor = tf.ensure_shape(_deserialized_tensor, inferred_shapes[_key])
             deserialized_dict[_key] = _deserialized_tensor
         return deserialized_dict
 
@@ -114,7 +112,8 @@ def ros_msg_to_bytes_feature(msg):
 
 
 def generic_to_bytes_feature(value):
-    return bytes_feature(tf.io.serialize_tensor(tf.convert_to_tensor(value)).numpy())
+    v = tf.convert_to_tensor(value)
+    return bytes_feature(tf.io.serialize_tensor(v).numpy())
 
 
 def float_tensor_to_bytes_feature(value):
@@ -314,13 +313,13 @@ def add_label(example: Dict, threshold: float):
 
 
 def tf_write_example(full_output_directory: pathlib.Path,
-                     out_example: Dict,
+                     example: Dict,
                      example_idx: int):
-    features = {k: float_tensor_to_bytes_feature(v) for k, v in out_example.items()}
-    return tf_write_features(example_idx, features, full_output_directory)
+    features = convert_to_tf_features(example)
+    return tf_write_features(full_output_directory, features, example_idx)
 
 
-def tf_write_features(example_idx, features, full_output_directory):
+def tf_write_features(full_output_directory: pathlib.Path, features: Dict, example_idx: int):
     record_filename = "example_{:09d}.tfrecords".format(example_idx)
     full_filename = full_output_directory / record_filename
     features['tfrecord_path'] = bytes_feature(full_filename.as_posix().encode("utf-8"))
@@ -345,5 +344,21 @@ def count_up_to_next_record_idx(full_output_directory):
 
 def deserialize_scene_msg(example):
     if 'scene_msg' in example:
-        scene_msg = bytes_to_ros_msg(example["scene_msg"].numpy(), PlanningScene)
+        msg_bytes = example['scene_msg'].numpy()
+        if isinstance(msg_bytes, np.ndarray):
+            assert msg_bytes.ndim == 1
+            scene_msg = [bytes_to_ros_msg(m, PlanningScene) for m in msg_bytes]
+        elif isinstance(msg_bytes, bytes):
+            scene_msg = bytes_to_ros_msg(msg_bytes, PlanningScene)
         example['scene_msg'] = scene_msg
+
+
+def convert_to_tf_features(example: Dict):
+    features = {}
+    for k, v in example.items():
+        if isinstance(v, genpy.Message):
+            f = ros_msg_to_bytes_feature(v)
+        else:
+            f = generic_to_bytes_feature(v)
+        features[k] = f
+    return features

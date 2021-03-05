@@ -100,6 +100,9 @@
     joint_positions
     rope
   ]
+  state_metadata_keys: [
+    joint_names
+  ]
   action_keys: [
     left_gripper_position
     right_gripper_position

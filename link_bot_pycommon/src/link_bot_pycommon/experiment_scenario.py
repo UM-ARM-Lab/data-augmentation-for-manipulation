@@ -322,7 +322,3 @@ class ExperimentScenario:
 
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
         service_provider.restore_from_bag(bagfile_name)
-
-    def make_tf_features(self, example: Dict):
-        features = {k: self.tf_features_converters[k](v) for k, v in example.items()}
-        return features
