@@ -1,6 +1,6 @@
 {
   seed: 1
-  nickname: val_car
+  nickname: val_car_including_starts_far
   service_provider: gazebo
   use_gt_rope: true
   collect_dynamics_1: {
