@@ -296,12 +296,12 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
         for _ in range(self.n_action_samples):
             self.scenario.last_action = None
             action, _ = self.scenario.sample_action(action_rng=self.action_rng,
-                                                 environment=environment,
-                                                 state=state,
-                                                 action_params=self.data_collection_params,
-                                                 validate=False)  # not checking here since we check after adding noise
+                                                    environment=environment,
+                                                    state=state,
+                                                    action_params=self.data_collection_params,
+                                                    validate=False)  # not checking here since we check after adding noise
             action = self.scenario.add_action_noise(action, self.noise_rng)
-            valid = self.scenario.is_action_valid(action, self.data_collection_params)
+            valid = self.scenario.is_action_valid(environment, state, action, self.data_collection_params)
             if not valid:
                 continue
 

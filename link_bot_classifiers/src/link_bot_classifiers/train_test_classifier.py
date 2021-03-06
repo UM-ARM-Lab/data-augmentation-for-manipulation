@@ -173,11 +173,12 @@ def eval_main(dataset_dirs: List[pathlib.Path],
                          key_metric=AccuracyCheckpointMetric,
                          batch_metadata=dataset.batch_metadata)
 
-    metrics = runner.val_epoch(tf_dataset)
-    for metric_name, metric_value in metrics.items():
-        print(f"{metric_name:30s}: {metric_value:.4f}")
+    val_metrics = model.create_metrics()
+    runner.val_epoch(tf_dataset, val_metrics)
+    for metric_name, metric_value in val_metrics.items():
+        print(f"{metric_name:30s}: {metric_value.result().numpy().squeeze():.4f}")
 
-    return metrics
+    return val_metrics
 
 
 def viz_main(dataset_dirs: List[pathlib.Path],
