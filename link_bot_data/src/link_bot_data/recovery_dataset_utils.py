@@ -71,8 +71,6 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
     recovery_dataset_hparams = dynamics_hparams
 
     scenario = fwd_model.scenario
-    if not isinstance(classifier_model_dir, List):
-        classifier_model_dir = [classifier_model_dir]
     classifier_model = classifier_utils.load_generic_model(classifier_model_dir, scenario)
 
     recovery_dataset_hparams['dataset_dir'] = dataset_dir
