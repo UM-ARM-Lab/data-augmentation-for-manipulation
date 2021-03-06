@@ -9,7 +9,7 @@ from colorama import Fore
 
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.nn_classifier import NNClassifierWrapper
-from link_bot_data.dataset_utils import tf_write_example, count_up_to_next_record_idx
+from link_bot_data.dataset_utils import tf_write_example, count_up_to_next_record_idx, deserialize_scene_msg
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32
@@ -176,6 +176,8 @@ def generate_recovery_examples(tf_dataset: tf.data.Dataset,
 
     t0 = perf_counter()
     for in_batch_idx, example in enumerate(tf_dataset):
+        deserialize_scene_msg(example)
+
         if start_at is not None and (modes.index(mode) == modes.index(start_at[0]) and in_batch_idx < start_at[1]):
             continue
         if stop_at is not None and (modes.index(mode) == modes.index(stop_at[0]) and in_batch_idx >= stop_at[1]):
