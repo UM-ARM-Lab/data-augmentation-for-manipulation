@@ -94,7 +94,7 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
             joint_positions.append(ompl_state[state_component_idx][i])
         joint_positions = np.array(joint_positions, np.float32)
 
-        joint_names = [joint_positions_subspace.getDimensionName(i) for i in range(n_joints)]
+        joint_names = np.array([joint_positions_subspace.getDimensionName(i) for i in range(n_joints)])
 
         return {
             'left_gripper':    left_gripper,

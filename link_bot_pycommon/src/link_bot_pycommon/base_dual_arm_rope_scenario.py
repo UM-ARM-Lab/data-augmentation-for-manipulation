@@ -308,13 +308,15 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
         target_reached_batched = []
         pred_joint_positions_batched = []
+        joint_names_batched = []
         for b in range(batch_size):
             scene_msg_b: PlanningScene = scene_msg[b]
             input_sequence_length = example['left_gripper_position'].shape[1]
             target_reached = [True]
             pred_joint_positions = [example['joint_positions'][b, 0]]
             pred_joint_positions_t = example['joint_positions'][b, 0]
-            joint_names = example['joint_names'][b, 0]
+            joint_names_t = example['joint_names'][b, 0]
+            joint_names = [joint_names_t]
             for t in range(input_sequence_length):
                 left_gripper_points = [example['left_gripper_position'][b, t]]
                 right_gripper_points = [example['right_gripper_position'][b, t]]
@@ -323,7 +325,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 robot_state = RobotState()
                 robot_state.attached_collision_objects = scene_msg_b.robot_state.attached_collision_objects
                 robot_state.joint_state.position = pred_joint_positions_t
-                robot_state.joint_state.name = to_list_of_strings(joint_names)
+                robot_state.joint_state.name = to_list_of_strings(joint_names_t)
                 robot_state.joint_state.velocity = [0.0] * len(robot_state.joint_state.name)
                 plan: RobotTrajectory
                 reached_t: bool
@@ -339,9 +341,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
                 target_reached.append(reached_t)
                 pred_joint_positions.append(pred_joint_positions_t)
+                joint_names.append(joint_names_t)
             target_reached_batched.append(target_reached)
             pred_joint_positions_batched.append(pred_joint_positions)
+            joint_names_batched.append(joint_names)
 
         pred_joint_positions_batched = np.array(pred_joint_positions_batched)
         target_reached_batched = np.array(target_reached_batched)
-        return target_reached_batched, pred_joint_positions_batched
+        joint_names_batched = np.array(joint_names_batched)
+        return target_reached_batched, pred_joint_positions_batched, joint_names_batched

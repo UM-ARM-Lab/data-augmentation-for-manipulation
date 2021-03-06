@@ -37,11 +37,9 @@ class UDNNWithRobotKinematics:
         out = self.net(net_example, training, **kwargs)
         example_np = numpify(net_example)
         example_np['scene_msg'] = scene_msg
-        reached, predicted_joint_positions = self.scenario.follow_jacobian_from_example(example_np)
+        reached, predicted_joint_positions, joint_names = self.scenario.follow_jacobian_from_example(example_np)
         out['joint_positions'] = tf.convert_to_tensor(predicted_joint_positions, dtype=tf.float32)
-        out['joint_names'] = example['joint_names']
-        # TODO: return reached somehow
-        # out['reached'] = tf.convert_to_tensor(reached)
+        out['joint_names'] = joint_names
         return out
 
 

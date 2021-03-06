@@ -22,7 +22,7 @@ class DualArmRopeWithRobotFeasibilityCheckingScenario:
         example.update(add_batch(add_batch(state)))
         example.update(add_batch(add_batch(action)))
         example['batch_size'] = 1
-        target_reached, pred_joint_positions = self.base_dual_arm_rope_scenario.follow_jacobian_from_example(example)
+        target_reached, _, __ = self.base_dual_arm_rope_scenario.follow_jacobian_from_example(example)
         target_reached = remove_batch(target_reached)[1]  # t=1, target reached for t=0 is always true
 
         return target_reached

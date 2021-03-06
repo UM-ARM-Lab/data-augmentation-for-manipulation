@@ -466,7 +466,6 @@ class NNClassifierWrapper(BaseConstraintChecker):
                          environment: Dict,
                          states_sequence: List[Dict],
                          actions: List[Dict]):
-        states_sequence = [make_dict_float32(s) for s in states_sequence]
         mean_probabilities, stdev_probabilities = self.check_constraint_tf(environment=environment,
                                                                            states_sequence=states_sequence,
                                                                            actions=actions)

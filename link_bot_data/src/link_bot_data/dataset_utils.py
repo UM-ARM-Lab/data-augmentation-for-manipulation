@@ -344,14 +344,19 @@ def count_up_to_next_record_idx(full_output_directory):
 
 def deserialize_scene_msg(example: Dict):
     if 'scene_msg' in example:
-        msg_bytes = example['scene_msg'].numpy()
-        if isinstance(msg_bytes, np.ndarray):
-            assert msg_bytes.ndim == 1
-            scene_msg = np.array([bytes_to_ros_msg(m, PlanningScene) for m in msg_bytes])
-        elif isinstance(msg_bytes, bytes):
-            scene_msg = bytes_to_ros_msg(msg_bytes, PlanningScene)
+        scene_msg = example['scene_msg']
+        if isinstance(scene_msg, tf.Tensor):
+            scene_msg = scene_msg.numpy()
+
+        if isinstance(scene_msg, np.ndarray):
+            if scene_msg.dtype != np.object_:
+                assert scene_msg.ndim == 1
+                scene_msg = np.array([bytes_to_ros_msg(m_i, PlanningScene) for m_i in scene_msg])
+        elif isinstance(scene_msg, bytes):
+            scene_msg = bytes_to_ros_msg(scene_msg, PlanningScene)
         else:
             raise ValueError()
+
         example['scene_msg'] = scene_msg
 
 

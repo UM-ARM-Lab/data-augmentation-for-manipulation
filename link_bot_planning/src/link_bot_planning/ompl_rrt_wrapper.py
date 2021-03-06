@@ -237,13 +237,6 @@ class OmplRRTWrapper(MyPlanner):
             if not accept:
                 break
 
-        cmp = self.params.get('classifier_mistake_probability', None)
-        if cmp is not None:
-            if self.misc_rng.uniform() > cmp:
-                accept = bool(self.misc_rng.uniform() > 0.5)
-                if self.verbose >= 2:
-                    print("artifical classifier mistake!")
-
         return accept, accept_probabilities
 
     def propagate(self, motions, control, duration, state_out):
