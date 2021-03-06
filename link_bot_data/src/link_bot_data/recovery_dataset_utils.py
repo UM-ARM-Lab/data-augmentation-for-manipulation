@@ -1,4 +1,5 @@
 import pathlib
+from copy import deepcopy
 from time import perf_counter
 from typing import Optional, List, Dict
 
@@ -11,13 +12,19 @@ from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.nn_classifier import NNClassifierWrapper
 from link_bot_data.dataset_utils import tf_write_example, count_up_to_next_record_idx, deserialize_scene_msg
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
+from link_bot_data.recovery_dataset import compute_recovery_probabilities
+from link_bot_data.visualization import init_viz_env, recovery_transition_viz_t, init_viz_action
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.serialization import my_hdump
-from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors
+from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_dict_of_batched_tensors_tf
+from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, repeat
 from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
+
+DEBUG = False
 
 
 def make_recovery_dataset(dataset_dir: pathlib.Path,
@@ -60,8 +67,11 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
     np.random.seed(0)
     tf.random.set_seed(0)
 
+    scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
+    classifier_model = classifier_utils.load_generic_model(classifier_model_dir, scenario)
+
     dynamics_hparams = hjson.load((dataset_dir / 'hparams.hjson').open('r'))
-    fwd_model, _ = dynamics_utils.load_generic_model(fwd_model_dir)
+    fwd_model, _ = dynamics_utils.load_generic_model(fwd_model_dir, scenario)
 
     dataset = DynamicsDatasetLoader([dataset_dir], use_gt_rope=use_gt_rope)
 
@@ -70,9 +80,6 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
     new_hparams_filename = outdir / 'hparams.hjson'
     recovery_dataset_hparams = dynamics_hparams
 
-    scenario = fwd_model.scenario
-    classifier_model = classifier_utils.load_generic_model(classifier_model_dir, scenario)
-
     recovery_dataset_hparams['dataset_dir'] = dataset_dir
     recovery_dataset_hparams['fwd_model_dir'] = fwd_model_dir
     recovery_dataset_hparams['classifier_model'] = classifier_model_dir
@@ -80,6 +87,8 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
     recovery_dataset_hparams['labeling_params'] = labeling_params
     recovery_dataset_hparams['state_keys'] = fwd_model.state_keys
     recovery_dataset_hparams['action_keys'] = fwd_model.action_keys
+    recovery_dataset_hparams['state_metadata_keys'] = dataset.state_metadata_keys
+    recovery_dataset_hparams['env_keys'] = dataset.env_keys
     recovery_dataset_hparams['start-at'] = start_at
     recovery_dataset_hparams['stop-at'] = stop_at
     my_hdump(recovery_dataset_hparams, new_hparams_filename.open("w"), indent=2)
@@ -120,34 +129,34 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
             for batch_idx in range(out_example['traj_idx'].shape[0]):
                 out_example_b = index_dict_of_batched_tensors_tf(out_example, batch_idx)
 
-                # # BEGIN DEBUG
-                # from link_bot_data.visualization import init_viz_env, recovery_transition_viz_t, init_viz_action
-                # from link_bot_data.recovery_dataset import compute_recovery_probabilities
-                # from merrrt_visualization.rviz_animation_controller import RvizAnimation
-                # from copy import deepcopy
-                #
-                # viz_out_example_b = deepcopy(out_example_b)
-                # recovery_probability = compute_recovery_probabilities(viz_out_example_b['accept_probabilities'],
-                #                                                       labeling_params['n_action_samples'])
-                # viz_out_example_b['recovery_probability'] = recovery_probability
-                # anim = RvizAnimation(scenario=scenario,
-                #                      n_time_steps=labeling_params['action_sequence_horizon'],
-                #                      init_funcs=[init_viz_env,
-                #                                  init_viz_action(dataset.scenario_metadata, fwd_model.action_keys,
-                #                                                  fwd_model.state_keys),
-                #                                  ],
-                #                      t_funcs=[init_viz_env,
-                #                               recovery_transition_viz_t(dataset.scenario_metadata,
-                #                                                         fwd_model.state_keys),
-                #                               lambda s, e, t: scenario.plot_recovery_probability_t(e, t),
-                #                               ])
-                # anim.play(viz_out_example_b)
-                # # END DEBUG
+                if DEBUG:
+                    visualize_recovery_generation(scenario, dataset, fwd_model, out_example_b, labeling_params)
+                    # END DEBUG
 
                 tf_write_example(full_output_directory, out_example_b, record_idx)
                 record_idx += 1
 
     return outdir
+
+
+def visualize_recovery_generation(scenario, dataset, fwd_model, out_example_b, labeling_params):
+    viz_out_example_b = deepcopy(out_example_b)
+    recovery_probability = compute_recovery_probabilities(viz_out_example_b['accept_probabilities'],
+                                                          labeling_params['n_action_samples'])
+    viz_out_example_b['recovery_probability'] = recovery_probability
+    anim = RvizAnimation(scenario=scenario,
+                         n_time_steps=labeling_params['action_sequence_horizon'],
+                         init_funcs=[init_viz_env,
+                                     init_viz_action(dataset.scenario_metadata, fwd_model.action_keys,
+                                                     fwd_model.state_keys),
+                                     ],
+                         t_funcs=[init_viz_env,
+                                  recovery_transition_viz_t(dataset.scenario_metadata,
+                                                            fwd_model.state_keys + dataset.state_metadata_keys),
+                                  lambda s, e, t: scenario.plot_recovery_probability_t(e, t),
+                                  ])
+    deserialize_scene_msg(viz_out_example_b)
+    anim.play(viz_out_example_b)
 
 
 def progress_point(start_at):
@@ -176,8 +185,6 @@ def generate_recovery_examples(tf_dataset: tf.data.Dataset,
 
     t0 = perf_counter()
     for in_batch_idx, example in enumerate(tf_dataset):
-        deserialize_scene_msg(example)
-
         if start_at is not None and (modes.index(mode) == modes.index(start_at[0]) and in_batch_idx < start_at[1]):
             continue
         if stop_at is not None and (modes.index(mode) == modes.index(stop_at[0]) and in_batch_idx >= stop_at[1]):
@@ -192,7 +199,9 @@ def generate_recovery_examples(tf_dataset: tf.data.Dataset,
         for start_t in range(0, dataset.steps_per_traj - action_sequence_horizon + 1, labeling_params['start_step']):
             end_t = start_t + action_sequence_horizon
 
-            actual_states_from_start_t = {k: example[k][:, start_t:end_t] for k in fwd_model.state_keys}
+            dataset.state_metadata_keys = ['joint_names']  # NOTE: perhaps ACOs should be state metadata?
+            state_keys = fwd_model.state_keys + dataset.state_metadata_keys
+            actual_states_from_start_t = {k: example[k][:, start_t:end_t] for k in state_keys}
             actions_from_start_t = {k: example[k][:, start_t:end_t - 1] for k in fwd_model.action_keys}
 
             data = (example,
@@ -206,57 +215,27 @@ def generate_recovery_examples(tf_dataset: tf.data.Dataset,
                          classifier_model.horizon,
                          actual_batch_size,
                          start_t,
-                         end_t)
+                         end_t,
+                         dataset.env_keys,
+                         )
             out_examples = generate_recovery_actions_examples(fwd_model=fwd_model,
                                                               classifier_model=classifier_model,
-                                                              scenario_metadata=dataset.scenario_metadata,
                                                               data=data,
                                                               constants=constants,
                                                               action_rng=action_rng)
             yield out_examples
 
 
-def batch_stateless_sample_action(scenario: ExperimentScenario,
-                                  environment: Dict,
-                                  state: Dict,
-                                  batch_size: int,
-                                  n_action_samples: int,
-                                  n_actions: int,
-                                  action_params: Dict,
-                                  action_rng: np.random.RandomState):
-    # TODO: make the lowest level sample_action operate on batched state dictionaries
-    action_sequences = scenario.sample_action_sequences(environment=environment,
-                                                        state=state,
-                                                        action_params=action_params,
-                                                        n_action_sequences=n_action_samples,
-                                                        action_sequence_length=n_actions,
-                                                        validate=False,
-                                                        action_rng=action_rng)
-    action_sequences = [sequence_of_dicts_to_dict_of_tensors(a) for a in action_sequences]
-    action_sequences = sequence_of_dicts_to_dict_of_tensors(action_sequences)
-    return {k: tf.tile(v[tf.newaxis], [batch_size, 1, 1, 1]) for k, v in action_sequences.items()}
-
-
 def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
                                        classifier_model: NNClassifierWrapper,
-                                       scenario_metadata: Dict,
                                        data,
                                        constants,
                                        action_rng: np.random.RandomState):
     example, actual_actions, actual_states, labeling_params, data_collection_params = data
-    actual_batch_size, action_sequence_horizon, classifier_horizon, batch_size, start_t, end_t = constants
+    actual_batch_size, action_sequence_horizon, classifier_horizon, batch_size, start_t, end_t, env_keys = constants
     scenario = fwd_model.scenario
 
-    full_env = example['env']
-    full_env_origin = example['origin']
-    full_env_extent = example['extent']
-    full_env_res = example['res']
-    environment = {
-        'env': full_env,
-        'origin': full_env_origin,
-        'extent': full_env_extent,
-        'res': full_env_res,
-    }
+    environment = {k: example[k] for k in env_keys}
 
     all_accept_probabilities = []
     for ast in range(action_sequence_horizon):  # ast = action sequence time. Just using "t" was confusing
@@ -264,13 +243,10 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
         n_action_samples = labeling_params['n_action_samples']
         n_actions = classifier_horizon - 1
         actual_state_t = index_dict_of_batched_tensors_tf(actual_states, ast, batch_axis=1)
-        actual_states_tiled = {k: tf.tile(v[:, tf.newaxis], [1, n_action_samples, 1, 1]) for k, v in
-                               actual_states.items()}
+        state_tiled_reps = [1, n_action_samples, 1, 1]
+        actual_states_tiled = {k: tf.tile(v[:, tf.newaxis], state_tiled_reps) for k, v in actual_states.items()}
         # [t:t+1] to keep dim, as opposed to just [t]
         start_states_tiled_t = index_dict_of_batched_tensors_tf(actual_states_tiled, ast, batch_axis=2, keep_dims=True)
-        bs = actual_batch_size * n_action_samples
-        # TODO: write generic "collapse" functions to merging dimensions
-        start_states_tiled_t_batched = {k: tf.reshape(v, [bs, 1, -1]) for k, v in start_states_tiled_t.items()}
 
         # TODO: check we're sampling action sequences correctly here
         #  I think it should be that for we sample a number of action sequences independently, but
@@ -283,17 +259,21 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
                                                             n_actions=n_actions,
                                                             action_params=data_collection_params,
                                                             action_rng=action_rng)
+
+        # NOTE: perhaps write generic "collapse" functions to merging (unmerging?) dimensions?
+        bs = actual_batch_size * n_action_samples
+        environment_tiled_batched = repeat(environment, n_action_samples, 0, False)
+        start_states_tiled_t_batched = {k: tf.reshape(v, [bs, 1, -1]) for k, v in start_states_tiled_t.items()}
         random_actions_dict_batched = {k: tf.reshape(v, [bs, 1, -1]) for k, v in random_actions_dict.items()}
 
-        def _predict_and_classify(_actual_states, _random_actions_dict):
+        def _predict_and_classify(_environment, _actual_states, _random_actions_dict):
             # Predict
-            mean_dynamics_predictions, _ = fwd_model.propagate_tf_batched(environment=environment,
+            mean_dynamics_predictions, _ = fwd_model.propagate_tf_batched(environment=_environment,
                                                                           state=_actual_states,
                                                                           actions=_random_actions_dict)
 
             # Check classifier
-            environment_tiled = {k: tf.concat([v] * n_action_samples, axis=0) for k, v in environment.items()}
-            accept_probabilities, _ = classifier_model.check_constraint_tf_batched(environment=environment_tiled,
+            accept_probabilities, _ = classifier_model.check_constraint_tf_batched(environment=_environment,
                                                                                    states=mean_dynamics_predictions,
                                                                                    actions=_random_actions_dict,
                                                                                    batch_size=bs,
@@ -301,8 +281,9 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
 
             return mean_dynamics_predictions, accept_probabilities
 
-        predictions, accept_probabilities = _predict_and_classify(start_states_tiled_t_batched,
-                                                                  random_actions_dict_batched)
+        predictions, accept_probabilities = _predict_and_classify(environment_tiled_batched,  # [b*nas, ...]
+                                                                  start_states_tiled_t_batched,  # [b*nas, 1, ...]
+                                                                  random_actions_dict_batched)  # [b*nas, 1, ...]
 
         # reshape to separate batch from sampled actions
         accept_probabilities = tf.reshape(accept_probabilities, [batch_size, n_action_samples])
@@ -373,21 +354,39 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
     # TODO: include predictions and the sampled actions. Including these is not easy,
     #  because the right way to do this would be to have nested structure, but that's not supported by TF datasets API
     out_examples = {
-        'env': full_env,
-        'origin': full_env_origin,
-        'extent': full_env_extent,
-        'res': full_env_res,
-        'traj_idx': example['traj_idx'],
-        'start_t': tf.stack([start_t] * batch_size),
-        'end_t': tf.stack([end_t] * batch_size),
+        'traj_idx':             example['traj_idx'],
+        'start_t':              tf.stack([start_t] * batch_size),
+        'end_t':                tf.stack([end_t] * batch_size),
         'accept_probabilities': all_accept_probabilities,
     }
+    out_examples.update(environment)
     # add true start states
     out_examples.update(actual_states)
     out_examples.update(actual_actions)
     out_examples = make_dict_tf_float32(out_examples)
 
     return out_examples
+
+
+def batch_stateless_sample_action(scenario: ExperimentScenario,
+                                  environment: Dict,
+                                  state: Dict,
+                                  batch_size: int,
+                                  n_action_samples: int,
+                                  n_actions: int,
+                                  action_params: Dict,
+                                  action_rng: np.random.RandomState):
+    # TODO: make the lowest level sample_action operate on batched state dictionaries
+    action_sequences = scenario.sample_action_sequences(environment=environment,
+                                                        state=state,
+                                                        action_params=action_params,
+                                                        n_action_sequences=n_action_samples,
+                                                        action_sequence_length=n_actions,
+                                                        validate=False,
+                                                        action_rng=action_rng)
+    action_sequences = [sequence_of_dicts_to_dict_of_tensors(a) for a in action_sequences]
+    action_sequences = sequence_of_dicts_to_dict_of_tensors(action_sequences)
+    return {k: tf.tile(v[tf.newaxis], [batch_size, 1, 1, 1]) for k, v in action_sequences.items()}
 
 
 def recovering_mask(needs_recovery):

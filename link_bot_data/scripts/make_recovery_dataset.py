@@ -7,12 +7,13 @@ import colorama
 import tensorflow as tf
 from colorama import Fore
 
-import rospy
+from arc_utilities import ros_init
 from arc_utilities.filesystem_utils import mkdir_and_ask
 from link_bot_data.recovery_dataset_utils import make_recovery_dataset
 from link_bot_pycommon.args import my_formatter
 
 
+@ros_init.with_ros("make_recovery_dataset")
 def main():
     colorama.init(autoreset=True)
 
@@ -36,8 +37,6 @@ def main():
     if not success:
         print(Fore.RED + "Aborting" + Fore.RESET)
         return
-
-    rospy.init_node("make_recovery_dataset")
 
     make_recovery_dataset(dataset_dir=args.dataset_dir,
                           fwd_model_dir=args.fwd_model_dir,

@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 import rosnode
-from link_bot_data.dataset_utils import add_predicted
+from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
@@ -206,6 +206,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         FloatingRopeScenario.plot_state_rviz(self, state, **kwargs)
         label = kwargs.pop("label", "")
         # FIXME: the ACOs are part of the "environment", but they are needed to plot the state. leaky abstraction :(
+        #  perhaps make them part of state_metadata?
         if 'joint_positions' in state and 'joint_names' in state:
             robot_state = RobotState(joint_state=joint_state_msg_from_state_dict(state))
             self.robot.display_robot_state(robot_state, label, kwargs.get("color", None))
@@ -301,6 +302,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def follow_jacobian_from_example(self, example: Dict):
         j = self.robot.jacobian_follower
         batch_size = example["batch_size"]
+        deserialize_scene_msg(example)
         scene_msg = example['scene_msg']
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)

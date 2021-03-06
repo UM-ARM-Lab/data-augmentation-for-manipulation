@@ -35,7 +35,7 @@ class UDNNWithRobotKinematics:
             if k != 'scene_msg':
                 net_example[k] = v
         out = self.net(net_example, training, **kwargs)
-        example_np = numpify(example)
+        example_np = numpify(net_example)
         example_np['scene_msg'] = scene_msg
         reached, predicted_joint_positions = self.scenario.follow_jacobian_from_example(example_np)
         out['joint_positions'] = tf.convert_to_tensor(predicted_joint_positions, dtype=tf.float32)

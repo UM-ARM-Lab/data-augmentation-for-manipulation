@@ -53,9 +53,9 @@
     recovery_hparams: hparams/recovery/dual.json
   }
   planning_evaluation: {
-    n_trials: 100
+    n_trials: 64
     planners_params_common: planner_configs/val_car/common.hjson
-    test_scenes_dir: test_scenes/val_car
+    test_scenes_dir: test_scenes/val_car_hooks_extended
     launch: main.launch
     world: car.world
     methods: [

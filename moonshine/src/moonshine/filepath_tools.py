@@ -41,9 +41,6 @@ def create_or_load_trial(group_name: Optional[pathlib.Path] = None,
 
 def load_trial(trial_path):
     trial_path = pathlib.Path(trial_path)
-    if not trial_path.is_absolute():
-        r = rospkg.RosPack()
-        trial_path = pathlib.Path(r.get_path('shape_completion_training')) / "trials" / trial_path
     if not trial_path.is_dir():
         raise ValueError("Cannot load, the path {} is not an existing directory".format(trial_path))
 
