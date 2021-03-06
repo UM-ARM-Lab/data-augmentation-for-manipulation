@@ -1,19 +1,22 @@
 import unittest
+from io import BytesIO
 
 import numpy as np
 import tensorflow as tf
 
 from link_bot_data.dataset_utils import is_reconverging, null_pad, NULL_PAD_VALUE, num_reconverging, \
-    num_reconverging_subsequences, add_predicted, remove_predicted, remove_predicted_from_dict
+    num_reconverging_subsequences, add_predicted, remove_predicted, remove_predicted_from_dict, deserialize_scene_msg
 from moonshine.gpu_config import limit_gpu_mem
 from moonshine.moonshine_utils import remove_batch
+from moveit_msgs.msg import PlanningScene
 
 limit_gpu_mem(0.1)
 
 
 class MyTestCase(unittest.TestCase):
     def test_is_reconverging(self):
-        batch_is_reconverging_output = is_reconverging(tf.constant([[1, 0, 0, 1], [1, 1, 1, 0], [1, 0, 0, 0]], tf.int64)).numpy()
+        batch_is_reconverging_output = is_reconverging(
+            tf.constant([[1, 0, 0, 1], [1, 1, 1, 0], [1, 0, 0, 0]], tf.int64)).numpy()
         self.assertTrue(batch_is_reconverging_output[0])
         self.assertFalse(batch_is_reconverging_output[1])
         self.assertFalse(batch_is_reconverging_output[2])
@@ -22,8 +25,9 @@ class MyTestCase(unittest.TestCase):
         self.assertFalse(remove_batch(is_reconverging(tf.constant([[1, 0, 1, 0]], tf.int64))).numpy())
 
     def test_num_reconverging_subsequences(self):
-        self.assertEqual(num_reconverging_subsequences(tf.constant([[1, 0, 0, 1], [1, 1, 1, 0], [1, 0, 1, 1]], tf.int64)).numpy(),
-                         3)
+        self.assertEqual(
+            num_reconverging_subsequences(tf.constant([[1, 0, 0, 1], [1, 1, 1, 0], [1, 0, 1, 1]], tf.int64)).numpy(),
+            3)
         self.assertEqual(num_reconverging_subsequences(tf.constant([[1, 1, 0, 1, 1, 1]], tf.int64)).numpy(), 6)
         self.assertEqual(num_reconverging_subsequences(tf.constant([[1, 0, 0, 0]], tf.int64)).numpy(), 0)
 
@@ -60,7 +64,7 @@ class MyTestCase(unittest.TestCase):
     def test_add_remove_predicted_dict(self):
         d = {
             add_predicted("test1"): 1,
-            "test2": 2,
+            "test2":                2,
         }
         expected_d = {
             "test1": 1,
@@ -68,6 +72,35 @@ class MyTestCase(unittest.TestCase):
         }
         out_d = remove_predicted_from_dict(d)
         self.assertEqual(expected_d, out_d)
+
+    def test_deserialize_scene_msg(self):
+        d = {'scene_msg': PlanningScene()}
+        deserialize_scene_msg(d)
+        self.assertIsInstance(d['scene_msg'], PlanningScene)
+
+        d = {'scene_msg': [PlanningScene()]}
+        deserialize_scene_msg(d)
+        self.assertIsInstance(d['scene_msg'], list)
+        self.assertIsInstance(d['scene_msg'][0], PlanningScene)
+
+        d = {'scene_msg': np.array([PlanningScene()])}
+        deserialize_scene_msg(d)
+        self.assertIsInstance(d['scene_msg'], np.ndarray)
+        self.assertIsInstance(d['scene_msg'][0], PlanningScene)
+
+        msg = PlanningScene()
+        buff = BytesIO()
+        msg.serialize(buff)
+        serialized_bytes = buff.getvalue()
+        z = tf.convert_to_tensor(serialized_bytes)
+        d = {'scene_msg': z}
+        deserialize_scene_msg(d)
+        self.assertIsInstance(d['scene_msg'], PlanningScene)
+
+        d = {'scene_msg': z[tf.newaxis]}
+        deserialize_scene_msg(d)
+        self.assertIsInstance(d['scene_msg'], np.ndarray)
+        self.assertIsInstance(d['scene_msg'][0], PlanningScene)
 
 
 if __name__ == '__main__':

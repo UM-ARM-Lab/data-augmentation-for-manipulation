@@ -7,7 +7,7 @@ from progressbar import progressbar
 from scipy import stats
 
 from link_bot_data import base_dataset
-from link_bot_data.dataset_utils import add_predicted
+from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.pycommon import print_dict
 from moonshine.moonshine_utils import remove_batch
 
@@ -35,6 +35,7 @@ def visualize_dataset(args, classifier_dataset):
         if i < args.start_at:
             continue
 
+        deserialize_scene_msg(example)
         example = remove_batch(example)
 
         is_close = example['is_close'].numpy().squeeze()

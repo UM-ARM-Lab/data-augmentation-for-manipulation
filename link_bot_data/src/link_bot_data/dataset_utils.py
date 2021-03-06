@@ -349,13 +349,11 @@ def deserialize_scene_msg(example: Dict):
             scene_msg = scene_msg.numpy()
 
         if isinstance(scene_msg, np.ndarray):
-            if scene_msg.dtype != np.object_:
-                assert scene_msg.ndim == 1
+            assert scene_msg.ndim == 1
+            if not isinstance(scene_msg[0], PlanningScene):
                 scene_msg = np.array([bytes_to_ros_msg(m_i, PlanningScene) for m_i in scene_msg])
         elif isinstance(scene_msg, bytes):
             scene_msg = bytes_to_ros_msg(scene_msg, PlanningScene)
-        else:
-            raise ValueError()
 
         example['scene_msg'] = scene_msg
 

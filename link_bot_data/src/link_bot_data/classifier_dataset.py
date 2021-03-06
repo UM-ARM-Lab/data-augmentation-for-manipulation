@@ -45,16 +45,13 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.predicted_state_keys = [add_predicted(k) for k in self.hparams['predicted_state_keys']]
         self.predicted_state_keys.append(add_predicted('stdev'))
+        self.env_keys = self.hparams['env_keys']
 
         self.action_keys = self.hparams['action_keys']
 
         self.feature_names = [
             'classifier_start_t',
             'classifier_end_t',
-            'env',
-            'extent',
-            'origin',
-            'res',
             'traj_idx',
             'prediction_start_t',
         ]
@@ -66,6 +63,12 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         if self.load_true_states:
             for k in self.true_state_keys:
                 self.feature_names.append(k)
+
+        for k in self.env_keys:
+            self.feature_names.append(k)
+
+        for k in self.state_metadata_keys:
+            self.feature_names.append(k)
 
         for k in self.predicted_state_keys:
             self.feature_names.append(k)
