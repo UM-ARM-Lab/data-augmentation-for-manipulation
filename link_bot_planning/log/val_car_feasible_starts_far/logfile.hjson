@@ -1,5 +1,5 @@
 {
-  nickname: val_car_feasible
+  nickname: val_car_feasible_stars_far
   filename: log/val_car_feasible_starts_far/logfile.hjson
   collect_dynamics_data_1:
   {
@@ -13,15 +13,19 @@
   {
     model_dirs:
     [
-      dy_trials/baseline_gt_rope_0
-      dy_trials/baseline_gt_rope_1
-      dy_trials/baseline_gt_rope_2
-      dy_trials/baseline_gt_rope_3
+      dy_trials/gt_rope_w_robot_0
+      dy_trials/gt_rope_w_robot_1
+      dy_trials/gt_rope_w_robot_2
+      dy_trials/gt_rope_w_robot_3
     ]
     classifier_threshold: 0.05
   }
   make_classifier_dataset:
   {
-    classifier_dataset_dir: classifier_data/val_car_feasible_1614919868
+    classifier_dataset_dir: classifier_data/val_car_feasible_stars_far_1614982110
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/val_car_feasible_stars_far_1614982110/March_05_19-24-31_4b65490ac1
   }
 }
