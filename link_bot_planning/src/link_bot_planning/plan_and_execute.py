@@ -252,14 +252,19 @@ class PlanAndExecute:
                     recovery_action = self.recovery_policy(environment=planning_query.environment,
                                                            state=planning_query.start)
                     attempt_idx += 1
-                    rospy.loginfo(f"Attempting recovery action {attempt_idx}")
+                    if recovery_action is None:
+                        rospy.loginfo(f"Could not sample a valid recovery action {attempt_idx}")
+                        execution_result = ExecutionResult(path=[], end_trial=True)
+                    else:
+                        rospy.loginfo(f"Attempting recovery action {attempt_idx}")
 
-                    if self.verbose >= 3:
-                        rospy.loginfo("Chosen Recovery Action:")
-                        rospy.loginfo(recovery_action)
-                    self.service_provider.play()
-                    execution_result = self.execute_recovery_action(recovery_action)
-                    self.service_provider.pause()
+                        if self.verbose >= 3:
+                            rospy.loginfo("Chosen Recovery Action:")
+                            rospy.loginfo(recovery_action)
+                        self.service_provider.play()
+                        execution_result = self.execute_recovery_action(recovery_action)
+                        self.service_provider.pause()
+
                     # Extract planner data now before it goes out of scope (in C++)
                     steps_data.append({
                         'type':             'executed_recovery',

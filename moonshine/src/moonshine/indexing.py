@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, OrderedDict
 import numpy as np
 
 import tensorflow as tf
@@ -142,17 +142,20 @@ def index_dict_of_batched_tensors_np(in_dict: Dict, index: int, batch_axis: int 
 def index_dict_of_batched_tensors_tf(in_dict: Dict, index: int, batch_axis: int = 0, keep_dims=False):
     out_dict = {}
     for k, v in in_dict.items():
-        try:
-            v_i = tf.gather(v, index, axis=batch_axis)
-            if keep_dims:
-                v_i = tf.expand_dims(v_i, axis=batch_axis)
-            out_dict[k] = v_i
-        except ValueError:
+        if isinstance(v, OrderedDict):
+            out_dict[k] = v
+        else:
             try:
-                v_i = np.take(v, index, axis=batch_axis)
+                v_i = tf.gather(v, index, axis=batch_axis)
                 if keep_dims:
-                    v_i = np.expand_dims(v_i, axis=batch_axis)
+                    v_i = tf.expand_dims(v_i, axis=batch_axis)
                 out_dict[k] = v_i
             except ValueError:
-                pass
+                try:
+                    v_i = np.take(v, index, axis=batch_axis)
+                    if keep_dims:
+                        v_i = np.expand_dims(v_i, axis=batch_axis)
+                    out_dict[k] = v_i
+                except ValueError:
+                    pass
     return out_dict

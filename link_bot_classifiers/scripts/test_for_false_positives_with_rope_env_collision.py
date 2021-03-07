@@ -15,7 +15,7 @@ from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import remove_predicted
+from link_bot_data.dataset_utils import remove_predicted, deserialize_scene_msg
 from link_bot_data.visualization import init_viz_env
 from link_bot_planning.results_utils import print_percentage
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -44,6 +44,7 @@ def main():
     parser.add_argument('--verbose', '-v', action='count', default=0)
     parser.add_argument('--use-gt-rope', action='store_true')
     parser.add_argument('--only-fp', action='store_true')
+    parser.add_argument('--only-mistakes', action='store_true')
     parser.add_argument('--only-tn', action='store_true')
     parser.add_argument('--only-predicted-not-in-collision', action='store_true')
     parser.add_argument('--only-predicted-in-collision', action='store_true')
@@ -114,6 +115,8 @@ def main():
 
         predictions, _ = model.check_constraint_from_example(example, training=False)
 
+        deserialize_scene_msg(example)
+
         is_close = tf.expand_dims(example['is_close'][:, 1:], axis=2)
 
         probabilities = predictions['probabilities']
@@ -144,6 +147,10 @@ def main():
                     continue
             if args.only_predicted_in_collision:
                 if rope_points_not_in_collision:
+                    continue
+
+            if args.only_mistakes:
+                if classifier_is_correct[b]:
                     continue
 
             if args.only_fp:
