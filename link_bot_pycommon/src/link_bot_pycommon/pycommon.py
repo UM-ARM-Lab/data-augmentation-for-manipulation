@@ -351,14 +351,3 @@ def skip_on_timeout(t: int, on_timeout: Optional[Callable], f: Callable, *args, 
                 yield i
         except StopIteration:
             return
-
-
-def are_states_close(a: Dict, b: Dict):
-    # assert (set(a.keys()) == set(b.keys()))
-    for k, v1 in a.items():
-        v2 = b[k]
-        if isinstance(v1, np.ndarray):
-            if v1.dtype in [np.float32, np.float64, np.int32, np.int64]:
-                if not np.allclose(v1, v2):
-                    return False
-    return True

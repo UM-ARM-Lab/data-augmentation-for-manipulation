@@ -44,6 +44,7 @@ def main():
     parser.add_argument('--verbose', '-v', action='count', default=0)
     parser.add_argument('--use-gt-rope', action='store_true')
     parser.add_argument('--only-fp', action='store_true')
+    parser.add_argument('--only-fn', action='store_true')
     parser.add_argument('--only-mistakes', action='store_true')
     parser.add_argument('--only-starts-close', action='store_true')
     parser.add_argument('--only-starts-far', action='store_true')
@@ -149,7 +150,7 @@ def main():
                 if not starts_close[b]:
                     continue
 
-            if not args.only_starts_close:
+            if args.only_starts_far:
                 if starts_close[b]:
                     continue
 
@@ -162,6 +163,10 @@ def main():
 
             if args.only_mistakes:
                 if classifier_is_correct[b]:
+                    continue
+
+            if args.only_fn:
+                if not is_fn[b]:
                     continue
 
             if args.only_fp:
@@ -226,12 +231,16 @@ def main():
                 dump_gzipped_pickle(example_b, pathlib.Path('debugging.pkl.gzip'))
                 anim.play(example_b)
 
+    n_incorrect = count - n_correct
+
     print(args.dataset_dirs[0].as_posix())
     print(args.checkpoint.as_posix())
     print_percentage("% labeled 0", labeled_0, count)
     print_percentage("% correct (accuracy)", n_correct, count)
-    print_percentage('% FP',
-                     fp, count)
+    print_percentage('% FP', fp, count)
+    print_percentage('% FN', fn, count)
+    print_percentage('% FP / mistakes', fp, n_incorrect)
+    print_percentage('% FN / mistakes', fn, n_incorrect)
     print_percentage('% FP that are in collision',
                      predicted_in_collision_fp, fp)
     print_percentage('% FP that are in not collision',
