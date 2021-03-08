@@ -2,7 +2,7 @@
 import argparse
 import pathlib
 import tempfile
-from time import sleep, perf_counter
+from time import perf_counter
 from typing import Dict, List, Optional
 
 import colorama
@@ -16,8 +16,9 @@ from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningResult, PlanningQuery, LoggingTree, SetupInfo
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.args import my_formatter, int_set_arg
+from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.pycommon import make_dict_tf_float32, deal_with_exceptions, skip_on_timeout, catch_timeout
+from link_bot_pycommon.pycommon import deal_with_exceptions
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch
 
@@ -63,17 +64,8 @@ class ResultsToDynamicsDataset:
                  gui: bool,
                  launch: str,
                  world: str):
+        self.rng = np.random.RandomState(0)
         self.service_provider = GazeboServices()
-        self.launch = launch
-        self.gui = gui
-        self.world = world
-
-        launch_params = {
-            'launch': self.launch,
-            'world':  self.world,
-        }
-        if self.launch is not None:
-            self.service_provider.launch(launch_params, gui=self.gui, world=launch_params['world'])
 
         self.visualize = visualize
         self.viz_id = 0
@@ -94,39 +86,42 @@ class ResultsToDynamicsDataset:
         self.threshold = self.labeling_params['threshold']
 
         results_utils.save_dynamics_dataset_hparams(results_dir, outdir, self.metadata)
-        timeout = 30
+
+        def _on_exception():
+            self.scenario.on_before_get_state_or_execute_action()
+            self.scenario.grasp_rope_endpoints(settling_time=0.0)
+
+        def _results_to_classifier_dataset():
+            self.results_to_classifier_dataset(results_dir, trial_indices, outdir)
+
+        deal_with_exceptions(how_to_handle='retry',
+                             function=_results_to_classifier_dataset,
+                             exception_callback=_on_exception,
+                             )
+
+    def results_to_classifier_dataset(self, results_dir: pathlib.Path, trial_indices, outdir: pathlib.Path):
+        logfilename = outdir / 'logfile.hjson'
+        job_chunker = JobChunker(logfilename)
 
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
-            example_idx_for_trial = 0
+            if job_chunker.result_exists(trial_idx):
+                example_idx_for_trial = 0
 
-            def on_timeout():
-                if self.launch is not None:
-                    self.service_provider.kill()
-                    self.service_provider.launch(launch_params, gui=self.gui, world=launch_params['world'])
-                    sleep(30)
-                    self.scenario.on_before_get_state_or_execute_action()
-                    self.scenario.grasp_rope_endpoints(settling_time=0.0)
-
-            itr = skip_on_timeout(30, on_timeout, self.result_datum_to_dynamics_dataset, datum, trial_idx)
-            self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-            while True:
-                try:
+                self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
+                for example in self.result_datum_to_dynamics_dataset(datum, trial_idx):
                     t0 = perf_counter()
-                    # example, timed_out = catch_timeout(timeout, next, itr)
-                    example = next(itr); timed_out = False
                     now = perf_counter()
                     dt = now - t0
 
-                    if timed_out:
-                        on_timeout()
-                        break
-                    else:
-                        self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-                        print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}')
-                        tf_write_example(outdir, example, self.example_idx)
-                        example_idx_for_trial += 1
-                except StopIteration:
-                    break
+                    self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
+                    print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}')
+                    tf_write_example(outdir, example, self.example_idx)
+                    example_idx_for_trial += 1
+
+                    # count a trial as "good enough" once we have 100 examples
+                    if example_idx_for_trial > 100:
+                        job_chunker.store_result(trial_idx, {'trial':              trial_idx,
+                                                             'examples for trial': example_idx_for_trial})
 
     def result_datum_to_dynamics_dataset(self, datum: Dict, trial_idx: int):
         steps = datum['steps']
@@ -162,74 +157,77 @@ class ResultsToDynamicsDataset:
             bagfile_name = store_bagfile()
 
         for child in tree.children:
-            # if we only have one child we can skip the restore, this speeds things up a lot
-            if len(tree.children) > 1 or depth == 0:
-                deal_with_exceptions('retry',
-                                     lambda: self.scenario.restore_from_bag_rushed(
-                                         service_provider=self.service_provider,
-                                         params=planner_params,
-                                         bagfile_name=bagfile_name))
-
-            action = child.action
-            before_state, after_state = self.execute(action)
-
-            before_state_pred = {k: v for k, v in tree.state.items()}
-            after_state_pred = {k: v for k, v in child.state.items()}
-
-            if self.visualize:
-                self.visualize_example(action=action,
-                                       after_state=after_state,
-                                       before_state=before_state,
-                                       before_state_predicted={add_predicted(k): v for k, v in
-                                                               before_state_pred.items()},
-                                       after_state_predicted={add_predicted(k): v for k, v in after_state_pred.items()},
-                                       planning_query=planning_query)
-
-            classifier_horizon = 2  # this script only handles this case
-            classifier_start_t = depth
-
-            example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
-            example_states_pred = sequence_of_dicts_to_dict_of_tensors([before_state_pred, after_state_pred])
-            example_states_pred.pop("joint_names")
-            example_states_pred.pop("num_diverged")
-            example_actions = add_batch_single(action)
-
-            example = {
-                'classifier_start_t': classifier_start_t,
-                'classifier_end_t':   classifier_start_t + classifier_horizon,
-                'prediction_start_t': 0,
-                'traj_idx':           self.example_idx,
-                'time_idx':           [0, 1],
-            }
-            example.update(planning_query.environment)
-            example.update(example_states)
-            example.update({add_predicted(k): v for k, v in example_states_pred.items()})
-            example.update(example_actions)
-
-            example_batched = add_batch(example)
-            actual_batched = add_batch(example_states)
-            predicted_batched = add_batch(example_states_pred)
-
-            add_perception_reliability(scenario=self.scenario,
-                                       actual=actual_batched,
-                                       predictions=predicted_batched,
-                                       out_example=example_batched,
-                                       labeling_params=self.labeling_params)
-
-            valid_out_examples_batched = add_model_error(self.scenario,
-                                                         actual=actual_batched,
-                                                         predictions=predicted_batched,
-                                                         out_example=example_batched,
-                                                         labeling_params=self.labeling_params,
-                                                         batch_size=1)
-            test_shape = valid_out_examples_batched['time_idx'].shape[0]
-            if test_shape == 1:
-                valid_out_example = remove_batch(valid_out_examples_batched)
-                yield valid_out_example
-            elif test_shape > 1:
-                raise ValueError()
-
+            # uniformly randomly sub-sample
+            r = self.rng.uniform()
+            if r < 0.05:
+                yield from self.generate_example(child, depth, planning_query, tree, planner_params, bagfile_name)
+            # recursion
             yield from self.dfs(planner_params, planning_query, child, depth=depth + 1)
+
+    def generate_example(self,
+                         child: LoggingTree,
+                         depth: int,
+                         planning_query: PlanningQuery,
+                         tree: LoggingTree,
+                         planner_params: Dict,
+                         bagfile_name: pathlib.Path):
+        # if we only have one child we can skip the restore, this speeds things up a lot
+        if len(tree.children) > 1 or depth == 0:
+            deal_with_exceptions('retry',
+                                 lambda: self.scenario.restore_from_bag_rushed(
+                                     service_provider=self.service_provider,
+                                     params=planner_params,
+                                     bagfile_name=bagfile_name))
+        action = child.action
+        before_state, after_state = self.execute(action)
+        before_state_pred = {k: v for k, v in tree.state.items()}
+        after_state_pred = {k: v for k, v in child.state.items()}
+        if self.visualize:
+            self.visualize_example(action=action,
+                                   after_state=after_state,
+                                   before_state=before_state,
+                                   before_state_predicted={add_predicted(k): v for k, v in
+                                                           before_state_pred.items()},
+                                   after_state_predicted={add_predicted(k): v for k, v in after_state_pred.items()},
+                                   planning_query=planning_query)
+        classifier_horizon = 2  # this script only handles this case
+        classifier_start_t = depth
+        example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
+        example_states_pred = sequence_of_dicts_to_dict_of_tensors([before_state_pred, after_state_pred])
+        example_states_pred.pop("joint_names")
+        example_states_pred.pop("num_diverged")
+        example_actions = add_batch_single(action)
+        example = {
+            'classifier_start_t': classifier_start_t,
+            'classifier_end_t':   classifier_start_t + classifier_horizon,
+            'prediction_start_t': 0,
+            'traj_idx':           self.example_idx,
+            'time_idx':           [0, 1],
+        }
+        example.update(planning_query.environment)
+        example.update(example_states)
+        example.update({add_predicted(k): v for k, v in example_states_pred.items()})
+        example.update(example_actions)
+        example_batched = add_batch(example)
+        actual_batched = add_batch(example_states)
+        predicted_batched = add_batch(example_states_pred)
+        add_perception_reliability(scenario=self.scenario,
+                                   actual=actual_batched,
+                                   predictions=predicted_batched,
+                                   out_example=example_batched,
+                                   labeling_params=self.labeling_params)
+        valid_out_examples_batched = add_model_error(self.scenario,
+                                                     actual=actual_batched,
+                                                     predictions=predicted_batched,
+                                                     out_example=example_batched,
+                                                     labeling_params=self.labeling_params,
+                                                     batch_size=1)
+        test_shape = valid_out_examples_batched['time_idx'].shape[0]
+        if test_shape == 1:
+            valid_out_example = remove_batch(valid_out_examples_batched)
+            yield valid_out_example
+        elif test_shape > 1:
+            raise ValueError()
 
     def execute(self, action: Dict):
         self.service_provider.play()
