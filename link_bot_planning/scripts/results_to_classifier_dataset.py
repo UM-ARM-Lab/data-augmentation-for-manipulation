@@ -22,6 +22,7 @@ from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch
+from std_msgs.msg import Empty
 
 
 @ros_init.with_ros("results_to_dataset")
@@ -68,6 +69,7 @@ class ResultsToDynamicsDataset:
                  launch: str,
                  world: str,
                  subsample_fraction: float):
+        self.restart = False
         self.rng = np.random.RandomState(0)
         self.service_provider = GazeboServices()
 
@@ -89,10 +91,13 @@ class ResultsToDynamicsDataset:
         self.labeling_params = load_hjson(labeling_params)
         self.threshold = self.labeling_params['threshold']
 
+        self.gazebo_restarting_sub = rospy.Subscriber("gazebo_restarting", Empty, self.on_gazebo_restarting)
+
         results_utils.save_dynamics_dataset_hparams(results_dir, outdir, self.metadata)
 
         def _on_exception():
-            sleep(5)
+            self.restart = False
+            sleep(10)
             self.scenario.on_before_get_state_or_execute_action()
             self.scenario.grasp_rope_endpoints(settling_time=0.0)
 
@@ -176,6 +181,9 @@ class ResultsToDynamicsDataset:
             bagfile_name: Optional[pathlib.Path] = None,
             depth: int = 0,
             ):
+
+        if self.restart:
+            raise RuntimeError()
 
         if bagfile_name is None:
             bagfile_name = store_bagfile()
@@ -277,6 +285,9 @@ class ResultsToDynamicsDataset:
 
     def clear_markers(self):
         self.scenario.reset_planning_viz()
+
+    def on_gazebo_restarting(self, msg: Empty):
+        self.restart = True
 
 
 def store_bagfile():

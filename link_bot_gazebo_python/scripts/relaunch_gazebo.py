@@ -6,6 +6,7 @@ import rospy
 from arc_utilities import ros_init
 from link_bot_gazebo_python.gazebo_services import GazeboServices
 from roslaunch.pmon import ProcessListener
+from std_msgs.msg import Empty
 
 
 @ros_init.with_ros("relaunch_gazebo")
@@ -16,6 +17,8 @@ def main():
     parser.add_argument('--gui', action='store_true')
 
     args = parser.parse_args()
+
+    restarting_pub = rospy.Publisher("gazebo_restarting", Empty, queue_size=10)
 
     launch_params = {
         'launch': args.launch,
@@ -31,6 +34,7 @@ def main():
         nonlocal gazebo_is_dead
         gazebo_is_dead = True
         rospy.logerr(f"Process {process_name} exited with code {exit_code}")
+        restarting_pub.publish(Empty())
 
     listener.process_died = _on_process_died
 
