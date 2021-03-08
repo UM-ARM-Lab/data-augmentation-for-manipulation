@@ -115,7 +115,7 @@ class ResultsToDynamicsDataset:
         t0 = perf_counter()
         last_t = t0
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
-            if job_chunker.result_exists(trial_idx):
+            if job_chunker.result_exists(str(trial_idx)):
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
             else:
                 example_idx_for_trial = 0
