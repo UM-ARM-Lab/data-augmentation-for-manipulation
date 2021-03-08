@@ -25,8 +25,8 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _should_keep_example(dataset: ClassifierDatasetLoader, example: Dict):
-        starts_far = (example['is_close'][0] == 0)
-        return not starts_far
+        starts_close = (example['is_close'][0] == 1)
+        return not starts_close
 
     hparams_update = {}
 

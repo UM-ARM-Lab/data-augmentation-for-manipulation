@@ -38,7 +38,8 @@ def main():
                    dataset=dataset,
                    outdir=outdir,
                    process_example=_process_example,
-                   hparams_update=hparams_update)
+                   hparams_update=hparams_update,
+                   slow=True)
 
 
 if __name__ == '__main__':

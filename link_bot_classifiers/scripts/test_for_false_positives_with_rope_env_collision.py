@@ -148,6 +148,7 @@ def main():
             if args.only_starts_close:
                 if not starts_close[b]:
                     continue
+
             if not args.only_starts_close:
                 if starts_close[b]:
                     continue
@@ -246,6 +247,7 @@ def main():
     print_percentage('% false negatives and predicted state is in collision',
                      predicted_in_collision_fn, predicted_in_collision_labeled_1)
 
+    print("NOTE: the following metrics are not affected some of the command line flags")
     for metric_name, metric in metrics.items():
         print(f"{metric_name:80s} {metric.result().numpy().squeeze() * 100:.2f}")
 
