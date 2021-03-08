@@ -36,7 +36,7 @@ def modify_dataset(dataset_dir: pathlib.Path,
                    slow: bool = False):
     total_count = 0
     for full_output_directory, i, example in dataset_generator_all_modes(dataset_dir, dataset, outdir, hparams_update,
-                                                                         do_not_process, flow):
+                                                                         do_not_process, slow):
         for out_example in process_example(dataset, example):
             tf_write_example(full_output_directory, out_example, total_count)
             total_count += 1
