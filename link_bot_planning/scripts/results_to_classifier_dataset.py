@@ -119,6 +119,7 @@ class ResultsToDynamicsDataset:
 
         t0 = perf_counter()
         last_t = t0
+        max_examples_per_trial = 500
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
             if job_chunker.result_exists(str(trial_idx)):
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
@@ -140,8 +141,8 @@ class ResultsToDynamicsDataset:
                     if example_idx_for_trial > 50:
                         job_chunker.store_result(trial_idx, {'trial':              trial_idx,
                                                              'examples for trial': example_idx_for_trial})
-                    if example_idx_for_trial > 500:
-                        rospy.logwarn("moving on to next trial, already got 1000 examples from this trial")
+                    if example_idx_for_trial > max_examples_per_trial:
+                        rospy.logwarn("moving on to next trial, already got {max_examples_per_trial} examples from this trial")
                         break
 
                 job_chunker.store_result(trial_idx, {'trial':              trial_idx,
