@@ -4,6 +4,7 @@ import pathlib
 from typing import Dict
 
 import colorama
+import tensorflow as tf
 
 import rospy
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
@@ -25,7 +26,9 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset: ClassifierDatasetLoader, example: Dict):
-        example['prediction_start_t'] = 0
+        for k, v in example.items():
+            if v.dtype in [tf.int32, tf.int64, tf.float32, tf.float64]:
+                example[k] = tf.cast(v, tf.float32)
         yield example
 
     hparams_update = {}

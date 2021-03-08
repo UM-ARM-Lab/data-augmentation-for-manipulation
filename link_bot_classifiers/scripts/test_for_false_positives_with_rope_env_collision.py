@@ -45,6 +45,8 @@ def main():
     parser.add_argument('--use-gt-rope', action='store_true')
     parser.add_argument('--only-fp', action='store_true')
     parser.add_argument('--only-mistakes', action='store_true')
+    parser.add_argument('--only-starts-close', action='store_true')
+    parser.add_argument('--only-starts-far', action='store_true')
     parser.add_argument('--only-tn', action='store_true')
     parser.add_argument('--only-predicted-not-in-collision', action='store_true')
     parser.add_argument('--only-predicted-in-collision', action='store_true')
@@ -117,6 +119,7 @@ def main():
 
         deserialize_scene_msg(example)
 
+        starts_close = example['is_close'][:, 0]
         is_close = tf.expand_dims(example['is_close'][:, 1:], axis=2)
 
         probabilities = predictions['probabilities']
@@ -141,6 +144,13 @@ def main():
             rope_points_not_in_collision, _ = cc.check_constraint_from_example(example_b_pred)
             rope_points_not_in_collision = rope_points_not_in_collision[0]
             rope_points_in_collision = not rope_points_not_in_collision
+
+            if args.only_starts_close:
+                if not starts_close[b]:
+                    continue
+            if not args.only_starts_close:
+                if starts_close[b]:
+                    continue
 
             if args.only_predicted_not_in_collision:
                 if not rope_points_not_in_collision:
@@ -237,7 +247,7 @@ def main():
                      predicted_in_collision_fn, predicted_in_collision_labeled_1)
 
     for metric_name, metric in metrics.items():
-        print(f"{metric_name:80s} {metric.result().numpy() * 100:.2f}")
+        print(f"{metric_name:80s} {metric.result().numpy().squeeze() * 100:.2f}")
 
 
 if __name__ == '__main__':

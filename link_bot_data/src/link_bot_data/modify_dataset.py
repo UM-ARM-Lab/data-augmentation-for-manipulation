@@ -68,7 +68,7 @@ def dataset_generator_all_modes(dataset_dir: pathlib.Path,
     modify_hparams(dataset_dir, outdir, hparams_update)
 
     for mode in ['train', 'test', 'val']:
-        tf_dataset = dataset.get_datasets(mode=mode, shuffle_files=False, do_not_process=do_not_process)
+        tf_dataset = dataset.get_datasets(mode=mode, shuffle_files=False, do_not_process=do_not_process, slow=True)
         full_output_directory = outdir / mode
         full_output_directory.mkdir(parents=True, exist_ok=True)
 

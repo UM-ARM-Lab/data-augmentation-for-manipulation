@@ -57,6 +57,12 @@ def parse_and_deserialize(dataset, feature_description, n_parallel_calls=None):
     return deserialized_dataset
 
 
+def parse_and_slow_deserialize(dataset, feature_description, n_parallel_calls=None):
+    parsed_dataset = parse_dataset(dataset, feature_description, n_parallel_calls=n_parallel_calls)
+    deserialized_dataset = slow_deserialize(parsed_dataset, n_parallel_calls=n_parallel_calls)
+    return deserialized_dataset
+
+
 def parse_dataset(dataset, feature_description, n_parallel_calls=None):
     def _parse(example_proto):
         deserialized_dict = tf.io.parse_single_example(example_proto, feature_description)
@@ -65,6 +71,27 @@ def parse_dataset(dataset, feature_description, n_parallel_calls=None):
     # the elements of parsed dataset are dictionaries with the serialized tensors as strings
     parsed_dataset = dataset.map(_parse, num_parallel_calls=n_parallel_calls)
     return parsed_dataset
+
+
+def slow_deserialize(parsed_dataset: tf.data.Dataset, n_parallel_calls=None):
+    def _slow_deserialize(serialized_dict):
+        deserialized_dict = {}
+        for _key, _serialized_tensor in serialized_dict.items():
+            def _parse(_t, types):
+                for type in types:
+                    try:
+                        _deserialized_tensor = tf.io.parse_tensor(_t, type)
+                        return _deserialized_tensor
+                    except Exception:
+                        pass
+                raise ValueError("could not match to any of the given types")
+
+            tf_types = [tf.float32, tf.float64, tf.int32, tf.int64, tf.string]
+            deserialized_dict[_key] = _parse(_serialized_tensor, tf_types)
+        return deserialized_dict
+
+    for e in parsed_dataset:
+        yield _slow_deserialize(e)
 
 
 def deserialize(parsed_dataset: tf.data.Dataset, n_parallel_calls=None):

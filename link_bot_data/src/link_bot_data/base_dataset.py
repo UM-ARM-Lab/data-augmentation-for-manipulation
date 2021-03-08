@@ -10,7 +10,7 @@ import progressbar
 import tensorflow as tf
 from colorama import Fore
 
-from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func
+from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func, parse_and_slow_deserialize
 from moonshine.filepath_tools import load_params
 
 DEFAULT_VAL_SPLIT = 0.125
@@ -200,7 +200,11 @@ class BaseDatasetLoader:
 
         # Given the member lists of states, actions, and constants set in the constructor, create a dict for parsing a feature
         features_description = self.make_features_description()
-        dataset = parse_and_deserialize(dataset, features_description, n_parallel_calls)
+        if kwargs.get("slow", False):
+            print("Using slow parsing!")
+            dataset = parse_and_slow_deserialize(dataset, features_description, n_parallel_calls)
+        else:
+            dataset = parse_and_deserialize(dataset, features_description, n_parallel_calls)
 
         if take is not None:
             dataset = dataset.take(take)

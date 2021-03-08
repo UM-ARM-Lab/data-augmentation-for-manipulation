@@ -465,11 +465,16 @@ class OmplRRTWrapper(MyPlanner):
                 state_sequence = proposed_state_seq
                 action_sequence = proposed_action_seq
 
+                # take the current planned path and add it to the logging tree
+                for state, action, next_state in zip(state_sequence[:-1], action_sequence, state_sequence[1:]):
+                    self.tree.add(state, action, next_state)
+
+                # visualize & debug info
                 if self.verbose >= 2:
                     self.clear_smoothing_markers()
                     self.scenario.plot_state_rviz(start_state, idx=0, label='from', color='y')
                     self.scenario.plot_state_rviz(end_state, idx=1, label='to', color='m')
-                    self.plot_path(proposed_action_seq, proposed_state_seq)
+                    self.plot_path(state_sequence, action_sequence)
                 if self.verbose >= 1:
                     print(f"shortcut from {start_t} to {end_t} accepted. Plan length is now {plan_length}")
 
