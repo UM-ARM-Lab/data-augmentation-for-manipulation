@@ -2,12 +2,13 @@
 import argparse
 import pathlib
 import tempfile
-from time import perf_counter
+from time import perf_counter, sleep
 from typing import Dict, List, Optional
 
 import colorama
 import numpy as np
 
+import rospy
 from arc_utilities import ros_init
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error
 from link_bot_data.dataset_utils import tf_write_example, add_predicted
@@ -36,6 +37,7 @@ def main():
     parser.add_argument("--launch", type=str, help='launch file name')
     parser.add_argument("--world", type=str, help='world file name')
     parser.add_argument("--trial-indices", type=int_set_arg, help='which plan(s) to show')
+    parser.add_argument("--subsample-fraction", type=float, default=1.0, help='number between 0 and 1')
 
     args = parser.parse_args()
 
@@ -46,7 +48,8 @@ def main():
                                  args.visualize,
                                  args.gui,
                                  args.launch,
-                                 args.world)
+                                 args.world,
+                                 args.subsample_fraction)
 
 
 def compute_example_idx(trial_idx, example_idx_for_trial):
@@ -63,7 +66,8 @@ class ResultsToDynamicsDataset:
                  visualize: bool,
                  gui: bool,
                  launch: str,
-                 world: str):
+                 world: str,
+                 subsample_fraction: float):
         self.rng = np.random.RandomState(0)
         self.service_provider = GazeboServices()
 
@@ -88,42 +92,57 @@ class ResultsToDynamicsDataset:
         results_utils.save_dynamics_dataset_hparams(results_dir, outdir, self.metadata)
 
         def _on_exception():
+            sleep(5)
             self.scenario.on_before_get_state_or_execute_action()
             self.scenario.grasp_rope_endpoints(settling_time=0.0)
 
         def _results_to_classifier_dataset():
-            self.results_to_classifier_dataset(results_dir, trial_indices, outdir)
+            self.results_to_classifier_dataset(results_dir, trial_indices, outdir, subsample_fraction)
 
         deal_with_exceptions(how_to_handle='retry',
                              function=_results_to_classifier_dataset,
                              exception_callback=_on_exception,
                              )
 
-    def results_to_classifier_dataset(self, results_dir: pathlib.Path, trial_indices, outdir: pathlib.Path):
+    def results_to_classifier_dataset(self,
+                                      results_dir: pathlib.Path,
+                                      trial_indices,
+                                      outdir: pathlib.Path,
+                                      subsample_fraction: float):
         logfilename = outdir / 'logfile.hjson'
         job_chunker = JobChunker(logfilename)
 
+        t0 = perf_counter()
+        last_t = t0
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
             if job_chunker.result_exists(trial_idx):
+                rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
+            else:
                 example_idx_for_trial = 0
 
                 self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-                for example in self.result_datum_to_dynamics_dataset(datum, trial_idx):
-                    t0 = perf_counter()
+                for example in self.result_datum_to_dynamics_dataset(datum, trial_idx, subsample_fraction):
                     now = perf_counter()
-                    dt = now - t0
+                    dt = now - last_t
+                    total_dt = now - t0
+                    last_t = now
 
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-                    print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}')
+                    print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}')
                     tf_write_example(outdir, example, self.example_idx)
                     example_idx_for_trial += 1
 
-                    # count a trial as "good enough" once we have 100 examples
-                    if example_idx_for_trial > 100:
+                    if example_idx_for_trial > 50:
                         job_chunker.store_result(trial_idx, {'trial':              trial_idx,
                                                              'examples for trial': example_idx_for_trial})
+                    if example_idx_for_trial > 500:
+                        rospy.logwarn("moving on to next trial, already got 1000 examples from this trial")
+                        break
 
-    def result_datum_to_dynamics_dataset(self, datum: Dict, trial_idx: int):
+                job_chunker.store_result(trial_idx, {'trial':              trial_idx,
+                                                     'examples for trial': example_idx_for_trial})
+
+    def result_datum_to_dynamics_dataset(self, datum: Dict, trial_idx: int, subsample_fraction: float):
         steps = datum['steps']
         setup_info = datum['setup_info']
         planner_params = datum['planner_params']
@@ -134,35 +153,40 @@ class ResultsToDynamicsDataset:
                 yield from self.planning_result_to_dynamics_dataset(planner_params,
                                                                     setup_info,
                                                                     planning_query,
-                                                                    planning_result)
+                                                                    planning_result,
+                                                                    subsample_fraction)
 
     def planning_result_to_dynamics_dataset(self,
                                             planner_params: Dict,
                                             setup_info: SetupInfo,
                                             planning_query: PlanningQuery,
-                                            planning_result: PlanningResult):
+                                            planning_result: PlanningResult,
+                                            subsample_fraction: float):
         yield from self.dfs(planner_params,
                             planning_query,
                             planning_result.tree,
-                            bagfile_name=setup_info.bagfile_name)
+                            bagfile_name=setup_info.bagfile_name,
+                            subsample_fraction=subsample_fraction)
 
     def dfs(self,
             planner_params: Dict,
             planning_query: PlanningQuery,
             tree: LoggingTree,
+            subsample_fraction: float,
             bagfile_name: Optional[pathlib.Path] = None,
-            depth: int = 0):
+            depth: int = 0,
+            ):
 
         if bagfile_name is None:
             bagfile_name = store_bagfile()
 
         for child in tree.children:
-            # uniformly randomly sub-sample
-            r = self.rng.uniform()
-            if r < 0.05:
-                yield from self.generate_example(child, depth, planning_query, tree, planner_params, bagfile_name)
+            # uniformly randomly sub-sample? this is currently broken
+            # r = self.rng.uniform()
+            # if r < subsample_fraction:
+            yield from self.generate_example(child, depth, planning_query, tree, planner_params, bagfile_name)
             # recursion
-            yield from self.dfs(planner_params, planning_query, child, depth=depth + 1)
+            yield from self.dfs(planner_params, planning_query, child, subsample_fraction, depth=depth + 1)
 
     def generate_example(self,
                          child: LoggingTree,
