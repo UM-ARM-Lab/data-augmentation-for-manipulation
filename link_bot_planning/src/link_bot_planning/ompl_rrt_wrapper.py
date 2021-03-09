@@ -231,9 +231,10 @@ class OmplRRTWrapper(MyPlanner):
             p_accepts_for_model, _ = classifier.check_constraint(environment=self.sps.environment,
                                                                  states_sequence=states,
                                                                  actions=actions)
-            p_accept_for_model = p_accepts_for_model[-1]
-            accept_probabilities[classifier.name] = p_accept_for_model
-            accept = p_accept_for_model > self.params['accept_threshold']
+            assert p_accepts_for_model.ndim == 1
+            accepts = p_accepts_for_model > self.params['accept_threshold']
+            accept = np.all(accepts)
+            accept_probabilities[classifier.name] = p_accepts_for_model
             if not accept:
                 break
 
@@ -288,10 +289,15 @@ class OmplRRTWrapper(MyPlanner):
             random_color = cm.Dark2(self.control_sampler_rng.uniform(0, 1))
             self.visualize_propogation_color = random_color
 
-        if 'NNClassifier' in accept_probabilities:
-            classifier_probability = accept_probabilities['NNClassifier']
+        classifier_probabilities = accept_probabilities.get('NNClassifierWrapper', None)
+        if classifier_probabilities is not None:
+            assert classifier_probabilities.size == 1
+            classifier_probability = classifier_probabilities[0]
             alpha = min(classifier_probability * 0.8 + 0.2, 0.8)
             classifier_probability_color = cm.Reds_r(classifier_probability)
+            # # DEBUGGING
+            # if classifier_probability > 0.9:
+            #     return
         else:
             alpha = 0.8
             classifier_probability_color = cm.Reds_r(0)
@@ -421,7 +427,7 @@ class OmplRRTWrapper(MyPlanner):
         initial_distance_to_goal = self.scenario.distance_to_goal(initial_final_state, goal)
 
         smoothing_rng = np.random.RandomState(0)
-        n_shortcut_attempts = 25
+        n_shortcut_attempts = 30
         t0 = time.perf_counter()
         for j in range(n_shortcut_attempts):
 
@@ -474,20 +480,20 @@ class OmplRRTWrapper(MyPlanner):
                     self.clear_smoothing_markers()
                     self.scenario.plot_state_rviz(start_state, idx=0, label='from', color='y')
                     self.scenario.plot_state_rviz(end_state, idx=1, label='to', color='m')
-                    self.plot_path(state_sequence, action_sequence)
+                    self.plot_path(state_sequence=state_sequence, action_sequence=action_sequence)
                 if self.verbose >= 1:
                     print(f"shortcut from {start_t} to {end_t} accepted. Plan length is now {plan_length}")
 
         # Plot the smoothed result
         if self.verbose >= 2:
-            self.plot_path(action_sequence, state_sequence)
+            self.plot_path(state_sequence=state_sequence, action_sequence=action_sequence)
 
         dt = time.perf_counter() - t0
         print(f"Smoothing Time = {dt:.3f}s")
 
         return action_sequence, state_sequence
 
-    def plot_path(self, action_sequence, state_sequence, label='smoothed'):
+    def plot_path(self, state_sequence, action_sequence, label='smoothed'):
         for t, (state_t, action_t) in enumerate(
                 itertools.zip_longest(state_sequence, action_sequence)):
             self.scenario.plot_state_rviz(state_t, label=label, idx=t)

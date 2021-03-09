@@ -4,10 +4,12 @@ import argparse
 import colorama
 
 import rospy
+from arc_utilities import ros_init
 from gazebo_msgs.srv import SetLinkState
 from link_bot_gazebo_python.gazebo_services import GazeboServices
 
 
+@ros_init.with_ros("restore_gazebo")
 def main():
     colorama.init(autoreset=True)
     parser = argparse.ArgumentParser()
