@@ -83,6 +83,9 @@ class PercentageMERViolations(ResultsMetric):
                 if mer_violated:
                     n_mer_violated += 1
                 n_total_actions += 1
+        if n_total_actions == 0:
+            print(Fore.YELLOW + "no actions!?!")
+            return 0
         return n_mer_violated / n_total_actions
 
 
