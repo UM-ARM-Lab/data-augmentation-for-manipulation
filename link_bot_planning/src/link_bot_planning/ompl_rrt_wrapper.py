@@ -84,9 +84,8 @@ class OmplRRTWrapper(MyPlanner):
                                          environment: Dict,
                                          goal_state: Dict,
                                          states: List[Dict]):
-            goal_cost = self.scenario.distance_to_goal_state(state=states[1],
-                                                             goal_type=self.params['goal_params']['goal_type'],
-                                                             goal_state=goal_state)
+            assert goal_state is None
+            goal_cost = self.scenario.distance_to_goal(state=states[1], goal=self.goal_region.goal)
             action_cost = self.scenario.actions_cost(states, actions, self.action_params)
             return goal_cost * self.params['goal_alpha'] + action_cost * self.params['action_alpha']
 
@@ -427,7 +426,7 @@ class OmplRRTWrapper(MyPlanner):
         initial_distance_to_goal = self.scenario.distance_to_goal(initial_final_state, goal)
 
         smoothing_rng = np.random.RandomState(0)
-        n_shortcut_attempts = 30
+        n_shortcut_attempts = self.params.get('n_shortcut_attempts', 50)
         t0 = time.perf_counter()
         for j in range(n_shortcut_attempts):
 

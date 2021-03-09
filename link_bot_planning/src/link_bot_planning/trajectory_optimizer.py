@@ -66,7 +66,8 @@ class TrajectoryOptimizer:
             actions, planned_path, cost = self.step(environment, goal_state, actions, start_state)
 
             if self.verbose >= 2:
-                self.scenario.plot_state_rviz(numpify(planned_path[1]), label='opt', color=cm.Reds(cost))
+                self.scenario.plot_state_rviz(numpify(planned_path[0]), label='opt', color=cm.Reds(cost), idx=0)
+                self.scenario.plot_state_rviz(numpify(planned_path[1]), label='opt', color=cm.Reds(cost), idx=1)
                 self.scenario.plot_action_rviz(numpify(planned_path[0]), numpify(actions[0]), label='opt')
         smoothing_time = perf_counter() - start_smoothing_time
 
@@ -82,7 +83,7 @@ class TrajectoryOptimizer:
                                                               start_state=start_state,
                                                               actions=actions)
 
-            cost = self.cost_function(actions, environment, goal_state, mean_predictions)
+            cost = self.cost_function(actions, environment, None, mean_predictions)
 
         variables = []
         for action in actions:
@@ -98,7 +99,7 @@ class TrajectoryOptimizer:
         # this updates actions
         self.optimizer.apply_gradients(valid_grads_and_vars)
 
-        # re-run the forward pass nwo that actions have been updated
+        # re-run the forward pass now that actions have been updated
         planned_path, _ = self.fwd_model.propagate_tf(environment=environment,
                                                       start_state=start_state,
                                                       actions=actions)
