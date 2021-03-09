@@ -19,16 +19,16 @@
     joint7: 2.173908028268774,
   }
   termination_criteria: {
-    total_timeout: 900
-    timeout: 900
+    total_timeout: 600
+    timeout: 600
     attempted_extensions_threshold: 32
   }
   action_params: {
     max_distance_between_grippers: 1.0
   }
   extent: [
-    -0.55
-    0.55
+    -0.6
+    0.6
     0.25
     1.15
     -0.3
@@ -48,7 +48,7 @@
   goal_params: {
     type: saved
     goal_type: any_point
-    threshold: 0.04
+    threshold: 0.06
     extent: [
       -0.5
       0.5
@@ -108,10 +108,12 @@
   smooth: true
   # Local Planner Parameters
   use_local_planner: true
-  iters: 3,
+  iters: 2,
   length_alpha: 0
   goal_alpha: 1
   constraints_alpha: 0
   action_alpha: 1
   initial_learning_rate: 0.2
+  # shortcutting
+  n_shortcut_attempts: 50
 }

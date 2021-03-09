@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+import sys
 from time import sleep
 
 import rospy
@@ -16,7 +17,7 @@ def main():
     parser.add_argument('world')
     parser.add_argument('--gui', action='store_true')
 
-    args = parser.parse_args()
+    args = parser.parse_args(rospy.myargv(sys.argv[1:]))
 
     restarting_pub = rospy.Publisher("gazebo_restarting", Empty, queue_size=10)
 

@@ -299,7 +299,7 @@ class OmplRRTWrapper(MyPlanner):
             #     return
         else:
             alpha = 0.8
-            classifier_probability_color = cm.Reds_r(0)
+            classifier_probability_color = cm.Reds_r(1.0)
 
         statisfies_bounds = self.scenario_ompl.state_space.satisfiesBounds(state_out)
         if accept and statisfies_bounds:
@@ -438,10 +438,12 @@ class OmplRRTWrapper(MyPlanner):
             start_t = smoothing_rng.randint(0, plan_length - 3)
 
             # sample an end index
-            if start_t + 2 >= plan_length - 1:
+            shortcut_max_t = plan_length - 1
+            shortcut_min_t = start_t + 2
+            if shortcut_min_t >= shortcut_max_t:
                 rospy.logerr(f"smoothing sampling bug?! {start_t=}, {plan_length=}")
                 continue
-            end_t = smoothing_rng.randint(start_t + 2, plan_length - 1)
+            end_t = smoothing_rng.randint(shortcut_min_t, shortcut_max_t)
 
             # interpolate the grippers to make a new action sequence
             start_state = state_sequence[start_t]
