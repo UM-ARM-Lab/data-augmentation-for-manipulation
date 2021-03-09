@@ -39,7 +39,7 @@ def main():
     parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
     parser.add_argument('checkpoint', type=pathlib.Path)
     parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
-    parser.add_argument('--batch-size', type=int, default=16)
+    parser.add_argument('--batch-size', type=int, default=24)
     parser.add_argument('--take', type=int)
     parser.add_argument('--verbose', '-v', action='count', default=0)
     parser.add_argument('--use-gt-rope', action='store_true')
@@ -111,22 +111,19 @@ def main():
         if batch_idx < args.start_at:
             continue
 
-        example.update(dataset.batch_metadata)
+        example_for_constr = example.copy()
+        example_for_constr.update(dataset.batch_metadata)
 
-        # run the standard metrics as well
-        _, batch_losses = net.val_step(example, metrics)
-
-        predictions, _ = model.check_constraint_from_example(example, training=False)
+        predictions, _ = model.check_constraint_from_example(example_for_constr, training=False)
 
         deserialize_scene_msg(example)
+        example.pop("batch_size")
 
         starts_close = example['is_close'][:, 0]
         is_close = tf.expand_dims(example['is_close'][:, 1:], axis=2)
 
         probabilities = predictions['probabilities']
 
-        example.pop("time")
-        example.pop("batch_size")
         is_predicted_close = tf.squeeze(tf.squeeze(probabilities > 0.5, axis=-1), axis=-1)
         is_close = tf.squeeze(tf.squeeze(tf.cast(is_close, tf.bool), axis=-1), axis=-1)
         classifier_is_correct = tf.equal(is_predicted_close, is_close)
@@ -138,6 +135,17 @@ def main():
         for b in range(args.batch_size):
             example_b = index_dict_of_batched_tensors_tf(example, b)
 
+            example_b_no_ps = index_dict_of_batched_tensors_tf(example, b, keep_dims=True)
+            example_b_no_ps.pop("scene_msg")
+            example_b_no_ps['batch_size'] = 1
+            example_b_no_ps['time'] = 2
+            for k in ['classifier_end_t',
+                      'classifier_start_t',
+                      'world_to_rgb_optical_frame',
+                      'kinect_pose',
+                      'kinect_params']:
+                example_b_no_ps.pop(k)
+
             example_b_pred = {}
             example_b_pred.update(example_b)
             example_b_pred.update({remove_predicted(k): example_b[k] for k in dataset.predicted_state_keys})
@@ -146,6 +154,7 @@ def main():
             rope_points_not_in_collision = rope_points_not_in_collision[0]
             rope_points_in_collision = not rope_points_not_in_collision
 
+            # filter examples
             if args.only_starts_close:
                 if not starts_close[b]:
                     continue
@@ -176,6 +185,10 @@ def main():
             if args.only_tn:
                 if not is_tn[b]:
                     continue
+            # end filter examples
+
+            # update metrics
+            net.val_step(example_b_no_ps, metrics)
 
             count += 1
             if not is_close[b]:
@@ -204,7 +217,9 @@ def main():
                 fn += 1
             if classifier_is_correct[b]:
                 n_correct += 1
+            # end update metrics
 
+            # visualize
             if not args.no_viz:
                 def _custom_viz_t(scenario: ScenarioWithVisualization, e: Dict, t: int):
                     if t > 0:
@@ -230,6 +245,7 @@ def main():
 
                 dump_gzipped_pickle(example_b, pathlib.Path('debugging.pkl.gzip'))
                 anim.play(example_b)
+            # end visualize
 
     n_incorrect = count - n_correct
 

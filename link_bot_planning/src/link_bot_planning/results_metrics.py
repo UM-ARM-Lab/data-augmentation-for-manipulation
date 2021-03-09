@@ -2,6 +2,7 @@ import pathlib
 from typing import Dict
 
 import numpy as np
+from colorama import Fore
 
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_planning.results_utils import get_paths
@@ -109,6 +110,9 @@ class NormalizedModelError(ResultsMetric):
                 model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
                 total_model_error += model_error
                 n_total_actions += 1
+        if n_total_actions == 0:
+            print(Fore.YELLOW + "no actions!?!")
+            return 0
         return total_model_error / n_total_actions
 
 
