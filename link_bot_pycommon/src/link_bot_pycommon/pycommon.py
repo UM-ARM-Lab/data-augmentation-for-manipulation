@@ -4,7 +4,7 @@ import signal
 import string
 import traceback
 import warnings
-from typing import Union, List, Callable, Optional, Dict
+from typing import Union, List, Callable, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -155,6 +155,17 @@ def vector_to_points_2d(x):
     xs = x_points[:, 0]
     ys = x_points[:, 1]
     return xs, ys
+
+
+def try_make_dict_tf_float32(d):
+    f32d = {}
+    for k, s_k in d.items():
+        try:
+            s_k = tf.convert_to_tensor(s_k)
+            f32d[k] = tf.cast(s_k, tf.float32)
+        except Exception:
+            f32d[k] = s_k
+    return f32d
 
 
 def make_dict_tf_float32(d):

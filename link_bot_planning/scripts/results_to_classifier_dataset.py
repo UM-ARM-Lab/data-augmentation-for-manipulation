@@ -19,7 +19,7 @@ from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_gi
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.pycommon import deal_with_exceptions, make_dict_tf_float32
+from link_bot_pycommon.pycommon import deal_with_exceptions, try_make_dict_tf_float32
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch
 from std_msgs.msg import Empty
@@ -107,6 +107,7 @@ class ResultsToDynamicsDataset:
         deal_with_exceptions(how_to_handle='retry',
                              function=_results_to_classifier_dataset,
                              exception_callback=_on_exception,
+                             print_exception=True,
                              )
 
     def results_to_classifier_dataset(self,
@@ -136,7 +137,7 @@ class ResultsToDynamicsDataset:
 
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}')
-                    example = make_dict_tf_float32(example)
+                    example = try_make_dict_tf_float32(example)
                     tf_write_example(outdir, example, self.example_idx)
                     example_idx_for_trial += 1
 
