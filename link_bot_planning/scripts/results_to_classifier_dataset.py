@@ -19,7 +19,7 @@ from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_gi
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.pycommon import deal_with_exceptions
+from link_bot_pycommon.pycommon import deal_with_exceptions, make_dict_tf_float32
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import add_batch_single, sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch
 from std_msgs.msg import Empty
@@ -120,6 +120,7 @@ class ResultsToDynamicsDataset:
         t0 = perf_counter()
         last_t = t0
         max_examples_per_trial = 500
+        enough_trials_msg = f"moving on to next trial, already got {max_examples_per_trial} examples from this trial"
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
             if job_chunker.result_exists(str(trial_idx)):
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
@@ -135,6 +136,7 @@ class ResultsToDynamicsDataset:
 
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}')
+                    example = make_dict_tf_float32(example)
                     tf_write_example(outdir, example, self.example_idx)
                     example_idx_for_trial += 1
 
@@ -142,7 +144,7 @@ class ResultsToDynamicsDataset:
                         job_chunker.store_result(trial_idx, {'trial':              trial_idx,
                                                              'examples for trial': example_idx_for_trial})
                     if example_idx_for_trial > max_examples_per_trial:
-                        rospy.logwarn("moving on to next trial, already got {max_examples_per_trial} examples from this trial")
+                        rospy.logwarn(enough_trials_msg)
                         break
 
                 job_chunker.store_result(trial_idx, {'trial':              trial_idx,
