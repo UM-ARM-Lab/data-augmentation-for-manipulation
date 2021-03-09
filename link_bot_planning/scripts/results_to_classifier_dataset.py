@@ -230,8 +230,10 @@ class ResultsToDynamicsDataset:
         classifier_start_t = depth
         example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
         example_states_pred = sequence_of_dicts_to_dict_of_tensors([before_state_pred, after_state_pred])
-        example_states_pred.pop("joint_names")
-        example_states_pred.pop("num_diverged")
+        if 'joint_names' in example_states:
+            example_states_pred.pop("joint_names")
+        if 'num_diverged' in example_states:
+            example_states_pred.pop("num_diverged")
         example_actions = add_batch_single(action)
         example = {
             'classifier_start_t': classifier_start_t,
