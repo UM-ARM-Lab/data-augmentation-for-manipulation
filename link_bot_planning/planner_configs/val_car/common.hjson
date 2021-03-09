@@ -48,7 +48,7 @@
   goal_params: {
     type: saved
     goal_type: any_point
-    threshold: 0.07
+    threshold: 0.04
     extent: [
       -0.5
       0.5
