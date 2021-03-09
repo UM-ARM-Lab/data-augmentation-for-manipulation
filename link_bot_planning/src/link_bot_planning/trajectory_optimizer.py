@@ -66,7 +66,6 @@ class TrajectoryOptimizer:
             actions, planned_path, cost = self.step(environment, goal_state, actions, start_state)
 
             if self.verbose >= 2:
-                self.scenario.plot_state_rviz(numpify(planned_path[0]), label='opt', color=cm.Reds(cost), idx=0)
                 self.scenario.plot_state_rviz(numpify(planned_path[1]), label='opt', color=cm.Reds(cost), idx=1)
                 self.scenario.plot_action_rviz(numpify(planned_path[0]), numpify(actions[0]), label='opt')
         smoothing_time = perf_counter() - start_smoothing_time

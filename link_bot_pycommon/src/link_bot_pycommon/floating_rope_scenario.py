@@ -10,8 +10,7 @@ from arc_utilities.listener import Listener
 from arc_utilities.marker_utils import scale_marker_array
 from geometry_msgs.msg import Point
 from jsk_recognition_msgs.msg import BoundingBox
-from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted, \
-    float_tensor_to_bytes_feature, ros_msg_to_bytes_feature, generic_to_bytes_feature
+from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted
 from link_bot_data.visualization import rviz_arrow
 from link_bot_gazebo_python.gazebo_services import gz_scope
 from link_bot_gazebo_python.gazebo_utils import get_gazebo_kinect_pose
@@ -607,13 +606,16 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         distance2 = tf.linalg.norm(goal['right_gripper'] - right_gripper)
         return tf.math.maximum(tf.math.maximum(distance1, distance2), rope_distance)
 
-    @staticmethod
-    def distance_to_any_point_goal(state: Dict, goal: Dict):
+    def distance_to_any_point_goal(self, state: Dict, goal: Dict):
         rope_points = tf.reshape(state[rope_key_name], [-1, 3])
         # NOTE: well ok not _any_ node, but ones near the middle
         n_from_ends = 7
         distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
                                    rope_points, axis=1)[n_from_ends:-n_from_ends]
+        # min_idx = tf.argmin(distances)
+        # min_rope_point = rope_points[n_from_ends + min_idx]
+        # debug_opt_dist_m = MarkerArray(markers=[rviz_arrow(goal['point'], min_rope_point, label='debug-opt-dist')])
+        # self.action_viz_pub.publish(debug_opt_dist_m)
         min_distance = tf.reduce_min(distances)
         return min_distance
 
@@ -880,7 +882,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         if 'rope' in state:
             rope_points = np.reshape(state['rope'], [-1, 3])
             markers = make_rope_marker(rope_points, 'world', label + "_rope", next(ig),
-                                       adjust_lightness_msg(color_msg, 0.5), 0.01)
+                                       adjust_lightness_msg(color_msg, 0.9), 0.01)
             msg.markers.extend(markers)
 
         if add_predicted('rope') in state:
