@@ -21,7 +21,7 @@ def main():
     args.outdir.mkdir(exist_ok=True)
 
     file_extension = ".pkl.gz"
-    metadata_filename = 'metadata.json'
+    metadata_filename = 'metadata.hjson'
 
     args.outdir.mkdir(parents=True, exist_ok=True)
 
