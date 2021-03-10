@@ -6,7 +6,7 @@ from typing import Dict
 import colorama
 import numpy as np
 
-import rospy
+from arc_utilities import ros_init
 from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningQuery
 from link_bot_planning.plan_and_execute import TrialStatus
@@ -15,9 +15,9 @@ from link_bot_planning.results_utils import labeling_params_from_planner_params,
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
-from moonshine.moonshine_utils import numpify
 
 
+@ros_init.with_ros("plot_results")
 def main():
     colorama.init(autoreset=True)
     np.set_printoptions(linewidth=250, precision=3, suppress=True)
@@ -29,8 +29,6 @@ def main():
     parser.add_argument("--only-timeouts", action='store_true')
     parser.add_argument("--show-tree", action="store_true")
     parser.add_argument("--verbose", '-v', action="count", default=0)
-
-    rospy.init_node("plot_results")
 
     args = parser.parse_args()
 
