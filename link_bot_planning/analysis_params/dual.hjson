@@ -4,13 +4,6 @@
   n_error_bins: 89
   experiment_name: Dual Arm Rope Manipulation
   colors: {
-    "Collision Checking": "#C36F00"
-    "Full Dynamics": "#37BDB4"
-    "Classifier + Random Recovery": "#0058AB"
-    "Classifier": "#FDD600"
-    "No Classifier": "#EF4650"
-    "Classifier + Learned Recovery": "#7F59C2"
-
     "no feasibility, no classifier": "#C36F00"
     "neither": "#C36F00"
 
@@ -24,6 +17,7 @@
     "classifier, feasibility": "#7F59C2"
     "both": "#7F59C2"
     "classifier (no starts far), feasibility": "#7F59C2"
+    "classifier": "#7F59C2"
     "original classifier": "#7F59C2"
 
     "fine-tuned classifier": "#D12C7C"
@@ -32,5 +26,8 @@
     "cc, gd, feasibility": "#F33333"
 
     "classifier (starts far), feasibility": "#4F2982"
+
+    "(old) classifier": "#D12C7C"
+
   }
 }

@@ -80,7 +80,8 @@ class MyFigure:
 
 class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
     def __init__(self, analysis_params: Dict, metric, ylabel: str):
-        super().__init__(analysis_params, metric, name="task_error_violinplot")
+        name = ylabel.lower().replace(" ", "_") + "_violinplot"
+        super().__init__(analysis_params, metric, name=name)
         self.ax.set_xlabel("Method")
         self.ax.set_ylabel(ylabel)
         self.trendline = self.params.get('trendline', False)
