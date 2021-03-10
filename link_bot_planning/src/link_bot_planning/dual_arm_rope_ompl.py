@@ -271,6 +271,7 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
                                           rng=rng,
                                           threshold=params['goal_params']['threshold'],
                                           goal=goal,
+                                          shared_planning_state=self.sps,
                                           plot=plot)
         elif goal['goal_type'] == 'any_point':
             return RopeAnyPointGoalRegion(si=si,
@@ -315,8 +316,9 @@ class RopeMidpointGoalRegion(floating_rope_ompl.RopeMidpointGoalRegion):
                  rng: np.random.RandomState,
                  threshold: float,
                  goal: Dict,
+                 shared_planning_state: SharedPlanningStateOMPL,
                  plot: bool):
-        super().__init__(si, scenario_ompl, rng, threshold, goal, plot)
+        super().__init__(si, scenario_ompl, rng, threshold, goal, shared_planning_state, plot)
         self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
     def make_goal_state(self, random_point):

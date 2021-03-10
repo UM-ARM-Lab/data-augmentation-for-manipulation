@@ -192,6 +192,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
                                           rng=rng,
                                           threshold=params['goal_params']['threshold'],
                                           goal=goal,
+                                          shared_planning_state=self.sps,
                                           plot=plot)
         elif goal['goal_type'] == 'any_point':
             return RopeAnyPointGoalRegion(si=si,
@@ -508,6 +509,8 @@ class DualGripperGoalRegion(ob.GoalSampleableRegion):
         return distance
 
     def sampleGoal(self, state_out: ob.CompoundState):
+        self.sps.just_sampled_goal = True
+
         sampler = self.getSpaceInformation().allocStateSampler()
         # sample a random state via the state space sampler, in hopes that OMPL will clean up the memory...
         sampler.sampleUniform(state_out)
@@ -545,6 +548,7 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
                  rng: RandomState,
                  threshold: float,
                  goal: Dict,
+                 shared_planning_state: SharedPlanningStateOMPL,
                  plot: bool):
         super(RopeMidpointGoalRegion, self).__init__(si)
         self.setThreshold(threshold)
@@ -552,6 +556,7 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
         self.scenario_ompl = scenario_ompl
         self.rng = rng
         self.plot = plot
+        self.sps = shared_planning_state
 
     def distanceGoal(self, state: ob.CompoundState):
         """
@@ -566,6 +571,8 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
         return distance
 
     def sampleGoal(self, state_out: ob.CompoundState):
+        self.sps.just_sampled_goal = True
+
         d = self.getThreshold()
         random_direction = transformations.random_rotation_matrix(self.rng.uniform(0, 1, [3])) @ np.array([d, 0, 0, 1])
         random_distance = self.rng.uniform(0.0, d)
@@ -684,6 +691,8 @@ class RopeAndGrippersGoalRegion(ob.GoalSampleableRegion):
         return distance
 
     def sampleGoal(self, state_out: ob.CompoundState):
+        self.sps.just_sampled_goal = True
+
         # attempt to sample "legit" rope states
         kd = 0.05
         rope = sample_rope_and_grippers(
@@ -753,6 +762,8 @@ class RopeAndGrippersBoxesGoalRegion(ob.GoalSampleableRegion):
         return float(any_point_satisfied and left_gripper_satisfied and right_gripper_satisfied)
 
     def sampleGoal(self, state_out: ob.CompoundState):
+        self.sps.just_sampled_goal = True
+
         # attempt to sample "legit" rope states
         kd = 0.05
         rope = sample_rope_and_grippers(
