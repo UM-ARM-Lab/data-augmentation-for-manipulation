@@ -85,6 +85,9 @@ def get_paths(datum: Dict, scenario: ExperimentScenario, show_tree: bool = False
         else:
             raise NotImplementedError(f"invalid step type {step['type']}")
 
+        if len(actions) == 0 or actions[0] is None:
+            print("Skipping step with no actions")
+            continue
         actions = numpify(actions)
         actual_states = numpify(actual_states)
         predicted_states = numpify(predicted_states)
@@ -92,6 +95,7 @@ def get_paths(datum: Dict, scenario: ExperimentScenario, show_tree: bool = False
         all_actions.extend(actions)
         types.extend([step['type']] * len(actions))
         all_actual_states.extend(actual_states[:-1])
+
         all_predicted_states.extend(predicted_states[:-1])
 
         if show_tree and step['type'] == 'executed_plan':
@@ -113,11 +117,14 @@ def get_paths(datum: Dict, scenario: ExperimentScenario, show_tree: bool = False
             tree_thread = threading.Thread(target=_draw_tree_function,
                                            args=(scenario, planning_result.tree))
             tree_thread.start()
+
     # but do add the actual final states
-    all_actual_states.append(actual_states[-1])
-    all_predicted_states.append(predicted_states[-1])
-    all_actions.append(all_actions[-1])
-    types.append(types[-1])
+    if len(actions) > 0 and actions[0] is not None:
+        all_actual_states.append(actual_states[-1])
+        all_predicted_states.append(predicted_states[-1])
+        all_actions.append(all_actions[-1])
+        types.append(types[-1])
+
     # also add the end_state, because due to rope settling it could be different
     all_actual_states.append(datum['end_state'])
     all_predicted_states.append(predicted_states[-1])  # just copy this again
