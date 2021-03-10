@@ -1,0 +1,110 @@
+<?xml version="1.0" ?>
+<sdf version="1.4">
+    <world name="default">
+        <scene>
+            <grid>false</grid>
+            <origin_visual>false</origin_visual>
+            <sky>
+                <clouds>
+                    <speed>12</speed>
+                </clouds>
+            </sky>
+        </scene>
+
+        <physics name="ode" type="ode">
+            <max_step_size>0.01</max_step_size>
+            <real_time_factor>1</real_time_factor>
+            <real_time_update_rate>0</real_time_update_rate>
+            <ode>
+                <solver>
+                    <island_threads>2</island_threads>
+                    <type>quick</type>
+                    <iters>100</iters>
+                    <sor>1.0</sor> <!-- Important, see issue #2209 -->
+                    <use_dynamic_moi_rescaling>false</use_dynamic_moi_rescaling>
+                </solver>
+                <constraints>
+                    <erp>0.2</erp>
+                </constraints>
+            </ode>
+        </physics>
+
+        <plugin name="arm_gazebo_ros" filename="libarm_gazebo_ros_plugin.so"/>
+        <plugin name="gazebo_ros_tf_plugin" filename="libgazebo_ros_tf_plugin.so"/>
+        <plugin name="ros_link_attacher_plugin" filename="libgazebo_ros_link_attacher.so"/>
+        <plugin name="position_3d_plugin" filename="libposition_3d_plugin.so"/>
+        <plugin name="collision_map_plugin" filename="libcollision_map_plugin.so"/>
+
+        <include>
+            <uri>model://my_ground_plane</uri>
+            <pose>0 0 -0.415 0 0 0</pose>
+        </include>
+
+        <include>
+            <uri>model://sun</uri>
+        </include>
+
+        <model name="long_hook1">
+            <pose>0 0.95 0 0 0 1.5707</pose>
+            <allow_auto_disable>true</allow_auto_disable>
+            <link name="link_1">
+                <kinematic>true</kinematic>
+                <pose>0 0 0.1 0 0 0 0</pose>
+                <inertial>
+                     <pose>0 0 -0.08 0 0 0 0</pose>
+                     <inertia>
+                     <ixx>0.03541666666666667</ixx>
+                     <ixy>0</ixy>
+                     <ixz>0</ixz>
+                     <iyy>0.04166666666666667</iyy>
+                     <iyz>0</iyz>
+                     <izz>0.010416666666666668</izz>
+                     </inertia>
+                     <mass>10.0</mass>
+                     </inertial>
+                <visual name="visual">
+                    <geometry>
+                        <box>
+                            <size>1.0 0.12 0.12</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.2 0.5 0.5 1.0</ambient>
+                        <diffuse>0.2 0.5 0.5 1.0</diffuse>
+                    </material>
+                </visual>
+                <collision name="box_collision">
+                                           <geometry>
+                                           <box>
+                                           <size>1.0 0.12 0.12</size>
+                                           </box>
+                                           </geometry>
+                                           <surface>
+                                           <friction>
+                                           <ode>
+                                           <mu>1.0</mu>
+                                           <mu2>1.0</mu2>
+                                           </ode>
+                                           </friction>
+                                           <contact>
+                                           <ode>
+                                           <kp>1e15</kp>
+                                           <kd>1e12</kd>
+                                           </ode>
+                                           </contact>
+                                           </surface>
+                                           </collision>
+            </link>
+        </model>
+
+        <include>
+            <uri>model://rope_3d</uri>
+            <pose>-0.36 0.63 0.37 0 0 0</pose>
+        </include>
+
+        <include>
+            <uri>model://arm_kinect</uri>
+            <pose>0.77 -0.16 0.7 0 0.45 2.21</pose>
+        </include>
+    </world>
+</sdf>
