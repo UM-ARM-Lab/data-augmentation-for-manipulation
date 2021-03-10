@@ -6,7 +6,7 @@ import shutil
 import colorama
 import hjson
 
-from moonshine.filepath_tools import load_hjson
+from moonshine.filepath_tools import load_json_or_hjson
 
 
 def main():
@@ -29,7 +29,7 @@ def main():
         path = args.indir / metadata_filename
         new_path = args.outdir / metadata_filename
         # log this operation in the params!
-        hparams = load_hjson(path)
+        hparams = load_json_or_hjson(path)
         hparams['created_by_merging'] = hparams.get('created_by_merging', []) + [args.indir.as_posix()]
         hjson.dump(hparams, new_path.open('w'), indent=2)
         print(path, '-->', new_path)
