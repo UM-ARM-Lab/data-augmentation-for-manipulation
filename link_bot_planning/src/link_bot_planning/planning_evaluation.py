@@ -189,7 +189,6 @@ def evaluate_planning_method(planner_params: Dict,
                          function=runner.run,
                          exception_callback=_on_exception,
                          )
-    runner.run()
     planner.scenario.robot.disconnect()
 
 
