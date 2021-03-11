@@ -1,5 +1,5 @@
 {
-  method_name: classifier (no starts far), feasibility
+  method_name: classifier
   filter_model_dir: [
     filter_trials/none/none
   ]
@@ -11,8 +11,6 @@
   ]
   classifier_model_dir: [
     cl_trials/val_car_feasible_1614981888/March_05_18-57-54_4b65490ac1/best_checkpoint
-    #cl_trials/val_car_3/January_20_11-15-31_3b4c39a23d/best_checkpoint
-    #cl_trials/val_car_3+plan-dist-3+trial24/March_02_14-28-14_5e615e0105/latest_checkpoint
     cl_trials/new_feasibility_baseline/none
   ]
   recovery: {
