@@ -15,9 +15,9 @@ import ros_numpy
 import rospy
 from arc_utilities import ros_init
 from geometry_msgs.msg import Point, Pose
-from link_bot.link_bot_pycommon.scripts.basic_3d_pose_marker_server import Basic3DPoseInteractiveMarker
 from link_bot_gazebo import gazebo_services
 from link_bot_pycommon.args import my_formatter
+from link_bot_pycommon.basic_3d_pose_marker import Basic3DPoseInteractiveMarker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from std_msgs.msg import ColorRGBA
@@ -93,17 +93,23 @@ def generate_saved_goals(method: str,
 
         # restore
         bagfile_name = save_test_scenes_dir / f'scene_{trial_idx:04d}.bag'
+        if not bagfile_name.exists():
+            rospy.loginfo(Fore.YELLOW+ f"No saved scene{bagfile_name}")
+            continue
+
         rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
         scenario.restore_from_bag(service_provider, planner_params, bagfile_name)
 
         current_goal = load(save_test_scenes_dir, trial_idx)
-        scenario.plot_goal_rviz(current_goal, goal_threshold=goal_radius)
+        if current_goal is not None:
+            scenario.plot_goal_rviz(current_goal, goal_threshold=goal_radius)
 
         print(trial_idx)
         if method == 'rejection_sample':
             goal = rejection_sample_goal(scenario, params, planner_params, trial_idx)
         elif method == 'rviz_marker':
-            goal_im.set_pose(Pose(position=ros_numpy.msgify(Point, current_goal['point'])))
+            if current_goal is not None:
+                goal_im.set_pose(Pose(position=ros_numpy.msgify(Point, current_goal['point'])))
             goal = rviz_marker_goal(goal_im)
         else:
             raise NotImplementedError()
@@ -134,9 +140,12 @@ def rejection_sample_goal(scenario: ExperimentScenario, params: Dict, planner_pa
 
 def load(save_test_scenes_dir: pathlib.Path, trial_idx: int):
     saved_goal_filename = save_test_scenes_dir / f'goal_{trial_idx:04d}.pkl'
-    with saved_goal_filename.open("rb") as saved_goal_file:
-        goal = pickle.load(saved_goal_file)
-    return goal
+    if saved_goal_filename.exists():
+        with saved_goal_filename.open("rb") as saved_goal_file:
+            goal = pickle.load(saved_goal_file)
+        return goal
+    else:
+        return None
 
 
 def save(save_test_scenes_dir: pathlib.Path, trial_idx: int, goal: Dict):

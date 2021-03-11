@@ -4,6 +4,7 @@ project(link_bot_gazebo)
 find_package(
         catkin
         REQUIRED COMPONENTS
+        rospy
         roscpp
         sdf_tools
         arm_video_recorder

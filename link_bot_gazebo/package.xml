@@ -7,25 +7,26 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
+  <depend>arc_utilities</depend>
+  <depend>arm_video_recorder</depend>
+  <depend>cnpy</depend>
+  <depend>control_msgs</depend>
+  <depend>gazebo_msgs</depend>
+  <depend>gazebo_ros</depend>
+  <depend>geometry_msgs</depend>
+  <depend>jsk_recognition_msgs</depend>
+  <depend>moveit_msgs</depend>
+  <depend>peter_msgs</depend>
   <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <depend>sdf_tools</depend>
+  <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
-  <depend>sensor_msgs</depend>
-  <depend>arm_video_recorder</depend>
-  <depend>geometry_msgs</depend>
-  <depend>trajectory_msgs</depend>
-  <depend>arc_utilities</depend>
-  <depend>moveit_msgs</depend>
-  <depend>gazebo_msgs</depend>
-  <depend>control_msgs</depend>
-  <depend>gazebo_ros</depend>
-  <depend>sdf_tools</depend>
-  <depend>peter_msgs</depend>
   <depend>tf2_ros</depend>
-  <depend>victor_hardware_interface</depend>
-  <depend>cnpy</depend>
-  <depend>jsk_recognition_msgs</depend>
   <depend>tf2_sensor_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>victor_hardware_interface</depend>
   <depend>visualization_msgs</depend>
 
   <build_depend>message_generation</build_depend>

@@ -11,7 +11,7 @@ from colorama import Fore
 
 import rospy
 from arc_utilities import ros_init
-from link_bot_gazebo import GazeboServices
+from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
 from peter_msgs.srv import GetOverstretching, GetOverstretchingResponse, GetOverstretchingRequest
