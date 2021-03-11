@@ -26,7 +26,7 @@ def main():
 
     def _should_keep_example(dataset: ClassifierDatasetLoader, example: Dict):
         starts_close = (example['is_close'][0] == 1)
-        return starts_close
+        return not starts_close
 
     hparams_update = {}
 
