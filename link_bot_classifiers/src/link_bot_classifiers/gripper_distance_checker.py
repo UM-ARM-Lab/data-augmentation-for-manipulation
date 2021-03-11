@@ -28,7 +28,7 @@ class GripperDistanceChecker(BaseConstraintChecker):
             too_far = d > self.max_d
             if too_far:
                 break
-        return tf.expand_dims(tf.cast(tf.logical_not(too_far), tf.float32), axis=0), tf.constant(0)
+        return tf.expand_dims(tf.cast(tf.logical_not(too_far), tf.float32), axis=0)
 
     def check_constraint_tf_batched(self,
                                     environment: Dict,
@@ -39,4 +39,4 @@ class GripperDistanceChecker(BaseConstraintChecker):
         del environment  # unused
         d = tf.linalg.norm(states['right_gripper'] - states['left_gripper'], axis=-1)[:, -1]
         not_too_far = d < self.max_d
-        return tf.expand_dims(tf.cast(not_too_far, tf.float32), axis=0), tf.zeros([1, batch_size], tf.float32)
+        return tf.expand_dims(tf.cast(not_too_far, tf.float32), axis=0)

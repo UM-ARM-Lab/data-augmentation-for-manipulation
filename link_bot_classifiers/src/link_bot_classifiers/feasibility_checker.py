@@ -24,7 +24,7 @@ class RobotFeasibilityChecker(BaseConstraintChecker):
         feasible, predicted_joint_positions = self.scenario.is_motion_feasible(environment=environment,
                                                                                state=state,
                                                                                action=action)
-        return tf.expand_dims(tf.cast(feasible, tf.float32), axis=0), tf.constant(0)
+        return tf.expand_dims(tf.cast(feasible, tf.float32), axis=0)
 
 
 class FastRobotFeasibilityChecker(BaseConstraintChecker):
@@ -48,7 +48,7 @@ class FastRobotFeasibilityChecker(BaseConstraintChecker):
             constraint_satisfied = feasible and reached
             if not constraint_satisfied:
                 break
-        return tf.expand_dims(tf.cast(constraint_satisfied, tf.float32), axis=0), tf.constant(0)
+        return tf.expand_dims(tf.cast(constraint_satisfied, tf.float32), axis=0)
 
     def check_constraint_tf_batched(self,
                                     environment: Dict,

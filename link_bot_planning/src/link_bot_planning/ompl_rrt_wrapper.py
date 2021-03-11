@@ -227,7 +227,7 @@ class OmplRRTWrapper(MyPlanner):
         accept = True
         accept_probabilities = {}
         for classifier in self.classifier_models:
-            p_accepts_for_model, _ = classifier.check_constraint(environment=self.sps.environment,
+            p_accepts_for_model = classifier.check_constraint(environment=self.sps.environment,
                                                                  states_sequence=states,
                                                                  actions=actions)
             assert p_accepts_for_model.ndim == 1

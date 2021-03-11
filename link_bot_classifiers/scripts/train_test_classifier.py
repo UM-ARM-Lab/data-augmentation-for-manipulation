@@ -100,9 +100,10 @@ def main():
     viz_ensemble_parser.add_argument('dataset_dir', type=pathlib.Path)
     viz_ensemble_parser.add_argument('checkpoints', type=pathlib.Path, nargs='+')
     viz_ensemble_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
-    viz_ensemble_parser.add_argument('--batch-size', type=int, default=1)
+    viz_ensemble_parser.add_argument('--batch-size', type=int, default=32)
     viz_ensemble_parser.add_argument('--verbose', '-v', action='count', default=0)
     viz_ensemble_parser.add_argument('--only-errors', action='store_true')
+    viz_ensemble_parser.add_argument('--take', type=int)
     viz_ensemble_parser.add_argument('--use-gt-rope', action='store_true')
     viz_ensemble_parser.set_defaults(func=viz_ensemble_main)
 

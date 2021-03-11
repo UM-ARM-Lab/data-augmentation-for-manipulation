@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import pathlib
+from time import time
 from typing import List, Optional, Dict
 
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
@@ -11,16 +13,17 @@ import link_bot_classifiers
 import rospy
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.classifier_utils import load_generic_model
+from link_bot_classifiers.nn_classifier import NNClassifierWrapper
 from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset
 from link_bot_data.visualization import init_viz_env
-from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine import filepath_tools
+from moonshine.ensemble import Ensemble2
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metrics import AccuracyCheckpointMetric
@@ -228,10 +231,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
 
     model = classifier_utils.load_generic_model(checkpoint)
 
-    fn = 0
-    fp = 0
     for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
-    # for batch_idx, example in enumerate(tf_dataset):
+        # for batch_idx, example in enumerate(tf_dataset):
 
         if batch_idx < start_at:
             continue
@@ -257,11 +258,6 @@ def viz_main(dataset_dirs: List[pathlib.Path],
         is_positive = labels
         for b in range(batch_size):
             example_b = index_dict_of_batched_tensors_tf(example, b)
-
-            if tf.reduce_all(is_fp[b]):
-                fp += 1
-            if tf.reduce_all(is_fn[b]):
-                fn += 1
 
             # if the classifier is correct at all time steps, ignore
             if only_negative:
@@ -312,8 +308,6 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 my_hdump(example_b_np, f)
             anim.play(example_b)
 
-    print(fn / (fn + fp), fp / (fn + fp))
-
 
 def viz_ensemble_main(dataset_dir: pathlib.Path,
                       checkpoints: List[pathlib.Path],
@@ -321,6 +315,8 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
                       batch_size: int,
                       only_errors: bool,
                       use_gt_rope: bool,
+                      take: Optional[int] = None,
+                      no_plot: Optional[bool] = True,
                       **kwargs):
     dynamics_stdev_pub_ = rospy.Publisher("dynamics_stdev", Float32, queue_size=10)
     classifier_stdev_pub_ = rospy.Publisher("classifier_stdev", Float32, queue_size=10)
@@ -330,110 +326,80 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
     ###############
     # Model
     ###############
-    model = load_generic_model(checkpoints)
+    models = [load_generic_model(checkpoint) for checkpoint in checkpoints]
+    const_keys_for_classifier = []
+    ensemble = Ensemble2(models, const_keys_for_classifier)
 
     ###############
     # Dataset
     ###############
-    test_dataset = ClassifierDatasetLoader([dataset_dir], load_true_states=True, use_gt_rope=use_gt_rope)
-    test_tf_dataset = test_dataset.get_datasets(mode=mode)
-    test_tf_dataset = batch_tf_dataset(test_tf_dataset, batch_size, drop_remainder=True)
-    scenario = test_dataset.scenario
+    dataset = ClassifierDatasetLoader([dataset_dir], load_true_states=True, use_gt_rope=use_gt_rope)
+    tf_dataset = dataset.get_datasets(mode=mode)
+    tf_dataset = tf_dataset.take(take)
+    tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
+    scenario = dataset.scenario
 
     ###############
     # Evaluate
     ###############
 
-    # Iterate over test set
-    all_accuracies_over_time = []
+    classifiers_nickname = checkpoints[0].parent.parent.name
+    outdir = pathlib.Path('results') / dataset_dir / classifiers_nickname
+    outdir.mkdir(exist_ok=True, parents=True)
+    outfile = outdir / f'results_{int(time())}.npz'
+
     all_stdevs = []
     all_labels = []
     classifier_ensemble_stdevs = []
-    for batch_idx, test_batch in enumerate(test_tf_dataset):
-        test_batch.update(test_dataset.batch_metadata)
+    classifier_is_corrects = []
+    classifier_probabilities = []
+    for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+        batch.update(dataset.batch_metadata)
 
-        mean_predictions, stdev_predictions = model.check_constraint_from_example(test_batch)
+        mean_predictions, stdev_predictions = ensemble(NNClassifierWrapper.check_constraint_from_example, batch)
         mean_probabilities = mean_predictions['probabilities']
         stdev_probabilities = stdev_predictions['probabilities']
 
-        labels = tf.expand_dims(test_batch['is_close'][:, 1:], axis=2)
+        labels = tf.expand_dims(batch['is_close'][:, 1:], axis=2)
 
-        all_labels = tf.concat((all_labels, tf.reshape(test_batch['is_close'][:, 1:], [-1])), axis=0)
-        all_stdevs = tf.concat((all_stdevs, tf.reshape(test_batch[add_predicted('stdev')], [-1])), axis=0)
-
-        accuracy_over_time = tf.keras.metrics.binary_accuracy(y_true=labels, y_pred=mean_probabilities)
-        all_accuracies_over_time.append(accuracy_over_time)
+        all_labels = tf.concat((all_labels, tf.reshape(batch['is_close'][:, 1:], [-1])), axis=0)
+        all_stdevs = tf.concat((all_stdevs, tf.reshape(batch[add_predicted('stdev')], [-1])), axis=0)
 
         # Visualization
-        test_batch.pop("time")
-        test_batch.pop("batch_size")
         decisions = mean_probabilities > 0.5
         classifier_is_correct = tf.squeeze(tf.equal(decisions, tf.cast(labels, tf.bool)), axis=-1)
-        for b in range(batch_size):
-            example = index_dict_of_batched_tensors_tf(test_batch, b)
+        classifier_is_correct = classifier_is_correct.numpy().squeeze()
+        classifier_ensemble_stdev = stdev_probabilities.numpy().squeeze()
+        mean_probabilities = mean_probabilities.numpy().squeeze()
 
-            classifier_ensemble_stdev = stdev_probabilities[b].numpy().squeeze()
-            classifier_ensemble_stdevs.append(classifier_ensemble_stdev)
+        classifier_ensemble_stdevs.extend(classifier_ensemble_stdev.tolist())
+        classifier_is_corrects.extend(classifier_is_correct.tolist())
+        classifier_probabilities.extend(mean_probabilities.tolist())
 
-            # if the classifier is correct at all time steps, ignore
-            if only_errors and tf.reduce_all(classifier_is_correct[b]):
-                print(f'batch {b}')
-                continue
+    classifier_ensemble_stdevs = np.array(classifier_ensemble_stdevs)
+    classifier_is_corrects = np.array(classifier_is_corrects)
+    classifier_probabilities = np.array(classifier_probabilities)
+    mean_classifier_ensemble_stdev = tf.math.reduce_mean(classifier_ensemble_stdevs)
+    stdev_classifier_ensemble_stdev = tf.math.reduce_std(classifier_ensemble_stdevs)
+    datum = {
+        'stdevs':        classifier_ensemble_stdevs,
+        'is_correct':    classifier_is_corrects,
+        'probabilities': classifier_probabilities,
+    }
+    np.savez(outfile, **datum)
+    print(f'{mean_classifier_ensemble_stdev.numpy()} {stdev_classifier_ensemble_stdev.numpy()}')
 
-            # if only_collision
-            predicted_rope_states = tf.reshape(example[add_predicted('link_bot')][1], [-1, 3])
-            xs = predicted_rope_states[:, 0]
-            ys = predicted_rope_states[:, 1]
-            zs = predicted_rope_states[:, 2]
-            in_collision = bool(batch_in_collision_tf_3d(environment=example,
-                                                         xs=xs, ys=ys, zs=zs,
-                                                         inflate_radius_m=0)[0].numpy())
-            label = bool(example['is_close'][1].numpy())
-            accept = decisions[b, 0, 0].numpy()
-            # if not (in_collision and accept):
-            #     continue
+    plt.figure()
+    ax1 = plt.gca()
+    ax1.hist(classifier_ensemble_stdevs, bins=100)
+    ax1.set_xlabel("ensemble stdev")
+    ax1.set_ylabel("count")
 
-            scenario.plot_environment_rviz(example)
+    plt.figure()
+    ax2 = plt.gca()
+    ax2.violinplot(classifier_ensemble_stdevs)
+    ax2.set_xlabel("density")
+    ax2.set_ylabel("classifier uncertainty")
 
-            stdev_probabilities[b].numpy().squeeze()
-            classifier_stdev_msg = Float32()
-            classifier_stdev_msg.data = stdev_probabilities[b].numpy().squeeze()
-            classifier_stdev_pub_.publish(classifier_stdev_msg)
-
-            actual_0 = scenario.index_state_time(example, 0)
-            actual_1 = scenario.index_state_time(example, 1)
-            pred_0 = scenario.index_predicted_state_time(example, 0)
-            pred_1 = scenario.index_predicted_state_time(example, 1)
-            action = scenario.index_action_time(example, 0)
-            label = example['is_close'][1]
-            scenario.plot_state_rviz(actual_0, label='actual', color='#FF0000AA', idx=0)
-            scenario.plot_state_rviz(actual_1, label='actual', color='#E00016AA', idx=1)
-            scenario.plot_state_rviz(pred_0, label='predicted', color='#0000FFAA', idx=0)
-            scenario.plot_state_rviz(pred_1, label='predicted', color='#0553FAAA', idx=1)
-            scenario.plot_action_rviz(pred_0, action)
-            scenario.plot_is_close(label)
-
-            dynamics_stdev_t = example[add_predicted('stdev')][1, 0].numpy()
-            dynamics_stdev_msg = Float32()
-            dynamics_stdev_msg.data = dynamics_stdev_t
-            dynamics_stdev_pub_.publish(dynamics_stdev_msg)
-
-            accept_probability_t = mean_probabilities[b, 0, 0].numpy()
-            accept_probability_msg = Float32()
-            accept_probability_msg.data = accept_probability_t
-            accept_probability_pub_.publish(accept_probability_msg)
-
-            traj_idx_msg = Float32()
-            traj_idx_msg.data = batch_idx * batch_size + b
-            traj_idx_pub_.publish(traj_idx_msg)
-
-            # stepper = RvizSimpleStepper()
-            # stepper.step()
-
-        print(np.mean(classifier_ensemble_stdevs))
-
-    all_accuracies_over_time = tf.concat(all_accuracies_over_time, axis=0)
-    mean_accuracies_over_time = tf.reduce_mean(all_accuracies_over_time, axis=0)
-    std_accuracies_over_time = tf.math.reduce_std(all_accuracies_over_time, axis=0)
-    mean_classifier_ensemble_stdev = tf.reduce_mean(classifier_ensemble_stdevs)
-    print(mean_classifier_ensemble_stdev)
+    if not no_plot:
+        plt.show()
