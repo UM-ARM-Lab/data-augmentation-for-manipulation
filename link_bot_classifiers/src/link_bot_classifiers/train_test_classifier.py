@@ -348,8 +348,7 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
     outdir.mkdir(exist_ok=True, parents=True)
     outfile = outdir / f'results_{int(time())}.npz'
 
-    all_stdevs = []
-    all_labels = []
+    labels = []
     classifier_ensemble_stdevs = []
     classifier_is_corrects = []
     classifier_probabilities = []
@@ -357,34 +356,34 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
         batch.update(dataset.batch_metadata)
 
         mean_predictions, stdev_predictions = ensemble(NNClassifierWrapper.check_constraint_from_example, batch)
+
         mean_probabilities = mean_predictions['probabilities']
         stdev_probabilities = stdev_predictions['probabilities']
-
-        labels = tf.expand_dims(batch['is_close'][:, 1:], axis=2)
-
-        all_labels = tf.concat((all_labels, tf.reshape(batch['is_close'][:, 1:], [-1])), axis=0)
-        all_stdevs = tf.concat((all_stdevs, tf.reshape(batch[add_predicted('stdev')], [-1])), axis=0)
-
-        # Visualization
+        batch_labels = tf.expand_dims(batch['is_close'][:, 1:], axis=2)
         decisions = mean_probabilities > 0.5
-        classifier_is_correct = tf.squeeze(tf.equal(decisions, tf.cast(labels, tf.bool)), axis=-1)
+        classifier_is_correct = tf.squeeze(tf.equal(decisions, tf.cast(batch_labels, tf.bool)), axis=-1)
+
         classifier_is_correct = classifier_is_correct.numpy().squeeze()
         classifier_ensemble_stdev = stdev_probabilities.numpy().squeeze()
         mean_probabilities = mean_probabilities.numpy().squeeze()
+        batch_labels = batch_labels.numpy().squeeze()
 
         classifier_ensemble_stdevs.extend(classifier_ensemble_stdev.tolist())
         classifier_is_corrects.extend(classifier_is_correct.tolist())
         classifier_probabilities.extend(mean_probabilities.tolist())
+        labels.extend(batch_labels.tolist())
 
     classifier_ensemble_stdevs = np.array(classifier_ensemble_stdevs)
     classifier_is_corrects = np.array(classifier_is_corrects)
     classifier_probabilities = np.array(classifier_probabilities)
+    labels = np.array(labels)
     mean_classifier_ensemble_stdev = tf.math.reduce_mean(classifier_ensemble_stdevs)
     stdev_classifier_ensemble_stdev = tf.math.reduce_std(classifier_ensemble_stdevs)
     datum = {
         'stdevs':        classifier_ensemble_stdevs,
         'is_correct':    classifier_is_corrects,
         'probabilities': classifier_probabilities,
+        'labels': labels,
     }
     np.savez(outfile, **datum)
     print(f'{mean_classifier_ensemble_stdev.numpy()} {stdev_classifier_ensemble_stdev.numpy()}')
