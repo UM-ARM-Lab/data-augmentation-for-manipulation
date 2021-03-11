@@ -51,6 +51,9 @@ def robot_state_msg_from_state_dict(state: Dict):
     robot_state = RobotState()
     robot_state.joint_state = joint_state_msg_from_state_dict(state)
     robot_state.joint_state.velocity = [0.0] * len(robot_state.joint_state.name)
+    aco = state.get('attached_collision_objects', None)
+    if aco is not None:
+        robot_state.attached_collision_objects = aco
     return robot_state
 
 
@@ -133,6 +136,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
     def on_before_get_state_or_execute_action(self):
         self.robot.connect()
+
+        self.add_boxes_around_tools()
 
         # Mark the rope as a not-obstacle
         exclude = ExcludeModelsRequest()
@@ -285,6 +290,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
     def is_moveit_robot_in_collision(self, environment: Dict, state: Dict, action: Dict):
         robot_state = robot_state_msg_from_state_dict(state)
+        scene: PlanningScene = environment['scene_msg']
+        robot_state.attached_collision_objects = scene.robot_state.attached_collision_objects
+
+        # TODO: replace with python moveit bindings
+        # FIXME: use the scene message here!!! currently this magically retrieves from the PSM which is spooky
         in_collision = self.robot.jacobian_follower.check_collision(robot_state)
         return in_collision
 

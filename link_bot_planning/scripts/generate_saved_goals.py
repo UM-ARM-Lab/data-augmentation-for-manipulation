@@ -94,7 +94,7 @@ def generate_saved_goals(method: str,
         # restore
         bagfile_name = save_test_scenes_dir / f'scene_{trial_idx:04d}.bag'
         if not bagfile_name.exists():
-            rospy.loginfo(Fore.YELLOW+ f"No saved scene{bagfile_name}")
+            rospy.loginfo(Fore.YELLOW + f"No saved scene {bagfile_name}")
             continue
 
         rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")

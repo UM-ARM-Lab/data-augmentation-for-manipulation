@@ -228,8 +228,8 @@ class OmplRRTWrapper(MyPlanner):
         accept_probabilities = {}
         for classifier in self.classifier_models:
             p_accepts_for_model = classifier.check_constraint(environment=self.sps.environment,
-                                                                 states_sequence=states,
-                                                                 actions=actions)
+                                                              states_sequence=states,
+                                                              actions=actions)
             assert p_accepts_for_model.ndim == 1
             accepts = p_accepts_for_model > self.params['accept_threshold']
             accept = np.all(accepts)
