@@ -16,7 +16,7 @@ import rospy
 from arc_utilities import ros_init
 from geometry_msgs.msg import Point, Pose
 from link_bot.link_bot_pycommon.scripts.basic_3d_pose_marker_server import Basic3DPoseInteractiveMarker
-from link_bot_gazebo_python import gazebo_services
+from link_bot_gazebo import gazebo_services
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario

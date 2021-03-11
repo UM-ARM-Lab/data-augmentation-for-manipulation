@@ -3,7 +3,7 @@ def get_service_provider(service_provider_name):
         from victor.victor_services import VictorServices
         return VictorServices()
     elif service_provider_name == 'gazebo':
-        from link_bot_gazebo_python.gazebo_services import GazeboServices
+        from link_bot_gazebo import GazeboServices
         return GazeboServices()
     else:
         raise NotImplementedError()

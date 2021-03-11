@@ -3,7 +3,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import rospy
-import tensorflow as tf
 
 from link_bot_gazebo import gazebo_services
 from link_bot_pycommon.grid_utils import compute_extent

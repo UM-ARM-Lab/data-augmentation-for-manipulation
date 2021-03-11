@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from geometry_msgs.msg import Point
-from link_bot_gazebo_python.floating_gripper_trajectory_follower import interpolate_dual_gripper_trajectory
+from link_bot_gazebo.floating_gripper_trajectory_follower import interpolate_dual_gripper_trajectory
 from peter_msgs.srv import DualGripperTrajectoryRequest, GetDualGripperPointsResponse
 
 

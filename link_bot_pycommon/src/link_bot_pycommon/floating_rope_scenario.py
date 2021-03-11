@@ -12,9 +12,9 @@ from geometry_msgs.msg import Point
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted
 from link_bot_data.visualization import rviz_arrow
-from link_bot_gazebo_python.gazebo_services import gz_scope
-from link_bot_gazebo_python.gazebo_utils import get_gazebo_kinect_pose
-from link_bot_gazebo_python.position_3d import Position3D
+from link_bot_gazebo import gz_scope
+from link_bot_gazebo import get_gazebo_kinect_pose
+from link_bot_gazebo import Position3D
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_marker_utils import make_box_marker_from_extents
 from link_bot_pycommon.bbox_visualization import extent_array_to_bbox

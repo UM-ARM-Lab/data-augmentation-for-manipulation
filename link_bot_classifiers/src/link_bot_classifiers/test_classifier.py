@@ -2,7 +2,6 @@
 import pathlib
 from typing import List, Optional, Callable, Dict
 
-import hjson
 import numpy as np
 import tensorflow as tf
 
@@ -10,7 +9,7 @@ from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.nn_classifier import NNClassifierWrapper
 from link_bot_data.visualization import init_viz_env
 from link_bot_data.viz_for_model import viz_transition_for_model_t_batched
-from link_bot_gazebo_python.gazebo_services import GazeboServices
+from link_bot_gazebo import GazeboServices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.moonshine_utils import repeat, numpify, sequence_of_dicts_to_dict_of_tensors, add_time_dim

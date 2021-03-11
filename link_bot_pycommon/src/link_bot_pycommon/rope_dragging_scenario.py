@@ -9,8 +9,8 @@ import rospy
 from geometry_msgs.msg import Point
 from link_bot_data.dataset_utils import add_predicted, get_maybe_predicted
 from link_bot_data.visualization import rviz_arrow
-from link_bot_gazebo_python.gazebo_services import gz_scope
-from link_bot_gazebo_python.position_3d import Position3D
+from link_bot_gazebo import gz_scope
+from link_bot_gazebo import Position3D
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.collision_checking import inflate_tf_3d

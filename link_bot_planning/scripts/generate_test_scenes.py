@@ -9,7 +9,7 @@ import hjson
 import tensorflow as tf
 
 from arc_utilities import ros_init
-from link_bot_gazebo_python import gazebo_services
+from link_bot_gazebo import gazebo_services
 from link_bot_planning.test_scenes import save_test_scene, create_randomized_start_state, get_states_to_save
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario

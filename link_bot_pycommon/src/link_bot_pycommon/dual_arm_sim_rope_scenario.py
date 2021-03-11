@@ -7,7 +7,7 @@ import rosbag
 import rospy
 from control_msgs.msg import FollowJointTrajectoryResult as FJTR
 from geometry_msgs.msg import Pose, Point, Quaternion
-from link_bot_gazebo_python.gazebo_services import GazeboServices, gz_scope
+from link_bot_gazebo import GazeboServices, gz_scope
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action

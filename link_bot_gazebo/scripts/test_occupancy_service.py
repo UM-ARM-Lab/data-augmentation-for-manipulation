@@ -5,7 +5,7 @@ import rospy
 import tf2_ros
 from arc_utilities import ros_init
 from jsk_recognition_msgs.msg import BoundingBox
-from link_bot_gazebo_python import gazebo_services
+from link_bot_gazebo import gazebo_services
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d

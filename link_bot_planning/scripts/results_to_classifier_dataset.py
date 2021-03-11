@@ -12,7 +12,7 @@ import rospy
 from arc_utilities import ros_init
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error
 from link_bot_data.dataset_utils import tf_write_example, add_predicted
-from link_bot_gazebo_python.gazebo_services import GazeboServices
+from link_bot_gazebo import GazeboServices
 from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningResult, PlanningQuery, LoggingTree, SetupInfo
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name

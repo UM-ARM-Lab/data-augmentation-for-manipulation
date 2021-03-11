@@ -11,7 +11,7 @@ from ompl import util as ou
 import rosbag
 import rospy
 from link_bot_data.dataset_utils import git_sha
-from link_bot_gazebo_python import gazebo_services
+from link_bot_gazebo import gazebo_services
 from link_bot_planning import plan_and_execute
 from link_bot_planning.get_planner import get_planner
 from link_bot_planning.my_planner import MyPlanner

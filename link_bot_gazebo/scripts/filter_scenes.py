@@ -7,7 +7,7 @@ import rospy
 from arc_utilities.listener import Listener
 from gazebo_msgs.msg import LinkStates
 from gazebo_msgs.srv import SetLinkState
-from link_bot_gazebo_python.gazebo_services import GazeboServices
+from link_bot_gazebo.gazebo_services import GazeboServices
 
 
 def main():
