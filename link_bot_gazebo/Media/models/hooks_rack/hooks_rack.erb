@@ -1,10 +1,9 @@
-
-<?xml version='1.0'?>
-<sdf version='1.7'>
-  <model name='hooks_rack'>
-    <link name='wall'>
-      <kinematic>1</kinematic>
-      <inertial>
+<%
+length = ENV['length'].to_f
+radius = ENV['radius'].to_f
+cap_radius = radius * 1.55
+cap_length = 0.04
+inertial =  "<inertial>
             <mass>0.0443983</mass>
             <inertia>
               <ixx>0.00370715</ixx>
@@ -15,7 +14,14 @@
               <izz>0.00370715</izz>
             </inertia>
             <pose>0 0 0 0 -0 0</pose>
-            </inertial>
+            </inertial>"
+%>
+<?xml version='1.0'?>
+<sdf version='1.7'>
+  <model name='hooks_rack'>
+    <link name='wall'>
+      <kinematic>1</kinematic>
+      <%=inertial%>
       <pose>-0.02 0.25 -0.16 0 -0 0</pose>
       <visual name='visual'>
         <pose>0 0 0 0 -0 0</pose>
@@ -42,36 +48,25 @@
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
       </collision>
     </link>
     <link name='hook1'>
       <kinematic>1</kinematic>
-      <inertial>
-            <mass>0.0443983</mass>
-            <inertia>
-              <ixx>0.00370715</ixx>
-              <ixy>0</ixy>
-              <ixz>0</ixz>
-              <iyy>0.00739972</iyy>
-              <iyz>0</iyz>
-              <izz>0.00370715</izz>
-            </inertia>
-            <pose>0 0 0 0 -0 0</pose>
-            </inertial>
+      <%=inertial%>
       <pose>-0.3 -0.04 0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -82,11 +77,11 @@
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -101,43 +96,32 @@
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
       </collision>
     </link>
     <link name='hook2'>
       <kinematic>1</kinematic>
-      <inertial>
-            <mass>0.0443983</mass>
-            <inertia>
-              <ixx>0.00370715</ixx>
-              <ixy>0</ixy>
-              <ixz>0</ixz>
-              <iyy>0.00739972</iyy>
-              <iyz>0</iyz>
-              <izz>0.00370715</izz>
-            </inertia>
-            <pose>0 0 0 0 -0 0</pose>
-            </inertial>
+      <%=inertial%>
       <pose>0.0 -0.04 0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -148,11 +132,11 @@
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -167,43 +151,32 @@
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
       </collision>
     </link>
     <link name='hook3'>
       <kinematic>1</kinematic>
-      <inertial>
-            <mass>0.0443983</mass>
-            <inertia>
-              <ixx>0.00370715</ixx>
-              <ixy>0</ixy>
-              <ixz>0</ixz>
-              <iyy>0.00739972</iyy>
-              <iyz>0</iyz>
-              <izz>0.00370715</izz>
-            </inertia>
-            <pose>0 0 0 0 -0 0</pose>
-            </inertial>
+      <%=inertial%>
       <pose>0.3 -0.04 0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -214,11 +187,11 @@
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -233,43 +206,32 @@
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
       </collision>
     </link>
     <link name='hook4'>
       <kinematic>1</kinematic>
-      <inertial>
-            <mass>0.0443983</mass>
-            <inertia>
-              <ixx>0.00370715</ixx>
-              <ixy>0</ixy>
-              <ixz>0</ixz>
-              <iyy>0.00739972</iyy>
-              <iyz>0</iyz>
-              <izz>0.00370715</izz>
-            </inertia>
-            <pose>0 0 0 0 -0 0</pose>
-            </inertial>
+      <%=inertial%>
       <pose>-0.3 -0.04 -0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -280,11 +242,11 @@
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -299,43 +261,32 @@
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
       </collision>
     </link>
     <link name='hook5'>
       <kinematic>1</kinematic>
-      <inertial>
-            <mass>0.0443983</mass>
-            <inertia>
-              <ixx>0.00370715</ixx>
-              <ixy>0</ixy>
-              <ixz>0</ixz>
-              <iyy>0.00739972</iyy>
-              <iyz>0</iyz>
-              <izz>0.00370715</izz>
-            </inertia>
-            <pose>0 0 0 0 -0 0</pose>
-            </inertial>
+      <%=inertial%>
       <pose>0.0 -0.04 -0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -346,11 +297,11 @@
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -365,43 +316,32 @@
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
       </collision>
     </link>
     <link name='hook6'>
       <kinematic>1</kinematic>
-      <inertial>
-            <mass>0.0443983</mass>
-            <inertia>
-              <ixx>0.00370715</ixx>
-              <ixy>0</ixy>
-              <ixz>0</ixz>
-              <iyy>0.00739972</iyy>
-              <iyz>0</iyz>
-              <izz>0.00370715</izz>
-            </inertia>
-            <pose>0 0 0 0 -0 0</pose>
-            </inertial>
+      <%=inertial%>
       <pose>0.3 -0.04 -0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -412,11 +352,11 @@
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
         <material>
@@ -431,18 +371,18 @@
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.04</radius>
-            <length>0.5</length>
+            <radius><%=radius%></radius>
+            <length><%=length%></length>
           </cylinder>
         </geometry>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
+            <radius><%=cap_radius%></radius>
+            <length><%=cap_length%></length>
           </cylinder>
         </geometry>
       </collision>
