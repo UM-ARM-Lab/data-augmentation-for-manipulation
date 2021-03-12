@@ -122,6 +122,7 @@ class ResultsToDynamicsDataset:
         last_t = t0
         max_examples_per_trial = 500
         enough_trials_msg = f"moving on to next trial, already got {max_examples_per_trial} examples from this trial"
+        total_examples = 0
         for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
             if job_chunker.result_exists(str(trial_idx)):
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
@@ -136,7 +137,8 @@ class ResultsToDynamicsDataset:
                     last_t = now
 
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-                    print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}')
+                    total_examples += 1
+                    print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
                     example = try_make_dict_tf_float32(example)
                     tf_write_example(outdir, example, self.example_idx)
                     example_idx_for_trial += 1

@@ -309,20 +309,15 @@ def viz_main(dataset_dirs: List[pathlib.Path],
             anim.play(example_b)
 
 
-def viz_ensemble_main(dataset_dir: pathlib.Path,
-                      checkpoints: List[pathlib.Path],
-                      mode: str,
-                      batch_size: int,
-                      only_errors: bool,
-                      use_gt_rope: bool,
-                      take: Optional[int] = None,
-                      no_plot: Optional[bool] = True,
-                      **kwargs):
-    dynamics_stdev_pub_ = rospy.Publisher("dynamics_stdev", Float32, queue_size=10)
-    classifier_stdev_pub_ = rospy.Publisher("classifier_stdev", Float32, queue_size=10)
-    accept_probability_pub_ = rospy.Publisher("accept_probability_viz", Float32, queue_size=10)
-    traj_idx_pub_ = rospy.Publisher("traj_idx_viz", Float32, queue_size=10)
-
+def eval_ensemble_main(dataset_dir: pathlib.Path,
+                       checkpoints: List[pathlib.Path],
+                       mode: str,
+                       batch_size: int,
+                       use_gt_rope: bool,
+                       take: Optional[int] = None,
+                       balance: Optional[bool] = True,
+                       no_plot: Optional[bool] = True,
+                       **kwargs):
     ###############
     # Model
     ###############
@@ -335,14 +330,13 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
     ###############
     dataset = ClassifierDatasetLoader([dataset_dir], load_true_states=True, use_gt_rope=use_gt_rope)
     tf_dataset = dataset.get_datasets(mode=mode)
+    tf_dataset = tf_dataset.balance()
     tf_dataset = tf_dataset.take(take)
     tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
-    scenario = dataset.scenario
 
     ###############
     # Evaluate
     ###############
-
     classifiers_nickname = checkpoints[0].parent.parent.name
     outdir = pathlib.Path('results') / dataset_dir / classifiers_nickname
     outdir.mkdir(exist_ok=True, parents=True)
@@ -384,9 +378,14 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
         'is_correct':    classifier_is_corrects,
         'probabilities': classifier_probabilities,
         'labels': labels,
+        'checkpoints': [c.as_posix() for c in checkpoints],
+        'dataset': dataset_dir.as_posix(),
+        'balance': balance,
+        'mode': mode,
+        'use_gt_rope': use_gt_rope,
     }
     np.savez(outfile, **datum)
-    print(f'{mean_classifier_ensemble_stdev.numpy()} {stdev_classifier_ensemble_stdev.numpy()}')
+    print(f'mean={mean_classifier_ensemble_stdev.numpy()} stdev={stdev_classifier_ensemble_stdev.numpy()}')
 
     plt.figure()
     ax1 = plt.gca()
