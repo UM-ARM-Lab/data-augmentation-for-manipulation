@@ -22,7 +22,7 @@ inertial =  "<inertial>
     <link name='wall'>
       <kinematic>1</kinematic>
       <%=inertial%>
-      <pose>-0.02 0.25 -0.16 0 -0 0</pose>
+      <pose>-0.02 0.0 -0.16 0 -0 0</pose>
       <visual name='visual'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
@@ -46,21 +46,11 @@ inertial =  "<inertial>
           </box>
         </geometry>
       </collision>
-      <collision name='collision_cap'>
-        <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius><%=cap_radius%></radius>
-            <length><%=cap_length%></length>
-          </cylinder>
-        </geometry>
-      </collision>
     </link>
     <link name='hook1'>
       <kinematic>1</kinematic>
       <%=inertial%>
-      <pose>-0.3 -0.04 0.12 -1.5708 0 0</pose>
+      <pose>-0.3 <%=length/2> 0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
@@ -77,7 +67,7 @@ inertial =  "<inertial>
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -103,7 +93,7 @@ inertial =  "<inertial>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -115,7 +105,7 @@ inertial =  "<inertial>
     <link name='hook2'>
       <kinematic>1</kinematic>
       <%=inertial%>
-      <pose>0.0 -0.04 0.12 -1.5708 0 0</pose>
+      <pose>0.0 <%=length/2> 0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
@@ -132,7 +122,7 @@ inertial =  "<inertial>
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -158,7 +148,7 @@ inertial =  "<inertial>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -170,7 +160,7 @@ inertial =  "<inertial>
     <link name='hook3'>
       <kinematic>1</kinematic>
       <%=inertial%>
-      <pose>0.3 -0.04 0.12 -1.5708 0 0</pose>
+      <pose>0.3 <%=length/2> 0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
@@ -187,7 +177,7 @@ inertial =  "<inertial>
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -213,7 +203,7 @@ inertial =  "<inertial>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -225,7 +215,7 @@ inertial =  "<inertial>
     <link name='hook4'>
       <kinematic>1</kinematic>
       <%=inertial%>
-      <pose>-0.3 -0.04 -0.12 -1.5708 0 0</pose>
+      <pose>-0.3 <%=length/2> -0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
@@ -242,7 +232,7 @@ inertial =  "<inertial>
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -268,7 +258,7 @@ inertial =  "<inertial>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -280,7 +270,7 @@ inertial =  "<inertial>
     <link name='hook5'>
       <kinematic>1</kinematic>
       <%=inertial%>
-      <pose>0.0 -0.04 -0.12 -1.5708 0 0</pose>
+      <pose>0.0 <%=length/2> -0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
@@ -297,7 +287,7 @@ inertial =  "<inertial>
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -323,7 +313,7 @@ inertial =  "<inertial>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -335,7 +325,7 @@ inertial =  "<inertial>
     <link name='hook6'>
       <kinematic>1</kinematic>
       <%=inertial%>
-      <pose>0.3 -0.04 -0.12 -1.5708 0 0</pose>
+      <pose>0.3 <%=length/2> -0.12 -1.5708 0 0</pose>
       <visual name='visual_pole'>
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
@@ -352,7 +342,7 @@ inertial =  "<inertial>
         </material>
       </visual>
       <visual name='visual_cap'>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>
@@ -378,7 +368,7 @@ inertial =  "<inertial>
       </collision>
       <collision name='collision_cap'>
         <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 <%=-length/2%> 0 0 0</pose>
+        <pose>0.0 0.0 <%=-length/2 - cap_length/2%> 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius><%=cap_radius%></radius>

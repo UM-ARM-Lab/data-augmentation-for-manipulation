@@ -138,7 +138,7 @@ def get_scenario_and_metadata(results_dir: pathlib.Path):
     return scenario, metadata
 
 
-def trials_generator(results_dir: pathlib.Path, trial_indices: Optional[List[int]]):
+def trials_generator(results_dir: pathlib.Path, trial_indices: Optional[List[int]] = None):
     if trial_indices is None:
         # assume we want all trials
         globbed_filenames = results_dir.glob("*.pkl.gz")

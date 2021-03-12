@@ -9,6 +9,7 @@ import tabulate
 from progressbar import progressbar
 
 import rospy
+from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
@@ -21,11 +22,9 @@ def metrics_main(args):
     scenario = get_scenario(metadata['scenario'])
 
     rows = []
-    metrics_filenames = list(args.results_dir.glob("*_metrics.pkl.gz"))
-    for metrics_filename in progressbar(metrics_filenames):
-        datum = load_gzipped_pickle(metrics_filename)
+    for trial_idx, datum in results_utils.trials_generator(args.results_dir):
+        # trial_idx = datum['trial_idx']
         status = datum['trial_status']
-        trial_idx = datum['trial_idx']
         end_state = datum['end_state']
         goal = datum['goal']
         task_error = scenario.distance_to_goal(end_state, goal).numpy()
