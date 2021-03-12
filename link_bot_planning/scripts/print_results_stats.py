@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import argparse
 import csv
-import json
 import pathlib
 
 import colorama
 import numpy as np
+import tabulate
 from progressbar import progressbar
 
 import rospy
@@ -51,11 +51,13 @@ def metrics_main(args):
 
     rows = sorted(rows)
 
-    for row in rows:
-        print("\t".join([str(x) for x in row]))
+    headers = ['trial idx', 'success?', 'final error', 'used recovery?', 'recovery succeeded?', 'solved?',
+               '# recoveries']
+    print(tabulate.tabulate(rows, headers=headers, tablefmt=tabulate.simple_separated_format("\t")))
 
     with open(args.results_dir / 'results_stats.txt', 'w') as outfile:
         writer = csv.writer(outfile)
+        writer.writerow(headers)
         writer.writerows(rows)
 
 

@@ -223,6 +223,8 @@ class PlanAndExecute:
 
             time_since_start = time.perf_counter() - start_time
 
+            attempt_idx += 1
+
             if planning_result.status == MyPlannerStatus.Failure:
                 raise RuntimeError("planning failed -- is the start state out of bounds?")
             elif planning_result.status == MyPlannerStatus.NotProgressing:
@@ -251,7 +253,6 @@ class PlanAndExecute:
                 else:
                     recovery_action = self.recovery_policy(environment=planning_query.environment,
                                                            state=planning_query.start)
-                    attempt_idx += 1
                     if recovery_action is None:
                         rospy.loginfo(f"Could not sample a valid recovery action {attempt_idx}")
                         execution_result = ExecutionResult(path=[], end_trial=True)
