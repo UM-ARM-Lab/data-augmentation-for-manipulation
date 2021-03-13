@@ -386,6 +386,7 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
     }
     np.savez(outfile, **datum)
     print(f'mean={mean_classifier_ensemble_stdev.numpy()} stdev={stdev_classifier_ensemble_stdev.numpy()}')
+    print("{outfile}")
 
     plt.figure()
     ax1 = plt.gca()
