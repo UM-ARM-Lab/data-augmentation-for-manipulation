@@ -181,20 +181,22 @@ def sequence_of_dicts_to_dict_of_tensors(seq_of_dicts, axis=0):
 
 
 def repeat(d: Dict, repetitions: int, axis: int, new_axis: bool):
-    out_d = {}
-    for k, v in d.items():
-        if np.isscalar(v):
-            multiples = []
-        else:
-            multiples = [1] * v.ndim
-        if new_axis:
-            multiples.insert(axis, repetitions)
-            v = tf.expand_dims(v, axis=axis)
-            out_d[k] = tf.tile(v, multiples)
-        else:
-            multiples[axis] *= repetitions
-            out_d[k] = tf.tile(v, multiples)
-    return out_d
+    return {k: repeat_tensor(v, repetitions, axis, new_axis) for k, v in d.items()}
+
+
+def repeat_tensor(v, repetitions, axis, new_axis):
+    if np.isscalar(v):
+        multiples = []
+    else:
+        multiples = [1] * v.ndim
+
+    if new_axis:
+        multiples.insert(axis, repetitions)
+        v = tf.expand_dims(v, axis=axis)
+        return tf.tile(v, multiples)
+    else:
+        multiples[axis] *= repetitions
+        return tf.tile(v, multiples)
 
 
 def dict_of_sequences_to_sequence_of_dicts_tf(dict_of_seqs, time_axis=0):

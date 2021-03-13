@@ -1,6 +1,6 @@
 {
-  max_error: 0.25
-  mer_threshold: 0.1
+  max_error: 0.35
+  mer_threshold: 0.05
   n_error_bins: 89
   experiment_name: Dual Arm Rope Manipulation
   colors: {
@@ -29,5 +29,7 @@
 
     "(old) classifier": "#D12C7C"
 
+    "car": "#D12C7C"
+    "rack": "#4F2982"
   }
 }

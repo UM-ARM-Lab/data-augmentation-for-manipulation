@@ -7,6 +7,7 @@ import rospy
 from geometry_msgs.msg import Point
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import vector_to_points_2d
 from moonshine.indexing import index_time_with_metadata
 from std_msgs.msg import Float32, ColorRGBA
@@ -207,3 +208,23 @@ def make_delete_marker(marker_id: int, ns: str):
     m = Marker(action=Marker.DELETE, ns=ns, id=marker_id)
     msg = MarkerArray(markers=[m])
     return msg
+
+
+def color_violinplot(parts, color):
+    r, g, b, a = colors.to_rgba(color)
+    for pc in parts['bodies']:
+        pc.set_facecolor(color)
+        pc.set_edgecolor(color)
+        pc.set_alpha(a)
+    for partname in ['cmeans', ]:
+        if partname in parts:
+            vp = parts[partname]
+            vp.set_edgecolor('#dddddd')
+            vp.set_alpha(a)
+            vp.set_linewidth(3)
+    for partname in ['cbars', 'cmins', 'cmaxes']:
+        color_dark = adjust_lightness(color, 0.1)
+        vp = parts[partname]
+        vp.set_edgecolor(color_dark)
+        vp.set_linewidth(1)
+        vp.set_alpha(a)

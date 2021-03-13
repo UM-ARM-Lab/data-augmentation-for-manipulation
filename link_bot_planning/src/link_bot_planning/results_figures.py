@@ -6,9 +6,10 @@ import numpy as np
 from colorama import Fore
 from matplotlib.lines import Line2D
 
+from link_bot_data.visualization import color_violinplot
 from link_bot_planning.results_metrics import ResultsMetric
 from link_bot_pycommon.latex_utils import make_cell
-from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness
+from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout
 from link_bot_pycommon.metric_utils import row_stats
 
 
@@ -94,19 +95,7 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
             print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
             color = 'k'
         parts = self.ax.violinplot(values, positions=[x], widths=0.9, showmeans=True, bw_method=0.3)
-        for pc in parts['bodies']:
-            pc.set_facecolor(color)
-            pc.set_edgecolor(color)
-            pc.set_alpha(1)
-        for partname in ['cmeans', ]:
-            vp = parts[partname]
-            vp.set_edgecolor('#dddddd')
-            vp.set_linewidth(3)
-        for partname in ['cbars', 'cmins', 'cmaxes']:
-            color_dark = adjust_lightness(color, 0.1)
-            vp = parts[partname]
-            vp.set_edgecolor(color_dark)
-            vp.set_linewidth(1)
+        color_violinplot(parts, color)
 
         plt.setp(self.ax.get_xticklabels(), rotation=18, horizontalalignment='right')
 
