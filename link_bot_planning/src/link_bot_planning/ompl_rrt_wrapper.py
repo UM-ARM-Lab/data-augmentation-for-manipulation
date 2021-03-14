@@ -10,7 +10,6 @@ from matplotlib import cm
 from link_bot_planning.get_ompl_scenario import get_ompl_scenario
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, LoggingTree, \
     SharedPlanningStateOMPL
-from link_bot_planning.planner_data_to_json import planner_data_to_json
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from state_space_dynamics.base_filter_function import BaseFilterFunction
@@ -369,11 +368,6 @@ class OmplRRTWrapper(MyPlanner):
         if planner_status == MyPlannerStatus.Solved:
             ompl_path = self.ss.getSolutionPath()
             actions, planned_path = self.convert_path(ompl_path)
-
-            planner_data = oc.PlannerData(self.si)
-            self.rrt.getPlannerData(planner_data)
-            # self.tree = planner_data_to_json(planner_data, self.scenario_ompl)
-
             if self.params['smooth']:
                 actions, planned_path = self.smooth(planning_query, actions, planned_path)
         elif planner_status == MyPlannerStatus.Timeout:
@@ -389,11 +383,6 @@ class OmplRRTWrapper(MyPlanner):
                 planner_status = MyPlannerStatus.NotProgressing
                 actions = []
                 planned_path = [start_state]
-            else:
-                planner_data = oc.PlannerData(self.si)
-                self.rrt.getPlannerData(planner_data)
-                # self.tree = planner_data_to_json(planner_data, self.scenario_ompl)
-
         elif planner_status == MyPlannerStatus.Failure:
             rospy.logerr(f"Failed at starting state: {start_state}")
             actions = []
