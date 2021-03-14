@@ -1,0 +1,50 @@
+<sdf version="1.6">
+    <model name="wall2">
+        <allow_auto_disable>true</allow_auto_disable>
+        <link name="link_1">
+            <kinematic>1</kinematic>
+            <pose>0 0 0.1 0 0 0 0</pose>
+            <inertial>
+                <pose>0 0 -0.15 0 0 0</pose>
+                <inertia>
+                    <ixx>0.00541667</ixx>
+                    <iyy>0.05208333</iyy>
+                    <izz>0.04708333</izz>
+                </inertia>
+                <mass>1</mass>
+            </inertial>
+            <visual name="visual">
+                <geometry>
+                    <box>
+                        <size>1.75 0.04 2.0</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0.6 0.55 0.5 1.0</ambient>
+                    <diffuse>0.6 0.55 0.5 1.0</diffuse>
+                </material>
+            </visual>
+            <collision name="collision1">
+                <geometry>
+                    <box>
+                        <size>1.75 0.04 2.0</size>
+                    </box>
+                </geometry>
+                <surface>
+                    <friction>
+                        <ode>
+                            <mu>1.0</mu>
+                            <mu2>1.0</mu2>
+                        </ode>
+                    </friction>
+                    <contact>
+                        <ode>
+                            <kp>1e15</kp>
+                            <kd>1e12</kd>
+                        </ode>
+                    </contact>
+                </surface>
+            </collision>
+        </link>
+    </model>
+</sdf>
