@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+import signal
 import sys
 from time import sleep
 
@@ -9,9 +10,18 @@ from link_bot_gazebo.gazebo_services import GazeboServices
 from roslaunch.pmon import ProcessListener
 from std_msgs.msg import Empty
 
+exit = False
+
+
+def signal_handler(sig, frame):
+    global exit
+    exit = True
+
 
 @ros_init.with_ros("relaunch_gazebo")
 def main():
+    signal.signal(signal.SIGINT, signal_handler)
+
     parser = argparse.ArgumentParser()
     parser.add_argument('launch')
     parser.add_argument('world')
@@ -39,20 +49,20 @@ def main():
 
     listener.process_died = _on_process_died
 
-    while True:
+    while not exit:
         service_provider.launch(launch_params, gui=args.gui, world=launch_params['world'])
-        sleep(5)
+        sleep(2)
         service_provider.play()
 
         gazebo_is_dead = False
 
         service_provider.gazebo_process.pm.add_process_listener(listener)
 
-        while not gazebo_is_dead:
+        while not gazebo_is_dead and not exit:
             sleep(1)
 
         service_provider.kill()
-        sleep(5)
+        sleep(2)
 
 
 if __name__ == "__main__":
