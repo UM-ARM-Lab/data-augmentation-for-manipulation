@@ -50,7 +50,10 @@ def main():
     listener.process_died = _on_process_died
 
     while not exit:
-        service_provider.launch(launch_params, gui=args.gui, world=launch_params['world'])
+        success = service_provider.launch(launch_params, gui=args.gui, world=launch_params['world'])
+        if not success:
+            return
+
         sleep(2)
         service_provider.play()
 

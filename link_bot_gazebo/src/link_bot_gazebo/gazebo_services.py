@@ -1,6 +1,8 @@
 import pathlib
 from typing import Optional, List
 
+import rospkg
+
 import rosbag
 import roslaunch
 import rospy
@@ -45,6 +47,13 @@ class GazeboServices(BaseServices):
         gui = kwargs.get("gui", True)
         world = kwargs.get("world", None)
         launch_file_name = params['launch']
+
+        rospack = rospkg.RosPack()
+        full_world_file = pathlib.Path(rospack.get_path('link_bot_gazebo')) / 'worlds' / world
+        if not full_world_file.exists():
+            rospy.logerr(f"No world file {full_world_file.as_posix()}")
+            return (success := False)
+
         uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
         roslaunch.configure_logging(uuid)
         roslaunch_args = ['link_bot_gazebo', launch_file_name, f"gui:={str(gui).lower()}"]
@@ -63,6 +72,7 @@ class GazeboServices(BaseServices):
         self.wait_for_services()
 
         self.play()
+        return (success := True)
 
     def kill(self):
         self.gazebo_process.shutdown()
