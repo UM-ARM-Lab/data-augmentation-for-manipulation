@@ -2,6 +2,7 @@ import pathlib
 from typing import Dict, List, Optional
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from moonshine.ensemble import Ensemble2
 from moonshine.filepath_tools import load_params
 
 
@@ -37,3 +38,24 @@ class BaseConstraintChecker:
                          actions: List[Dict]):
         c = self.check_constraint_tf(environment, states_sequence, actions)
         return c.numpy()
+
+
+class ConstraintCheckerEnsemble(BaseConstraintChecker):
+    def __init__(self, path, elements, constants_keys: List[str]):
+        self.ensemble = Ensemble2(elements, constants_keys)
+        m0 = self.ensemble.elements[0]
+        self.element_class = m0.__class__
+        self.threshold = 0.15
+        BaseConstraintChecker.__init__(self, path, m0.scenario)
+
+    def check_constraint_tf(self, *args, **kwargs):
+        mean, stdev = self.ensemble(self.element_class.check_constraint_tf, *args, **kwargs)
+        return stdev > self.threshold
+
+    def check_constraint_tf_batched(self, *args, **kwargs):
+        mean, stdev = self.ensemble(self.element_class.check_constraint_tf_batched, *args, **kwargs)
+        return stdev > self.threshold
+
+    def check_constraint_from_example(self, *args, **kwargs):
+        mean, stdev = self.ensemble(self.element_class.check_constraint_from_example, *args, **kwargs)
+        return stdev > self.threshold

@@ -1,7 +1,7 @@
 import pathlib
-from typing import List, Optional
+from typing import Optional
 
-from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
+from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker, ConstraintCheckerEnsemble
 from link_bot_classifiers.feasibility_checker import RobotFeasibilityChecker, FastRobotFeasibilityChecker
 from link_bot_classifiers.gripper_distance_checker import GripperDistanceChecker
 from link_bot_classifiers.nn_classifier import NNClassifierWrapper
@@ -15,13 +15,18 @@ def load_generic_model(path: pathlib.Path,
                        scenario: Optional[ExperimentScenario] = None) -> BaseConstraintChecker:
     # FIXME: remove batch_size=1 here? can I put it in base model?
     # we use the first model and assume they all have the same hparams
-    _, common_hparams = load_trial(path.parent.absolute())
+    _, params = load_trial(path.parent.absolute())
     if scenario is None:
-        scenario_name = common_hparams['scenario']
+        scenario_name = params['scenario']
         scenario = get_scenario(scenario_name)
-    model_type = common_hparams['model_class']
+    model_type = params['model_class']
     if model_type == 'rnn':
         return NNClassifierWrapper(path, batch_size=1, scenario=scenario)
+    elif model_type == 'ensemble':
+        const_keys_for_classifier = []
+        models = [load_generic_model(pathlib.Path(checkpoint)) for checkpoint in params['checkpoints']]
+        ensemble = ConstraintCheckerEnsemble(path, models, const_keys_for_classifier)
+        return ensemble
     elif model_type == 'collision':
         return PointsCollisionChecker(path, scenario=scenario)
     elif model_type == 'gripper_distance':

@@ -8,6 +8,7 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from moonshine.filepath_tools import load_trial
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, flatten_after
 from moonshine.my_keras_model import MyKerasModel
+import numpy as np
 
 
 class Ensemble:
@@ -83,7 +84,6 @@ class Ensemble:
     def get_num_batch_axes():
         raise NotImplementedError()
 
-
 class Ensemble2:
     def __init__(self, elements, constants_keys: List[str]):
         """
@@ -110,20 +110,28 @@ class Ensemble2:
         for element in self.elements:
             output = f(element, *args, **kwargs)
             outputs.append(output)
-        outputs_dict = sequence_of_dicts_to_dict_of_tensors(outputs)
 
-        nonconst_dict = {}
-        # first just copy only the keys we want to take mean over
-        for k, v in outputs_dict.items():
-            if k not in self.constant_keys:
-                nonconst_dict[k] = v
+        if isinstance(outputs[0], dict):
+            outputs_dict = sequence_of_dicts_to_dict_of_tensors(outputs)
 
-        mean = {k: tf.math.reduce_mean(v, axis=0) for k, v in nonconst_dict.items()}
-        stdev = {k: tf.math.reduce_std(v, axis=0) for k, v in nonconst_dict.items()}
+            nonconst_dict = {}
+            # first just copy only the keys we want to take mean over
+            for k, v in outputs_dict.items():
+                if k not in self.constant_keys:
+                    nonconst_dict[k] = v
 
-        # then add back the keys we left out
-        for k in self.constant_keys:
-            # here is where we assume they're the same, and so we just take the first one
-            mean[k] = outputs[0][k]
+            mean = {k: tf.math.reduce_mean(v, axis=0) for k, v in nonconst_dict.items()}
+            stdev = {k: tf.math.reduce_std(v, axis=0) for k, v in nonconst_dict.items()}
+
+            # then add back the keys we left out
+            for k in self.constant_keys:
+                # here is where we assume they're the same, and so we just take the first one
+                mean[k] = outputs[0][k]
+        elif isinstance(outputs[0], tf.Tensor) or isinstance(outputs[0], np.ndarray):
+            mean = tf.math.reduce_mean(outputs, axis=0)
+            stdev = tf.math.reduce_std(outputs, axis=0)
+        else:
+            raise NotImplementedError(f"Ensemble: Unimplemented return type {type(outputs[0])}")
 
         return mean, stdev
+
