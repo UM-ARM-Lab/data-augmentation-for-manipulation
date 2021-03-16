@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import pathlib
 from time import time
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -186,6 +186,78 @@ def eval_main(dataset_dirs: List[pathlib.Path],
     return val_metrics
 
 
+def iterate_dataset_with_classifier(dataset_dirs: List[pathlib.Path],
+                                    checkpoint: pathlib.Path,
+                                    mode: str,
+                                    batch_size: int,
+                                    start_at: int,
+                                    use_gt_rope: bool,
+                                    take: int = None,
+                                    threshold: Optional[float] = None,
+                                    **kwargs):
+    # Model
+    trials_directory = pathlib.Path('trials').absolute()
+    trial_path = checkpoint.parent.absolute()
+    _, params = filepath_tools.create_or_load_trial(trial_path=trial_path,
+                                                    trials_directory=trials_directory)
+
+    # Dataset
+    dataset = ClassifierDatasetLoader(dataset_dirs,
+                                      load_true_states=True,
+                                      use_gt_rope=use_gt_rope,
+                                      threshold=threshold)
+    tf_dataset = dataset.get_datasets(mode=mode)
+
+    # Iterate
+    tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
+    if take is not None:
+        tf_dataset = tf_dataset.take(take)
+
+    model = classifier_utils.load_generic_model(checkpoint)
+
+    yield dataset, model
+
+    for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+        if batch_idx < start_at:
+            continue
+
+        example.update(dataset.batch_metadata)
+        predictions = model.check_constraint_from_example(example, training=False)
+
+        yield batch_idx, example, predictions
+
+
+def filter_dataset_with_classifier(dataset_dirs: List[pathlib.Path],
+                                   checkpoint: pathlib.Path,
+                                   mode: str,
+                                   should_keep_example: Callable,
+                                   batch_size: int = 1,
+                                   start_at: int = 0,
+                                   use_gt_rope: bool = True,
+                                   take: int = None,
+                                   take_after_filter: int = None,
+                                   threshold: Optional[float] = None,
+                                   **kwargs):
+    itr = iterate_dataset_with_classifier(dataset_dirs=dataset_dirs,
+                                          checkpoint=checkpoint,
+                                          mode=mode,
+                                          batch_size=batch_size,
+                                          take=take,
+                                          start_at=start_at,
+                                          use_gt_rope=use_gt_rope,
+                                          threshold=threshold)
+    yield next(itr)
+
+    count = 0
+    for batch_idx, example, predictions in itr:
+        if count >= take_after_filter:
+            return
+
+        if should_keep_example(example, predictions):
+            yield batch_idx, example, predictions
+            count += 1
+
+
 def viz_main(dataset_dirs: List[pathlib.Path],
              checkpoint: pathlib.Path,
              mode: str,
@@ -202,43 +274,16 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              old_compat: bool = False,
              threshold: Optional[float] = None,
              **kwargs):
-    ###############
-    # Model
-    ###############
-    trials_directory = pathlib.Path('trials').absolute()
-    trial_path = checkpoint.parent.absolute()
-    _, params = filepath_tools.create_or_load_trial(trial_path=trial_path,
-                                                    trials_directory=trials_directory)
-    model_class = link_bot_classifiers.get_model(params['model_class'])
+    itr = iterate_dataset_with_classifier(dataset_dirs=dataset_dirs,
+                                          checkpoint=checkpoint,
+                                          mode=mode,
+                                          batch_size=batch_size,
+                                          start_at=start_at,
+                                          use_gt_rope=use_gt_rope,
+                                          threshold=threshold)
+    dataset, model = next(itr)
 
-    ###############
-    # Dataset
-    ###############
-    dataset = ClassifierDatasetLoader(dataset_dirs,
-                                      load_true_states=True,
-                                      use_gt_rope=use_gt_rope,
-                                      threshold=threshold,
-                                      old_compat=old_compat)
-    model = model_class(hparams=params, batch_size=batch_size, scenario=dataset.scenario)
-    tf_dataset = dataset.get_datasets(mode=mode)
-    scenario = dataset.scenario
-
-    ###############
-    # Evaluate
-    ###############
-    tf_dataset = batch_tf_dataset(tf_dataset, batch_size, drop_remainder=True)
-
-    model = classifier_utils.load_generic_model(checkpoint)
-
-    for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
-        # for batch_idx, example in enumerate(tf_dataset):
-
-        if batch_idx < start_at:
-            continue
-
-        example.update(dataset.batch_metadata)
-        predictions, _ = model.check_constraint_from_example(example, training=False)
-
+    for batch_idx, example, predictions in itr:
         labels = tf.expand_dims(example['is_close'][:, 1:], axis=2)
 
         probabilities = predictions['probabilities']
@@ -289,7 +334,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 scenario.plot_accept_probability(accept_probability_t)
                 scenario.plot_traj_idx_rviz(batch_idx * batch_size + b)
 
-            anim = RvizAnimation(scenario=scenario,
+            anim = RvizAnimation(scenario=dataset.scenario,
                                  n_time_steps=dataset.horizon,
                                  init_funcs=[init_viz_env,
                                              dataset.init_viz_action(),

@@ -228,3 +228,11 @@ def color_violinplot(parts, color):
         vp.set_edgecolor(color_dark)
         vp.set_linewidth(1)
         vp.set_alpha(a)
+
+
+def noise_x_like(y, nominal_x, noise=0.01):
+    return np.random.normal(nominal_x, noise, size=y.shape[0])
+
+
+def noisey_1d_scatter(ax, x, position, noise=0.01, **kwargs):
+    ax.scatter(noise_x_like(x, position, noise), x, **kwargs)

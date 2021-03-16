@@ -263,6 +263,7 @@ class NNClassifier(MyKerasModel):
         outputs = {
             'logits':        valid_accept_logits,
             'probabilities': valid_accept_probabilities,
+            'out_h':         out_h,
         }
         if self.hparams.get('uncertainty_head', False):
             outputs['uncertainty'] = out_uncertainty
