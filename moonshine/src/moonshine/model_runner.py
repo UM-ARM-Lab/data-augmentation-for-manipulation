@@ -79,6 +79,8 @@ class ModelRunner:
         best_checkpoint_manager = self.get_checkpoint_manager('best_checkpoint', self.best_ckpt)
         latest_checkpoint_manager = self.get_checkpoint_manager('latest_checkpoint', self.latest_ckpt)
         self.best_ckpt.restore(best_checkpoint_manager.latest_checkpoint)
+        if best_checkpoint_manager.latest_checkpoint is not None:
+            print(Fore.CYAN + "Restoring best {}".format(best_checkpoint_manager.latest_checkpoint))
         if self.checkpoint.name == 'latest_checkpoint':
             status = self.latest_ckpt.restore(latest_checkpoint_manager.latest_checkpoint)
             if latest_checkpoint_manager.latest_checkpoint is not None:
