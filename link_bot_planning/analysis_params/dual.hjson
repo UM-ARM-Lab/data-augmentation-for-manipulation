@@ -21,6 +21,8 @@
     "original classifier": "#7F59C2"
 
     "fine-tuned classifier": "#D12C7C"
+    "fine-tune best": "#D12C7C"
+    "fine-tune latest": "#D12C7C"
 
     "cc, os, feasibility": "#F33333"
     "cc, gd, feasibility": "#F33333"
