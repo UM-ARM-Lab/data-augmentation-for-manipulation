@@ -10,13 +10,15 @@ from colorama import Fore
 from progressbar import progressbar
 
 import link_bot_classifiers
+import ros_numpy
 import rospy
+from geometry_msgs.msg import Point
 from link_bot_classifiers import classifier_utils
-from link_bot_classifiers.classifier_utils import load_generic_model
+from link_bot_classifiers.classifier_utils import load_generic_model, make_max_class_prob
 from link_bot_classifiers.nn_classifier import NNClassifierWrapper
 from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset
+from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg, get_filter
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -31,7 +33,8 @@ from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import numpify
 from state_space_dynamics import common_train_hparams
 from state_space_dynamics.train_test import setup_training_paths
-from std_msgs.msg import Float32
+from std_msgs.msg import ColorRGBA
+from visualization_msgs.msg import MarkerArray, Marker
 
 
 def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
@@ -139,13 +142,12 @@ def eval_main(dataset_dirs: List[pathlib.Path],
               old_compat: bool = False,
               take: Optional[int] = None,
               checkpoint: Optional[pathlib.Path] = None,
-              trials_directory=pathlib.Path,
               **kwargs):
     ###############
     # Model
     ###############
     trial_path = checkpoint.parent.absolute()
-    _, params = filepath_tools.create_or_load_trial(trial_path=trial_path, trials_directory=trials_directory)
+    _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
     model_class = link_bot_classifiers.get_model(params['model_class'])
 
     ###############
@@ -200,9 +202,6 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              old_compat: bool = False,
              threshold: Optional[float] = None,
              **kwargs):
-    stdev_pub_ = rospy.Publisher("stdev", Float32, queue_size=10)
-    traj_idx_pub_ = rospy.Publisher("traj_idx_viz", Float32, queue_size=10)
-
     ###############
     # Model
     ###############
@@ -288,10 +287,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 else:
                     accept_probability_t = -999
                 scenario.plot_accept_probability(accept_probability_t)
-
-                traj_idx_msg = Float32()
-                traj_idx_msg.data = batch_idx * batch_size + b
-                traj_idx_pub_.publish(traj_idx_msg)
+                scenario.plot_traj_idx_rviz(batch_idx * batch_size + b)
 
             anim = RvizAnimation(scenario=scenario,
                                  n_time_steps=dataset.horizon,
@@ -300,13 +296,43 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                                              ],
                                  t_funcs=[_custom_viz_t,
                                           dataset.classifier_transition_viz_t(),
-                                          ExperimentScenario.plot_stdev_t,
+                                          ExperimentScenario.plot_dynamics_stdev_t,
                                           ])
 
             with open("debugging.hjson", 'w') as f:
                 example_b_np = numpify(example_b)
                 my_hdump(example_b_np, f)
             anim.play(example_b)
+
+
+def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
+                            checkpoints: List[pathlib.Path],
+                            mode: str,
+                            batch_size: int,
+                            use_gt_rope: bool,
+                            take: Optional[int] = None,
+                            balance: Optional[bool] = True,
+                            **kwargs):
+    # Model
+    models = [load_generic_model(checkpoint) for checkpoint in checkpoints]
+    const_keys_for_classifier = []
+    ensemble = Ensemble2(models, const_keys_for_classifier)
+
+    # Dataset
+    dataset = ClassifierDatasetLoader([dataset_dir], load_true_states=True, use_gt_rope=use_gt_rope)
+    tf_dataset = dataset.get_datasets(mode=mode)
+    if balance:
+        tf_dataset = tf_dataset.balance()
+    tf_dataset = tf_dataset.take(take)
+    tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
+
+    # Evaluate
+    for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+        batch.update(dataset.batch_metadata)
+
+        mean_predictions, stdev_predictions = ensemble(NNClassifierWrapper.check_constraint_from_example, batch)
+
+        yield dataset, batch_idx, batch, mean_predictions, stdev_predictions
 
 
 def eval_ensemble_main(dataset_dir: pathlib.Path,
@@ -318,42 +344,30 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
                        balance: Optional[bool] = True,
                        no_plot: Optional[bool] = True,
                        **kwargs):
-    ###############
-    # Model
-    ###############
-    models = [load_generic_model(checkpoint) for checkpoint in checkpoints]
-    const_keys_for_classifier = []
-    ensemble = Ensemble2(models, const_keys_for_classifier)
-
-    ###############
-    # Dataset
-    ###############
-    dataset = ClassifierDatasetLoader([dataset_dir], load_true_states=True, use_gt_rope=use_gt_rope)
-    tf_dataset = dataset.get_datasets(mode=mode)
-    tf_dataset = tf_dataset.balance()
-    tf_dataset = tf_dataset.take(take)
-    tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
-
-    ###############
-    # Evaluate
-    ###############
     classifiers_nickname = checkpoints[0].parent.parent.name
     outdir = pathlib.Path('results') / dataset_dir / classifiers_nickname
     outdir.mkdir(exist_ok=True, parents=True)
     outfile = outdir / f'results_{int(time())}.npz'
 
     labels = []
+    errors = []
     classifier_ensemble_stdevs = []
     classifier_is_corrects = []
     classifier_probabilities = []
-    for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
-        batch.update(dataset.batch_metadata)
 
-        mean_predictions, stdev_predictions = ensemble(NNClassifierWrapper.check_constraint_from_example, batch)
-
+    itr = run_ensemble_on_dataset(dataset_dir=dataset_dir,
+                                  checkpoints=checkpoints,
+                                  mode=mode,
+                                  batch_size=batch_size,
+                                  use_gt_rope=use_gt_rope,
+                                  take=take,
+                                  balance=balance,
+                                  **kwargs)
+    for dataset, batch_idx, batch, mean_predictions, stdev_predictions in itr:
         mean_probabilities = mean_predictions['probabilities']
         stdev_probabilities = stdev_predictions['probabilities']
         batch_labels = tf.expand_dims(batch['is_close'][:, 1:], axis=2)
+        batch_error = batch['error'][:, 1]
         decisions = mean_probabilities > 0.5
         classifier_is_correct = tf.squeeze(tf.equal(decisions, tf.cast(batch_labels, tf.bool)), axis=-1)
 
@@ -361,28 +375,32 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
         classifier_ensemble_stdev = stdev_probabilities.numpy().squeeze()
         mean_probabilities = mean_probabilities.numpy().squeeze()
         batch_labels = batch_labels.numpy().squeeze()
+        batch_error = batch_error.numpy().squeeze()
 
         classifier_ensemble_stdevs.extend(classifier_ensemble_stdev.tolist())
         classifier_is_corrects.extend(classifier_is_correct.tolist())
         classifier_probabilities.extend(mean_probabilities.tolist())
         labels.extend(batch_labels.tolist())
+        errors.extend(batch_error.tolist())
 
     classifier_ensemble_stdevs = np.array(classifier_ensemble_stdevs)
     classifier_is_corrects = np.array(classifier_is_corrects)
     classifier_probabilities = np.array(classifier_probabilities)
     labels = np.array(labels)
+    errors = np.array(errors)
     mean_classifier_ensemble_stdev = tf.math.reduce_mean(classifier_ensemble_stdevs)
     stdev_classifier_ensemble_stdev = tf.math.reduce_std(classifier_ensemble_stdevs)
     datum = {
         'stdevs':        classifier_ensemble_stdevs,
         'is_correct':    classifier_is_corrects,
         'probabilities': classifier_probabilities,
-        'labels': labels,
-        'checkpoints': [c.as_posix() for c in checkpoints],
-        'dataset': dataset_dir.as_posix(),
-        'balance': balance,
-        'mode': mode,
-        'use_gt_rope': use_gt_rope,
+        'labels':        labels,
+        'checkpoints':   [c.as_posix() for c in checkpoints],
+        'dataset':       dataset_dir.as_posix(),
+        'balance':       balance,
+        'error':         errors,
+        'mode':          mode,
+        'use_gt_rope':   use_gt_rope,
     }
     np.savez(outfile, **datum)
     print(f'mean={mean_classifier_ensemble_stdev.numpy()} stdev={stdev_classifier_ensemble_stdev.numpy()}')
@@ -402,3 +420,90 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
 
     if not no_plot:
         plt.show()
+
+
+def viz_ensemble_main(dataset_dir: pathlib.Path,
+                      checkpoints: List[pathlib.Path],
+                      mode: str,
+                      batch_size: int,
+                      use_gt_rope: bool,
+                      take: Optional[int] = None,
+                      balance: Optional[bool] = True,
+                      **kwargs):
+    grippers_pub = rospy.Publisher("grippers_viz_pub", MarkerArray, queue_size=10)
+
+    itr = run_ensemble_on_dataset(dataset_dir=dataset_dir,
+                                  checkpoints=checkpoints,
+                                  mode=mode,
+                                  batch_size=batch_size,
+                                  use_gt_rope=use_gt_rope,
+                                  take=take,
+                                  balance=balance,
+                                  **kwargs)
+    for dataset, batch_idx, batch, mean_predictions, stdev_predictions in itr:
+        mean_probabilities = mean_predictions['probabilities']
+        mean_mcps = make_max_class_prob(mean_probabilities)
+        stdev_probabilities = stdev_predictions['probabilities']
+        batch_labels = tf.expand_dims(batch['is_close'][:, 1:], axis=2)
+        decisions = mean_probabilities > 0.5
+        is_correct = tf.squeeze(tf.equal(decisions, tf.cast(batch_labels, tf.bool)), axis=-1)
+
+        is_correct = is_correct.numpy().squeeze()
+        ensemble_stdev = stdev_probabilities.numpy().squeeze()
+        ensemble_mean = mean_probabilities.numpy().squeeze()
+        batch_labels = batch_labels.numpy().squeeze()
+
+        deserialize_scene_msg(batch)
+        batch.pop('batch_size')
+        for k in dataset.batch_metadata.keys():
+            batch.pop(k)
+
+        for b in range(batch_size):
+            example_b = index_dict_of_batched_tensors_tf(batch, b)
+            ensemble_mcp_b = mean_mcps[b]
+            is_correct_b = is_correct[b]
+            ensemble_stdev_b = ensemble_stdev[b]
+            ensemble_mean_b = ensemble_mean[b]
+            label_b = batch_labels[b]
+
+            stdev_filter = get_filter('stdev', **kwargs)
+            mcp_filter = get_filter('mcp', **kwargs)
+            label_filter = get_filter('label', **kwargs)
+
+            if not stdev_filter(ensemble_stdev_b):
+                continue
+
+            if not mcp_filter(ensemble_mcp_b):
+                continue
+
+            if not label_filter(label_b):
+                continue
+
+            marker = Marker()
+            marker.ns = 'grippers'
+            marker.id = batch_idx * batch_size + b
+            marker.color = ColorRGBA(0.5, 0.5, 0.5, 0.5)
+            marker.header.frame_id = 'world'
+            marker.header.stamp = rospy.Time.now()
+            marker.action = Marker.ADD
+            marker.type = Marker.LINE_LIST
+            marker.scale.x = 0.02
+            marker.points = [ros_numpy.msgify(Point, example_b['left_gripper'][0]),
+                             ros_numpy.msgify(Point, example_b['right_gripper'][0])]
+            msg = MarkerArray(markers=[marker])
+            grippers_pub.publish(msg)
+
+            def _custom_viz_t(scenario: ScenarioWithVisualization, e: Dict, t: int):
+                pass
+
+            anim = RvizAnimation(scenario=dataset.scenario,
+                                 n_time_steps=dataset.horizon,
+                                 init_funcs=[init_viz_env,
+                                             dataset.init_viz_action(),
+                                             ],
+                                 t_funcs=[_custom_viz_t,
+                                          dataset.classifier_transition_viz_t(),
+                                          ExperimentScenario.plot_dynamics_stdev_t,
+                                          ])
+
+            anim.play(example_b)

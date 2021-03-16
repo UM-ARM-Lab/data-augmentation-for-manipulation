@@ -35,6 +35,10 @@ def eval_ensemble_main(args):
     train_test_classifier.eval_ensemble_main(**vars(args))
 
 
+def viz_ensemble_main(args):
+    train_test_classifier.viz_ensemble_main(**vars(args))
+
+
 @ros_init.with_ros("train_test_classifier")
 def main():
     colorama.init(autoreset=True)
@@ -100,11 +104,22 @@ def main():
     eval_ensemble_parser.add_argument('dataset_dir', type=pathlib.Path)
     eval_ensemble_parser.add_argument('checkpoints', type=pathlib.Path, nargs='+')
     eval_ensemble_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
-    eval_ensemble_parser.add_argument('--batch-size', type=int, default=32)
+    eval_ensemble_parser.add_argument('--batch-size', type=int, default=64)
     eval_ensemble_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_ensemble_parser.add_argument('--take', type=int)
     eval_ensemble_parser.add_argument('--use-gt-rope', action='store_true')
     eval_ensemble_parser.set_defaults(func=eval_ensemble_main)
+
+    viz_ensemble_parser = subparsers.add_parser('viz_ensemble')
+    viz_ensemble_parser.add_argument('dataset_dir', type=pathlib.Path)
+    viz_ensemble_parser.add_argument('checkpoints', type=pathlib.Path, nargs='+')
+    viz_ensemble_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
+    viz_ensemble_parser.add_argument('--batch-size', type=int, default=64)
+    viz_ensemble_parser.add_argument('--verbose', '-v', action='count', default=0)
+    viz_ensemble_parser.add_argument('--take', type=int)
+    viz_ensemble_parser.add_argument('--use-gt-rope', action='store_true')
+    viz_ensemble_parser.add_argument('--stdev', type=str)
+    viz_ensemble_parser.set_defaults(func=viz_ensemble_main)
 
     args = parser.parse_args()
 

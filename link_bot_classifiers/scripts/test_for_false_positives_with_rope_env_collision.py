@@ -239,7 +239,7 @@ def main():
                                                  ],
                                      t_funcs=[_custom_viz_t,
                                               dataset.classifier_transition_viz_t(),
-                                              ExperimentScenario.plot_stdev_t,
+                                              ExperimentScenario.plot_dynamics_stdev_t,
                                               init_viz_env,
                                               ])
 

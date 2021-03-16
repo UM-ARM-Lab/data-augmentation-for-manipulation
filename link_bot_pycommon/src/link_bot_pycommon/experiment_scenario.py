@@ -143,7 +143,7 @@ class ExperimentScenario:
         msg.data = accept_probability_t
         self.accept_probability_viz_pub.publish(msg)
 
-    def plot_stdev_t(self, example: Dict, t: int):
+    def plot_dynamics_stdev_t(self, example: Dict, t: int):
         stdev_t = example[add_predicted('stdev')][t]
         self.plot_stdev(stdev_t)
 

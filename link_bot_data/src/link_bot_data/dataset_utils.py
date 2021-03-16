@@ -394,3 +394,31 @@ def convert_to_tf_features(example: Dict):
             f = generic_to_bytes_feature(v)
         features[k] = f
     return features
+
+
+class FilterConditional:
+
+    def __init__(self, threshold: float, comparator):
+        self.threshold = threshold
+        self.comparator = comparator
+
+    def __call__(self, x):
+        return x.__getattribute__(self.comparator)(self.threshold)
+
+
+def get_filter(name: str, **kwargs):
+    filter_description = kwargs.get(name, None)
+    if filter_description is not None:
+        threshold = float(filter_description[1:])
+        if filter_description[0] == '>':
+            comparator = '__gt__'
+        elif filter_description[0] == '<':
+            comparator = '__lt__'
+        else:
+            raise ValueError(f"invalid comparator {filter_description[0]}")
+        return FilterConditional(threshold, comparator)
+
+    def _always_true_filter(x):
+        return True
+
+    return _always_true_filter
