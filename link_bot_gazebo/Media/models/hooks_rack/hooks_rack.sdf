@@ -40,16 +40,6 @@
           </box>
         </geometry>
       </collision>
-      <collision name='collision_cap'>
-        <max_contacts>10</max_contacts>
-        <pose>0.0 0.0 -0.25 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.062000000000000006</radius>
-            <length>0.04</length>
-          </cylinder>
-        </geometry>
-      </collision>
     </link>
     <link name='hook1'>
       <kinematic>1</kinematic>

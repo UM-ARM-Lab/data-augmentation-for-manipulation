@@ -5,8 +5,8 @@ import colorama
 
 import rospy
 from arc_utilities import ros_init
-from gazebo_msgs.srv import SetLinkState
 from link_bot_gazebo.gazebo_services import GazeboServices
+from link_bot_pycommon.get_scenario import get_scenario
 
 
 @ros_init.with_ros("restore_gazebo")
@@ -17,16 +17,21 @@ def main():
 
     args = parser.parse_args()
 
-    srv_name = "gazebo/set_link_state"
-    rospy.loginfo(f"waiting for service {srv_name}")
-    set_srv = rospy.ServiceProxy(srv_name, SetLinkState)
-    set_srv.wait_for_service()
-
-    rospy.loginfo("resetting gazebo from bag file")
+    scenario = get_scenario("dual_arm_rope_sim_val")
+    scenario.on_before_get_state_or_execute_action()
 
     gazebo_service_provider = GazeboServices()
-    gazebo_service_provider.restore_from_bag(args.bagfile)
-    gazebo_service_provider.play()
+
+    params = {
+        'environment_randomization': {
+            'type':          'jitter',
+            'nominal_poses': {
+                'long_hook1': None,
+            },
+        },
+    }
+
+    scenario.restore_from_bag(gazebo_service_provider, params, args.bagfile)
 
     rospy.loginfo("done")
 

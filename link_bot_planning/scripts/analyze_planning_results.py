@@ -54,16 +54,18 @@ def metrics_main(args):
 
     subfolders = get_all_subfolders(args)
 
-    if args.final:
+    if args.latex:
         table_format = 'latex_raw'
+    else:
+        table_format = 'fancy_grid'
+
+    if args.order:
         for subfolder_idx, subfolder in enumerate(subfolders):
             print("{}) {}".format(subfolder_idx, subfolder))
         sort_order = input(Fore.CYAN + "Enter the desired table order:\n" + Fore.RESET)
         subfolders_ordered = [subfolders[int(i)] for i in sort_order.split(' ')]
         save_order(out_dir, subfolders_ordered)
     else:
-
-        table_format = 'fancy_grid'
         subfolders_ordered = load_sort_order(out_dir, subfolders)
 
     tables_filename = out_dir / 'tables.txt'
@@ -211,7 +213,8 @@ def main():
     parser.add_argument('analysis_params', type=pathlib.Path)
     parser.add_argument('--no-plot', action='store_true')
     parser.add_argument('--show-all-trials', action='store_true')
-    parser.add_argument('--final', action='store_true')
+    parser.add_argument('--latex', action='store_true')
+    parser.add_argument('--order', action='store_true')
     parser.add_argument('--regenerate', action='store_true')
     parser.add_argument('--debug', action='store_true', help='will only run on a few examples to speed up debugging')
     parser.add_argument('--style', default='slides')

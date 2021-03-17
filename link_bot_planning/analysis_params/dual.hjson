@@ -22,7 +22,7 @@
 
     "fine-tuned classifier": "#D12C7C"
     "fine-tune best": "#D12C7C"
-    "fine-tune latest": "#D12C7C"
+    "fine-tune latest": "#A11C5C"
 
     "cc, os, feasibility": "#F33333"
     "cc, gd, feasibility": "#F33333"
@@ -33,5 +33,8 @@
 
     "car": "#D12C7C"
     "rack": "#4F2982"
+
+    "rack-specific classifier": "#4FA982"
+    "rack classifier": "#4FA982"
   }
 }
