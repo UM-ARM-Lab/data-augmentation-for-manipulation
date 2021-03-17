@@ -425,6 +425,9 @@ class OmplRRTWrapper(MyPlanner):
         initial_final_state = state_sequence[-1]
         initial_distance_to_goal = self.scenario.distance_to_goal(initial_final_state, goal)
 
+        if self.verbose >= 2:
+            self.plot_path(state_sequence=state_sequence, action_sequence=action_sequence)
+
         smoothing_rng = np.random.RandomState(0)
         n_shortcut_attempts = self.params.get('n_shortcut_attempts', 50)
         t0 = time.perf_counter()

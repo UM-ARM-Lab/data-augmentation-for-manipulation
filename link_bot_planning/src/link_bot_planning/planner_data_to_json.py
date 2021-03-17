@@ -1,9 +1,12 @@
-from ompl import base as ob
-from ompl import control as oc
+import warnings
 
 from link_bot_planning.my_planner import LoggingTree
 from link_bot_pycommon.scenario_ompl import ScenarioOmpl
-from moonshine.moonshine_utils import listify
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    from ompl import base as ob
+    from ompl import control as oc
 
 
 def planner_data_to_json(planner_data: oc.PlannerData, scenario_ompl: ScenarioOmpl):

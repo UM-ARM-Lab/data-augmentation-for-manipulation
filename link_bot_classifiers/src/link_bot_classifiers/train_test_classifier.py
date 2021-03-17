@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import pathlib
+import pickle
 from time import time
 from typing import List, Optional, Dict, Callable
 
@@ -22,7 +23,6 @@ from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg,
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from link_bot_pycommon.serialization import my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine import filepath_tools
 from moonshine.ensemble import Ensemble2
@@ -30,7 +30,6 @@ from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
-from moonshine.moonshine_utils import numpify
 from state_space_dynamics import common_train_hparams
 from state_space_dynamics.train_test import setup_training_paths
 from std_msgs.msg import ColorRGBA
@@ -101,6 +100,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
                                           )
 
     model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))
+    if threshold is not None:
+        model_hparams['labeling_params']['threshold'] = threshold
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)
 
     checkpoint_name, trial_path = setup_training_paths(checkpoint, ensemble_idx, log, model_hparams, trials_directory)
@@ -344,9 +345,9 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                                           ExperimentScenario.plot_dynamics_stdev_t,
                                           ])
 
-            with open("debugging.hjson", 'w') as f:
-                example_b_np = numpify(example_b)
-                my_hdump(example_b_np, f)
+            deserialize_scene_msg(example_b)
+            with open("debugging.pkl", 'wb') as f:
+                pickle.dump(example_b, f)
             anim.play(example_b)
 
 
