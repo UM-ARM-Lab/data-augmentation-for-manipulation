@@ -339,12 +339,11 @@ class NNClassifier(MyKerasModel):
                 }
                 send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_dict, frame='local_occupancy')
 
-                pred_t = index_time_with_metadata({}, example, self.pred_state_keys, t)
-                action_t = {k: example[k][t] for k in self.action_keys}
-                self.scenario.plot_state_rviz(numpify(pred_t), label='predicted', color='#0000ffff')
-                if action_t is not None:
-                    self.scenario.plot_action_rviz(numpify(pred_t), numpify(action_t), label='action',
-                                                   color='#0000ffff')
+                pred_t = numpify(index_time_with_metadata({}, example, self.pred_state_keys, t))
+                self.scenario.plot_state_rviz(pred_t, label='predicted', color='#0000ffff')
+                if t < len(debug_info_seq) - 1:
+                    action_t = numpify({k: example[k][t] for k in self.action_keys})
+                    self.scenario.plot_action_rviz(pred_t, action_t, label='action', color='#0000ffff')
                 # # Ground-Truth
                 # true_t = index_time_with_metadata({}, example, self.true_state_keys, t)
                 # self.scenario.plot_state_rviz(numpify(true_t), label='actual', color='#ff0000ff', scale=1.1)
@@ -357,7 +356,7 @@ class NNClassifier(MyKerasModel):
                 bbox_msg.header.frame_id = 'local_occupancy'
                 self.local_env_bbox_pub.publish(bbox_msg)
 
-                stepper.step()
+                # stepper.step()
 
 
 class NNClassifierWrapper(BaseConstraintChecker):

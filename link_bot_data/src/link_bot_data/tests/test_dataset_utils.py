@@ -5,12 +5,19 @@ import numpy as np
 import tensorflow as tf
 
 from link_bot_data.dataset_utils import is_reconverging, null_pad, NULL_PAD_VALUE, num_reconverging, \
-    num_reconverging_subsequences, add_predicted, remove_predicted, remove_predicted_from_dict, deserialize_scene_msg
+    num_reconverging_subsequences, add_predicted, remove_predicted, remove_predicted_from_dict, deserialize_scene_msg, \
+    multigen
 from moonshine.gpu_config import limit_gpu_mem
 from moonshine.moonshine_utils import remove_batch
 from moveit_msgs.msg import PlanningScene
 
 limit_gpu_mem(0.1)
+
+
+@multigen
+def make_dataset():
+    for i in range(10):
+        yield i
 
 
 class MyTestCase(unittest.TestCase):
@@ -101,6 +108,17 @@ class MyTestCase(unittest.TestCase):
         deserialize_scene_msg(d)
         self.assertIsInstance(d['scene_msg'], np.ndarray)
         self.assertIsInstance(d['scene_msg'][0], PlanningScene)
+
+    def test_multigen(self):
+        dataset = make_dataset()
+
+        # iterate once
+        for i in dataset:
+            pass
+
+        # test that iterating again works
+        second_time_iter = iter(dataset)
+        self.assertEqual(next(second_time_iter), 0)
 
 
 if __name__ == '__main__':

@@ -134,11 +134,12 @@ class ModelRunner:
             max_size = '???'
 
         widgets = [
-            ' TRAIN ', progressbar.Counter(), '/', max_size,
+            ' TRAIN ',
+            progressbar.Counter(), '/', max_size,
             ' ', progressbar.Variable("Loss"), ' ',
             progressbar.Bar(),
             ' [', progressbar.Variable("TrainTime"), '] ',
-            ' (', progressbar.ETA(), ') ',
+            ' (', progressbar.AdaptiveETA(), ') ',
         ]
 
         with progressbar.ProgressBar(widgets=widgets, max_value=self.num_train_batches) as bar:
@@ -200,7 +201,7 @@ class ModelRunner:
         widgets = [
             ' VAL   ', progressbar.Counter(), '/', max_size,
             progressbar.Bar(),
-            ' (', progressbar.ETA(), ') ',
+            ' (', progressbar.AdaptiveETA(), ') ',
         ]
 
         for v in val_metrics.values():

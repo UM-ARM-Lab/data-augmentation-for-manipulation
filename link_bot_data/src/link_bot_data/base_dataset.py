@@ -10,7 +10,7 @@ import progressbar
 import tensorflow as tf
 from colorama import Fore
 
-from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func, parse_and_slow_deserialize
+from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func, parse_and_slow_deserialize, multigen
 from moonshine.filepath_tools import load_params
 
 DEFAULT_VAL_SPLIT = 0.125
@@ -61,6 +61,15 @@ class SizedTFDataset:
         dataset_batched = self.dataset.batch(*args, batch_size=batch_size, **kwargs)
         dataset_batched = dataset_batched.map(make_add_batch_func(batch_size))
         return SizedTFDataset(dataset_batched, self.records, size=int(self.size / batch_size))
+
+    def mymap(self, function: Callable, *args, **kwargs):
+        @multigen
+        def _mymap():
+            for e in self.dataset:
+                yield function(e, *args, **kwargs)
+
+        mapped_generator = _mymap()
+        return SizedTFDataset(mapped_generator, self.records)
 
     def map(self, function: Callable):
         dataset_mapped = self.dataset.map(function)

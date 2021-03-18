@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Dict
 
 import tensorflow as tf
 
@@ -6,6 +6,8 @@ import tensorflow as tf
 # CuRL and other papers suggest that random crop is the most important data augmentation for learning state/dynamics
 # https://arxiv.org/pdf/2004.13649.pdf
 # https://www.tensorflow.org/tutorials/images/data_augmentation
+
+
 def augment(image_sequence, image_h: int, image_w: int, generator: tf.random.Generator):
     def _random_crop(images):
         # Add 6 pixels of padding
@@ -55,3 +57,26 @@ def unflatten_batch_and_sequence(x_flat, original_batch_dims):
     out_dims = x_flat.shape[1:].as_list()
     x = tf.reshape(x_flat, original_batch_dims + out_dims)
     return x
+
+
+def random_flip(x, p_flip):
+    """
+
+    Args:
+        x:  Tensor, all values are assumed 0 or 1
+        p_flip: probability from 0 to 1 of flipping an element of x, all elements of x are independent
+
+    Returns:
+
+    """
+    dtype = x.dtype
+    flip = tf.cast(tf.random.uniform(shape=x.shape, minval=0, maxval=1) < p_flip, dtype)
+    return (1 - x) * flip + x * (1 - flip)
+
+
+def voxel_grid_augmentation(batch: Dict, params: Dict):
+    p_flip = params.get('p_flip_voxel', 0.0)
+    env = batch['env']
+    new_env = random_flip(env, p_flip)
+    batch['env'] = new_env
+    return batch

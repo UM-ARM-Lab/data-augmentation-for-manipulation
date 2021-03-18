@@ -27,6 +27,26 @@ STRING_KEYS = [
 ]
 
 
+def multigen(gen_func):
+    """
+    Use this as a decorator on a generator so that you can call it repeatedly
+    Args:
+        gen_func:
+
+    Returns:
+
+    """
+    class _multigen:
+        def __init__(self, *args, **kwargs):
+            self.__args = args
+            self.__kwargs = kwargs
+
+        def __iter__(self):
+            return gen_func(*self.__args, **self.__kwargs)
+
+    return _multigen
+
+
 def state_dict_is_null(state: Dict):
     for v in state.values():
         if np.any(v == NULL_PAD_VALUE):

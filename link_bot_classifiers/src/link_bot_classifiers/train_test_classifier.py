@@ -18,6 +18,7 @@ from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.classifier_utils import load_generic_model, make_max_class_prob
 from link_bot_classifiers.nn_classifier import NNClassifierWrapper
 from link_bot_data import base_dataset
+from link_bot_data.base_dataset import SizedTFDataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg, get_filter
 from link_bot_data.visualization import init_viz_env
@@ -27,6 +28,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine import filepath_tools
 from moonshine.ensemble import Ensemble2
 from moonshine.filepath_tools import load_hjson
+from moonshine.image_augmentation import voxel_grid_augmentation
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
@@ -65,6 +67,7 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: 
     val_tf_dataset = val_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
     return train_tf_dataset, val_tf_dataset
+
 
 
 def train_main(dataset_dirs: List[pathlib.Path],
@@ -107,8 +110,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
     checkpoint_name, trial_path = setup_training_paths(checkpoint, ensemble_idx, log, model_hparams, trials_directory)
 
     if validate:
-        mid_epoch_val_batches = 50
-        val_every_n_batches = 100
+        mid_epoch_val_batches = 20
+        val_every_n_batches = 50
         save_every_n_minutes = 20
         validate_first = True
     else:
@@ -129,6 +132,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          validate_first=validate_first,
                          batch_metadata=train_dataset.batch_metadata)
     train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take)
+
+    train_tf_dataset = train_tf_dataset.mymap(voxel_grid_augmentation, params=model_hparams)
 
     final_val_metrics = runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
 
