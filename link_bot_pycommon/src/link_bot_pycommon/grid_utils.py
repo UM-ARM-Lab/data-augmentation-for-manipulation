@@ -245,3 +245,20 @@ class OccupancyData:
                              resolution=self.resolution,
                              origin=np.copy(self.origin))
         return copy
+
+
+def pad_voxel_grid_env(env, new_shape):
+    assert env.shape[0] <= new_shape[0]
+    assert env.shape[1] <= new_shape[1]
+    assert env.shape[2] <= new_shape[2]
+
+    x_pad1 = tf.math.floor((new_shape[0] - env.shape[0]) / 2)
+    x_pad2 = tf.math.ceil((new_shape[0] - env.shape[0]) / 2)
+
+    y_pad1 = tf.math.floor((new_shape[1] - env.shape[1]) / 2)
+    y_pad2 = tf.math.ceil((new_shape[1] - env.shape[1]) / 2)
+
+    z_pad1 = tf.math.floor((new_shape[2] - env.shape[2]) / 2)
+    z_pad2 = tf.math.ceil((new_shape[2] - env.shape[2]) / 2)
+
+    return tf.pad(env, paddings=[[x_pad1, x_pad2], [y_pad1, y_pad2], [z_pad1, z_pad2]])

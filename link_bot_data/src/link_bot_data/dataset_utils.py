@@ -13,6 +13,7 @@ from colorama import Fore
 
 from arc_utilities.filesystem_utils import mkdir_and_ask
 from link_bot_pycommon import pycommon
+from link_bot_pycommon.grid_utils import pad_voxel_grid_env
 from moonshine.moonshine_utils import remove_batch, add_batch
 from moveit_msgs.msg import PlanningScene
 
@@ -422,3 +423,10 @@ def get_filter(name: str, **kwargs):
         return True
 
     return _always_true_filter
+
+
+def pad_env(example: Dict, x, y, z):
+    env = example['env']
+    padded_env = pad_voxel_grid_env(env, [x, y, z])
+    example['env'] = padded_env
+    return example

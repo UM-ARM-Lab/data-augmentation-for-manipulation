@@ -6,6 +6,7 @@ from typing import Dict
 import colorama
 
 from arc_utilities import ros_init
+from link_bot_data.dataset_utils import pad_env
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.modify_dataset import modify_dataset
 from link_bot_pycommon.args import my_formatter
@@ -18,36 +19,16 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('suffix', type=str, help='string added to the new dataset name')
+    parser.add_argument('x', type=int, help='x')
+    parser.add_argument('y', type=int, help='y')
+    parser.add_argument('z', type=int, help='z')
 
     args = parser.parse_args()
 
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset: DynamicsDatasetLoader, example: Dict):
-        n = [
-            'joint56',
-            'joint57',
-            'joint41',
-            'joint42',
-            'joint43',
-            'joint44',
-            'joint45',
-            'joint46',
-            'joint47',
-            'leftgripper',
-            'leftgripper2',
-            'joint1',
-            'joint2',
-            'joint3',
-            'joint4',
-            'joint5',
-            'joint6',
-            'joint7',
-            'rightgripper',
-            'rightgripper2',
-        ]
-
-        example['joint_names'] = 10 * [n]
+        example = pad_env(example, args.x, args.y, args.z)
         yield example
 
     hparams_update = {}
