@@ -36,43 +36,6 @@
   {
     model_dir: cl_trials/val_long_hook_1616159538/March_19_09-26-57_d7a222e2b4
   }
-  learned_recovery:
-  {
-    0:
-    {
-      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook/learned_recovery/0_metrics.pkl.gz
-    }
-    1:
-    {
-      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook/learned_recovery/1_metrics.pkl.gz
-    }
-    2:
-    {
-      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook/learned_recovery/2_metrics.pkl.gz
-    }
-    3:
-    {
-      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook/learned_recovery/3_metrics.pkl.gz
-    }
-    4:
-    {
-      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook/learned_recovery/4_metrics.pkl.gz
-    }
-    5:
-    {
-      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook/learned_recovery/5_metrics.pkl.gz
-    }
-    6:
-    {
-      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook/learned_recovery/6_metrics.pkl.gz
-    }
-    7:
-    {
-      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook/learned_recovery/7_metrics.pkl.gz
-    }
-    8:
-    {
-      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook/learned_recovery/8_metrics.pkl.gz
-    }
-  }
+  learned_recovery: {}
+  planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook
 }
