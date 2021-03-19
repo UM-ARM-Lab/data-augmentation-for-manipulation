@@ -54,8 +54,8 @@ class ConstraintCheckerEnsemble(BaseConstraintChecker):
 
     def check_constraint_tf_batched(self, *args, **kwargs):
         mean, stdev = self.ensemble(self.element_class.check_constraint_tf_batched, *args, **kwargs)
-        return stdev > self.threshold
+        return mean, stdev
 
     def check_constraint_from_example(self, *args, **kwargs):
         mean, stdev = self.ensemble(self.element_class.check_constraint_from_example, *args, **kwargs)
-        return stdev > self.threshold
+        return mean, stdev

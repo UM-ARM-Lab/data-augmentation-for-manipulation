@@ -139,7 +139,7 @@ class ModelRunner:
             ' ', progressbar.Variable("Loss"), ' ',
             progressbar.Bar(),
             ' [', progressbar.Variable("TrainTime"), '] ',
-            ' (', progressbar.AdaptiveETA(), ') ',
+            ' (', progressbar.ETA(), ') ',
         ]
 
         with progressbar.ProgressBar(widgets=widgets, max_value=self.num_train_batches) as bar:

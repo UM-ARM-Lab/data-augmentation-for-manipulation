@@ -16,9 +16,7 @@ import rospy
 from geometry_msgs.msg import Point
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.classifier_utils import load_generic_model, make_max_class_prob
-from link_bot_classifiers.nn_classifier import NNClassifierWrapper
 from link_bot_data import base_dataset
-from link_bot_data.base_dataset import SizedTFDataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg, get_filter
 from link_bot_data.visualization import init_viz_env
@@ -26,7 +24,6 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine import filepath_tools
-from moonshine.ensemble import Ensemble2
 from moonshine.filepath_tools import load_hjson
 from moonshine.image_augmentation import voxel_grid_augmentation
 from moonshine.indexing import index_dict_of_batched_tensors_tf
@@ -67,7 +64,6 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: 
     val_tf_dataset = val_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
     return train_tf_dataset, val_tf_dataset
-
 
 
 def train_main(dataset_dirs: List[pathlib.Path],
@@ -357,7 +353,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
 
 
 def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
-                            checkpoints: List[pathlib.Path],
+                            ensemble_path: pathlib.Path,
                             mode: str,
                             batch_size: int,
                             use_gt_rope: bool,
@@ -365,9 +361,10 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
                             balance: Optional[bool] = True,
                             **kwargs):
     # Model
-    models = [load_generic_model(checkpoint) for checkpoint in checkpoints]
-    const_keys_for_classifier = []
-    ensemble = Ensemble2(models, const_keys_for_classifier)
+    # models = [load_generic_model(checkpoint) for checkpoint in checkpoints]
+    # const_keys_for_classifier = []
+    # ensemble = Ensemble2(models, const_keys_for_classifier)
+    ensemble = load_generic_model(ensemble_path)
 
     # Dataset
     dataset = ClassifierDatasetLoader([dataset_dir], load_true_states=True, use_gt_rope=use_gt_rope)
@@ -381,13 +378,13 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
     for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
         batch.update(dataset.batch_metadata)
 
-        mean_predictions, stdev_predictions = ensemble(NNClassifierWrapper.check_constraint_from_example, batch)
+        mean_predictions, stdev_predictions = ensemble.check_constraint_from_example(batch)
 
         yield dataset, batch_idx, batch, mean_predictions, stdev_predictions
 
 
 def eval_ensemble_main(dataset_dir: pathlib.Path,
-                       checkpoints: List[pathlib.Path],
+                       ensemble_path: pathlib.Path,
                        mode: str,
                        batch_size: int,
                        use_gt_rope: bool,
@@ -395,7 +392,7 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
                        balance: Optional[bool] = True,
                        no_plot: Optional[bool] = True,
                        **kwargs):
-    classifiers_nickname = checkpoints[0].parent.parent.name
+    classifiers_nickname = ensemble_path.name
     outdir = pathlib.Path('results') / dataset_dir / classifiers_nickname
     outdir.mkdir(exist_ok=True, parents=True)
     outfile = outdir / f'results_{int(time())}.npz'
@@ -407,7 +404,7 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
     classifier_probabilities = []
 
     itr = run_ensemble_on_dataset(dataset_dir=dataset_dir,
-                                  checkpoints=checkpoints,
+                                  ensemble_path=ensemble_path,
                                   mode=mode,
                                   batch_size=batch_size,
                                   use_gt_rope=use_gt_rope,
@@ -446,7 +443,7 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
         'is_correct':    classifier_is_corrects,
         'probabilities': classifier_probabilities,
         'labels':        labels,
-        'checkpoints':   [c.as_posix() for c in checkpoints],
+        'ensemble_path': ensemble_path.as_posix(),
         'dataset':       dataset_dir.as_posix(),
         'balance':       balance,
         'error':         errors,
@@ -474,7 +471,7 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
 
 
 def viz_ensemble_main(dataset_dir: pathlib.Path,
-                      checkpoints: List[pathlib.Path],
+                      ensemble_path: pathlib.Path,
                       mode: str,
                       batch_size: int,
                       use_gt_rope: bool,
@@ -484,7 +481,7 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
     grippers_pub = rospy.Publisher("grippers_viz_pub", MarkerArray, queue_size=10)
 
     itr = run_ensemble_on_dataset(dataset_dir=dataset_dir,
-                                  checkpoints=checkpoints,
+                                  ensemble_path=ensemble_path,
                                   mode=mode,
                                   batch_size=batch_size,
                                   use_gt_rope=use_gt_rope,

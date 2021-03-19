@@ -102,7 +102,7 @@ def main():
 
     eval_ensemble_parser = subparsers.add_parser('eval_ensemble')
     eval_ensemble_parser.add_argument('dataset_dir', type=pathlib.Path)
-    eval_ensemble_parser.add_argument('checkpoints', type=pathlib.Path, nargs='+')
+    eval_ensemble_parser.add_argument('ensemble_path', type=pathlib.Path)
     eval_ensemble_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     eval_ensemble_parser.add_argument('--batch-size', type=int, default=64)
     eval_ensemble_parser.add_argument('--verbose', '-v', action='count', default=0)
@@ -112,7 +112,7 @@ def main():
 
     viz_ensemble_parser = subparsers.add_parser('viz_ensemble')
     viz_ensemble_parser.add_argument('dataset_dir', type=pathlib.Path)
-    viz_ensemble_parser.add_argument('checkpoints', type=pathlib.Path, nargs='+')
+    viz_ensemble_parser.add_argument('ensemble_path', type=pathlib.Path)
     viz_ensemble_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     viz_ensemble_parser.add_argument('--batch-size', type=int, default=64)
     viz_ensemble_parser.add_argument('--verbose', '-v', action='count', default=0)
