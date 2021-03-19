@@ -1,0 +1,101 @@
+{
+  name: val_car
+  reset_joint_config: {
+    joint1: 0.5903734250235528,
+    joint2: -0.7214355209537864,
+    joint3: 0.6228154864993862,
+    joint4: 0.5598020237501977,
+    joint41: 0.9111050714571904,
+    joint42: 0.928783552358694,
+    joint43: -1.0444957786375042,
+    joint44: 0.5699129088752324,
+    joint45: 1.3209929051657374,
+    joint46: -1.0740661355371026,
+    joint47: -1.7605314838269148,
+    joint5: -1.3501547155831561,
+    joint56: -0.00018261176063205653,
+    joint57: 0.0004871437759357278,
+    joint6: 1.0175395063376493,
+    joint7: 2.173908028268774,
+  }
+  extent: [
+    -0.6
+    0.6
+    0.35
+    1.25
+    -0.1
+    0.75
+  ]
+  left_gripper_action_sample_extent: [
+    -0.6
+    0.6
+    0.35
+    1.25
+    -0.1
+    0.75
+  ]
+  right_gripper_action_sample_extent: [
+    -0.6
+    0.6
+    0.35
+    1.25
+    -0.1
+    0.75
+  ]
+  environment_randomization: {
+      type: jitter
+      jitter_extent: [
+        -0.05
+        0.05
+        -0.05
+        0.05
+        -0.05
+        0.05
+      ]
+      nominal_poses: {
+        shelf: {
+          position: [-0.76, 0.5, 0.4]
+          orientation: [0, 0, -1.5707]
+        }
+        coat_rack: {
+          position: [-0.2, 0.83, 0.4]
+          orientation: [0, 0, 3.141592]
+        }
+        chair: {
+          position: [-0.3, 0.82, -0.38]
+          orientation: [0, 0, -0.2]
+        }
+      }
+  }
+  res: 0.02
+  max_step_size: 0.01
+  real_time_rate: 0.0
+  steps_per_traj: 10
+  no_objects: false
+  randomize_n: 16
+  repeat_delta_gripper_motion_probability: 0.7
+  max_distance_gripper_can_move: 0.10
+  max_distance_between_grippers: 0.80  # this need not exactly match the rope length
+  state_keys: [
+    # rgbd
+    gt_rope
+    left_gripper
+    right_gripper
+    joint_positions
+    rope
+  ]
+  state_metadata_keys: [
+    joint_names
+  ]
+  action_keys: [
+    left_gripper_position
+    right_gripper_position
+  ]
+  env_keys: [
+    env
+    extent
+    origin
+    res
+    scene_msg
+  ]
+}

@@ -160,6 +160,22 @@
         <transparency>0</transparency>
         <cast_shadows>1</cast_shadows>
       </visual>
+      <visual name='visual_6'>
+        <pose>-0.1 0.125 0.63 0 -0 0</pose>
+        <geometry>
+          <box>
+            <size>0.02 0.04 0.02</size>
+          </box>
+        </geometry>
+      </visual>
+      <visual name='visual_7'>
+        <pose>-0.1 -0.125 0.63 0 -0 0</pose>
+        <geometry>
+          <box>
+            <size>0.02 0.04 0.02</size>
+          </box>
+        </geometry>
+      </visual>
       <collision name='collision_1'>
         <laser_retro>0</laser_retro>
         <max_contacts>10</max_contacts>
@@ -489,6 +505,22 @@
             </bullet>
           </contact>
         </surface>
+      </collision>
+      <collision name='collision_6'>
+        <pose>-0.1 0.125 0.63 0 -0 0</pose>
+        <geometry>
+          <box>
+            <size>0.02 0.04 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+      <collision name='collision_7'>
+        <pose>-0.1 -0.125 0.63 0 -0 0</pose>
+        <geometry>
+          <box>
+            <size>0.02 0.04 0.02</size>
+          </box>
+        </geometry>
       </collision>
     </link>
     <static>0</static>

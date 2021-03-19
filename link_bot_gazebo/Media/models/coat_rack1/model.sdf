@@ -20,11 +20,11 @@
       <pose>0 0 0 0 -0 0</pose>
       <gravity>1</gravity>
       <visual name='ModelPreview_6::link_1::visual_3'>
-        <pose>0.13 0.04 0 -1 0 0</pose>
+        <pose>0.13 0.04 0 -1.6 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.01</radius>
-            <length>0.1</length>
+            <radius>0.02</radius>
+            <length>0.14</length>
           </cylinder>
         </geometry>
         <material>
@@ -67,11 +67,11 @@
         <cast_shadows>1</cast_shadows>
       </visual>
       <visual name='ModelPreview_6::link_1::visual_2'>
-        <pose>0 0.04 0 -1 0 0</pose>
+        <pose>0 0.04 0 -1.6 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.01</radius>
-            <length>0.1</length>
+            <radius>0.02</radius>
+            <length>0.14</length>
           </cylinder>
         </geometry>
         <material>
@@ -91,11 +91,11 @@
         <cast_shadows>1</cast_shadows>
       </visual>
       <visual name='visual2'>
-        <pose>-0.13 0.04 0 -1 0 0</pose>
+        <pose>-0.13 0.04 0 -1.6 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.01</radius>
-            <length>0.1</length>
+            <radius>0.02</radius>
+            <length>0.14</length>
           </cylinder>
         </geometry>
         <material>
@@ -117,11 +117,11 @@
       <collision name='collision_9'>
         <laser_retro>0</laser_retro>
         <max_contacts>10</max_contacts>
-        <pose>0.13 0.04 0 -1 0 0</pose>
+        <pose>0.13 0.04 0 -1.6 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.01</radius>
-            <length>0.1</length>
+            <radius>0.02</radius>
+            <length>0.14</length>
           </cylinder>
         </geometry>
         <surface>
@@ -133,15 +133,6 @@
               <slip1>0</slip1>
               <slip2>0</slip2>
             </ode>
-            <torsional>
-              <coefficient>1</coefficient>
-              <patch_radius>0</patch_radius>
-              <surface_radius>0</surface_radius>
-              <use_patch_radius>1</use_patch_radius>
-              <ode>
-                <slip>0</slip>
-              </ode>
-            </torsional>
           </friction>
           <bounce>
             <restitution_coefficient>0</restitution_coefficient>
@@ -189,13 +180,6 @@
               <slip2>0</slip2>
             </ode>
             <torsional>
-              <coefficient>1</coefficient>
-              <patch_radius>0</patch_radius>
-              <surface_radius>0</surface_radius>
-              <use_patch_radius>1</use_patch_radius>
-              <ode>
-                <slip>0</slip>
-              </ode>
             </torsional>
           </friction>
           <bounce>
@@ -228,11 +212,11 @@
       <collision name='collision_8'>
         <laser_retro>0</laser_retro>
         <max_contacts>10</max_contacts>
-        <pose>0 0.04 0 -1 0 0</pose>
+        <pose>0 0.04 0 -1.6 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.01</radius>
-            <length>0.1</length>
+            <radius>0.02</radius>
+            <length>0.14</length>
           </cylinder>
         </geometry>
         <surface>
@@ -244,15 +228,6 @@
               <slip1>0</slip1>
               <slip2>0</slip2>
             </ode>
-            <torsional>
-              <coefficient>1</coefficient>
-              <patch_radius>0</patch_radius>
-              <surface_radius>0</surface_radius>
-              <use_patch_radius>1</use_patch_radius>
-              <ode>
-                <slip>0</slip>
-              </ode>
-            </torsional>
           </friction>
           <bounce>
             <restitution_coefficient>0</restitution_coefficient>
@@ -284,11 +259,11 @@
       <collision name='collision_7'>
         <laser_retro>0</laser_retro>
         <max_contacts>10</max_contacts>
-        <pose>-0.13 0.04 0 -1 0 0</pose>
+        <pose>-0.13 0.04 0 -1.6 0 0</pose>
         <geometry>
           <cylinder>
-            <radius>0.01</radius>
-            <length>0.1</length>
+            <radius>0.02</radius>
+            <length>0.14</length>
           </cylinder>
         </geometry>
         <surface>
@@ -300,15 +275,6 @@
               <slip1>0</slip1>
               <slip2>0</slip2>
             </ode>
-            <torsional>
-              <coefficient>1</coefficient>
-              <patch_radius>0</patch_radius>
-              <surface_radius>0</surface_radius>
-              <use_patch_radius>1</use_patch_radius>
-              <ode>
-                <slip>0</slip>
-              </ode>
-            </torsional>
           </friction>
           <bounce>
             <restitution_coefficient>0</restitution_coefficient>
