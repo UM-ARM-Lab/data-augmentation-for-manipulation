@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-import rospy
+from arc_utilities import ros_init
 from link_bot_data.dataset_utils import deserialize_scene_msg
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_pycommon.args import my_formatter
@@ -46,6 +46,7 @@ def plot_3d(args, dataset: DynamicsDatasetLoader, tf_dataset: tf.data.Dataset):
             anim.step()
 
 
+@ros_init.with_ros("visualize_dynamics_dataset")
 def main():
     colorama.init(autoreset=True)
     plt.style.use("slides")
@@ -60,8 +61,6 @@ def main():
     parser.add_argument('--shuffle', action='store_true', help='shuffle')
 
     args = parser.parse_args()
-
-    rospy.init_node("visualize_dynamics_dataset")
 
     np.random.seed(1)
     tf.random.set_seed(1)
