@@ -1,5 +1,5 @@
 {
-  method_name: classifier (no starts far), feasibility
+  method_name: car classifier
   filter_model_dir: [
     filter_trials/none/none
   ]
