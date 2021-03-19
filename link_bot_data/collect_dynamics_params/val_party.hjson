@@ -13,34 +13,34 @@
     joint46: -1.0740661355371026,
     joint47: -1.7605314838269148,
     joint5: -1.3501547155831561,
-    joint56: -0.00018261176063205653,
-    joint57: 0.0004871437759357278,
+    joint56: 0.0,
+    joint57: -0.3,
     joint6: 1.0175395063376493,
     joint7: 2.173908028268774,
   }
   extent: [
-    -0.6
+    -0.88
     0.6
-    0.35
-    1.25
+    0.15
+    0.95
     -0.1
-    0.75
+    1.00
   ]
   left_gripper_action_sample_extent: [
-    -0.6
+    -0.75
     0.6
-    0.35
-    1.25
+    0.15
+    1.0
     -0.1
-    0.75
+    1.00
   ]
   right_gripper_action_sample_extent: [
-    -0.6
+    -0.75
     0.6
-    0.35
-    1.25
+    0.15
+    1.0
     -0.1
-    0.75
+    1.00
   ]
   environment_randomization: {
       type: jitter
@@ -72,7 +72,7 @@
   real_time_rate: 0.0
   steps_per_traj: 10
   no_objects: false
-  randomize_n: 16
+  randomize_n: 1
   repeat_delta_gripper_motion_probability: 0.7
   max_distance_gripper_can_move: 0.10
   max_distance_between_grippers: 0.80  # this need not exactly match the rope length
