@@ -28,7 +28,7 @@ class MoveitPlanningSceneScenarioMixin:
 
         return {}
 
-    def plot_environment_rviz(self, environment: Dict):
+    def plot_environment_rviz(self, environment: Dict, **kwargs):
         if 'scene_msg' in environment:
             scene_msg: PlanningScene = environment['scene_msg']
             self.planning_scene_viz_pub.publish(scene_msg)

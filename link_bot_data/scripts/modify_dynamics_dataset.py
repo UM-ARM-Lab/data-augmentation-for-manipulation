@@ -6,7 +6,7 @@ from typing import Dict
 import colorama
 
 from arc_utilities import ros_init
-from link_bot_data.dataset_utils import pad_env
+from link_bot_data.dataset_utils import modify_pad_env, deserialize_scene_msg
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.modify_dataset import modify_dataset
 from link_bot_pycommon.args import my_formatter
@@ -28,7 +28,8 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset: DynamicsDatasetLoader, example: Dict):
-        example = pad_env(example, args.x, args.y, args.z)
+        deserialize_scene_msg(example)
+        example = modify_pad_env(example, args.x, args.y, args.z)
         yield example
 
     hparams_update = {}

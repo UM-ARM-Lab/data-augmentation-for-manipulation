@@ -82,7 +82,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.tree_action_idx = 0
         self.sample_idx = 0
 
-    def plot_environment_rviz(self, environment: Dict):
+    def plot_environment_rviz(self, environment: Dict, **kwargs):
         if 'env' in environment and 'res' in environment and 'origin' in environment:
             self.send_occupancy_tf(environment)
 

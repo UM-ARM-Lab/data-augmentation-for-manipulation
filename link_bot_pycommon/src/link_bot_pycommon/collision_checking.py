@@ -127,29 +127,3 @@ def inflate_tf(env, radius_m: float, res: float):
     x = tf.cast(env, tf.float32)[tf.newaxis, :, :, tf.newaxis]
     inflated = tf.squeeze(tf.clip_by_value(conv(x), clip_value_min=0, clip_value_max=1))
     return inflated
-
-
-def inflate(env: OccupancyData, radius_m: float, res: float):
-    assert radius_m >= 0
-    if radius_m == 0:
-        return env
-
-    inflated_data = np.copy(env)
-    radius = int(radius_m / res)
-
-    for i, j in np.ndindex(env.data.shape):
-        try:
-            if env.data[i, j] == 1:
-                for di in range(-radius, radius + 1):
-                    for dj in range(-radius, radius + 1):
-                        r = i + di
-                        c = j + dj
-                        if 0 <= r < env.data.shape[0] and 0 <= c < env.data.shape[1]:
-                            inflated_data[i + di, j + dj] = 1
-        except IndexError:
-            pass
-
-    inflated = OccupancyData(data=inflated_data,
-                             origin=env.origin,
-                             resolution=env.resolution)
-    return inflated

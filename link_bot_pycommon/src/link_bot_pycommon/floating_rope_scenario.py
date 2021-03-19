@@ -856,9 +856,9 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     def dynamics_metrics_function(dataset_element, predictions):
         return dynamics_points_metrics_function(dataset_element, predictions)
 
-    def plot_environment_rviz(self, environment: Dict):
-        ScenarioWithVisualization.plot_environment_rviz(self, environment)
-        MoveitPlanningSceneScenarioMixin.plot_environment_rviz(self, environment)
+    def plot_environment_rviz(self, environment: Dict, **kwargs):
+        ScenarioWithVisualization.plot_environment_rviz(self, environment, **kwargs)
+        MoveitPlanningSceneScenarioMixin.plot_environment_rviz(self, environment, **kwargs)
 
     def plot_state_rviz(self, state: Dict, **kwargs):
         label = kwargs.get("label", "")

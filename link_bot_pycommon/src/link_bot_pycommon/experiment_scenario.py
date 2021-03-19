@@ -98,7 +98,7 @@ class ExperimentScenario:
     def plot_goal_rviz(self, goal: Dict, goal_threshold: float, actually_at_goal: Optional[bool] = None):
         raise NotImplementedError()
 
-    def plot_environment_rviz(self, data: Dict):
+    def plot_environment_rviz(self, data: Dict, **kwargs):
         raise NotImplementedError()
 
     def delete_state_rviz(self, label: str, index: int):

@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -79,9 +79,10 @@ def center_point_to_origin_indices(h_rows: int,
 def compute_extent_3d(rows: int,
                       cols: int,
                       channels: int,
-                      resolution: float):
-    """ assumes the origin is in the center """
-    origin = np.array([rows // 2, cols // 2, channels // 2], np.int32)
+                      resolution: float,
+                      origin: Optional = None):
+    if origin is None:
+        origin = np.array([rows // 2, cols // 2, channels // 2], np.int32)
     xmin, ymin, zmin = idx_to_point_3d(0, 0, 0, resolution, origin)
     xmax, ymax, zmax = idx_to_point_3d(rows, cols, channels, resolution, origin)
     return np.array([xmin, xmax, ymin, ymax, zmin, zmax], dtype=np.float32)
@@ -218,7 +219,6 @@ def point_to_idx(x: float,
     return row, col
 
 
-# TODO: remove
 class OccupancyData:
 
     def __init__(self,
@@ -247,18 +247,22 @@ class OccupancyData:
         return copy
 
 
-def pad_voxel_grid_env(env, new_shape):
-    assert env.shape[0] <= new_shape[0]
-    assert env.shape[1] <= new_shape[1]
-    assert env.shape[2] <= new_shape[2]
+def pad_voxel_grid(voxel_grid, origin, res, extent, new_shape):
+    assert voxel_grid.shape[0] <= new_shape[0]
+    assert voxel_grid.shape[1] <= new_shape[1]
+    assert voxel_grid.shape[2] <= new_shape[2]
 
-    x_pad1 = tf.math.floor((new_shape[0] - env.shape[0]) / 2)
-    x_pad2 = tf.math.ceil((new_shape[0] - env.shape[0]) / 2)
+    h_pad1 = tf.math.floor((new_shape[0] - voxel_grid.shape[0]) / 2)
+    h_pad2 = tf.math.ceil((new_shape[0] - voxel_grid.shape[0]) / 2)
 
-    y_pad1 = tf.math.floor((new_shape[1] - env.shape[1]) / 2)
-    y_pad2 = tf.math.ceil((new_shape[1] - env.shape[1]) / 2)
+    w_pad1 = tf.math.floor((new_shape[1] - voxel_grid.shape[1]) / 2)
+    w_pad2 = tf.math.ceil((new_shape[1] - voxel_grid.shape[1]) / 2)
 
-    z_pad1 = tf.math.floor((new_shape[2] - env.shape[2]) / 2)
-    z_pad2 = tf.math.ceil((new_shape[2] - env.shape[2]) / 2)
+    c_pad1 = tf.math.floor((new_shape[2] - voxel_grid.shape[2]) / 2)
+    c_pad2 = tf.math.ceil((new_shape[2] - voxel_grid.shape[2]) / 2)
 
-    return tf.pad(env, paddings=[[x_pad1, x_pad2], [y_pad1, y_pad2], [z_pad1, z_pad2]])
+    padded_env = tf.pad(voxel_grid, paddings=[[h_pad1, h_pad2], [w_pad1, w_pad2], [c_pad1, c_pad2]])
+    new_origin = origin + [h_pad1, w_pad1, c_pad1]
+    new_extent = compute_extent_3d(new_shape[0], new_shape[1], new_shape[2], res, new_origin)
+
+    return padded_env, new_origin, new_extent
