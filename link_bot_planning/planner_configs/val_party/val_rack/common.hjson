@@ -1,0 +1,95 @@
+{
+  scenario: dual_arm_rope_sim_val
+  reset_joint_config: {
+    joint1: 0.5903734250235528,
+    joint2: -0.7214355209537864,
+    joint3: 0.6228154864993862,
+    joint4: 0.5598020237501977,
+    joint41: 0.9111050714571904,
+    joint42: 0.928783552358694,
+    joint43: -1.0444957786375042,
+    joint44: 0.5699129088752324,
+    joint45: 1.3209929051657374,
+    joint46: -1.0740661355371026,
+    joint47: -1.7605314838269148,
+    joint5: -1.3501547155831561,
+    joint56: -0.00018261176063205653,
+    joint57: 0.0004871437759357278,
+    joint6: 1.0175395063376493,
+    joint7: 2.173908028268774,
+  }
+  termination_criteria: {
+    total_timeout: 600
+    timeout: 600
+    attempted_extensions_threshold: 32
+  }
+  action_params: {
+    max_distance_between_grippers: 1.0
+  }
+  extent: [
+    -0.6
+    0.6
+    0.35
+    1.25
+    -0.1
+    0.75
+  ]
+  state_sampler_extent: [
+    # this is set to be a bit more conservative than "extent" to avoid annoying out-of-bounds edge cases
+    -0.55
+    0.55
+    0.4
+    1.2
+    -0.05
+    0.70
+  ]
+  planner_type: rrt
+  accept_threshold: 0.5
+  goal_params: {
+    type: saved
+    goal_type: any_point
+    threshold: 0.05
+    extent: [
+      -0.5
+      0.5
+      0.3
+      1.1
+      -0.3
+      0.2
+    ]
+  }
+  environment_randomization: {
+      type: jitter
+      jitter_extent: [
+        -0.1
+        0.1
+        -0.1
+        0.1
+        -0.1
+        0.1
+      ]
+      # NOTE these are not used when we provide a test scenes directory, as I usually do
+      nominal_poses: {
+        hooks_rack: {
+          position: [0, 1.05, 0.25]
+          orientation: [0, 0, 0]
+        }
+      }
+  }
+  real_time_rate: 0.0
+  filter_model_dir: [
+    filter_trials/none/none
+  ]
+  horizon: 2
+  smooth: true
+  # Local Planner Parameters
+  use_local_planner: true
+  iters: 2,
+  length_alpha: 0
+  goal_alpha: 1
+  constraints_alpha: 0
+  action_alpha: 1
+  initial_learning_rate: 0.2
+  # shortcutting
+  n_shortcut_attempts: 25
+}
