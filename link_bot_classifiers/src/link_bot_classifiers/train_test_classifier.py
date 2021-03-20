@@ -78,7 +78,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                ensemble_idx: Optional[int] = None,
                old_compat: bool = False,
                take: Optional[int] = None,
-               validate: bool = True,
+               no_validate: bool = True,
                trials_directory: Optional[pathlib.Path] = None,
                **kwargs):
     model_hparams = load_hjson(model_hparams)
@@ -105,16 +105,16 @@ def train_main(dataset_dirs: List[pathlib.Path],
 
     checkpoint_name, trial_path = setup_training_paths(checkpoint, ensemble_idx, log, model_hparams, trials_directory)
 
-    if validate:
-        mid_epoch_val_batches = 20
-        val_every_n_batches = 50
-        save_every_n_minutes = 20
-        validate_first = True
-    else:
+    if no_validate:
         mid_epoch_val_batches = None
         val_every_n_batches = None
         save_every_n_minutes = None
         validate_first = False
+    else:
+        mid_epoch_val_batches = 20
+        val_every_n_batches = 50
+        save_every_n_minutes = 20
+        validate_first = True
 
     runner = ModelRunner(model=model,
                          training=True,

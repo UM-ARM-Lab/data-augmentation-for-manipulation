@@ -172,21 +172,27 @@ class NNClassifier(MyKerasModel):
         logits = outputs['logits']
         bce = tf.keras.losses.binary_crossentropy(y_true=labels, y_pred=logits, from_logits=True)
         alpha = self.hparams.get('negative_label_weight', 0.5)
-        # alpha = 1 means label everything as 0
-        # alpha = 0 means label everything as 1
-        label_weight = tf.abs(labels - alpha)
-        bce = bce * label_weight
+        if alpha != 0.5:
+            print(Fore.YELLOW + f"Custom negative label weight = {alpha}")
+
+        # alpha = 1 means ignore positive examples
+        # alpha = 0 means ignore negative examples
+        label_weight = tf.abs(is_close_after_start - alpha)
+        label_weighted_bce = bce * label_weight
 
         # mask out / ignore examples where is_close [0] is 0
-        is_close_at_start = dataset_element['is_close'][:, 0]
-        bce = bce * is_close_at_start
+        if self.hparams.get('ignore_starts_far', False):
+            print(Fore.YELLOW + "Ignoring starts-far")
+            is_close_at_start = dataset_element['is_close'][:, 0]
+            label_weighted_bce = label_weighted_bce * is_close_at_start
 
         # weight examples by the perception reliability, loss reliable means less important to predict, so lower loss
         if 'perception_reliability' in dataset_element and self.hparams.get('use_perception_reliability_loss', False):
             perception_reliability_weight = dataset_element['perception_reliability']
         else:
-            perception_reliability_weight = tf.ones_like(bce)
-        perception_reliability_weighted_bce = bce * perception_reliability_weight
+            perception_reliability_weight = tf.ones_like(label_weighted_bce)
+
+        perception_reliability_weighted_bce = label_weighted_bce * perception_reliability_weight
 
         # mini-batches may not be balanced, weight the losses for positive and negative examples to balance
         total_bce = class_weighted_mean_loss(perception_reliability_weighted_bce, is_close_after_start)

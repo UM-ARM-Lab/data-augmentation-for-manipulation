@@ -32,5 +32,5 @@
   use_perception_reliability_loss: false
   voxel_noise: 0.3
   uncertainty_head: false
-  negative_label_weight: 0.75
+  negative_label_weight: 0.5
 }
