@@ -59,7 +59,7 @@
     launch: val.launch
     world: hooks_rack.world
     methods: [
-      rack_specific_classifier
+      learned_recovery
     ]
   }
 }

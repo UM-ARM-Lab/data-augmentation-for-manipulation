@@ -24,4 +24,16 @@
   {
     model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e
   }
+  collect_dynamics_data_2:
+  {
+    dynamics_dataset_dir: fwd_model_data/val_party_phase2_1616187441_644477b448_2048
+  }
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/val_party_1616258903
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/val_party_1616258903/March_20_13-20-52_644477b448
+  }
 }
