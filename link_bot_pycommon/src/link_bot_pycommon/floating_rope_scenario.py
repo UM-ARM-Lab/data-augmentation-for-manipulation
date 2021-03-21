@@ -211,7 +211,13 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         # TODO: return a bool indicated this error so calling code can handle it
         rospy.logwarn("Could not find a valid action, executing an invalid one")
-        return action, (invalid := True)
+        zero_action = {
+            'left_gripper_position':        state['left_gripper'],
+            'right_gripper_position':       state['right_gripper'],
+            'left_gripper_delta_position':  np.zeros(3, dtype=np.float),
+            'right_gripper_delta_position': np.zeros(3, dtype=np.float),
+        }
+        return zero_action, (invalid := True)
 
     def is_action_valid(self, environment: Dict, state: Dict, action: Dict, action_params: Dict):
         out_of_bounds = FloatingRopeScenario.grippers_out_of_bounds(action['left_gripper_position'],
