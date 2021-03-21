@@ -32,7 +32,7 @@ def main():
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
     parser.add_argument('--record', action='store_true', help='record')
     parser.add_argument('--log-full-tree', action='store_true', help='log the full planning tree. slow.')
-    parser.add_argument('--use-gt-rope', action='store_true', help='use ground truth rope state')
+    parser.add_argument('--no-use-gt-rope', action='store_true', help='use ground truth rope state')
 
     args = parser.parse_args()
 
@@ -53,7 +53,7 @@ def main():
                         planners_params=planners_params,
                         trials=args.trials,
                         how_to_handle=args.on_exception,
-                        use_gt_rope=args.use_gt_rope,
+                        use_gt_rope=not args.no_use_gt_rope,
                         verbose=args.verbose,
                         timeout=args.timeout,
                         test_scenes_dir=args.test_scenes_dir,

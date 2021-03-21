@@ -84,8 +84,6 @@ def main():
     tf_dataset = tf_dataset.take(args.take)
 
     model = classifier_utils.load_generic_model(args.checkpoint)
-    assert len(model.nets) == 1
-    net: MyKerasModel = model.nets[0]
 
     cc = PointsCollisionChecker(pathlib.Path('trials/cc_baseline/none'), scenario)
 
@@ -103,7 +101,7 @@ def main():
     predicted_in_collision_fn = 0
     count = 0
     n_correct = 0
-    metrics = net.create_metrics()
+    metrics = model.net.create_metrics()
 
     # for batch_idx, example in enumerate(tf_dataset):
     for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
@@ -114,7 +112,7 @@ def main():
         example_for_constr = example.copy()
         example_for_constr.update(dataset.batch_metadata)
 
-        predictions, _ = model.check_constraint_from_example(example_for_constr, training=False)
+        predictions = model.check_constraint_from_example(example_for_constr, training=False)
 
         deserialize_scene_msg(example)
         example.pop("batch_size")
@@ -150,7 +148,7 @@ def main():
             example_b_pred.update(example_b)
             example_b_pred.update({remove_predicted(k): example_b[k] for k in dataset.predicted_state_keys})
 
-            rope_points_not_in_collision, _ = cc.check_constraint_from_example(example_b_pred)
+            rope_points_not_in_collision = cc.check_constraint_from_example(example_b_pred)
             rope_points_not_in_collision = rope_points_not_in_collision[0]
             rope_points_in_collision = not rope_points_not_in_collision
 
@@ -188,7 +186,7 @@ def main():
             # end filter examples
 
             # update metrics
-            net.val_step(example_b_no_ps, metrics)
+            model.net.val_step(example_b_no_ps, metrics)
 
             count += 1
             if not is_close[b]:
