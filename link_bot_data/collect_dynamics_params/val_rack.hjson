@@ -1,5 +1,5 @@
 {
-  name: val_car
+  name: val_rack
   reset_joint_config: {
     joint1: 0.5903734250235528,
     joint2: -0.7214355209537864,
@@ -23,7 +23,7 @@
     0.6
     0.35
     1.25
-    -0.1
+    -0.05
     0.75
   ]
   left_gripper_action_sample_extent: [
@@ -31,7 +31,7 @@
     0.6
     0.35
     1.25
-    -0.1
+    -0.05
     0.75
   ]
   right_gripper_action_sample_extent: [
@@ -39,7 +39,7 @@
     0.6
     0.35
     1.25
-    -0.1
+    -0.05
     0.75
   ]
   environment_randomization: {
@@ -69,7 +69,6 @@
   max_distance_gripper_can_move: 0.10
   max_distance_between_grippers: 0.80  # this need not exactly match the rope length
   state_keys: [
-    # rgbd
     gt_rope
     left_gripper
     right_gripper
