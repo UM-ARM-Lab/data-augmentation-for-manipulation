@@ -54,12 +54,10 @@
   }
   planning_evaluation: {
     n_trials: 30
-    planners_params_common: planner_configs/val_rack/common.hjson
-    test_scenes_dir: test_scenes/rack
+    planners_params_common: planner_configs/val_party/common.hjson
+    test_scenes_dir: test_scenes/party
     launch: val.launch
-    world: hooks_rack.world
-    methods: [
-      learned_recovery
-    ]
+    world: party.world
+    method_name: party_classifier
   }
 }

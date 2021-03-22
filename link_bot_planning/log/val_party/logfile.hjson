@@ -36,5 +36,5 @@
   {
     model_dir: cl_trials/val_party_1616280973/March_20_18-56-19_95c9677eda
   }
-  planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_party
+  party_classifier: {}
 }

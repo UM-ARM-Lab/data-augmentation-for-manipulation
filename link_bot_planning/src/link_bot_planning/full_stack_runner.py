@@ -325,54 +325,27 @@ class FullStackRunner:
                              planners_params_common_filename: pathlib.Path,
                              planning_evaluation_params: Dict,
                              recovery_model_dir: pathlib.Path):
-        # NOTE: the order of planner_params is going to affect the name of the subfolder that results are put in.
-        #  this was only done because if you compare multiple methods with the same "method name"
         planners_params = []
-        for method_name in planning_evaluation_params['methods']:
-            with planners_params_common_filename.open('r') as planners_params_common_file:
-                planner_params = hjson.load(planners_params_common_file)
-            if method_name == "classifier":
-                method_fwd_model_dirs = [d / 'best_checkpoint' for d in udnn_model_dirs]
-                method_classifier_model_dir = [classifier_model_dir / 'best_checkpoint']
-                recovery = {'use_recovery': False}
-            elif method_name == "learned_recovery":
-                method_fwd_model_dirs = [d / 'best_checkpoint' for d in udnn_model_dirs]
-                method_classifier_model_dir = [classifier_model_dir / 'best_checkpoint']
-                recovery = {
-                    'recovery_model_dir': recovery_model_dir / 'best_checkpoint',
-                    'use_recovery':       True,
-                }
-            elif method_name == "random_recovery_no_classifier":
-                method_fwd_model_dirs = [d / 'best_checkpoint' for d in udnn_model_dirs]
-                method_classifier_model_dir = [pathlib.Path('cl_trials/none_baseline/none')]
-                link_bot_planning_path = pathlib.Path(r.get_path('link_bot_planning'))
-                recovery = {
-                    'recovery_model_dir': link_bot_planning_path / 'recovery_trials' / 'random' / 'random',
-                    'use_recovery':       True,
-                }
-            elif method_name == "random_recovery":
-                method_fwd_model_dirs = [d / 'best_checkpoint' for d in udnn_model_dirs]
-                method_classifier_model_dir = [classifier_model_dir / 'best_checkpoint']
-                link_bot_planning_path = pathlib.Path(r.get_path('link_bot_planning'))
-                recovery = {
-                    'recovery_model_dir': link_bot_planning_path / 'recovery_trials' / 'random' / 'random',
-                    'use_recovery':       True,
-                }
-            elif method_name == "no_classifier":
-                method_fwd_model_dirs = [d / 'best_checkpoint' for d in udnn_model_dirs]
-                method_classifier_model_dir = [pathlib.Path('cl_trials/none_baseline/none')]
-                recovery = {'use_recovery': False}
-            elif method_name == "full_dynamics":
-                method_fwd_model_dirs = [d / 'best_checkpoint' for d in full_dynamics_model_dirs]
-                method_classifier_model_dir = [pathlib.Path('cl_trials/none_baseline/none')]
-                recovery = {'use_recovery': False}
-            else:
-                raise NotImplementedError(f"Method {method_name} not implemented")
-            planner_params['fwd_model_dir'] = method_fwd_model_dirs
-            planner_params['classifier_model_dir'] = method_classifier_model_dir
-            planner_params['recovery'] = recovery
-            planner_params['method_name'] = method_name
-            planners_params.append((method_name, planner_params))
+        with planners_params_common_filename.open('r') as planners_params_common_file:
+            planner_params = hjson.load(planners_params_common_file)
+
+        method_fwd_model_dirs = [d / 'best_checkpoint' for d in udnn_model_dirs]
+        method_classifier_model_dir = [
+            classifier_model_dir / 'best_checkpoint',
+            'cl_trials/new_feasibility_baseline/none',  # the feasibility checker
+        ]
+        recovery = {
+            'recovery_model_dir': recovery_model_dir / 'best_checkpoint',
+            'use_recovery':       True,
+        }
+
+        method_name = planning_evaluation_params['method_name']
+        planner_params['fwd_model_dir'] = method_fwd_model_dirs
+        planner_params['classifier_model_dir'] = method_classifier_model_dir
+        planner_params['recovery'] = recovery
+        planner_params['method_name'] = method_name
+
+        planners_params.append((method_name, planner_params))
         return planners_params
 
 
