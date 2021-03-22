@@ -64,7 +64,7 @@ def execute_actions(
             scenario.plot_state_rviz(pre_action_state, label='actual')
             scenario.plot_executed_action(pre_action_state, action)
 
-        end_trial = scenario.execute_action(None, None, action)
+        end_trial = scenario.execute_action(environment, pre_action_state, action)
         state_t = scenario.get_state()
         if use_gt_rope:
             state_t = dataset_utils.use_gt_rope(state_t)
