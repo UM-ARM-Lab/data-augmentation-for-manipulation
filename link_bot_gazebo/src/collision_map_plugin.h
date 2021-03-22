@@ -28,6 +28,7 @@ namespace gazebo {
 class CollisionMapPlugin : public WorldPlugin {
   std::unique_ptr<ros::NodeHandle> ros_node_;
   ros::ServiceServer get_occupancy_service_;
+  ros::Publisher sphere_marker_pub_;
   ros::CallbackQueue queue_;
   std::thread ros_queue_thread_;
   std::thread move_sphere_thread_;
@@ -38,6 +39,9 @@ class CollisionMapPlugin : public WorldPlugin {
   physics::ODECollisionPtr ode_collision_;
 
   sdf_tools::CollisionMapGrid grid_;
+
+  bool debug_ = false;
+  double radius_ = 0.005;
 
   static const sdf_tools::COLLISION_CELL oob_value;
   static const sdf_tools::COLLISION_CELL occupied_value;
@@ -51,6 +55,8 @@ class CollisionMapPlugin : public WorldPlugin {
 
  private:
   void QueueThread();
+
+  void SetRadius(physics::ModelPtr m);
 
   void compute_occupancy_grid(int64_t h_rows, int64_t w_cols, int64_t c_channels, geometry_msgs::Point center,
                               float resolution, const std::vector<std::string>& excluded_models);

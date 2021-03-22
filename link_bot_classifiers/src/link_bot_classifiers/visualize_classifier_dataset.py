@@ -1,6 +1,7 @@
 from time import perf_counter
 from typing import Dict
 
+import numpy as np
 from colorama import Style
 from matplotlib import pyplot as plt
 from progressbar import progressbar
@@ -13,16 +14,27 @@ from moonshine.moonshine_utils import remove_batch
 
 
 def visualize_dataset(args, classifier_dataset):
-    tf_dataset = classifier_dataset.get_datasets(mode=args.mode, take=args.take)
+    tf_dataset = classifier_dataset.get_datasets(mode=args.mode)
 
     tf_dataset = tf_dataset.batch(1)
+    tf_dataset = tf_dataset.take(args.take)
 
     t0 = perf_counter()
 
     positive_count = 0
     negative_count = 0
+    infeasible_count = 0
     starts_far_count = 0
     count = 0
+
+    def _make_stats_dict():
+        return {
+            'count':            count,
+            'negative_count':   negative_count,
+            'positive_count':   positive_count,
+            'starts_far_count': starts_far_count,
+            'infeasible_count': infeasible_count,
+        }
 
     stdevs = []
     labels = []
@@ -39,6 +51,8 @@ def visualize_dataset(args, classifier_dataset):
         example = remove_batch(example)
 
         is_close = example['is_close'].numpy().squeeze()
+        joint_pos_dist = np.linalg.norm(example['joint_positions'] - example['predicted/joint_positions'])
+        infeasible = joint_pos_dist > 0.075
 
         starts_far = is_close[0] == 0
         positive = bool(is_close[1])
@@ -53,9 +67,15 @@ def visualize_dataset(args, classifier_dataset):
         if args.only_starts_far and not starts_far:
             continue
 
+        if args.only_infeasible and not infeasible:
+            continue
+
         # print(f"Example {i}, Trajectory #{int(example['traj_idx'])}")
 
         count += 1
+
+        if infeasible:
+            infeasible_count += 1
 
         if positive:
             positive_count += 1
@@ -68,13 +88,8 @@ def visualize_dataset(args, classifier_dataset):
 
         # Print statistics intermittently
         if count % 1000 == 0:
-            print_stats_and_timing(args,
-                                   {
-                                       'count':            count,
-                                       'negative_count':   negative_count,
-                                       'positive_count':   positive_count,
-                                       'starts_far_count': starts_far_count
-                                   })
+            stats_dict = _make_stats_dict()
+            print_stats_and_timing(args, stats_dict)
 
         #############################
         # Show Visualization
@@ -111,13 +126,9 @@ def visualize_dataset(args, classifier_dataset):
         plt.legend()
         plt.show()
 
-    print_stats_and_timing(args,
-                           {'count':            count,
-                            'negative_count':   negative_count,
-                            'positive_count':   positive_count,
-                            'starts_far_count': starts_far_count
-                            },
-                           total_dt)
+    stats_dict = _make_stats_dict()
+    print_stats_and_timing(args, stats_dict, total_dt)
+
 
 
 def print_stats_and_timing(args, counts: Dict, total_dt=None):

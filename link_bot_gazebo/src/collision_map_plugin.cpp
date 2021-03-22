@@ -6,6 +6,7 @@
 #include <visualization_msgs/Marker.h>
 
 #include <arc_utilities/arc_helpers.hpp>
+#include <arc_utilities/ros_helpers.hpp>
 #include <arc_utilities/zlib_helpers.hpp>
 #include <atomic>
 #include <chrono>
@@ -88,6 +89,10 @@ void CollisionMapPlugin::Load(physics::WorldPtr world, sdf::ElementPtr /*sdf*/)
     auto so = ros::AdvertiseServiceOptions::create<peter_msgs::ComputeOccupancy>("/occupancy", get_occupancy,
                                                                                  ros::VoidConstPtr(), &queue_);
     get_occupancy_service_ = ros_node_->advertiseService(so);
+
+    sphere_marker_pub_ = ros_node_->advertise<visualization_msgs::Marker>("collision_map_sphere", 10, false);
+
+    debug_ = ROSHelpers::GetParam<bool>(*ros_node_, "debug", false);
   }
 
   ros_queue_thread_ = std::thread([this] { QueueThread(); });
@@ -105,11 +110,41 @@ void CollisionMapPlugin::Load(physics::WorldPtr world, sdf::ElementPtr /*sdf*/)
             boost::recursive_mutex::scoped_lock lock(*engine_->GetPhysicsUpdateMutex());
             // no way we will be in the way of anything 10 meters underground...
             m->SetWorldPose({0, 0, -10, 0, 0, 0});
+
+            SetRadius(m);
             break;
           }
         }
         ROS_INFO_NAMED(PLUGIN_NAME, "done waiting for collision_sphere");
       });
+}
+
+void CollisionMapPlugin::SetRadius(physics::ModelPtr m)
+{
+  auto const link = m->GetLink("link_1");
+  if (!link)
+  {
+    ROS_ERROR_STREAM_NAMED(PLUGIN_NAME, "Could not find link");
+    return;
+  }
+
+  auto const collision = link->GetCollision("collision");
+  if (!collision)
+  {
+    ROS_ERROR_STREAM_NAMED(PLUGIN_NAME, "Could not find collision");
+    return;
+  }
+
+  auto const shape = collision->GetShape();
+  auto const sphere = boost::dynamic_pointer_cast<physics::SphereShape>(shape);
+  if (!sphere)
+  {
+    ROS_ERROR_STREAM_NAMED(PLUGIN_NAME, "Could not cast to sphere");
+    return;
+  }
+
+  radius_ = sphere->GetRadius();
+  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "Set raiuds to " << radius_);
 }
 
 void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, int64_t c_channels,
@@ -149,7 +184,28 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
         for (auto z_idx{0l}; z_idx < grid_.GetNumZCells(); ++z_idx)
         {
           auto const grid_location = grid_.GridIndexToLocation(x_idx, y_idx, z_idx);
-          ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "Checking " << grid_location[0] << " " << grid_location[1] << " " << grid_location[2]);
+          // debug conditional for performance reasons
+          if (debug_)
+          {
+            ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "Checking " << grid_location[0] << " " << grid_location[1] << " " << grid_location[2]);
+            visualization_msgs::Marker marker;
+            marker.type = visualization_msgs::Marker::SPHERE;
+            marker.action = visualization_msgs::Marker::ADD;
+            marker.scale.x = radius_;
+            marker.scale.y = radius_;
+            marker.scale.z = radius_;
+            marker.pose.position.x = grid_location[0];
+            marker.pose.position.y = grid_location[1];
+            marker.pose.position.z = grid_location[2];
+            marker.pose.orientation.w = 1;
+            marker.id = x_idx * grid_.GetNumYCells() * grid_.GetNumZCells() + y_idx * grid_.GetNumZCells() + z_idx;
+            marker.color.r = 1;
+            marker.color.a = 1;
+            marker.header.stamp = ros::Time::now();
+            marker.header.frame_id = "world";
+
+            sphere_marker_pub_.publish(marker);
+          }
           m_->SetWorldPose({grid_location[0], grid_location[1], grid_location[2], 0, 0, 0});
           MyIntersection intersection;
           auto const collision_space = (dGeomID) (ode_->GetSpaceId());
@@ -164,11 +220,17 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
 
             if (not exclude)
             {
-              ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "collision with " << intersection.name);
+              if (debug_)
+              {
+                ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "collision with " << intersection.name);
+              }
               grid_.SetValue(x_idx, y_idx, z_idx, occupied_value);
             } else
             {
-              ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "excluding collision with " << intersection.name);
+              if (debug_)
+              {
+                ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "excluding collision with " << intersection.name);
+              }
               grid_.SetValue(x_idx, y_idx, z_idx, unoccupied_value);
             }
           }

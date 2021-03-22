@@ -33,6 +33,7 @@ def main():
     parser.add_argument('--old-compat', action='store_true')
     parser.add_argument('--only-negative', action='store_true')
     parser.add_argument('--only-positive', action='store_true')
+    parser.add_argument('--only-infeasible', action='store_true')
     parser.add_argument('--only-in-collision', action='store_true')
     parser.add_argument('--only-starts-far', action='store_true')
     parser.add_argument('--only-reconverging', action='store_true')
