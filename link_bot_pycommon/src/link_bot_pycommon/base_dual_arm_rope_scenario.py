@@ -110,8 +110,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def add_boxes_around_tools(self):
         # add attached collision object to prevent moveit from smooshing the rope and ends of grippers into obstacles
         self.moveit_scene = moveit_commander.PlanningSceneInterface(ns=self.robot_namespace)
-        self.robust_add_to_scene(self.robot.left_tool_name, 'left_tool_box', self.robot.get_left_gripper_links())
-        self.robust_add_to_scene(self.robot.right_tool_name, 'right_tool_box', self.robot.get_right_gripper_links())
+        self.robust_add_to_scene(self.robot.left_tool_name, 'left_tool_box',
+                                 self.robot.get_left_gripper_links() + ['end_effector_left', 'left_tool'])
+        self.robust_add_to_scene(self.robot.right_tool_name, 'right_tool_box',
+                                 self.robot.get_right_gripper_links() + ['end_effector_right', 'right_tool'])
 
     def robust_add_to_scene(self, link: str, new_object_name: str, touch_links: List[str]):
         box_pose = PoseStamped()
