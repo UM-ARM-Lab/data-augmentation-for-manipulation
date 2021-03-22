@@ -339,7 +339,7 @@ class FullStackRunner:
             'use_recovery':       True,
         }
 
-        method_name = planning_evaluation_params['method_name']
+        method_name = self.nickname
         planner_params['fwd_model_dir'] = method_fwd_model_dirs
         planner_params['classifier_model_dir'] = method_classifier_model_dir
         planner_params['recovery'] = recovery
