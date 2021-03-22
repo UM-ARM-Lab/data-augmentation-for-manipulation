@@ -213,11 +213,15 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         label = kwargs.pop("label", "")
         # FIXME: the ACOs are part of the "environment", but they are needed to plot the state. leaky abstraction :(
         #  perhaps make them part of state_metadata?
+        aco = state.get('attached_collision_objects', None)
+
         if 'joint_positions' in state and 'joint_names' in state:
-            robot_state = RobotState(joint_state=joint_state_msg_from_state_dict(state))
+            joint_state = joint_state_msg_from_state_dict(state)
+            robot_state = RobotState(joint_state=joint_state, attached_collision_objects=aco)
             self.robot.display_robot_state(robot_state, label, kwargs.get("color", None))
         if add_predicted('joint_positions') in state and 'joint_names' in state:
-            robot_state = RobotState(joint_state=joint_state_msg_from_state_dict_predicted(state))
+            joint_state = joint_state_msg_from_state_dict_predicted(state)
+            robot_state = RobotState(joint_state=joint_state, attached_collision_objects=aco)
             self.robot.display_robot_state(robot_state, label, kwargs.get("color", None))
         elif 'joint_positions' not in state:
             rospy.logwarn_throttle(10, 'no joint positions in state', logger_name=Path(__file__).stem)

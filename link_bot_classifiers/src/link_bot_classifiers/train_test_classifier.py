@@ -78,7 +78,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                ensemble_idx: Optional[int] = None,
                old_compat: bool = False,
                take: Optional[int] = None,
-               no_validate: bool = True,
+               no_validate: bool = False,
                trials_directory: Optional[pathlib.Path] = None,
                **kwargs):
     model_hparams = load_hjson(model_hparams)

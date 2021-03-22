@@ -151,6 +151,7 @@ def recovery_transition_viz_t(metadata: Dict, state_keys: List[str]):
 def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_state_keys, true_state_keys: Optional):
     def _classifier_transition_viz_t(scenario: ExperimentScenario, example: Dict, t: int):
         pred_t = index_time_with_metadata(metadata, example, state_metadata_keys + predicted_state_keys, t=t)
+        try_adding_aco(state=pred_t, example=example)
         scenario.plot_state_rviz(pred_t, label='predicted', color='#0000ffff')
 
         label_t = example['is_close'][t]
@@ -158,6 +159,7 @@ def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_s
 
         if true_state_keys is not None:
             true_t = index_time_with_metadata(metadata, example, state_metadata_keys + true_state_keys, t=t)
+            try_adding_aco(state=true_t, example=example)
             scenario.plot_state_rviz(true_t, label='actual', color='#ff0000ff', scale=1.1)
 
     return _classifier_transition_viz_t
@@ -236,3 +238,10 @@ def noise_x_like(y, nominal_x, noise=0.01):
 
 def noisey_1d_scatter(ax, x, position, noise=0.01, **kwargs):
     ax.scatter(noise_x_like(x, position, noise), x, **kwargs)
+
+
+def try_adding_aco(state: Dict, example: Dict):
+    try:
+        state['attached_collision_objects'] = example['scene_msg'].robot_state.attached_collision_objects
+    except Exception:
+        pass
