@@ -58,8 +58,5 @@
     test_scenes_dir: test_scenes/rack
     launch: val.launch
     world: hooks_rack.world
-    methods: [
-      learned_recovery
-    ]
   }
 }

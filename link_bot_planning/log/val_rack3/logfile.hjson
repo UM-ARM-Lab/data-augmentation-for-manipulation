@@ -1,0 +1,39 @@
+{
+  nickname: val_rack3
+  filename: log/val_rack3/logfile.hjson
+  collect_dynamics_data_1:
+  {
+    dynamics_dataset_dir: fwd_model_data/baseline_gt_rope_phase1_1606682161_1b3bea4d11_2048
+  }
+  learn_dynamics:
+  {
+    model_dirs:
+    [
+      dy_trials/gt_rope_w_robot_0
+      dy_trials/gt_rope_w_robot_1
+      dy_trials/gt_rope_w_robot_2
+      dy_trials/gt_rope_w_robot_3
+    ]
+    classifier_threshold: 0.05
+  }
+  make_recovery_dataset:
+  {
+    recovery_dataset_dir: recovery_data/val_car_1611326554
+  }
+  learn_recovery:
+  {
+    model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e
+  }
+  collect_dynamics_data_2:
+  {
+    dynamics_dataset_dir: fwd_model_data/val_rack2_phase2_1616334468_aef647ea08_5120
+  }
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/val_rack2_1616419252+feasible
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/val_rack2_1616433860/March_22_13-24-26_0e3eb1d94f
+  }
+}
