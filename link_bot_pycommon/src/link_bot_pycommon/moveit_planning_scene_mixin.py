@@ -22,7 +22,16 @@ class MoveitPlanningSceneScenarioMixin:
         try:
             rospy.wait_for_service(self.planning_scene_service_name, timeout=1)
             scene_msg: GetPlanningSceneResponse = self.get_planning_scene_srv(self.get_planning_scene_req)
-            return {'scene_msg': scene_msg.scene}
+            scene = scene_msg.scene
+            found_ee = False
+            for aco in scene.robot_state.attached_collision_objects:
+                for touch_link in aco.touch_links:
+                    if 'end_effector' in touch_link:
+                        found_ee = True
+
+            assert found_ee, "Did not find the end effectors in the touch links of the attached objects!"
+
+            return {'scene_msg': scene}
         except (rospy.ROSException, rospy.ROSInternalException):  # on timeout
             pass
 
