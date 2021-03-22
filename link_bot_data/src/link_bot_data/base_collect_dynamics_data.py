@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import multiprocessing
 import pathlib
 from multiprocessing import Process
 from time import perf_counter
@@ -8,7 +9,7 @@ import numpy as np
 from colorama import Fore
 
 import rospy
-from link_bot_data.dataset_utils import data_directory, tf_write_features, tf_write_example
+from link_bot_data.dataset_utils import data_directory, tf_write_example
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.get_scenario import get_scenario
@@ -81,10 +82,10 @@ class BaseDataCollector:
 
             # TODO: sample the entire action sequence in advance?
             action, invalid = self.scenario.sample_action(action_rng=action_rng,
-                                                 environment=environment,
-                                                 state=state,
-                                                 action_params=self.params,
-                                                 validate=True)
+                                                          environment=environment,
+                                                          state=state,
+                                                          action_params=self.params,
+                                                          validate=True)
 
             # Visualization
             self.scenario.plot_environment_rviz(environment)
@@ -139,6 +140,7 @@ class BaseDataCollector:
 
         combined_seeds = [traj_idx + 100000 * self.seed for traj_idx in range(n_trajs)]
         write_process = None
+        queue = multiprocessing.Queue()
         for traj_idx, seed in enumerate(combined_seeds):
             # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
             env_rng = np.random.RandomState(seed)
@@ -158,31 +160,34 @@ class BaseDataCollector:
             print(f'traj {traj_idx}/{n_trajs} ({seed}), {perf_counter() - trial_start:.4f}s')
 
             # Save the data
-            def _write():
+            def _write(_queue):
                 full_filename = self.write_example(full_output_directory, example, traj_idx)
-                files_dataset.add(full_filename)
+                _queue.put(full_filename)
 
             # we may need to wait before writing again, because this won't parallelize well
             if write_process is not None:
                 write_process.join()
-            write_process = Process(target=_write)
+            write_process = multiprocessing.Process(target=_write, args=(queue,))
             write_process.start()
-            # _write()
 
         self.scenario.on_after_data_collection(self.params)
 
         print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)
 
         self.service_provider.pause()
+
+        while not queue.empty():
+            outfilename = queue.get()
+            files_dataset.add(outfilename)
         return files_dataset
 
     def save_hparams(self, full_output_directory, n_trajs, nickname, robot_namespace):
         s_for_size = self.scenario.get_state()
         a_for_size, _ = self.scenario.sample_action(action_rng=np.random.RandomState(0),
-                                                 environment={},
-                                                 state=s_for_size,
-                                                 action_params=self.params,
-                                                 validate=False)
+                                                    environment={},
+                                                    state=s_for_size,
+                                                    action_params=self.params,
+                                                    validate=False)
         state_description = {k: v.shape[0] for k, v in s_for_size.items()}
         action_description = {k: v.shape[0] for k, v in a_for_size.items()}
         dataset_hparams = {
