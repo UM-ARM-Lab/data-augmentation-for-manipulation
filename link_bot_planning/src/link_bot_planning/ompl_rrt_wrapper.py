@@ -294,9 +294,7 @@ class OmplRRTWrapper(MyPlanner):
             classifier_probability = classifier_probabilities[0]
             alpha = min(classifier_probability * 0.8 + 0.2, 0.8)
             classifier_probability_color = cm.Reds_r(classifier_probability)
-            # # DEBUGGING
-            # if classifier_probability > 0.9:
-            #     return
+            self.scenario.plot_accept_probability(classifier_probability)
         else:
             alpha = 0.8
             classifier_probability_color = cm.Reds_r(1.0)
