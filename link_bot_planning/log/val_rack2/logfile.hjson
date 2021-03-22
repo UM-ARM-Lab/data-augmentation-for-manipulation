@@ -32,4 +32,39 @@
   {
     classifier_dataset_dir: classifier_data/val_rack2_1616419252
   }
+  learn_classifier:
+  {
+    model_dir: cl_trials/val_rack2_1616419252/March_22_10-33-33_e2cdf6a994
+  }
+  learned_recovery:
+  {
+    0:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_rack2/learned_recovery/0_metrics.pkl.gz
+    }
+    1:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_rack2/learned_recovery/1_metrics.pkl.gz
+    }
+    2:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_rack2/learned_recovery/2_metrics.pkl.gz
+    }
+    3:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_rack2/learned_recovery/3_metrics.pkl.gz
+    }
+    4:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_rack2/learned_recovery/4_metrics.pkl.gz
+    }
+    5:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_rack2/learned_recovery/5_metrics.pkl.gz
+    }
+    6:
+    {
+      data_filename: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_rack2/learned_recovery/6_metrics.pkl.gz
+    }
+  }
 }
