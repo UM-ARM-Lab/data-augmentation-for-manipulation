@@ -12,7 +12,7 @@ class EmbodiedScenario(ExperimentScenario):
         super().__init__()
         self.scenario = scenario
 
-    def execute_action(self, action: Dict):
+    def execute_action(self, environment, state, action: Dict):
         raise NotImplementedError()
 
     def move_objects_randomly(self, env_rng, movable_objects_services, movable_objects, kinematic: bool,

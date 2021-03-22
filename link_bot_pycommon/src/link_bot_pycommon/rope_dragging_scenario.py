@@ -123,7 +123,7 @@ class RopeDraggingScenario(ScenarioWithVisualization):
     def on_before_data_collection(self, params: Dict):
         self.on_before_get_state_or_execute_action()
 
-    def execute_action(self, action: Dict):
+    def execute_action(self, environment, state, action: Dict):
         timeout_s = action.get('timeout_s', [1.0])[0]
         speed_mps = action.get('speed', 0.15)
         pos_msg: Point = ros_numpy.msgify(Point, action['gripper_position'])

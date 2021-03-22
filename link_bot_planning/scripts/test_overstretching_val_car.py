@@ -57,7 +57,7 @@ def main():
             'left_gripper_position':  state['left_gripper'] + np.array([0.0, -0.1, -0.1]) * 0.1,
             'right_gripper_position': state['right_gripper'] + np.array([0.02, -0.03, -0.1]) * 0.1,
         }
-        scenario.execute_action(action)
+        scenario.execute_action(None, None, action)
 
         rospy.sleep(1)
 

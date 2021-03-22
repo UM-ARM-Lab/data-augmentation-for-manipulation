@@ -46,7 +46,7 @@ def create_randomized_start_state(params, scenario, trial_idx):
                                                  action_params=params,
                                                  validate=True,
                                                  )
-        scenario.execute_action(action)
+        scenario.execute_action(None, None, action)
 
 
 def get_states_to_save():

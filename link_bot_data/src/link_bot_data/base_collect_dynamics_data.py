@@ -97,7 +97,7 @@ class BaseDataCollector:
             # End Visualization
 
             # execute action
-            self.scenario.execute_action(action)
+            self.scenario.execute_action(environment, state, action)
 
             # add to the dataset
             if time_idx < self.params['steps_per_traj'] - 1:  # skip the last action

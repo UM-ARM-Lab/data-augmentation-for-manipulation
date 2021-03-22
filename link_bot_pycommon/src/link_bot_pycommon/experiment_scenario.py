@@ -31,7 +31,7 @@ class ExperimentScenario:
     def simple_name():
         raise NotImplementedError()
 
-    def execute_action(self, action: Dict) -> bool:
+    def execute_action(self, environment, state, action: Dict) -> bool:
         raise NotImplementedError()
 
     @staticmethod

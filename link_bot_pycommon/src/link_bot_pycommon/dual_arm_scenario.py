@@ -55,7 +55,7 @@ class DualArmScenario(FloatingRopeScenario):
             'joint_positions': n_joints
         }
 
-    def execute_action(self, action: Dict):
+    def execute_action(self, environment, state, action: Dict):
         left_gripper_points = [action['left_gripper_position']]
         right_gripper_points = [action['right_gripper_position']]
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]

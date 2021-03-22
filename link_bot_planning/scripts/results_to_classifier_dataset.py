@@ -272,7 +272,7 @@ class ResultsToDynamicsDataset:
     def execute(self, action: Dict):
         self.service_provider.play()
         before_state = self.scenario.get_state()
-        self.scenario.execute_action(action)
+        self.scenario.execute_action(None, None, action)
         after_state = self.scenario.get_state()
         return before_state, after_state
 

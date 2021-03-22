@@ -123,9 +123,9 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             'left_gripper_position':  left_gripper_position,
             'right_gripper_position': right_gripper_position,
         }
-        self.execute_action(init_action)
+        self.execute_action(None, None, init_action)
 
-    def execute_action(self, action: Dict):
+    def execute_action(self, environment, state, action: Dict):
         speed_mps = action.get('speed', 0.1)
         left_req = Position3DActionRequest(speed_mps=speed_mps,
                                            scoped_link_name=gz_scope(self.ROPE_NAMESPACE, 'left_gripper'),

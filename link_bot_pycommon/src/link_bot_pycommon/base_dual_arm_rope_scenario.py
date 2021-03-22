@@ -6,6 +6,8 @@ import numpy as np
 import tensorflow as tf
 
 import rosnode
+from arm_robots.robot import merge_joint_state_and_scene_msg
+from arm_robots.robot_utils import make_joint_state, make_robot_state_from_joint_state
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
@@ -296,13 +298,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         return preferred_tool_orientations
 
     def is_moveit_robot_in_collision(self, environment: Dict, state: Dict, action: Dict):
-        robot_state = robot_state_msg_from_state_dict(state)
         scene: PlanningScene = environment['scene_msg']
-        robot_state.attached_collision_objects = scene.robot_state.attached_collision_objects
+        scene.robot_state.joint_state = joint_state_msg_from_state_dict(state)
 
-        # TODO: replace with python moveit bindings
-        # FIXME: use the scene message here!!! currently this magically retrieves from the PSM which is spooky
-        in_collision = self.robot.jacobian_follower.check_collision(robot_state)
+        in_collision = self.robot.jacobian_follower.check_collision(scene)
         return in_collision
 
     def moveit_robot_reached(self, state: Dict, action: Dict, next_state: Dict):
@@ -339,11 +338,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 right_gripper_points = [example['right_gripper_position'][b, t]]
                 grippers = [left_gripper_points, right_gripper_points]
 
-                robot_state = RobotState()
-                robot_state.attached_collision_objects = scene_msg_b.robot_state.attached_collision_objects
-                robot_state.joint_state.position = pred_joint_positions_t
-                robot_state.joint_state.name = to_list_of_strings(joint_names_t)
-                robot_state.joint_state.velocity = [0.0] * len(robot_state.joint_state.name)
+                joint_state_b_t = make_joint_state(pred_joint_positions_t, to_list_of_strings(joint_names_t))
+                scene_msg_b, robot_state = merge_joint_state_and_scene_msg(scene_msg_b, joint_state_b_t)
                 plan: RobotTrajectory
                 reached_t: bool
                 plan, reached_t = j.plan_from_scene_and_state(group_name='both_arms',
