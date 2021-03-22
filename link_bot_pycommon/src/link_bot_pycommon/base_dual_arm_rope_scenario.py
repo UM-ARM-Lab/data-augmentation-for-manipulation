@@ -299,9 +299,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
     def is_moveit_robot_in_collision(self, environment: Dict, state: Dict, action: Dict):
         scene: PlanningScene = environment['scene_msg']
-        scene.robot_state.joint_state = joint_state_msg_from_state_dict(state)
-
-        in_collision = self.robot.jacobian_follower.check_collision(scene)
+        joint_state = joint_state_msg_from_state_dict(state)
+        scene, robot_state = merge_joint_state_and_scene_msg(scene, joint_state)
+        in_collision = self.robot.jacobian_follower.check_collision(scene, robot_state)
         return in_collision
 
     def moveit_robot_reached(self, state: Dict, action: Dict, next_state: Dict):
