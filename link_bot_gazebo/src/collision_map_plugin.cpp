@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <std_msgs/ColorRGBA.h>
 #include <std_msgs/MultiArrayDimension.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 
 #include <arc_utilities/arc_helpers.hpp>
@@ -90,7 +91,7 @@ void CollisionMapPlugin::Load(physics::WorldPtr world, sdf::ElementPtr /*sdf*/)
                                                                                  ros::VoidConstPtr(), &queue_);
     get_occupancy_service_ = ros_node_->advertiseService(so);
 
-    sphere_marker_pub_ = ros_node_->advertise<visualization_msgs::Marker>("collision_map_sphere", 10, false);
+    sphere_marker_pub_ = ros_node_->advertise<visualization_msgs::MarkerArray>("collision_map_grid", 10, false);
 
     debug_ = ROSHelpers::GetParam<bool>(*ros_node_, "debug", false);
   }
@@ -117,6 +118,14 @@ void CollisionMapPlugin::Load(physics::WorldPtr world, sdf::ElementPtr /*sdf*/)
         }
         ROS_INFO_NAMED(PLUGIN_NAME, "done waiting for collision_sphere");
       });
+
+  slow_periodic_thread_ = std::thread([this] {
+    while (not done_)
+    {
+      sleep(10);
+      debug_ = ROSHelpers::GetParam<bool>(*ros_node_, "debug", false);
+    }
+  });
 }
 
 void CollisionMapPlugin::SetRadius(physics::ModelPtr m)
@@ -144,7 +153,7 @@ void CollisionMapPlugin::SetRadius(physics::ModelPtr m)
   }
 
   radius_ = sphere->GetRadius();
-  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "Set raiuds to " << radius_);
+  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "Set radius to " << radius_);
 }
 
 void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, int64_t c_channels,
@@ -173,10 +182,20 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
   ode_collision_ = boost::dynamic_pointer_cast<physics::ODECollision>(c);
   auto const sphere_collision_geom_id = ode_collision_->GetCollisionId();
 
+  visualization_msgs::MarkerArray markers;
+  visualization_msgs::Marker marker;
+  marker.type = visualization_msgs::Marker::SPHERE;
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.scale.x = radius_ * 2;
+  marker.scale.y = radius_ * 2;
+  marker.scale.z = radius_ * 2;
+  marker.pose.orientation.w = 1;
+  marker.header.stamp = ros::Time::now();
+  marker.header.frame_id = "world";
+
   // lock physics engine while creating/testing collision. not sure this is necessary.
   {
     boost::recursive_mutex::scoped_lock lock(*engine_->GetPhysicsUpdateMutex());
-
     for (auto x_idx{0l}; x_idx < grid_.GetNumXCells(); ++x_idx)
     {
       for (auto y_idx{0l}; y_idx < grid_.GetNumYCells(); ++y_idx)
@@ -184,28 +203,6 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
         for (auto z_idx{0l}; z_idx < grid_.GetNumZCells(); ++z_idx)
         {
           auto const grid_location = grid_.GridIndexToLocation(x_idx, y_idx, z_idx);
-          // debug conditional for performance reasons
-          if (debug_)
-          {
-            ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "Checking " << grid_location[0] << " " << grid_location[1] << " " << grid_location[2]);
-            visualization_msgs::Marker marker;
-            marker.type = visualization_msgs::Marker::SPHERE;
-            marker.action = visualization_msgs::Marker::ADD;
-            marker.scale.x = radius_;
-            marker.scale.y = radius_;
-            marker.scale.z = radius_;
-            marker.pose.position.x = grid_location[0];
-            marker.pose.position.y = grid_location[1];
-            marker.pose.position.z = grid_location[2];
-            marker.pose.orientation.w = 1;
-            marker.id = x_idx * grid_.GetNumYCells() * grid_.GetNumZCells() + y_idx * grid_.GetNumZCells() + z_idx;
-            marker.color.r = 1;
-            marker.color.a = 1;
-            marker.header.stamp = ros::Time::now();
-            marker.header.frame_id = "world";
-
-            sphere_marker_pub_.publish(marker);
-          }
           m_->SetWorldPose({grid_location[0], grid_location[1], grid_location[2], 0, 0, 0});
           MyIntersection intersection;
           auto const collision_space = (dGeomID) (ode_->GetSpaceId());
@@ -222,6 +219,14 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
             {
               if (debug_)
               {
+                marker.id = x_idx * grid_.GetNumYCells() * grid_.GetNumZCells() + y_idx * grid_.GetNumZCells() + z_idx;
+                marker.pose.position.x = grid_location[0];
+                marker.pose.position.y = grid_location[1];
+                marker.pose.position.z = grid_location[2];
+                marker.color.r = 1;
+                marker.color.g = 0;
+                marker.color.a = 1;
+                markers.markers.push_back(marker);
                 ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "collision with " << intersection.name);
               }
               grid_.SetValue(x_idx, y_idx, z_idx, occupied_value);
@@ -234,22 +239,40 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
               grid_.SetValue(x_idx, y_idx, z_idx, unoccupied_value);
             }
           }
+          else if (debug_)
+          {
+            marker.id = x_idx * grid_.GetNumYCells() * grid_.GetNumZCells() + y_idx * grid_.GetNumZCells() + z_idx;
+            marker.pose.position.x = grid_location[0];
+            marker.pose.position.y = grid_location[1];
+            marker.pose.position.z = grid_location[2];
+            marker.color.r = 0;
+            marker.color.g = 1;
+            marker.color.a = 0.1;
+            markers.markers.push_back(marker);
+          }
         }
       }
     }
   }
 
+  if (debug_)
+  {
+    sphere_marker_pub_.publish(markers);
+  }
+
   auto const t1 = std::chrono::steady_clock::now();
   std::chrono::duration<double> const time_to_compute_occupancy_grid = t1 - t0;
-  gzlog << "Time to compute occupancy grid: " << time_to_compute_occupancy_grid.count() << std::endl;
+  ROS_DEBUG_STREAM_NAMED("cmp_perf", "Time to compute occupancy grid: " << time_to_compute_occupancy_grid.count());
 }
 
 CollisionMapPlugin::~CollisionMapPlugin()
 {
+  done_ = true;
   queue_.clear();
   queue_.disable();
   ros_node_->shutdown();
   ros_queue_thread_.join();
+  slow_periodic_thread_.join();
 }
 
 void CollisionMapPlugin::QueueThread()

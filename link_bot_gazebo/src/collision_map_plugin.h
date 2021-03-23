@@ -32,6 +32,7 @@ class CollisionMapPlugin : public WorldPlugin {
   ros::CallbackQueue queue_;
   std::thread ros_queue_thread_;
   std::thread move_sphere_thread_;
+  std::thread slow_periodic_thread_;
   physics::PhysicsEnginePtr engine_;
   physics::WorldPtr world_;
   physics::ODEPhysicsPtr ode_;
@@ -41,6 +42,7 @@ class CollisionMapPlugin : public WorldPlugin {
   sdf_tools::CollisionMapGrid grid_;
 
   bool debug_ = false;
+  bool done_ = false;
   double radius_ = 0.005;
 
   static const sdf_tools::COLLISION_CELL oob_value;

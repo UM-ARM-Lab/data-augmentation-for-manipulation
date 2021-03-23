@@ -23,7 +23,8 @@ def main():
     res = 0.02
 
     # this is assumed to be in frame "robot_root"
-    extent_3d = [-0.2, 0.2, 0.3, 0.90, -0.1, 0.5]
+    extent_3d = [-0.3, 0.3, 0.30, 0.55, -0.1, 0.3]
+
     while True:
         try:
             environment = get_environment_for_extents_3d(extent=extent_3d,
