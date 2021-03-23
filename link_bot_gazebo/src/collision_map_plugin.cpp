@@ -123,7 +123,7 @@ void CollisionMapPlugin::Load(physics::WorldPtr world, sdf::ElementPtr /*sdf*/)
     while (not done_)
     {
       sleep(10);
-      debug_ = ROSHelpers::GetParam<bool>(*ros_node_, "debug", false);
+      debug_ = ROSHelpers::GetParamDebugLog<bool>(*ros_node_, "debug", false);
     }
   });
 }

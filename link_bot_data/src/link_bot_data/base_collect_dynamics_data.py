@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-import multiprocessing
 import pathlib
-from multiprocessing import Process
 from time import perf_counter
 from typing import Dict, Optional
 
@@ -139,8 +137,6 @@ class BaseDataCollector:
         trial_start = perf_counter()
 
         combined_seeds = [traj_idx + 100000 * self.seed for traj_idx in range(n_trajs)]
-        write_process = None
-        queue = multiprocessing.Queue()
         for traj_idx, seed in enumerate(combined_seeds):
             # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
             env_rng = np.random.RandomState(seed)
@@ -160,15 +156,8 @@ class BaseDataCollector:
             print(f'traj {traj_idx}/{n_trajs} ({seed}), {perf_counter() - trial_start:.4f}s')
 
             # Save the data
-            def _write(_queue):
-                full_filename = self.write_example(full_output_directory, example, traj_idx)
-                _queue.put(full_filename)
-
-            # we may need to wait before writing again, because this won't parallelize well
-            if write_process is not None:
-                write_process.join()
-            write_process = multiprocessing.Process(target=_write, args=(queue,))
-            write_process.start()
+            full_filename = self.write_example(full_output_directory, example, traj_idx)
+            files_dataset.add(full_filename)
 
         self.scenario.on_after_data_collection(self.params)
 
@@ -176,9 +165,6 @@ class BaseDataCollector:
 
         self.service_provider.pause()
 
-        while not queue.empty():
-            outfilename = queue.get()
-            files_dataset.add(outfilename)
         return files_dataset
 
     def save_hparams(self, full_output_directory, n_trajs, nickname, robot_namespace):
