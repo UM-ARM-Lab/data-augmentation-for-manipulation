@@ -23,7 +23,7 @@
     0.6
     0.15
     0.95
-    -0.1
+    -0.3
     1.00
   ]
   left_gripper_action_sample_extent: [
@@ -62,7 +62,7 @@
           orientation: [0, 0, 3.141592]
         }
         chair: {
-          position: [-0.3, 0.82, -0.38]
+          position: [-0.35, 0.82, -0.38]
           orientation: [0, 0, -0.2]
         }
       }

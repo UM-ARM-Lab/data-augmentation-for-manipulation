@@ -7,13 +7,18 @@ from matplotlib import pyplot as plt
 from progressbar import progressbar
 from scipy import stats
 
+import rospy
+from geometry_msgs.msg import Vector3
 from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.pycommon import print_dict
 from moonshine.moonshine_utils import remove_batch
+from visualization_msgs.msg import Marker
 
 
 def visualize_dataset(args, classifier_dataset):
+    grippers_viz_pub = rospy.Publisher("grippers_viz_pub", Marker, queue_size=10)
+
     tf_dataset = classifier_dataset.get_datasets(mode=args.mode)
 
     tf_dataset = tf_dataset.batch(1)
@@ -97,6 +102,8 @@ def visualize_dataset(args, classifier_dataset):
         if args.display_type == 'just_count':
             continue
         elif args.display_type == '3d':
+            msg = classifier_dataset.scenario.make_simple_grippers_marker(example, count)
+            grippers_viz_pub.publish(msg)
             classifier_dataset.scenario.plot_traj_idx_rviz(i)
             classifier_dataset.anim_transition_rviz(example)
 

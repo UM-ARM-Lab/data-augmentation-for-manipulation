@@ -8,7 +8,7 @@ import ros_numpy
 import rospy
 from arc_utilities.listener import Listener
 from arc_utilities.marker_utils import scale_marker_array
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, Vector3
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted
 from link_bot_data.visualization import rviz_arrow
@@ -985,3 +985,20 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         right_follow_req.scoped_link_name = gz_scope(self.ROPE_NAMESPACE, "right_gripper")
         right_follow_req.frame_id = "right_tool"
         self.pos3d.follow(right_follow_req)
+
+    def make_simple_grippers_marker(self, example: Dict, id: int):
+        msg = Marker()
+        msg.header.frame_id = 'world'
+        msg.type = Marker.SPHERE_LIST
+        msg.action = Marker.ADD
+        msg.id = id
+        msg.color.g = 1
+        msg.color.a = 1
+        msg.scale.x = 0.01
+        msg.scale.y = 0.01
+        msg.scale.z = 0.01
+        left_gripper_vec3 = ros_numpy.msgify(Vector3, example['left_gripper'][0])
+        right_gripper_vec3 = ros_numpy.msgify(Vector3, example['right_gripper'][0])
+        msg.points.append(left_gripper_vec3)
+        msg.points.append(right_gripper_vec3)
+        return msg

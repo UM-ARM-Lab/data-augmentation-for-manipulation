@@ -71,7 +71,7 @@
         <include>
             <name>chair</name>
             <uri>model://chair</uri>
-            <pose>-0.3 0.82 -0.38 0 0 -0.2</pose>
+            <pose>-0.35 0.82 -0.38 0 0 -0.2</pose>
         </include>
 
         <include>
