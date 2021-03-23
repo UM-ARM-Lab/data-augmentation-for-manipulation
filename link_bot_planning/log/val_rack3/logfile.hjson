@@ -36,4 +36,5 @@
   {
     model_dir: cl_trials/val_rack2_1616433860/March_22_13-24-26_0e3eb1d94f
   }
+  planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_rack3
 }
