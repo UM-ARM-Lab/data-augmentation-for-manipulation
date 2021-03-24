@@ -1,5 +1,5 @@
 {
-  name: val_car
+  name: val_party
   reset_joint_config: {
     joint1: 0.5903734250235528,
     joint2: -0.7214355209537864,

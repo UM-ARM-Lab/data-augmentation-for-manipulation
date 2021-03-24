@@ -168,7 +168,8 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
       Eigen::Vector3d{center.x - x_width / 2.f, center.y - y_height / 2.f, center.z - z_size / 2.f};
 
   grid_ = sdf_tools::CollisionMapGrid(origin_transform, "/world", resolution, w_cols, h_rows, c_channels, oob_value);
-  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "origin " << origin_transform.matrix());
+  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "origin " << origin_transform.translation()
+                         << " shape [" << h_rows << "," << w_cols << "," << c_channels << "]");
 
   auto const t0 = std::chrono::steady_clock::now();
 

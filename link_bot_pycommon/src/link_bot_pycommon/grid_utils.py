@@ -91,6 +91,8 @@ def extent_to_env_size(extent_3d):
 
 
 def extent_to_env_shape(extent, res):
+    extent = np.array(extent).astype(np.float32)
+    res = np.float32(res)
     env_h_m, env_w_m, env_c_m = extent_to_env_size(extent)
     env_h_rows = int(env_h_m / res)
     env_w_cols = int(env_w_m / res)

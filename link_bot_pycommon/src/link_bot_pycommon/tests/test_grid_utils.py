@@ -70,4 +70,4 @@ class Test(TestCase):
         extent = [0.3, 1.0, 0.0, 0.5, 0.21, 1.0]
         res = 0.1
         origin_point = extent_to_origin_point(extent, res)
-        np.testing.assert_allclose(origin_point, np.array([0.35, 0.0, 0.255]))
+        np.testing.assert_allclose(origin_point, np.array([0.30, 0.0, 0.255]))
