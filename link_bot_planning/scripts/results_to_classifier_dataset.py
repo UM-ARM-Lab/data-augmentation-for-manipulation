@@ -138,7 +138,8 @@ class ResultsToDynamicsDataset:
 
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
-                    print(f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
+                    print(
+                        f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
                     example = try_make_dict_tf_float32(example)
                     tf_write_example(outdir, example, self.example_idx)
                     example_idx_for_trial += 1
@@ -198,28 +199,36 @@ class ResultsToDynamicsDataset:
             # uniformly randomly sub-sample? this is currently broken
             # r = self.rng.uniform()
             # if r < subsample_fraction:
-            yield from self.generate_example(child, depth, planning_query, tree, planner_params, bagfile_name)
+            yield from self.generate_example(
+                before_state_pred=tree.state,
+                action=child.action,
+                after_state_pred=child.state,
+                depth=depth,
+                n_children=len(tree.children),
+                planning_query=planning_query,
+                planner_params=planner_params,
+                bagfile_name=bagfile_name,
+            )
             # recursion
             yield from self.dfs(planner_params, planning_query, child, subsample_fraction, depth=depth + 1)
 
     def generate_example(self,
-                         child: LoggingTree,
+                         before_state_pred: Dict,
+                         action: Dict,
+                         after_state_pred: Dict,
                          depth: int,
                          planning_query: PlanningQuery,
-                         tree: LoggingTree,
+                         n_children: int,
                          planner_params: Dict,
                          bagfile_name: pathlib.Path):
         # if we only have one child we can skip the restore, this speeds things up a lot
-        if len(tree.children) > 1 or depth == 0:
+        if n_children > 1 or depth == 0:
             deal_with_exceptions('retry',
                                  lambda: self.scenario.restore_from_bag_rushed(
                                      service_provider=self.service_provider,
                                      params=planner_params,
                                      bagfile_name=bagfile_name))
-        action = child.action
         before_state, after_state = self.execute(environment=planning_query.environment, action=action)
-        before_state_pred = {k: v for k, v in tree.state.items()}
-        after_state_pred = {k: v for k, v in child.state.items()}
         if self.visualize:
             self.visualize_example(action=action,
                                    after_state=after_state,

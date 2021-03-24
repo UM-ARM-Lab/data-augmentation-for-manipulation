@@ -60,7 +60,6 @@ def main():
                         logfile_name=None,
                         record=args.record,
                         seed=args.seed,
-                        log_full_tree=args.log_full_tree,
                         )
 
 
