@@ -88,13 +88,6 @@ class ResultsToDynamicsDataset:
 
         outdir.mkdir(exist_ok=True, parents=True)
 
-        self.clear_markers()
-        self.before_state_idx = marker_index_generator(0)
-        self.before_state_pred_idx = marker_index_generator(1)
-        self.after_state_idx = marker_index_generator(3)
-        self.after_state_pred_idx = marker_index_generator(4)
-        self.action_idx = marker_index_generator(5)
-
         self.labeling_params = load_hjson(labeling_params)
         self.threshold = self.labeling_params['threshold']
 
@@ -139,6 +132,13 @@ class ResultsToDynamicsDataset:
             if job_chunker.result_exists(str(trial_idx)):
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
                 continue
+
+            self.clear_markers()
+            self.before_state_idx = marker_index_generator(0)
+            self.before_state_pred_idx = marker_index_generator(1)
+            self.after_state_idx = marker_index_generator(3)
+            self.after_state_pred_idx = marker_index_generator(4)
+            self.action_idx = marker_index_generator(5)
 
             example_idx_for_trial = 0
 
@@ -355,9 +355,11 @@ class ResultsToDynamicsDataset:
                           environment: Dict):
         self.scenario.plot_environment_rviz(environment)
         self.scenario.plot_state_rviz(before_state, idx=next(self.before_state_idx), label='actual')
-        self.scenario.plot_state_rviz(before_state_predicted, idx=next(self.before_state_pred_idx), label='predicted', color='blue')
+        self.scenario.plot_state_rviz(before_state_predicted, idx=next(self.before_state_pred_idx), label='predicted',
+                                      color='blue')
         self.scenario.plot_state_rviz(after_state, idx=next(self.after_state_idx), label='actual')
-        self.scenario.plot_state_rviz(after_state_predicted, idx=next(self.after_state_pred_idx), label='predicted', color='blue')
+        self.scenario.plot_state_rviz(after_state_predicted, idx=next(self.after_state_pred_idx), label='predicted',
+                                      color='blue')
         self.scenario.plot_action_rviz(before_state, action, idx=next(self.action_idx), label='actual')
         self.viz_id += 1
 
