@@ -1,6 +1,6 @@
 {
   seed: 1
-  nickname: val_car
+  nickname: val_long_hook
   service_provider: gazebo
   use_gt_rope: true
   collect_dynamics_1: {
@@ -15,8 +15,8 @@
     robot_namespace: val
     launch: val.launch
     scenario: dual_arm_rope_sim_val
-    params: collect_dynamics_params/val_car.hjson
-    world: car.world
+    params: collect_dynamics_params/val_long_hook.hjson
+    world: long_hook.world
     n_trajs: 5120
   }
   learn_dynamics: {
@@ -39,9 +39,9 @@
     labeling_params: labeling_params/classifier/dual.hjson
   }
   learn_classifier: {
-    epochs: 6
+    epochs: 8
     classifier_hparams: hparams/classifier/dual.hjson
-    batch_size: 8
+    batch_size: 16
   }
   make_recovery_dataset: {
     batch_size: 4
@@ -53,13 +53,10 @@
     recovery_hparams: hparams/recovery/dual.json
   }
   planning_evaluation: {
-    n_trials: 12
+    n_trials: 30
     planners_params_common: planner_configs/val_long_hook/common.hjson
     test_scenes_dir: test_scenes/long_hook
     launch: val.launch
     world: long_hook.world
-    methods: [
-     learned_recovery
-    ]
   }
 }

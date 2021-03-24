@@ -58,6 +58,5 @@
     test_scenes_dir: test_scenes/party
     launch: val.launch
     world: party.world
-    method_name: party_classifier
   }
 }
