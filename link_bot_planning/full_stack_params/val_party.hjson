@@ -17,7 +17,7 @@
     scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
     params: collect_dynamics_params/val_party.hjson
     world: party.world
-    n_trajs: 2048
+    n_trajs: 4096
   }
   learn_dynamics: {
     scenario: dual_floating
