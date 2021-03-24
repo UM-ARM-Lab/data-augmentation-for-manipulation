@@ -1,11 +1,9 @@
 import pathlib
 import re
-import threading
 from typing import Dict, Optional, List
 
-from link_bot_planning.my_planner import PlanningResult, LoggingTree
+from link_bot_planning.my_planner import PlanningResult
 from link_bot_planning.plan_and_execute import ExecutionResult
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.serialization import load_gzipped_pickle, my_hdump
@@ -57,17 +55,8 @@ def labeling_params_from_planner_params(planner_params, fallback_labeling_params
     return labeling_params
 
 
-def get_paths(datum: Dict, scenario: ExperimentScenario, show_tree: bool = False, verbose: int = 0):
-    all_actual_states = []
-    types = []
-    all_predicted_states = []
-    all_actions = []
-    actual_states = None
-    predicted_states = None
-
+def get_paths(datum: Dict, verbose: int = 0):
     steps = datum['steps']
-    if len(steps) == 0:
-        raise ValueError("no steps!")
     for step_idx, step in enumerate(steps):
         if verbose >= 1:
             print(step['type'])
@@ -92,44 +81,52 @@ def get_paths(datum: Dict, scenario: ExperimentScenario, show_tree: bool = False
         actual_states = numpify(actual_states)
         predicted_states = numpify(predicted_states)
 
-        all_actions.extend(actions)
-        types.extend([step['type']] * len(actions))
-        all_actual_states.extend(actual_states[:-1])
-
-        all_predicted_states.extend(predicted_states[:-1])
-
-        if show_tree and step['type'] == 'executed_plan':
-            def _draw_tree_function(scenario: ExperimentScenario, tree: LoggingTree):
-                # DFS
-                stack = [tree]
-                while not len(stack) == 0:
-                    n = stack.pop(-1)
-                    scenario.plot_tree_state(n.state, a=0.3)
-                    for child in n.children:
-                        stack.append(child)
-
-                        # visualize
-                        scenario.plot_tree_state(child.state, a=0.3)
-                        if n.action is not None:
-                            scenario.plot_tree_action(n.state, child.action, a=0.3)
-
-            planning_result: PlanningResult = step['planning_result']
-            tree_thread = threading.Thread(target=_draw_tree_function,
-                                           args=(scenario, planning_result.tree))
-            tree_thread.start()
+        types = [step['type']] * len(actions)
+        yield from zip(actions, actual_states, predicted_states, types)
 
     # but do add the actual final states
     if len(actions) > 0 and actions[0] is not None:
-        all_actual_states.append(actual_states[-1])
-        all_predicted_states.append(predicted_states[-1])
-        all_actions.append(all_actions[-1])
-        types.append(types[-1])
+        yield actions[-1], actual_states[-1], predicted_states[-1], types[-1]
 
-    # also add the end_state, because due to rope settling it could be different
-    all_actual_states.append(datum['end_state'])
-    all_predicted_states.append(predicted_states[-1])  # just copy this again
+    yield actions[-1], datum['end_state'], predicted_states[-1], types[-1]
 
-    return all_actions, all_actual_states, all_predicted_states, types
+
+def get_transitions(datum: Dict):
+    steps = datum['steps']
+
+    assert len(steps) > 0
+
+    for step_idx, step in enumerate(steps):
+        if step['type'] == 'executed_plan':
+            planning_result: PlanningResult = step['planning_result']
+            execution_result: ExecutionResult = step['execution_result']
+            actions = planning_result.actions
+            actual_states = execution_result.path
+            predicted_states = planning_result.path
+        elif step['type'] == 'executed_recovery':
+            continue
+        else:
+            raise NotImplementedError(f"invalid step type {step['type']}")
+
+        if len(actions) == 0 or actions[0] is None:
+            print("Skipping step with no actions")
+            continue
+        actions = numpify(actions)
+        actual_states = numpify(actual_states)
+        predicted_states = numpify(predicted_states)
+
+        e = step['planning_query'].environment
+        types = [step['type']] * len(actions)
+        n_actions = len(actions)
+
+        for t in range(n_actions):
+            before_state_pred_t = predicted_states[t]
+            before_state_t = actual_states[t]
+            after_state_pred_t = predicted_states[t + 1]
+            after_state_t = actual_states[t + 1]
+            a_t = actions[t]
+            type_t = types[t]
+            yield e, (before_state_pred_t, before_state_t), a_t, (after_state_pred_t, after_state_t), type_t
 
 
 def get_scenario_and_metadata(results_dir: pathlib.Path):

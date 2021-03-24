@@ -86,7 +86,7 @@ def plot_steps(show_tree: bool,
     first_step = steps[0]
     planning_query: PlanningQuery = first_step['planning_query']
     environment = planning_query.environment
-    actions, actual_states, predicted_states, types = get_paths(datum, scenario, show_tree, verbose)
+    actions, actual_states, predicted_states, types = zip(*get_paths(datum, verbose))
 
     anim = RvizAnimationController(n_time_steps=len(actual_states))
 

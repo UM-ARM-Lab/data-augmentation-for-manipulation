@@ -75,7 +75,7 @@ class PercentageMERViolations(ResultsMetric):
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         n_mer_violated = 0
         n_total_actions = 0
-        _, actual_states, predicted_states, types = get_paths(trial_datum, scenario, False, 0)
+        _, actual_states, predicted_states, types = zip(*get_paths(trial_datum, scenario, False, 0))
         for actual_state_t, planned_state_t, type_t in zip(actual_states, predicted_states, types):
             if type_t == 'executed_plan':
                 model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
@@ -92,7 +92,7 @@ class PercentageMERViolations(ResultsMetric):
 class NMERViolations(ResultsMetric):
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         n_mer_violated = 0
-        _, actual_states, predicted_states, types = get_paths(trial_datum, scenario, False, 0)
+        _, actual_states, predicted_states, types = zip(*get_paths(trial_datum, scenario, False, 0))
         for actual_state_t, planned_state_t, type_t in zip(actual_states, predicted_states, types):
             if type_t == 'executed_plan':
                 model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
@@ -107,7 +107,7 @@ class NormalizedModelError(ResultsMetric):
         # NOTE: we could also normalize by action "size"?
         total_model_error = 0.0
         n_total_actions = 0
-        _, actual_states, predicted_states, types = get_paths(trial_datum, scenario, False, 0)
+        _, actual_states, predicted_states, types = zip(*get_paths(trial_datum, scenario, False, 0))
         for actual_state_t, planned_state_t, type_t in zip(actual_states, predicted_states, types):
             if type_t == 'executed_plan':
                 model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
