@@ -28,7 +28,16 @@ def idx_to_point_3d_in_env(row: int,
                            col: int,
                            channel: int,
                            env: Dict):
-    return idx_to_point_3d(row=row, col=col, channel=channel, resolution=env['res'], origin=env['origin'])
+    return idx_to_point_3d_from_extent(row=row, col=col, channel=channel, resolution=env['res'], extent=env['extent'])
+
+
+def idx_to_point_3d_from_extent(row, col, channel, resolution, extent):
+    origin_point = extent_to_origin_point(extent=extent, res=resolution)
+    y = origin_point[1] + row * resolution
+    x = origin_point[0] + col * resolution
+    z = origin_point[2] + channel * resolution
+
+    return np.array([x, y, z])
 
 
 def idx_to_point_3d(row: int,
@@ -49,21 +58,6 @@ def idx_to_point(row: int,
     y = (row - origin[0]) * resolution
     x = (col - origin[1]) * resolution
     return np.array([x, y])
-
-
-def bounds_from_env_size(w_cols: int,
-                         h_rows: int,
-                         new_origin: np.ndarray,
-                         resolution: float,
-                         origin: np.ndarray):
-    # NOTE: assumes centered?
-    xmin = -w_cols / 2 + new_origin[1]
-    ymin = -h_rows / 2 + new_origin[0]
-    xmax = w_cols / 2 + new_origin[1]
-    ymax = h_rows / 2 + new_origin[0]
-    rmin, cmin = point_to_idx(xmin, ymin, resolution, origin)
-    rmax, cmax = point_to_idx(xmax, ymax, resolution, origin)
-    return [rmin, rmax, cmin, cmax], [xmin, xmax, ymin, ymax]
 
 
 def center_point_to_origin_indices(h_rows: int,
@@ -110,6 +104,15 @@ def extent_to_center(extent_3d):
     cy = (max_y + min_y) / 2
     cz = (max_z + min_z) / 2
     return cx, cy, cz
+
+
+def extent_to_origin_point(extent, res):
+    center = extent_to_center(extent_3d=extent)
+    h_rows, w_cols, c_channels = extent_to_env_shape(extent=extent, res=res)
+    oy = center[1] - (h_rows * res / 2)
+    ox = center[0] - (w_cols * res / 2)
+    oz = center[2] - (c_channels * res / 2)
+    return np.array([ox, oy, oz])
 
 
 def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy') -> OccupancyStamped:

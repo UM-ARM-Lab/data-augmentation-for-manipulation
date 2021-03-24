@@ -165,9 +165,10 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
   auto const z_size = resolution * c_channels;
   Eigen::Isometry3d origin_transform = Eigen::Isometry3d::Identity();
   origin_transform.translation() =
-      Eigen::Vector3d{center.x - x_width / 2, center.y - y_height / 2, center.z - z_size / 2};
+      Eigen::Vector3d{center.x - x_width / 2.f, center.y - y_height / 2.f, center.z - z_size / 2.f};
 
   grid_ = sdf_tools::CollisionMapGrid(origin_transform, "/world", resolution, w_cols, h_rows, c_channels, oob_value);
+  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "origin " << origin_transform.matrix());
 
   auto const t0 = std::chrono::steady_clock::now();
 
@@ -227,14 +228,14 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
                 marker.color.g = 0;
                 marker.color.a = 1;
                 markers.markers.push_back(marker);
-                ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "collision with " << intersection.name);
+                ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME + ".collision", "collision with " << intersection.name);
               }
               grid_.SetValue(x_idx, y_idx, z_idx, occupied_value);
             } else
             {
               if (debug_)
               {
-                ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "excluding collision with " << intersection.name);
+                ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME + ".collision", "excluding collision with " << intersection.name);
               }
               grid_.SetValue(x_idx, y_idx, z_idx, unoccupied_value);
             }
@@ -262,7 +263,7 @@ void CollisionMapPlugin::compute_occupancy_grid(int64_t h_rows, int64_t w_cols, 
 
   auto const t1 = std::chrono::steady_clock::now();
   std::chrono::duration<double> const time_to_compute_occupancy_grid = t1 - t0;
-  ROS_DEBUG_STREAM_NAMED("cmp_perf", "Time to compute occupancy grid: " << time_to_compute_occupancy_grid.count());
+  ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME + ".perf", "Time to compute occupancy grid: " << time_to_compute_occupancy_grid.count());
 }
 
 CollisionMapPlugin::~CollisionMapPlugin()
@@ -299,7 +300,7 @@ void nearCallback(void *_data, dGeomID _o1, dGeomID _o2)
       dContactGeom contact;
       if (dGeomGetClass(_o2) == dTriMeshClass)
       {
-        ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME,
+        ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME + ".collision",
                                "Skipping unimplemented collision with mesh "
                                    << ode_collision->GetScopedName().c_str());
       } else

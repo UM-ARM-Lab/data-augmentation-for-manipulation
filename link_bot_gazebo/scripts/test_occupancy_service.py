@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 from time import sleep
 
+import numpy as np
+
 import rospy
 import tf2_ros
 from arc_utilities import ros_init
@@ -23,9 +25,15 @@ def main():
     res = 0.02
 
     # this is assumed to be in frame "robot_root"
-    extent_3d = [-0.3, 0.3, 0.30, 0.55, -0.1, 0.3]
-
+    s = 0
+    t = 0
     while True:
+        dx = np.sin(t) * 2e-2
+        dy = np.sin(2*t + 0.1) * 0e-2
+        dz = np.sin(3*t + 0.2) * 2e-2
+        t += 0.05
+        extent_3d = [-0.10 + dx, 0.0 + dx, 0.50 + dy, 0.54 + dy, 0.20 + dz, 0.25 + dz]
+
         try:
             environment = get_environment_for_extents_3d(extent=extent_3d,
                                                          res=res,
@@ -40,7 +48,7 @@ def main():
             grid_utils.send_occupancy_tf(broadcaster, environment)
             pub.publish(msg)
 
-            sleep(1.0)
+            sleep(0.1)
         except rospy.ServiceException:
             pass
 
