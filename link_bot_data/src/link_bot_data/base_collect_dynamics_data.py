@@ -7,6 +7,7 @@ import numpy as np
 from colorama import Fore
 
 import rospy
+from arm_robots.robot import RobotPlanningError
 from link_bot_data.dataset_utils import data_directory, tf_write_example
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_pycommon.base_services import BaseServices
@@ -80,10 +81,12 @@ class BaseDataCollector:
 
             # TODO: sample the entire action sequence in advance?
             action, invalid = self.scenario.sample_action(action_rng=action_rng,
-                                                          environment=environment,
-                                                          state=state,
-                                                          action_params=self.params,
-                                                          validate=True)
+                                                            environment=environment,
+                                                            state=state,
+                                                            action_params=self.params,
+                                                            validate=True)
+            if invalid:
+                return {}, invalid
 
             # Visualization
             self.scenario.plot_environment_rviz(environment)
@@ -95,7 +98,10 @@ class BaseDataCollector:
             # End Visualization
 
             # execute action
-            self.scenario.execute_action(environment, state, action)
+            try:
+                self.scenario.execute_action(environment, state, action)
+            except RobotPlanningError:
+                return {}, (invalid := True)
 
             # add to the dataset
             if time_idx < self.params['steps_per_traj'] - 1:  # skip the last action
@@ -114,7 +120,7 @@ class BaseDataCollector:
         if verbose:
             print(Fore.GREEN + "Trajectory {} Complete".format(traj_idx) + Fore.RESET)
 
-        return example
+        return example, (invalid := False)
 
     def collect_data(self,
                      n_trajs: int,
@@ -138,21 +144,30 @@ class BaseDataCollector:
 
         combined_seeds = [traj_idx + 100000 * self.seed for traj_idx in range(n_trajs)]
         for traj_idx, seed in enumerate(combined_seeds):
-            # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
-            env_rng = np.random.RandomState(seed)
-            action_rng = np.random.RandomState(seed)
+            invalid = False
+            for retry_idx in range(10):
+                # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
+                env_rng = np.random.RandomState(seed)
+                action_rng = np.random.RandomState(seed)
 
-            # Randomize the environment
-            randomize = self.params["randomize_n"] and traj_idx % self.params["randomize_n"] == 0
-            state = self.scenario.get_state()
-            needs_reset = self.scenario.needs_reset(state, self.params)
-            if (not self.params['no_objects'] and randomize) or needs_reset:
-                if needs_reset:
-                    rospy.logwarn("Reset required!")
-                self.scenario.randomize_environment(env_rng, self.params)
+                # Randomize the environment
+                randomize = self.params["randomize_n"] and traj_idx % self.params["randomize_n"] == 0
+                state = self.scenario.get_state()
+                needs_reset = self.scenario.needs_reset(state, self.params)
+                if (not self.params['no_objects'] and randomize) or needs_reset:
+                    if needs_reset:
+                        rospy.logwarn("Reset required!")
+                    self.scenario.randomize_environment(env_rng, self.params)
 
-            # Generate a new trajectory
-            example = self.collect_trajectory(traj_idx=traj_idx, verbose=self.verbose, action_rng=action_rng)
+                # Generate a new trajectory
+                example, invalid = self.collect_trajectory(traj_idx=traj_idx, verbose=self.verbose,
+                                                           action_rng=action_rng)
+                if not invalid:
+                    break
+
+            if invalid:
+                raise RuntimeError(f"Could not execute trajectory {traj_idx}")
+
             print(f'traj {traj_idx}/{n_trajs} ({seed}), {perf_counter() - trial_start:.4f}s')
 
             # Save the data

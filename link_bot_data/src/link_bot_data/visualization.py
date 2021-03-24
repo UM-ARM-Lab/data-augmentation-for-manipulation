@@ -128,16 +128,16 @@ def rviz_arrow(position: np.ndarray,
 
 def dynamics_viz_t(metadata: Dict, state_metadata_keys, state_keys, action_keys):
     def _dynamics_transition_viz_t(scenario: ExperimentScenario, example: Dict, t: int):
-        s_t, a_t = index_state_action_with_metadata(example,
-                                                    state_keys=state_keys,
-                                                    state_metadata_keys=state_metadata_keys,
-                                                    action_keys=action_keys,
-                                                    t=t)
+        s_t = index_time_with_metadata(metadata, example, state_metadata_keys + state_keys, t=t)
         try_adding_aco(state=s_t, example=example)
-        scenario.plot_state_rviz(s_t, label='actual', color='#ff0000ff', scale=1.1)
+        scenario.plot_state_rviz(s_t, label='actual', color='#ff0000ff')
 
-        action = index_time(example, action_keys, t, False)
-        scenario.plot_action_rviz(s_t, a_t)
+        s_for_a_t, a_t = index_state_action_with_metadata(example,
+                                                          state_keys=state_keys,
+                                                          state_metadata_keys=state_metadata_keys,
+                                                          action_keys=action_keys,
+                                                          t=t)
+        scenario.plot_action_rviz(s_for_a_t, a_t)
 
     return _dynamics_transition_viz_t
 

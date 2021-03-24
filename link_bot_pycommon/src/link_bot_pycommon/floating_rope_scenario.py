@@ -217,7 +217,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             'left_gripper_delta_position':  np.zeros(3, dtype=np.float),
             'right_gripper_delta_position': np.zeros(3, dtype=np.float),
         }
-        return zero_action, (invalid := True)
+        return zero_action, (invalid := False)
 
     def is_action_valid(self, environment: Dict, state: Dict, action: Dict, action_params: Dict):
         out_of_bounds = FloatingRopeScenario.grippers_out_of_bounds(action['left_gripper_position'],
