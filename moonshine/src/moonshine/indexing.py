@@ -1,6 +1,6 @@
 from typing import Dict, List, OrderedDict
-import numpy as np
 
+import numpy as np
 import tensorflow as tf
 
 from moonshine.moonshine_utils import numpify, remove_batch, add_batch
@@ -69,10 +69,12 @@ def index_time_batched_kv_if_time_indexed(k, v, t, time_indexed_keys):
         return v
 
 
-def index_state_action_with_metadata(metadata: Dict,
-                                     example: Dict,
+def index_state_action_with_metadata(example: Dict,
                                      state_keys: List[str],
-                                     action_keys: List[str], t: int):
+                                     state_metadata_keys,
+                                     action_keys: List[str],
+                                     t: int,
+                                     metadata: Dict = None):
     s_t = {}
     a_t = {}
 
@@ -80,12 +82,12 @@ def index_state_action_with_metadata(metadata: Dict,
     test_k = action_keys[0]
     test_v = example[test_k]
     if t < test_v.shape[0]:
-        for state_key in state_keys:
+        for state_key in state_keys + state_metadata_keys:
             s_t[state_key] = example[state_key][t]
         for action_key in action_keys:
             a_t[action_key] = example[action_key][t]
     elif t == test_v.shape[0]:
-        for state_key in state_keys:
+        for state_key in state_keys + state_metadata_keys:
             s_t[state_key] = example[state_key][t - 1]
         for action_key in action_keys:
             a_t[action_key] = example[action_key][t - 1]
@@ -93,7 +95,8 @@ def index_state_action_with_metadata(metadata: Dict,
         err_msg = f"time index {t} out of bounds for {test_k} which has shape {test_v.shape}"
         raise IndexError(err_msg)
 
-    s_t.update(metadata)
+    if metadata is not None:
+        s_t.update(metadata)
 
     return s_t, a_t
 

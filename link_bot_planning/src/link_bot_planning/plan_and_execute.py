@@ -263,7 +263,7 @@ class PlanAndExecute:
                             rospy.loginfo("Chosen Recovery Action:")
                             rospy.loginfo(recovery_action)
                         self.service_provider.play()
-                        execution_result = self.execute_recovery_action(recovery_action)
+                        execution_result = self.execute_recovery_action(environment, recovery_action)
                         self.service_provider.pause()
 
                     # Extract planner data now before it goes out of scope (in C++)
@@ -375,7 +375,7 @@ class PlanAndExecute:
         execution_result = ExecutionResult(path=actual_path, end_trial=end_trial)
         return execution_result
 
-    def execute_recovery_action(self, action: Dict):
+    def execute_recovery_action(self, environment: Dict, action: Dict):
         end_trial = False
         if self.no_execution:
             actual_path = []
@@ -383,7 +383,7 @@ class PlanAndExecute:
             before_state = self.scenario.get_state()
             if self.use_gt_rope:
                 before_state = dataset_utils.use_gt_rope(before_state)
-            end_trial = self.scenario.execute_action(None, None, action)
+            end_trial = self.scenario.execute_action(environment, before_state, action)
             after_state = self.scenario.get_state()
             if self.use_gt_rope:
                 after_state = dataset_utils.use_gt_rope(after_state)

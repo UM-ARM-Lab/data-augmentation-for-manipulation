@@ -11,10 +11,12 @@ from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 def viz_state_action_for_model_t(metadata: Dict, fwd_model: BaseDynamicsFunction):
     def _viz_state_action_t(scenario: ExperimentScenario, example: Dict, t: int):
         s_t = index_time_with_metadata(metadata, example, fwd_model.state_keys, t=t)
-        action_s_t, a_t = index_state_action_with_metadata(metadata,
-                                                           example,
-                                                           fwd_model.state_keys,
-                                                           fwd_model.action_keys, t=t)
+        action_s_t, a_t = index_state_action_with_metadata(example,
+                                                           state_keys=fwd_model.state_keys,
+                                                           state_metadata_keys=fwd_model.state_metadata_keys,
+                                                           action_keys=fwd_model.action_keys,
+                                                           t=t,
+                                                           metadata=metadata)
         scenario.plot_state_rviz(s_t, label='', color='#ff0000ff')
         scenario.plot_action_rviz(action_s_t, a_t, label='')
 

@@ -6,7 +6,9 @@ from colorama import Fore
 
 from link_bot_data.base_dataset import BaseDatasetLoader
 from link_bot_data.dataset_utils import use_gt_rope
+from link_bot_data.visualization import init_viz_env, dynamics_viz_t
 from link_bot_pycommon.get_scenario import get_scenario
+from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_time_batched
 from moonshine.moonshine_utils import numpify, remove_batch
 
@@ -91,8 +93,21 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
         return dataset
 
     def index_time_batched(self, example_batched, t: int):
-        e_t = numpify(remove_batch(index_time_batched(example_batched, self.time_indexed_keys, t)))
+        e_t = numpify(remove_batch(index_time_batched(example_batched, self.time_indexed_keys, t, False)))
         return e_t
+
+    def dynamics_viz_t(self):
+        return dynamics_viz_t(metadata=self.scenario_metadata,
+                              state_metadata_keys=self.state_metadata_keys,
+                              state_keys=self.state_keys,
+                              action_keys=self.action_keys)
+
+    def anim_rviz(self, example: Dict):
+        anim = RvizAnimation(scenario=self.scenario,
+                             n_time_steps=10,
+                             init_funcs=[init_viz_env],
+                             t_funcs=[init_viz_env, self.dynamics_viz_t()])
+        anim.play(example)
 
 
 def get_state_like_keys(params: Dict):

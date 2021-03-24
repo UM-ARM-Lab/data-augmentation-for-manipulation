@@ -9,7 +9,7 @@ from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import vector_to_points_2d
-from moonshine.indexing import index_time_with_metadata
+from moonshine.indexing import index_time_with_metadata, index_time, index_state_action_with_metadata
 from std_msgs.msg import Float32, ColorRGBA
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -126,18 +126,20 @@ def rviz_arrow(position: np.ndarray,
     return arrow
 
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
+def dynamics_viz_t(metadata: Dict, state_metadata_keys, state_keys, action_keys):
+    def _dynamics_transition_viz_t(scenario: ExperimentScenario, example: Dict, t: int):
+        s_t, a_t = index_state_action_with_metadata(example,
+                                                    state_keys=state_keys,
+                                                    state_metadata_keys=state_metadata_keys,
+                                                    action_keys=action_keys,
+                                                    t=t)
+        try_adding_aco(state=s_t, example=example)
+        scenario.plot_state_rviz(s_t, label='actual', color='#ff0000ff', scale=1.1)
 
-    plt.figure()
-    ax = plt.gca()
-    r = 4
-    for theta in np.linspace(-np.pi, np.pi, 36):
-        u = np.cos(theta) * r
-        v = np.sin(theta) * r
-        plot_arrow(ax, 2, 0, u, v, 'r')
-    plt.axis("equal")
-    plt.show()
+        action = index_time(example, action_keys, t, False)
+        scenario.plot_action_rviz(s_t, a_t)
+
+    return _dynamics_transition_viz_t
 
 
 def recovery_transition_viz_t(metadata: Dict, state_keys: List[str]):
