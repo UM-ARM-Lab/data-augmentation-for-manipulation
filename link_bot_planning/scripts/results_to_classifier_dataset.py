@@ -217,7 +217,7 @@ class ResultsToDynamicsDataset:
                                      params=planner_params,
                                      bagfile_name=bagfile_name))
         action = child.action
-        before_state, after_state = self.execute(action)
+        before_state, after_state = self.execute(environment=planning_query.environment, action=action)
         before_state_pred = {k: v for k, v in tree.state.items()}
         after_state_pred = {k: v for k, v in child.state.items()}
         if self.visualize:
@@ -269,10 +269,10 @@ class ResultsToDynamicsDataset:
         elif test_shape > 1:
             raise ValueError()
 
-    def execute(self, action: Dict):
+    def execute(self, environment: Dict, action: Dict):
         self.service_provider.play()
         before_state = self.scenario.get_state()
-        self.scenario.execute_action(None, None, action)
+        self.scenario.execute_action(environment=environment, state=before_state, action=action)
         after_state = self.scenario.get_state()
         return before_state, after_state
 

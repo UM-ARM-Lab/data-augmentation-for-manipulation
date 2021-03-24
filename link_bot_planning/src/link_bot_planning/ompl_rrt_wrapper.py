@@ -52,7 +52,7 @@ class OmplRRTWrapper(MyPlanner):
                  action_params: Dict,
                  scenario: ScenarioWithVisualization,
                  verbose: int,
-                 log_full_tree: bool = False,
+                 log_full_tree: bool = True,
                  ):
         super().__init__(scenario=scenario, fwd_model=fwd_model, filter_model=filter_model)
         self.log_full_tree = log_full_tree
@@ -475,7 +475,8 @@ class OmplRRTWrapper(MyPlanner):
 
                 # take the current planned path and add it to the logging tree
                 for state, action, next_state in zip(state_sequence[:-1], action_sequence, state_sequence[1:]):
-                    self.tree.add(state, action, next_state)
+                    if self.log_full_tree:
+                        self.tree.add(state, action, next_state)
 
                 # visualize & debug info
                 if self.verbose >= 2:

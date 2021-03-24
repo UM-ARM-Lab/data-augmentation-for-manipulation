@@ -143,7 +143,7 @@ def evaluate_planning_method(planner_params: Dict,
                              timeout: Optional[int] = None,
                              test_scenes_dir: Optional[pathlib.Path] = None,
                              seed: int = 0,
-                             log_full_tree: bool = False,
+                             log_full_tree: bool = True,
                              how_to_handle: str = 'retry',
                              ):
     # override some arguments
@@ -206,7 +206,7 @@ def planning_evaluation(outdir: pathlib.Path,
                         timeout: Optional[int] = None,
                         test_scenes_dir: Optional[pathlib.Path] = None,
                         seed: int = 0,
-                        log_full_tree: bool = False,
+                        log_full_tree: bool = True,
                         ):
     ou.setLogLevel(ou.LOG_ERROR)
 
