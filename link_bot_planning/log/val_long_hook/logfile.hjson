@@ -28,4 +28,13 @@
   {
     model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e
   }
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/val_long_hook_1616587237
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/val_long_hook_1616587237/March_24_09-11-34_6ba3c073b0
+  }
+  planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_long_hook
 }
