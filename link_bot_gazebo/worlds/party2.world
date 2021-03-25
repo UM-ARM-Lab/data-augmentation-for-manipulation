@@ -68,10 +68,16 @@
             <pose>-0.2 0.83 0.4 0 0 3.14159</pose>
         </include>
 
+<!--        <include>-->
+<!--            <name>chair</name>-->
+<!--            <uri>model://chair</uri>-->
+<!--            <pose>-0.35 0.82 -0.38 0 0 -0.2</pose>-->
+<!--        </include>-->
+
         <include>
-            <name>chair</name>
-            <uri>model://chair</uri>
-            <pose>-0.35 0.82 -0.38 0 0 -0.2</pose>
+            <name>trash</name>
+            <pose>0.26 0.55 -0.375 0 0 0</pose>
+            <uri>model://trash</uri>
         </include>
 
         <include>
