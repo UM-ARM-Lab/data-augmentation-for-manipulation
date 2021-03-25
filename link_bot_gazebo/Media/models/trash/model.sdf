@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+
+<sdf version="1.6">
+  <model name='trash'>
+    <link name="body">
+      <pose>0 0 0 0 0 0</pose>
+      <kinematic>1</kinematic>
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>model://trash/meshes/TrashBin.obj</uri>
+              <scale>1.0 1.0 0.5</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <collision name="collision1">
+          <pose>0 -0.13 0.12 0.2 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.22 0.04 0.2</size>
+            </box>
+          </geometry>
+        </collision>
+
+        <collision name="collision2">
+          <pose>0 0.13 0.12 -0.2 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.22 0.04 0.2</size>
+            </box>
+          </geometry>
+        </collision>
+
+        <collision name="collision3">
+          <pose>-0.09 0.0 0.12 0.0 -0.2 0</pose>
+          <geometry>
+            <box>
+              <size>0.04 0.34 0.2</size>
+            </box>
+          </geometry>
+        </collision>
+
+        <collision name="collision4">
+          <pose>0.09 0.0 0.12 0.0 0.2 0</pose>
+          <geometry>
+            <box>
+              <size>0.04 0.34 0.2</size>
+            </box>
+          </geometry>
+        </collision>
+
+        <collision name="collision5">
+          <pose>0.0 0.0 0.01 0.0 0.0 0</pose>
+          <geometry>
+            <box>
+              <size>0.20 0.32 0.02</size>
+            </box>
+          </geometry>
+        </collision>
+
+    </link>
+  </model>
+</sdf>
