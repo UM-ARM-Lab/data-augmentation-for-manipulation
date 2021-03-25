@@ -18,10 +18,12 @@ class RobotFeasibilityChecker(BaseConstraintChecker):
                             environment: Dict,
                             states_sequence: List[Dict],
                             actions: List[Dict]):
-        assert len(states_sequence) == 2
-        state = states_sequence[0]
-        action = actions[0]
-        feasible = self.scenario.is_motion_feasible(environment=environment, state=state, action=action)
+        feasible = True
+        for state, action in zip(states_sequence, actions):
+            feasible = self.scenario.is_motion_feasible(environment=environment, state=state, action=action)
+            if not feasible:
+                break
+
         return tf.expand_dims(tf.cast(feasible, tf.float32), axis=0)
 
 
