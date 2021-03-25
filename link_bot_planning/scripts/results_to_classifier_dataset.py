@@ -211,12 +211,13 @@ class ResultsToDynamicsDataset:
     def result_datum_to_dynamics_dataset(self, datum: Dict, trial_idx: int, subsample_fraction: float):
         for t, transition in enumerate(get_transitions(datum)):
             environment, (before_state_pred, before_state), action, (after_state_pred, after_state), _ = transition
-            self.visualize_example(action=action,
-                                   after_state=after_state,
-                                   before_state=before_state,
-                                   before_state_predicted={add_predicted(k): v for k, v in before_state_pred.items()},
-                                   after_state_predicted={add_predicted(k): v for k, v in after_state_pred.items()},
-                                   environment=environment)
+            if self.visualize:
+                self.visualize_example(action=action,
+                                       after_state=after_state,
+                                       before_state=before_state,
+                                       before_state_predicted={add_predicted(k): v for k, v in before_state_pred.items()},
+                                       after_state_predicted={add_predicted(k): v for k, v in after_state_pred.items()},
+                                       environment=environment)
 
             yield from self.generate_example(
                 environment=environment,
@@ -302,9 +303,7 @@ class ResultsToDynamicsDataset:
         classifier_horizon = 2  # this script only handles this case
         example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
         example_states_pred = sequence_of_dicts_to_dict_of_tensors([before_state_pred, after_state_pred])
-        if 'joint_names' in example_states:
-            example_states_pred.pop("joint_names")
-        if 'num_diverged' in example_states:
+        if 'num_diverged' in example_states_pred:
             example_states_pred.pop("num_diverged")
         example_actions = add_batch_single(action)
         example = {

@@ -36,6 +36,7 @@ def load_generic_model(path: pathlib.Path,
     elif model_type == 'feasibility':
         return RobotFeasibilityChecker(path, scenario=scenario)
     elif model_type == 'new_feasibility':
+        # return FastRobotFeasibilityChecker(path, scenario=scenario)
         return FastRobotFeasibilityChecker(path, scenario=scenario)
     else:
         raise NotImplementedError("invalid model type {}".format(model_type))

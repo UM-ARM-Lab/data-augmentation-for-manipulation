@@ -14,6 +14,11 @@ class DualArmRopeWithRobotFeasibilityCheckingScenario:
         if not valid:
             return False
 
+        target_reached = self.is_motion_feasible(action, environment, state)
+
+        return target_reached
+
+    def is_motion_feasible(self, action, environment, state):
         # further checks for if the motion is feasible under the controller
         example = {}
         # add batch dimension
@@ -24,5 +29,4 @@ class DualArmRopeWithRobotFeasibilityCheckingScenario:
         example['batch_size'] = 1
         target_reached, _, __ = BaseDualArmRopeScenario.follow_jacobian_from_example(self, example)
         target_reached = remove_batch(target_reached)[1]  # t=1, target reached for t=0 is always true
-
         return target_reached
