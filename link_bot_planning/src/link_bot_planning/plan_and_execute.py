@@ -365,12 +365,14 @@ class PlanAndExecute:
         else:
             if self.verbose >= 2 and not self.no_execution:
                 rospy.loginfo(Fore.CYAN + "Executing Plan" + Fore.RESET)
+            self.scenario.robot.raise_on_failure = False
             actual_path, end_trial = execute_actions(scenario=self.scenario,
                                                      environment=planning_query.environment,
                                                      start_state=planning_query.start,
                                                      actions=planning_result.actions,
                                                      use_gt_rope=self.use_gt_rope,
                                                      plot=True)
+            self.scenario.robot.raise_on_failure = True
 
         # post-execution callback
         execution_result = ExecutionResult(path=actual_path, end_trial=end_trial)
