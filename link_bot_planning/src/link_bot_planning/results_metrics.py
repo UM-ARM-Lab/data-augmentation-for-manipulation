@@ -75,9 +75,8 @@ class PercentageMERViolations(ResultsMetric):
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         n_mer_violated = 0
         n_total_actions = 0
-        _, actual_states, predicted_states, types = zip(*get_paths(trial_datum, scenario, False, 0))
-        for actual_state_t, planned_state_t, type_t in zip(actual_states, predicted_states, types):
-            if type_t == 'executed_plan':
+        for _, actual_state_t, planned_state_t, type_t in get_paths(trial_datum):
+            if type_t == 'executed_plan' and planned_state_t is not None:
                 model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
                 mer_violated = model_error > self.analysis_params['mer_threshold']
                 if mer_violated:
@@ -92,9 +91,8 @@ class PercentageMERViolations(ResultsMetric):
 class NMERViolations(ResultsMetric):
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         n_mer_violated = 0
-        _, actual_states, predicted_states, types = zip(*get_paths(trial_datum, scenario, False, 0))
-        for actual_state_t, planned_state_t, type_t in zip(actual_states, predicted_states, types):
-            if type_t == 'executed_plan':
+        for _, actual_state_t, planned_state_t, type_t in get_paths(trial_datum):
+            if type_t == 'executed_plan' and planned_state_t is not None:
                 model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
                 mer_violated = model_error > self.analysis_params['mer_threshold']
                 if mer_violated:
@@ -107,9 +105,8 @@ class NormalizedModelError(ResultsMetric):
         # NOTE: we could also normalize by action "size"?
         total_model_error = 0.0
         n_total_actions = 0
-        _, actual_states, predicted_states, types = zip(*get_paths(trial_datum, scenario, False, 0))
-        for actual_state_t, planned_state_t, type_t in zip(actual_states, predicted_states, types):
-            if type_t == 'executed_plan':
+        for _, actual_state_t, planned_state_t, type_t in get_paths(trial_datum):
+            if type_t == 'executed_plan' and planned_state_t is not None:
                 model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
                 total_model_error += model_error
                 n_total_actions += 1

@@ -192,7 +192,7 @@ def generate_metrics(analysis_params: Dict, out_dir: pathlib.Path, subfolders_or
             metric.setup_method(method_name, metadata)
 
         # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
-        for plan_idx, metrics_filename in enumerate(metrics_filenames):
+        for metrics_filename in metrics_filenames:
             datum = load_gzipped_pickle(metrics_filename)
             for metric in metrics.values():
                 metric.aggregate_trial(method_name, scenario, datum)

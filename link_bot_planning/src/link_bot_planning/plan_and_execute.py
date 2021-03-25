@@ -12,6 +12,7 @@ from dataclasses_json import dataclass_json
 
 import rospy
 from arc_utilities.listener import Listener
+from arm_robots.robot import RobotPlanningError
 from gazebo_msgs.msg import LinkStates
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers import recovery_policy_utils
