@@ -1,5 +1,5 @@
 {
-  scenario: dual_arm_rope_sim_val
+  scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
   reset_joint_config: {
     joint1: 0.5903734250235528,
     joint2: -0.7214355209537864,

@@ -20,6 +20,7 @@ class RobotFeasibilityChecker(BaseConstraintChecker):
                             actions: List[Dict]):
         feasible = True
         for state, action in zip(states_sequence, actions):
+            # TODO: wrong state for multstep here
             feasible = self.scenario.is_motion_feasible(environment=environment, state=state, action=action)
             if not feasible:
                 break
