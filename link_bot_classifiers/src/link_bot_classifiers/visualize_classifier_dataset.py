@@ -8,7 +8,6 @@ from progressbar import progressbar
 from scipy import stats
 
 import rospy
-from geometry_msgs.msg import Vector3
 from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.pycommon import print_dict
@@ -28,7 +27,7 @@ def visualize_dataset(args, classifier_dataset):
 
     positive_count = 0
     negative_count = 0
-    infeasible_count = 0
+    incomplete_motion = 0
     starts_far_count = 0
     count = 0
 
@@ -38,7 +37,7 @@ def visualize_dataset(args, classifier_dataset):
             'negative_count':   negative_count,
             'positive_count':   positive_count,
             'starts_far_count': starts_far_count,
-            'infeasible_count': infeasible_count,
+            'incomplete_motion': incomplete_motion,
         }
 
     stdevs = []
@@ -80,7 +79,7 @@ def visualize_dataset(args, classifier_dataset):
         count += 1
 
         if infeasible:
-            infeasible_count += 1
+            incomplete_motion += 1
 
         if positive:
             positive_count += 1
@@ -135,7 +134,6 @@ def visualize_dataset(args, classifier_dataset):
 
     stats_dict = _make_stats_dict()
     print_stats_and_timing(args, stats_dict, total_dt)
-
 
 
 def print_stats_and_timing(args, counts: Dict, total_dt=None):

@@ -140,7 +140,9 @@ def send_occupancy_tf(broadcaster, environment: Dict, frame: str = 'occupancy'):
     transform.header.stamp = rospy.Time.now()
     transform.header.frame_id = "world"
     transform.child_frame_id = frame
-    origin_x, origin_y, origin_z = idx_to_point_3d_in_env(0, 0, 0, environment)
+
+    origin_point = extent_to_origin_point(extent=environment['extent'], res=environment['res'])
+    origin_x, origin_y, origin_z = origin_point
     transform.transform.translation.x = origin_x
     transform.transform.translation.y = origin_y
     transform.transform.translation.z = origin_z

@@ -99,6 +99,8 @@ def generate_saved_goals(method: str,
 
         rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
         scenario.restore_from_bag(service_provider, planner_params, bagfile_name)
+        environment = scenario.get_environment(planner_params)
+        scenario.plot_environment_rviz(environment)
 
         current_goal = load(save_test_scenes_dir, trial_idx)
         if current_goal is not None:
