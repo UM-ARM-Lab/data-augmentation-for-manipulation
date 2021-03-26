@@ -24,6 +24,7 @@ from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
 
 
+@ros_init.with_ros("generate_saved_goals")
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
@@ -39,7 +40,6 @@ def main():
 
     args = parser.parse_args()
 
-    ros_init.rospy_and_cpp_init('generate_test_scenes')
     generate_saved_goals(method=args.method,
                          scenario=args.scenario,
                          n_trials=args.n_trials,
@@ -47,7 +47,6 @@ def main():
                          planner_params_filename=args.planner_params,
                          save_test_scenes_dir=args.scenes_dir,
                          start_at=args.start_at)
-    ros_init.shutdown()
 
 
 def generate_saved_goals(method: str,
