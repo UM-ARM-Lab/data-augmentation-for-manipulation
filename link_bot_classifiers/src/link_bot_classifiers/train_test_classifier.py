@@ -137,13 +137,13 @@ def train_main(dataset_dirs: List[pathlib.Path],
 
 
 def eval_main(dataset_dirs: List[pathlib.Path],
+              checkpoint: pathlib.Path,
               mode: str,
               batch_size: int,
               use_gt_rope: bool,
               threshold: Optional[float] = None,
               old_compat: bool = False,
               take: Optional[int] = None,
-              checkpoint: Optional[pathlib.Path] = None,
               **kwargs):
     ###############
     # Model
