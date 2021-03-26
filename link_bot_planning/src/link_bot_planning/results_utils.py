@@ -57,6 +57,7 @@ def labeling_params_from_planner_params(planner_params, fallback_labeling_params
 
 def get_paths(datum: Dict, verbose: int = 0):
     steps = datum['steps']
+    types = []
     for step_idx, step in enumerate(steps):
         if verbose >= 1:
             print(step['type'])
@@ -88,7 +89,8 @@ def get_paths(datum: Dict, verbose: int = 0):
     if len(actions) > 0 and actions[0] is not None:
         yield actions[-1], actual_states[-1], predicted_states[-1], types[-1]
 
-    yield actions[-1], datum['end_state'], predicted_states[-1], types[-1]
+    if len(types) > 0:
+        yield actions[-1], datum['end_state'], predicted_states[-1], types[-1]
 
 
 def get_transitions(datum: Dict):

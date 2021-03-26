@@ -6,6 +6,7 @@ from typing import Dict
 import colorama
 import numpy as np
 
+import rospy
 from arc_utilities import ros_init
 from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningQuery
@@ -13,7 +14,7 @@ from link_bot_planning.plan_and_execute import TrialStatus
 from link_bot_planning.results_utils import labeling_params_from_planner_params, get_paths, \
     classifier_params_from_planner_params
 from link_bot_pycommon.args import my_formatter, int_set_arg
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 
 
@@ -27,7 +28,6 @@ def main():
     parser.add_argument("--threshold", type=float)
     parser.add_argument("--save", action='store_true')
     parser.add_argument("--only-timeouts", action='store_true')
-    parser.add_argument("--show-tree", action="store_true")
     parser.add_argument("--verbose", '-v', action="count", default=0)
 
     args = parser.parse_args()
@@ -45,7 +45,7 @@ def main():
             continue
 
         print(f"trial {trial_idx} ...")
-        plot_steps(args.show_tree, scenario, datum, metadata, {'threshold': threshold}, args.verbose)
+        plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose)
         print(f"... complete with status {datum['trial_status']}")
 
 
@@ -57,8 +57,7 @@ def get_goal_threshold(planner_params):
     return goal_threshold
 
 
-def plot_steps(show_tree: bool,
-               scenario: ExperimentScenario,
+def plot_steps(scenario: ScenarioWithVisualization,
                datum: Dict,
                metadata: Dict,
                fallback_labeing_params: Dict,
@@ -86,9 +85,13 @@ def plot_steps(show_tree: bool,
     first_step = steps[0]
     planning_query: PlanningQuery = first_step['planning_query']
     environment = planning_query.environment
-    actions, actual_states, predicted_states, types = zip(*get_paths(datum, verbose))
+    paths = list(get_paths(datum, verbose))
 
-    anim = RvizAnimationController(n_time_steps=len(actual_states))
+    if len(paths) == 0:
+        rospy.logwarn("empty trial!")
+        return
+
+    anim = RvizAnimationController(n_time_steps=len(paths))
 
     def _type_action_color(type_t: str):
         if type_t == 'executed_plan':
@@ -100,19 +103,12 @@ def plot_steps(show_tree: bool,
     while not anim.done:
         scenario.plot_environment_rviz(environment)
         t = anim.t()
-        s_t = actual_states[t]
-        s_t_pred = predicted_states[t]
+        a_t, s_t, s_t_pred, type_t = paths[t]
         scenario.plot_state_rviz(s_t, label='actual', color='#ff0000aa')
         c = '#0000ffaa'
-        if len(actions) > 0:
-            if t < anim.max_t:
-                type_t = types[t]
-                action_color = _type_action_color(type_t)
-                scenario.plot_action_rviz(s_t, actions[t], color=action_color)
-            else:
-                type_t = types[t - 1]
-                action_color = _type_action_color(type_t)
-                scenario.plot_action_rviz(actual_states[t - 1], actions[t - 1], color=action_color)
+        if t < anim.max_t:
+            action_color = _type_action_color(type_t)
+            scenario.plot_action_rviz(s_t, a_t, color=action_color)
 
         if s_t_pred is not None:
             scenario.plot_state_rviz(s_t_pred, label='predicted', color=c)
@@ -120,9 +116,11 @@ def plot_steps(show_tree: bool,
             scenario.plot_is_close(is_close)
         else:
             scenario.plot_is_close(None)
+
         dist_to_goal = scenario.distance_to_goal(s_t, goal)
         actually_at_goal = dist_to_goal < goal_threshold
         scenario.plot_goal_rviz(goal, goal_threshold, actually_at_goal)
+
         anim.step()
 
 
