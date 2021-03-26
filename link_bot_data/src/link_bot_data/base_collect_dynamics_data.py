@@ -86,6 +86,7 @@ class BaseDataCollector:
                                                             action_params=self.params,
                                                             validate=True)
             if invalid:
+                rospy.logwarn("unable to sample valid action")
                 return {}, invalid
 
             # Visualization
@@ -101,6 +102,7 @@ class BaseDataCollector:
             try:
                 self.scenario.execute_action(environment, state, action)
             except RobotPlanningError:
+                rospy.logwarn(f"error executing action {action}")
                 return {}, (invalid := True)
 
             # add to the dataset

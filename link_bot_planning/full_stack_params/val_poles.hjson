@@ -8,7 +8,7 @@
   collect_dynamics_2: {
     robot_namespace: val
     launch: val.launch
-    scenario: dual_arm_rope_sim_val
+    scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
     params: collect_dynamics_params/val_poles.hjson
     world: poles.world
     n_trajs: 3072
