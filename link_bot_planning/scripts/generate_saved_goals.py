@@ -14,8 +14,10 @@ from colorama import Fore
 import ros_numpy
 import rospy
 from arc_utilities import ros_init
+from arm_robots.robot import RobotPlanningError
 from geometry_msgs.msg import Point, Pose
 from link_bot_gazebo import gazebo_services
+from link_bot_planning.test_scenes import get_states_to_save, save_test_scene
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.basic_3d_pose_marker import Basic3DPoseInteractiveMarker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -69,6 +71,7 @@ def generate_saved_goals(method: str,
         params = hjson.load(params_file)
     with planner_params_filename.open("r") as planner_params_file:
         planner_params = hjson.load(planner_params_file)
+    scenario.move_objects_out_of_scene(params)
     scenario.on_before_data_collection(params)
     scenario.randomization_initialization(params)
 
@@ -97,7 +100,13 @@ def generate_saved_goals(method: str,
             continue
 
         rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
-        scenario.restore_from_bag(service_provider, planner_params, bagfile_name)
+        while True:
+            try:
+                scenario.restore_from_bag(service_provider, planner_params, bagfile_name)
+                break
+            except RobotPlanningError:
+                input("failed to plan, try to move the obstacles out of the way first")
+
         environment = scenario.get_environment(planner_params)
         scenario.plot_environment_rviz(environment)
 
@@ -111,15 +120,19 @@ def generate_saved_goals(method: str,
         elif method == 'rviz_marker':
             if current_goal is not None:
                 goal_im.set_pose(Pose(position=ros_numpy.msgify(Point, current_goal['point'])))
+            input("press enter to save")
             goal = rviz_marker_goal(goal_im)
         else:
             raise NotImplementedError()
+
+        joint_state, links_states = get_states_to_save()
+
+        save_test_scene(joint_state, links_states, save_test_scenes_dir, trial_idx, force=True)
 
         save(save_test_scenes_dir, trial_idx, goal)
 
 
 def rviz_marker_goal(goal_im: Basic3DPoseInteractiveMarker):
-    input("press enter to save")
     pose = goal_im.get_pose()
     goal = {
         'point': ros_numpy.numpify(pose.position).astype(np.float32)

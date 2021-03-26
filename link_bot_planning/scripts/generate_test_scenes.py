@@ -14,6 +14,7 @@ from link_bot_planning.test_scenes import save_test_scene, create_randomized_sta
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
 
+
 @ros_init.with_ros("generate_test_scenes")
 def main():
     colorama.init(autoreset=True)
@@ -23,7 +24,7 @@ def main():
     parser.add_argument("scenario", type=str, help='scenario')
     parser.add_argument("params", type=pathlib.Path, help='the data collection params file should work')
     parser.add_argument("scenes_dir", type=pathlib.Path)
-    parser.add_argument("--n-trials", type=int, default=100)
+    parser.add_argument("--n-trials", type=int, default=10)
     parser.add_argument("--test-restore", action='store_true')
     parser.add_argument("--start-at", type=int, default=0)
 
@@ -65,23 +66,12 @@ def generate_test_scenes(scenario: str,
         if trial_idx < start_at:
             continue
 
-        create_randomized_start_state(params, scenario, trial_idx)
+        # create_randomized_start_state(params, scenario, trial_idx)
+        input("press enter to save scene")
 
         joint_state, links_states = get_states_to_save()
 
-        bagfile_name = save_test_scene(joint_state, links_states, save_test_scenes_dir, trial_idx)
-
-        if test_restore:
-            scenario.robot.plan_to_joint_config("both_arms", 'home')
-            joint_config = {}
-            # NOTE: this will not work on victor because grippers don't work the same way
-            for joint_name in scenario.robot.get_move_group_commander("whole_body").get_active_joints():
-                index_of_joint_name_in_state_msg = joint_state.name.index(joint_name)
-                joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
-            scenario.robot.plan_to_joint_config("whole_body", joint_config)
-            service_provider.pause()
-            service_provider.restore_from_bag(bagfile_name=bagfile_name, excluded_models=['hdt_michigan'])
-            service_provider.play()
+        bagfile_name = save_test_scene(joint_state, links_states, save_test_scenes_dir, trial_idx, force=False)
 
 
 if __name__ == '__main__':

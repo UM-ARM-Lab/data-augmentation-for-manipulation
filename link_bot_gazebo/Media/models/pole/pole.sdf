@@ -1,0 +1,55 @@
+<sdf version="1.6">
+    <model name="pole">
+        <allow_auto_disable>true</allow_auto_disable>
+        <link name="link_1">
+            <kinematic>true</kinematic>
+            <pose>0 0 0.1 0 0 0 0</pose>
+            <inertial>
+                <pose>0 0 -0.08 0 0 0 0</pose>
+                <inertia>
+                    <ixx>0.03541666666666667</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>0.04166666666666667</iyy>
+                    <iyz>0</iyz>
+                    <izz>0.010416666666666668</izz>
+                </inertia>
+                <mass>10.0</mass>
+            </inertial>
+            <visual name="visual">
+                <geometry>
+                    <cylinder>
+                        <radius>0.05</radius>
+                        <length>2</length>
+                    </cylinder>
+                </geometry>
+                <material>
+                    <ambient>0.2 0.5 0.5 1.0</ambient>
+                    <diffuse>0.2 0.5 0.5 1.0</diffuse>
+                </material>
+            </visual>
+            <collision name="collision">
+                <geometry>
+                    <cylinder>
+                        <radius>0.05</radius>
+                        <length>2</length>
+                    </cylinder>
+                </geometry>
+                <surface>
+                    <friction>
+                        <ode>
+                            <mu>1.0</mu>
+                            <mu2>1.0</mu2>
+                        </ode>
+                    </friction>
+                    <contact>
+                        <ode>
+                            <kp>1e15</kp>
+                            <kd>1e12</kd>
+                        </ode>
+                    </contact>
+                </surface>
+            </collision>
+        </link>
+    </model>
+</sdf>
