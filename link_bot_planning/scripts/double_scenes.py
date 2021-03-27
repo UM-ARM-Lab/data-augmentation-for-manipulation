@@ -5,12 +5,10 @@ import pathlib
 import shutil
 
 import colorama
-import tensorflow as tf
 
 
 def main():
     colorama.init(autoreset=True)
-    tf.get_logger().setLevel(logging.ERROR)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("dirname", type=pathlib.Path)

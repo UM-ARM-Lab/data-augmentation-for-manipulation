@@ -29,17 +29,17 @@
   extent: [
     -0.6
     0.6
-    0.35
-    1.25
-    -0.1
-    0.75
+    0.10
+    1.05
+    -0.35
+    0.65
   ]
   state_sampler_extent: [
     # this is set to be a bit more conservative than "extent" to avoid annoying out-of-bounds edge cases
     -0.55
     0.55
-    0.4
-    1.2
+    0.2
+    0.9
     -0.05
     0.70
   ]
@@ -70,8 +70,12 @@
       ]
       # NOTE these are not used when we provide a test scenes directory, as I usually do
       nominal_poses: {
-        hooks_rack: {
-          position: [0, 1.05, 0.25]
+        pole1: {
+          position: [0.25, 0.75, 0.05]
+          orientation: [0, 0, 0]
+        }
+        pole2: {
+          position: [-0.25, 0.75, 0.05]
           orientation: [0, 0, 0]
         }
       }
