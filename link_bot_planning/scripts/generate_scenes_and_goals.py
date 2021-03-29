@@ -6,7 +6,6 @@ import pickle
 from typing import Optional, Dict
 
 import colorama
-import hjson
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
@@ -22,6 +21,7 @@ from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.basic_3d_pose_marker import Basic3DPoseInteractiveMarker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.pycommon import deal_with_exceptions
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
 
@@ -67,15 +67,50 @@ def generate_saved_goals(method: str,
                                real_time_rate=0.0,
                                max_step_size=0.01,
                                play=True)
-    with params_filename.open("r") as params_file:
-        params = hjson.load(params_file)
-    with planner_params_filename.open("r") as planner_params_file:
-        planner_params = hjson.load(planner_params_file)
+
+    # with params_filename.open("r") as params_file:
+    #     params = hjson.load(params_file)
+    # with planner_params_filename.open("r") as planner_params_file:
+    #     planner_params = hjson.load(planner_params_file)
+
+    params = {
+        'environment_randomization': {
+            'type':          'jitter',
+            'nominal_poses': {
+                'long_hook1': None,
+                'wall2':      None,
+            },
+        },
+        'reset_joint_config':        {
+            'joint1':  0,
+            'joint2':  0,
+            'joint3':  0,
+            'joint4':  0,
+            'joint41': 0,
+            'joint42': 0,
+            'joint43': 0,
+            'joint44': 0,
+            'joint45': 0,
+            'joint46': 0,
+            'joint47': 0,
+            'joint5':  0,
+            'joint56': 0,
+            'joint57': 0,
+            'joint6':  0,
+            'joint7':  0,
+        },
+        'res':                       0.02,
+        'extent':                    [-0.6, 0.6, 0.25, 1.15, -0.3, 0.6],
+        'goal_params':               {
+            'threshold': 0.05,
+        }
+    }
+
     scenario.move_objects_out_of_scene(params)
     scenario.on_before_data_collection(params)
     scenario.randomization_initialization(params)
 
-    goal_radius = planner_params['goal_params']['threshold']
+    goal_radius = params['goal_params']['threshold']
 
     if method == 'rviz_marker':
         print("Run the following: rosrun rviz_visual_tools imarker_simple_demo")
@@ -95,19 +130,21 @@ def generate_saved_goals(method: str,
 
         # restore
         bagfile_name = save_test_scenes_dir / f'scene_{trial_idx:04d}.bag'
-        if not bagfile_name.exists():
-            rospy.loginfo(Fore.YELLOW + f"No saved scene {bagfile_name}")
-            continue
+        if bagfile_name.exists():
+            rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
 
-        rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
-        while True:
-            try:
-                scenario.restore_from_bag(service_provider, planner_params, bagfile_name)
-                break
-            except RobotPlanningError:
+            def _restore():
+                scenario.restore_from_bag(service_provider, params, bagfile_name)
+
+            def _retry_msg():
                 input("failed to plan, try to move the obstacles out of the way first")
 
-        environment = scenario.get_environment(planner_params)
+            deal_with_exceptions(how_to_handle='retry',
+                                 function=_restore,
+                                 exception_callback=_retry_msg,
+                                 exceptions=(RobotPlanningError,))
+
+        environment = scenario.get_environment(params)
         scenario.plot_environment_rviz(environment)
 
         current_goal = load(save_test_scenes_dir, trial_idx)
@@ -116,7 +153,7 @@ def generate_saved_goals(method: str,
 
         print(trial_idx)
         if method == 'rejection_sample':
-            goal = rejection_sample_goal(scenario, params, planner_params, trial_idx)
+            goal = rejection_sample_goal(scenario, params, params, trial_idx)
         elif method == 'rviz_marker':
             if current_goal is not None:
                 goal_im.set_pose(Pose(position=ros_numpy.msgify(Point, current_goal['point'])))

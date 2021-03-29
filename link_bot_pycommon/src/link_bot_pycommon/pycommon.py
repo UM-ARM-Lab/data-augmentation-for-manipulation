@@ -4,7 +4,7 @@ import signal
 import string
 import traceback
 import warnings
-from typing import Union, List, Callable, Optional
+from typing import Union, List, Callable, Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -276,6 +276,7 @@ def log_scale_0_to_1(x, k=10):
 def deal_with_exceptions(how_to_handle: str,
                          function: Callable,
                          exception_callback: Optional[Callable] = None,
+                         exceptions: Optional[Tuple] = None,
                          value_on_no_retry_exception=None,
                          print_exception: bool = False,
                          **kwargs):
@@ -285,13 +286,16 @@ def deal_with_exceptions(how_to_handle: str,
             traceback.print_exc()
             print("End of caught exception.")
 
+    if exceptions is None:
+        exceptions = (Exception,)
+
     if how_to_handle == 'raise':
         return function(**kwargs)
     else:
         for i in range(10):
             try:
                 return function(**kwargs)
-            except Exception:
+            except exceptions:
                 if exception_callback is not None:
                     exception_callback()
                 if how_to_handle == 'retry':
