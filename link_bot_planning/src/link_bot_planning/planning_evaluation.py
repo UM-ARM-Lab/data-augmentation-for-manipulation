@@ -107,10 +107,11 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
         self.final_execution_to_goal_errors.append(final_execution_to_goal_error)
         goal_threshold = self.planner_params['goal_params']['threshold']
         n = len(self.final_execution_to_goal_errors)
-        success_percentage = np.count_nonzero(np.array(self.final_execution_to_goal_errors) < goal_threshold) / n * 100
+        n_success = np.count_nonzero(np.array(self.final_execution_to_goal_errors) < goal_threshold)
+        success_percentage = n_success / n * 100
         current_mean_error = np.mean(np.array(self.final_execution_to_goal_errors))
         update_msg = [
-            f"Success Rate={success_percentage:.2f}%",
+            f"Success={success_percentage:.2f}% [{n_success}/{n}]",
             f"Mean Error={current_mean_error:.3f}",
             f"Trial Time={trial_data['total_time']:.3f}s",
         ]

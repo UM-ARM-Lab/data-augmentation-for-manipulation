@@ -1,5 +1,5 @@
 {
-  method_name: (old) classifier
+  method_name: no recovery
   filter_model_dir: [
     filter_trials/none/none
   ]

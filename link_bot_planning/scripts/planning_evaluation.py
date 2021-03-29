@@ -4,13 +4,14 @@ import logging
 import pathlib
 
 import colorama
-import hjson
 import tensorflow as tf
 
 from arc_utilities import ros_init
+from arc_utilities.algorithms import nested_dict_update
 from link_bot_data.dataset_utils import data_directory
 from link_bot_planning.planning_evaluation import planning_evaluation
 from link_bot_pycommon.args import my_formatter, int_set_arg
+from moonshine.filepath_tools import load_hjson
 
 
 @ros_init.with_ros("planning_evaluation")
@@ -40,12 +41,9 @@ def main():
     planners_params = []
     for planner_params_filename in args.planners_params:
         planners_params_common_filename = planner_params_filename.parent / 'common.hjson'
-        with planners_params_common_filename.open('r') as planners_params_common_file:
-            planner_params_common_str = planners_params_common_file.read()
-        planner_params = hjson.loads(planner_params_common_str)
-        with planner_params_filename.open('r') as planner_params_file:
-            planner_params_str = planner_params_file.read()
-        planner_params.update(hjson.loads(planner_params_str))
+        common_planner_params = load_hjson(planners_params_common_filename)
+        planner_params = load_hjson(planner_params_filename)
+        planner_params = nested_dict_update(common_planner_params, planner_params)
         planners_params.append((planner_params_filename.stem, planner_params))
 
     planning_evaluation(outdir=root,
