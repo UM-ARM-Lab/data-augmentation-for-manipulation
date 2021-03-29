@@ -3,6 +3,9 @@
   filter_model_dir: [
     filter_trials/none/none
   ]
+  termination_criteria: {
+    attempted_extensions_threshold: 10000
+  }
   fwd_model_dir: [
     dy_trials/gt_rope_w_robot_0/best_checkpoint
     dy_trials/gt_rope_w_robot_1/best_checkpoint

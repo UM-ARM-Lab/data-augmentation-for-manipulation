@@ -102,7 +102,6 @@ class PlanningQuery:
     trial_start_time_seconds: float  # seconds, based on perf_counter()
 
 
-@dataclass_json
 @dataclass
 class PlanningResult:
     path: Optional[List[Dict]]

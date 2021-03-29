@@ -24,7 +24,7 @@ def make_goal_filename(root, idx):
 
 def get_all_scenes(dirname: pathlib.Path):
     scenes = []
-    bagfilenames = list(dirname.glob("*.bag"))
+    bagfilenames = sorted(list(dirname.glob("*.bag")))
     for bagfilename in bagfilenames:
         m = re.match(r'scene_(\d+).bag', bagfilename.name)
         idx = int(m.group(1))
@@ -36,34 +36,40 @@ def get_all_scenes(dirname: pathlib.Path):
 class TestScene:
 
     def __init__(self, root: pathlib.Path, idx: int):
-        self.idx = idx
         self.root = root
-        self.goal_filename = make_goal_filename(self.root, self.idx)
-        self.scene_filename = make_scene_filename(self.root, self.idx)
+        self.idx = idx
+        goal_filename = make_goal_filename(self.root, self.idx)
+        scene_filename = make_scene_filename(self.root, self.idx)
 
         # read the data
-        with rosbag.Bag(self.scene_filename) as bag:
+        with rosbag.Bag(scene_filename) as bag:
             self.joint_state = next(iter(bag.read_messages(topics=['joint_state'])))[1]
             self.links_states = next(iter(bag.read_messages(topics=['links_states'])))[1]
 
-        with self.goal_filename.open("rb") as goal_file:
+        with goal_filename.open("rb") as goal_file:
             self.goal = pickle.load(goal_file)
 
     def save(self, force: Optional[bool] = False):
+        goal_filename = make_goal_filename(self.root, self.idx)
+        scene_filename = make_scene_filename(self.root, self.idx)
         save_test_scene_given_name(joint_state=self.joint_state,
                                    links_states=self.links_states,
-                                   bagfile_name=self.scene_filename,
+                                   bagfile_name=scene_filename,
                                    force=force)
-        with self.goal_filename.open("wb") as saved_goal_file:
+        with goal_filename.open("wb") as saved_goal_file:
             pickle.dump(self.goal, saved_goal_file)
+
+    def delete(self):
+        goal_filename = make_goal_filename(self.root, self.idx)
+        scene_filename = make_scene_filename(self.root, self.idx)
+        scene_filename.unlink()
+        goal_filename.unlink()
 
     def change_index(self, new_idx: int, force: Optional[bool] = False):
         print(f'{self.idx}->{new_idx}')
 
-        in_scene_file = make_scene_filename(self.root, self.idx)
         out_scene_file = make_scene_filename(self.root, new_idx)
 
-        in_goal_file = make_goal_filename(self.root, self.idx)
         out_goal_file = make_goal_filename(self.root, new_idx)
 
         if not force:
@@ -72,15 +78,15 @@ class TestScene:
             if out_goal_file.exists():
                 raise RuntimeError(f"file {out_goal_file.as_posix()} exists!")
 
-        shutil.copy(in_scene_file, out_scene_file)
-        shutil.copy(in_goal_file, out_goal_file)
-
         self.idx = new_idx
+        self.save(force=force)
 
     def remove(self):
-        self.goal_filename.unlink(missing_ok=False)
-        self.scene_filename.unlink(missing_ok=False)
-        print(f"Removed {self.goal_filename.as_posix()} and {self.scene_filename.as_posix()}")
+        goal_filename = make_goal_filename(self.root, self.idx)
+        scene_filename = make_scene_filename(self.root, self.idx)
+        goal_filename.unlink(missing_ok=False)
+        scene_filename.unlink(missing_ok=False)
+        print(f"Removed {goal_filename.as_posix()} and {scene_filename.as_posix()}")
 
 
 def save_test_scene(joint_state: JointState,

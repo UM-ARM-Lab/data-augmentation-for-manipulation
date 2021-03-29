@@ -18,10 +18,17 @@ def remove_main(args):
             pass
 
 
+def list_main(args):
+    scenes = get_all_scenes(args.dirname)
+    for s in scenes:
+        print(s.idx)
+
+
 def consolidate_main(args):
     scenes = get_all_scenes(args.dirname)
     for new_idx, s in enumerate(scenes):
-        s.change_index(new_idx)
+        s.delete()
+        s.change_index(new_idx, force=True)
 
 
 def double_main(args):
@@ -47,6 +54,10 @@ def main():
     remove_parser.add_argument("dirname", type=pathlib.Path)
     remove_parser.add_argument("idx", type=int_set_arg)
     remove_parser.set_defaults(func=remove_main)
+
+    list_parser = subparsers.add_parser('list')
+    list_parser.add_argument("dirname", type=pathlib.Path)
+    list_parser.set_defaults(func=list_main)
 
     consolidate_parser = subparsers.add_parser('consolidate')
     consolidate_parser.add_argument("dirname", type=pathlib.Path)

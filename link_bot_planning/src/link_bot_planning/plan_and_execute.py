@@ -12,7 +12,6 @@ from dataclasses_json import dataclass_json
 
 import rospy
 from arc_utilities.listener import Listener
-from arm_robots.robot import RobotPlanningError
 from gazebo_msgs.msg import LinkStates
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers import recovery_policy_utils
@@ -220,7 +219,14 @@ class PlanAndExecute:
                                            trial_start_time_seconds=start_time)
             planning_queries.append(planning_query)
 
-            planning_result = self.plan(planning_query)
+            try:
+                planning_result = self.plan(planning_query)
+            except RuntimeError:
+                planning_result = PlanningResult(path=[],
+                                                 actions=[],
+                                                 status=MyPlannerStatus.Timeout,
+                                                 time=-1.0,
+                                                 tree=None)
 
             time_since_start = time.perf_counter() - start_time
 
