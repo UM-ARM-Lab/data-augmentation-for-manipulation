@@ -219,14 +219,7 @@ class PlanAndExecute:
                                            trial_start_time_seconds=start_time)
             planning_queries.append(planning_query)
 
-            try:
-                planning_result = self.plan(planning_query)
-            except RuntimeError:
-                planning_result = PlanningResult(path=[],
-                                                 actions=[],
-                                                 status=MyPlannerStatus.Timeout,
-                                                 time=-1.0,
-                                                 tree=None)
+            planning_result = self.plan(planning_query)
 
             time_since_start = time.perf_counter() - start_time
 
