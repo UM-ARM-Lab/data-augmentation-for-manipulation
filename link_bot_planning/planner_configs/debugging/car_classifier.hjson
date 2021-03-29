@@ -1,5 +1,5 @@
 {
-  method_name: fine-tuned classifier
+  method_name: (old) classifier
   filter_model_dir: [
     filter_trials/none/none
   ]
@@ -10,7 +10,7 @@
     dy_trials/gt_rope_w_robot_3/best_checkpoint
   ]
   classifier_model_dir: [
-    cl_trials/fine_tune_long_hooks_1/March_16_18-52-00_568d512864/best_checkpoint
+    cl_trials/val_car_feasible_1614981888/March_05_18-57-54_4b65490ac1/best_checkpoint
     cl_trials/new_feasibility_baseline/none
   ]
   recovery: {

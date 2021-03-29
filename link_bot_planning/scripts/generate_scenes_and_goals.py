@@ -33,8 +33,6 @@ def main():
 
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument("scenario", type=str, help='scenario')
-    parser.add_argument("params", type=pathlib.Path, help='the data collection params file should work')
-    parser.add_argument("planner_params", type=pathlib.Path, help='the planner common params file should work')
     parser.add_argument("scenes_dir", type=pathlib.Path)
     parser.add_argument("method", type=str, choices=['rejection_sample', 'rviz_marker'])
     parser.add_argument("--n-trials", type=int, default=100)
@@ -45,8 +43,6 @@ def main():
     generate_saved_goals(method=args.method,
                          scenario=args.scenario,
                          n_trials=args.n_trials,
-                         params_filename=args.params,
-                         planner_params_filename=args.planner_params,
                          save_test_scenes_dir=args.scenes_dir,
                          start_at=args.start_at)
 
@@ -54,8 +50,6 @@ def main():
 def generate_saved_goals(method: str,
                          scenario: str,
                          n_trials: int,
-                         params_filename: pathlib.Path,
-                         planner_params_filename: pathlib.Path,
                          start_at: int,
                          save_test_scenes_dir: Optional[pathlib.Path] = None
                          ):
@@ -68,43 +62,7 @@ def generate_saved_goals(method: str,
                                max_step_size=0.01,
                                play=True)
 
-    # with params_filename.open("r") as params_file:
-    #     params = hjson.load(params_file)
-    # with planner_params_filename.open("r") as planner_params_file:
-    #     planner_params = hjson.load(planner_params_file)
-
-    params = {
-        'environment_randomization': {
-            'type':          'jitter',
-            'nominal_poses': {
-                'long_hook1': None,
-                'wall2':      None,
-            },
-        },
-        'reset_joint_config':        {
-            'joint1':  0,
-            'joint2':  0,
-            'joint3':  0,
-            'joint4':  0,
-            'joint41': 0,
-            'joint42': 0,
-            'joint43': 0,
-            'joint44': 0,
-            'joint45': 0,
-            'joint46': 0,
-            'joint47': 0,
-            'joint5':  0,
-            'joint56': 0,
-            'joint57': 0,
-            'joint6':  0,
-            'joint7':  0,
-        },
-        'res':                       0.02,
-        'extent':                    [-0.6, 0.6, 0.25, 1.15, -0.3, 0.6],
-        'goal_params':               {
-            'threshold': 0.05,
-        }
-    }
+    params = get_params()
 
     scenario.move_objects_out_of_scene(params)
     scenario.on_before_data_collection(params)
@@ -167,6 +125,42 @@ def generate_saved_goals(method: str,
         save_test_scene(joint_state, links_states, save_test_scenes_dir, trial_idx, force=True)
 
         save(save_test_scenes_dir, trial_idx, goal)
+
+
+def get_params():
+    params = {
+        'environment_randomization': {
+            'type':          'jitter',
+            'nominal_poses': {
+                'long_hook1': None,
+                'wall2':      None,
+            },
+        },
+        'reset_joint_config':        {
+            'joint1':  0,
+            'joint2':  0,
+            'joint3':  0,
+            'joint4':  0,
+            'joint41': 0,
+            'joint42': 0,
+            'joint43': 0,
+            'joint44': 0,
+            'joint45': 0,
+            'joint46': 0,
+            'joint47': 0,
+            'joint5':  0,
+            'joint56': 0,
+            'joint57': 0,
+            'joint6':  0,
+            'joint7':  0,
+        },
+        'res':                       0.02,
+        'extent':                    [-0.6, 0.6, 0.25, 1.15, -0.3, 0.6],
+        'goal_params':               {
+            'threshold': 0.05,
+        }
+    }
+    return params
 
 
 def rviz_marker_goal(goal_im: Basic3DPoseInteractiveMarker):
