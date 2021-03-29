@@ -120,6 +120,7 @@ def generate_saved_goals(method: str,
         else:
             raise NotImplementedError()
 
+        rospy.loginfo(f"Saving {trial_idx}")
         joint_state, links_states = get_states_to_save()
 
         save_test_scene(joint_state, links_states, save_test_scenes_dir, trial_idx, force=True)
@@ -195,7 +196,6 @@ def load(save_test_scenes_dir: pathlib.Path, trial_idx: int):
 
 def save(save_test_scenes_dir: pathlib.Path, trial_idx: int, goal: Dict):
     saved_goal_filename = save_test_scenes_dir / f'goal_{trial_idx:04d}.pkl'
-    rospy.loginfo(f"Saving goal to {saved_goal_filename}")
     with saved_goal_filename.open("wb") as saved_goal_file:
         pickle.dump(goal, saved_goal_file)
 
