@@ -1,0 +1,147 @@
+<?xml version='1.0'?>
+<sdf version='1.7'>
+  <model name='ring'>
+    <link name='link_1'>
+      <kinematic>1</kinematic>
+      <inertial>
+        <mass>0.00070675</mass>
+        <inertia>
+          <ixx>8.7e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>8.7e-06</iyy>
+          <iyz>0</iyz>
+          <izz>1.6e-07</izz>
+        </inertia>
+        <pose>0 0 0 0 -0 0</pose>
+      </inertial>
+      <pose>0 -0.22 0 0 -1.5707 0</pose>
+      <visual name='visual'>
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.5</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name='collision'>
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.5</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <link name='link_1_clone'>
+      <inertial>
+        <mass>0.00070675</mass>
+        <inertia>
+          <ixx>8.7e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>8.7e-06</iyy>
+          <iyz>0</iyz>
+          <izz>1.6e-07</izz>
+        </inertia>
+        <pose>0 0 0 0 -0 0</pose>
+      </inertial>
+      <pose>-0.22 -0 0 -1.56956 -1.5707 -0.00124</pose>
+      <kinematic>1</kinematic>
+      <visual name='visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.5</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name='collision'>
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.5</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <link name='link_1_clone_0'>
+      <inertial>
+        <mass>0.00070675</mass>
+        <inertia>
+          <ixx>8.7e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>8.7e-06</iyy>
+          <iyz>0</iyz>
+          <izz>1.6e-07</izz>
+        </inertia>
+      </inertial>
+      <pose>0.22 -0 0 1.57049 -1.5707 -0.000307</pose>
+      <kinematic>1</kinematic>
+      <visual name='visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.5</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name='collision'>
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.5</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <link name='link_1_clone_1'>
+      <inertial>
+        <mass>0.00037175</mass>
+        <inertia>
+          <ixx>1.3e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>1.3e-06</iyy>
+          <iyz>0</iyz>
+          <izz>9e-08</izz>
+        </inertia>
+      </inertial>
+      <pose>0 0.22 0 0 -1.5707 0</pose>
+      <kinematic>1</kinematic>
+      <visual name='visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.24</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name='collision'>
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.24</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <joint name='link_1_JOINT_0' type='fixed'>
+      <parent>link_1</parent>
+      <child>link_1_clone_0</child>
+    </joint>
+    <joint name='link_1_JOINT_1' type='fixed'>
+      <parent>link_1</parent>
+      <child>link_1_clone</child>
+    </joint>
+    <joint name='link_1_JOINT_2' type='fixed'>
+      <parent>link_1</parent>
+      <child>link_1_clone_1</child>
+    </joint>
+    <allow_auto_disable>1</allow_auto_disable>
+  </model>
+</sdf>
