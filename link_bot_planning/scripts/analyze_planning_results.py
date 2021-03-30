@@ -181,6 +181,13 @@ def generate_metrics(analysis_params: Dict, out_dir: pathlib.Path, subfolders_or
     _include_metric(PlannerSolved)
 
     for subfolder in subfolders_ordered:
+
+        skip_filename = subfolder / '.skip'
+        if skip_filename.exists():
+            print(f"skipping {subfolder.name}")
+        else:
+            print(Fore.GREEN + f"processing {subfolder.name}")
+
         metrics_filenames = list(subfolder.glob("*_metrics.pkl.gz"))
 
         metadata = load_json_or_hjson(subfolder, 'metadata')
