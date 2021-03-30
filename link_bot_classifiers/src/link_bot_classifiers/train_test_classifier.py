@@ -29,6 +29,7 @@ from moonshine.image_augmentation import voxel_grid_augmentation
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
+from moonshine.moonshine_utils import remove_batch
 from state_space_dynamics import common_train_hparams
 from state_space_dynamics.train_test import setup_training_paths
 from std_msgs.msg import ColorRGBA
@@ -188,76 +189,83 @@ def eval_main(dataset_dirs: List[pathlib.Path],
     return val_metrics
 
 
-def iterate_dataset_with_classifier(dataset_dirs: List[pathlib.Path],
-                                    checkpoint: pathlib.Path,
-                                    mode: str,
-                                    batch_size: int,
-                                    start_at: int,
-                                    use_gt_rope: bool,
-                                    take: int = None,
-                                    threshold: Optional[float] = None,
-                                    **kwargs):
-    # Model
-    trials_directory = pathlib.Path('trials').absolute()
-    trial_path = checkpoint.parent.absolute()
-    _, params = filepath_tools.create_or_load_trial(trial_path=trial_path,
-                                                    trials_directory=trials_directory)
+class ClassifierEvaluation:
+    def __init__(self, dataset_dirs: List[pathlib.Path],
+                 checkpoint: pathlib.Path,
+                 mode: str,
+                 batch_size: int,
+                 start_at: int,
+                 use_gt_rope: bool,
+                 take: int = None,
+                 threshold: Optional[float] = None,
+                 **kwargs):
+        self.start_at = start_at
+        trials_directory = pathlib.Path('trials').absolute()
+        trial_path = checkpoint.parent.absolute()
+        _, params = filepath_tools.create_or_load_trial(trial_path=trial_path,
+                                                        trials_directory=trials_directory)
 
-    # Dataset
-    dataset = ClassifierDatasetLoader(dataset_dirs,
-                                      load_true_states=True,
-                                      use_gt_rope=use_gt_rope,
-                                      threshold=threshold)
-    tf_dataset = dataset.get_datasets(mode=mode)
+        # Dataset
+        self.dataset = ClassifierDatasetLoader(dataset_dirs,
+                                               load_true_states=True,
+                                               use_gt_rope=use_gt_rope,
+                                               threshold=threshold)
+        self.tf_dataset = self.dataset.get_datasets(mode=mode)
 
-    # Iterate
-    tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
-    if take is not None:
-        tf_dataset = tf_dataset.take(take)
+        # Iterate
+        self.tf_dataset = self.tf_dataset.batch(batch_size, drop_remainder=True)
+        if take is not None:
+            self.tf_dataset = self.tf_dataset.take(take)
 
-    model = classifier_utils.load_generic_model(checkpoint)
+        self.model = classifier_utils.load_generic_model(checkpoint)
+        self.scenario = self.dataset.scenario
 
-    yield dataset, model
+    def __iter__(self):
+        for batch_idx, example in enumerate(progressbar(self.tf_dataset, widgets=base_dataset.widgets)):
+            if batch_idx < self.start_at:
+                continue
 
-    for batch_idx, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
-        if batch_idx < start_at:
-            continue
+            example.update(self.dataset.batch_metadata)
+            predictions = self.model.check_constraint_from_example(example, training=False)
 
-        example.update(dataset.batch_metadata)
-        predictions = model.check_constraint_from_example(example, training=False)
-
-        yield batch_idx, example, predictions
-
-
-def filter_dataset_with_classifier(dataset_dirs: List[pathlib.Path],
-                                   checkpoint: pathlib.Path,
-                                   mode: str,
-                                   should_keep_example: Callable,
-                                   batch_size: int = 1,
-                                   start_at: int = 0,
-                                   use_gt_rope: bool = True,
-                                   take: int = None,
-                                   take_after_filter: int = None,
-                                   threshold: Optional[float] = None,
-                                   **kwargs):
-    itr = iterate_dataset_with_classifier(dataset_dirs=dataset_dirs,
-                                          checkpoint=checkpoint,
-                                          mode=mode,
-                                          batch_size=batch_size,
-                                          take=take,
-                                          start_at=start_at,
-                                          use_gt_rope=use_gt_rope,
-                                          threshold=threshold)
-    yield next(itr)
-
-    count = 0
-    for batch_idx, example, predictions in itr:
-        if count >= take_after_filter:
-            return
-
-        if should_keep_example(example, predictions):
             yield batch_idx, example, predictions
-            count += 1
+
+
+class ClassifierEvaluationFilter:
+    def __init__(self, dataset_dirs: List[pathlib.Path],
+                 checkpoint: pathlib.Path,
+                 mode: str,
+                 should_keep_example: Callable,
+                 start_at: int = 0,
+                 use_gt_rope: bool = True,
+                 take: int = None,
+                 take_after_filter: int = None,
+                 threshold: Optional[float] = None,
+                 **kwargs):
+        self.view = ClassifierEvaluation(dataset_dirs=dataset_dirs,
+                                         checkpoint=checkpoint,
+                                         mode=mode,
+                                         batch_size=1,
+                                         start_at=start_at,
+                                         use_gt_rope=use_gt_rope,
+                                         take=take,
+                                         threshold=threshold,
+                                         **kwargs)
+        self.take_after_filter = take_after_filter
+        self.should_keep_example = should_keep_example
+        self.scenario = self.view.scenario
+        self.dataset = self.view.dataset
+        self.model = self.view.model
+
+    def __iter__(self):
+        count = 0
+        for batch_idx, example, predictions in self.view:
+            if self.take_after_filter is not None and count >= self.take_after_filter:
+                return
+
+            if self.should_keep_example(remove_batch(example), predictions):
+                yield batch_idx, example, predictions
+                count += 1
 
 
 def viz_main(dataset_dirs: List[pathlib.Path],
@@ -276,16 +284,16 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              old_compat: bool = False,
              threshold: Optional[float] = None,
              **kwargs):
-    itr = iterate_dataset_with_classifier(dataset_dirs=dataset_dirs,
-                                          checkpoint=checkpoint,
-                                          mode=mode,
-                                          batch_size=batch_size,
-                                          start_at=start_at,
-                                          use_gt_rope=use_gt_rope,
-                                          threshold=threshold)
-    dataset, model = next(itr)
+    view = ClassifierEvaluation(dataset_dirs=dataset_dirs,
+                                checkpoint=checkpoint,
+                                mode=mode,
+                                batch_size=batch_size,
+                                start_at=start_at,
+                                use_gt_rope=use_gt_rope,
+                                threshold=threshold,
+                                **kwargs)
 
-    for batch_idx, example, predictions in itr:
+    for batch_idx, example, predictions in view:
         labels = tf.expand_dims(example['is_close'][:, 1:], axis=2)
 
         probabilities = predictions['probabilities']
@@ -336,13 +344,13 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 scenario.plot_accept_probability(accept_probability_t)
                 scenario.plot_traj_idx_rviz(batch_idx * batch_size + b)
 
-            anim = RvizAnimation(scenario=dataset.scenario,
-                                 n_time_steps=dataset.horizon,
+            anim = RvizAnimation(scenario=view.dataset.scenario,
+                                 n_time_steps=view.dataset.horizon,
                                  init_funcs=[init_viz_env,
-                                             dataset.init_viz_action(),
+                                             view.dataset.init_viz_action(),
                                              ],
                                  t_funcs=[_custom_viz_t,
-                                          dataset.classifier_transition_viz_t(),
+                                          view.dataset.classifier_transition_viz_t(),
                                           ExperimentScenario.plot_dynamics_stdev_t,
                                           ])
 

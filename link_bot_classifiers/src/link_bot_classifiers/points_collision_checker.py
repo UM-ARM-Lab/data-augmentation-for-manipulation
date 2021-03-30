@@ -75,6 +75,7 @@ class PointsCollisionChecker(BaseConstraintChecker):
         return tf.stack(c_s, axis=0)[tf.newaxis]
 
     def check_constraint_from_example(self, example: Dict, training: Optional[bool] = False):
+        # NOTE: input will be batched
         # TODO: where should this come from?
         env_keys = ['env', 'res', 'origin', 'extent']
         state_keys = ['rope', 'left_gripper', 'right_gripper']
@@ -82,7 +83,11 @@ class PointsCollisionChecker(BaseConstraintChecker):
         environment = {k: example[k] for k in env_keys}
         states = {k: example[k] for k in state_keys}
         actions = {k: example[k] for k in action_keys}
-        states_list = dict_of_sequences_to_sequence_of_dicts(states)
-        actions_list = dict_of_sequences_to_sequence_of_dicts(actions)
+        batch_size = 1
+        state_sequence_length = 1
 
-        return self.check_constraint_tf(environment, states_list, actions_list)
+        return self.check_constraint_tf_batched(environment,
+                                                states,
+                                                actions,
+                                                batch_size,
+                                                state_sequence_length)

@@ -6,7 +6,6 @@ import numpy as np
 import tensorflow as tf
 
 from link_bot_classifiers import classifier_utils
-from link_bot_classifiers.nn_classifier import NNClassifierWrapper
 from link_bot_data.visualization import init_viz_env
 from link_bot_data.viz_for_model import viz_transition_for_model_t_batched
 from link_bot_gazebo.gazebo_services import GazeboServices
@@ -22,7 +21,7 @@ def test_classifier(classifier_model_dir: pathlib.Path,
                     saved_state: Optional[pathlib.Path],
                     generate_actions: Callable):
     fwd_model, _ = dynamics_utils.load_generic_model([pathlib.Path(p) for p in fwd_model_dir])
-    classifier: NNClassifierWrapper = classifier_utils.load_generic_model([classifier_model_dir])
+    classifier = classifier_utils.load_generic_model(classifier_model_dir)
 
     service_provider = GazeboServices()
     service_provider.setup_env(verbose=0,
@@ -85,11 +84,11 @@ def sample_random_actions(environment: Dict,
                           scenario: ExperimentScenario,
                           params: Dict,
                           n_actions: int):
-    aciton_rng = np.random.RandomState(0)
+    action_rng = np.random.RandomState(0)
     actions = scenario.sample_action_batch(environment=environment,
                                            state=start_state_tiled,
                                            action_params=params,
-                                           action_rng=aciton_rng,
+                                           action_rng=action_rng,
                                            validate=False,
                                            batch_size=n_actions)
     return actions
