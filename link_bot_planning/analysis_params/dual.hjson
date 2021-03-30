@@ -40,5 +40,8 @@
     "rack classifier": "#4FA982"
     "party classifier": "#0028FB"
     "long hook classifier": "#A11C5C"
+
+    "with recovery": "#0028FB"
+    "no recovery": "#A11C5C"
   }
 }
