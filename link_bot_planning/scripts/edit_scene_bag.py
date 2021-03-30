@@ -13,12 +13,16 @@ def move_poles_up(s: TestScene):
     return s
 
 
-def adjust_trash_pos(s: TestScene):
-    idx = s.links_states.name.index("trash::body")
-    s.links_states.pose[idx].position.x -= 0.01
-    s.links_states.pose[idx].position.y -= 0.00
-    # links_states.pose[idx].position.z += 0.00
+def adjust_link_pos(s: TestScene, link_name: str, dx: float = 0, dy: float = 0, dz: float = 0):
+    idx = s.links_states.name.index(link_name)
+    s.links_states.pose[idx].position.x += dx
+    s.links_states.pose[idx].position.y += dy
+    s.links_states.pose[idx].position.z += dz
     return s
+
+
+def adjust_trash_pos(s: TestScene):
+    return adjust_link_pos(s, "trash::body", 0.01, 0, 0)
 
 
 def replace_chair_with_trash(s: TestScene):
@@ -42,15 +46,15 @@ def change_joint_config(s: TestScene):
 
 
 def main():
-    scene_dir = "party"
-    scene_idx = 0
+    scene_dir = "trash"
+    scene_idx = 5
 
     root_dir = pathlib.Path("/home/peter/catkin_ws/src/link_bot/link_bot_planning/test_scenes")
     scenes_fulldir = root_dir / scene_dir
 
     s = TestScene(scenes_fulldir, scene_idx)
 
-    s = change_joint_config(s)
+    s = adjust_link_pos(s, 'trash::body', dy=-0.04)
     s.save(force=True)
 
 
