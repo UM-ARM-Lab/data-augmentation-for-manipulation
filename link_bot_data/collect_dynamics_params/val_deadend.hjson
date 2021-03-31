@@ -1,5 +1,5 @@
 {
-  name: val_ring
+  name: val_deadend
   reset_joint_config: {
     joint1: 0.0
     joint2: 0.0
