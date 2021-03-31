@@ -1,0 +1,83 @@
+{
+  scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
+  reset_joint_config: {
+    joint1: 0.0,
+    joint2: 0.0,
+    joint3: 0.0,
+    joint4: 0.0,
+    joint41: 0.0,
+    joint42: 0.0,
+    joint43: 0.0,
+    joint44: 0.0,
+    joint45: 0.0,
+    joint46: 0.0,
+    joint47: 0.0,
+    joint5: 0.0,
+    joint56: 0.0,
+    joint57: 0.0,
+    joint6: 0.0,
+    joint7: 0.0,
+  }
+  termination_criteria: {
+    total_timeout: 600
+    timeout: 600
+    attempted_extensions_threshold: 32
+  }
+  action_params: {
+    max_distance_between_grippers: 1.0
+  }
+  extent: [
+    -0.6
+    0.6
+    0.25
+    1.15
+    -0.3
+    0.7
+  ]
+  state_sampler_extent: [
+    # this is set to be a bit more conservative than "extent" to avoid annoying out-of-bounds edge cases
+    -0.5
+    0.5
+    0.3
+    1.1
+    0.0
+    0.65
+  ]
+  planner_type: rrt
+  accept_threshold: 0.5
+  goal_params: {
+    type: saved
+    goal_type: any_point
+    threshold: 0.06
+    extent: [
+    ]
+  }
+  environment_randomization: {
+      type: jitter
+      jitter_extent: [
+      ]
+      # NOTE these are not used when we provide a test scenes directory, as I usually do
+      nominal_poses: {
+        right_wall: {
+          position: [0.0, 0.0, 0]
+          orientation: [0, 0, 0]
+        }
+      }
+  }
+  real_time_rate: 0.0
+  filter_model_dir: [
+    filter_trials/none/none
+  ]
+  horizon: 2
+  smooth: true
+  # Local Planner Parameters
+  use_local_planner: true
+  iters: 2,
+  length_alpha: 0
+  goal_alpha: 1
+  constraints_alpha: 0
+  action_alpha: 1
+  initial_learning_rate: 0.2
+  # shortcutting
+  n_shortcut_attempts: 25
+}

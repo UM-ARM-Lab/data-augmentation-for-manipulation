@@ -47,13 +47,13 @@
         <include>
             <name>left_wall</name>
             <uri>model://wall1</uri>
-            <pose>-0.3 1.0 0.1 1.5707 0 1.5707</pose>
+            <pose>-0.3 0.7 0.1 1.5707 0 1.5707</pose>
         </include>
 
         <include>
             <name>right_wall</name>
             <uri>model://wall1</uri>
-            <pose>0.1 1.0 0.1 1.5707 0 1.5707</pose>
+            <pose>0.1 0.7 0.1 1.5707 0 1.5707</pose>
         </include>
 
         <include>
