@@ -1,0 +1,40 @@
+{
+  nickname: val_ring
+  filename: log/val_ring/logfile.hjson
+  collect_dynamics_data_1:
+  {
+    dynamics_dataset_dir: fwd_model_data/baseline_gt_rope_phase1_1606682161_1b3bea4d11_2048
+  }
+  learn_dynamics:
+  {
+    model_dirs:
+    [
+      dy_trials/gt_rope_w_robot_0
+      dy_trials/gt_rope_w_robot_1
+      dy_trials/gt_rope_w_robot_2
+      dy_trials/gt_rope_w_robot_3
+    ]
+    classifier_threshold: 0.05
+  }
+  make_recovery_dataset:
+  {
+    recovery_dataset_dir: recovery_data/val_car_1611326554
+  }
+  learn_recovery:
+  {
+    model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e
+  }
+  collect_dynamics_data_2:
+  {
+    dynamics_dataset_dir: fwd_model_data/val_ring_phase2_1617119749_cd38796d16_3072
+  }
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/val_ring_1617119744
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/val_ring_1617119744/March_31_07-16-56_ddd68bd06a
+  }
+  planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_ring
+}

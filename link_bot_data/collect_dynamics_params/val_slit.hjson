@@ -1,22 +1,22 @@
 {
-  name: val_ring
+  name: val_slit
   reset_joint_config: {
-    joint1: 0.71
-    joint2: -0.47
-    joint3: 1.06
-    joint4: 0.44
-    joint41: -0.08
-    joint42: 0.70
-    joint43: -0.69
-    joint44: 0.66
-    joint45: 2.39
-    joint46: -0.98
-    joint47: 0.13
-    joint5: -1.97
-    joint56: 0.23
-    joint57: 0.16
-    joint6: 1.5
-    joint7: 0.07
+    joint1: 0.0
+    joint2: 0.0
+    joint3: 0.0
+    joint4: 0.0
+    joint5: 0.0
+    joint6: 0.0
+    joint7: 0.0
+    joint41: 0.0
+    joint42: 0.0
+    joint43: 0.0
+    joint44: 0.0
+    joint45: 0.0
+    joint46: 0.0
+    joint47: 0.0
+    joint56: 0.0
+    joint57: 0.0
   }
   extent: [
     -0.6
