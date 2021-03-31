@@ -19,6 +19,6 @@
     use_recovery: false
   }
   termination_criteria: {
-    attempted_extensions_threshold: 10000
+    attempted_extensions_threshold: 500
   }
 }
