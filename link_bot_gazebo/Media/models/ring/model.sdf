@@ -23,6 +23,12 @@
             <length>0.5</length>
           </cylinder>
         </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Blue</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
       </visual>
       <collision name='collision'>
         <geometry>
@@ -33,6 +39,7 @@
         </geometry>
       </collision>
     </link>
+
     <link name='link_1_clone'>
       <inertial>
         <mass>0.00070675</mass>
@@ -56,6 +63,12 @@
             <length>0.5</length>
           </cylinder>
         </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Blue</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
       </visual>
       <collision name='collision'>
         <geometry>
@@ -66,6 +79,7 @@
         </geometry>
       </collision>
     </link>
+
     <link name='link_1_clone_0'>
       <inertial>
         <mass>0.00070675</mass>
@@ -88,6 +102,12 @@
             <length>0.5</length>
           </cylinder>
         </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Blue</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
       </visual>
       <collision name='collision'>
         <geometry>
@@ -98,6 +118,7 @@
         </geometry>
       </collision>
     </link>
+
     <link name='link_1_clone_1'>
       <inertial>
         <mass>0.00037175</mass>
@@ -120,6 +141,12 @@
             <length>0.24</length>
           </cylinder>
         </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Blue</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
       </visual>
       <collision name='collision'>
         <geometry>
@@ -130,18 +157,5 @@
         </geometry>
       </collision>
     </link>
-    <joint name='link_1_JOINT_0' type='fixed'>
-      <parent>link_1</parent>
-      <child>link_1_clone_0</child>
-    </joint>
-    <joint name='link_1_JOINT_1' type='fixed'>
-      <parent>link_1</parent>
-      <child>link_1_clone</child>
-    </joint>
-    <joint name='link_1_JOINT_2' type='fixed'>
-      <parent>link_1</parent>
-      <child>link_1_clone_1</child>
-    </joint>
-    <allow_auto_disable>1</allow_auto_disable>
   </model>
 </sdf>
