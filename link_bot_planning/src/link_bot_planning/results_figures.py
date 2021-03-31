@@ -134,7 +134,8 @@ class BarChartPercentagePerMethodFigure(MyFigure):
         self.ax.set_xticklabels(self.metric.values.keys())
 
     def make_row(self, method_name: str, values_for_method: np.array, table_format: str):
-        row = [make_cell(method_name, table_format), values_for_method[0]]
+        percentage_solved = np.sum(values_for_method) / values_for_method.shape[0] * 100
+        row = [make_cell(method_name, table_format), percentage_solved]
         return row
 
     def get_table_header(self):
