@@ -44,6 +44,7 @@
     "party classifier": "#0028FB"
     "long hook classifier": "#A11C5C"
     "slit classifier": "#FF2FAC"
+    "deadend classifier": "#AAFF33"
 
     "with recovery": "#0028FB"
     "no recovery": "#A11C5C"
