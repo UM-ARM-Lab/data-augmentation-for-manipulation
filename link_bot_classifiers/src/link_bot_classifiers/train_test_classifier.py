@@ -400,7 +400,7 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
                        balance: Optional[bool] = True,
                        no_plot: Optional[bool] = True,
                        **kwargs):
-    classifiers_nickname = ensemble_path.name
+    classifiers_nickname = ensemble_path.parent.name
     outdir = pathlib.Path('results') / dataset_dir / classifiers_nickname
     outdir.mkdir(exist_ok=True, parents=True)
     outfile = outdir / f'results_{int(time())}.npz'
