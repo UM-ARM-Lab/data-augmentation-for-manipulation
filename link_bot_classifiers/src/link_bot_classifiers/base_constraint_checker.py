@@ -71,7 +71,7 @@ class ConstraintCheckerEnsemble(BaseConstraintChecker):
         constraint_satisfied = classifier_ensemble_check_constraint(self.A, self.B, mean, stdev)
 
         # DEBUGGING
-        self.scenario.plot_stdev(stdev)
+        # self.scenario.plot_stdev(stdev)
         # END DEBUGGING
 
         return constraint_satisfied
