@@ -36,5 +36,5 @@
   {
     model_dir: cl_trials/val_slit_1617224535/April_01_04-38-27_82dae37730
   }
-  val_slit: {}
+  planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_slit
 }
