@@ -37,11 +37,13 @@
     "party": "#A11C5C"
     "ring": "#31FCBC"
     "deadend": "#AAFF33"
+    "slit": "#FF2FAC"
 
     "car classifier": "#00DB79"
     "rack classifier": "#4FA982"
     "party classifier": "#0028FB"
     "long hook classifier": "#A11C5C"
+    "slit classifier": "#FF2FAC"
 
     "with recovery": "#0028FB"
     "no recovery": "#A11C5C"
