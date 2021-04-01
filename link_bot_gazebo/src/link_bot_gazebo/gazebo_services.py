@@ -41,7 +41,9 @@ class GazeboServices(BaseServices):
                 link_state.twist = twist
                 set_states_req.link_states.append(link_state)
 
-        self.set_link_states(set_states_req)
+        res = self.set_link_states(set_states_req)
+        if not res.success:
+            raise RuntimeError(f"Failed to restore state! {res}")
 
     def launch(self, params, **kwargs):
         gui = kwargs.get("gui", True)
