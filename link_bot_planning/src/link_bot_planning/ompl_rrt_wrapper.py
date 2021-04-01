@@ -25,23 +25,6 @@ from link_bot_planning.timeout_or_not_progressing import TimeoutOrNotProgressing
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 
-class LinearSchedule:
-    def __init__(self, begin: float, end: float):
-        self.begin = begin
-        self.end = end
-
-    def __call__(self, theta):
-        """
-
-        Args:
-            theta: between 0 and 1 inclusive
-
-        Returns:
-
-        """
-        return theta * (self.end - self.begin) + self.begin
-
-
 class OmplRRTWrapper(MyPlanner):
 
     def __init__(self,
