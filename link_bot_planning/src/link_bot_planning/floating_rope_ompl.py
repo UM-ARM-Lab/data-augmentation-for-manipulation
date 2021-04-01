@@ -738,7 +738,7 @@ class RopeAndGrippersBoxesGoalRegion(ob.GoalSampleableRegion):
         self.rng = rng
         self.plot = plot
 
-    def isSatisfied(self, state: ob.CompoundState, distance):
+    def isSatisfied(self, state: ob.CompoundState):
         state_np = self.scenario_ompl.ompl_state_to_numpy(state)
         rope_points = np.reshape(state_np['rope'], [-1, 3])
         n_from_ends = 7
