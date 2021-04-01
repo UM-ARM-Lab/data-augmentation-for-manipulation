@@ -28,4 +28,13 @@
   {
     dynamics_dataset_dir: fwd_model_data/val_deadend_1617195836_464b9e00ae_3072/
   }
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/val_deadend_1617235474
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/val_deadend_1617235474/March_31_21-16-48_3e35903c2e
+  }
+  val_deadend: {}
 }
