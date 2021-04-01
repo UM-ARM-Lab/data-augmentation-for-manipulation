@@ -58,9 +58,9 @@
       ]
       # NOTE these are not used when we provide a test scenes directory, as I usually do
       nominal_poses: {
+        left_wall: {
+        }
         right_wall: {
-          position: [0.0, 0.0, 0]
-          orientation: [0, 0, 0]
         }
       }
   }
