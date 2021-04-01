@@ -15,7 +15,9 @@ import ros_numpy
 import rospy
 from geometry_msgs.msg import Point
 from link_bot_classifiers import classifier_utils
-from link_bot_classifiers.classifier_utils import load_generic_model, make_max_class_prob
+from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
+from link_bot_classifiers.classifier_utils import load_generic_model
+from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg, get_filter
@@ -496,6 +498,8 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
                                   take=take,
                                   balance=balance,
                                   **kwargs)
+    # TODO: use ClassifierEvaluationFilter
+
     for dataset, batch_idx, batch, mean_predictions, stdev_predictions in itr:
         mean_probabilities = mean_predictions['probabilities']
         mean_mcps = make_max_class_prob(mean_probabilities)
@@ -521,10 +525,21 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
             ensemble_stdev_b = ensemble_stdev[b]
             ensemble_mean_b = ensemble_mean[b]
             label_b = batch_labels[b]
+            example_b['accept_probability'] = [ensemble_mean_b]
 
             stdev_filter = get_filter('stdev', **kwargs)
             mcp_filter = get_filter('mcp', **kwargs)
             label_filter = get_filter('label', **kwargs)
+
+            A = tf.constant([[0.20057761, 2.24315289]])
+            B = tf.constant([-1.29731397])
+            accept = classifier_ensemble_check_constraint(A, B, tf.expand_dims(ensemble_mean_b, axis=0),
+                                                          tf.expand_dims(ensemble_stdev_b, axis=0))
+
+            decision_b = ensemble_mean_b > 0.5
+            is_fp = tf.logical_and(tf.logical_not(label_b), decision_b)
+            if not is_fp:
+                continue
 
             if not stdev_filter(ensemble_stdev_b):
                 continue
@@ -534,6 +549,8 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
 
             if not label_filter(label_b):
                 continue
+
+            print(ensemble_mean_b, ensemble_stdev_b, bool(accept.numpy().squeeze()))
 
             marker = Marker()
             marker.ns = 'grippers'
@@ -558,6 +575,7 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
                                              dataset.init_viz_action(),
                                              ],
                                  t_funcs=[_custom_viz_t,
+                                          ExperimentScenario.plot_accept_probability_t,
                                           dataset.classifier_transition_viz_t(),
                                           ExperimentScenario.plot_dynamics_stdev_t,
                                           ])

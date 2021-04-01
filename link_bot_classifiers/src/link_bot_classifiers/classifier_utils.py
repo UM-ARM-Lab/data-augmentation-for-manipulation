@@ -39,8 +39,3 @@ def load_generic_model(path: pathlib.Path,
         return FastRobotFeasibilityChecker(path, scenario=scenario)
     else:
         raise NotImplementedError("invalid model type {}".format(model_type))
-
-
-def make_max_class_prob(probabilities):
-    other_class_probabilities = 1 - probabilities
-    return np.maximum(probabilities, other_class_probabilities)

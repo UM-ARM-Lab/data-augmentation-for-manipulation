@@ -124,10 +124,12 @@ class PlanAndExecute:
 
         # Debugging
         if self.verbose >= 2:
-            self.goal_bbox_pub = rospy.Publisher('goal_bbox', BoundingBox, queue_size=10, latch=True)
-            bbox_msg = extent_to_bbox(planner_params['goal_params']['extent'])
-            bbox_msg.header.frame_id = 'world'
-            self.goal_bbox_pub.publish(bbox_msg)
+            random_goals_extent = planner_params['goal_params'].get("extent", None)
+            if random_goals_extent is not None and len(random_goals_extent) == 6:
+                self.goal_bbox_pub = rospy.Publisher('goal_bbox', BoundingBox, queue_size=10, latch=True)
+                bbox_msg = extent_to_bbox(random_goals_extent)
+                bbox_msg.header.frame_id = 'world'
+                self.goal_bbox_pub.publish(bbox_msg)
 
         goal_params = self.planner_params['goal_params']
         if goal_params['type'] == 'fixed':
