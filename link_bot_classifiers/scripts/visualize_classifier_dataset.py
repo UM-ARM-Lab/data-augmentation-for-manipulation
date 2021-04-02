@@ -49,7 +49,8 @@ def main():
                                                  load_true_states=True,
                                                  threshold=args.threshold,
                                                  use_gt_rope=args.use_gt_rope,
-                                                 old_compat=args.old_compat)
+                                                 old_compat=args.old_compat,
+                                                 )
 
     visualize_dataset(args, classifier_dataset)
 

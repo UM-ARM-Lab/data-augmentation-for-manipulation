@@ -18,7 +18,7 @@ from visualization_msgs.msg import Marker
 def visualize_dataset(args, classifier_dataset):
     grippers_viz_pub = rospy.Publisher("grippers_viz_pub", Marker, queue_size=10)
 
-    tf_dataset = classifier_dataset.get_datasets(mode=args.mode)
+    tf_dataset = classifier_dataset.get_datasets(mode=args.mode, shuffle=args.shuffle, shuffle_files=args.shuffle)
 
     tf_dataset = tf_dataset.batch(1)
     tf_dataset = tf_dataset.take(args.take)
