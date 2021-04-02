@@ -182,7 +182,11 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
 class TaskErrorLineFigure(MyFigure):
     def __init__(self, analysis_params: Dict, metric: ResultsMetric):
         super().__init__(analysis_params, metric, name="task_error_lineplot")
-        self.fig.suptitle(self.params['experiment_name'])
+        scene = metric.metadata.get('scenes_name', None)
+        if scene is not None:
+            self.fig.suptitle(f"{self.params['experiment_name']} ({scene})")
+        else:
+            self.fig.suptitle(f"{self.params['experiment_name']}")
         max_error = self.params["max_error"]
         self.errors_thresholds = np.linspace(0.01, max_error, self.params["n_error_bins"])
         self.ax.set_xlabel("Task Error Threshold (m)")

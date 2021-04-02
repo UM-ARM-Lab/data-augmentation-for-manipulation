@@ -1,0 +1,33 @@
+{
+  "max_error": 0.35,
+  "mer_threshold": 0.05,
+  "n_error_bins": 89,
+  "experiment_name": "Dual Arm Rope Manipulation",
+  "colors": {
+    "cc, os, feasibility": "#FF3333",
+    "cc, gd, feasibility": "#FF3333",
+    "heuristic": "#FF3333",
+
+    "(old) classifier": "#DD33AA",
+
+    "car": "#DD33AA",
+    "deadend": "#AAFF33",
+    "long hook": "#0022FF",
+    "party": "#AA99AA",
+    "rack": "#442288",
+    "ring": "#33FFBB",
+    "slit": "#337700",
+
+    "car classifier": "#DD33AA",
+    "deadend classifier": "#AAFF33",
+    "long hook classifier": "#0022FF",
+    "party classifier": "#AA99AA",
+    "rack classifier": "#442288",
+    "slit classifier": "#337700",
+
+    "car classifier ensemble": "#FF99EE",
+
+    "with recovery": "#0022FF",
+    "no recovery": "#AA1155"
+  }
+}

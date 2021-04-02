@@ -16,8 +16,10 @@ class ResultsMetric:
         self.results_dir = results_dir
         self.values = {}
         self.method_indices = {}
+        self.metadata = None
 
     def setup_method(self, method_name: str, metadata: Dict):
+        self.metadata = metadata
         self.values[method_name] = []
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
@@ -138,13 +140,17 @@ class PlanningTime(ResultsMetric):
 
 class PlannerSolved(ResultsMetric):
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
-        solved = False
-        for step in trial_datum['steps']:
-            if step['type'] == 'executed_plan':
-                planning_result: PlanningResult = step['planning_result']
-                if planning_result.status == MyPlannerStatus.Solved:
-                    solved = True
-        return solved
+        return any_solved(trial_datum)
+
+
+def any_solved(trial_datum: Dict):
+    solved = False
+    for step in trial_datum['steps']:
+        if step['type'] == 'executed_plan':
+            planning_result: PlanningResult = step['planning_result']
+            if planning_result.status == MyPlannerStatus.Solved:
+                solved = True
+    return solved
 
 
 __all__ = [

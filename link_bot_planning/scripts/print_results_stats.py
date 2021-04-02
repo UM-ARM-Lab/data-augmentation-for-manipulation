@@ -6,14 +6,13 @@ import pathlib
 import colorama
 import numpy as np
 import tabulate
-from progressbar import progressbar
 
 import rospy
 from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
+from link_bot_planning.results_metrics import any_solved
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
-from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_json_or_hjson
 
 
@@ -23,7 +22,6 @@ def metrics_main(args):
 
     rows = []
     for trial_idx, datum in results_utils.trials_generator(args.results_dir):
-        # trial_idx = datum['trial_idx']
         status = datum['trial_status']
         end_state = datum['end_state']
         goal = datum['goal']
@@ -31,20 +29,21 @@ def metrics_main(args):
         used_recovery = False
         recovery_successful = False
         num_recoveries = 0
-        for step in datum['steps']:
+        steps = datum['steps']
+        for step in steps:
             if step['type'] == 'executed_recovery':
                 num_recoveries += 1
                 used_recovery = True
             if used_recovery and step['type'] == 'executed_plan':
                 recovery_successful = True
-        final_planning_result: PlanningResult = datum['steps'][-1]['planning_result']
-        solved = final_planning_result.status == MyPlannerStatus.Solved
+
+        solved = any_solved(datum)
         row = [trial_idx,
                status.name,
                f'{task_error:.3f}',
                int(used_recovery),
                int(recovery_successful),
-               int(not solved),
+               int(solved),
                num_recoveries]
         rows.append(row)
 

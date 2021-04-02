@@ -57,6 +57,10 @@ def labeling_params_from_planner_params(planner_params, fallback_labeling_params
 
 def get_paths(datum: Dict, verbose: int = 0):
     steps = datum['steps']
+
+    if len(steps) == 0:
+        return
+
     types = []
     for step_idx, step in enumerate(steps):
         if verbose >= 1:
