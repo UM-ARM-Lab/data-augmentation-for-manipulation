@@ -54,6 +54,16 @@ def angle_from_configuration(state):
     return angle_2d(v1, v2)
 
 
+def approx_range_split_counts(n: int, splits: int):
+    return [len(s) for s in approx_range_split(n, splits)]
+
+
+def approx_range_split(n: int, splits: int):
+    if splits > n:
+        raise ValueError(f"splits {splits} > n {n}")
+    return np.array_split(range(n), splits)
+
+
 def angle_2d(v1, v2):
     return np.math.atan2(np.linalg.det([v1, v2]), np.dot(v1, v2))
 

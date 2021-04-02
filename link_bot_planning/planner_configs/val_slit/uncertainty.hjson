@@ -20,4 +20,5 @@
   termination_criteria: {
     attempted_extensions_threshold: 100
   }
+  n_shortcut_attempts: 0
 }

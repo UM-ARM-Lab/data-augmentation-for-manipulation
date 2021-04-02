@@ -8,11 +8,28 @@ from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from link_bot_pycommon.grid_utils import point_to_idx_3d_in_env
-from link_bot_pycommon.pycommon import longest_reconverging_subsequence, trim_reconverging, catch_timeout, retry_on_timeout
+from link_bot_pycommon.pycommon import longest_reconverging_subsequence, trim_reconverging, catch_timeout, \
+    retry_on_timeout, approx_range_split
 from link_bot_pycommon.ros_pycommon import make_movable_object_services
 
 
 class Test(TestCase):
+    def test_approx_range_split(self):
+        for x, y in zip(approx_range_split(10, 1), [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]):
+            np.testing.assert_allclose(x, y)
+        for x, y in zip(approx_range_split(10, 2), [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]):
+            np.testing.assert_allclose(x, y)
+        for x, y in zip(approx_range_split(10, 3), [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9]]):
+            np.testing.assert_allclose(x, y)
+        for x, y in zip(approx_range_split(10, 4), [[0, 1, 2], [3, 4, 5], [6, 7], [8, 9]]):
+            np.testing.assert_allclose(x, y)
+        for x, y in zip(approx_range_split(10, 9), [[0, 1], [2], [3], [4], [5], [6], [7], [8], [9]]):
+            np.testing.assert_allclose(x, y)
+        for x, y in zip(approx_range_split(10, 10), [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9]]):
+            np.testing.assert_allclose(x, y)
+        with self.assertRaises(ValueError):
+            approx_range_split(2, 3)
+
     def test_retry_on_timeout(self):
         rng = np.random.RandomState(0)
 

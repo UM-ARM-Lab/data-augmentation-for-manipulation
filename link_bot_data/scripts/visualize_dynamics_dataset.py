@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-from collections import OrderedDict
 
 import colorama
 import matplotlib.pyplot as plt
@@ -11,7 +10,7 @@ from progressbar import progressbar
 
 from arc_utilities import ros_init
 from link_bot_data import base_dataset
-from link_bot_data.dataset_utils import deserialize_scene_msg
+from link_bot_data.dataset_utils import deserialize_scene_msg, pprint_example
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_pycommon.args import my_formatter
 from moonshine.moonshine_utils import numpify
@@ -43,13 +42,7 @@ def main():
     # print info about shapes
     example = next(iter(tf_dataset))
     print("Example:")
-    for k, v in example.items():
-        if hasattr(v, 'shape'):
-            print(k, v.shape)
-        elif isinstance(v, OrderedDict):
-            print(k, numpify(v))
-        else:
-            print(k, v)
+    pprint_example(example)
 
     for i, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
         if args.start_at is not None and i < args.start_at:

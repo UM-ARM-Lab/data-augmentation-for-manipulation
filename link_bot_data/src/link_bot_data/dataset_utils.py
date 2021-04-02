@@ -2,6 +2,7 @@
 import os
 import pathlib
 import time
+from collections import OrderedDict
 from io import BytesIO
 from typing import Optional, Dict
 
@@ -14,10 +15,13 @@ from colorama import Fore
 from arc_utilities.filesystem_utils import mkdir_and_ask
 from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
-from moonshine.moonshine_utils import remove_batch, add_batch
+from moonshine.moonshine_utils import remove_batch, add_batch, numpify
 from moveit_msgs.msg import PlanningScene
 
 NULL_PAD_VALUE = -10000
+
+DEFAULT_VAL_SPLIT = 0.125
+DEFAULT_TEST_SPLIT = 0.125
 
 # FIXME this is hacky as hell
 STRING_KEYS = [
@@ -369,7 +373,7 @@ def tf_write_example(full_output_directory: pathlib.Path,
 
 
 def tf_write_features(full_output_directory: pathlib.Path, features: Dict, example_idx: int):
-    record_filename = "example_{:09d}.tfrecords".format(example_idx)
+    record_filename = index_to_record_name(example_idx)
     full_filename = full_output_directory / record_filename
     features['tfrecord_path'] = bytes_feature(full_filename.as_posix().encode("utf-8"))
     example_proto = tf.train.Example(features=tf.train.Features(feature=features))
@@ -383,7 +387,7 @@ def tf_write_features(full_output_directory: pathlib.Path, features: Dict, examp
 def count_up_to_next_record_idx(full_output_directory):
     record_idx = 0
     while True:
-        record_filename = "example_{:09d}.tfrecords".format(record_idx)
+        record_filename = index_to_record_name(record_idx)
         full_filename = full_output_directory / record_filename
         if not full_filename.exists():
             break
@@ -446,13 +450,39 @@ def get_filter(name: str, **kwargs):
     return _always_true_filter
 
 
-def modify_pad_env(example: Dict, x, y, z):
+def modify_pad_env(example: Dict, h, w, c):
     padded_env, new_origin, new_extent = pad_voxel_grid(voxel_grid=example['env'],
                                                         origin=example['origin'],
                                                         res=example['res'],
                                                         extent=example['extent'],
-                                                        new_shape=[x, y, z])
+                                                        new_shape=[h, w, c])
     example['env'] = padded_env
     example['extent'] = new_extent
     example['origin'] = new_origin
     return example
+
+
+def pprint_example(example):
+    for k, v in example.items():
+        if hasattr(v, 'shape'):
+            print(k, v.shape)
+        elif isinstance(v, OrderedDict):
+            print(k, numpify(v))
+        else:
+            print(k, v)
+
+
+def index_to_record_name(traj_idx):
+    return index_to_filename('.tfrecords', traj_idx)
+
+
+def index_to_filename(file_extension, traj_idx):
+    new_filename = f"example_{traj_idx:08d}{file_extension}"
+    return new_filename
+
+
+def train_test_split_counts(n: int, val_split: int = DEFAULT_VAL_SPLIT, test_split: int = DEFAULT_TEST_SPLIT):
+    n_test = int(test_split * n)
+    n_val = int(val_split * n)
+    n_train = n - n_test - n_val
+    return n_train, n_val, n_test

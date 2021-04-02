@@ -42,7 +42,7 @@ def main():
         traj_idx += 1
 
     for i, path in enumerate(sorted(paths_to_merge)):
-        new_filename = index_to_filename(file_extension, traj_idx)
+        new_filename = index_to_metrics_filename(file_extension, traj_idx)
         new_path = args.outdir / new_filename
         traj_idx += 1
         print(path, '-->', new_path)
@@ -53,7 +53,7 @@ def main():
                 shutil.copyfile(path, new_path)
 
 
-def index_to_filename(file_extension, traj_idx):
+def index_to_metrics_filename(file_extension, traj_idx):
     new_filename = f"{traj_idx}_metrics{file_extension}"
     return new_filename
 

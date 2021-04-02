@@ -128,7 +128,6 @@ class OmplRRTWrapper(MyPlanner):
         return valid
 
     def motions_valid(self, motions):
-        print(".", end='', flush=True)
         final_state = self.scenario_ompl.ompl_state_to_numpy(motions[-1].getState())
 
         motions_valid = final_state['num_diverged'] < self.params['horizon'] - 1  # yes, minus 1
@@ -231,6 +230,9 @@ class OmplRRTWrapper(MyPlanner):
         dt = now - self.last_propagate_time
         self.progagate_dts.append(dt)
         self.last_propagate_time = now
+
+        # print(".", end='', flush=True)
+        print(dt)
 
         # Convert from OMPL -> Numpy
         previous_states, previous_actions = self.motions_to_numpy(motions)

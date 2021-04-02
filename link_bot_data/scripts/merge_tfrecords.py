@@ -6,6 +6,8 @@ import shutil
 import colorama
 import hjson
 
+from link_bot_data.dataset_utils import index_to_filename
+
 
 def main():
     colorama.init(autoreset=True)
@@ -48,11 +50,6 @@ def main():
             print(path, '-->', new_path)
             if not args.dry_run:
                 shutil.copyfile(path, new_path)
-
-
-def index_to_filename(file_extension, traj_idx):
-    new_filename = f"example_{traj_idx:08d}{file_extension}"
-    return new_filename
 
 
 if __name__ == '__main__':

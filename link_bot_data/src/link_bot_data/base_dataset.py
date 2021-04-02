@@ -13,9 +13,6 @@ from colorama import Fore
 from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func, parse_and_slow_deserialize, multigen
 from moonshine.filepath_tools import load_params
 
-DEFAULT_VAL_SPLIT = 0.125
-DEFAULT_TEST_SPLIT = 0.125
-
 SORT_FILE_NAME = 'sort_order.csv'
 
 widgets = [

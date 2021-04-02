@@ -19,9 +19,9 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('suffix', type=str, help='string added to the new dataset name')
-    parser.add_argument('x', type=int, help='x')
-    parser.add_argument('y', type=int, help='y')
-    parser.add_argument('z', type=int, help='z')
+    parser.add_argument('h', type=int, help='h')
+    parser.add_argument('w', type=int, help='w')
+    parser.add_argument('c', type=int, help='c')
 
     args = parser.parse_args()
 
@@ -29,7 +29,7 @@ def main():
 
     def _process_example(dataset: DynamicsDatasetLoader, example: Dict):
         deserialize_scene_msg(example)
-        example = modify_pad_env(example, args.x, args.y, args.z)
+        example = modify_pad_env(example, args.h, args.w, args.c)
         yield example
 
     hparams_update = {}

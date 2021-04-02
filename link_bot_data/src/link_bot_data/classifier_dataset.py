@@ -6,7 +6,7 @@ from colorama import Fore
 
 import rospy
 from link_bot_data.base_dataset import BaseDatasetLoader
-from link_bot_data.dataset_utils import add_predicted, use_gt_rope, add_label
+from link_bot_data.dataset_utils import add_predicted, use_gt_rope, add_label, pprint_example
 from link_bot_data.visualization import classifier_transition_viz_t, init_viz_action, init_viz_env
 from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
@@ -30,7 +30,7 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         self.threshold = threshold if threshold is not None else self.labeling_params['threshold']
         self.use_gt_rope = use_gt_rope if use_gt_rope is not None else self.hparams['use_gt_rope']
         if self.use_gt_rope:
-            rospy.loginfo(Fore.GREEN + f"Using groud-truth rope")
+            rospy.loginfo(Fore.GREEN + f"Using groud-truth rope" + Fore.RESET)
         rospy.loginfo(f"classifier using threshold {self.threshold}")
         self.horizon = self.hparams['labeling_params']['classifier_horizon']
         self.scenario = get_scenario(self.hparams['scenario'])
@@ -128,3 +128,8 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
 
     def init_viz_action(self):
         return init_viz_action(self.scenario_metadata, self.action_keys, self.predicted_state_keys)
+
+    def pprint_example(self):
+        dataset = self.get_datasets(mode='val', take=1)
+        example = next(iter(dataset))
+        pprint_example(example)
