@@ -15,6 +15,9 @@
   ]
   recovery: {
     recovery_model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e/best_checkpoint
-    use_recovery: true
+    use_recovery: false
+  }
+  termination_criteria: {
+    attempted_extensions_threshold: 500
   }
 }
