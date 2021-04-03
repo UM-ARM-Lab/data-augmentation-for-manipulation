@@ -231,8 +231,8 @@ class OmplRRTWrapper(MyPlanner):
         self.progagate_dts.append(dt)
         self.last_propagate_time = now
 
-        # print(".", end='', flush=True)
-        print(dt)
+        print(".", end='', flush=True)
+        # print(dt)
 
         # Convert from OMPL -> Numpy
         previous_states, previous_actions = self.motions_to_numpy(motions)
