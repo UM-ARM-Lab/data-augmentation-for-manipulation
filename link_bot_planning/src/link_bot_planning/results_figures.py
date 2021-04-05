@@ -21,8 +21,14 @@ class MyFigure:
         self.name = name
         self.fig, self.ax = self.create_figure()
 
+        scene = metric.metadata.get('scene_name', None)
+        if scene is not None:
+            self.fig.suptitle(f"{self.params['experiment_name']} ({scene})")
+        else:
+            self.fig.suptitle(f"{self.params['experiment_name']}")
+
     def create_figure(self):
-        return plt.subplots(figsize=(7.3, 4))
+        return plt.subplots(figsize=(10, 4))
 
     def make_table(self, table_format):
         table_data = []
@@ -45,10 +51,11 @@ class MyFigure:
         for method_name, values_for_method in self.metric.values.items():
             color = 'k'
             colors = self.params["colors"]
-            if method_name in colors:
-                color = colors[method_name]
+            method_name_for_color = method_name.replace("*", "")
+            if method_name_for_color in colors:
+                color = colors[method_name_for_color]
             else:
-                m = re.fullmatch(r"(.*?) \((\d+)\)", method_name)
+                m = re.fullmatch(r"(.*?) \((\d+)\)", method_name_for_color)
                 if m:
                     method_name_without_number = m.group(0)
                     if method_name_without_number in colors:
@@ -182,11 +189,6 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
 class TaskErrorLineFigure(MyFigure):
     def __init__(self, analysis_params: Dict, metric: ResultsMetric):
         super().__init__(analysis_params, metric, name="task_error_lineplot")
-        scene = metric.metadata.get('scenes_name', None)
-        if scene is not None:
-            self.fig.suptitle(f"{self.params['experiment_name']} ({scene})")
-        else:
-            self.fig.suptitle(f"{self.params['experiment_name']}")
         max_error = self.params["max_error"]
         self.errors_thresholds = np.linspace(0.01, max_error, self.params["n_error_bins"])
         self.ax.set_xlabel("Task Error Threshold (m)")
