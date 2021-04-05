@@ -13,10 +13,6 @@ catkin_package(
         DEPENDS OMPL
 )
 
-add_library(link_bot_planning src/floating_rope_ompl.cpp)
-target_include_directories(link_bot_planning SYSTEM PUBLIC include ${catkin_INCLUDE_DIRS} ${OMPL_INCLUDE_DIRS})
-target_link_libraries(link_bot_planning PUBLIC ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
-
-# pybind_add_module(roscpp_initializer src/roscpp_initializer.cpp)
-# target_include_directories(roscpp_initializer SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
-# target_link_libraries(roscpp_initializer PUBLIC ${catkin_LIBRARIES})
+# add_library(link_bot_planning src/floating_rope_ompl.cpp)
+# target_include_directories(link_bot_planning SYSTEM PUBLIC include ${catkin_INCLUDE_DIRS} ${OMPL_INCLUDE_DIRS})
+# target_link_libraries(link_bot_planning PUBLIC ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
