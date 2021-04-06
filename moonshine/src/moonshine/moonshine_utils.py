@@ -1,8 +1,10 @@
+import pathlib
 from typing import Dict, Optional
 
 import genpy
 import numpy as np
 import tensorflow as tf
+from colorama import Fore
 
 
 def check_numerics(x, msg: Optional[str] = "found infs or nans!"):
@@ -319,3 +321,26 @@ def reduce_mean_dict(dict):
     for k, v in dict.items():
         reduced_dict[k] = tf.reduce_mean(tf.stack(v, axis=0))
     return reduced_dict
+
+
+def restore_variables(complete_checkpoint: pathlib.Path, **variables):
+    """
+    Args:
+        complete_checkpoint:
+        **variables: the names are what to restore fomr, the values are what to restore to
+            for example, 'conv_layers=model.conv_layers' would load conv_layers from the given checkpoint
+            and use it to initialize model.conv_layers
+
+    Returns:
+
+    """
+    model_checkpoint = tf.train.Checkpoint(**variables)
+    # "model" matches the name used in the checkpoint (see ckpt creation in modol_runner.py, "model=self.model")
+    # the saved checkpoint contains things other than the model, hence why we have this second Checkpoint
+    complete_checkpoint = tf.train.Checkpoint(model=model_checkpoint)
+    checkpoint_manager = tf.train.CheckpointManager(complete_checkpoint, complete_checkpoint.as_posix(), max_to_keep=1)
+    status = complete_checkpoint.restore(checkpoint_manager.latest_checkpoint)
+    status.expect_partial()
+    status.assert_existing_objects_matched()
+    assert checkpoint_manager.latest_checkpoint is not None
+    print(Fore.MAGENTA + "Restored {}".format(checkpoint_manager.latest_checkpoint) + Fore.RESET)

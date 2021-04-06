@@ -48,7 +48,10 @@ def main():
     train_dataset = ClassifierDatasetLoader(args.dataset_dirs, use_gt_rope=True, load_true_states=True)
     val_dataset = ClassifierDatasetLoader(args.dataset_dirs, use_gt_rope=True, load_true_states=True)
 
+    # decrease the learning rate, this is often done in fine-tuning
+    model_hparams['learning_rate'] = 1e-4  # normally 1e-3
     model = model_class(hparams=model_hparams, batch_size=args.batch_size, scenario=train_dataset.scenario)
+
     runner = ModelRunner(model=model,
                          training=True,
                          params=model_hparams,
@@ -60,6 +63,13 @@ def main():
                          trial_path=trial_path)
 
     train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, args.batch_size, train_dataset, val_dataset)
+
+    # Modify the model for feature transfer & fine-tuning
+    for c in model.conv_layers:
+        c.trainable = False
+    for d in model.dense_layers:
+        d.trainable = False
+    model.lstm.trainable = False
 
     runner.train(train_tf_dataset, val_tf_dataset, num_epochs=args.epochs)
 

@@ -12,6 +12,7 @@ import rospy
 from arc_utilities import ros_init
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error
 from link_bot_data.dataset_utils import tf_write_example, add_predicted
+from link_bot_data.files_dataset import FilesDataset
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
@@ -44,23 +45,23 @@ def main():
 
     args = parser.parse_args()
 
-    r = ResultsToDynamicsDataset(args.results_dir,
-                                 args.outdir,
-                                 args.labeling_params,
-                                 args.trial_indices,
-                                 args.full_tree,
-                                 args.visualize,
-                                 args.gui,
-                                 args.launch,
-                                 args.world,
-                                 args.subsample_fraction)
+    r = ResultsToClassifierDataset(args.results_dir,
+                                   args.outdir,
+                                   args.labeling_params,
+                                   args.trial_indices,
+                                   args.full_tree,
+                                   args.visualize,
+                                   args.gui,
+                                   args.launch,
+                                   args.world,
+                                   args.subsample_fraction)
 
 
 def compute_example_idx(trial_idx, example_idx_for_trial):
     return 10_000 * trial_idx + example_idx_for_trial
 
 
-class ResultsToDynamicsDataset:
+class ResultsToClassifierDataset:
 
     def __init__(self,
                  results_dir: pathlib.Path,
@@ -81,6 +82,8 @@ class ResultsToDynamicsDataset:
         self.visualize = visualize
         self.viz_id = 0
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
+
+        self.files = FilesDataset(outdir)
 
         if self.full_tree:
             self.scenario.on_before_get_state_or_execute_action()
@@ -154,7 +157,8 @@ class ResultsToDynamicsDataset:
                 print(
                     f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
                 example = try_make_dict_tf_float32(example)
-                tf_write_example(outdir, example, self.example_idx)
+                full_filename = tf_write_example(outdir, example, self.example_idx)
+                self.files.add(full_filename)
                 example_idx_for_trial += 1
 
                 job_chunker.store_result(trial_idx, {'trial':              trial_idx,
@@ -162,6 +166,8 @@ class ResultsToDynamicsDataset:
 
             job_chunker.store_result(trial_idx, {'trial':              trial_idx,
                                                  'examples for trial': example_idx_for_trial})
+
+        self.files.split()
 
     def full_results_to_classifier_dataset(self,
                                            results_dir: pathlib.Path,

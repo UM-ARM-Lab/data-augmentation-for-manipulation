@@ -5,7 +5,6 @@ import time
 from typing import Optional, List
 
 import tensorflow as tf
-from colorama import Fore
 
 from link_bot_classifiers.nn_recovery_policy import NNRecoveryModel
 from link_bot_data.dataset_utils import batch_tf_dataset
@@ -14,6 +13,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_to_json
 from moonshine import filepath_tools
 from moonshine.model_runner import ModelRunner
+from moonshine.moonshine_utils import restore_variables
 
 
 def train_main(dataset_dirs: List[pathlib.Path],
@@ -24,8 +24,6 @@ def train_main(dataset_dirs: List[pathlib.Path],
                epochs: int,
                seed: int,
                checkpoint: Optional[pathlib.Path] = None,
-               ensemble_idx: Optional[int] = None,
-               trials_directory=pathlib.Path,
                **kwargs,
                ):
     ###############
@@ -63,24 +61,13 @@ def train_main(dataset_dirs: List[pathlib.Path],
     # Initialize weights from classifier model by "restoring" from checkpoint
     ############
     if not checkpoint:
-        # load in the weights for the conv & dense layers of the classifier's encoder, skip the last few layers
-        classifier_model = tf.train.Checkpoint(conv_layers=model.conv_layers)
-        classifier_root = tf.train.Checkpoint(model=classifier_model)
-        classifier_checkpoint_manager = tf.train.CheckpointManager(
-            classifier_root, classifier_checkpoint.as_posix(), max_to_keep=1)
-
-        status = classifier_root.restore(classifier_checkpoint_manager.latest_checkpoint)
-        status.expect_partial()
-        status.assert_existing_objects_matched()
-        assert classifier_checkpoint_manager.latest_checkpoint is not None
-        print(Fore.MAGENTA + "Restored {}".format(classifier_checkpoint_manager.latest_checkpoint) + Fore.RESET)
+        # load in the weights for the conv layers of the classifier's encoder, skip the last few layers
+        restore_variables(classifier_checkpoint, conv_layers=model.conv_layers)
     ############
 
     trial_path = None
-    checkpoint_name = None
     if checkpoint:
         trial_path = checkpoint.parent.absolute()
-        checkpoint_name = checkpoint.name
     trials_directory = pathlib.Path('recovery_trials').absolute()
     group_name = log if trial_path is None else None
     trial_path, _ = filepath_tools.create_or_load_trial(group_name=group_name,
@@ -102,6 +89,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
     runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
 
     return trial_path
+
 
 def eval_main(dataset_dirs: List[pathlib.Path],
               checkpoint: pathlib.Path,
