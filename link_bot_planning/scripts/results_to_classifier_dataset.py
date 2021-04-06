@@ -34,7 +34,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
     parser.add_argument("outdir", type=pathlib.Path, help='output directory')
-    parser.add_argument('--full-tree', action=BooleanAction, required=True)
+    parser.add_argument('--full-tree', action=BooleanAction)
     parser.add_argument("--labeling-params", type=pathlib.Path, help='labeling params',
                         default=pathlib.Path('labeling_params/classifier/dual.hjson'))
     parser.add_argument("--visualize", action='store_true', help='visualize')
