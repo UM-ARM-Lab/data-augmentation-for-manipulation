@@ -100,6 +100,8 @@ class SizedTFDataset:
 
     def balance(self):
         # double it, because want to up-sample the underrepresented class. This approximates that.
+        # If the under-represented class makes up >33% then this will be exact, if it's less the we will
+        # start dropping examples from the over-represented class to make up for it.
         new_dataset_size = self.size * 2
         positive_dataset = self.dataset.filter(label_is(1))
         negative_dataset = self.dataset.filter(label_is(0))

@@ -18,7 +18,7 @@ from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
 from link_bot_planning.results_utils import get_transitions
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
-from link_bot_pycommon.args import my_formatter, int_set_arg, BooleanOptionalAction
+from link_bot_pycommon.args import my_formatter, int_set_arg, BooleanAction
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions, try_make_dict_tf_float32
@@ -33,9 +33,10 @@ def main():
     np.set_printoptions(linewidth=250, precision=3, suppress=True)
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
-    parser.add_argument("labeling_params", type=pathlib.Path, help='labeling params')
     parser.add_argument("outdir", type=pathlib.Path, help='output directory')
-    parser.add_argument('--full-tree', action=BooleanOptionalAction, required=True)
+    parser.add_argument('--full-tree', action=BooleanAction, required=True)
+    parser.add_argument("--labeling-params", type=pathlib.Path, help='labeling params',
+                        default=pathlib.Path('labeling_params/classifier/dual.hjson'))
     parser.add_argument("--visualize", action='store_true', help='visualize')
     parser.add_argument("--gui", action='store_true', help='show gzclient, the gazebo gui')
     parser.add_argument("--launch", type=str, help='launch file name')
@@ -221,7 +222,8 @@ class ResultsToClassifierDataset:
                 self.visualize_example(action=action,
                                        after_state=after_state,
                                        before_state=before_state,
-                                       before_state_predicted={add_predicted(k): v for k, v in before_state_pred.items()},
+                                       before_state_predicted={add_predicted(k): v for k, v in
+                                                               before_state_pred.items()},
                                        after_state_predicted={add_predicted(k): v for k, v in after_state_pred.items()},
                                        environment=environment)
 

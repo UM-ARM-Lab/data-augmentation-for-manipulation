@@ -123,16 +123,15 @@ class BooleanOptionalAction(argparse.Action):
         if help is not None and default is not None:
             help += f" (default: {default})"
 
-        super().__init__(
-            option_strings=_option_strings,
-            dest=dest,
-            nargs=0,
-            default=default,
-            type=type,
-            choices=choices,
-            required=required,
-            help=help,
-            metavar=metavar)
+        super().__init__(option_strings=_option_strings,
+                         dest=dest,
+                         nargs=0,
+                         default=default,
+                         type=type,
+                         choices=choices,
+                         required=required,
+                         help=help,
+                         metavar=metavar)
 
     def __call__(self, parser, namespace, values, option_string=None):
         if option_string in self.option_strings:
@@ -140,3 +139,22 @@ class BooleanOptionalAction(argparse.Action):
 
     def format_usage(self):
         return ' | '.join(self.option_strings)
+
+
+class BooleanAction(BooleanOptionalAction):
+    def __init__(self,
+                 option_strings,
+                 dest,
+                 default=None,
+                 type=None,
+                 choices=None,
+                 help=None,
+                 metavar=None):
+        super().__init__(option_strings=option_strings,
+                         dest=dest,
+                         default=default,
+                         type=type,
+                         choices=choices,
+                         required=True,
+                         help=help,
+                         metavar=metavar)
