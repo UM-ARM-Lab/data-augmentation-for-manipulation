@@ -133,13 +133,9 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
     def move_objects_out_of_scene(self, params: Dict):
         position = ros_numpy.msgify(Point, np.array([0, 10, 0]))
         orientation = ros_numpy.msgify(Quaternion, np.array([0, 0, 0, 1]))
-        er_params = params['environment_randomization']
-        if er_params['type'] == 'random':
-            objects = params['environment_randomization']['objects']
-        elif er_params['type'] == 'jitter':
-            objects = params['environment_randomization']['nominal_poses'].keys()
-        else:
-            raise NotImplementedError(er_params['type'])
+        objects = params['environment_randomization']['nominal_poses'].keys()
+        if objects is None:
+            objects = params['environment_randomization'].get('objects', None)
         out_of_scene_pose = Pose(position=position, orientation=orientation)
         out_of_scene_object_poses = {k: out_of_scene_pose for k in objects}
         self.set_object_poses(out_of_scene_object_poses)

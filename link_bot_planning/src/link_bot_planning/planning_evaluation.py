@@ -49,11 +49,12 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
         rospy.loginfo(Fore.BLUE + f"Output directory: {self.outdir.as_posix()}")
 
         metadata = {
-            "trials":         self.trials,
-            "planner_params": self.planner_params,
-            "scenario":       self.planner.scenario.simple_name(),
-            "commit":         git_sha(),
-            "scene_name":     self.test_scenes_dir.name.replace("_", " "),
+            "trials":          self.trials,
+            "planner_params":  self.planner_params,
+            "scenario":        self.planner.scenario.simple_name(),
+            "commit":          git_sha(),
+            "scene_name":      self.test_scenes_dir.name.replace("_", " "),
+            "test_scenes_dir": self.test_scenes_dir.as_posix(),
         }
         metadata.update(self.planner.get_metadata())
         with (self.outdir / 'metadata.hjson').open("w") as metadata_file:
