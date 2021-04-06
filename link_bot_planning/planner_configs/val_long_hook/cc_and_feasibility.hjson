@@ -5,7 +5,4 @@
     cl_trials/gd_baseline/none
     cl_trials/new_feasibility_baseline/none
   ]
-  recovery: {
-    use_recovery: true
-  }
 }
