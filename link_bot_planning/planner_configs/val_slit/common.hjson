@@ -48,7 +48,7 @@
   goal_params: {
     type: saved
     goal_type: any_point
-    threshold: 0.06
+    threshold: 0.05
   }
   environment_randomization: {
       type: jitter

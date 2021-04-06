@@ -216,6 +216,7 @@ class TaskErrorLineFigure(MyFigure):
             success_rate_at_threshold = np.count_nonzero(values < threshold) / len(values) * 100
             success_rate_at_thresholds.append(success_rate_at_threshold)
         self.ax.plot(self.errors_thresholds, success_rate_at_thresholds, label=method_name, color=color)
+        print(self.metric.goal_threshold)
         self.ax.axvline(self.metric.goal_threshold, color='#aaaaaa', linestyle='--')
 
     def get_table_header(self):

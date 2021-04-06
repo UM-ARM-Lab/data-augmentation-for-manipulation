@@ -1,4 +1,16 @@
 {
+  recovery: {
+    recovery_model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e/best_checkpoint
+  }
+  filter_model_dir: [
+    filter_trials/none/none
+  ]
+  fwd_model_dir: [
+    dy_trials/gt_rope_w_robot_0/best_checkpoint
+    dy_trials/gt_rope_w_robot_1/best_checkpoint
+    dy_trials/gt_rope_w_robot_2/best_checkpoint
+    dy_trials/gt_rope_w_robot_3/best_checkpoint
+  ]
   scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
   reset_joint_config: {
     joint1: 0.5903734250235528,
@@ -68,34 +80,10 @@
         -0.1
         0.1
       ]
-      # NOTE these are not used when we provide a test scenes directory, as I usually do
       nominal_poses: {
-        car_engine2: {
-          position: [0, 0.9, -0.25]
-          orientation: [0, 0, 0]
-        }
-        car_platform: {
-          position: [0, 1.07, -0.528]
-          orientation: [0, 0, 1.5707]
-        }
-        car_front: {
-          position: [0, 0.474, -0.41]
-          orientation: [0, 0, 3.14159]
-        }
-        car_hood: {
-          position: [0, 1.242, 0.157]
-          orientation: [-0.908, 0, 0]
-        }
-        car_tube_and_tank: {
-          position: [0.32, 1.25, -0.35]
-          orientation: [0, 0, 0]
-        }
-        car_alternator: {
-          position: [-0.57, 0.807, -0.255]
-          orientation: [0, 0, 0]
-        }
-        car_pulley: {
-          position: [-0.641, 1.03, -0.25]
+        long_hook: {
+          # NOTE these are not used when we provide a test scenes directory, as I usually do
+          position: [0, 0, 0]
           orientation: [0, 0, 0]
         }
       }
