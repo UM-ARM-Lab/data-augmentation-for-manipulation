@@ -8,9 +8,14 @@ from matplotlib.lines import Line2D
 
 from link_bot_data.visualization import color_violinplot
 from link_bot_planning.results_metrics import ResultsMetric
+from link_bot_planning.results_utils import classifer_dataset_params_from_planner_params
 from link_bot_pycommon.latex_utils import make_cell
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout
 from link_bot_pycommon.metric_utils import row_stats
+
+
+def quote_string(s: str):
+    return f'f"{s}"'
 
 
 class MyFigure:
@@ -20,12 +25,22 @@ class MyFigure:
         self.params = analysis_params
         self.name = name
         self.fig, self.ax = self.create_figure()
+        self.set_title()
 
-        scene = metric.metadata.get('scene_name', None)
-        if scene is not None:
-            self.fig.suptitle(f"{self.params['experiment_name']} ({scene})")
-        else:
-            self.fig.suptitle(f"{self.params['experiment_name']}")
+    def set_title(self):
+        metadata_for_method = next(iter(self.metric.metadatas.values()))
+        cl_data_params = classifer_dataset_params_from_planner_params(metadata_for_method['planner_params'])
+        classifier_training_scene_name_for_method = cl_data_params['data_collection_params']['name']
+        # noinspection PyUnusedLocal
+        classifier_training_scene = classifier_training_scene_name_for_method
+        # noinspection PyUnusedLocal
+        scene_name = metadata_for_method['scene_name']
+
+        # This magic lets us specify variable names in the title in the json file. Any variable name used there
+        # must be in scope here, hence the above local variables which appear unused
+        title = eval(quote_string(self.params['experiment_name']))
+
+        self.fig.suptitle(title)
 
     def create_figure(self):
         return plt.subplots(figsize=(10, 4))

@@ -41,6 +41,15 @@ def classifier_params_from_planner_params(planner_params):
     return classifier_hparams
 
 
+def classifer_dataset_params_from_planner_params(planner_params: Dict):
+    classifier_params = classifier_params_from_planner_params(planner_params)
+
+    dataset_dirs = paths_from_json(classifier_params['datasets'])
+    representative_dataset_dir = dataset_dirs[0]
+    dataset_hparams = load_params(representative_dataset_dir)
+    return dataset_hparams
+
+
 def labeling_params_from_planner_params(planner_params, fallback_labeling_params: Dict):
     classifier_model_dirs = paths_from_json(planner_params['classifier_model_dir'])
     representative_classifier_model_dir = classifier_model_dirs[0]

@@ -2,7 +2,6 @@
   "max_error": 0.25,
   "mer_threshold": 0.05,
   "n_error_bins": 89,
-  "experiment_name": "Dual Arm Rope Manipulation",
   "colors": {
     "cc, os, feasibility": "#FF3333",
     "cc, gd, feasibility": "#FF3333",

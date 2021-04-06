@@ -1,9 +1,0 @@
-{
-  max_error: 0.25
-  n_error_bins: 89
-  experiment_name: Dual Arm Rope Manipulation
-  colors: {
-    "ground-truth baseline": "#9933CC"
-    "naive cdcpd1": "#11EE22"
-  }
-}

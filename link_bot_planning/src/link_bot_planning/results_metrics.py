@@ -16,10 +16,10 @@ class ResultsMetric:
         self.results_dir = results_dir
         self.values = {}
         self.method_indices = {}
-        self.metadata = None
+        self.metadatas = {}
 
     def setup_method(self, method_name: str, metadata: Dict):
-        self.metadata = metadata
+        self.metadatas[method_name] = metadata
         self.values[method_name] = []
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):

@@ -12,6 +12,7 @@ from colorama import Style, Fore
 from tabulate import tabulate
 
 import rospy
+from arc_utilities.algorithms import nested_dict_update
 from arc_utilities.filesystem_utils import get_all_subfolders
 from link_bot_planning.results_figures import *
 from link_bot_planning.results_metrics import *
@@ -20,7 +21,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.metric_utils import dict_to_pvalue_table
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.serialization import my_hdump, load_gzipped_pickle
-from moonshine.filepath_tools import load_json_or_hjson
+from moonshine.filepath_tools import load_json_or_hjson, load_hjson
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -43,8 +44,9 @@ def load_sort_order(outdir: pathlib.Path, unsorted_dirs: List[pathlib.Path]):
 
 
 def metrics_main(args):
-    with args.analysis_params.open('r') as analysis_params_file:
-        analysis_params = hjson.load(analysis_params_file)
+    analysis_params_common_filename = pathlib.Path("analysis_params/common.json")
+    analysis_params = load_hjson(analysis_params_common_filename)
+    analysis_params = nested_dict_update(analysis_params, load_hjson(args.analysis_params))
 
     # The default for where we write results
     out_dir = args.results_dirs[0]
