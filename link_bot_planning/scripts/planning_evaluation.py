@@ -40,10 +40,7 @@ def main():
 
     planners_params = []
     for planner_params_filename in args.planners_params:
-        planners_params_common_filename = planner_params_filename.parent / 'common.hjson'
-        common_planner_params = load_hjson(planners_params_common_filename)
-        planner_params = load_hjson(planner_params_filename)
-        planner_params = nested_dict_update(common_planner_params, planner_params)
+        planner_params = load_planner_params(planner_params_filename)
         planners_params.append((planner_params_filename.stem, planner_params))
 
     planning_evaluation(outdir=root,
@@ -59,6 +56,19 @@ def main():
                         record=args.record,
                         seed=args.seed,
                         )
+
+
+def load_planner_params(filename: pathlib.Path):
+    top_level_common_filename = filename.parent.parent / 'common.hjson'
+    top_level_common_params = load_hjson(top_level_common_filename)
+
+    common_filename = filename.parent / 'common.hjson'
+    common_params = load_hjson(common_filename)
+
+    params = load_hjson(filename)
+    common_params = nested_dict_update(top_level_common_params, common_params)
+    params = nested_dict_update(common_params, params)
+    return params
 
 
 if __name__ == '__main__':
