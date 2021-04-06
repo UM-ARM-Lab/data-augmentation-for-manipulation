@@ -24,7 +24,7 @@ def main():
     np.set_printoptions(linewidth=250, precision=3, suppress=True)
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
-    parser.add_argument("trial_indices", type=int_set_arg, help='which plan(s) to show')
+    parser.add_argument("--trial-indices", type=int_set_arg, help='which plan(s) to show')
     parser.add_argument("--threshold", type=float)
     parser.add_argument("--save", action='store_true')
     parser.add_argument("--only-timeouts", action='store_true')
