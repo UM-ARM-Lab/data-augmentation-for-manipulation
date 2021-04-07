@@ -4,7 +4,6 @@ from typing import Dict, List
 import matplotlib.pyplot as plt
 import numpy as np
 from colorama import Fore
-from matplotlib.figure import figaspect
 from matplotlib.lines import Line2D
 
 from link_bot_data.visualization import color_violinplot
@@ -14,6 +13,8 @@ from link_bot_pycommon.latex_utils import make_cell
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation, get_figsize
 from link_bot_pycommon.metric_utils import row_stats
 from link_bot_pycommon.pycommon import quote_string
+
+colors_cache = {}
 
 
 class MyFigure:
@@ -68,7 +69,6 @@ class MyFigure:
         self.finish_figure()
 
     def get_color_for_method(self, method_name):
-        color = 'k'
         colors = self.params["colors"]
         method_name_for_color = method_name.replace("*", "")
 
@@ -76,22 +76,32 @@ class MyFigure:
             base_method_name = method_name[:-3]
             color = self.get_color_for_method(base_method_name)
             color = adjust_lightness(color, 0.8)
+            return color
 
         if method_name.split(" ")[-1] == "classifier":
             base_method_name = " ".join(method_name.split(" ")[:-1])
             color = self.get_color_for_method(base_method_name)
             color = adjust_lightness(color, 1.2)
+            return color
 
         if method_name_for_color in colors:
             color = colors[method_name_for_color]
+            return color
         else:
             m = re.fullmatch(r"(.*?) \((\d+)\)", method_name_for_color)
             if m:
                 method_name_without_number = m.group(0)
                 if method_name_without_number in colors:
                     color = colors[method_name_without_number]
-        if color is None:
-            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
+                    return color
+
+        color = colors_cache.get(method_name, None)
+        if color is not None:
+            return color
+
+        print(Fore.YELLOW + f"color is None! choosing a random color for method {method_name}")
+        color = np.random.uniform(0, 1, 3)
+        colors_cache[method_name] = color
         return color
 
     def add_to_figure(self, method_name: str, values: List, color):
