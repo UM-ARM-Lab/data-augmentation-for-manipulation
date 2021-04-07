@@ -9,7 +9,7 @@ import tensorflow as tf
 from arc_utilities import ros_init
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_data.dataset_utils import data_directory
-from link_bot_planning.planning_evaluation import planning_evaluation
+from link_bot_planning.planning_evaluation import evaluate_multiple_planning
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from moonshine.filepath_tools import load_hjson
 
@@ -43,19 +43,19 @@ def main():
         planner_params = load_planner_params(planner_params_filename)
         planners_params.append((planner_params_filename.stem, planner_params))
 
-    planning_evaluation(outdir=root,
-                        planners_params=planners_params,
-                        trials=args.trials,
-                        how_to_handle=args.on_exception,
-                        use_gt_rope=not args.no_use_gt_rope,
-                        verbose=args.verbose,
-                        timeout=args.timeout,
-                        test_scenes_dir=args.test_scenes_dir,
-                        no_execution=args.no_execution,
-                        logfile_name=None,
-                        record=args.record,
-                        seed=args.seed,
-                        )
+    evaluate_multiple_planning(outdir=root,
+                               planners_params=planners_params,
+                               trials=args.trials,
+                               how_to_handle=args.on_exception,
+                               use_gt_rope=not args.no_use_gt_rope,
+                               verbose=args.verbose,
+                               timeout=args.timeout,
+                               test_scenes_dir=args.test_scenes_dir,
+                               no_execution=args.no_execution,
+                               logfile_name=None,
+                               record=args.record,
+                               seed=args.seed,
+                               )
 
 
 def load_planner_params(filename: pathlib.Path):

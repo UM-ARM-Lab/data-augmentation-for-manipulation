@@ -22,7 +22,7 @@ from link_bot_pycommon.serialization import dump_gzipped_pickle, my_hdump
 from moonshine.moonshine_utils import numpify
 
 
-class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
+class EvaluatePlanning(plan_and_execute.PlanAndExecute):
 
     def __init__(self,
                  planner: MyPlanner,
@@ -135,20 +135,20 @@ class EvalPlannerConfigs(plan_and_execute.PlanAndExecute):
         super().plan_and_execute(trial_idx=trial_idx)
 
 
-def evaluate_planning_method(planner_params: Dict,
-                             job_chunker: JobChunker,
-                             trials: List[int],
-                             comparison_root_dir: pathlib.Path,
-                             use_gt_rope: bool,
-                             verbose: int = 0,
-                             record: bool = False,
-                             no_execution: bool = False,
-                             timeout: Optional[int] = None,
-                             test_scenes_dir: Optional[pathlib.Path] = None,
-                             seed: int = 0,
-                             log_full_tree: bool = True,
-                             how_to_handle: str = 'retry',
-                             ):
+def evaluate_planning(planner_params: Dict,
+                      job_chunker: JobChunker,
+                      trials: List[int],
+                      comparison_root_dir: pathlib.Path,
+                      use_gt_rope: bool,
+                      verbose: int = 0,
+                      record: bool = False,
+                      no_execution: bool = False,
+                      timeout: Optional[int] = None,
+                      test_scenes_dir: Optional[pathlib.Path] = None,
+                      seed: int = 0,
+                      log_full_tree: bool = True,
+                      how_to_handle: str = 'retry',
+                      ):
     # override some arguments
     if timeout is not None:
         rospy.loginfo(f"Overriding with timeout {timeout}")
@@ -170,19 +170,19 @@ def evaluate_planning_method(planner_params: Dict,
     #  which could be done by making a type, something like "EmbodiedScenario" which has get_state and execute_action,
     planner.scenario.on_before_get_state_or_execute_action()
 
-    runner = EvalPlannerConfigs(planner=planner,
-                                service_provider=service_provider,
-                                job_chunker=job_chunker,
-                                trials=trials,
-                                verbose=verbose,
-                                planner_params=planner_params,
-                                outdir=comparison_root_dir,
-                                use_gt_rope=use_gt_rope,
-                                record=record,
-                                no_execution=no_execution,
-                                test_scenes_dir=test_scenes_dir,
-                                seed=seed,
-                                )
+    runner = EvaluatePlanning(planner=planner,
+                              service_provider=service_provider,
+                              job_chunker=job_chunker,
+                              trials=trials,
+                              verbose=verbose,
+                              planner_params=planner_params,
+                              outdir=comparison_root_dir,
+                              use_gt_rope=use_gt_rope,
+                              record=record,
+                              no_execution=no_execution,
+                              test_scenes_dir=test_scenes_dir,
+                              seed=seed,
+                              )
 
     def _on_exception():
         pass
@@ -195,22 +195,22 @@ def evaluate_planning_method(planner_params: Dict,
     planner.scenario.robot.disconnect()
 
 
-def planning_evaluation(outdir: pathlib.Path,
-                        planners_params: List[Tuple[str, Dict]],
-                        trials: List[int],
-                        logfile_name: Optional[str],
-                        use_gt_rope: bool,
-                        start_idx: int = 0,
-                        stop_idx: int = -1,
-                        how_to_handle: Optional[str] = 'raise',
-                        verbose: int = 0,
-                        record: bool = False,
-                        no_execution: bool = False,
-                        timeout: Optional[int] = None,
-                        test_scenes_dir: Optional[pathlib.Path] = None,
-                        seed: int = 0,
-                        log_full_tree: bool = True,
-                        ):
+def evaluate_multiple_planning(outdir: pathlib.Path,
+                               planners_params: List[Tuple[str, Dict]],
+                               trials: List[int],
+                               logfile_name: Optional[str],
+                               use_gt_rope: bool,
+                               start_idx: int = 0,
+                               stop_idx: int = -1,
+                               how_to_handle: Optional[str] = 'raise',
+                               verbose: int = 0,
+                               record: bool = False,
+                               no_execution: bool = False,
+                               timeout: Optional[int] = None,
+                               test_scenes_dir: Optional[pathlib.Path] = None,
+                               seed: int = 0,
+                               log_full_tree: bool = True,
+                               ):
     ou.setLogLevel(ou.LOG_ERROR)
 
     if logfile_name is None:
@@ -224,7 +224,7 @@ def planning_evaluation(outdir: pathlib.Path,
         outdir.mkdir(parents=True)
 
     # NOTE: if method names are not unique, we would overwrite results. Very bad!
-    planners_params = make_method_names_are_unique(planners_params)
+    planners_params = ensure_unique_method_name(planners_params)
 
     for comparison_idx, (method_name, planner_params) in enumerate(planners_params):
         if comparison_idx < start_idx:
@@ -238,29 +238,29 @@ def planning_evaluation(outdir: pathlib.Path,
         rospy.loginfo(Fore.GREEN + f"Running method {method_name}")
         comparison_root_dir = outdir / method_name
 
-        evaluate_planning_method(planner_params=planner_params,
-                                 job_chunker=sub_job_chunker,
-                                 use_gt_rope=use_gt_rope,
-                                 trials=trials,
-                                 comparison_root_dir=comparison_root_dir,
-                                 verbose=verbose,
-                                 record=record,
-                                 no_execution=no_execution,
-                                 timeout=timeout,
-                                 test_scenes_dir=test_scenes_dir,
-                                 seed=seed,
-                                 log_full_tree=log_full_tree,
-                                 how_to_handle=how_to_handle,
-                                 )
+        evaluate_planning(planner_params=planner_params,
+                          job_chunker=sub_job_chunker,
+                          use_gt_rope=use_gt_rope,
+                          trials=trials,
+                          comparison_root_dir=comparison_root_dir,
+                          verbose=verbose,
+                          record=record,
+                          no_execution=no_execution,
+                          timeout=timeout,
+                          test_scenes_dir=test_scenes_dir,
+                          seed=seed,
+                          log_full_tree=log_full_tree,
+                          how_to_handle=how_to_handle,
+                          )
 
         rospy.loginfo(f"Results written to {outdir}")
 
     return outdir
 
 
-def make_method_names_are_unique(planners_params):
+def ensure_unique_method_name(planners_params):
     unique_method_params = []
-    for original_method_name, _ in planners_params:
+    for original_method_name, params in planners_params:
         d = 1
         method_name = original_method_name
         while method_name in [n for n, _ in unique_method_params]:
@@ -268,5 +268,5 @@ def make_method_names_are_unique(planners_params):
             d += 1
         if original_method_name != method_name:
             rospy.logwarn(f"Making method name {original_method_name} unique -> {method_name}")
-        unique_method_params.append((method_name, _))
+        unique_method_params.append((method_name, params))
     return unique_method_params

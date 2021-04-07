@@ -8,7 +8,7 @@ import hjson
 import tensorflow as tf
 
 import rospy
-from link_bot_planning.planning_evaluation import planning_evaluation
+from link_bot_planning.planning_evaluation import evaluate_multiple_planning
 from link_bot_pycommon.args import my_formatter, int_range_arg
 
 
@@ -56,17 +56,17 @@ def main():
 
             planners_params.append((method_name, planner_params))
 
-    return planning_evaluation(outdir=root,
-                               planners_params=planners_params,
-                               trials=args.trials,
-                               use_gt_rope=args.use_gt_rope,
-                               start_idx=args.start_at,
-                               stop_idx=args.stop_at,
-                               verbose=args.verbose,
-                               timeout=args.timeout,
-                               test_scenes_dir=args.test_scenes_dir,
-                               saved_goals_filename=None,
-                               logfile_name=args.logfile)
+    return evaluate_multiple_planning(outdir=root,
+                                      planners_params=planners_params,
+                                      trials=args.trials,
+                                      use_gt_rope=args.use_gt_rope,
+                                      start_idx=args.start_at,
+                                      stop_idx=args.stop_at,
+                                      verbose=args.verbose,
+                                      timeout=args.timeout,
+                                      test_scenes_dir=args.test_scenes_dir,
+                                      saved_goals_filename=None,
+                                      logfile_name=args.logfile)
 
 
 if __name__ == '__main__':

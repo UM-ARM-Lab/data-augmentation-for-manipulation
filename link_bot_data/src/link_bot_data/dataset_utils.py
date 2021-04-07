@@ -454,7 +454,6 @@ def modify_pad_env(example: Dict, h, w, c):
     padded_env, new_origin, new_extent = pad_voxel_grid(voxel_grid=example['env'],
                                                         origin=example['origin'],
                                                         res=example['res'],
-                                                        extent=example['extent'],
                                                         new_shape=[h, w, c])
     example['env'] = padded_env
     example['extent'] = new_extent

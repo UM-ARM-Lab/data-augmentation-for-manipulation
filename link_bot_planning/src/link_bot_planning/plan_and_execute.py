@@ -20,7 +20,7 @@ from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, SetupInfo
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import numpify, remove_batch, add_batch
 
 
@@ -50,7 +50,7 @@ class TrialResult:
 
 
 def execute_actions(
-        scenario: ExperimentScenario,
+        scenario: ScenarioWithVisualization,
         environment: Dict,
         start_state: Dict,
         actions: List[Dict],
@@ -58,6 +58,9 @@ def execute_actions(
         plot: bool = False):
     pre_action_state = start_state
     actual_path = [pre_action_state]
+    end_trial = False
+    state_t = None
+
     for action in actions:
         if plot:
             scenario.plot_environment_rviz(environment)
@@ -73,7 +76,7 @@ def execute_actions(
 
         pre_action_state = state_t
 
-    if plot:
+    if plot and state_t:
         scenario.plot_environment_rviz(environment)
         scenario.plot_state_rviz(state_t, label='actual')
 

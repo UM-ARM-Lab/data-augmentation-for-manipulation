@@ -254,7 +254,7 @@ class OccupancyData:
         return copy
 
 
-def pad_voxel_grid(voxel_grid, origin, res, extent, new_shape):
+def pad_voxel_grid(voxel_grid, origin, res, new_shape):
     assert voxel_grid.shape[0] <= new_shape[0]
     assert voxel_grid.shape[1] <= new_shape[1]
     assert voxel_grid.shape[2] <= new_shape[2]

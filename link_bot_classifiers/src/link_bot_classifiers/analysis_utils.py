@@ -11,6 +11,7 @@ from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.ros_pycommon import (make_movable_object_services)
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.ensemble import Ensemble
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
@@ -124,8 +125,8 @@ def predict_and_classify(fwd_model: Ensemble,
     return predictions_list, accept_probabilities_list
 
 
-def execute(service_provider: BaseServices,
-            scenario: ExperimentScenario,
+def execute(scenario: ScenarioWithVisualization,
+            environment,
             start_states: List[Dict],
             random_actions: List[List[List[Dict]]]):
     actual_state_sequences = []
@@ -136,7 +137,7 @@ def execute(service_provider: BaseServices,
             # scenario.teleport_to_state(numpify(start_state))
 
             # execute actions and record the observed states
-            actual_states = execute_actions(service_provider, scenario, start_state, actions)
+            actual_states = execute_actions(scenario, environment, start_state, actions, use_gt_rope=True)
             actual_state_sequences_for_start_state.append(actual_states)
 
         # reset when done for conveniently re-running the script
@@ -176,6 +177,6 @@ def predict_and_execute(service_provider,
                           n_start_states=n_start_states)
     # Execute
     scenario = fwd_model.scenario
-    actual_states_lists = execute(service_provider, scenario, start_states, actions)
+    actual_states_lists = execute(scenario, environment, start_states, actions)
 
     return fwd_model, environment, actual_states_lists, predictions

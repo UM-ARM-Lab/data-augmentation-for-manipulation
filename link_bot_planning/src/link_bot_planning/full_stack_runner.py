@@ -11,7 +11,7 @@ from link_bot_classifiers import train_test_classifier, train_test_recovery
 from link_bot_data.base_collect_dynamics_data import TfDataCollector
 from link_bot_data.classifier_dataset_utils import make_classifier_dataset_from_params_dict
 from link_bot_data.recovery_dataset_utils import make_recovery_dataset_from_params_dict
-from link_bot_planning.planning_evaluation import planning_evaluation
+from link_bot_planning.planning_evaluation import evaluate_multiple_planning
 from link_bot_pycommon.get_service_provider import get_service_provider
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.serialization import MyHjsonEncoder
@@ -304,15 +304,15 @@ class FullStackRunner:
         rospy.sleep(10)
 
         root = planning_module_path / 'results' / logfile_name.parent
-        outdir = planning_evaluation(outdir=root,
-                                     planners_params=planners_params,
-                                     trials=trials,
-                                     use_gt_rope=self.use_gt_rope,
-                                     test_scenes_dir=test_scenes_dir,
-                                     verbose=self.verbose,
-                                     logfile_name=logfile_name,
-                                     how_to_handle='retry',
-                                     )
+        outdir = evaluate_multiple_planning(outdir=root,
+                                            planners_params=planners_params,
+                                            trials=trials,
+                                            use_gt_rope=self.use_gt_rope,
+                                            test_scenes_dir=test_scenes_dir,
+                                            verbose=self.verbose,
+                                            logfile_name=logfile_name,
+                                            how_to_handle='retry',
+                                            )
 
         if self.launch:
             self.service_provider.kill()
@@ -405,7 +405,7 @@ def run_steps(fsr, full_stack_params, included_steps, log):
             hjson.dump(log, logfile, cls=MyHjsonEncoder)
         rospy.loginfo(Fore.GREEN + logfile_name.as_posix())
     if 'planning_evaluation' not in log and (included_steps is None or 'planning_evaluation' in included_steps):
-        planning_evaluation_out = fsr.planning_evaluation(log, seed)
+        planning_evaluation_out = fsr.evaluate_multiple_planning(log, seed)
         log['planning_evaluation'] = planning_evaluation_out
         with logfile_name.open("w") as logfile:
             hjson.dump(log, logfile, cls=MyHjsonEncoder)

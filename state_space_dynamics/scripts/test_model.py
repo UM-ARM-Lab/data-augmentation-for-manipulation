@@ -56,7 +56,7 @@ def main():
     predicted_states = predict(fwd_model, environment, start_states, expanded_actions, n_actions, 1, 1)
 
     scenario = fwd_model.scenario
-    actual_states_lists = execute(service_provider, scenario, start_states, expanded_actions)
+    actual_states_lists = execute(scenario, environment, start_states, expanded_actions)
 
     visualize(
         scenario,
