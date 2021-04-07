@@ -4,11 +4,10 @@ import pickle
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 
 import numpy as np
 from colorama import Fore
-from dataclasses_json import dataclass_json
 
 import rospy
 from arc_utilities.listener import Listener
@@ -30,11 +29,12 @@ class TrialStatus(Enum):
     NotProgressingNoRecovery = "not_progressing_no_recovery"
 
 
-@dataclass_json
 @dataclass
 class ExecutionResult:
     path: List[Dict]
     end_trial: bool
+    stopped: bool
+    end_t: int
 
 
 @dataclass
@@ -55,32 +55,44 @@ def execute_actions(
         start_state: Dict,
         actions: List[Dict],
         use_gt_rope: bool,
+        stop_condition: Optional[Callable] = None,
         plot: bool = False):
-    pre_action_state = start_state
-    actual_path = [pre_action_state]
+    before_state = start_state
+    actual_path = [before_state]
     end_trial = False
-    state_t = None
+    after_state = None
+    stopped = False
 
-    for action in actions:
+    for t, action in enumerate(actions):
         if plot:
             scenario.plot_environment_rviz(environment)
-            scenario.plot_state_rviz(pre_action_state, label='actual')
-            scenario.plot_executed_action(pre_action_state, action)
+            scenario.plot_state_rviz(before_state, label='actual')
+            scenario.plot_executed_action(before_state, action)
 
-        end_trial = scenario.execute_action(environment, pre_action_state, action)
-        state_t = scenario.get_state()
+        end_trial = scenario.execute_action(environment, before_state, action)
+        after_state = scenario.get_state()
         if use_gt_rope:
-            state_t = dataset_utils.use_gt_rope(state_t)
+            after_state = dataset_utils.use_gt_rope(after_state)
+        actual_path.append(after_state)
 
-        actual_path.append(state_t)
+        if stop_condition:
+            stopped = True
+            stop = stop_condition(t=t,
+                                  before_state=before_state,
+                                  action=action,
+                                  after_state=after_state)
+            if stop:
+                rospy.logwarn("Stopping mid-execution")
+                break
 
-        pre_action_state = state_t
+        before_state = after_state
 
-    if plot and state_t:
+    if plot and after_state:
         scenario.plot_environment_rviz(environment)
-        scenario.plot_state_rviz(state_t, label='actual')
+        scenario.plot_state_rviz(after_state, label='actual')
 
-    return actual_path, end_trial
+    execution_result = ExecutionResult(path=actual_path, end_trial=end_trial, stopped=stopped, end_t=t)
+    return execution_result
 
 
 class PlanAndExecute:
@@ -260,7 +272,7 @@ class PlanAndExecute:
                                                            state=planning_query.start)
                     if recovery_action is None:
                         rospy.loginfo(f"Could not sample a valid recovery action {attempt_idx}")
-                        execution_result = ExecutionResult(path=[], end_trial=True)
+                        execution_result = ExecutionResult(path=[], end_trial=True, stopped=False, end_t=0)
                     else:
                         rospy.loginfo(f"Attempting recovery action {attempt_idx}")
 
@@ -310,7 +322,7 @@ class PlanAndExecute:
                 execution_result.end_trial,
                 attempt_idx > max_attempts,
             ]
-            end_trial = np.any(end_conditions)
+            end_trial = any(end_conditions)
             if end_trial:
                 if reached_goal:
                     trial_status = TrialStatus.Reached
@@ -366,21 +378,44 @@ class PlanAndExecute:
             if self.use_gt_rope:
                 state_t = dataset_utils.use_gt_rope(state_t)
             actual_path = [state_t]
+
+            execution_result = ExecutionResult(path=actual_path,
+                                               end_trial=end_trial,
+                                               stopped=False,
+                                               end_t=0)
         else:
             if self.verbose >= 2 and not self.no_execution:
                 rospy.loginfo(Fore.CYAN + "Executing Plan" + Fore.RESET)
             self.scenario.robot.raise_on_failure = False
-            actual_path, end_trial = execute_actions(scenario=self.scenario,
-                                                     environment=planning_query.environment,
-                                                     start_state=planning_query.start,
-                                                     actions=planning_result.actions,
-                                                     use_gt_rope=self.use_gt_rope,
-                                                     plot=True)
+
+            def _stop_condition(t: int, after_state: Dict, **kwargs):
+                predicted_after_state = planning_result.path[t + 1]
+                return self.stop_condition(predicted_after_state, after_state)
+
+            execution_result = execute_actions(scenario=self.scenario,
+                                               environment=planning_query.environment,
+                                               start_state=planning_query.start,
+                                               actions=planning_result.actions,
+                                               stop_condition=_stop_condition,
+                                               use_gt_rope=self.use_gt_rope,
+                                               plot=True)
             self.scenario.robot.raise_on_failure = True
 
-        # post-execution callback
-        execution_result = ExecutionResult(path=actual_path, end_trial=end_trial)
+            # backup if the stop condition was triggered
+            if execution_result.stopped:
+                undo_action = planning_result.actions[max(execution_result.end_t - 1, 0)]
+                self.scenario.execute_action(planning_query.environment, execution_result.path[-1], undo_action)
+
         return execution_result
+
+    def stop_condition(self, predicted_after_state: Dict, after_state: Dict):
+        stop_on_error_above = self.planner_params.get('stop_on_error_above', None)
+        if stop_on_error_above is not None:
+            model_error = self.scenario.classifier_distance(predicted_after_state, after_state)
+            if model_error > stop_on_error_above:
+                return True
+        else:
+            return False
 
     def execute_recovery_action(self, environment: Dict, action: Dict):
         end_trial = False
@@ -395,7 +430,7 @@ class PlanAndExecute:
             if self.use_gt_rope:
                 after_state = dataset_utils.use_gt_rope(after_state)
             actual_path = [before_state, after_state]
-        execution_result = ExecutionResult(path=actual_path, end_trial=end_trial)
+        execution_result = ExecutionResult(path=actual_path, end_trial=end_trial, stopped=False, end_t=-1)
         return execution_result
 
     def randomize_environment(self):
