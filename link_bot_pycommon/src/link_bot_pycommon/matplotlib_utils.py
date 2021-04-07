@@ -1,8 +1,10 @@
 import colorsys
+from typing import Iterable
 
 import matplotlib.colors as mc
 import numpy as np
 from matplotlib import cm, colors
+from matplotlib.figure import figaspect
 
 from std_msgs.msg import ColorRGBA
 
@@ -66,3 +68,24 @@ def adjust_lightness_msg(color: ColorRGBA, amount=1.0):
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     new_c = colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
     return ColorRGBA(*new_c, color.a)
+
+
+def get_rotation(xticklabels: Iterable[str]):
+    max_len = max(*[len(l) for l in xticklabels])
+    rotation = 1.2 * max_len
+    return rotation
+
+
+def get_figsize(n_elements: int):
+    """
+    Args:
+        n_elements: the number of bars in a bar chart, for example
+
+    Returns:
+        width and height of the figure/subplot
+
+    """
+    q = 4
+    aspect = q / (n_elements + (q - 1))
+    w, h = figaspect(aspect)
+    return w, h

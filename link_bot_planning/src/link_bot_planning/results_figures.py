@@ -4,18 +4,16 @@ from typing import Dict, List
 import matplotlib.pyplot as plt
 import numpy as np
 from colorama import Fore
+from matplotlib.figure import figaspect
 from matplotlib.lines import Line2D
 
 from link_bot_data.visualization import color_violinplot
 from link_bot_planning.results_metrics import ResultsMetric
 from link_bot_planning.results_utils import classifer_dataset_params_from_planner_params
 from link_bot_pycommon.latex_utils import make_cell
-from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout
+from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation, get_figsize
 from link_bot_pycommon.metric_utils import row_stats
-
-
-def quote_string(s: str):
-    return f'f"{s}"'
+from link_bot_pycommon.pycommon import quote_string
 
 
 class MyFigure:
@@ -43,7 +41,8 @@ class MyFigure:
         self.fig.suptitle(title)
 
     def create_figure(self):
-        return plt.subplots(figsize=(10, 4))
+        fig, ax = plt.subplots(figsize=self.get_figsize())
+        return fig, ax
 
     def make_table(self, table_format):
         table_data = []
@@ -64,27 +63,48 @@ class MyFigure:
     def make_figure(self):
         # Methods need to have consistent colors across different plots
         for method_name, values_for_method in self.metric.values.items():
-            color = 'k'
-            colors = self.params["colors"]
-            method_name_for_color = method_name.replace("*", "")
-            if method_name_for_color in colors:
-                color = colors[method_name_for_color]
-            else:
-                m = re.fullmatch(r"(.*?) \((\d+)\)", method_name_for_color)
-                if m:
-                    method_name_without_number = m.group(0)
-                    if method_name_without_number in colors:
-                        color = colors[method_name_without_number]
-                        break
-                print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
+            color = self.get_color_for_method(method_name)
             self.add_to_figure(method_name=method_name, values=values_for_method, color=color)
         self.finish_figure()
+
+    def get_color_for_method(self, method_name):
+        color = 'k'
+        colors = self.params["colors"]
+        method_name_for_color = method_name.replace("*", "")
+
+        if method_name[-3:] == " ft":
+            base_method_name = method_name[:-3]
+            color = self.get_color_for_method(base_method_name)
+            color = adjust_lightness(color, 0.8)
+
+        if method_name.split(" ")[-1] == "classifier":
+            base_method_name = " ".join(method_name.split(" ")[:-1])
+            color = self.get_color_for_method(base_method_name)
+            color = adjust_lightness(color, 1.2)
+
+        if method_name_for_color in colors:
+            color = colors[method_name_for_color]
+        else:
+            m = re.fullmatch(r"(.*?) \((\d+)\)", method_name_for_color)
+            if m:
+                method_name_without_number = m.group(0)
+                if method_name_without_number in colors:
+                    color = colors[method_name_without_number]
+        if color is None:
+            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
+        return color
 
     def add_to_figure(self, method_name: str, values: List, color):
         raise NotImplementedError()
 
     def finish_figure(self):
         self.ax.legend()
+
+    def methods_on_x_axis(self):
+        xticklabels = list(self.metric.values.keys())
+        self.ax.set_xticks(list(self.metric.method_indices.values()))
+        self.ax.set_xticklabels(xticklabels)
+        plt.setp(self.ax.get_xticklabels(), rotation=get_rotation(xticklabels=xticklabels), horizontalalignment='right')
 
     def save_figure(self):
         filename = self.metric.results_dir / (self.name + ".jpeg")
@@ -99,6 +119,9 @@ class MyFigure:
         sorted_values = {k: self.metric.values[k] for k in sort_order.keys()}
         self.metric.values = sorted_values
         self.enumerate_methods()
+
+    def get_figsize(self):
+        return get_figsize(len(self.metric.values))
 
 
 class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
@@ -119,8 +142,6 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
         parts = self.ax.violinplot(values, positions=[x], widths=0.9, showmeans=True, bw_method=0.3)
         color_violinplot(parts, color)
 
-        plt.setp(self.ax.get_xticklabels(), rotation=18, horizontalalignment='right')
-
         x = self.metric.method_indices[method_name]
         n_values = len(values)
         xs = [x] * n_values + np.random.RandomState(0).uniform(-0.08, 0.08, size=n_values)
@@ -129,8 +150,8 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
     def finish_figure(self):
         mean_line = [Line2D([0], [0], color='#dddddd', lw=2)]
         self.ax.legend(mean_line, ['mean'])
-        self.ax.set_xticks(list(self.metric.method_indices.values()))
-        self.ax.set_xticklabels(list(self.metric.values.keys()))
+
+        self.methods_on_x_axis()
 
     def get_table_header(self):
         return ["Name", "min", "max", "mean", "median", "std"]
@@ -152,8 +173,8 @@ class BarChartPercentagePerMethodFigure(MyFigure):
         self.ax.bar(x, percentage_solved, color=color)
 
     def finish_figure(self):
-        self.ax.set_xticks(range(len(self.metric.values.keys())))
-        self.ax.set_xticklabels(self.metric.values.keys())
+        super().finish_figure()
+        self.methods_on_x_axis()
 
     def make_row(self, method_name: str, values_for_method: np.array, table_format: str):
         percentage_solved = np.sum(values_for_method) / values_for_method.shape[0] * 100
@@ -192,10 +213,9 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
         xs = [x] * n_values + np.random.RandomState(0).uniform(-0.08, 0.08, size=n_values)
         self.ax.scatter(xs, values, edgecolors='k', s=50, marker='o', facecolors='none')
 
-        plt.setp(self.ax.get_xticklabels(), rotation=18, horizontalalignment='right')
-
     def finish_figure(self):
-        self.ax.set_xticklabels(self.metric.values.keys())
+        super().finish_figure()
+        self.methods_on_x_axis()
 
     def get_table_header(self):
         return ["Name", "min", "max", "mean", "median", "std"]
@@ -229,6 +249,9 @@ class TaskErrorLineFigure(MyFigure):
         ]
         row.extend(row_stats(values_for_method))
         return row
+
+    def get_figsize(self):
+        return 10, 5
 
 
 def box_plot(analysis_params: Dict, metric: ResultsMetric, name: str):

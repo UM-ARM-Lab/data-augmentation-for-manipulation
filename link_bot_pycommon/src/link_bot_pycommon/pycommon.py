@@ -376,3 +376,7 @@ def skip_on_timeout(t: int, on_timeout: Optional[Callable], f: Callable, *args, 
                 yield i
         except StopIteration:
             return
+
+
+def quote_string(s: str):
+    return f'f"{s}"'

@@ -10,20 +10,12 @@
     "(old) classifier": "#DD33AA",
 
     "car": "#DD33AA",
-    "deadend": "#AAFF33",
-    "long hook": "#0022FF",
+    "deadend": "#e61300",
+    "long hook": "#001391",
     "party": "#AA99AA",
     "rack": "#442288",
-    "ring": "#33FFBB",
+    "ring": "#bb9955",
     "slit": "#337700",
-
-    "car classifier": "#DD33AA",
-    "deadend classifier": "#AAFF33",
-    "long hook classifier": "#0022FF",
-    "party classifier": "#AA99AA",
-    "rack classifier": "#442288",
-    "ring classifier": "#00aaaa",
-    "slit classifier": "#337700",
 
     "car classifier ensemble": "#FF99EE",
 
