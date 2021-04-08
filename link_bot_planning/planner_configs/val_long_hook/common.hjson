@@ -46,7 +46,7 @@
   ]
   environment_randomization: {
       nominal_poses: {
-        long_hook: { }
+        long_hook1: { }
       }
   }
 }
