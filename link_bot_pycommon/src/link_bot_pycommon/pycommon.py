@@ -1,10 +1,11 @@
+import os
 import pathlib
 import random
 import signal
 import string
 import traceback
 import warnings
-from typing import Union, List, Callable, Optional, Tuple
+from typing import Union, List, Callable, Optional, Tuple, Dict
 
 import numpy as np
 import tensorflow as tf
@@ -203,13 +204,13 @@ def longest_reconverging_subsequence(x):
     max_consecutive_zeros = 0
     consecutive_zeros = 0
     for i, x_i in enumerate(x):
-        if x_i == 1:
+        if x_i:
             if consecutive_zeros > max_consecutive_zeros:
                 max_consecutive_zeros = consecutive_zeros
                 max_start_idx = start_idx
                 max_end_idx = i
             consecutive_zeros = 0
-        if x_i == 0:
+        else:
             if consecutive_zeros == 0:
                 start_idx = i
             consecutive_zeros += 1
@@ -226,7 +227,8 @@ def trim_reconverging(x, max_leading_ones=3, max_trailing_ones=3):
     else:
         just_before_start_of_zeros = 0
         for i in range(start_of_zeros - 1, -1, -1):
-            if start_of_zeros - just_before_start_of_zeros > max_leading_ones:
+            n_leading_ones = sum(x[i:start_of_zeros])
+            if n_leading_ones > max_leading_ones:
                 break
             if x[i] == 0:
                 just_before_start_of_zeros = i + 1
@@ -380,3 +382,12 @@ def skip_on_timeout(t: int, on_timeout: Optional[Callable], f: Callable, *args, 
 
 def quote_string(s: str):
     return f'f"{s}"'
+
+
+def pathify(d: Dict):
+    for k, v in d.items():
+        if isinstance(v, dict):
+            pathify(d)
+        elif isinstance(v, str):
+            if os.sep in v:
+                d[k] = pathlib.Path(v)

@@ -1,5 +1,6 @@
+import pathlib
+import unittest
 from time import sleep
-from unittest import TestCase
 
 import numpy as np
 
@@ -9,11 +10,22 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from link_bot_pycommon.grid_utils import point_to_idx_3d_in_env
 from link_bot_pycommon.pycommon import longest_reconverging_subsequence, trim_reconverging, catch_timeout, \
-    retry_on_timeout, approx_range_split
+    retry_on_timeout, approx_range_split, pathify
 from link_bot_pycommon.ros_pycommon import make_movable_object_services
 
 
-class Test(TestCase):
+class Test(unittest.TestCase):
+    def test_pathify(self):
+        d = {
+            'x': 1,
+            'y': 'hello',
+            'z': 'my/path',
+        }
+        pathify(d)
+        self.assertNotIsInstance(d['x'], pathlib.Path)
+        self.assertNotIsInstance(d['y'], pathlib.Path)
+        self.assertIsInstance(d['z'], pathlib.Path)
+
     def test_approx_range_split(self):
         for x, y in zip(approx_range_split(10, 1), [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]):
             np.testing.assert_allclose(x, y)
@@ -40,7 +52,7 @@ class Test(TestCase):
                 if rng.random() > 0.1:
                     yield i
                 else:
-                    sleep(5)
+                    sleep(1)
 
         total = 0
 
@@ -54,7 +66,7 @@ class Test(TestCase):
         self.assertEqual(total, s.sum())
 
     def test_timeout(self):
-        for d in [1, 2, 4, 5]:
+        for d in [0.1, 0.2, 4, 5]:
             def f(_d):
                 sleep(_d)
                 return _d
@@ -81,6 +93,8 @@ class Test(TestCase):
         self.assertEqual(longest_reconverging_subsequence([0, 0, 1, 0]), (0, 2))
         self.assertEqual(longest_reconverging_subsequence([1, 0, 0, 1]), (1, 3))
         self.assertEqual(longest_reconverging_subsequence([0, 0, 1, 0, 0, 0, 1, 0]), (3, 6))
+        self.assertEqual(longest_reconverging_subsequence([1, 0, 0, 1, 1, 0, 0, 0, 1, 0]), (5, 8))
+        #                                                  0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 
     def test_trim_reconverging(self):
         self.assertEqual(trim_reconverging([1, 0, 1]), (0, 3))
@@ -94,10 +108,10 @@ class Test(TestCase):
         self.assertEqual(trim_reconverging([1, 0, 1, 0, 0, 1]), (2, 6))
         self.assertEqual(trim_reconverging([1, 1, 0, 0, 1, 1]), (0, 6))
         self.assertEqual(trim_reconverging([1, 0, 0, 1, 1, 0, 0, 0, 1, 0]), (3, 9))
-        #                                0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        #                                   0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 
 
-class TestOccupancy(TestCase):
+class TestOccupancy(unittest.TestCase):
     def test_occupancy(self):
         rospy.init_node('test_occupancy')
         service_provider = GazeboServices()
@@ -124,3 +138,7 @@ class TestOccupancy(TestCase):
             row_i, col_i, channel_i = point_to_idx_3d_in_env(x=0 * x_i, y=0 * y_i, z=0.01, environment=environment)
             occupied = environment['env'][row_i, col_i, channel_i] > 0
             self.assertFalse(occupied)
+
+
+if __name__ == '__main__':
+    unittest.main()

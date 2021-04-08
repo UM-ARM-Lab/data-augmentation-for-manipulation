@@ -55,3 +55,10 @@ class JobChunker:
 
     def get(self, key: str):
         return self.log[key]
+
+    def done(self, done_key='done'):
+        self.log[done_key] = True
+        self.save()
+
+    def is_done(self, done_key='done'):
+        return done_key in self.log and self.log[done_key]

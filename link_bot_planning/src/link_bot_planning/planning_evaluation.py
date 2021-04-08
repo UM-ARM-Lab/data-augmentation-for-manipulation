@@ -136,6 +136,8 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             return
         super().plan_and_execute(trial_idx=trial_idx)
 
+        self.job_chunker.done()
+
 
 def evaluate_planning(planner_params: Dict,
                       job_chunker: JobChunker,

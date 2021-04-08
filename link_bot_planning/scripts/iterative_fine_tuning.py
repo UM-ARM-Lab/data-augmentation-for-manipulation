@@ -2,11 +2,20 @@
 import argparse
 import logging
 import pathlib
+import warnings
+from typing import Dict
+
+from link_bot_gazebo import gazebo_services
+from link_bot_pycommon.pycommon import pathify
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    from ompl import util as ou
 
 import colorama
+import hjson
 import tensorflow as tf
 from colorama import Fore
-from ompl import util as ou
 
 import rospy
 from arc_utilities import ros_init
@@ -16,18 +25,18 @@ from link_bot_data.dataset_utils import data_directory
 from link_bot_planning.planning_evaluation import load_planner_params, evaluate_planning
 from link_bot_pycommon.args import int_set_arg, my_formatter, run_subparsers
 from link_bot_pycommon.job_chunking import JobChunker
-from moonshine.filepath_tools import load_params, load_hjson
+from moonshine.filepath_tools import load_hjson
 
 
-def iterative_fine_tuning(nickname: str,
-                          planner_params: pathlib.Path,
-                          checkpoint: pathlib.Path,
-                          num_fine_tuning_iterations: int,
-                          no_execution: bool,
-                          timeout: int,
-                          test_scenes_dir: pathlib.Path,
-                          on_exception: str,
-                          ):
+def start_iterative_fine_tuning(nickname: str,
+                                planner_params_filename: pathlib.Path,
+                                checkpoint: pathlib.Path,
+                                num_fine_tuning_iterations: int,
+                                no_execution: bool,
+                                timeout: int,
+                                test_scenes_dir: pathlib.Path,
+                                on_exception: str,
+                                ):
     # setup
     outdir = data_directory(pathlib.Path('results') / 'iterative_fine_tuning' / f"{nickname}")
 
@@ -35,18 +44,46 @@ def iterative_fine_tuning(nickname: str,
         rospy.loginfo(Fore.YELLOW + "Creating output directory: {}".format(outdir))
         outdir.mkdir(parents=True)
 
+    planner_params = load_planner_params(planner_params_filename)
+
     logfile_name = outdir / 'logfile.hjson'
+    log = {
+        'nickname':        nickname,
+        'planner_params':  planner_params,
+        'test_scenes_dir': test_scenes_dir,
+        'checkpoint':      checkpoint.as_posix(),
+        'batch_size':      16,
+        'epochs':          25,
+    }
     with logfile_name.open("w") as logfile:
-        logfile['nickname'] = nickname
-        logfile['planner_params'] = planner_params
-        logfile['checkpoint'] = checkpoint.as_posix()
+        hjson.dump(log, logfile)
+
+    iterative_fine_tuning(log=log,
+                          num_fine_tuning_iterations=num_fine_tuning_iterations,
+                          no_execution=no_execution,
+                          timeout=timeout,
+                          on_exception=on_exception,
+                          logfile_name=logfile_name,
+                          )
+
+
+def iterative_fine_tuning(log: Dict,
+                          num_fine_tuning_iterations: int,
+                          no_execution: bool,
+                          timeout: int,
+                          on_exception: str,
+                          logfile_name: pathlib.Path,
+                          ):
+    planner_params = pathify(log['planner_params'])
+    checkpoint = log['checkpoint']
+    test_scenes_dir = log['test_scenes_dir']
+
+    outdir = logfile_name.parent
 
     job_chunker = JobChunker(logfile_name=logfile_name)
     trials_directory = outdir / 'classifier_training_logdir'
 
-    params = load_params(outdir)
-
-    planner_params = load_planner_params(planner_params)
+    service_provider = gazebo_services.GazeboServices()
 
     latest_checkpoint = checkpoint
     fine_tuning_dataset_dirs = []
@@ -54,21 +91,27 @@ def iterative_fine_tuning(nickname: str,
         jobkey = f"iteration {fine_tuning_iteration}"
         job_chunker.setup_key(jobkey)
         sub_job_chunker = job_chunker.sub_chunker(jobkey)
-        if job_chunker.result_exists(jobkey):
+        if sub_job_chunker.is_done():
             print(f"Found results for iteration {fine_tuning_iteration}, continuing")
             continue
 
         # run planning
         planning_results_dir = outdir / 'planning_results' / f'iteration_{fine_tuning_iteration}_planning'
-        planning_results_dir = evaluate_planning(planner_params=planner_params,
-                                                 job_chunker=sub_job_chunker,
-                                                 outdir=planning_results_dir,
-                                                 no_execution=no_execution,
-                                                 timeout=timeout,
-                                                 test_scenes_dir=test_scenes_dir,
-                                                 log_full_tree=False,
-                                                 how_to_handle=on_exception,
-                                                 )
+        planner_params['classifier_model_dir'] = [
+            latest_checkpoint,
+            pathlib.Path('cl_trials/new_feasibility_baseline/none'),
+        ]
+        evaluate_planning(planner_params=planner_params,
+                          job_chunker=sub_job_chunker,
+                          outdir=planning_results_dir,
+                          trials=[0],
+                          no_execution=no_execution,
+                          timeout=timeout,
+                          test_scenes_dir=test_scenes_dir,
+                          log_full_tree=False,
+                          how_to_handle=on_exception,
+                          )
+        service_provider.pause()
 
         # results to classifier dataset
         new_dataset_dir = outdir / 'classifier_datasets' / f'iteration_{fine_tuning_iteration}_dataset'
@@ -81,8 +124,8 @@ def iterative_fine_tuning(nickname: str,
                                                      checkpoint=latest_checkpoint,
                                                      log=f'iteration_{fine_tuning_iteration}_training_logdir',
                                                      trials_directory=trials_directory,
-                                                     batch_size=params['batch_size'],
-                                                     epochs=params['epochs'])
+                                                     batch_size=log['batch_size'],
+                                                     epochs=log['epochs'])
         latest_checkpoint = new_latest_checkpoint
 
         fine_tuning_iteration_result = {
@@ -91,28 +134,28 @@ def iterative_fine_tuning(nickname: str,
         }
         job_chunker.store_result(jobkey, fine_tuning_iteration_result)
 
+    job_chunker.done()
+
 
 def start_main(args):
-    iterative_fine_tuning(nickname=args.nickname,
-                          planner_params=args.planner_params,
-                          checkpoint=args.checkpoint,
-                          num_fine_tuning_iterations=args.num_fine_tuning_iterations,
-                          no_execution=args.no_execution,
-                          timeout=args.timeout,
-                          test_scenes_dir=args.test_scenes_dir,
-                          on_exception=args.on_exception,
-                          )
+    start_iterative_fine_tuning(nickname=args.nickname,
+                                planner_params_filename=args.planner_params,
+                                checkpoint=args.checkpoint,
+                                num_fine_tuning_iterations=args.n_iters,
+                                no_execution=args.no_execution,
+                                timeout=args.timeout,
+                                test_scenes_dir=args.test_scenes_dir,
+                                on_exception=args.on_exception,
+                                )
 
 
 def resume_main(args):
-    logfile = load_hjson(args.logfile)
-    iterative_fine_tuning(nickname=logfile['nickname'],
-                          planner_params=logfile['planner_params'],
-                          checkpoint=pathlib.Path(logfile['checkpoint']),
-                          num_fine_tuning_iterations=args.num_fine_tuning_iterations,
+    log = load_hjson(args.logfile)
+    iterative_fine_tuning(log=log,
+                          logfile_name=args.logfile,
+                          num_fine_tuning_iterations=args.n_iters,
                           no_execution=args.no_execution,
                           timeout=args.timeout,
-                          test_scenes_dir=args.test_scenes_dir,
                           on_exception=args.on_exception,
                           )
 

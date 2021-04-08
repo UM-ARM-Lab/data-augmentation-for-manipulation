@@ -79,7 +79,7 @@ class ResultsToClassifierDataset:
         self.rng = np.random.RandomState(0)
         self.service_provider = GazeboServices()
         self.full_tree = full_tree
-        self.results_dir = results_dir,
+        self.results_dir = results_dir
         self.outdir = outdir
         self.trial_indices = trial_indices
         self.subsample_fraction = subsample_fraction
