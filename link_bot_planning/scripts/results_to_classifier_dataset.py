@@ -18,7 +18,7 @@ from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
 from link_bot_planning.results_utils import get_transitions
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
-from link_bot_pycommon.args import my_formatter, int_set_arg, BooleanAction, BooleanOptionalAction
+from link_bot_pycommon.args import my_formatter, int_set_arg, BooleanOptionalAction
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions, try_make_dict_tf_float32
@@ -35,8 +35,7 @@ def main():
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
     parser.add_argument("outdir", type=pathlib.Path, help='output directory')
     parser.add_argument('--full-tree', action=BooleanOptionalAction)
-    parser.add_argument("--labeling-params", type=pathlib.Path, help='labeling params',
-                        default=pathlib.Path('labeling_params/classifier/dual.hjson'))
+    parser.add_argument("--labeling-params", type=pathlib.Path, help='labeling params')
     parser.add_argument("--visualize", action='store_true', help='visualize')
     parser.add_argument("--gui", action='store_true', help='show gzclient, the gazebo gui')
     parser.add_argument("--launch", type=str, help='launch file name')
@@ -56,6 +55,7 @@ def main():
                                    args.launch,
                                    args.world,
                                    args.subsample_fraction)
+    r.run()
 
 
 def compute_example_idx(trial_idx, example_idx_for_trial):
@@ -67,18 +67,25 @@ class ResultsToClassifierDataset:
     def __init__(self,
                  results_dir: pathlib.Path,
                  outdir: pathlib.Path,
-                 labeling_params: pathlib.Path,
-                 trial_indices: List[int],
-                 visualize: bool,
-                 full_tree: bool,
-                 gui: bool,
-                 launch: str,
-                 world: str,
-                 subsample_fraction: float):
+                 labeling_params: Optional[pathlib.Path] = None,
+                 trial_indices: Optional[List[int]] = None,
+                 visualize: bool = False,
+                 full_tree: bool = False,
+                 gui: Optional[bool] = None,
+                 launch: Optional[str] = None,
+                 world: Optional[str] = None,
+                 subsample_fraction: Optional[float] = None):
         self.restart = False
         self.rng = np.random.RandomState(0)
         self.service_provider = GazeboServices()
         self.full_tree = full_tree
+        self.results_dir = results_dir,
+        self.outdir = outdir
+        self.trial_indices = trial_indices
+        self.subsample_fraction = subsample_fraction
+
+        if labeling_params is None:
+            labeling_params = pathlib.Path('labeling_params/classifier/dual.hjson')
 
         self.visualize = visualize
         self.viz_id = 0
@@ -97,7 +104,8 @@ class ResultsToClassifierDataset:
 
         self.gazebo_restarting_sub = rospy.Subscriber("gazebo_restarting", Empty, self.on_gazebo_restarting)
 
-        results_utils.save_dynamics_dataset_hparams(results_dir, outdir, self.metadata)
+    def run(self):
+        results_utils.save_dynamics_dataset_hparams(self.results_dir, self.outdir, self.metadata)
 
         if self.full_tree:
             def _on_exception():
@@ -107,13 +115,13 @@ class ResultsToClassifierDataset:
                 self.scenario.grasp_rope_endpoints(settling_time=0.0)
 
             def _results_to_classifier_dataset():
-                self.full_results_to_classifier_dataset(results_dir, trial_indices, outdir, subsample_fraction)
+                self.full_results_to_classifier_dataset()
         else:
             def _on_exception():
                 pass
 
             def _results_to_classifier_dataset():
-                self.results_to_classifier_dataset(results_dir, trial_indices, outdir, subsample_fraction)
+                self.results_to_classifier_dataset()
 
         deal_with_exceptions(how_to_handle='raise',
                              function=_results_to_classifier_dataset,
@@ -121,18 +129,14 @@ class ResultsToClassifierDataset:
                              print_exception=True,
                              )
 
-    def results_to_classifier_dataset(self,
-                                      results_dir: pathlib.Path,
-                                      trial_indices,
-                                      outdir: pathlib.Path,
-                                      subsample_fraction: float):
-        logfilename = outdir / 'logfile.hjson'
+    def results_to_classifier_dataset(self):
+        logfilename = self.outdir / 'logfile.hjson'
         job_chunker = JobChunker(logfilename)
 
         t0 = perf_counter()
         last_t = t0
         total_examples = 0
-        for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
+        for trial_idx, datum in results_utils.trials_generator(self.results_dir, self.trial_indices):
             if job_chunker.result_exists(str(trial_idx)):
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
                 continue
@@ -147,7 +151,7 @@ class ResultsToClassifierDataset:
             example_idx_for_trial = 0
 
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-            for example in self.result_datum_to_dynamics_dataset(datum, trial_idx, subsample_fraction):
+            for example in self.result_datum_to_dynamics_dataset(datum, trial_idx, self.subsample_fraction):
                 now = perf_counter()
                 dt = now - last_t
                 total_dt = now - t0
@@ -158,7 +162,7 @@ class ResultsToClassifierDataset:
                 print(
                     f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
                 example = try_make_dict_tf_float32(example)
-                full_filename = tf_write_example(outdir, example, self.example_idx)
+                full_filename = tf_write_example(self.outdir, example, self.example_idx)
                 self.files.add(full_filename)
                 example_idx_for_trial += 1
 
@@ -170,12 +174,8 @@ class ResultsToClassifierDataset:
 
         self.files.split()
 
-    def full_results_to_classifier_dataset(self,
-                                           results_dir: pathlib.Path,
-                                           trial_indices,
-                                           outdir: pathlib.Path,
-                                           subsample_fraction: float):
-        logfilename = outdir / 'logfile.hjson'
+    def full_results_to_classifier_dataset(self):
+        logfilename = self.outdir / 'logfile.hjson'
         job_chunker = JobChunker(logfilename)
 
         t0 = perf_counter()
@@ -183,7 +183,7 @@ class ResultsToClassifierDataset:
         max_examples_per_trial = 500
         enough_trials_msg = f"moving on to next trial, already got {max_examples_per_trial} examples from this trial"
         total_examples = 0
-        for trial_idx, datum in results_utils.trials_generator(results_dir, trial_indices):
+        for trial_idx, datum in results_utils.trials_generator(self.results_dir, self.trial_indices):
             if job_chunker.result_exists(str(trial_idx)):
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
                 continue
@@ -191,7 +191,7 @@ class ResultsToClassifierDataset:
             example_idx_for_trial = 0
 
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-            for example in self.full_result_datum_to_dynamics_dataset(datum, trial_idx, subsample_fraction):
+            for example in self.full_result_datum_to_dynamics_dataset(datum, trial_idx, self.subsample_fraction):
                 now = perf_counter()
                 dt = now - last_t
                 total_dt = now - t0
@@ -202,7 +202,7 @@ class ResultsToClassifierDataset:
                 print(
                     f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
                 example = try_make_dict_tf_float32(example)
-                tf_write_example(outdir, example, self.example_idx)
+                tf_write_example(self.outdir, example, self.example_idx)
                 example_idx_for_trial += 1
 
                 if example_idx_for_trial > 50:

@@ -9,6 +9,7 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers import train_test_classifier
+from link_bot_pycommon.args import run_subparsers
 
 
 def train_main(args):
@@ -59,7 +60,7 @@ def main():
     train_parser.add_argument('--epochs', type=int, default=10)
     train_parser.add_argument('--log', '-l')
     train_parser.add_argument('--verbose', '-v', action='count', default=0)
-    train_parser.add_argument('--no-validate',  action='store_true')
+    train_parser.add_argument('--no-validate', action='store_true')
     train_parser.add_argument('--ensemble-idx', type=int)
     train_parser.add_argument('--log-scalars-every', type=int,
                               help='loss/accuracy every this many steps/batches', default=100)
@@ -122,12 +123,7 @@ def main():
     viz_ensemble_parser.add_argument('--stdev', type=str)
     viz_ensemble_parser.set_defaults(func=viz_ensemble_main)
 
-    args = parser.parse_args()
-
-    if args == argparse.Namespace():
-        parser.print_usage()
-    else:
-        args.func(args)
+    run_subparsers(parser)
 
 
 if __name__ == '__main__':

@@ -154,12 +154,7 @@ def get_scenario_and_metadata(results_dir: pathlib.Path):
 def trials_generator(results_dir: pathlib.Path, trial_indices: Optional[List[int]] = None):
     if trial_indices is None:
         # assume we want all trials
-        globbed_filenames = results_dir.glob("*.pkl.gz")
-        filenames = []
-        for filename in globbed_filenames:
-            m = re.fullmatch(r'.*?([0-9]+)_metrics.pkl.gz', filename.as_posix())
-            trial_idx = int(m.group(1))
-            filenames.append((trial_idx, filename))
+        filenames = list_all_planning_results_trials(results_dir)
     else:
         filenames = []
         for trial_idx in trial_indices:
@@ -169,6 +164,20 @@ def trials_generator(results_dir: pathlib.Path, trial_indices: Optional[List[int
     for trial_idx, results_filename in sorted_filenames:
         datum = load_gzipped_pickle(results_filename)
         yield trial_idx, datum
+
+
+def list_numbered_files(results_dir, pattern, extension):
+    globbed_filenames = results_dir.glob(f"*.{extension}")
+    filenames = []
+    for filename in globbed_filenames:
+        m = re.fullmatch(pattern + extension, filename.as_posix())
+        trial_idx = int(m.group(1))
+        filenames.append((trial_idx, filename))
+    return filenames
+
+
+def list_all_planning_results_trials(results_dir):
+    return list_numbered_files(results_dir, extension='pkl.gz', pattern=r'.*?([0-9]+)_metrics.')
 
 
 def save_dynamics_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.Path, metadata: Dict):

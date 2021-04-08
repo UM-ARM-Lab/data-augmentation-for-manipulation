@@ -7,11 +7,9 @@ import colorama
 import tensorflow as tf
 
 from arc_utilities import ros_init
-from arc_utilities.algorithms import nested_dict_update
 from link_bot_data.dataset_utils import data_directory
-from link_bot_planning.planning_evaluation import evaluate_multiple_planning
+from link_bot_planning.planning_evaluation import evaluate_multiple_planning, load_planner_params
 from link_bot_pycommon.args import my_formatter, int_set_arg
-from moonshine.filepath_tools import load_hjson
 
 
 @ros_init.with_ros("planning_evaluation")
@@ -56,19 +54,6 @@ def main():
                                record=args.record,
                                seed=args.seed,
                                )
-
-
-def load_planner_params(filename: pathlib.Path):
-    top_level_common_filename = filename.parent.parent / 'common.hjson'
-    top_level_common_params = load_hjson(top_level_common_filename)
-
-    common_filename = filename.parent / 'common.hjson'
-    common_params = load_hjson(common_filename)
-
-    params = load_hjson(filename)
-    common_params = nested_dict_update(top_level_common_params, common_params)
-    params = nested_dict_update(common_params, params)
-    return params
 
 
 if __name__ == '__main__':

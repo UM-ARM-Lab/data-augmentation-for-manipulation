@@ -17,6 +17,7 @@ from link_bot_classifiers import recovery_policy_utils
 from link_bot_data import dataset_utils
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, SetupInfo
+from link_bot_planning.test_scenes import get_all_scenes
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -99,12 +100,12 @@ class PlanAndExecute:
 
     def __init__(self,
                  planner: MyPlanner,
-                 trials: List[int],
                  verbose: int,
                  planner_params: Dict,
                  service_provider: BaseServices,
                  no_execution: bool,
-                 use_gt_rope,
+                 use_gt_rope: bool = True,
+                 trials: Optional[List[int]] = None,
                  test_scenes_dir: Optional[pathlib.Path] = None,
                  seed: int = 0):
         self.use_gt_rope = use_gt_rope
@@ -133,6 +134,9 @@ class PlanAndExecute:
             self.recovery_policy = None
 
         self.n_failures = 0
+
+        if self.trials is None:
+            self.trials = [s.idx for s in get_all_scenes(self.test_scenes_dir)]
 
         # for saving snapshots of the world
         self.link_states_listener = Listener("gazebo/link_states", LinkStates)

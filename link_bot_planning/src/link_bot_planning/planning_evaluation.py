@@ -10,6 +10,7 @@ from ompl import util as ou
 
 import rosbag
 import rospy
+from arc_utilities.algorithms import nested_dict_update
 from link_bot_data.dataset_utils import git_sha
 from link_bot_gazebo import gazebo_services
 from link_bot_planning import plan_and_execute
@@ -19,6 +20,7 @@ from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.pycommon import deal_with_exceptions
 from link_bot_pycommon.serialization import dump_gzipped_pickle, my_hdump
+from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import numpify
 
 
@@ -28,11 +30,11 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
                  planner: MyPlanner,
                  service_provider: BaseServices,
                  job_chunker: JobChunker,
-                 trials: List[int],
                  verbose: int,
                  planner_params: Dict,
                  outdir: pathlib.Path,
-                 use_gt_rope,
+                 use_gt_rope: bool = True,
+                 trials: Optional[List[int]] = None,
                  record: Optional[bool] = False,
                  no_execution: Optional[bool] = False,
                  test_scenes_dir: Optional[pathlib.Path] = None,
@@ -137,9 +139,9 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
 
 def evaluate_planning(planner_params: Dict,
                       job_chunker: JobChunker,
-                      trials: List[int],
-                      comparison_root_dir: pathlib.Path,
-                      use_gt_rope: bool,
+                      outdir: pathlib.Path,
+                      use_gt_rope: bool = True,
+                      trials: Optional[List[int]] = None,
                       verbose: int = 0,
                       record: bool = False,
                       no_execution: bool = False,
@@ -176,7 +178,7 @@ def evaluate_planning(planner_params: Dict,
                               trials=trials,
                               verbose=verbose,
                               planner_params=planner_params,
-                              outdir=comparison_root_dir,
+                              outdir=outdir,
                               use_gt_rope=use_gt_rope,
                               record=record,
                               no_execution=no_execution,
@@ -197,9 +199,9 @@ def evaluate_planning(planner_params: Dict,
 
 def evaluate_multiple_planning(outdir: pathlib.Path,
                                planners_params: List[Tuple[str, Dict]],
-                               trials: List[int],
-                               logfile_name: Optional[str],
-                               use_gt_rope: bool,
+                               logfile_name: Optional[str] = None,
+                               use_gt_rope: bool = True,
+                               trials: Optional[List[int]] = None,
                                start_idx: int = 0,
                                stop_idx: int = -1,
                                how_to_handle: Optional[str] = 'raise',
@@ -242,7 +244,7 @@ def evaluate_multiple_planning(outdir: pathlib.Path,
                           job_chunker=sub_job_chunker,
                           use_gt_rope=use_gt_rope,
                           trials=trials,
-                          comparison_root_dir=comparison_root_dir,
+                          outdir=comparison_root_dir,
                           verbose=verbose,
                           record=record,
                           no_execution=no_execution,
@@ -270,3 +272,16 @@ def ensure_unique_method_name(planners_params):
             rospy.logwarn(f"Making method name {original_method_name} unique -> {method_name}")
         unique_method_params.append((method_name, params))
     return unique_method_params
+
+
+def load_planner_params(filename: pathlib.Path):
+    top_level_common_filename = filename.parent.parent / 'common.hjson'
+    top_level_common_params = load_hjson(top_level_common_filename)
+
+    common_filename = filename.parent / 'common.hjson'
+    common_params = load_hjson(common_filename)
+
+    params = load_hjson(filename)
+    common_params = nested_dict_update(top_level_common_params, common_params)
+    params = nested_dict_update(common_params, params)
+    return params
