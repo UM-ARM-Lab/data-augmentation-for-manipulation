@@ -136,6 +136,8 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             return
         super().plan_and_execute(trial_idx=trial_idx)
 
+    def on_complete(self):
+        self.job_chunker.store_result('planning_results_dir', self.outdir.as_posix())
         self.job_chunker.done()
 
 

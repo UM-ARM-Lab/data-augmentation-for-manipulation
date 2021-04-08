@@ -1,6 +1,7 @@
 import pathlib
 from typing import Optional, List
 
+import psutil
 import rospkg
 
 import rosbag
@@ -111,3 +112,15 @@ class GazeboServices(BaseServices):
 
 def gz_scope(*args):
     return "::".join(args)
+
+
+def get_gazebo_processes():
+    processes = []
+    for proc in psutil.process_iter(['pid', 'name']):
+        if proc.info['name'] == 'gzserver':
+            p = psutil.Process(pid=proc.info['pid'])
+            processes.append(p)
+        if proc.info['name'] == 'gzclient':
+            p = psutil.Process(pid=proc.info['pid'])
+            processes.append(p)
+    return processes

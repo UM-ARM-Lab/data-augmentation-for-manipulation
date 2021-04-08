@@ -1,12 +1,10 @@
 {
   method_name: iterative fine tuning*
-  stop_on_error_above: 0.1
+  stop_on_error_above: 0.05
   recovery: {
     use_recovery: false
   }
   termination_criteria: {
     attempted_extensions_threshold: 500
   }
-  # DEBUGGING REMOVE ME
-  n_shortcut_attempts: 0
 }

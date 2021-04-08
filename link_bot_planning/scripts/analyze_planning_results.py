@@ -12,16 +12,15 @@ from colorama import Style, Fore
 from tabulate import tabulate
 
 import rospy
-from arc_utilities.algorithms import nested_dict_update
 from arc_utilities.filesystem_utils import get_all_subfolders
 from link_bot_planning.results_figures import *
 from link_bot_planning.results_metrics import *
+from link_bot_planning.results_metrics import load_analysis_params, generate_metrics
 from link_bot_pycommon.args import my_formatter
-from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.metric_utils import dict_to_pvalue_table
 from link_bot_pycommon.pycommon import paths_from_json
-from link_bot_pycommon.serialization import my_hdump, load_gzipped_pickle
-from moonshine.filepath_tools import load_json_or_hjson, load_hjson
+from link_bot_pycommon.serialization import my_hdump
+from moonshine.filepath_tools import load_json_or_hjson
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -44,9 +43,7 @@ def load_sort_order(outdir: pathlib.Path, unsorted_dirs: List[pathlib.Path]):
 
 
 def metrics_main(args):
-    analysis_params_common_filename = pathlib.Path("analysis_params/common.json")
-    analysis_params = load_hjson(analysis_params_common_filename)
-    analysis_params = nested_dict_update(analysis_params, load_hjson(args.analysis_params))
+    analysis_params = load_analysis_params(args.analysis_params)
 
     # The default for where we write results
     out_dir = args.results_dirs[0]
@@ -95,7 +92,7 @@ def metrics_main(args):
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
     else:
         rospy.loginfo(Fore.GREEN + f"Generating metrics")
-        metrics = generate_metrics(analysis_params, out_dir, subfolders_ordered)
+        metrics = generate_metrics(analysis_params, subfolders_ordered)
 
         with pickle_filename.open("wb") as pickle_file:
             pickle.dump(metrics, pickle_file)
@@ -163,52 +160,6 @@ def metrics_main(args):
         for figure in figures:
             figure.fig.set_tight_layout(True)
         plt.show()
-
-
-def generate_metrics(analysis_params: Dict, out_dir: pathlib.Path, subfolders_ordered: List):
-    metrics = {}
-
-    def _include_metric(metric: type):
-        metrics[metric] = metric(analysis_params=analysis_params, results_dir=out_dir)
-
-    _include_metric(TaskError)
-    _include_metric(PercentageSuccess)
-    _include_metric(NRecoveryActions)
-    _include_metric(TotalTime)
-    _include_metric(NPlanningAttempts)
-    _include_metric(NMERViolations)
-    _include_metric(NormalizedModelError)
-    _include_metric(PlanningTime)
-    _include_metric(PercentageMERViolations)
-    _include_metric(PlannerSolved)
-
-    for subfolder in subfolders_ordered:
-
-        skip_filename = subfolder / '.skip'
-        if skip_filename.exists():
-            print(f"skipping {subfolder.name}")
-        else:
-            print(Fore.GREEN + f"processing {subfolder.name}")
-
-        metrics_filenames = list(subfolder.glob("*_metrics.pkl.gz"))
-
-        metadata = load_json_or_hjson(subfolder, 'metadata')
-
-        method_name = metadata['planner_params'].get('method_name', subfolder.name)
-        scenario = get_scenario(metadata['scenario'])
-
-        for metric in metrics.values():
-            metric.setup_method(method_name, metadata)
-
-        # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
-        for metrics_filename in metrics_filenames:
-            datum = load_gzipped_pickle(metrics_filename)
-            for metric in metrics.values():
-                metric.aggregate_trial(method_name, scenario, datum)
-
-        for metric in metrics.values():
-            metric.convert_to_numpy_arrays()
-    return metrics
 
 
 def main():

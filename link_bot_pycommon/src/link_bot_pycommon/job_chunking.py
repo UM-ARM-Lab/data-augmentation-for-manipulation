@@ -41,6 +41,9 @@ class JobChunker:
     def save(self):
         write_logfile(self.root_log, self.logfile_name)
 
+    def get_result(self, key: str):
+        return self.log.get(key, None)
+
     def result_exists(self, key: str):
         return key in self.log
 
@@ -50,7 +53,8 @@ class JobChunker:
         self.save()
 
     def sub_chunker(self, key: str):
-        sub_chunker = JobChunker(self.logfile_name, root_log=self.root_log, log=self.root_log[key])
+        self.setup_key(key)
+        sub_chunker = JobChunker(self.logfile_name, root_log=self.root_log, log=self.log[key])
         return sub_chunker
 
     def get(self, key: str):

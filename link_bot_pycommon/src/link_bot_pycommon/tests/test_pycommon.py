@@ -17,13 +17,15 @@ from link_bot_pycommon.ros_pycommon import make_movable_object_services
 class Test(unittest.TestCase):
     def test_pathify(self):
         d = {
+            'a': None,
             'x': 1,
             'y': 'hello',
             'z': 'my/path',
         }
-        pathify(d)
-        self.assertNotIsInstance(d['x'], pathlib.Path)
-        self.assertNotIsInstance(d['y'], pathlib.Path)
+        d = pathify(d)
+        self.assertIsNone(d['a'], None)
+        self.assertIsInstance(d['x'], int)
+        self.assertIsInstance(d['y'], str)
         self.assertIsInstance(d['z'], pathlib.Path)
 
     def test_approx_range_split(self):

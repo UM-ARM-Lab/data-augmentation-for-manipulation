@@ -1,19 +1,22 @@
 import pathlib
-from typing import Dict
+from typing import Dict, Optional, List
 
 import numpy as np
 from colorama import Fore
 
+from arc_utilities.algorithms import nested_dict_update
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_planning.results_utils import get_paths
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.serialization import load_gzipped_pickle
+from moonshine.filepath_tools import load_hjson, load_json_or_hjson
 
 
 class ResultsMetric:
-    def __init__(self, analysis_params: Dict, results_dir: pathlib.Path):
+    def __init__(self, analysis_params: Dict):
         super().__init__()
         self.analysis_params = analysis_params
-        self.results_dir = results_dir
         self.values = {}
         self.method_indices = {}
         self.metadatas = {}
@@ -38,8 +41,8 @@ class ResultsMetric:
 
 
 class TaskError(ResultsMetric):
-    def __init__(self, analysis_params: Dict, results_dir: pathlib.Path):
-        super().__init__(analysis_params, results_dir)
+    def __init__(self, analysis_params: Dict):
+        super().__init__(analysis_params)
         self.goal_threshold = None
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
@@ -166,3 +169,59 @@ __all__ = [
     'PlanningTime',
     'PlannerSolved',
 ]
+
+
+def load_analysis_params(analysis_params_filename: Optional[pathlib.Path] = None):
+    analysis_params_common_filename = pathlib.Path("analysis_params/common.json")
+    analysis_params = load_hjson(analysis_params_common_filename)
+
+    if analysis_params_filename is not None:
+        analysis_params = nested_dict_update(analysis_params, load_hjson(analysis_params_filename))
+
+    return analysis_params
+
+
+def generate_metrics(analysis_params: Dict, subfolders_ordered: List):
+    metrics = {}
+
+    def _include_metric(metric: type):
+        metrics[metric] = metric(analysis_params=analysis_params)
+
+    _include_metric(TaskError)
+    _include_metric(PercentageSuccess)
+    _include_metric(NRecoveryActions)
+    _include_metric(TotalTime)
+    _include_metric(NPlanningAttempts)
+    _include_metric(NMERViolations)
+    _include_metric(NormalizedModelError)
+    _include_metric(PlanningTime)
+    _include_metric(PercentageMERViolations)
+    _include_metric(PlannerSolved)
+
+    for subfolder in subfolders_ordered:
+
+        skip_filename = subfolder / '.skip'
+        if skip_filename.exists():
+            print(f"skipping {subfolder.name}")
+        else:
+            print(Fore.GREEN + f"processing {subfolder.name}")
+
+        metrics_filenames = list(subfolder.glob("*_metrics.pkl.gz"))
+
+        metadata = load_json_or_hjson(subfolder, 'metadata')
+
+        method_name = metadata['planner_params'].get('method_name', subfolder.name)
+        scenario = get_scenario(metadata['scenario'])
+
+        for metric in metrics.values():
+            metric.setup_method(method_name, metadata)
+
+        # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
+        for metrics_filename in metrics_filenames:
+            datum = load_gzipped_pickle(metrics_filename)
+            for metric in metrics.values():
+                metric.aggregate_trial(method_name, scenario, datum)
+
+        for metric in metrics.values():
+            metric.convert_to_numpy_arrays()
+    return metrics

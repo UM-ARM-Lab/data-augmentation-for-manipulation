@@ -11,6 +11,10 @@ from moonshine.filepath_tools import load_params, load_json_or_hjson
 from moonshine.moonshine_utils import numpify
 
 
+class NoTransitionsError(Exception):
+    pass
+
+
 def fwd_model_params_from_planner_params(planner_params: Dict):
     fwd_model_dirs = paths_from_json(planner_params['fwd_model_dir'])
     representative_fwd_model_dir = fwd_model_dirs[0]
@@ -110,7 +114,8 @@ def get_paths(datum: Dict, verbose: int = 0):
 def get_transitions(datum: Dict):
     steps = datum['steps']
 
-    assert len(steps) > 0
+    if len(steps) == 0:
+        raise NoTransitionsError(steps)
 
     for step_idx, step in enumerate(steps):
         if step['type'] == 'executed_plan':

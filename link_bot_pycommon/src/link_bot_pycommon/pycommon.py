@@ -5,7 +5,7 @@ import signal
 import string
 import traceback
 import warnings
-from typing import Union, List, Callable, Optional, Tuple, Dict
+from typing import Union, List, Callable, Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -384,10 +384,23 @@ def quote_string(s: str):
     return f'f"{s}"'
 
 
-def pathify(d: Dict):
-    for k, v in d.items():
-        if isinstance(v, dict):
-            pathify(d)
-        elif isinstance(v, str):
-            if os.sep in v:
-                d[k] = pathlib.Path(v)
+def pathify(x):
+    """
+    Convert any strings that contain os.sep to pathlib.Path objects. works with arbitrarily nested data structures
+    Args:
+        x:
+
+    Returns:
+
+    """
+    if isinstance(x, str):
+        if os.sep in x:
+            return pathlib.Path(x)
+        else:
+            return x
+    elif isinstance(x, dict):
+        return {k: pathify(v) for k, v in x.items()}
+    elif isinstance(x, list):
+        return [pathify(v) for v in x]
+    else:
+        return x

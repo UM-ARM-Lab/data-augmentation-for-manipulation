@@ -84,6 +84,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
         d.trainable = False
     model.lstm.trainable = False
 
+    runner.reset_best_ket_metric_value()
     runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
 
     return trial_path

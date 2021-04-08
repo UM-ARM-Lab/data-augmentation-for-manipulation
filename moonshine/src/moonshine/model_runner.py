@@ -28,6 +28,7 @@ class ModelRunner:
         self.model = model
         self.training = training
         self.key_metric = key_metric
+        self.worst = self.key_metric.worst()
         self.trial_path = trial_path
         self.checkpoint = checkpoint
         self.params = params
@@ -53,14 +54,12 @@ class ModelRunner:
         self.latest_ckpt = tf.train.Checkpoint(step=tf.Variable(1),
                                                epoch=tf.Variable(0),
                                                train_time=tf.Variable(0.0),
-                                               best_key_metric_value=tf.Variable(self.key_metric.worst(),
-                                                                                 dtype=tf.float32),
+                                               best_key_metric_value=tf.Variable(self.worst, dtype=tf.float32),
                                                model=self.model)
         self.best_ckpt = tf.train.Checkpoint(step=tf.Variable(1),
                                              epoch=tf.Variable(0),
                                              train_time=tf.Variable(0.0),
-                                             best_key_metric_value=tf.Variable(self.key_metric.worst(),
-                                                                               dtype=tf.float32),
+                                             best_key_metric_value=tf.Variable(self.worst, dtype=tf.float32),
                                              model=self.model)
 
         self.latest_checkpoint_path = self.trial_path / "latest_checkpoint"
@@ -254,3 +253,6 @@ class ModelRunner:
             print(Fore.YELLOW + "Interrupted." + Fore.RESET)
 
         return val_metrics
+
+    def reset_best_ket_metric_value(self):
+        self.best_ckpt.best_key_metric_value.assign(self.worst)

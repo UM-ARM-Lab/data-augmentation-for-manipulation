@@ -16,7 +16,7 @@ from link_bot_data.files_dataset import FilesDataset
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
-from link_bot_planning.results_utils import get_transitions
+from link_bot_planning.results_utils import get_transitions, NoTransitionsError
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.args import my_formatter, int_set_arg, BooleanOptionalAction
 from link_bot_pycommon.job_chunking import JobChunker
@@ -151,23 +151,27 @@ class ResultsToClassifierDataset:
             example_idx_for_trial = 0
 
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-            for example in self.result_datum_to_dynamics_dataset(datum, trial_idx, self.subsample_fraction):
-                now = perf_counter()
-                dt = now - last_t
-                total_dt = now - t0
-                last_t = now
+            try:
+                for example in self.result_datum_to_dynamics_dataset(datum, trial_idx, self.subsample_fraction):
+                    now = perf_counter()
+                    dt = now - last_t
+                    total_dt = now - t0
+                    last_t = now
 
-                self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-                total_examples += 1
-                print(
-                    f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
-                example = try_make_dict_tf_float32(example)
-                full_filename = tf_write_example(self.outdir, example, self.example_idx)
-                self.files.add(full_filename)
-                example_idx_for_trial += 1
+                    self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
+                    total_examples += 1
+                    print(
+                        f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
+                    example = try_make_dict_tf_float32(example)
+                    full_filename = tf_write_example(self.outdir, example, self.example_idx)
+                    self.files.add(full_filename)
+                    example_idx_for_trial += 1
 
-                job_chunker.store_result(trial_idx, {'trial':              trial_idx,
-                                                     'examples for trial': example_idx_for_trial})
+                    job_chunker.store_result(trial_idx, {'trial':              trial_idx,
+                                                         'examples for trial': example_idx_for_trial})
+            except NoTransitionsError:
+                rospy.logerr(f"Trial {trial_idx} had no transitions")
+                pass
 
             job_chunker.store_result(trial_idx, {'trial':              trial_idx,
                                                  'examples for trial': example_idx_for_trial})

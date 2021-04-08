@@ -5,8 +5,9 @@ import pathlib
 import warnings
 from typing import Dict
 
-from link_bot_gazebo import gazebo_services
-from link_bot_pycommon.pycommon import pathify
+from link_bot_gazebo.gazebo_services import get_gazebo_processes
+from link_bot_planning.results_metrics import load_analysis_params, generate_metrics, PercentageSuccess
+from link_bot_pycommon.pycommon import pathify, paths_from_json
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -50,8 +51,8 @@ def start_iterative_fine_tuning(nickname: str,
     log = {
         'nickname':        nickname,
         'planner_params':  planner_params,
-        'test_scenes_dir': test_scenes_dir,
-        'checkpoint':      checkpoint.as_posix(),
+        'test_scenes_dir': test_scenes_dir.as_posix(),
+        'checkpoints':     [checkpoint.as_posix()],
         'batch_size':      16,
         'epochs':          25,
     }
@@ -75,66 +76,79 @@ def iterative_fine_tuning(log: Dict,
                           logfile_name: pathlib.Path,
                           ):
     planner_params = pathify(log['planner_params'])
-    checkpoint = log['checkpoint']
-    test_scenes_dir = log['test_scenes_dir']
+    checkpoints = paths_from_json(log['checkpoints'])
+    test_scenes_dir = pathlib.Path(log['test_scenes_dir'])
+
+    gazebo_processes = get_gazebo_processes()
 
     outdir = logfile_name.parent
 
     job_chunker = JobChunker(logfile_name=logfile_name)
     trials_directory = outdir / 'classifier_training_logdir'
 
-    service_provider = gazebo_services.GazeboServices()
-
-    latest_checkpoint = checkpoint
+    latest_checkpoint_dir = checkpoints[-1]
     fine_tuning_dataset_dirs = []
+    latest_success_rate = -1
+
     for fine_tuning_iteration in range(num_fine_tuning_iterations):
         jobkey = f"iteration {fine_tuning_iteration}"
-        job_chunker.setup_key(jobkey)
-        sub_job_chunker = job_chunker.sub_chunker(jobkey)
-        if sub_job_chunker.is_done():
-            print(f"Found results for iteration {fine_tuning_iteration}, continuing")
-            continue
+        iteration_chunker = job_chunker.sub_chunker(jobkey)
 
-        # run planning
-        planning_results_dir = outdir / 'planning_results' / f'iteration_{fine_tuning_iteration}_planning'
-        planner_params['classifier_model_dir'] = [
-            latest_checkpoint,
-            pathlib.Path('cl_trials/new_feasibility_baseline/none'),
-        ]
-        evaluate_planning(planner_params=planner_params,
-                          job_chunker=sub_job_chunker,
-                          outdir=planning_results_dir,
-                          trials=[0],
-                          no_execution=no_execution,
-                          timeout=timeout,
-                          test_scenes_dir=test_scenes_dir,
-                          log_full_tree=False,
-                          how_to_handle=on_exception,
-                          )
-        service_provider.pause()
+        latest_checkpoint = latest_checkpoint_dir / 'best_checkpoint'
 
-        # results to classifier dataset
-        new_dataset_dir = outdir / 'classifier_datasets' / f'iteration_{fine_tuning_iteration}_dataset'
-        r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir)
-        r.run()
+        # planning
+        planning_chunker = iteration_chunker.sub_chunker('planning')
+        planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
+        if planning_results_dir is None:
+            planning_results_dir = outdir / 'planning_results' / f'iteration_{fine_tuning_iteration}_planning'
+            planner_params['classifier_model_dir'] = [
+                latest_checkpoint,
+                pathlib.Path('cl_trials/new_feasibility_baseline/none'),
+            ]
+
+            [p.resume() for p in gazebo_processes]
+            evaluate_planning(planner_params=planner_params,
+                              job_chunker=planning_chunker,
+                              # REMOVE ME!
+                              # trials=[0, 1],
+                              outdir=planning_results_dir,
+                              no_execution=no_execution,
+                              timeout=timeout,
+                              test_scenes_dir=test_scenes_dir,
+                              log_full_tree=False,
+                              how_to_handle=on_exception,
+                              )
+            [p.suspend() for p in gazebo_processes]
+
+            analysis_params = load_analysis_params()
+            metrics = generate_metrics(analysis_params, [planning_results_dir])
+            successes = metrics[PercentageSuccess].values[planner_params['method_name']]
+            latest_success_rate = successes.sum() / successes.shape[0]
+
+        # convert results to classifier dataset
+        dataset_chunker = iteration_chunker.sub_chunker('dataset')
+        new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
+        if new_dataset_dir is None:
+            new_dataset_dir = outdir / 'classifier_datasets' / f'iteration_{fine_tuning_iteration}_dataset'
+            r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir)
+            r.run()
+            dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
         fine_tuning_dataset_dirs.append(new_dataset_dir)
 
         # fine tune (on all of the classifier datasets so far)
-        new_latest_checkpoint = fine_tune_classifier(dataset_dirs=fine_tuning_dataset_dirs,
-                                                     checkpoint=latest_checkpoint,
-                                                     log=f'iteration_{fine_tuning_iteration}_training_logdir',
-                                                     trials_directory=trials_directory,
-                                                     batch_size=log['batch_size'],
-                                                     epochs=log['epochs'])
-        latest_checkpoint = new_latest_checkpoint
+        fine_tune_chunker = iteration_chunker.sub_chunker('fine tune')
+        new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
+        if new_latest_checkpoint_dir is None:
+            new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=fine_tuning_dataset_dirs,
+                                                             checkpoint=latest_checkpoint,
+                                                             log=f'iteration_{fine_tuning_iteration}_training_logdir',
+                                                             trials_directory=trials_directory,
+                                                             batch_size=log['batch_size'],
+                                                             epochs=log['epochs'])
+            fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
 
-        fine_tuning_iteration_result = {
-            'trial_path': new_latest_checkpoint.as_posix(),
-
-        }
-        job_chunker.store_result(jobkey, fine_tuning_iteration_result)
-
-    job_chunker.done()
+        latest_checkpoint_dir = new_latest_checkpoint_dir
+        print(Fore.CYAN + f"Finished iteration {fine_tuning_iteration} {latest_success_rate * 100:.1f}%")
 
 
 def start_main(args):
