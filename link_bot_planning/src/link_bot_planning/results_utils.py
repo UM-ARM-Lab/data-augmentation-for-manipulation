@@ -96,6 +96,7 @@ def get_paths(datum: Dict, verbose: int = 0):
         predicted_states = numpify(predicted_states)
 
         types = [step['type']] * len(actions)
+
         yield from zip(actions, actual_states, predicted_states, types)
 
     # but do add the actual final states
@@ -132,9 +133,9 @@ def get_transitions(datum: Dict):
 
         e = step['planning_query'].environment
         types = [step['type']] * len(actions)
-        n_actions = len(actions)
+        n_actual_states = len(actual_states)
 
-        for t in range(n_actions):
+        for t in range(n_actual_states - 1):
             before_state_pred_t = predicted_states[t]
             before_state_t = actual_states[t]
             after_state_pred_t = predicted_states[t + 1]

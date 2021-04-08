@@ -18,7 +18,7 @@ from link_bot_planning import results_utils
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
 from link_bot_planning.results_utils import get_transitions
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
-from link_bot_pycommon.args import my_formatter, int_set_arg, BooleanAction
+from link_bot_pycommon.args import my_formatter, int_set_arg, BooleanAction, BooleanOptionalAction
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions, try_make_dict_tf_float32
@@ -34,7 +34,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
     parser.add_argument("outdir", type=pathlib.Path, help='output directory')
-    parser.add_argument('--full-tree', action=BooleanAction)
+    parser.add_argument('--full-tree', action=BooleanOptionalAction)
     parser.add_argument("--labeling-params", type=pathlib.Path, help='labeling params',
                         default=pathlib.Path('labeling_params/classifier/dual.hjson'))
     parser.add_argument("--visualize", action='store_true', help='visualize')
