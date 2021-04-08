@@ -150,6 +150,8 @@ def iterative_fine_tuning(log: Dict,
         latest_checkpoint_dir = new_latest_checkpoint_dir
         print(Fore.CYAN + f"Finished iteration {fine_tuning_iteration} {latest_success_rate * 100:.1f}%")
 
+    [p.kill() for p in gazebo_processes]
+
 
 def start_main(args):
     start_iterative_fine_tuning(nickname=args.nickname,
