@@ -5,8 +5,10 @@ import pathlib
 import warnings
 from typing import Dict
 
+from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.results_metrics import load_analysis_params, generate_metrics, PercentageSuccess
+from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_pycommon.pycommon import pathify, paths_from_json
 
 with warnings.catch_warnings():
@@ -20,8 +22,6 @@ from colorama import Fore
 
 import rospy
 from arc_utilities import ros_init
-from link_bot.link_bot_classifiers.scripts.fine_tune_classifier import fine_tune_classifier
-from link_bot.link_bot_planning.scripts.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_data.dataset_utils import data_directory
 from link_bot_planning.planning_evaluation import load_planner_params, evaluate_planning
 from link_bot_pycommon.args import int_set_arg, my_formatter, run_subparsers
