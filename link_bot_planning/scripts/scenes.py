@@ -18,6 +18,14 @@ def remove_main(args):
             pass
 
 
+def print_main(args):
+    scenes = get_all_scenes(args.dirname)
+    for s in scenes:
+        print(s.idx)
+        print(s.links_states)
+        print(s.joint_state)
+
+
 def list_main(args):
     scenes = get_all_scenes(args.dirname)
     for s in scenes:
@@ -62,6 +70,11 @@ def main():
     consolidate_parser = subparsers.add_parser('consolidate')
     consolidate_parser.add_argument("dirname", type=pathlib.Path)
     consolidate_parser.set_defaults(func=consolidate_main)
+
+    print_parser = subparsers.add_parser('print')
+    print_parser.add_argument("dirname", type=pathlib.Path)
+    print_parser.add_argument("idx", type=int_set_arg)
+    print_parser.set_defaults(func=print_main)
 
     args = parser.parse_args()
 
