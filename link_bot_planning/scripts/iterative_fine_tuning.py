@@ -177,7 +177,6 @@ def resume_main(args):
 
 
 def add_args(start_parser):
-    start_parser.add_argument("--trials", type=int_set_arg, default="0-29")
     start_parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
     start_parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
     start_parser.add_argument("--n-iters", '-n', type=int, help='number of iterations of fine tuning', default=10)
