@@ -1,0 +1,6 @@
+{
+  "model_class": "none",
+  "dynamics_dataset_hparams": {
+    "scenario": "rope_dragging"
+  }
+}
