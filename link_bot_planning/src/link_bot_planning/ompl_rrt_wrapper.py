@@ -231,7 +231,8 @@ class OmplRRTWrapper(MyPlanner):
         self.progagate_dts.append(dt)
         self.last_propagate_time = now
 
-        print(".", end='', flush=True)
+        if self.verbose >= 0:
+            print(".", end='', flush=True)
         # print(dt)
 
         # Convert from OMPL -> Numpy

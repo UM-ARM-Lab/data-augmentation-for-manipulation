@@ -117,6 +117,7 @@ def iterative_fine_tuning(log: Dict,
                               test_scenes_dir=test_scenes_dir,
                               log_full_tree=False,
                               how_to_handle=on_exception,
+                              verbose=-1,
                               )
             [p.suspend() for p in gazebo_processes]
 
