@@ -13,16 +13,15 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>rospy</depend>
-  <depend>pybind11_catkin</depend>
-  <depend>std_msgs</depend>
-  <depend>tf2-sensors-msgs</depend>
-  <depend>roscpp</depend>
+  <!-- TODO: properly list dependencies -->
   <depend>arm_gazebo_msgs</depend>
   <depend>moveit_commander</depend>
-
-  <exec_depend>gazebo_ros_link_attacher</exec_depend>
-  <depend>ros-noetic-rospy-message-converter</depend>
-  <!-- TODO: properly list dependencies -->
+  <depend>pybind11_catkin</depend>
+  <depend>ros_numpy</depend>
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <depend>rospy_message_converter</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2_sensors_msgs</depend>
 
 </package>

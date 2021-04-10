@@ -13,6 +13,7 @@
 
     <buildtool_depend>catkin</buildtool_depend>
 
+    <depend>geometry_msgs</depend>
     <depend>link_bot_classifiers</depend>
     <depend>link_bot_data</depend>
     <depend>link_bot_gazebo</depend>
@@ -22,10 +23,10 @@
     <depend>moonshine</depend>
     <depend>ompl</depend>
     <depend>peter_msgs</depend>
-    <depend>std_msgs</depend>
-    <depend>geometry_msgs</depend>
-    <depend>sensor_msgs</depend>
     <depend>pybind11_catkin</depend>
+    <depend>ros_numpy</depend>
     <depend>rospy</depend>
+    <depend>sensor_msgs</depend>
+    <depend>std_msgs</depend>
 
 </package>
