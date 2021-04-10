@@ -9,12 +9,12 @@ __pycache__
 
 CATKIN_IGNORE
 .roslaunch.std*
-*trials/*
-log_data/*
-*results/*
-*old_log_data/*
-*recovery_data/*
-*fwd_model_data/*
-*logdata
-recovery_models/*
-classifier_data/*
+**/trials/*
+**/log_data/*
+**/results/*
+**/old_log_data/*
+**/recovery_data/*
+**/fwd_model_data/*
+**/logdata
+**/recovery_models/*
+**/classifier_data/*
