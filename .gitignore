@@ -9,7 +9,6 @@ __pycache__
 
 CATKIN_IGNORE
 .roslaunch.std*
-**/trials/*
 **/log_data/*
 **/results/*
 **/old_log_data/*
@@ -17,4 +16,5 @@ CATKIN_IGNORE
 **/fwd_model_data/*
 **/logdata
 **/recovery_models/*
+**/*trials/*
 **/classifier_data/*

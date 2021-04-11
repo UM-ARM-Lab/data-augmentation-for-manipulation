@@ -378,7 +378,10 @@ class OmplRRTWrapper(MyPlanner):
         else:
             raise ValueError(f"invalid planner status {planner_status}")
 
-        print()
+        if self.verbose >= 0:
+            # new line so that the above print(".", end="") doesn't cause issues
+            print()
+
         return PlanningResult(status=planner_status,
                               path=planned_path,
                               actions=actions,
