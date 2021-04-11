@@ -13,6 +13,7 @@ CATKIN_IGNORE
 **/results/*
 **/old_log_data/*
 **/recovery_data/*
+**/recovery_trials/*
 **/fwd_model_data/*
 **/logdata
 **/recovery_models/*
