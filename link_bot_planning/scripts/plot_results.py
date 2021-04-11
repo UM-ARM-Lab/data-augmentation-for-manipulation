@@ -8,10 +8,10 @@ import numpy as np
 
 import rospy
 from arc_utilities import ros_init
-from link_bot_planning import results_utils
+from link_bot_planning.analysis import results_utils
 from link_bot_planning.my_planner import PlanningQuery
 from link_bot_planning.plan_and_execute import TrialStatus
-from link_bot_planning.results_utils import labeling_params_from_planner_params, get_paths, \
+from link_bot_planning.analysis.results_utils import labeling_params_from_planner_params, get_paths, \
     classifier_params_from_planner_params
 from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization

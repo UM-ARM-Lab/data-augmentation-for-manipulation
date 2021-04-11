@@ -10,9 +10,9 @@ from link_bot_data.classifier_dataset_utils import add_perception_reliability, a
 from link_bot_data.dataset_utils import tf_write_example, add_predicted
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_gazebo.gazebo_services import GazeboServices
-from link_bot_planning import results_utils
+from link_bot_planning.analysis import results_utils
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
-from link_bot_planning.results_utils import NoTransitionsError, get_transitions
+from link_bot_planning.analysis.results_utils import NoTransitionsError, get_transitions
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator

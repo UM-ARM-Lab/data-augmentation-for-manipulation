@@ -13,9 +13,9 @@ from tabulate import tabulate
 
 import rospy
 from arc_utilities.filesystem_utils import get_all_subfolders
-from link_bot_planning.results_figures import *
-from link_bot_planning.results_metrics import *
-from link_bot_planning.results_metrics import load_analysis_params, generate_metrics
+from link_bot_planning.analysis.results_figures import *
+from link_bot_planning.analysis.results_metrics import *
+from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_metrics
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.metric_utils import dict_to_pvalue_table
 from link_bot_pycommon.pycommon import paths_from_json

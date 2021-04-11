@@ -6,7 +6,7 @@ from colorama import Fore
 
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
-from link_bot_planning.results_utils import get_paths
+from link_bot_planning.analysis.results_utils import get_paths
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.serialization import load_gzipped_pickle

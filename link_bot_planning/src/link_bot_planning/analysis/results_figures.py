@@ -7,8 +7,8 @@ from colorama import Fore
 from matplotlib.lines import Line2D
 
 from link_bot_data.visualization import color_violinplot
-from link_bot_planning.results_metrics import ResultsMetric
-from link_bot_planning.results_utils import classifer_dataset_params_from_planner_params
+from link_bot_planning.analysis.results_metrics import ResultsMetric
+from link_bot_planning.analysis.results_utils import classifer_dataset_params_from_planner_params
 from link_bot_pycommon.latex_utils import make_cell
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation, get_figsize
 from link_bot_pycommon.metric_utils import row_stats
