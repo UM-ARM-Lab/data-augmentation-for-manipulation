@@ -73,8 +73,7 @@ def metrics_main(args):
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
 
     figures = [
-        # BarChartPercentagePerMethodFigure(analysis_params, metrics[Successes], '% Success'),
-        # violin_plot(analysis_params, metrics[TaskError], 'Task Error'),
+        LinePlotAcrossIterationsFigure(analysis_params, metrics[TaskError], 'task error'),
         # box_plot(analysis_params, metrics[NRecoveryActions], "Num Recovery Actions"),
         # box_plot(analysis_params, metrics[TotalTime], 'Total Time'),
         # violin_plot(analysis_params, metrics[TotalTime], 'Total Time'),
@@ -84,7 +83,7 @@ def metrics_main(args):
         # box_plot(analysis_params, metrics[PlanningTime], 'Planning Time'),
         # box_plot(analysis_params, metrics[PercentageMERViolations], '% MER Violations'),
         # BarChartPercentagePerMethodFigure(analysis_params, metrics[PlannerSolved], '% Planner Returned Solved'),
-        SuccessLineplotFigure(analysis_params, metrics[PercentSuccess]),
+        LinePlotAcrossIterationsFigure(analysis_params, metrics[Successes], 'percentage success'),
     ]
 
     make_figures(figures, analysis_params, sort_order_dict, table_format, tables_filename, out_dir)

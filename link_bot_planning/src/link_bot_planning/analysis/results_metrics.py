@@ -22,11 +22,7 @@ class TrialMetrics:
         self.metadatas = {}
 
     def setup_method(self, method_name: str, metadata: Dict):
-        self.metadatas[method_name] = metadata
         self.values[method_name] = []
-
-    def add_iteration(self, method_name: str):
-        self.values[method_name].append([])
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         raise NotImplementedError()
@@ -35,15 +31,43 @@ class TrialMetrics:
         metric_value = self.get_metric(scenario, trial_datum)
         self.values[method_name].append(metric_value)
 
-    def aggregate_trials(self, method_name: str):
-        return np.mean(self.values[method_name])
-
     def after_all_trials(self, method_name: str):
         self.convert_to_numpy_arrays()
 
     def convert_to_numpy_arrays(self):
         for method_name, metric_values in self.values.items():
             self.values[method_name] = np.array(metric_values)
+
+
+class MeanAcrossIterationsMetrics:
+    def __init__(self, metric: TrialMetrics):
+        self.metric = metric
+        self.all_values = {}
+        self.metadatas = {}
+        self.values = {}
+        self.method_indices = {}
+
+    def setup_method(self, method_name: str, metadata: Dict):
+        self.metric.setup_method(method_name, metadata)
+        self.all_values[method_name] = []
+        self.values[method_name] = []
+        self.metadatas[method_name] = []
+
+    def setup_next_iteration(self, method_name: str, metadata: Dict):
+        self.all_values[method_name].append([])
+        self.values[method_name].append(None)
+        self.metadatas[method_name].append(metadata)
+
+    def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
+        raise NotImplementedError()
+
+    def aggregate_trial(self, method_name: str, scenario: ExperimentScenario, trial_datum: Dict, iteration: int):
+        metric_value = self.metric.get_metric(scenario, trial_datum)
+        self.all_values[method_name][iteration].append(metric_value)
+
+    def aggregate_trials(self, method_name: str, iteration: int):
+        mean = np.mean(self.all_values[method_name])
+        self.values[method_name][iteration] = mean
 
 
 class TaskError(TrialMetrics):
@@ -70,19 +94,6 @@ class Successes(TaskError):
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         final_execution_to_goal_error = super().get_metric(scenario, trial_datum)
         return final_execution_to_goal_error < self.goal_threshold
-
-
-class PercentSuccess(Successes):
-    def __init__(self, analysis_params: Dict):
-        super().__init__(analysis_params)
-
-    def aggregate_trial(self, method_name: str, scenario: ExperimentScenario, trial_datum: Dict, iteration: int):
-        metric_value = self.get_metric(scenario, trial_datum)
-        self.values[method_name][iteration].append(metric_value)
-
-    def aggregate_trials(self, method_name: str, iteration: int):
-        mean = np.mean(self.values[method_name][iteration]) * 100
-        self.values[method_name][iteration] = mean
 
 
 class NRecoveryActions(TrialMetrics):
@@ -189,10 +200,10 @@ def generate_multi_trial_metrics(analysis_params: Dict, results_dirs_dict: Dict)
     metrics = {}
 
     def _include_metric(metric: type):
-        metrics[metric] = metric(analysis_params=analysis_params)
+        metrics[metric] = MeanAcrossIterationsMetrics(metric(analysis_params=analysis_params))
 
-    # _include_metric(TaskError)
-    # _include_metric(Successes)
+    _include_metric(TaskError)
+    _include_metric(Successes)
     # _include_metric(NRecoveryActions)
     # _include_metric(TotalTime)
     # _include_metric(NPlanningAttempts)
@@ -201,7 +212,6 @@ def generate_multi_trial_metrics(analysis_params: Dict, results_dirs_dict: Dict)
     # _include_metric(PlanningTime)
     # _include_metric(PercentageMERViolations)
     # _include_metric(PlannerSolved)
-    _include_metric(PercentSuccess)
 
     for method_name, (dirs, _) in results_dirs_dict.items():
         print(Fore.GREEN + f"processing {method_name} {[d.name for d in dirs]}")
@@ -214,8 +224,10 @@ def generate_multi_trial_metrics(analysis_params: Dict, results_dirs_dict: Dict)
         for iteration, iteration_folder in enumerate(dirs):
             assert str(iteration) in iteration_folder.name  # sanity check
 
+            metadata_for_iteration = load_json_or_hjson(iteration_folder, 'metadata')
+
             for metric in metrics.values():
-                metric.add_iteration(method_name)
+                metric.setup_next_iteration(method_name, metadata_for_iteration)
 
             # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
             metrics_filenames = list(iteration_folder.glob("*_metrics.pkl.gz"))
@@ -287,7 +299,6 @@ __all__ = [
     'TotalTime',
     'PlanningTime',
     'PlannerSolved',
-    'PercentSuccess',
     'load_analysis_params',
     'generate_per_trial_metrics',
 ]

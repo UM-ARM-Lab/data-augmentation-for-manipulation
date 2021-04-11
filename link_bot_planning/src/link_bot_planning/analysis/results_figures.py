@@ -135,11 +135,21 @@ class MyFigure:
         return get_figsize(len(self.metric.values))
 
 
-class SuccessLineplotFigure(MyFigure):
-    def __init__(self, analysis_params: Dict, metric):
-        super().__init__(analysis_params, metric, "success_lineplot")
+# class MultiIterationsFigure:
+#     def __init__(self, analysis_params: Dict, metric: TrialMetrics, name: str):
+#         super().__init__(analysis_params, metric, name)
+#
+#     def set_title(self):
+#         pass
+
+
+class LinePlotAcrossIterationsFigure(MyFigure):
+    def __init__(self, analysis_params: Dict, metric, ylabel: str):
+        self.ylabel = ylabel
+        name = self.ylabel.lower().replace(" ", "_") + "_lineplot"
+        super().__init__(analysis_params, metric, name)
         self.ax.set_xlabel("Iteration")
-        self.ax.set_ylabel("Percentage Success")
+        self.ax.set_ylabel(self.ylabel)
 
     def get_table_header(self):
         return ["Name", "min", "max", "mean", "median", "std"]
@@ -148,9 +158,7 @@ class SuccessLineplotFigure(MyFigure):
         self.ax.plot(self.metric.values[method_name], c=color, label=method_name)
 
     def set_title(self):
-        # nickname = self.log['nickname']
-        # self.fig.suptitle(f"success over time [{nickname}]")
-        self.fig.suptitle(f"success over time")
+        self.fig.suptitle(f"{self.ylabel} over time")
 
     def finish_figure(self):
         super().finish_figure()
@@ -184,6 +192,9 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
         self.ax.legend(mean_line, ['mean'])
 
         self.methods_on_x_axis()
+
+    def set_title(self):
+        pass
 
     def get_table_header(self):
         return ["Name", "min", "max", "mean", "median", "std"]
@@ -352,7 +363,7 @@ __all__ = [
     'BoxplotOverTrialsPerMethodFigure',
     'BarChartPercentagePerMethodFigure',
     'TaskErrorLineFigure',
-    'SuccessLineplotFigure',
+    'LinePlotAcrossIterationsFigure',
     'box_plot',
     'violin_plot',
 ]
