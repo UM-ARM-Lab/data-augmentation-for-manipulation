@@ -95,7 +95,7 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             'uuid':           uuid.uuid4(),
         }
         trial_data.update(extra_trial_data)
-        data_filename = self.outdir / f'{trial_idx}_metrics.pkl.gz'
+        data_filename = self.outdir / f'{trial_idx:03d}_metrics.pkl.gz'
         dump_gzipped_pickle(trial_data, data_filename)
 
         if self.record:

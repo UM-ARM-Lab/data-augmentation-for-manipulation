@@ -8,7 +8,6 @@ from link_bot_data.classifier_dataset_utils import \
     batch_of_many_of_actions_sequences_to_dict
 from link_bot_planning.plan_and_execute import execute_actions
 from link_bot_pycommon.base_services import BaseServices
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.ros_pycommon import (make_movable_object_services)
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization

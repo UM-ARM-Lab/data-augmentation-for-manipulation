@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import rospy
-from link_bot_classifiers.analysis_utils import predict, execute
+from link_bot_classifiers.classifier_analysis_utils import predict, execute
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.pycommon import make_dict_tf_float32

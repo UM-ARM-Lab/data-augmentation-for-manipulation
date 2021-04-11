@@ -7,7 +7,7 @@ from typing import Dict
 
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
-from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_metrics, PercentageSuccess
+from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_pycommon.pycommon import pathify, paths_from_json
 
@@ -100,11 +100,12 @@ def iterative_fine_tuning(log: Dict,
         planning_chunker = iteration_chunker.sub_chunker('planning')
         planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
         if planning_results_dir is None:
-            planning_results_dir = outdir / 'planning_results' / f'iteration_{fine_tuning_iteration}_planning'
+            planning_results_dir = outdir / 'planning_results' / f'iteration_{fine_tuning_iteration:02d}_planning'
             planner_params['classifier_model_dir'] = [
                 latest_checkpoint,
                 pathlib.Path('cl_trials/new_feasibility_baseline/none'),
             ]
+            planner_params['fine_tuning_iteration'] = fine_tuning_iteration
 
             [p.resume() for p in gazebo_processes]
             evaluate_planning(planner_params=planner_params,
@@ -122,8 +123,8 @@ def iterative_fine_tuning(log: Dict,
             [p.suspend() for p in gazebo_processes]
 
             analysis_params = load_analysis_params()
-            metrics = generate_metrics(analysis_params, [planning_results_dir])
-            successes = metrics[PercentageSuccess].values[planner_params['method_name']]
+            metrics = generate_per_trial_metrics(analysis_params, [planning_results_dir])
+            successes = metrics[Successes].values[planner_params['method_name']]
             latest_success_rate = successes.sum() / successes.shape[0]
 
         # convert results to classifier dataset

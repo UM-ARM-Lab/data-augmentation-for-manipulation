@@ -2,6 +2,9 @@ import pathlib
 import re
 from typing import Dict, Optional, List
 
+import hjson
+from colorama import Fore
+
 from link_bot_planning.my_planner import PlanningResult
 from link_bot_planning.plan_and_execute import ExecutionResult
 from link_bot_pycommon.get_scenario import get_scenario
@@ -207,3 +210,31 @@ def print_percentage(description: str, numerator: int, denominator: int):
         print(f'{description:80s} {numerator}/0 (division by zero)')
     else:
         print(f'{description:80s} {numerator}/{denominator}, {numerator / denominator * 100:.1f}%')
+
+
+def save_order(outdir: pathlib.Path, subfolders_ordered: List[pathlib.Path]):
+    sort_order_filename = outdir / 'sort_order.txt'
+    with sort_order_filename.open("w") as sort_order_file:
+        my_hdump(subfolders_ordered, sort_order_file)
+
+
+def load_sort_order(outdir: pathlib.Path, unsorted_dirs: List[pathlib.Path]):
+    sort_order_filename = outdir / 'sort_order.txt'
+    if sort_order_filename.exists():
+        with sort_order_filename.open("r") as sort_order_file:
+            subfolders_ordered = hjson.load(sort_order_file)
+        subfolders_ordered = paths_from_json(subfolders_ordered)
+        return subfolders_ordered
+    return unsorted_dirs
+
+
+def load_order(prompt_order: bool, directories: List[pathlib.Path], out_dir: pathlib.Path):
+    if prompt_order:
+        for idx, results_dir in enumerate(directories):
+            print("{}) {}".format(idx, results_dir))
+        sort_order = input(Fore.CYAN + "Enter the desired order:\n" + Fore.RESET)
+        dirs_ordered = [directories[int(i)] for i in sort_order.split(' ')]
+        save_order(out_dir, dirs_ordered)
+    else:
+        dirs_ordered = load_sort_order(out_dir, directories)
+    return dirs_ordered

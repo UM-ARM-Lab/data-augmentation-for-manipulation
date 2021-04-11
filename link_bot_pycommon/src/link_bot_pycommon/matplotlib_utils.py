@@ -71,7 +71,7 @@ def adjust_lightness_msg(color: ColorRGBA, amount=1.0):
 
 
 def get_rotation(xticklabels: Iterable[str]):
-    max_len = max(*[len(l) for l in xticklabels])
+    max_len = max(0, *[len(l) for l in xticklabels])
     rotation = 1.2 * max_len
     return rotation
 

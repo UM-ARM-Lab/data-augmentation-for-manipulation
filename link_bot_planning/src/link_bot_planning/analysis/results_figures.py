@@ -1,5 +1,6 @@
+import pathlib
 import re
-from typing import Dict, List
+from typing import Dict, List, Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,7 +8,7 @@ from colorama import Fore
 from matplotlib.lines import Line2D
 
 from link_bot_data.visualization import color_violinplot
-from link_bot_planning.analysis.results_metrics import ResultsMetric
+from link_bot_planning.analysis.results_metrics import TrialMetrics
 from link_bot_planning.analysis.results_utils import classifer_dataset_params_from_planner_params
 from link_bot_pycommon.latex_utils import make_cell
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation, get_figsize
@@ -18,7 +19,7 @@ colors_cache = {}
 
 
 class MyFigure:
-    def __init__(self, analysis_params: Dict, metric: ResultsMetric, name: str):
+    def __init__(self, analysis_params: Dict, metric: TrialMetrics, name: str):
         super().__init__()
         self.metric = metric
         self.params = analysis_params
@@ -116,8 +117,8 @@ class MyFigure:
         self.ax.set_xticklabels(xticklabels)
         plt.setp(self.ax.get_xticklabels(), rotation=get_rotation(xticklabels=xticklabels), horizontalalignment='right')
 
-    def save_figure(self):
-        filename = self.metric.results_dir / (self.name + ".jpeg")
+    def save_figure(self, outdir: pathlib.Path):
+        filename = outdir / (self.name + ".jpeg")
         print(Fore.GREEN + f"Saving {filename}")
         save_unconstrained_layout(self.fig, filename, dpi=300)
 
@@ -132,6 +133,27 @@ class MyFigure:
 
     def get_figsize(self):
         return get_figsize(len(self.metric.values))
+
+
+class SuccessLineplotFigure(MyFigure):
+    def __init__(self, analysis_params: Dict, metric):
+        super().__init__(analysis_params, metric, "success_lineplot")
+        self.ax.set_xlabel("Iteration")
+        self.ax.set_ylabel("Percentage Success")
+
+    def get_table_header(self):
+        return ["Name", "min", "max", "mean", "median", "std"]
+
+    def add_to_figure(self, method_name: str, values: List, color):
+        self.ax.plot(self.metric.values[method_name], c=color, label=method_name)
+
+    def set_title(self):
+        # nickname = self.log['nickname']
+        # self.fig.suptitle(f"success over time [{nickname}]")
+        self.fig.suptitle(f"success over time")
+
+    def finish_figure(self):
+        super().finish_figure()
 
 
 class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
@@ -168,7 +190,7 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
 
 
 class BarChartPercentagePerMethodFigure(MyFigure):
-    def __init__(self, analysis_params: Dict, metric, ylabel: str):
+    def __init__(self, analysis_params: Dict, metric: TrialMetrics, ylabel: str):
         name = ylabel.lower().replace(" ", "_") + "_barchart"
         super().__init__(analysis_params, metric, name)
         self.ax.set_xlabel("Method")
@@ -232,7 +254,7 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
 
 
 class TaskErrorLineFigure(MyFigure):
-    def __init__(self, analysis_params: Dict, metric: ResultsMetric):
+    def __init__(self, analysis_params: Dict, metric: TrialMetrics):
         super().__init__(analysis_params, metric, name="task_error_lineplot")
         max_error = self.params["max_error"]
         self.errors_thresholds = np.linspace(0.01, max_error, self.params["n_error_bins"])
@@ -264,12 +286,64 @@ class TaskErrorLineFigure(MyFigure):
         return 10, 5
 
 
-def box_plot(analysis_params: Dict, metric: ResultsMetric, name: str):
+def box_plot(analysis_params: Dict, metric: TrialMetrics, name: str):
     return BoxplotOverTrialsPerMethodFigure(analysis_params, metric, name)
 
 
-def violin_plot(analysis_params: Dict, metric: ResultsMetric, name: str):
+def violin_plot(analysis_params: Dict, metric: TrialMetrics, name: str):
     return ViolinPlotOverTrialsPerMethodFigure(analysis_params, metric, name)
+
+
+def make_figures(figures: Iterable[MyFigure],
+                 analysis_params: Dict,
+                 sort_order_dict: Dict,
+                 table_format: str,
+                 tables_filename: pathlib.Path,
+                 out_dir: pathlib.Path):
+    for figure in figures:
+        figure.params = analysis_params
+        figure.sort_methods(sort_order_dict)
+
+    for figure in figures:
+        figure.enumerate_methods()
+
+    # Tables
+    # for figure in figures:
+    #     table_header, table_data = figure.make_table(table_format)
+    #     if table_data is None:
+    #         continue
+    #     print(Style.BRIGHT + figure.name + Style.NORMAL)
+    #     table = tabulate(table_data,
+    #                      headers=table_header,
+    #                      tablefmt=table_format,
+    #                      floatfmt='6.4f',
+    #                      numalign='center',
+    #                      stralign='left')
+    #     print(table)
+    #     print()
+    #
+    #     # For saving metrics since this script is kind of slow it's nice to save the output
+    #     with tables_filename.open("a") as tables_file:
+    #         tables_file.write(figure.name)
+    #         tables_file.write('\n')
+    #         tables_file.write(table)
+    #         tables_file.write('\n')
+    #
+    # for figure in figures:
+    #     pvalue_table_title = f"p-value matrix [{figure.name}]"
+    #     pvalue_table = dict_to_pvalue_table(figure.metric.values, table_format=table_format)
+    #     print(Style.BRIGHT + pvalue_table_title + Style.NORMAL)
+    #     print(pvalue_table)
+    #     with tables_filename.open("a") as tables_file:
+    #         tables_file.write(pvalue_table_title)
+    #         tables_file.write('\n')
+    #         tables_file.write(pvalue_table)
+    #         tables_file.write('\n')
+
+    # Actual figures
+    for figure in figures:
+        figure.make_figure()
+        figure.save_figure(out_dir)
 
 
 __all__ = [
@@ -278,6 +352,7 @@ __all__ = [
     'BoxplotOverTrialsPerMethodFigure',
     'BarChartPercentagePerMethodFigure',
     'TaskErrorLineFigure',
+    'SuccessLineplotFigure',
     'box_plot',
-    'violin_plot'
+    'violin_plot',
 ]

@@ -14,10 +14,10 @@ from arc_utilities.filesystem_utils import get_all_subdirs
 from link_bot_planning.analysis.results_figures import *
 from link_bot_planning.analysis.results_figures import make_figures
 from link_bot_planning.analysis.results_metrics import *
-from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics
-from link_bot_planning.analysis.results_utils import save_order, load_sort_order, load_order
+from link_bot_planning.analysis.results_metrics import generate_multi_trial_metrics
+from link_bot_planning.analysis.results_utils import load_order
 from link_bot_pycommon.args import my_formatter
-from moonshine.filepath_tools import load_json_or_hjson
+from moonshine.filepath_tools import load_hjson
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -27,33 +27,31 @@ def metrics_main(args):
     analysis_params = load_analysis_params(args.analysis_params)
 
     # The default for where we write results
-    out_dir = args.results_dirs[0]
+    planning_results_dirs = [d / 'planning_results' for d in args.ift_dirs]
+    out_dir = args.ift_dirs[0]
     print(f"Writing analysis to {out_dir}")
-
-    unique_comparison_name = "-".join([p.name for p in args.results_dirs])
-
-    subfolders = get_all_subdirs(args.results_dirs)
 
     if args.latex:
         table_format = 'latex_raw'
     else:
         table_format = 'fancy_grid'
 
-    subfolders_ordered = load_order(prompt_order=args.order, directories=subfolders, out_dir=out_dir)
+    results_dirs_ordered = load_order(prompt_order=args.order, directories=planning_results_dirs, out_dir=out_dir)
+
+    results_dirs_dict = {}
+    sort_order_dict = {}
+    for idx, results_dir in enumerate(results_dirs_ordered):
+        method_name = " ".join(results_dir.parent.name.split("_")[:-2])
+        log = load_hjson(results_dir.parent / 'logfile.hjson')
+        subfolders = sorted(get_all_subdirs([results_dir]))
+        results_dirs_dict[method_name] = (subfolders, log)
+        sort_order_dict[method_name] = idx
 
     tables_filename = out_dir / 'tables.txt'
     with tables_filename.open("w") as tables_file:
         tables_file.truncate()
 
-    sort_order_dict = {}
-    method_names = []
-    for sort_idx, subfolder in enumerate(subfolders_ordered):
-        metadata = load_json_or_hjson(subfolder, 'metadata')
-        method_name = metadata['planner_params'].get('method_name', subfolder.name)
-        sort_order_dict[method_name] = sort_idx
-        method_names.append(method_name)
-
-    pickle_filename = out_dir / f"{unique_comparison_name}-metrics.pkl"
+    pickle_filename = out_dir / f"metrics.pkl"
     if pickle_filename.exists() and not args.regenerate:
         rospy.loginfo(Fore.GREEN + f"Loading existing metrics from {pickle_filename}")
         with pickle_filename.open("rb") as pickle_file:
@@ -68,25 +66,25 @@ def metrics_main(args):
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
     else:
         rospy.loginfo(Fore.GREEN + f"Generating metrics")
-        metrics = generate_per_trial_metrics(analysis_params, subfolders_ordered, method_names)
+        metrics = generate_multi_trial_metrics(analysis_params, results_dirs_dict)
 
         with pickle_filename.open("wb") as pickle_file:
             pickle.dump(metrics, pickle_file)
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
 
     figures = [
-        TaskErrorLineFigure(analysis_params, metrics[TaskError]),
-        BarChartPercentagePerMethodFigure(analysis_params, metrics[Successes], '% Success'),
-        violin_plot(analysis_params, metrics[TaskError], 'Task Error'),
-        box_plot(analysis_params, metrics[NRecoveryActions], "Num Recovery Actions"),
-        box_plot(analysis_params, metrics[TotalTime], 'Total Time'),
-        violin_plot(analysis_params, metrics[TotalTime], 'Total Time'),
-        box_plot(analysis_params, metrics[NPlanningAttempts], 'Num Planning Attempts'),
-        box_plot(analysis_params, metrics[NMERViolations], 'Num MER Violations'),
-        box_plot(analysis_params, metrics[NormalizedModelError], 'Normalized Model Error'),
-        box_plot(analysis_params, metrics[PlanningTime], 'Planning Time'),
-        box_plot(analysis_params, metrics[PercentageMERViolations], '% MER Violations'),
-        BarChartPercentagePerMethodFigure(analysis_params, metrics[PlannerSolved], '% Planner Returned Solved'),
+        # BarChartPercentagePerMethodFigure(analysis_params, metrics[Successes], '% Success'),
+        # violin_plot(analysis_params, metrics[TaskError], 'Task Error'),
+        # box_plot(analysis_params, metrics[NRecoveryActions], "Num Recovery Actions"),
+        # box_plot(analysis_params, metrics[TotalTime], 'Total Time'),
+        # violin_plot(analysis_params, metrics[TotalTime], 'Total Time'),
+        # box_plot(analysis_params, metrics[NPlanningAttempts], 'Num Planning Attempts'),
+        # box_plot(analysis_params, metrics[NMERViolations], 'Num MER Violations'),
+        # box_plot(analysis_params, metrics[NormalizedModelError], 'Normalized Model Error'),
+        # box_plot(analysis_params, metrics[PlanningTime], 'Planning Time'),
+        # box_plot(analysis_params, metrics[PercentageMERViolations], '% MER Violations'),
+        # BarChartPercentagePerMethodFigure(analysis_params, metrics[PlannerSolved], '% Planner Returned Solved'),
+        SuccessLineplotFigure(analysis_params, metrics[PercentSuccess]),
     ]
 
     make_figures(figures, analysis_params, sort_order_dict, table_format, tables_filename, out_dir)
@@ -100,12 +98,13 @@ def metrics_main(args):
 def main():
     colorama.init(autoreset=True)
 
-    rospy.init_node("analyse_planning_results")
+    rospy.init_node("analyse_ift_results")
     np.set_printoptions(suppress=True, precision=4, linewidth=180)
 
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
-    parser.add_argument('results_dirs', help='results directory', type=pathlib.Path, nargs='+')
-    parser.add_argument('analysis_params', type=pathlib.Path)
+    parser.add_argument('ift_dirs', help='results directory', type=pathlib.Path, nargs='+')
+    parser.add_argument('--analysis-params', type=pathlib.Path,
+                        default=pathlib.Path("analysis_params/env_across_methods.json"))
     parser.add_argument('--no-plot', action='store_true')
     parser.add_argument('--show-all-trials', action='store_true')
     parser.add_argument('--latex', action='store_true')
@@ -120,6 +119,7 @@ def main():
     plt.style.use(args.style)
 
     metrics_main(args)
+    # metrics_main2(args)
 
 
 if __name__ == '__main__':
