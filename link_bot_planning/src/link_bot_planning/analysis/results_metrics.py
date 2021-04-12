@@ -66,7 +66,7 @@ class MeanAcrossIterationsMetrics:
         self.all_values[method_name][iteration].append(metric_value)
 
     def aggregate_trials(self, method_name: str, iteration: int):
-        mean = np.mean(self.all_values[method_name])
+        mean = np.mean(self.all_values[method_name][iteration])
         self.values[method_name][iteration] = mean
 
 
@@ -204,14 +204,9 @@ def generate_multi_trial_metrics(analysis_params: Dict, results_dirs_dict: Dict)
 
     _include_metric(TaskError)
     _include_metric(Successes)
-    # _include_metric(NRecoveryActions)
-    # _include_metric(TotalTime)
-    # _include_metric(NPlanningAttempts)
-    # _include_metric(NMERViolations)
-    # _include_metric(NormalizedModelError)
-    # _include_metric(PlanningTime)
-    # _include_metric(PercentageMERViolations)
-    # _include_metric(PlannerSolved)
+    _include_metric(TotalTime)
+    _include_metric(NormalizedModelError)
+    _include_metric(PlanningTime)
 
     for method_name, (dirs, _) in results_dirs_dict.items():
         print(Fore.GREEN + f"processing {method_name} {[d.name for d in dirs]}")

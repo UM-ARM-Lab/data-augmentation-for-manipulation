@@ -73,18 +73,23 @@ def metrics_main(args):
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
 
     figures = [
-        LinePlotAcrossIterationsFigure(analysis_params, metrics[TaskError], 'task error'),
-        # box_plot(analysis_params, metrics[NRecoveryActions], "Num Recovery Actions"),
-        # box_plot(analysis_params, metrics[TotalTime], 'Total Time'),
-        # violin_plot(analysis_params, metrics[TotalTime], 'Total Time'),
-        # box_plot(analysis_params, metrics[NPlanningAttempts], 'Num Planning Attempts'),
-        # box_plot(analysis_params, metrics[NMERViolations], 'Num MER Violations'),
-        # box_plot(analysis_params, metrics[NormalizedModelError], 'Normalized Model Error'),
-        # box_plot(analysis_params, metrics[PlanningTime], 'Planning Time'),
-        # box_plot(analysis_params, metrics[PercentageMERViolations], '% MER Violations'),
-        # BarChartPercentagePerMethodFigure(analysis_params, metrics[PlannerSolved], '% Planner Returned Solved'),
-        LinePlotAcrossIterationsFigure(analysis_params, metrics[Successes], 'percentage success'),
+        LinePlotAcrossIterationsFigure(analysis_params, metrics[TaskError], 'Task Error'),
+        LinePlotAcrossIterationsFigure(analysis_params, metrics[TotalTime], 'Total Time'),
+        LinePlotAcrossIterationsFigure(analysis_params, metrics[PlanningTime], 'Planning Time'),
+        LinePlotAcrossIterationsFigure(analysis_params, metrics[NormalizedModelError], 'Normalized Model Error'),
+        LinePlotAcrossIterationsFigure(analysis_params, metrics[Successes], 'Percentage Success'),
     ]
+
+    # override the figure titles
+    def _set_title(_figure):
+        def _set_title_():
+            from_env = log['from_env']
+            to_env = log['to_env']
+            _figure.fig.suptitle(f"online transfer, {_figure.ylabel}, {from_env} to {to_env}")
+        return _set_title_
+
+    for figure in figures:
+        figure.set_title = _set_title(figure)
 
     make_figures(figures, analysis_params, sort_order_dict, table_format, tables_filename, out_dir)
 

@@ -25,7 +25,6 @@ class MyFigure:
         self.params = analysis_params
         self.name = name
         self.fig, self.ax = self.create_figure()
-        self.set_title()
 
     def set_title(self):
         metadata_for_method = next(iter(self.metric.metadatas.values()))
@@ -109,6 +108,7 @@ class MyFigure:
         raise NotImplementedError()
 
     def finish_figure(self):
+        self.set_title()
         self.ax.legend()
 
     def methods_on_x_axis(self):

@@ -11,8 +11,8 @@ from link_bot_data.dataset_utils import tf_write_example, add_predicted
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.analysis import results_utils
-from link_bot_planning.my_planner import PlanningQuery, LoggingTree
 from link_bot_planning.analysis.results_utils import NoTransitionsError, get_transitions
+from link_bot_planning.my_planner import PlanningQuery, LoggingTree
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
@@ -38,6 +38,7 @@ class ResultsToClassifierDataset:
                  gui: Optional[bool] = None,
                  launch: Optional[str] = None,
                  world: Optional[str] = None,
+                 verbose: int = 1,
                  subsample_fraction: Optional[float] = None):
         self.restart = False
         self.rng = np.random.RandomState(0)
@@ -47,6 +48,7 @@ class ResultsToClassifierDataset:
         self.outdir = outdir
         self.trial_indices = trial_indices
         self.subsample_fraction = subsample_fraction
+        self.verbose = verbose
 
         if labeling_params is None:
             labeling_params = pathlib.Path('labeling_params/classifier/dual.hjson')
@@ -124,8 +126,9 @@ class ResultsToClassifierDataset:
 
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
-                    print(
-                        f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
+                    if self.verbose >= 0:
+                        print(
+                            f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
                     example = try_make_dict_tf_float32(example)
                     full_filename = tf_write_example(self.outdir, example, self.example_idx)
                     self.files.add(full_filename)
