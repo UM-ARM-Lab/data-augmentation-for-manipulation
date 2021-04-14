@@ -78,18 +78,8 @@ def metrics_main(args):
         LinePlotAcrossIterationsFigure(analysis_params, metrics[PlanningTime], 'Planning Time'),
         LinePlotAcrossIterationsFigure(analysis_params, metrics[NormalizedModelError], 'Normalized Model Error'),
         LinePlotAcrossIterationsFigure(analysis_params, metrics[Successes], 'Percentage Success'),
+        LinePlotAcrossIterationsFigure(analysis_params, metrics[PlannerSolved], 'Planner Returned Solved'),
     ]
-
-    # override the figure titles
-    def _set_title(_figure):
-        def _set_title_():
-            from_env = log['from_env']
-            to_env = log['to_env']
-            _figure.fig.suptitle(f"online transfer, {_figure.ylabel}, {from_env} to {to_env}")
-        return _set_title_
-
-    for figure in figures:
-        figure.set_title = _set_title(figure)
 
     make_figures(figures, analysis_params, sort_order_dict, table_format, tables_filename, out_dir)
 

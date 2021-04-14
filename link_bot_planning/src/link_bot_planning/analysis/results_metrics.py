@@ -207,6 +207,7 @@ def generate_multi_trial_metrics(analysis_params: Dict, results_dirs_dict: Dict)
     _include_metric(TotalTime)
     _include_metric(NormalizedModelError)
     _include_metric(PlanningTime)
+    _include_metric(PlannerSolved)
 
     for method_name, (dirs, _) in results_dirs_dict.items():
         print(Fore.GREEN + f"processing {method_name} {[d.name for d in dirs]}")
