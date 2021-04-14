@@ -44,8 +44,8 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
     for c in model.conv_layers:
         c.trainable = False
     for d in model.dense_layers:
-        d.trainable = False
-    model.lstm.trainable = False
+        d.trainable = True
+    model.lstm.trainable = True
 
     runner.reset_best_ket_metric_value()
     runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)

@@ -7,4 +7,5 @@
   termination_criteria: {
     attempted_extensions_threshold: 500
   }
+  n_shortcut_attempts: 0
 }
