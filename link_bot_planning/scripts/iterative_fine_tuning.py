@@ -27,7 +27,7 @@ from link_bot_data.dataset_utils import data_directory
 from link_bot_planning.planning_evaluation import load_planner_params, evaluate_planning
 from link_bot_pycommon.args import my_formatter, run_subparsers
 from link_bot_pycommon.job_chunking import JobChunker
-from moonshine.filepath_tools import load_hjson
+from moonshine.filepath_tools import load_hjson, load_params
 
 
 def start_iterative_fine_tuning(nickname: str,
@@ -47,7 +47,7 @@ def start_iterative_fine_tuning(nickname: str,
         outdir.mkdir(parents=True)
 
     planner_params = load_planner_params(planner_params_filename)
-    classifier_dataset_params = classifer_dataset_params_from_planner_params(planner_params)
+    classifier_dataset_params = load_params(checkpoint)
     from_env = classifier_dataset_params['nickname']
     to_env = test_scenes_dir.name
 
