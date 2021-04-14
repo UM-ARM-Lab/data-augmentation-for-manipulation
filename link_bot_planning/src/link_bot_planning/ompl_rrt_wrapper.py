@@ -3,6 +3,11 @@ import time
 import warnings
 from typing import Dict, List, Tuple
 
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    import ompl.base as ob
+    import ompl.control as oc
+
 import numpy as np
 import tensorflow as tf
 from matplotlib import cm
@@ -13,11 +18,6 @@ from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, Plannin
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from state_space_dynamics.base_filter_function import BaseFilterFunction
-
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", category=RuntimeWarning)
-    import ompl.base as ob
-    import ompl.control as oc
 
 import rospy
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
@@ -140,11 +140,12 @@ class OmplRRTWrapper(MyPlanner):
         self.ptc.attempted_extensions += 1
         if motions_valid:
             self.ptc.all_rejected = False
-            dist_to_goal = self.scenario.distance_to_goal(final_state, self.goal_region.goal)
-            if dist_to_goal < self.min_dist_to_goal:
-                self.min_dist_to_goal = dist_to_goal
-                self.closest_state_to_goal = final_state
-                self.scenario.plot_state_closest_to_goal(final_state)
+            if self.goal_region.canSample():
+                dist_to_goal = self.scenario.distance_to_goal(final_state, self.goal_region.goal)
+                if dist_to_goal < self.min_dist_to_goal:
+                    self.min_dist_to_goal = dist_to_goal
+                    self.closest_state_to_goal = final_state
+                    self.scenario.plot_state_closest_to_goal(final_state)
         # end PTC bookkeeping
         return motions_valid
 
@@ -305,16 +306,21 @@ class OmplRRTWrapper(MyPlanner):
                                                b=self.visualize_propogation_color[2],
                                                a=alpha)
 
+    def make_goal_region(self, goal):
+        return self.scenario_ompl.make_goal_region(self.si,
+                                                   rng=self.goal_sampler_rng,
+                                                   params=self.params,
+                                                   goal=goal,
+                                                   plot=self.verbose >= 2)
+    def set_ptc(self, planning_query: PlanningQuery):
+        return TimeoutOrNotProgressing(planning_query, self.params['termination_criteria'], self.verbose)
+
     def plan(self, planning_query: PlanningQuery):
         self.cleanup_before_plan(planning_query.seed)
 
         self.sps.environment = planning_query.environment
 
-        self.goal_region = self.scenario_ompl.make_goal_region(self.si,
-                                                               rng=self.goal_sampler_rng,
-                                                               params=self.params,
-                                                               goal=planning_query.goal,
-                                                               plot=self.verbose >= 2)
+        self.goal_region = self.make_goal_region(goal=planning_query.goal)
 
         # create start and goal states
         start_state = planning_query.start
@@ -334,7 +340,7 @@ class OmplRRTWrapper(MyPlanner):
         self.ss.setStartState(ompl_start_scoped)
         self.ss.setGoal(self.goal_region)
 
-        self.ptc = TimeoutOrNotProgressing(planning_query, self.params['termination_criteria'], self.verbose)
+        self.ptc = self.set_ptc(planning_query)
 
         # START TIMING
         t0 = time.time()
@@ -348,7 +354,7 @@ class OmplRRTWrapper(MyPlanner):
         print(f"\nMean Propagate Time = {np.mean(self.progagate_dts):.4f}s")
 
         # handle results and cleanup
-        planner_status = interpret_planner_status(ob_planner_status, self.ptc)
+        planner_status = self.ptc.interpret_planner_status(ob_planner_status)
 
         if planner_status == MyPlannerStatus.Solved:
             ompl_path = self.ss.getSolutionPath()
@@ -499,14 +505,3 @@ class OmplRRTWrapper(MyPlanner):
         self.scenario.mm.delete(label='from')
         self.scenario.mm.delete(label='to')
         self.scenario.mm.delete(label='smoothed')
-
-
-def interpret_planner_status(planner_status: ob.PlannerStatus, ptc: TimeoutOrNotProgressing):
-    if str(planner_status) == "Exact solution":
-        return MyPlannerStatus.Solved
-    elif ptc.not_progressing:
-        return MyPlannerStatus.NotProgressing
-    elif ptc.timed_out:
-        return MyPlannerStatus.Timeout
-    else:
-        return MyPlannerStatus.Failure

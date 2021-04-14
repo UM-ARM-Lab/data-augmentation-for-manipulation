@@ -2,7 +2,9 @@ import warnings
 from time import perf_counter
 from typing import Dict
 
-from link_bot_planning.my_planner import PlanningQuery
+from ompl import base as ob
+
+from link_bot_planning.my_planner import PlanningQuery, MyPlannerStatus
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -37,3 +39,29 @@ class TimeoutOrNotProgressing(ob.PlannerTerminationCondition):
         self.timed_out = planning_query_timed_out or total_trial_timed_out
         should_terminate = self.timed_out or self.not_progressing
         return should_terminate
+
+    def interpret_planner_status(self, planner_status: ob.PlannerStatus):
+        if str(planner_status) == "Exact solution":
+            return MyPlannerStatus.Solved
+        elif self.not_progressing:
+            return MyPlannerStatus.NotProgressing
+        elif self.timed_out:
+            return MyPlannerStatus.Timeout
+        else:
+            return MyPlannerStatus.Failure
+
+
+class NExtensions(ob.PlannerTerminationCondition):
+    def __init__(self, max_n_extensions: int):
+        super().__init__(ob.PlannerTerminationConditionFn(self.condition))
+        self.max_n_extensions = max_n_extensions
+        self.attempted_extensions = 0
+        self.not_progressing = False
+        self.timed_out = False
+
+    def condition(self):
+        should_terminate = self.attempted_extensions >= self.max_n_extensions
+        return should_terminate
+
+    def interpret_planner_status(self, _: ob.PlannerStatus):
+        return MyPlannerStatus.Timeout

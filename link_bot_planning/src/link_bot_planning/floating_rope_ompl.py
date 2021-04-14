@@ -795,3 +795,19 @@ class RopeAndGrippersBoxesGoalRegion(ob.GoalSampleableRegion):
 
     def maxSampleCount(self):
         return 1000
+
+
+class NoGoal(ob.GoalSampleableRegion):
+
+    def __init__(self, si: oc.SpaceInformation):
+        super(NoGoal, self).__init__(si)
+        self.setThreshold(0.0)
+
+    def canSample(self):
+        return False
+
+    def distanceGoal(self, state: ob.CompoundState):
+        return 1e9
+
+    def maxSampleCount(self):
+        return 0
