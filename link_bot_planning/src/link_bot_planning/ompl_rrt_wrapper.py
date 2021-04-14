@@ -312,6 +312,7 @@ class OmplRRTWrapper(MyPlanner):
                                                    params=self.params,
                                                    goal=goal,
                                                    plot=self.verbose >= 2)
+
     def set_ptc(self, planning_query: PlanningQuery):
         return TimeoutOrNotProgressing(planning_query, self.params['termination_criteria'], self.verbose)
 

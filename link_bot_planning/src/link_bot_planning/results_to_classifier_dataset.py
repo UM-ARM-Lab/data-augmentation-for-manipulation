@@ -54,7 +54,6 @@ class ResultsToClassifierDataset:
             labeling_params = pathlib.Path('labeling_params/classifier/dual.hjson')
 
         self.visualize = visualize
-        self.viz_id = 0
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
 
         self.files = FilesDataset(outdir)
@@ -339,7 +338,6 @@ class ResultsToClassifierDataset:
         self.scenario.plot_state_rviz(after_state_predicted, idx=next(self.after_state_pred_idx), label='predicted',
                                       color='blue')
         self.scenario.plot_action_rviz(before_state, action, idx=next(self.action_idx), label='actual')
-        self.viz_id += 1
 
     def clear_markers(self):
         self.scenario.reset_planning_viz()

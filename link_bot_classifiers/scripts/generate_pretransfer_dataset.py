@@ -17,10 +17,12 @@ from link_bot_planning.get_planner import get_planner
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
 from link_bot_planning.planning_evaluation import load_planner_params
 from link_bot_planning.timeout_or_not_progressing import NExtensions
+from link_bot_pycommon.marker_index_generator import marker_index_generator
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch_single
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
+    import ompl.util as ou
 
 
 class GeneratePretransferDataset:
@@ -38,10 +40,12 @@ class GeneratePretransferDataset:
         self.n_examples = n_examples
         self.outdir = outdir
 
+        self.planning_seed = 0
         self.total_example_idx = 0
 
         self.planner_params = load_planner_params(self.planner_params_filename)
         self.planner_params['smooth'] = False
+        self.planner_params['classifier_model_dir'] = [pathlib.Path("cl_trials/new_feasibility_baseline/none")]
 
         self.planner = get_planner(planner_params=self.planner_params, verbose=self.verbose, log_full_tree=True)
         self.scenario = self.planner.scenario
@@ -62,46 +66,45 @@ class GeneratePretransferDataset:
 
         self.planner.make_goal_region = make_no_goal_region
 
+    def clear_markers(self):
+        self.scenario.reset_planning_viz()
+
     def generate_pretransfer_examples(self, environment: Dict, state: Dict):
+        self.clear_markers()
+
         # this goal should be unreachable so the planner basically ignores it
         goal = {}
         planning_query = PlanningQuery(goal=goal,
                                        environment=environment,
                                        start=state,
-                                       seed=0,
+                                       seed=self.planning_seed,
                                        trial_start_time_seconds=perf_counter())
 
         planning_result = self.planner.plan(planning_query)
+        self.planning_seed += 1
 
         # convert into examples for the classifier
-        self.dfs(planning_result.tree)
-        planning_result.tree
-        pass
+        yield from self.dfs(environment, planning_result.tree)
 
-    def dfs(self,
-            planning_query: PlanningQuery,
-            tree: LoggingTree,
-            depth: int = 0,
-            ):
+    def dfs(self, environment: Dict, tree: LoggingTree, depth: int = 0):
         for child in tree.children:
-            skip_restore = len(tree.children) > 1 or depth == 0
             # if we only have one child we can skip the restore, this speeds things up a lot
             if self.verbose >= 1:
-                visualize_example(action=child.action,
-                                  before_state_predicted={add_predicted(k): v for k, v in
-                                                          tree.state.items()},
-                                  after_state_predicted={add_predicted(k): v for k, v in child.state.items()},
-                                  environment=planning_query.environment)
+                self.visualize_example(action=child.action,
+                                       before_state_predicted={add_predicted(k): v for k, v in
+                                                               tree.state.items()},
+                                       after_state_predicted={add_predicted(k): v for k, v in child.state.items()},
+                                       environment=environment)
 
             yield from self.generate_example(
-                environment=planning_query.environment,
+                environment=environment,
                 action=child.action,
                 before_state_pred=tree.state,
                 after_state_pred=child.state,
                 classifier_start_t=depth,
             )
             # recursion
-            yield from self.dfs(planning_query, child, depth=depth + 1)
+            yield from self.dfs(environment, child, depth=depth + 1)
 
     def generate_example(self,
                          environment: Dict,
@@ -125,6 +128,18 @@ class GeneratePretransferDataset:
         example.update({add_predicted(k): v for k, v in example_states_pred.items()})
         example.update(example_actions)
         yield example
+
+    def visualize_example(self,
+                          action: Dict,
+                          after_state_predicted: Dict,
+                          before_state_predicted: Dict,
+                          environment: Dict):
+        self.scenario.plot_environment_rviz(environment)
+        self.scenario.plot_state_rviz(before_state_predicted, idx=0, label='predicted',
+                                      color='blue')
+        self.scenario.plot_state_rviz(after_state_predicted, idx=1, label='predicted',
+                                      color='blue')
+        self.scenario.plot_action_rviz(before_state_predicted, action, idx=0, label='actual')
 
     def generate_initial_configs(self):
         filenames = list(self.initial_configs_dir.glob("*.pkl"))
@@ -160,9 +175,9 @@ class GeneratePretransferDataset:
                 if self.verbose >= 0:
                     print(f'Example {self.total_example_idx} dt={dt:.3f}, total time={total_dt:.3f}')
 
-                tf_write_example(self.outdir, example, self.total_example_idx)
+                full_filename = tf_write_example(self.outdir, example, self.total_example_idx)
                 self.total_example_idx += 1
-                files_dataset.add(self.outdir)
+                files_dataset.add(full_filename)
 
         print("Splitting dataset")
         files_dataset.split()
@@ -171,6 +186,7 @@ class GeneratePretransferDataset:
 @ros_init.with_ros("generate_pretransfer_dataset")
 def main():
     tf.get_logger().setLevel(logging.FATAL)
+    ou.setLogLevel(ou.LOG_ERROR)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('initial_configs_dir', type=pathlib.Path)
