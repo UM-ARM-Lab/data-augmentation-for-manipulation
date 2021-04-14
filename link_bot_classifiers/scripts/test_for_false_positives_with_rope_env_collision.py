@@ -12,7 +12,7 @@ import rospy
 from arc_utilities import ros_init
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_classifiers.train_test_classifier import ClassifierEvaluationFilter
-from link_bot_data.dataset_utils import deserialize_scene_msg
+from link_bot_data.dataset_utils import deserialize_scene_msg, replaced_true_with_predicted, add_predicted
 from link_bot_data.visualization import init_viz_env
 from link_bot_planning.analysis.results_utils import print_percentage
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -38,7 +38,8 @@ def should_keep_example(cc, args, example, predictions):
     is_fp = tf.logical_and(tf.logical_not(is_close), is_predicted_close)
     is_fn = tf.logical_and(is_close, tf.logical_not(is_predicted_close))
 
-    rope_points_not_in_collision = cc.check_constraint_from_example(add_batch(example))
+    # remove predicted because the constraint check function looks for the state keys without the predicted prefix
+    rope_points_not_in_collision = cc.check_constraint_from_example(add_batch(replaced_true_with_predicted(example)))
     rope_points_not_in_collision = rope_points_not_in_collision[0, 0]
 
     if args.only_starts_close:
@@ -72,8 +73,8 @@ def should_keep_example(cc, args, example, predictions):
         if not is_tn:
             return False
 
-    if error > 0.01:
-        return False
+    # if error > 0.01:
+    #     return False
 
     return True
 
@@ -151,7 +152,7 @@ def main():
         is_fp = tf.logical_and(tf.logical_not(is_close), is_predicted_close)
         is_fn = tf.logical_and(is_close, tf.logical_not(is_predicted_close))
 
-        rope_points_not_in_collision = cc.check_constraint_from_example(example)
+        rope_points_not_in_collision = cc.check_constraint_from_example(replaced_true_with_predicted(example))
         rope_points_not_in_collision = rope_points_not_in_collision[0]
         rope_points_in_collision = not rope_points_not_in_collision
 
@@ -170,6 +171,7 @@ def main():
         evaluation.model.net.val_step(example, metrics)
 
         deserialize_scene_msg(example_b)
+
 
         count += 1
         if not is_close:

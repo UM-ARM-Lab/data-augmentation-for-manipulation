@@ -51,7 +51,9 @@ class PointsCollisionChecker(BaseConstraintChecker):
                             states_sequence: List[Dict],
                             actions):
         in_collision = False
-        for state in states_sequence:
+        for t, state in enumerate(states_sequence):
+            # DEBUGGING
+            # self.scenario.plot_state_rviz(state, label='debugging', idx=t, color='yellow')
             in_collision = check_collision(self.scenario, environment, state)
             if in_collision:
                 break
@@ -69,10 +71,10 @@ class PointsCollisionChecker(BaseConstraintChecker):
         states_list = dict_of_sequences_to_sequence_of_dicts(states)
         c_s = []
         for b in range(batch_size):
-            state = dict_of_sequences_to_sequence_of_dicts(states_list[b])[1]
-            c_b = check_collision(self.scenario, environments_list[b], state)
+            states_sequence = dict_of_sequences_to_sequence_of_dicts(states_list[b])
+            c_b = self.check_constraint_tf(environments_list[b], states_sequence, actions)
             c_s.append(c_b)
-        return tf.stack(c_s, axis=0)[tf.newaxis]
+        return tf.stack(c_s, axis=0)
 
     def check_constraint_from_example(self, example: Dict, training: Optional[bool] = False):
         # NOTE: input will be batched

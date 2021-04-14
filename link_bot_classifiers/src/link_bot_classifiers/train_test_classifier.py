@@ -286,6 +286,9 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              old_compat: bool = False,
              threshold: Optional[float] = None,
              **kwargs):
+
+    count = 0
+
     view = ClassifierEvaluation(dataset_dirs=dataset_dirs,
                                 checkpoint=checkpoint,
                                 mode=mode,
@@ -338,6 +341,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 if tf.reduce_all(classifier_is_correct[b]):
                     continue
 
+            count += 1
+
             def _custom_viz_t(scenario: ScenarioWithVisualization, e: Dict, t: int):
                 if t > 0:
                     accept_probability_t = predictions['probabilities'][b, t - 1, 0].numpy()
@@ -360,6 +365,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
             with open("debugging.pkl", 'wb') as f:
                 pickle.dump(example_b, f)
             anim.play(example_b)
+
+    print(count)
 
 
 def run_ensemble_on_dataset(dataset_dir: pathlib.Path,

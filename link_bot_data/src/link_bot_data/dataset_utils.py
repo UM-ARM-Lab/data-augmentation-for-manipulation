@@ -257,8 +257,16 @@ def remove_predicted(k: str):
         return k
 
 
-def remove_predicted_from_dict(d: Dict):
-    return {remove_predicted(k): v for k, v in d.items()}
+def replaced_true_with_predicted(d: Dict):
+    keys_to_pop = []
+    out_d = d.copy()
+    for k in out_d.keys():
+        k_predicted_removed = remove_predicted(k)
+        if k.startswith(PREDICTED_PREFIX) and k_predicted_removed in out_d:
+            keys_to_pop.append(k_predicted_removed)
+    for k in keys_to_pop:
+        out_d.pop(k)
+    return {remove_predicted(k): v for k, v in out_d.items()}
 
 
 def add_positive(feature_name):

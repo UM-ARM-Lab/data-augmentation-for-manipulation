@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 from link_bot_data.dataset_utils import is_reconverging, null_pad, NULL_PAD_VALUE, num_reconverging, \
-    num_reconverging_subsequences, add_predicted, remove_predicted, remove_predicted_from_dict, deserialize_scene_msg, \
+    num_reconverging_subsequences, add_predicted, remove_predicted, replaced_true_with_predicted, deserialize_scene_msg, \
     multigen
 from moonshine.gpu_config import limit_gpu_mem
 from moonshine.moonshine_utils import remove_batch
@@ -71,13 +71,14 @@ class MyTestCase(unittest.TestCase):
     def test_add_remove_predicted_dict(self):
         d = {
             add_predicted("test1"): 1,
+            "test1": 3,
             "test2":                2,
         }
         expected_d = {
             "test1": 1,
             "test2": 2,
         }
-        out_d = remove_predicted_from_dict(d)
+        out_d = replaced_true_with_predicted(d)
         self.assertEqual(expected_d, out_d)
 
     def test_deserialize_scene_msg(self):
