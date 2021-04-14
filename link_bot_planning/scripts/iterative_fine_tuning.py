@@ -47,9 +47,7 @@ def start_iterative_fine_tuning(nickname: str,
         outdir.mkdir(parents=True)
 
     planner_params = load_planner_params(planner_params_filename)
-    classifier_dataset_params = load_params(checkpoint)
-    from_env = classifier_dataset_params['nickname']
-    to_env = test_scenes_dir.name
+    from_env, to_env = nickname.split("_to_")
 
     logfile_name = outdir / 'logfile.hjson'
     log = {
