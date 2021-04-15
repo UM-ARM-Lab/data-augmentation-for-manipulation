@@ -24,7 +24,9 @@ class ModelRunner:
                  save_every_n_minutes: int = 60,
                  validate_first=False,
                  batch_metadata=None,
+                 early_stopping=False,
                  ):
+        self.early_stopping = early_stopping
         self.model = model
         self.training = training
         self.key_metric = key_metric
@@ -242,12 +244,15 @@ class ModelRunner:
                 self.val_epoch(val_dataset, val_metrics)
                 self.write_val_summary({k: m.result() for k, m in val_metrics.items()})
                 key_metric_value = val_metrics[self.key_metric.key()].result()
-                print(Style.BRIGHT + "Val: {}={}".format(self.key_metric.key(), key_metric_value) + Style.NORMAL)
+                print(Style.BRIGHT + f"Val: {self.key_metric.key()}={key_metric_value}" + Style.NORMAL)
                 if self.key_metric.is_better_than(key_metric_value, self.best_ckpt.best_key_metric_value):
                     self.best_ckpt.best_key_metric_value.assign(key_metric_value)
                     self.latest_ckpt.best_key_metric_value.assign(key_metric_value)
                     save_path = self.best_checkpoint_manager.save()
-                    print(Fore.CYAN + "New best checkpoint {}".format(save_path) + Fore.RESET)
+                    print(Fore.CYAN + f"New best checkpoint {save_path.as_posix()}" + Fore.RESET)
+                elif self.early_stopping:
+                    print(Fore.YELLOW + f"No new best checkpoint, triggering early stopping." + Fore.RESET)
+                    break
 
         except KeyboardInterrupt:
             print(Fore.YELLOW + "Interrupted." + Fore.RESET)

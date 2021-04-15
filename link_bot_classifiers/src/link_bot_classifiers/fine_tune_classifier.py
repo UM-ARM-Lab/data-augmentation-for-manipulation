@@ -14,7 +14,9 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          log: str,
                          batch_size: int,
                          epochs: int,
-                         trials_directory: pathlib.Path = pathlib.Path("./trials")):
+                         early_stopping: bool,
+                         trials_directory: pathlib.Path = pathlib.Path("./trials"),
+                         **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
     model_hparams['datasets'].extend(paths_to_json(dataset_dirs))
 
@@ -33,10 +35,9 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          params=model_hparams,
                          checkpoint=checkpoint,
                          batch_metadata=train_dataset.batch_metadata,
-                         validate_first=True,
-                         val_every_n_batches=500,
-                         mid_epoch_val_batches=100,
-                         trial_path=trial_path)
+                         early_stopping=early_stopping,
+                         trial_path=trial_path,
+                         **kwargs)
 
     train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset)
 

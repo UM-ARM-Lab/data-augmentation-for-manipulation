@@ -37,7 +37,11 @@ def main():
                          checkpoint=args.checkpoint,
                          log=args.log,
                          batch_size=args.batch_size,
-                         epochs=args.epochs)
+                         early_stopping=False,
+                         epochs=args.epochs,
+                         validate_first=True,
+                         val_every_n_batches=500,
+                         mid_epoch_val_batches=100)
 
 
 if __name__ == '__main__':
