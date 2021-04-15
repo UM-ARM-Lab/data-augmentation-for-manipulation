@@ -8,7 +8,6 @@ from typing import Dict
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
-from link_bot_planning.analysis.results_utils import classifer_dataset_params_from_planner_params
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_pycommon.pycommon import pathify, paths_from_json
 
@@ -158,8 +157,6 @@ def plan_and_execute(fine_tuning_iteration,
         [p.resume() for p in gazebo_processes]
         evaluate_planning(planner_params=planner_params,
                           job_chunker=planning_chunker,
-                          # REMOVE ME!
-                          # trials=[0, 1],
                           outdir=planning_results_dir,
                           no_execution=no_execution,
                           timeout=timeout,
@@ -171,7 +168,9 @@ def plan_and_execute(fine_tuning_iteration,
         [p.suspend() for p in gazebo_processes]
 
         analysis_params = load_analysis_params()
-        metrics = generate_per_trial_metrics(analysis_params, [planning_results_dir])
+        metrics = generate_per_trial_metrics(analysis_params=analysis_params,
+                                             subfolders_ordered=[planning_results_dir],
+                                             method_names=[planner_params['method_name']])
         successes = metrics[Successes].values[planner_params['method_name']]
         latest_success_rate = successes.sum() / successes.shape[0]
     return latest_success_rate, planning_results_dir
