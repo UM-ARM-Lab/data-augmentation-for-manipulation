@@ -245,7 +245,7 @@ def add_args(start_parser):
 
 @ros_init.with_ros("iterative_fine_tuning")
 @notifyme.notify()
-def main():
+def ift_main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
     ou.setLogLevel(ou.LOG_ERROR)
@@ -271,4 +271,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    ift_main()

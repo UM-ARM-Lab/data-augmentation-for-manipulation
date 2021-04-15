@@ -42,7 +42,7 @@ def notify(phone_number: Optional[str] = None):
     Returns:
     """
     if phone_number is None:
-        with pathlib.Path("~/.phone_number").open() as phone_number_file:
+        with (pathlib.Path.home() / ".phone_number").open() as phone_number_file:
             phone_number = phone_number_file.readline()
 
     notifier = JobNotifier(phone_number)
