@@ -354,7 +354,8 @@ class OmplRRTWrapper(MyPlanner):
         # END TIMING
         planning_time = time.time() - t0
 
-        print(f"\nMean Propagate Time = {np.mean(self.progagate_dts):.4f}s")
+        if self.verbose >= 0:
+            print(f"\nMean Propagate Time = {np.mean(self.progagate_dts):.4f}s")
 
         # handle results and cleanup
         planner_status = self.ptc.interpret_planner_status(ob_planner_status)
@@ -494,7 +495,8 @@ class OmplRRTWrapper(MyPlanner):
             self.plot_path(state_sequence=state_sequence, action_sequence=action_sequence)
 
         dt = time.perf_counter() - t0
-        print(f"Smoothing Time = {dt:.3f}s")
+        if self.verbose >= 0:
+            print(f"Smoothing Time = {dt:.3f}s")
 
         return action_sequence, state_sequence
 
