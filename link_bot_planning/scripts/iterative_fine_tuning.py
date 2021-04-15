@@ -9,6 +9,7 @@ from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
+from link_bot_pycommon import notifyme
 from link_bot_pycommon.pycommon import pathify, paths_from_json
 
 with warnings.catch_warnings():
@@ -243,6 +244,7 @@ def add_args(start_parser):
 
 
 @ros_init.with_ros("iterative_fine_tuning")
+@notifyme.notify()
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)

@@ -1,5 +1,6 @@
 import logging
-from typing import Callable
+import pathlib
+from typing import Callable, Optional
 
 import boto3
 
@@ -27,7 +28,7 @@ class JobNotifier:
         self.notify(f"Job {job_name} raised an exception", "Exception")
 
 
-def notify(phone_number: str):
+def notify(phone_number: Optional[str] = None):
     """
     A decorator for sending a text message when a function completes successfully (or not)
 
@@ -40,6 +41,10 @@ def notify(phone_number: str):
 
     Returns:
     """
+    if phone_number is None:
+        with pathlib.Path("~/.phone_number").open() as phone_number_file:
+            phone_number = phone_number_file.readline()
+
     notifier = JobNotifier(phone_number)
 
     def _notify(func: Callable):
