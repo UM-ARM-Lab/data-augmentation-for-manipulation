@@ -1,5 +1,6 @@
 import logging
 import pathlib
+from time import perf_counter
 from typing import Callable, Optional
 
 import boto3
@@ -28,7 +29,7 @@ class JobNotifier:
         self.notify(f"Job {job_name} raised an exception", "Exception")
 
 
-def notify(phone_number: Optional[str] = None):
+def notify(phone_number: Optional[str] = None, ignore_before: int=5):
     """
     A decorator for sending a text message when a function completes successfully (or not)
 
@@ -38,6 +39,7 @@ def notify(phone_number: Optional[str] = None):
 
     Args:
         phone_number: phone number, must start with a 1
+        ignore_before: don't send a message if an exception is thrown in under this many seconds
 
     Returns:
     """
@@ -49,12 +51,15 @@ def notify(phone_number: Optional[str] = None):
 
     def _notify(func: Callable):
         def wrapper(*args, **kwargs):
+            t0 = perf_counter()
             try:
                 func(*args, **kwargs)
                 notifier.success(job_name=func.__name__)
             except Exception as e:
                 print(e)
-                notifier.failure(job_name=func.__name__)
+                dt = perf_counter() - t0
+                if dt >= ignore_before:
+                    notifier.failure(job_name=func.__name__)
 
         return wrapper
 

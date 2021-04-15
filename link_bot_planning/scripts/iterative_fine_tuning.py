@@ -58,7 +58,7 @@ def start_iterative_fine_tuning(nickname: str,
         'planner_params':  planner_params,
         'test_scenes_dir': test_scenes_dir.as_posix(),
         'checkpoints':     [checkpoint.as_posix()],
-        'batch_size':      8,
+        'batch_size':      1,
         'epochs':          25,
         'early_stopping':  True,
         'from_env':        from_env,
@@ -117,7 +117,6 @@ class IterativeFineTuning:
         for fine_tuning_iteration in range(num_fine_tuning_iterations):
             jobkey = f"iteration {fine_tuning_iteration}"
             iteration_chunker = self.job_chunker.sub_chunker(jobkey)
-            latest_success_rate = iteration_chunker.get_result('latest_success_rate')
 
             iteration_data = IterationData(fine_tuning_dataset_dirs=fine_tuning_dataset_dirs,
                                            fine_tuning_iteration=fine_tuning_iteration,
@@ -126,17 +125,18 @@ class IterativeFineTuning:
                                            )
 
             # planning
-            latest_success_rate, planning_results_dir = self.plan_and_execute(iteration_data, latest_success_rate)
+            planning_results_dir = self.plan_and_execute(iteration_data)
 
             # convert results to classifier dataset
-            self.update_datasets(iteration_data, planning_results_dir)
+            new_dataset_dir = self.update_datasets(iteration_data, planning_results_dir)
+            iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
 
             # fine tune (on all of the classifier datasets so far)
             latest_checkpoint_dir = self.fine_tune(iteration_data, latest_checkpoint_dir)
 
         [p.kill() for p in self.gazebo_processes]
 
-    def plan_and_execute(self, iteration_data: IterationData, latest_success_rate):
+    def plan_and_execute(self, iteration_data: IterationData):
         i = iteration_data.fine_tuning_iteration
         trial_idx = next(self.trial_idx_gen)
         planning_chunker = iteration_data.iteration_chunker.sub_chunker('planning')
@@ -170,6 +170,10 @@ class IterativeFineTuning:
                                                  method_names=[self.planner_params['method_name']])
             successes = metrics[Successes].values[self.planner_params['method_name']]
             latest_success_rate = successes.sum() / successes.shape[0]
+            planning_chunker.store_result('latest_success_rate', latest_success_rate)
+        else:
+            latest_success_rate = planning_chunker.get_result('latest_success_rate')
+
         print(Fore.CYAN + f"Iteration {i} {latest_success_rate * 100:.1f}%")
         return planning_results_dir
 
@@ -182,7 +186,7 @@ class IterativeFineTuning:
             r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir, verbose=-1)
             r.run()
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
-        iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
+        return new_dataset_dir
 
     def fine_tune(self, iteration_data: IterationData, latest_checkpoint_dir: pathlib.Path):
         i = iteration_data.fine_tuning_iteration
@@ -196,6 +200,7 @@ class IterativeFineTuning:
                                                              trials_directory=self.trials_directory,
                                                              batch_size=self.log['batch_size'],
                                                              early_stopping=self.log['early_stopping'],
+                                                             validate_first=True,
                                                              epochs=self.log['epochs'])
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         print(Fore.CYAN + f"Finished iteration {i}")
@@ -235,8 +240,8 @@ def add_args(start_parser):
                               help="use more v's for more verbose, like -vvv")
 
 
+# @notifyme.notify()
 @ros_init.with_ros("iterative_fine_tuning")
-@notifyme.notify()
 def ift_main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
