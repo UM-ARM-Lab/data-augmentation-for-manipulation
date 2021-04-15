@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 import argparse
+import itertools
 import logging
 import pathlib
 import warnings
-from typing import Dict
+from dataclasses import dataclass
+from typing import Dict, List
 
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
+from link_bot_planning.test_scenes import get_all_scene_indices
 from link_bot_pycommon import notifyme
 from link_bot_pycommon.pycommon import pathify, paths_from_json
 
@@ -27,7 +30,7 @@ from link_bot_data.dataset_utils import data_directory
 from link_bot_planning.planning_evaluation import load_planner_params, evaluate_planning
 from link_bot_pycommon.args import my_formatter, run_subparsers
 from link_bot_pycommon.job_chunking import JobChunker
-from moonshine.filepath_tools import load_hjson, load_params
+from moonshine.filepath_tools import load_hjson
 
 
 def start_iterative_fine_tuning(nickname: str,
@@ -63,149 +66,138 @@ def start_iterative_fine_tuning(nickname: str,
     with logfile_name.open("w") as logfile:
         hjson.dump(log, logfile)
 
-    iterative_fine_tuning(log=log,
-                          num_fine_tuning_iterations=num_fine_tuning_iterations,
-                          no_execution=no_execution,
-                          timeout=timeout,
-                          on_exception=on_exception,
-                          logfile_name=logfile_name,
-                          )
+    ift = IterativeFineTuning(log=log,
+                              no_execution=no_execution,
+                              timeout=timeout,
+                              on_exception=on_exception,
+                              logfile_name=logfile_name,
+                              )
+    ift.run(num_fine_tuning_iterations=num_fine_tuning_iterations)
 
 
-def iterative_fine_tuning(log: Dict,
-                          num_fine_tuning_iterations: int,
-                          no_execution: bool,
-                          timeout: int,
-                          on_exception: str,
-                          logfile_name: pathlib.Path,
-                          ):
-    planner_params = pathify(log['planner_params'])
-    checkpoints = paths_from_json(log['checkpoints'])
-    test_scenes_dir = pathlib.Path(log['test_scenes_dir'])
-
-    gazebo_processes = get_gazebo_processes()
-
-    outdir = logfile_name.parent
-
-    job_chunker = JobChunker(logfile_name=logfile_name)
-    trials_directory = outdir / 'classifier_training_logdir'
-
-    latest_checkpoint_dir = checkpoints[-1]
-    fine_tuning_dataset_dirs = []
-    latest_success_rate = -1
-
-    for fine_tuning_iteration in range(num_fine_tuning_iterations):
-        jobkey = f"iteration {fine_tuning_iteration}"
-        iteration_chunker = job_chunker.sub_chunker(jobkey)
-
-        latest_checkpoint = latest_checkpoint_dir / 'best_checkpoint'
-
-        # planning
-        latest_success_rate, planning_results_dir = plan_and_execute(fine_tuning_iteration,
-                                                                     gazebo_processes,
-                                                                     iteration_chunker,
-                                                                     latest_checkpoint,
-                                                                     latest_success_rate,
-                                                                     no_execution,
-                                                                     on_exception,
-                                                                     outdir,
-                                                                     planner_params,
-                                                                     test_scenes_dir,
-                                                                     timeout)
-
-        # convert results to classifier dataset
-        update_datasets(fine_tuning_dataset_dirs,
-                        fine_tuning_iteration,
-                        iteration_chunker,
-                        outdir,
-                        planning_results_dir)
-
-        # fine tune (on all of the classifier datasets so far)
-        latest_checkpoint_dir = fine_tune(fine_tuning_dataset_dirs,
-                                          fine_tuning_iteration,
-                                          iteration_chunker,
-                                          latest_checkpoint,
-                                          latest_checkpoint_dir,
-                                          latest_success_rate, log,
-                                          trials_directory)
-
-    [p.kill() for p in gazebo_processes]
+@dataclass
+class IterationData:
+    fine_tuning_dataset_dirs: List[pathlib.Path]
+    fine_tuning_iteration: int
+    iteration_chunker: JobChunker
+    latest_checkpoint_dir: pathlib.Path
 
 
-def plan_and_execute(fine_tuning_iteration,
-                     gazebo_processes,
-                     iteration_chunker,
-                     latest_checkpoint,
-                     latest_success_rate,
-                     no_execution,
-                     on_exception,
-                     outdir,
-                     planner_params,
-                     test_scenes_dir,
-                     timeout):
-    planning_chunker = iteration_chunker.sub_chunker('planning')
-    planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
-    if planning_results_dir is None:
-        planning_results_dir = outdir / 'planning_results' / f'iteration_{fine_tuning_iteration:02d}_planning'
-        planner_params['classifier_model_dir'] = [
-            latest_checkpoint,
-            pathlib.Path('cl_trials/new_feasibility_baseline/none'),
-        ]
-        planner_params['fine_tuning_iteration'] = fine_tuning_iteration
+class IterativeFineTuning:
 
-        [p.resume() for p in gazebo_processes]
-        evaluate_planning(planner_params=planner_params,
-                          job_chunker=planning_chunker,
-                          outdir=planning_results_dir,
-                          no_execution=no_execution,
-                          timeout=timeout,
-                          test_scenes_dir=test_scenes_dir,
-                          log_full_tree=False,
-                          how_to_handle=on_exception,
-                          verbose=-1,
-                          )
-        [p.suspend() for p in gazebo_processes]
+    def __init__(self,
+                 log: Dict,
+                 no_execution: bool,
+                 timeout: int,
+                 on_exception: str,
+                 logfile_name: pathlib.Path,
+                 ):
+        self.no_execution = no_execution
+        self.on_exception = on_exception
+        self.timeout = timeout
+        self.log = log
+        self.planner_params = pathify(self.log['planner_params'])
+        self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
 
-        analysis_params = load_analysis_params()
-        metrics = generate_per_trial_metrics(analysis_params=analysis_params,
-                                             subfolders_ordered=[planning_results_dir],
-                                             method_names=[planner_params['method_name']])
-        successes = metrics[Successes].values[planner_params['method_name']]
-        latest_success_rate = successes.sum() / successes.shape[0]
-    return latest_success_rate, planning_results_dir
+        self.gazebo_processes = get_gazebo_processes()
 
+        self.outdir = logfile_name.parent
 
-def update_datasets(fine_tuning_dataset_dirs, fine_tuning_iteration, iteration_chunker, outdir, planning_results_dir):
-    dataset_chunker = iteration_chunker.sub_chunker('dataset')
-    new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
-    if new_dataset_dir is None:
-        new_dataset_dir = outdir / 'classifier_datasets' / f'iteration_{fine_tuning_iteration}_dataset'
-        r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir, verbose=-1)
-        r.run()
-        dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
-    fine_tuning_dataset_dirs.append(new_dataset_dir)
+        self.job_chunker = JobChunker(logfile_name=logfile_name)
+        self.trials_directory = self.outdir / 'classifier_training_logdir'
+        self.planning_results_root_dir = self.outdir / 'planning_results'
 
+        self.trial_idx_gen = itertools.cycle(get_all_scene_indices(self.test_scenes_dir))
 
-def fine_tune(fine_tuning_dataset_dirs,
-              fine_tuning_iteration,
-              iteration_chunker,
-              latest_checkpoint,
-              latest_checkpoint_dir,
-              latest_success_rate,
-              log,
-              trials_directory):
-    fine_tune_chunker = iteration_chunker.sub_chunker('fine tune')
-    new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
-    if new_latest_checkpoint_dir is None:
-        new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=fine_tuning_dataset_dirs,
-                                                         checkpoint=latest_checkpoint,
-                                                         log=f'iteration_{fine_tuning_iteration}_training_logdir',
-                                                         trials_directory=trials_directory,
-                                                         batch_size=log['batch_size'],
-                                                         epochs=log['epochs'])
-        fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
-    print(Fore.CYAN + f"Finished iteration {fine_tuning_iteration} {latest_success_rate * 100:.1f}%")
-    return latest_checkpoint_dir
+    def run(self, num_fine_tuning_iterations: int):
+        checkpoints = paths_from_json(self.log['checkpoints'])
+        latest_checkpoint_dir = checkpoints[-1]
+        fine_tuning_dataset_dirs = []
+        for fine_tuning_iteration in range(num_fine_tuning_iterations):
+            jobkey = f"iteration {fine_tuning_iteration}"
+            iteration_chunker = self.job_chunker.sub_chunker(jobkey)
+            latest_success_rate = iteration_chunker.get_result('latest_success_rate')
+
+            iteration_data = IterationData(fine_tuning_dataset_dirs=fine_tuning_dataset_dirs,
+                                           fine_tuning_iteration=fine_tuning_iteration,
+                                           iteration_chunker=iteration_chunker,
+                                           latest_checkpoint_dir=latest_checkpoint_dir,
+                                           )
+
+            # planning
+            latest_success_rate, planning_results_dir = self.plan_and_execute(iteration_data, latest_success_rate)
+
+            # convert results to classifier dataset
+            self.update_datasets(iteration_data, planning_results_dir)
+
+            # fine tune (on all of the classifier datasets so far)
+            latest_checkpoint_dir = self.fine_tune(iteration_data, latest_checkpoint_dir)
+
+        [p.kill() for p in self.gazebo_processes]
+
+    def plan_and_execute(self, iteration_data: IterationData, latest_success_rate):
+        i = iteration_data.fine_tuning_iteration
+        trial_idx = next(self.trial_idx_gen)
+        planning_chunker = iteration_data.iteration_chunker.sub_chunker('planning')
+        planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
+        if planning_results_dir is None:
+            planning_results_dir = self.planning_results_root_dir / f'iteration_{i:02d}_planning'
+            latest_checkpoint = iteration_data.latest_checkpoint_dir / 'best_checkpoint'
+            self.planner_params['classifier_model_dir'] = [
+                latest_checkpoint,
+                pathlib.Path('cl_trials/new_feasibility_baseline/none'),
+            ]
+            self.planner_params['fine_tuning_iteration'] = i
+
+            [p.resume() for p in self.gazebo_processes]
+            evaluate_planning(planner_params=self.planner_params,
+                              trials=[trial_idx],
+                              job_chunker=planning_chunker,
+                              outdir=planning_results_dir,
+                              no_execution=self.no_execution,
+                              timeout=self.timeout,
+                              test_scenes_dir=self.test_scenes_dir,
+                              log_full_tree=False,
+                              how_to_handle=self.on_exception,
+                              verbose=-1,
+                              )
+            [p.suspend() for p in self.gazebo_processes]
+
+            analysis_params = load_analysis_params()
+            metrics = generate_per_trial_metrics(analysis_params=analysis_params,
+                                                 subfolders_ordered=[planning_results_dir],
+                                                 method_names=[self.planner_params['method_name']])
+            successes = metrics[Successes].values[self.planner_params['method_name']]
+            latest_success_rate = successes.sum() / successes.shape[0]
+        print(Fore.CYAN + f"Iteration {i} {latest_success_rate * 100:.1f}%")
+        return planning_results_dir
+
+    def update_datasets(self, iteration_data: IterationData, planning_results_dir):
+        i = iteration_data.fine_tuning_iteration
+        dataset_chunker = iteration_data.iteration_chunker.sub_chunker('dataset')
+        new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
+        if new_dataset_dir is None:
+            new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i}_dataset'
+            r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir, verbose=-1)
+            r.run()
+            dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
+        iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
+
+    def fine_tune(self, iteration_data: IterationData, latest_checkpoint_dir: pathlib.Path):
+        i = iteration_data.fine_tuning_iteration
+        latest_checkpoint = iteration_data.latest_checkpoint_dir / 'best_checkpoint'
+        fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune')
+        new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
+        if new_latest_checkpoint_dir is None:
+            new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=iteration_data.fine_tuning_dataset_dirs,
+                                                             checkpoint=latest_checkpoint,
+                                                             log=f'iteration_{i}_training_logdir',
+                                                             trials_directory=self.trials_directory,
+                                                             batch_size=self.log['batch_size'],
+                                                             epochs=self.log['epochs'])
+            fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
+        print(Fore.CYAN + f"Finished iteration {i}")
+        return latest_checkpoint_dir
 
 
 def start_main(args):
@@ -222,13 +214,13 @@ def start_main(args):
 
 def resume_main(args):
     log = load_hjson(args.logfile)
-    iterative_fine_tuning(log=log,
-                          logfile_name=args.logfile,
-                          num_fine_tuning_iterations=args.n_iters,
-                          no_execution=args.no_execution,
-                          timeout=args.timeout,
-                          on_exception=args.on_exception,
-                          )
+    ift = IterativeFineTuning(log=log,
+                              logfile_name=args.logfile,
+                              no_execution=args.no_execution,
+                              timeout=args.timeout,
+                              on_exception=args.on_exception,
+                              )
+    ift.run(num_fine_tuning_iterations=args.n_iters)
 
 
 def add_args(start_parser):

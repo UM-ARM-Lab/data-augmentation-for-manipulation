@@ -1,7 +1,6 @@
 import pathlib
 import pickle
 import re
-import shutil
 from typing import Optional
 
 import numpy as np
@@ -20,6 +19,11 @@ def make_scene_filename(root, idx):
 def make_goal_filename(root, idx):
     in_goal_file = root / f'goal_{idx:04d}.pkl'
     return in_goal_file
+
+
+def get_all_scene_indices(dirname: pathlib.Path):
+    for s in get_all_scenes(dirname):
+        yield s.idx
 
 
 def get_all_scenes(dirname: pathlib.Path):

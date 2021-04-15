@@ -41,8 +41,10 @@ def metrics_main(args):
     results_dirs_dict = {}
     sort_order_dict = {}
     for idx, results_dir in enumerate(results_dirs_ordered):
-        method_name = " ".join(results_dir.parent.name.split("_")[:-2])
         log = load_hjson(results_dir.parent / 'logfile.hjson')
+        from_env = log['from_env']
+        to_env = log['to_env']
+        method_name = f'{from_env}_to_{to_env}'
         subfolders = sorted(get_all_subdirs([results_dir]))
         results_dirs_dict[method_name] = (subfolders, log)
         sort_order_dict[method_name] = idx
