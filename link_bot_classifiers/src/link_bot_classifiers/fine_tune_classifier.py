@@ -15,6 +15,10 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          batch_size: int,
                          epochs: int,
                          early_stopping: bool,
+                         fine_tune_conv: bool,
+                         fine_tune_dense: bool,
+                         fine_tune_lstm: bool,
+                         fine_tune_output: bool,
                          trials_directory: pathlib.Path = pathlib.Path("./trials"),
                          **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
@@ -43,10 +47,11 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
 
     # Modify the model for feature transfer & fine-tuning
     for c in model.conv_layers:
-        c.trainable = False
+        c.trainable = fine_tune_conv
     for d in model.dense_layers:
-        d.trainable = True
-    model.lstm.trainable = True
+        d.trainable = fine_tune_dense
+    model.lstm.trainable = fine_tune_lstm
+    model.output_layer.trainable = fine_tune_output
 
     runner.reset_best_ket_metric_value()
     runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)

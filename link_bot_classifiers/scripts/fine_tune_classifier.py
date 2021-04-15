@@ -41,7 +41,11 @@ def main():
                          epochs=args.epochs,
                          validate_first=True,
                          val_every_n_batches=500,
-                         mid_epoch_val_batches=100)
+                         mid_epoch_val_batches=100,
+                         fine_tune_conv=False,
+                         fine_tune_lstm=False,
+                         fine_tune_dense=False,
+                         fine_tune_output=True)
 
 
 if __name__ == '__main__':

@@ -12,7 +12,6 @@ from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
-from link_bot_pycommon import notifyme
 from link_bot_pycommon.pycommon import pathify, paths_from_json
 
 with warnings.catch_warnings():
@@ -31,49 +30,6 @@ from link_bot_planning.planning_evaluation import load_planner_params, evaluate_
 from link_bot_pycommon.args import my_formatter, run_subparsers
 from link_bot_pycommon.job_chunking import JobChunker
 from moonshine.filepath_tools import load_hjson
-
-
-def start_iterative_fine_tuning(nickname: str,
-                                planner_params_filename: pathlib.Path,
-                                checkpoint: pathlib.Path,
-                                num_fine_tuning_iterations: int,
-                                no_execution: bool,
-                                timeout: int,
-                                test_scenes_dir: pathlib.Path,
-                                on_exception: str,
-                                ):
-    # setup
-    outdir = data_directory(pathlib.Path('results') / 'iterative_fine_tuning' / f"{nickname}")
-
-    if not outdir.exists():
-        rospy.loginfo(Fore.YELLOW + "Creating output directory: {}".format(outdir))
-        outdir.mkdir(parents=True)
-
-    planner_params = load_planner_params(planner_params_filename)
-    from_env, to_env = nickname.split("_to_")
-
-    logfile_name = outdir / 'logfile.hjson'
-    log = {
-        'nickname':        nickname,
-        'planner_params':  planner_params,
-        'test_scenes_dir': test_scenes_dir.as_posix(),
-        'checkpoints':     [checkpoint.as_posix()],
-        'batch_size':      1,
-        'epochs':          25,
-        'early_stopping':  True,
-        'from_env':        from_env,
-        'to_env':          to_env,
-    }
-    with logfile_name.open("w") as logfile:
-        hjson.dump(log, logfile)
-
-    ift = IterativeFineTuning(log=log,
-                              no_execution=no_execution,
-                              timeout=timeout,
-                              on_exception=on_exception,
-                              logfile_name=logfile_name,
-                              )
-    ift.run(num_fine_tuning_iterations=num_fine_tuning_iterations)
 
 
 @dataclass
@@ -97,6 +53,7 @@ class IterativeFineTuning:
         self.on_exception = on_exception
         self.timeout = timeout
         self.log = log
+        self.ift_config = self.log['ift_config']
         self.planner_params = pathify(self.log['planner_params'])
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
 
@@ -198,13 +155,55 @@ class IterativeFineTuning:
                                                              checkpoint=latest_checkpoint,
                                                              log=f'iteration_{i}_training_logdir',
                                                              trials_directory=self.trials_directory,
-                                                             batch_size=self.log['batch_size'],
-                                                             early_stopping=self.log['early_stopping'],
                                                              validate_first=True,
-                                                             epochs=self.log['epochs'])
+                                                             **self.ift_config)
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         print(Fore.CYAN + f"Finished iteration {i}")
-        return latest_checkpoint_dir
+        return new_latest_checkpoint_dir
+
+
+def start_iterative_fine_tuning(nickname: str,
+                                planner_params_filename: pathlib.Path,
+                                checkpoint: pathlib.Path,
+                                ift_config_filename: pathlib.Path,
+                                num_fine_tuning_iterations: int,
+                                no_execution: bool,
+                                timeout: int,
+                                test_scenes_dir: pathlib.Path,
+                                on_exception: str,
+                                ):
+    # setup
+    outdir = data_directory(pathlib.Path('results') / 'iterative_fine_tuning' / f"{nickname}")
+
+    if not outdir.exists():
+        rospy.loginfo(Fore.YELLOW + "Creating output directory: {}".format(outdir))
+        outdir.mkdir(parents=True)
+
+    ift_config = load_hjson(ift_config_filename)
+
+    planner_params = load_planner_params(planner_params_filename)
+    from_env, to_env = nickname.split("_to_")
+
+    logfile_name = outdir / 'logfile.hjson'
+    log = {
+        'nickname':        nickname,
+        'planner_params':  planner_params,
+        'test_scenes_dir': test_scenes_dir.as_posix(),
+        'checkpoints':     [checkpoint.as_posix()],
+        'from_env':        from_env,
+        'to_env':          to_env,
+        'ift_config':      ift_config,
+    }
+    with logfile_name.open("w") as logfile:
+        hjson.dump(log, logfile)
+
+    ift = IterativeFineTuning(log=log,
+                              no_execution=no_execution,
+                              timeout=timeout,
+                              on_exception=on_exception,
+                              logfile_name=logfile_name,
+                              )
+    ift.run(num_fine_tuning_iterations=num_fine_tuning_iterations)
 
 
 def start_main(args):
@@ -212,6 +211,7 @@ def start_main(args):
                                 planner_params_filename=args.planner_params,
                                 checkpoint=args.checkpoint,
                                 num_fine_tuning_iterations=args.n_iters,
+                                ift_config_filename=args.ift_config,
                                 no_execution=args.no_execution,
                                 timeout=args.timeout,
                                 test_scenes_dir=args.test_scenes_dir,
@@ -253,6 +253,7 @@ def ift_main():
     start_parser = subparsers.add_parser('start')
     resume_parser = subparsers.add_parser('resume')
 
+    start_parser.add_argument("ift_config", type=pathlib.Path, help='hjson file from ift_config/')
     start_parser.add_argument('planner_params', type=pathlib.Path, help='hjson file from planner_configs/')
     start_parser.add_argument("checkpoint", type=pathlib.Path, help='classifier checkpoint to start from')
     start_parser.add_argument("nickname", type=str, help='used in making the output directory')

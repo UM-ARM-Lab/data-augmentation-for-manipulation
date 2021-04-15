@@ -1,0 +1,9 @@
+{
+  early_stopping: true
+  epochs: 25
+  batch_size: 1
+  fine_tune_conv: false
+  fine_tune_dense: true
+  fine_tune_lstm: true
+  fine_tune_output: true
+}

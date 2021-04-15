@@ -3,6 +3,8 @@ import time
 import warnings
 from typing import Dict, List, Tuple
 
+from arc_utilities.algorithms import zip_repeat_shorter
+
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
     import ompl.base as ob
@@ -389,6 +391,9 @@ class OmplRRTWrapper(MyPlanner):
             # new line so that the above print(".", end="") doesn't cause issues
             print()
 
+        if self.verbose >= 0:
+            self.plot_path(state_sequence=planned_path, action_sequence=actions)
+
         return PlanningResult(status=planner_status,
                               path=planned_path,
                               actions=actions,
@@ -494,11 +499,12 @@ class OmplRRTWrapper(MyPlanner):
         return action_sequence, state_sequence
 
     def plot_path(self, state_sequence, action_sequence, label='smoothed'):
-        for t, (state_t, action_t) in enumerate(
-                itertools.zip_longest(state_sequence, action_sequence)):
+        # TODO: make this one message so dropped messages are less of an issue?
+        for t, (state_t, action_t) in enumerate(zip_repeat_shorter(state_sequence, action_sequence)):
             self.scenario.plot_state_rviz(state_t, label=label, idx=t)
             if action_t:
                 self.scenario.plot_action_rviz(state_t, action_t, label=label, idx=t)
+            rospy.sleep(0.1)
 
     def clear_smoothing_markers(self):
         # FIXME: temporary hack
