@@ -56,6 +56,7 @@ class ResultsToClassifierDataset:
         self.visualize = visualize
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
 
+        self.example_idx = None
         self.files = FilesDataset(outdir)
 
         if self.full_tree:
@@ -126,8 +127,12 @@ class ResultsToClassifierDataset:
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
                     if self.verbose >= 0:
-                        print(
-                            f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
+                        msg = ' '.join([f'Trial {trial_idx}',
+                                        f'Example {self.example_idx}',
+                                        f'dt={dt:.3f},',
+                                        f'total time={total_dt:.3f},',
+                                        f'{total_examples=}'])
+                        print(msg)
                     example = try_make_dict_tf_float32(example)
                     full_filename = tf_write_example(self.outdir, example, self.example_idx)
                     self.files.add(full_filename)
