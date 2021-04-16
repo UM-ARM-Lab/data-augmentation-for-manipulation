@@ -2,6 +2,7 @@
 import pathlib
 import pickle
 import time
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional, Callable
@@ -21,6 +22,7 @@ from link_bot_planning.test_scenes import get_all_scenes
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from link_bot_pycommon.spinners import SynchronousSpinner
 from moonshine.moonshine_utils import numpify, remove_batch, add_batch
 
 
@@ -58,6 +60,8 @@ def execute_actions(
         use_gt_rope: bool,
         stop_condition: Optional[Callable] = None,
         plot: bool = False):
+    spinner = SynchronousSpinner('Executing actions')
+
     before_state = start_state
     actual_path = [before_state]
     end_trial = False
@@ -87,10 +91,13 @@ def execute_actions(
                 break
 
         before_state = after_state
+        spinner.update()
 
     if plot and after_state:
         scenario.plot_environment_rviz(environment)
         scenario.plot_state_rviz(after_state, label='actual')
+
+    spinner.stop()
 
     execution_result = ExecutionResult(path=actual_path, end_trial=end_trial, stopped=stopped, end_t=t)
     return execution_result

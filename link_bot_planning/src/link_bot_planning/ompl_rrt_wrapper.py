@@ -4,6 +4,7 @@ import warnings
 from typing import Dict, List, Tuple
 
 from arc_utilities.algorithms import zip_repeat_shorter
+from link_bot_pycommon.spinners import SynchronousSpinner
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -236,7 +237,8 @@ class OmplRRTWrapper(MyPlanner):
 
         if self.verbose >= 0:
             print(".", end='', flush=True)
-        # print(dt)
+        else:
+            self.spinner.update()
 
         # Convert from OMPL -> Numpy
         previous_states, previous_actions = self.motions_to_numpy(motions)
@@ -319,6 +321,7 @@ class OmplRRTWrapper(MyPlanner):
         return TimeoutOrNotProgressing(planning_query, self.params['termination_criteria'], self.verbose)
 
     def plan(self, planning_query: PlanningQuery):
+        self.spinner = SynchronousSpinner('Planning')
         self.cleanup_before_plan(planning_query.seed)
 
         self.sps.environment = planning_query.environment
@@ -395,6 +398,7 @@ class OmplRRTWrapper(MyPlanner):
         if self.verbose >= 0:
             self.plot_path(state_sequence=planned_path, action_sequence=actions)
 
+        self.spinner.stop()
         return PlanningResult(status=planner_status,
                               path=planned_path,
                               actions=actions,
