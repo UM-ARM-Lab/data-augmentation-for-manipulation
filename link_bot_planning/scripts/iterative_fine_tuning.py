@@ -7,12 +7,14 @@ import warnings
 from dataclasses import dataclass
 from typing import Dict, List
 
+from more_itertools import chunked
+
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
-from link_bot_pycommon.pycommon import pathify, paths_from_json, deal_with_exceptions
+from link_bot_pycommon.pycommon import pathify, paths_from_json
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -65,7 +67,9 @@ class IterativeFineTuning:
         self.trials_directory = self.outdir / 'classifier_training_logdir'
         self.planning_results_root_dir = self.outdir / 'planning_results'
 
-        self.trial_idx_gen = itertools.cycle(get_all_scene_indices(self.test_scenes_dir))
+        all_trial_indices = get_all_scene_indices(self.test_scenes_dir)
+        self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices),
+                                               self.ift_config['trials_per_iteration'])
 
     def run(self, num_fine_tuning_iterations: int):
         checkpoints = paths_from_json(self.log['checkpoints'])
@@ -95,7 +99,7 @@ class IterativeFineTuning:
 
     def plan_and_execute(self, iteration_data: IterationData):
         i = iteration_data.fine_tuning_iteration
-        trial_idx = next(self.trial_idx_gen)
+        trials = next(self.trial_indices_generator)
         planning_chunker = iteration_data.iteration_chunker.sub_chunker('planning')
         planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
         if planning_results_dir is None:
@@ -109,7 +113,7 @@ class IterativeFineTuning:
 
             [p.resume() for p in self.gazebo_processes]
             evaluate_planning(planner_params=self.planner_params,
-                              trials=[trial_idx],
+                              trials=trials,
                               job_chunker=planning_chunker,
                               outdir=planning_results_dir,
                               no_execution=self.no_execution,
