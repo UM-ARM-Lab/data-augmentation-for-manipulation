@@ -505,6 +505,6 @@ def compute_batch_size(dataset_dirs: List[pathlib.Path], max_batch_size: int):
     for dataset_dir in dataset_dirs:
         for d in dataset_dir.iterdir():
             if d.is_dir():
-                n_examples = len(list(d.glob("*.tfexamples")))
+                n_examples = len(list(d.glob("*.tfrecords")))
                 total_examples += n_examples
     return compute_batch_size_for_n_examples(total_examples, max_batch_size)
