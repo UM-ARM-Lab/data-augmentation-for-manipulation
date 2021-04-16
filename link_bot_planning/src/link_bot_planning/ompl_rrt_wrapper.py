@@ -506,7 +506,7 @@ class OmplRRTWrapper(MyPlanner):
             self.scenario.plot_state_rviz(state_t, label=label, idx=t)
             if action_t:
                 self.scenario.plot_action_rviz(state_t, action_t, label=label, idx=t)
-            rospy.sleep(0.1)
+            time.sleep(0.1)
 
     def clear_smoothing_markers(self):
         # FIXME: temporary hack

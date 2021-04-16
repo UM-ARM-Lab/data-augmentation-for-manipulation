@@ -12,7 +12,7 @@ from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
-from link_bot_pycommon.pycommon import pathify, paths_from_json
+from link_bot_pycommon.pycommon import pathify, paths_from_json, deal_with_exceptions
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -265,6 +265,7 @@ def ift_main():
     resume_parser.set_defaults(func=resume_main)
     add_args(resume_parser)
 
+    # deal_with_exceptions(how_to_handle='retry', function=run_subparsers(parser))
     run_subparsers(parser)
 
 
