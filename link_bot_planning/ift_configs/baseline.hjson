@@ -2,7 +2,6 @@
   epochs: 25
   early_stopping: true
   trials_per_iteration: 1
-  batch_size: 1
   fine_tune_conv: false
   fine_tune_dense: false
   fine_tune_lstm: false

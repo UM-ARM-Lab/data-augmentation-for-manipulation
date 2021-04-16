@@ -36,13 +36,13 @@ def main():
         metrics_for_dataset = []
         for model_dir in model_dirs:
             print(dataset_dir.name, model_dir.name)
-            metrics_for_dataset_and_model = eval_main(dataset_dirs=[dataset_dir],
-                                                      mode=mode,
-                                                      batch_size=batch_size,
-                                                      use_gt_rope=True,
-                                                      threshold=None,
-                                                      take=args.take * batch_size,
-                                                      checkpoint=model_dir / 'best_checkpoint')
+            _, metrics_for_dataset_and_model = eval_main(dataset_dirs=[dataset_dir],
+                                                         mode=mode,
+                                                         batch_size=batch_size,
+                                                         use_gt_rope=True,
+                                                         threshold=None,
+                                                         take=args.take * batch_size,
+                                                         checkpoint=model_dir / 'best_checkpoint')
             m = {k: v.result().numpy().squeeze() for k, v in metrics_for_dataset_and_model.items()}
             metrics_for_dataset.append(m)
 

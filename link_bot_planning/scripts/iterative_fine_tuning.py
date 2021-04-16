@@ -27,7 +27,7 @@ from colorama import Fore
 
 import rospy
 from arc_utilities import ros_init
-from link_bot_data.dataset_utils import data_directory
+from link_bot_data.dataset_utils import data_directory, compute_batch_size
 from link_bot_planning.planning_evaluation import load_planner_params, evaluate_planning
 from link_bot_pycommon.args import my_formatter, run_subparsers
 from link_bot_pycommon.job_chunking import JobChunker
@@ -40,6 +40,7 @@ class IterationData:
     fine_tuning_iteration: int
     iteration_chunker: JobChunker
     latest_checkpoint_dir: pathlib.Path
+
 
 
 class IterativeFineTuning:
@@ -103,7 +104,7 @@ class IterativeFineTuning:
         planning_chunker = iteration_data.iteration_chunker.sub_chunker('planning')
         planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
         if planning_results_dir is None:
-            planning_results_dir = self.planning_results_root_dir / f'iteration_{i:02d}_planning'
+            planning_results_dir = self.planning_results_root_dir / f'iteration_{i:04d}_planning'
             latest_checkpoint = iteration_data.latest_checkpoint_dir / 'best_checkpoint'
             self.planner_params['classifier_model_dir'] = [
                 latest_checkpoint,
@@ -143,7 +144,7 @@ class IterativeFineTuning:
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('dataset')
         new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
-            new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i}_dataset'
+            new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i:04d}_dataset'
             r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir, verbose=-1)
             r.run()
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
@@ -155,10 +156,12 @@ class IterativeFineTuning:
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune')
         new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
+            adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_dataset_dirs, max_batch_size=16)
             new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=iteration_data.fine_tuning_dataset_dirs,
                                                              checkpoint=latest_checkpoint,
-                                                             log=f'iteration_{i}_training_logdir',
+                                                             log=f'iteration_{i:04d}_training_logdir',
                                                              trials_directory=self.trials_directory,
+                                                             batch_size=adaptive_batch_size,
                                                              validate_first=True,
                                                              **self.ift_config)
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())

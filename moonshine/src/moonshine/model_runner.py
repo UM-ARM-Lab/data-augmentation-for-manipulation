@@ -25,6 +25,7 @@ class ModelRunner:
                  validate_first=False,
                  batch_metadata=None,
                  early_stopping=False,
+                 **kwargs,
                  ):
         self.early_stopping = early_stopping
         self.model = model
@@ -154,7 +155,8 @@ class ModelRunner:
 
                 for v in train_metrics.values():
                     v.reset_states()
-                _ = self.model.train_step(train_batch, train_metrics)
+                outputs = self.model.train_step(train_batch, train_metrics)
+
                 time_str = str(datetime.timedelta(seconds=int(self.latest_ckpt.train_time.numpy())))
                 train_batch_loss = train_metrics['loss'].result().numpy().squeeze()
                 bar.update(self.num_train_batches, Loss=train_batch_loss, TrainTime=time_str)
@@ -193,6 +195,14 @@ class ModelRunner:
         self.write_val_summary({k: m.result() for k, m in val_metrics.items()})
         self.latest_checkpoint_manager.save()
 
+    def val_generator(self, val_dataset, val_metrics):
+        for v in val_metrics.values():
+            v.reset_states()
+
+        for val_batch in val_dataset:
+            val_batch.update(self.batch_metadata)
+            yield val_batch, self.model.val_step(val_batch, val_metrics)
+
     def val_epoch(self, val_dataset, val_metrics):
         if self.num_val_batches is not None:
             max_size = str(self.num_val_batches)
@@ -213,7 +223,7 @@ class ModelRunner:
             for val_batch in val_dataset:
                 val_batch.update(self.batch_metadata)
                 self.num_val_batches += 1
-                _ = self.model.val_step(val_batch, val_metrics)
+                self.model.val_step(val_batch, val_metrics)
                 bar.update(self.num_val_batches)
 
     def train(self, train_dataset, val_dataset, num_epochs):

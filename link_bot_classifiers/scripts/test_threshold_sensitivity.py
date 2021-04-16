@@ -59,24 +59,24 @@ class TestThresholdSensitivity:
 
     def evaluate(self, batch_size: int, trial_path: pathlib.Path, take: int):
         print(Fore.GREEN + f"Evaluating {trial_path.as_posix()}")
-        train_metrics = train_test_classifier.eval_main(dataset_dirs=[self.classifier_dataset_dir],
-                                                        checkpoint=trial_path / 'best_checkpoint',
-                                                        mode='train',
-                                                        threshold=self.threshold,
-                                                        trials_directory=self.trials_directory,
-                                                        batch_size=batch_size,
-                                                        use_gt_rope=False,
-                                                        take=take,
-                                                        )
-        val_metrics = train_test_classifier.eval_main(dataset_dirs=[self.classifier_dataset_dir],
-                                                      checkpoint=trial_path / 'best_checkpoint',
-                                                      mode='val',
-                                                      threshold=self.threshold,
-                                                      trials_directory=self.trials_directory,
-                                                      batch_size=batch_size,
-                                                      use_gt_rope=False,
-                                                      take=take
-                                                      )
+        _, train_metrics = train_test_classifier.eval_main(dataset_dirs=[self.classifier_dataset_dir],
+                                                           checkpoint=trial_path / 'best_checkpoint',
+                                                           mode='train',
+                                                           threshold=self.threshold,
+                                                           trials_directory=self.trials_directory,
+                                                           batch_size=batch_size,
+                                                           use_gt_rope=False,
+                                                           take=take,
+                                                           )
+        _, val_metrics = train_test_classifier.eval_main(dataset_dirs=[self.classifier_dataset_dir],
+                                                         checkpoint=trial_path / 'best_checkpoint',
+                                                         mode='val',
+                                                         threshold=self.threshold,
+                                                         trials_directory=self.trials_directory,
+                                                         batch_size=batch_size,
+                                                         use_gt_rope=False,
+                                                         take=take
+                                                         )
         train_metrics = dict_tools.dict_round(numpify(train_metrics))
         val_metrics = dict_tools.dict_round(numpify(val_metrics))
         return train_metrics, val_metrics

@@ -4,7 +4,7 @@ import pathlib
 import time
 from collections import OrderedDict
 from io import BytesIO
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 import genpy
 import git
@@ -493,3 +493,18 @@ def train_test_split_counts(n: int, val_split: int = DEFAULT_VAL_SPLIT, test_spl
     n_val = int(val_split * n)
     n_train = n - n_test - n_val
     return n_train, n_val, n_test
+
+
+def compute_batch_size_for_n_examples(total_examples: int, max_batch_size: int):
+    batch_size = min(max(1, int(total_examples / 2)), max_batch_size)
+    return batch_size
+
+
+def compute_batch_size(dataset_dirs: List[pathlib.Path], max_batch_size: int):
+    total_examples = 0
+    for dataset_dir in dataset_dirs:
+        for d in dataset_dir.iterdir():
+            if d.is_dir():
+                n_examples = len(list(d.glob("*.tfexamples")))
+                total_examples += n_examples
+    return compute_batch_size_for_n_examples(total_examples, max_batch_size)

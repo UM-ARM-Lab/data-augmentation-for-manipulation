@@ -21,14 +21,16 @@ class SynchronousSpinner:
 
     def __init__(self, message: str, spinner_name: str = 'dots'):
         self.message = message
+        self.total_len = (len(self.message) + 2)
+        self.backspaces = '\b' * self.total_len
         self.symbol_generator = itertools.cycle(spinners[spinner_name])
 
     def update(self):
         i = next(self.symbol_generator)
-        print('\b' + i, end='', flush=True)
+        print(f'{self.backspaces}{i} {self.message}', end='', flush=True)
 
     def stop(self):
-        print('\b', flush=True, end='')
+        print('', flush=True)
 
 
 def main():

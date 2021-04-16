@@ -139,6 +139,31 @@ def train_main(dataset_dirs: List[pathlib.Path],
     return trial_path, final_val_metrics
 
 
+def eval_generator(dataset_dirs: List[pathlib.Path],
+                   checkpoint: pathlib.Path,
+                   mode: str,
+                   batch_size: int,
+                   use_gt_rope: bool,
+                   threshold: Optional[float] = None,
+                   old_compat: bool = False,
+                   take: Optional[int] = None,
+                   balance: bool = True,
+                   **kwargs):
+    model, runner, tf_dataset = eval_setup(balance,
+                                           batch_size,
+                                           checkpoint,
+                                           dataset_dirs,
+                                           mode,
+                                           old_compat,
+                                           take,
+                                           threshold,
+                                           use_gt_rope)
+
+    val_metrics = model.create_metrics()
+    for example, outputs in runner.val_generator(tf_dataset, val_metrics):
+        yield example, outputs
+
+
 def eval_main(dataset_dirs: List[pathlib.Path],
               checkpoint: pathlib.Path,
               mode: str,
@@ -147,14 +172,33 @@ def eval_main(dataset_dirs: List[pathlib.Path],
               threshold: Optional[float] = None,
               old_compat: bool = False,
               take: Optional[int] = None,
+              balance: bool = True,
               **kwargs):
+    model, runner, tf_dataset = eval_setup(balance,
+                                           batch_size,
+                                           checkpoint,
+                                           dataset_dirs,
+                                           mode,
+                                           old_compat,
+                                           take,
+                                           threshold,
+                                           use_gt_rope)
+
+    val_metrics = model.create_metrics()
+    runner.val_epoch(tf_dataset, val_metrics)
+    for metric_name, metric_value in val_metrics.items():
+        print(f"{metric_name:30s}: {metric_value.result().numpy().squeeze():.4f}")
+
+    return val_metrics
+
+
+def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, take, threshold, use_gt_rope):
     ###############
     # Model
     ###############
     trial_path = checkpoint.parent.absolute()
     _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
     model_class = link_bot_classifiers.get_model(params['model_class'])
-
     ###############
     # Dataset
     ###############
@@ -164,15 +208,14 @@ def eval_main(dataset_dirs: List[pathlib.Path],
                                       old_compat=old_compat,
                                       threshold=threshold)
     tf_dataset = dataset.get_datasets(mode=mode)
-    rospy.loginfo(Fore.CYAN + "NOTE! These metrics are on the balanced dataset")
-    tf_dataset = tf_dataset.balance()
+    if balance:
+        rospy.loginfo(Fore.CYAN + "NOTE! These metrics are on the balanced dataset")
+        tf_dataset = tf_dataset.balance()
     tf_dataset = tf_dataset.take(take)
-
     ###############
     # Evaluate
     ###############
     tf_dataset = batch_tf_dataset(tf_dataset, batch_size, drop_remainder=True)
-
     model = model_class(hparams=params, batch_size=batch_size, scenario=dataset.scenario)
     # This call to model runner restores the model
     runner = ModelRunner(model=model,
@@ -182,13 +225,7 @@ def eval_main(dataset_dirs: List[pathlib.Path],
                          trial_path=trial_path,
                          key_metric=AccuracyCheckpointMetric,
                          batch_metadata=dataset.batch_metadata)
-
-    val_metrics = model.create_metrics()
-    runner.val_epoch(tf_dataset, val_metrics)
-    for metric_name, metric_value in val_metrics.items():
-        print(f"{metric_name:30s}: {metric_value.result().numpy().squeeze():.4f}")
-
-    return val_metrics
+    return model, runner, tf_dataset
 
 
 class ClassifierEvaluation:
@@ -286,7 +323,6 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              old_compat: bool = False,
              threshold: Optional[float] = None,
              **kwargs):
-
     count = 0
 
     view = ClassifierEvaluation(dataset_dirs=dataset_dirs,

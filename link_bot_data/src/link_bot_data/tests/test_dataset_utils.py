@@ -6,7 +6,7 @@ import tensorflow as tf
 
 from link_bot_data.dataset_utils import is_reconverging, null_pad, NULL_PAD_VALUE, num_reconverging, \
     num_reconverging_subsequences, add_predicted, remove_predicted, replaced_true_with_predicted, deserialize_scene_msg, \
-    multigen
+    multigen, compute_batch_size_for_n_examples
 from moonshine.gpu_config import limit_gpu_mem
 from moonshine.moonshine_utils import remove_batch
 from moveit_msgs.msg import PlanningScene
@@ -120,6 +120,14 @@ class MyTestCase(unittest.TestCase):
         # test that iterating again works
         second_time_iter = iter(dataset)
         self.assertEqual(next(second_time_iter), 0)
+
+    def test_compute_batch_size(self):
+        self.assertEqual(compute_batch_size_for_n_examples(1, 16), 1)
+        self.assertEqual(compute_batch_size_for_n_examples(2, 16), 1)
+        self.assertEqual(compute_batch_size_for_n_examples(4, 16), 2)
+        self.assertEqual(compute_batch_size_for_n_examples(8, 16), 4)
+        self.assertEqual(compute_batch_size_for_n_examples(16, 16), 8)
+        self.assertEqual(compute_batch_size_for_n_examples(32, 16), 16)
 
 
 if __name__ == '__main__':
