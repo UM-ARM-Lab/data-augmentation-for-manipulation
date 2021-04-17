@@ -190,6 +190,7 @@ class IterativeFineTuning:
             [p.suspend() for p in self.gazebo_processes]
 
             adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_dataset_dirs, max_batch_size=16)
+            print(adaptive_batch_size)
             new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=iteration_data.fine_tuning_dataset_dirs,
                                                              checkpoint=latest_checkpoint,
                                                              log=f'iteration_{i:04d}_training_logdir',
