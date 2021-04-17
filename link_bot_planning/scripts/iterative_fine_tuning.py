@@ -155,9 +155,7 @@ class IterativeFineTuning:
             latest_classifier_checkpoint = iteration_data.latest_classifier_checkpoint_dir / 'best_checkpoint'
             latest_recovery_checkpoint = iteration_data.latest_recovery_checkpoint_dir / 'best_checkpoint'
             planner_params = self.initial_planner_params.copy()
-            planner_params['recovery_model_dir'] = [
-                latest_recovery_checkpoint,
-            ]
+            planner_params['recovery']['recovery_model_dir'] = latest_recovery_checkpoint
             planner_params['classifier_model_dir'] = [
                 latest_classifier_checkpoint,
                 pathlib.Path('cl_trials/new_feasibility_baseline/none'),
