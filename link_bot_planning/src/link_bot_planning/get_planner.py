@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from link_bot_classifiers import classifier_utils
 from link_bot_planning.ompl_rrt_wrapper import OmplRRTWrapper
@@ -6,17 +6,22 @@ from link_bot_planning.parallel_rrt import NewRRT
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_from_json
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from state_space_dynamics import dynamics_utils, filter_utils
 
 
-def get_planner(planner_params: Dict, verbose: int, log_full_tree):
+def get_planner(planner_params: Dict,
+                verbose: int,
+                log_full_tree: bool,
+                scenario: Optional[ScenarioWithVisualization] = None):
     # TODO: remove when backwards compatibility no longer needed
     if 'planner_type' not in planner_params:
         planner_type = 'rrt'
     else:
         planner_type = planner_params['planner_type']
 
-    scenario = get_scenario(planner_params["scenario"])
+    if scenario is None:
+        scenario = get_scenario(planner_params["scenario"])
 
     if planner_type == 'rrt':
         fwd_model = load_fwd_model(planner_params, scenario)

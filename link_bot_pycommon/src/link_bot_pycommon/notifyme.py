@@ -1,5 +1,6 @@
 import logging
 import pathlib
+import traceback
 from time import perf_counter
 from typing import Callable, Optional
 
@@ -55,8 +56,8 @@ def notify(phone_number: Optional[str] = None, ignore_before: int=5):
             try:
                 func(*args, **kwargs)
                 notifier.success(job_name=func.__name__)
-            except Exception as e:
-                print(e)
+            except Exception:
+                print(traceback.format_exc())
                 dt = perf_counter() - t0
                 if dt >= ignore_before:
                     notifier.failure(job_name=func.__name__)

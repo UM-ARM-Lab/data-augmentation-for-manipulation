@@ -13,9 +13,11 @@ from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
-from link_bot_planning.get_planner import get_planner
+from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
+from link_bot_pycommon import notifyme
+from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import pathify, paths_from_json, deal_with_exceptions
 
 with warnings.catch_warnings():
@@ -58,9 +60,10 @@ class IterativeFineTuning:
         self.timeout = timeout
         self.log = log
         self.ift_config = self.log['ift_config']
-        self.planner_params = pathify(self.log['planner_params'])
-        log_full_tree = False
-        self.planner_params["log_full_tree"] = log_full_tree
+        self.initial_planner_params = pathify(self.log['planner_params'])
+        self.log_full_tree = False
+        self.initial_planner_params["log_full_tree"] = self.log_full_tree
+        self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
         self.verbose = -1
 
@@ -79,15 +82,19 @@ class IterativeFineTuning:
         # Start Services
         self.service_provider = gazebo_services.GazeboServices()
         self.service_provider.play()  # time needs to be advancing while we setup the planner
-        self.planner = get_planner(planner_params=self.planner_params,
-                                   verbose=self.verbose,
-                                   log_full_tree=log_full_tree)
 
+        # Setup scenario
+        self.scenario = get_scenario(self.initial_planner_params["scenario"])
+        self.scenario.on_before_get_state_or_execute_action()
         self.service_provider.setup_env(verbose=self.verbose,
-                                        real_time_rate=self.planner_params['real_time_rate'],
-                                        max_step_size=self.planner.fwd_model.max_step_size,
+                                        real_time_rate=self.initial_planner_params['real_time_rate'],
+                                        max_step_size=0.01,  # FIXME:
                                         play=True)
-        self.planner.scenario.on_before_get_state_or_execute_action()
+
+        self.planner = get_planner(planner_params=self.initial_planner_params,
+                                   verbose=self.verbose,
+                                   log_full_tree=self.log_full_tree,
+                                   scenario=self.scenario)
 
     def run(self, num_fine_tuning_iterations: int):
         checkpoints = paths_from_json(self.log['checkpoints'])
@@ -123,25 +130,35 @@ class IterativeFineTuning:
         if planning_results_dir is None:
             planning_results_dir = self.planning_results_root_dir / f'iteration_{i:04d}_planning'
             latest_checkpoint = iteration_data.latest_checkpoint_dir / 'best_checkpoint'
-            self.planner_params['classifier_model_dir'] = [
+            planner_params = self.initial_planner_params.copy()
+            planner_params['classifier_model_dir'] = [
                 latest_checkpoint,
                 pathlib.Path('cl_trials/new_feasibility_baseline/none'),
             ]
-            self.planner_params['fine_tuning_iteration'] = i
-
-            [p.resume() for p in self.gazebo_processes]
+            self.initial_planner_params['fine_tuning_iteration'] = i
 
             # planning evaluation
-            self.evaluate_planning(planning_chunker, planning_results_dir, trials)
+            [p.resume() for p in self.gazebo_processes]
+            classifier_models = load_classifier(planner_params, self.scenario)
+            self.planner.classifier_models = classifier_models
 
-            # after planning evaluation
+            runner = EvaluatePlanning(planner=self.planner,
+                                      service_provider=self.service_provider,
+                                      job_chunker=planning_chunker,
+                                      verbose=self.verbose,
+                                      planner_params=planner_params,
+                                      outdir=planning_results_dir,
+                                      trials=trials,
+                                      test_scenes_dir=self.test_scenes_dir)
+
+            deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)
             [p.suspend() for p in self.gazebo_processes]
 
             analysis_params = load_analysis_params()
             metrics = generate_per_trial_metrics(analysis_params=analysis_params,
                                                  subfolders_ordered=[planning_results_dir],
-                                                 method_names=[self.planner_params['method_name']])
-            successes = metrics[Successes].values[self.planner_params['method_name']]
+                                                 method_names=[self.initial_planner_params['method_name']])
+            successes = metrics[Successes].values[self.initial_planner_params['method_name']]
             latest_success_rate = successes.sum() / successes.shape[0]
             planning_chunker.store_result('latest_success_rate', latest_success_rate)
         else:
@@ -149,18 +166,6 @@ class IterativeFineTuning:
 
         print(Fore.CYAN + f"Iteration {i} {latest_success_rate * 100:.1f}%")
         return planning_results_dir
-
-    def evaluate_planning(self, planning_chunker, planning_results_dir, trials):
-        runner = EvaluatePlanning(planner=self.planner,
-                                  service_provider=self.service_provider,
-                                  job_chunker=planning_chunker,
-                                  verbose=self.verbose,
-                                  planner_params=self.planner_params,
-                                  outdir=planning_results_dir,
-                                  trials=trials,
-                                  test_scenes_dir=self.test_scenes_dir)
-        deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)
-        self.planner.scenario.robot.disconnect()
 
     def update_datasets(self, iteration_data: IterationData, planning_results_dir):
         i = iteration_data.fine_tuning_iteration
@@ -212,13 +217,13 @@ def start_iterative_fine_tuning(nickname: str,
 
     ift_config = load_hjson(ift_config_filename)
 
-    planner_params = load_planner_params(planner_params_filename)
+    initial_planner_params = load_planner_params(planner_params_filename)
     from_env, to_env = nickname.split("_to_")
 
     logfile_name = outdir / 'logfile.hjson'
     log = {
         'nickname':        nickname,
-        'planner_params':  planner_params,
+        'planner_params':  initial_planner_params,
         'test_scenes_dir': test_scenes_dir.as_posix(),
         'checkpoints':     [checkpoint.as_posix()],
         'from_env':        from_env,
@@ -269,7 +274,7 @@ def add_args(start_parser):
     start_parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
 
 
-# @notifyme.notify()
+@notifyme.notify()
 @ros_init.with_ros("iterative_fine_tuning")
 def ift_main():
     colorama.init(autoreset=True)

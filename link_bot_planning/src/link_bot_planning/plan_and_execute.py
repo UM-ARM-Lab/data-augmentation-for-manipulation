@@ -87,6 +87,7 @@ def execute_actions(
                                   action=action,
                                   after_state=after_state)
             if stop:
+                spinner.stop()
                 rospy.logwarn("Stopping mid-execution")
                 break
 
@@ -97,7 +98,8 @@ def execute_actions(
         scenario.plot_environment_rviz(environment)
         scenario.plot_state_rviz(after_state, label='actual')
 
-    spinner.stop()
+    if not stopped:
+        spinner.stop()
 
     execution_result = ExecutionResult(path=actual_path, end_trial=end_trial, stopped=stopped, end_t=t)
     return execution_result
