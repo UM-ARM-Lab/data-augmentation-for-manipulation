@@ -205,9 +205,12 @@ class NNRecoveryModel(MyKerasModel):
 
     def create_metrics(self):
         super().create_metrics()
-        return {}
+        return {
+            'loss':                  LossMetric(),
+        }
 
     def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
+        # def compute_metrics(self, dataset_element, outputs):
         # y_true = dataset_element['recovery_probability'][:, 1]
         # y_pred = tf.squeeze(outputs['probabilities'], axis=1)
         # error = tf.reduce_mean(tf.math.abs(y_true - y_pred))
@@ -223,7 +226,6 @@ class NNRecoveryModel(MyKerasModel):
         # # plt.scatter(indices, y_pred_n.numpy(), s=100)
         # plt.show()
         # # END DEBUG
-        return {}
 
     @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
