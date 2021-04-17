@@ -168,7 +168,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
         self.service_provider.play()
 
-    @Halo(text='Restoring', spinner='dots')
+    # @Halo(text='Restoring', spinner='dots')
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
         print("1", end='')
         self.service_provider.play()
