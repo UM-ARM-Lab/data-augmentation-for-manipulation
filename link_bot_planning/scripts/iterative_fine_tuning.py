@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import argparse
 import itertools
-from time import perf_counter
 import logging
 import pathlib
 import warnings
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Dict, List
 
 from more_itertools import chunked
@@ -34,7 +34,7 @@ import rospy
 from arc_utilities import ros_init
 from link_bot_data.dataset_utils import data_directory, compute_batch_size
 from link_bot_planning.planning_evaluation import load_planner_params, EvaluatePlanning
-from link_bot_pycommon.args import my_formatter, run_subparsers
+from link_bot_pycommon.args import run_subparsers
 from link_bot_pycommon.job_chunking import JobChunker
 from moonshine.filepath_tools import load_hjson
 
@@ -44,7 +44,8 @@ class IterationData:
     iteration: int
     iteration_chunker: JobChunker
     fine_tuning_dataset_dirs: List[pathlib.Path]
-    latest_checkpoint_dir: pathlib.Path
+    latest_classifier_checkpoint_dir: pathlib.Path
+    latest_recovery_checkpoint_dir: pathlib.Path
 
 
 class IterativeFineTuning:
@@ -98,8 +99,10 @@ class IterativeFineTuning:
                                    scenario=self.scenario)
 
     def run(self, num_fine_tuning_iterations: int):
-        checkpoints = paths_from_json(self.log['checkpoints'])
-        latest_checkpoint_dir = checkpoints[-1]
+        classifier_checkpoints = paths_from_json(self.log['classifier_checkpoints'])
+        latest_classifier_checkpoint_dir = classifier_checkpoints[-1]
+        recovery_checkpoints = paths_from_json(self.log['recovery_checkpoints'])
+        latest_recovery_checkpoint_dir = recovery_checkpoints[-1]
         fine_tuning_dataset_dirs = []
         for iteration_idx in range(num_fine_tuning_iterations):
             jobkey = f"iteration {iteration_idx}"
@@ -112,7 +115,8 @@ class IterativeFineTuning:
             iteration_data = IterationData(fine_tuning_dataset_dirs=fine_tuning_dataset_dirs,
                                            iteration=iteration_idx,
                                            iteration_chunker=iteration_chunker,
-                                           latest_checkpoint_dir=latest_checkpoint_dir,
+                                           latest_classifier_checkpoint_dir=latest_classifier_checkpoint_dir,
+                                           latest_recovery_checkpoint_dir=latest_recovery_checkpoint_dir,
                                            )
 
             # planning
@@ -123,7 +127,7 @@ class IterativeFineTuning:
             iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
 
             # fine tune (on all of the classifier datasets so far)
-            latest_checkpoint_dir = self.fine_tune(iteration_data)
+            latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
 
             iteration_end_time = iteration_chunker.get_result('end_time')
             if iteration_end_time is None:
@@ -142,10 +146,14 @@ class IterativeFineTuning:
         planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
         if planning_results_dir is None:
             planning_results_dir = self.planning_results_root_dir / f'iteration_{i:04d}_planning'
-            latest_checkpoint = iteration_data.latest_checkpoint_dir / 'best_checkpoint'
+            latest_classifier_checkpoint = iteration_data.latest_classifier_checkpoint_dir / 'best_checkpoint'
+            latest_recovery_checkpoint = iteration_data.latest_recovery_checkpoint_dir / 'best_checkpoint'
             planner_params = self.initial_planner_params.copy()
+            planner_params['recovery_model_dir'] = [
+                latest_recovery_checkpoint,
+            ]
             planner_params['classifier_model_dir'] = [
-                latest_checkpoint,
+                latest_classifier_checkpoint,
                 pathlib.Path('cl_trials/new_feasibility_baseline/none'),
             ]
             self.initial_planner_params['fine_tuning_iteration'] = i
@@ -196,14 +204,13 @@ class IterativeFineTuning:
 
     def fine_tune(self, iteration_data: IterationData):
         i = iteration_data.iteration
-        latest_checkpoint = iteration_data.latest_checkpoint_dir / 'best_checkpoint'
+        latest_checkpoint = iteration_data.latest_classifier_checkpoint_dir / 'best_checkpoint'
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune')
         new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
             [p.suspend() for p in self.gazebo_processes]
 
             adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_dataset_dirs, max_batch_size=16)
-            print(adaptive_batch_size)
             new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=iteration_data.fine_tuning_dataset_dirs,
                                                              checkpoint=latest_checkpoint,
                                                              log=f'iteration_{i:04d}_training_logdir',
@@ -218,7 +225,8 @@ class IterativeFineTuning:
 
 def start_iterative_fine_tuning(nickname: str,
                                 planner_params_filename: pathlib.Path,
-                                checkpoint: pathlib.Path,
+                                classifier_checkpoint: pathlib.Path,
+                                recovery_checkpoint: pathlib.Path,
                                 ift_config_filename: pathlib.Path,
                                 num_fine_tuning_iterations: int,
                                 no_execution: bool,
@@ -240,13 +248,14 @@ def start_iterative_fine_tuning(nickname: str,
 
     logfile_name = outdir / 'logfile.hjson'
     log = {
-        'nickname':        nickname,
-        'planner_params':  initial_planner_params,
-        'test_scenes_dir': test_scenes_dir.as_posix(),
-        'checkpoints':     [checkpoint.as_posix()],
-        'from_env':        from_env,
-        'to_env':          to_env,
-        'ift_config':      ift_config,
+        'nickname':               nickname,
+        'planner_params':         initial_planner_params,
+        'test_scenes_dir':        test_scenes_dir.as_posix(),
+        'classifier_checkpoints': [classifier_checkpoint.as_posix()],
+        'recovery_checkpoints':   [recovery_checkpoint.as_posix()],
+        'from_env':               from_env,
+        'to_env':                 to_env,
+        'ift_config':             ift_config,
     }
     with logfile_name.open("w") as logfile:
         hjson.dump(log, logfile)
@@ -263,7 +272,8 @@ def start_iterative_fine_tuning(nickname: str,
 def start_main(args):
     start_iterative_fine_tuning(nickname=args.nickname,
                                 planner_params_filename=args.planner_params,
-                                checkpoint=args.checkpoint,
+                                classifier_checkpoint=args.classifier_checkpoint,
+                                recovery_checkpoint=args.recovery_checkpoint,
                                 num_fine_tuning_iterations=args.n_iters,
                                 ift_config_filename=args.ift_config,
                                 no_execution=args.no_execution,
@@ -300,14 +310,15 @@ def ift_main():
     ou.setLogLevel(ou.LOG_ERROR)
     tf.autograph.set_verbosity(0)
 
-    parser = argparse.ArgumentParser(formatter_class=my_formatter)
+    parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
     start_parser = subparsers.add_parser('start')
     resume_parser = subparsers.add_parser('resume')
 
     start_parser.add_argument("ift_config", type=pathlib.Path, help='hjson file from ift_config/')
     start_parser.add_argument('planner_params', type=pathlib.Path, help='hjson file from planner_configs/')
-    start_parser.add_argument("checkpoint", type=pathlib.Path, help='classifier checkpoint to start from')
+    start_parser.add_argument("classifier_checkpoint", type=pathlib.Path, help='classifier checkpoint to start from')
+    start_parser.add_argument("recovery_checkpoint", type=pathlib.Path, help='recovery checkpoint to start from')
     start_parser.add_argument("nickname", type=str, help='used in making the output directory')
     start_parser.add_argument("test_scenes_dir", type=pathlib.Path)
     start_parser.set_defaults(func=start_main)

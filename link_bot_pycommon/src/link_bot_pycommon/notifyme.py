@@ -1,5 +1,6 @@
 import logging
 import pathlib
+import socket
 import traceback
 from time import perf_counter
 from typing import Callable, Optional
@@ -15,6 +16,7 @@ class JobNotifier:
         if phone_number[0] != '1':
             logger.warning("Phone number should start with 1")
         self.phone_number = phone_number
+        self.hostname = socket.gethostname()
 
     def notify(self, msg: str, subject: str = 'Job Notification'):
         client = boto3.client('sns')
@@ -24,13 +26,13 @@ class JobNotifier:
             logger.error(f"Status code {status_code}")
 
     def success(self, job_name: str):
-        self.notify(f"Job {job_name} completed successfully", "Success!")
+        self.notify(f"{self.hostname}: Job {job_name} completed successfully", "Success!")
 
     def failure(self, job_name: str):
-        self.notify(f"Job {job_name} raised an exception", "Exception")
+        self.notify(f"{self.hostname}: Job {job_name} raised an exception", "Exception")
 
 
-def notify(phone_number: Optional[str] = None, ignore_before: int=5):
+def notify(phone_number: Optional[str] = None, ignore_before: int = 5):
     """
     A decorator for sending a text message when a function completes successfully (or not)
 
