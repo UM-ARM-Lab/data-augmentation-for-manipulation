@@ -33,4 +33,8 @@
   {
     recovery_dataset_dir: recovery_data/val_slit_1618621255
   }
+  learn_recovery:
+  {
+    model_dir: /home/peter/catkin_ws/src/link_bot/link_bot_planning/recovery_trials/val_slit_1618666051/April_17_09-27-36_4a6b9d2c19
+  }
 }
