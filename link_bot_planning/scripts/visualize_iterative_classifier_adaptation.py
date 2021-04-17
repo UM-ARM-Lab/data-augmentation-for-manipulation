@@ -26,11 +26,10 @@ def generate_iterative_classifier_outputs(ift_dir: pathlib.Path, regenerate: boo
     assert len(log['checkpoints']) == 1
     pretrained_classifier_dir = log['checkpoints'][0]
     classifiers_dirs = {
-        0: pretrained_classifier_dir
+        0: pathlib.Path(pretrained_classifier_dir).parent
     }
     for iteration_classifier_dir in sorted(classifiers_dir.iterdir()):
         m = re.fullmatch(r"iteration_(\d+)_training_logdir", iteration_classifier_dir.name)
-        checkpoint = next(iteration_classifier_dir.iterdir()) / 'best_checkpoint'
         classifier_iteration_index = int(m.group(1)) + 1
         classifiers_dirs[classifier_iteration_index] = iteration_classifier_dir
 
@@ -40,11 +39,9 @@ def generate_iterative_classifier_outputs(ift_dir: pathlib.Path, regenerate: boo
     logfile_name = root / 'logfile.hjson'
     job_chunker = JobChunker(logfile_name=logfile_name)
 
-    data = {}
     for iteration_dataset_dir in sorted(classifier_datasets_dir.iterdir()):
         m = re.fullmatch(r"iteration_(\d+)_dataset", iteration_dataset_dir.name)
         dataset_iteration_idx = int(m.group(1))
-        data[dataset_iteration_idx] = {}
 
         dataset_iteration_chunker = job_chunker.sub_chunker(str(dataset_iteration_idx))
 
@@ -52,6 +49,7 @@ def generate_iterative_classifier_outputs(ift_dir: pathlib.Path, regenerate: boo
 
             data_filename = pathify(dataset_iteration_chunker.get_result(str(classifier_iteration_index)))
             if data_filename is None or regenerate:
+                checkpoint = next(iteration_classifier_dir.iterdir()) / 'best_checkpoint'
                 data_for_classifier_on_dataset = eval_generator(dataset_dirs=[iteration_dataset_dir],
                                                                 checkpoint=checkpoint,
                                                                 mode='all',
@@ -64,21 +62,17 @@ def generate_iterative_classifier_outputs(ift_dir: pathlib.Path, regenerate: boo
                     data_no_batch.append((numpify(remove_batch(e)), numpify(remove_batch(o))))
 
                 data_filename = root / f'{dataset_iteration_idx}_{classifier_iteration_index}_data.pkl.gz'
-                from time import perf_counter
-                t0 = perf_counter()
+                print(data_filename)
                 dump_gzipped_pickle(data_no_batch, data_filename)
-                print(perf_counter() - t0)
                 dataset_iteration_chunker.store_result(str(classifier_iteration_index), data_filename)
             else:
                 print(f"Found results {dataset_iteration_idx}, {classifier_iteration_index}")
-                from time import perf_counter
-                t0 = perf_counter()
-                data_no_batch = load_gzipped_pickle(data_filename)
-                print(perf_counter() - t0)
+                # from time import perf_counter
+                # t0 = perf_counter()
+                # data_no_batch = load_gzipped_pickle(data_filename)
+                # print(perf_counter() - t0)
 
-            data[dataset_iteration_idx][classifier_iteration_index] = data_no_batch
-
-    return data
+    # return data
 
 
 def should_visualize(dataset_iteration_idx, classifier_iteration_idx, data):

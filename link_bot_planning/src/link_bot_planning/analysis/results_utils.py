@@ -5,11 +5,11 @@ from typing import Dict, Optional, List
 import hjson
 from colorama import Fore
 
+from arc_utilities.algorithms import zip_repeat_shorter
 from link_bot_planning.my_planner import PlanningResult
 from link_bot_planning.plan_and_execute import ExecutionResult
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_from_json
-from arc_utilities.algorithms import zip_repeat_shorter
 from link_bot_pycommon.serialization import load_gzipped_pickle, my_hdump
 from moonshine.filepath_tools import load_params, load_json_or_hjson
 from moonshine.moonshine_utils import numpify
@@ -72,7 +72,7 @@ def labeling_params_from_planner_params(planner_params, fallback_labeling_params
     return labeling_params
 
 
-def get_paths(datum: Dict, verbose: int = 0):
+def get_paths(datum: Dict, verbose: int = 0, full_path: bool = True):
     steps = datum['steps']
 
     if len(steps) == 0:
@@ -104,7 +104,10 @@ def get_paths(datum: Dict, verbose: int = 0):
         predicted_states = numpify(predicted_states)
 
         types = [step['type']] * len(actions)
-        yield from zip_repeat_shorter(actions, actual_states, predicted_states, types)
+        if full_path:
+            yield from zip_repeat_shorter(actions, actual_states, predicted_states, types)
+        else:
+            yield from zip(actions, actual_states, predicted_states, types)
 
     # but do add the actual final states
     if len(actions) > 0 and actions[0] is not None:

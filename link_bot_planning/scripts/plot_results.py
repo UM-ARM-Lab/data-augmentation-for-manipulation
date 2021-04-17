@@ -26,7 +26,7 @@ def main():
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
     parser.add_argument("--trial-indices", type=int_set_arg, help='which plan(s) to show')
     parser.add_argument("--threshold", type=float)
-    parser.add_argument("--save", action='store_true')
+    parser.add_argument("--full-path", action='store_true')
     parser.add_argument("--only-timeouts", action='store_true')
     parser.add_argument("--verbose", '-v', action="count", default=0)
 
@@ -45,7 +45,7 @@ def main():
             continue
 
         print(f"trial {trial_idx} ...")
-        plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose)
+        plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose, args.full_path)
         print(f"... complete with status {datum['trial_status']}")
 
 
@@ -61,7 +61,8 @@ def plot_steps(scenario: ScenarioWithVisualization,
                datum: Dict,
                metadata: Dict,
                fallback_labeing_params: Dict,
-               verbose: int):
+               verbose: int,
+               full_path: bool):
     planner_params = metadata['planner_params']
     goal_threshold = get_goal_threshold(planner_params)
 
@@ -85,7 +86,7 @@ def plot_steps(scenario: ScenarioWithVisualization,
     first_step = steps[0]
     planning_query: PlanningQuery = first_step['planning_query']
     environment = planning_query.environment
-    paths = list(get_paths(datum, verbose))
+    paths = list(get_paths(datum, verbose, full_path))
 
     if len(paths) == 0:
         rospy.logwarn("empty trial!")
