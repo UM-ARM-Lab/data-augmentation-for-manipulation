@@ -323,7 +323,7 @@ def reduce_mean_dict(dict):
     return reduced_dict
 
 
-def restore_variables(complete_checkpoint: pathlib.Path, **variables):
+def restore_variables(classifier_checkpoint: pathlib.Path, **variables):
     """
     Args:
         complete_checkpoint:
@@ -335,10 +335,10 @@ def restore_variables(complete_checkpoint: pathlib.Path, **variables):
 
     """
     model_checkpoint = tf.train.Checkpoint(**variables)
-    # "model" matches the name used in the checkpoint (see ckpt creation in modol_runner.py, "model=self.model")
+    # "model" matches the name used in the checkpoint (see ckpt creation in model_runner.py, "model=self.model")
     # the saved checkpoint contains things other than the model, hence why we have this second Checkpoint
     complete_checkpoint = tf.train.Checkpoint(model=model_checkpoint)
-    checkpoint_manager = tf.train.CheckpointManager(complete_checkpoint, complete_checkpoint.as_posix(), max_to_keep=1)
+    checkpoint_manager = tf.train.CheckpointManager(complete_checkpoint, classifier_checkpoint.as_posix(), max_to_keep=1)
     status = complete_checkpoint.restore(checkpoint_manager.latest_checkpoint)
     status.expect_partial()
     status.assert_existing_objects_matched()
