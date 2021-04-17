@@ -118,7 +118,7 @@ class IterativeFineTuning:
             iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
 
             # fine tune (on all of the classifier datasets so far)
-            latest_checkpoint_dir = self.fine_tune(iteration_data, latest_checkpoint_dir)
+            latest_checkpoint_dir = self.fine_tune(iteration_data)
 
         [p.kill() for p in self.gazebo_processes]
 
@@ -172,6 +172,8 @@ class IterativeFineTuning:
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('dataset')
         new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
+            [p.suspend() for p in self.gazebo_processes]
+
             new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i:04d}_dataset'
             r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir,
                                            verbose=self.verbose)
@@ -179,12 +181,14 @@ class IterativeFineTuning:
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
         return new_dataset_dir
 
-    def fine_tune(self, iteration_data: IterationData, latest_checkpoint_dir: pathlib.Path):
+    def fine_tune(self, iteration_data: IterationData):
         i = iteration_data.fine_tuning_iteration
         latest_checkpoint = iteration_data.latest_checkpoint_dir / 'best_checkpoint'
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune')
         new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
+            [p.suspend() for p in self.gazebo_processes]
+
             adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_dataset_dirs, max_batch_size=16)
             new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=iteration_data.fine_tuning_dataset_dirs,
                                                              checkpoint=latest_checkpoint,
