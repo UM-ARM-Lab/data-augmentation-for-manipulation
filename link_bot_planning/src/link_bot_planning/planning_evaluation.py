@@ -192,7 +192,6 @@ def evaluate_planning(planner_params: Dict,
 
     def _on_exception():
         pass
-        # planner.scenario.robot.disconnect()
 
     deal_with_exceptions(how_to_handle=how_to_handle,
                          function=runner.run,

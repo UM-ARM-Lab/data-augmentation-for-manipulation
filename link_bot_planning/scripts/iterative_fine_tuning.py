@@ -10,11 +10,13 @@ from typing import Dict, List
 from more_itertools import chunked
 
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
+from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
+from link_bot_planning.get_planner import get_planner
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
-from link_bot_pycommon.pycommon import pathify, paths_from_json
+from link_bot_pycommon.pycommon import pathify, paths_from_json, deal_with_exceptions
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -28,7 +30,7 @@ from colorama import Fore
 import rospy
 from arc_utilities import ros_init
 from link_bot_data.dataset_utils import data_directory, compute_batch_size
-from link_bot_planning.planning_evaluation import load_planner_params, evaluate_planning
+from link_bot_planning.planning_evaluation import load_planner_params, EvaluatePlanning
 from link_bot_pycommon.args import my_formatter, run_subparsers
 from link_bot_pycommon.job_chunking import JobChunker
 from moonshine.filepath_tools import load_hjson
@@ -40,7 +42,6 @@ class IterationData:
     fine_tuning_iteration: int
     iteration_chunker: JobChunker
     latest_checkpoint_dir: pathlib.Path
-
 
 
 class IterativeFineTuning:
@@ -58,7 +59,10 @@ class IterativeFineTuning:
         self.log = log
         self.ift_config = self.log['ift_config']
         self.planner_params = pathify(self.log['planner_params'])
+        log_full_tree = False
+        self.planner_params["log_full_tree"] = log_full_tree
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
+        self.verbose = -1
 
         self.gazebo_processes = get_gazebo_processes()
 
@@ -71,6 +75,19 @@ class IterativeFineTuning:
         all_trial_indices = get_all_scene_indices(self.test_scenes_dir)
         self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices),
                                                self.ift_config['trials_per_iteration'])
+
+        # Start Services
+        self.service_provider = gazebo_services.GazeboServices()
+        self.service_provider.play()  # time needs to be advancing while we setup the planner
+        self.planner = get_planner(planner_params=self.planner_params,
+                                   verbose=self.verbose,
+                                   log_full_tree=log_full_tree)
+
+        self.service_provider.setup_env(verbose=self.verbose,
+                                        real_time_rate=self.planner_params['real_time_rate'],
+                                        max_step_size=self.planner.fwd_model.max_step_size,
+                                        play=True)
+        self.planner.scenario.on_before_get_state_or_execute_action()
 
     def run(self, num_fine_tuning_iterations: int):
         checkpoints = paths_from_json(self.log['checkpoints'])
@@ -113,17 +130,11 @@ class IterativeFineTuning:
             self.planner_params['fine_tuning_iteration'] = i
 
             [p.resume() for p in self.gazebo_processes]
-            evaluate_planning(planner_params=self.planner_params,
-                              trials=trials,
-                              job_chunker=planning_chunker,
-                              outdir=planning_results_dir,
-                              no_execution=self.no_execution,
-                              timeout=self.timeout,
-                              test_scenes_dir=self.test_scenes_dir,
-                              log_full_tree=False,
-                              how_to_handle=self.on_exception,
-                              verbose=-1,
-                              )
+
+            # planning evaluation
+            self.evaluate_planning(planning_chunker, planning_results_dir, trials)
+
+            # after planning evaluation
             [p.suspend() for p in self.gazebo_processes]
 
             analysis_params = load_analysis_params()
@@ -139,13 +150,26 @@ class IterativeFineTuning:
         print(Fore.CYAN + f"Iteration {i} {latest_success_rate * 100:.1f}%")
         return planning_results_dir
 
+    def evaluate_planning(self, planning_chunker, planning_results_dir, trials):
+        runner = EvaluatePlanning(planner=self.planner,
+                                  service_provider=self.service_provider,
+                                  job_chunker=planning_chunker,
+                                  verbose=self.verbose,
+                                  planner_params=self.planner_params,
+                                  outdir=planning_results_dir,
+                                  trials=trials,
+                                  test_scenes_dir=self.test_scenes_dir)
+        deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)
+        self.planner.scenario.robot.disconnect()
+
     def update_datasets(self, iteration_data: IterationData, planning_results_dir):
         i = iteration_data.fine_tuning_iteration
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('dataset')
         new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
             new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i:04d}_dataset'
-            r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir, verbose=-1)
+            r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir,
+                                           verbose=self.verbose)
             r.run()
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
         return new_dataset_dir
@@ -243,8 +267,6 @@ def add_args(start_parser):
     start_parser.add_argument("--n-iters", '-n', type=int, help='number of iterations of fine tuning', default=500)
     start_parser.add_argument("--no-execution", action="store_true", help='no execution')
     start_parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
-    start_parser.add_argument('--verbose', '-v', action='count', default=0,
-                              help="use more v's for more verbose, like -vvv")
 
 
 # @notifyme.notify()

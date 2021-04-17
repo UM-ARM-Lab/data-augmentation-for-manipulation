@@ -238,6 +238,7 @@ class ModelRunner:
                 self.write_val_summary({k: m.result() for k, m in val_metrics.items()})
                 key_metric_value = val_metrics[self.key_metric.key()].result()
                 print(Style.BRIGHT + "Val: {}={}".format(self.key_metric.key(), key_metric_value) + Style.NORMAL)
+                self.best_ckpt.best_key_metric_value.assign(key_metric_value)
 
             while self.latest_ckpt.epoch < last_epoch:
                 # Training
