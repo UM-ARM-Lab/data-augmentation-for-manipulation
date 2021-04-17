@@ -24,8 +24,13 @@
     batch_size: 16
   }
   make_recovery_dataset: {
+    batch_size: 2
+    labeling_params: labeling_params/recovery/dual.json
   }
   learn_recovery: {
+    epochs: 5
+    batch_size: 8
+    recovery_hparams: hparams/recovery/dual.json
   }
   planning_evaluation: {
     n_trials: 30

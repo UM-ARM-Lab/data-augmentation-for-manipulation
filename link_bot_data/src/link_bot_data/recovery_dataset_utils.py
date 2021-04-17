@@ -273,11 +273,11 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
                                                                           actions=_random_actions_dict)
 
             # Check classifier
-            accept_probabilities, _ = classifier_model.check_constraint_tf_batched(environment=_environment,
-                                                                                   states=mean_dynamics_predictions,
-                                                                                   actions=_random_actions_dict,
-                                                                                   batch_size=bs,
-                                                                                   state_sequence_length=classifier_horizon)
+            accept_probabilities = classifier_model.check_constraint_tf_batched(environment=_environment,
+                                                                                states=mean_dynamics_predictions,
+                                                                                actions=_random_actions_dict,
+                                                                                batch_size=bs,
+                                                                                state_sequence_length=classifier_horizon)
 
             return mean_dynamics_predictions, accept_probabilities
 
