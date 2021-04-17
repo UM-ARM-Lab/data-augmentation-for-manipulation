@@ -226,6 +226,7 @@ class NNRecoveryModel(MyKerasModel):
         # # plt.scatter(indices, y_pred_n.numpy(), s=100)
         # plt.show()
         # # END DEBUG
+        pass
 
     @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
