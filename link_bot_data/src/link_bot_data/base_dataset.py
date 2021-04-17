@@ -116,7 +116,8 @@ class SizedTFDataset:
 
 class BaseDatasetLoader:
 
-    def __init__(self, dataset_dirs: List[pathlib.Path]):
+    def __init__(self, dataset_dirs: List[pathlib.Path], verbose: int = 0):
+        self.verbose = verbose
         self.name = '-'.join([d.name for d in dataset_dirs])
         self.dataset_dirs = dataset_dirs
         self.hparams = {}
@@ -127,7 +128,7 @@ class BaseDatasetLoader:
                     self.hparams[k] = v
                 elif self.hparams[k] == v:
                     pass
-                else:
+                elif self.verbose >= 0:
                     msg = "Datasets have differing values for the hparam {}, using value {}".format(k, self.hparams[k])
                     print(Fore.RED + msg + Fore.RESET)
 

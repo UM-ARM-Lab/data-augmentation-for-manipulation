@@ -4,6 +4,9 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 
 
 # With this approach, we only ever import the scenario we want to use. Nice!
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+
+
 def make_rope_dragging_scenario():
     from link_bot_pycommon.rope_dragging_scenario import RopeDraggingScenario
     return RopeDraggingScenario
@@ -58,7 +61,7 @@ scenario_map = {
 }
 
 
-def get_scenario(scenario_name: str) -> ExperimentScenario:
+def get_scenario(scenario_name: str) -> ScenarioWithVisualization:
     if scenario_name == 'dual_arm':
         print(Fore.YELLOW + "Please update the scenario name! dual_arm is deprecated because it's not specific enough")
     if scenario_name not in scenario_map:

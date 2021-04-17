@@ -22,8 +22,9 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
                  use_gt_rope: Optional[bool] = None,
                  threshold: Optional[float] = None,
                  old_compat: Optional[bool] = False,
+                 verbose: int = 0,
                  ):
-        super(ClassifierDatasetLoader, self).__init__(dataset_dirs)
+        super(ClassifierDatasetLoader, self).__init__(dataset_dirs, verbose)
         self.no_balance = no_balance
         self.load_true_states = load_true_states
         self.labeling_params = self.hparams['labeling_params']

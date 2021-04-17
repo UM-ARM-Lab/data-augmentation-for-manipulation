@@ -19,6 +19,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          fine_tune_dense: bool,
                          fine_tune_lstm: bool,
                          fine_tune_output: bool,
+                         verbose: int = 0,
                          trials_directory: pathlib.Path = pathlib.Path("./trials"),
                          **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
@@ -28,8 +29,8 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
 
     model_class = link_bot_classifiers.get_model(model_hparams['model_class'])
 
-    train_dataset = ClassifierDatasetLoader(dataset_dirs, use_gt_rope=True, load_true_states=True)
-    val_dataset = ClassifierDatasetLoader(dataset_dirs, use_gt_rope=True, load_true_states=True)
+    train_dataset = ClassifierDatasetLoader(dataset_dirs, use_gt_rope=True, load_true_states=True, verbose=verbose)
+    val_dataset = ClassifierDatasetLoader(dataset_dirs, use_gt_rope=True, load_true_states=True, verbose=verbose)
 
     # decrease the learning rate, this is often done in fine-tuning
     model_hparams['learning_rate'] = 1e-4  # normally 1e-3

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import itertools
+from time import perf_counter
 import logging
 import pathlib
 import warnings
@@ -40,9 +41,9 @@ from moonshine.filepath_tools import load_hjson
 
 @dataclass
 class IterationData:
-    fine_tuning_dataset_dirs: List[pathlib.Path]
-    fine_tuning_iteration: int
+    iteration: int
     iteration_chunker: JobChunker
+    fine_tuning_dataset_dirs: List[pathlib.Path]
     latest_checkpoint_dir: pathlib.Path
 
 
@@ -100,12 +101,13 @@ class IterativeFineTuning:
         checkpoints = paths_from_json(self.log['checkpoints'])
         latest_checkpoint_dir = checkpoints[-1]
         fine_tuning_dataset_dirs = []
-        for fine_tuning_iteration in range(num_fine_tuning_iterations):
-            jobkey = f"iteration {fine_tuning_iteration}"
+        for iteration_idx in range(num_fine_tuning_iterations):
+            iteration_t0 = perf_counter()
+            jobkey = f"iteration {iteration_idx}"
             iteration_chunker = self.job_chunker.sub_chunker(jobkey)
 
             iteration_data = IterationData(fine_tuning_dataset_dirs=fine_tuning_dataset_dirs,
-                                           fine_tuning_iteration=fine_tuning_iteration,
+                                           iteration=iteration_idx,
                                            iteration_chunker=iteration_chunker,
                                            latest_checkpoint_dir=latest_checkpoint_dir,
                                            )
@@ -120,10 +122,14 @@ class IterativeFineTuning:
             # fine tune (on all of the classifier datasets so far)
             latest_checkpoint_dir = self.fine_tune(iteration_data)
 
+            iteration_time = perf_counter() - iteration_t0
+            print(Fore.CYAN + f"Finished iteration {iteration_idx}, {iteration_time:.1f}s")
+            iteration_chunker.store_result('time', iteration_time)
+
         [p.kill() for p in self.gazebo_processes]
 
     def plan_and_execute(self, iteration_data: IterationData):
-        i = iteration_data.fine_tuning_iteration
+        i = iteration_data.iteration
         trials = next(self.trial_indices_generator)
         planning_chunker = iteration_data.iteration_chunker.sub_chunker('planning')
         planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
@@ -168,7 +174,7 @@ class IterativeFineTuning:
         return planning_results_dir
 
     def update_datasets(self, iteration_data: IterationData, planning_results_dir):
-        i = iteration_data.fine_tuning_iteration
+        i = iteration_data.iteration
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('dataset')
         new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
@@ -182,7 +188,7 @@ class IterativeFineTuning:
         return new_dataset_dir
 
     def fine_tune(self, iteration_data: IterationData):
-        i = iteration_data.fine_tuning_iteration
+        i = iteration_data.iteration
         latest_checkpoint = iteration_data.latest_checkpoint_dir / 'best_checkpoint'
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune')
         new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
@@ -196,10 +202,10 @@ class IterativeFineTuning:
                                                              log=f'iteration_{i:04d}_training_logdir',
                                                              trials_directory=self.trials_directory,
                                                              batch_size=adaptive_batch_size,
+                                                             verbose=self.verbose,
                                                              validate_first=True,
                                                              **self.ift_config)
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
-        print(Fore.CYAN + f"Finished iteration {i}")
         return new_latest_checkpoint_dir
 
 
