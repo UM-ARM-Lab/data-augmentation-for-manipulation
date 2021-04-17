@@ -239,6 +239,9 @@ class ModelRunner:
                 key_metric_value = val_metrics[self.key_metric.key()].result()
                 print(Style.BRIGHT + "Val: {}={}".format(self.key_metric.key(), key_metric_value) + Style.NORMAL)
                 self.best_ckpt.best_key_metric_value.assign(key_metric_value)
+                self.latest_ckpt.best_key_metric_value.assign(key_metric_value)
+                save_path = self.best_checkpoint_manager.save()
+                print(Fore.CYAN + f"New best checkpoint {save_path}l" + Fore.RESET)
 
             while self.latest_ckpt.epoch < last_epoch:
                 # Training
