@@ -6,7 +6,6 @@
     dy_trials/gt_rope_w_robot_3/best_checkpoint
   ]
   recovery: {
-    recovery_model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e/best_checkpoint
     use_recovery: true
   }
   reset_joint_config: {
