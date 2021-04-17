@@ -1,6 +1,7 @@
 from typing import Dict
 
 import numpy as np
+from halo import Halo
 
 import ros_numpy
 import rosbag
@@ -167,6 +168,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
         self.service_provider.play()
 
+    @Halo(text='Restoring', spinner='dots')
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
         self.service_provider.play()
 
