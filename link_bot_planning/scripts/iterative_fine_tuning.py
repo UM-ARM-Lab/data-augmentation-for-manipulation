@@ -102,9 +102,12 @@ class IterativeFineTuning:
         latest_checkpoint_dir = checkpoints[-1]
         fine_tuning_dataset_dirs = []
         for iteration_idx in range(num_fine_tuning_iterations):
-            iteration_t0 = perf_counter()
             jobkey = f"iteration {iteration_idx}"
             iteration_chunker = self.job_chunker.sub_chunker(jobkey)
+            iteration_start_time = iteration_chunker.get_result('start_time')
+            if iteration_start_time is None:
+                iteration_start_time = perf_counter()
+                iteration_chunker.store_result('start_time', iteration_start_time)
 
             iteration_data = IterationData(fine_tuning_dataset_dirs=fine_tuning_dataset_dirs,
                                            iteration=iteration_idx,
@@ -122,9 +125,13 @@ class IterativeFineTuning:
             # fine tune (on all of the classifier datasets so far)
             latest_checkpoint_dir = self.fine_tune(iteration_data)
 
-            iteration_time = perf_counter() - iteration_t0
+            iteration_end_time = iteration_chunker.get_result('end_time')
+            if iteration_end_time is None:
+                iteration_end_time = perf_counter()
+                iteration_chunker.store_result('end_time', iteration_end_time)
+
+            iteration_time = iteration_end_time - iteration_start_time
             print(Fore.CYAN + f"Finished iteration {iteration_idx}, {iteration_time:.1f}s")
-            iteration_chunker.store_result('time', iteration_time)
 
         [p.kill() for p in self.gazebo_processes]
 

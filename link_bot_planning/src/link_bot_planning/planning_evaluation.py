@@ -131,7 +131,7 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
 
     def plan_and_execute(self, trial_idx: int):
         jobkey = self.jobkey(trial_idx)
-        if self.job_chunker.result_exists(jobkey):
+        if self.job_chunker.has_result(jobkey):
             rospy.loginfo(f"Found existing trial {jobkey}, skipping.")
             return
         super().plan_and_execute(trial_idx=trial_idx)

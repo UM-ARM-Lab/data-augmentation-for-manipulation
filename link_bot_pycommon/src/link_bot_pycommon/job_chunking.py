@@ -44,7 +44,7 @@ class JobChunker:
     def get_result(self, key: str):
         return self.log.get(key, None)
 
-    def result_exists(self, key: str):
+    def has_result(self, key: str):
         return key in self.log
 
     def setup_key(self, key: str):

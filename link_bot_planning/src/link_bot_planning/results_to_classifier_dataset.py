@@ -103,7 +103,7 @@ class ResultsToClassifierDataset:
         last_t = t0
         total_examples = 0
         for trial_idx, datum in results_utils.trials_generator(self.results_dir, self.trial_indices):
-            if job_chunker.result_exists(str(trial_idx)):
+            if job_chunker.has_result(str(trial_idx)):
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
                 continue
 
@@ -159,7 +159,7 @@ class ResultsToClassifierDataset:
         enough_trials_msg = f"moving on to next trial, already got {max_examples_per_trial} examples from this trial"
         total_examples = 0
         for trial_idx, datum in results_utils.trials_generator(self.results_dir, self.trial_indices):
-            if job_chunker.result_exists(str(trial_idx)):
+            if job_chunker.has_result(str(trial_idx)):
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
                 continue
 

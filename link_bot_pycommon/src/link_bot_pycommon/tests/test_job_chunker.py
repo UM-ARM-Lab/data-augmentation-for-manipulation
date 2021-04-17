@@ -15,7 +15,7 @@ class Test(unittest.TestCase):
         c = JobChunker(logfile_name)
         for i in range(2):
             key = f'{i}'
-            if c.result_exists(key):
+            if c.has_result(key):
                 continue
             c.store_result(key, i ** 2)
 
@@ -29,7 +29,7 @@ class Test(unittest.TestCase):
         c = JobChunker(logfile_name)
         for i in range(2, 4):
             key = f'{i}'
-            if c.result_exists(key):
+            if c.has_result(key):
                 continue
             c.store_result(key, i ** 2)
 
@@ -43,7 +43,7 @@ class Test(unittest.TestCase):
         c = JobChunker(logfile_name)
         for i in range(4):
             key = f'{i}'
-            self.assertTrue(c.result_exists(key))
+            self.assertTrue(c.has_result(key))
 
     def test_one_level_hierarchy(self):
         logfile_name = pathlib.Path(tempfile.gettempdir()) / 'test2'
@@ -57,7 +57,7 @@ class Test(unittest.TestCase):
 
             for l in ['a', 'b', 'c']:
                 k2 = l
-                if c2.result_exists(k2):
+                if c2.has_result(k2):
                     print(f"{k2=} exists, skipping")
                     continue
 
