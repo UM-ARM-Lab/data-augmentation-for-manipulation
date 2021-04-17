@@ -82,6 +82,7 @@ class IterativeFineTuning:
                                                self.ift_config['trials_per_iteration'])
 
         # Start Services
+        [p.resume() for p in self.gazebo_processes]
         self.service_provider = gazebo_services.GazeboServices()
         self.service_provider.play()  # time needs to be advancing while we setup the planner
 
