@@ -7,6 +7,7 @@ from colorama import Fore
 from numpy.random import RandomState
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.keras.metrics import Metric
 
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
@@ -16,6 +17,7 @@ from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
     batch_point_to_idx_tf_3d_in_batched_envs
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
+from moonshine.metrics import LossMetric
 from moonshine.moonshine_utils import add_batch
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
@@ -201,10 +203,14 @@ class NNRecoveryModel(MyKerasModel):
             'loss': tf.reduce_mean(loss)
         }
 
-    def compute_metrics(self, dataset_element, outputs):
-        y_true = dataset_element['recovery_probability'][:, 1]
-        y_pred = tf.squeeze(outputs['probabilities'], axis=1)
-        error = tf.reduce_mean(tf.math.abs(y_true - y_pred))
+    def create_metrics(self):
+        super().create_metrics()
+        return {}
+
+    def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
+        # y_true = dataset_element['recovery_probability'][:, 1]
+        # y_pred = tf.squeeze(outputs['probabilities'], axis=1)
+        # error = tf.reduce_mean(tf.math.abs(y_true - y_pred))
         # # BEGIN DEBUG
         # import matplotlib.pyplot as plt
         # plt.figure()
@@ -217,9 +223,7 @@ class NNRecoveryModel(MyKerasModel):
         # # plt.scatter(indices, y_pred_n.numpy(), s=100)
         # plt.show()
         # # END DEBUG
-        return {
-            'error': error
-        }
+        return {}
 
     @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
