@@ -107,44 +107,35 @@ class IterativeFineTuning:
         fine_tuning_dataset_dirs = []
 
         for iteration_idx in range(num_fine_tuning_iterations):
-            self.run_iteration(iteration_idx,
-                               fine_tuning_dataset_dirs,
-                               latest_classifier_checkpoint_dir,
-                               latest_recovery_checkpoint_dir)
+            jobkey = f"iteration {iteration_idx}"
+            iteration_chunker = self.job_chunker.sub_chunker(jobkey)
+            iteration_start_time = iteration_chunker.get_result('start_time')
+            if iteration_start_time is None:
+                iteration_start_time = perf_counter()
+                iteration_chunker.store_result('start_time', iteration_start_time)
+            iteration_data = IterationData(fine_tuning_dataset_dirs=fine_tuning_dataset_dirs,
+                                           iteration=iteration_idx,
+                                           iteration_chunker=iteration_chunker,
+                                           latest_classifier_checkpoint_dir=latest_classifier_checkpoint_dir,
+                                           latest_recovery_checkpoint_dir=latest_recovery_checkpoint_dir,
+                                           )
+            # planning
+            planning_results_dir = self.plan_and_execute(iteration_data)
+            # convert results to classifier dataset
+            new_dataset_dir = self.update_datasets(iteration_data, planning_results_dir)
+            iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
+            # fine tune (on all of the classifier datasets so far)
+            latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
+            # TODO: add fine tuning recovery
+            iteration_end_time = iteration_chunker.get_result('end_time')
+            if iteration_end_time is None:
+                iteration_end_time = perf_counter()
+                iteration_chunker.store_result('end_time', iteration_end_time)
+            iteration_time = iteration_end_time - iteration_start_time
+            print(Fore.CYAN + f"Finished iteration {iteration_idx}, {iteration_time:.1f}s")
 
         [p.kill() for p in self.gazebo_processes]
 
-    def run_iteration(self,
-                      iteration_idx,
-                      fine_tuning_dataset_dirs,
-                      latest_classifier_checkpoint_dir,
-                      latest_recovery_checkpoint_dir):
-        jobkey = f"iteration {iteration_idx}"
-        iteration_chunker = self.job_chunker.sub_chunker(jobkey)
-        iteration_start_time = iteration_chunker.get_result('start_time')
-        if iteration_start_time is None:
-            iteration_start_time = perf_counter()
-            iteration_chunker.store_result('start_time', iteration_start_time)
-        iteration_data = IterationData(fine_tuning_dataset_dirs=fine_tuning_dataset_dirs,
-                                       iteration=iteration_idx,
-                                       iteration_chunker=iteration_chunker,
-                                       latest_classifier_checkpoint_dir=latest_classifier_checkpoint_dir,
-                                       latest_recovery_checkpoint_dir=latest_recovery_checkpoint_dir,
-                                       )
-        # planning
-        planning_results_dir = self.plan_and_execute(iteration_data)
-        # convert results to classifier dataset
-        new_dataset_dir = self.update_datasets(iteration_data, planning_results_dir)
-        iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
-        # fine tune (on all of the classifier datasets so far)
-        latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
-        # TODO: add fine tuning recovery
-        iteration_end_time = iteration_chunker.get_result('end_time')
-        if iteration_end_time is None:
-            iteration_end_time = perf_counter()
-            iteration_chunker.store_result('end_time', iteration_end_time)
-        iteration_time = iteration_end_time - iteration_start_time
-        print(Fore.CYAN + f"Finished iteration {iteration_idx}, {iteration_time:.1f}s")
 
     def plan_and_execute(self, iteration_data: IterationData):
         i = iteration_data.iteration
