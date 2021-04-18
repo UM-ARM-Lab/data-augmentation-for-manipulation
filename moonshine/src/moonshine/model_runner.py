@@ -155,7 +155,7 @@ class ModelRunner:
 
                 for v in train_metrics.values():
                     v.reset_states()
-                outputs = self.model.train_step(train_batch, train_metrics)
+                self.model.train_step(train_batch, train_metrics)
 
                 time_str = str(datetime.timedelta(seconds=int(self.latest_ckpt.train_time.numpy())))
                 train_batch_loss = train_metrics['loss'].result().numpy().squeeze()
