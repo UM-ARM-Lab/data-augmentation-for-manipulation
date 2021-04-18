@@ -97,12 +97,19 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
             self.robot.open_right_gripper()
 
     def grasp_rope_endpoints(self, settling_time=5.0):
+        print("a")
         self.service_provider.pause()
+        print("b")
         self.make_rope_endpoints_follow_gripper()
+        print("c")
         self.service_provider.play()
+        print("d")
         rospy.sleep(settling_time)
+        print("e")
         self.robot.close_left_gripper()
+        print("f")
         self.robot.close_right_gripper()
+        print("g")
 
         self.reset_cdcpd()
 
@@ -173,7 +180,6 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         print("1", end='')
         self.service_provider.play()
 
-        print("2", end='')
         self.move_objects_out_of_scene(params)
         self.detach_rope_from_grippers()
         print("3", end='')
@@ -182,7 +188,6 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
             joint_state: JointState = next(iter(bag.read_messages(topics=['joint_state'])))[1]
 
         joint_config = {}
-        print("4", end='')
         # NOTE: this will not work on victor because grippers don't work the same way
         for joint_name in self.robot.get_joint_names("whole_body"):
             index_of_joint_name_in_state_msg = joint_state.name.index(joint_name)
