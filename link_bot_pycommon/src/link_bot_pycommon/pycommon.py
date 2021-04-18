@@ -331,6 +331,7 @@ def catch_timeout(seconds: int, func: Callable, *args, **kwargs):
         finally:
             signal.alarm(0)
     except TimeoutError:
+        print("Caught timeout!")
         return None, True
 
 
@@ -404,5 +405,3 @@ def pathify(x):
         return [pathify(v) for v in x]
     else:
         return x
-
-
