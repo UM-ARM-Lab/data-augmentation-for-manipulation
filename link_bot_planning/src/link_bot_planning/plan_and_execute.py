@@ -2,7 +2,6 @@
 import pathlib
 import pickle
 import time
-
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional, Callable
@@ -21,6 +20,7 @@ from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, Plannin
 from link_bot_planning.test_scenes import get_all_scenes
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
+from link_bot_pycommon.pycommon import catch_timeout
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.spinners import SynchronousSpinner
 from moonshine.moonshine_utils import numpify, remove_batch, add_batch
@@ -361,8 +361,11 @@ class PlanAndExecute:
             # Gazebo specific
             bagfile_name = self.test_scenes_dir / f'scene_{trial_idx:04d}.bag'
             rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
-            # rospy.logerr("skipping restore")
-            self.scenario.restore_from_bag(self.service_provider, self.planner_params, bagfile_name)
+
+            def _restore():
+                self.scenario.restore_from_bag(self.service_provider, self.planner_params, bagfile_name)
+
+            catch_timeout(10, func=_restore)
             return SetupInfo(bagfile_name=bagfile_name)
         else:
             rospy.loginfo(Fore.GREEN + f"Randomizing Environment")
