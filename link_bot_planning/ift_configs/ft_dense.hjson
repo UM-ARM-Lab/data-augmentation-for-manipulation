@@ -1,5 +1,6 @@
 {
   early_stopping: true
+  trials_generator_type: cycle
   epochs: 25
   fine_tune_conv: false
   fine_tune_dense: true

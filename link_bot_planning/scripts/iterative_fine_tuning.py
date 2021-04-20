@@ -3,6 +3,7 @@ import argparse
 import itertools
 import logging
 import pathlib
+import random
 import warnings
 from dataclasses import dataclass
 from time import perf_counter
@@ -79,8 +80,17 @@ class IterativeFineTuning:
         self.planning_results_root_dir = self.outdir / 'planning_results'
 
         all_trial_indices = get_all_scene_indices(self.test_scenes_dir)
-        self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices),
-                                               self.ift_config['trials_per_iteration'])
+        trials_generator_type = self.ift_config['trials_generator_type']
+        if trials_generator_type == 'cycle':
+            self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices),
+                                                   self.ift_config['trials_per_iteration'])
+        elif trials_generator_type == 'random':
+            def _random_trial_index_generator():
+                while True:
+                    yield random.choice(all_trial_indices)
+            self.trial_indices_generator = _random_trial_index_generator
+        else:
+            raise NotImplementedError(f"Unimplemented {trials_generator_type}")
 
         # Start Services
         [p.resume() for p in self.gazebo_processes]
