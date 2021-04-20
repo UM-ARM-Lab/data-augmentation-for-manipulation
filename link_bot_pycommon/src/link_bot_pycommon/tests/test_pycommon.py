@@ -6,6 +6,7 @@ import numpy as np
 
 import rospy
 from link_bot_gazebo.gazebo_services import GazeboServices
+import roscpp_initializer
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from link_bot_pycommon.grid_utils import point_to_idx_3d_in_env

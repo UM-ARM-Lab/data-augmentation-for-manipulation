@@ -19,6 +19,7 @@ from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierD
 from link_bot_planning.test_scenes import get_all_scene_indices
 from link_bot_pycommon import notifyme
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.heartbeat import HeartBeat
 from link_bot_pycommon.pycommon import pathify, paths_from_json, deal_with_exceptions
 
 with warnings.catch_warnings():
@@ -98,6 +99,10 @@ class IterativeFineTuning:
                                    verbose=self.verbose,
                                    log_full_tree=self.log_full_tree,
                                    scenario=self.scenario)
+
+        # Emits a message every 10 seconds,
+        # so that another node can monitor for the program getting hung-up and restart it
+        self.heartbeat = HeartBeat(10)
 
     def run(self, num_fine_tuning_iterations: int):
         classifier_checkpoints = paths_from_json(self.log['classifier_checkpoints'])

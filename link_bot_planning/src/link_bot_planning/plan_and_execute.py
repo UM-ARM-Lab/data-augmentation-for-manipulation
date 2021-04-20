@@ -365,10 +365,8 @@ class PlanAndExecute:
             bagfile_name = self.test_scenes_dir / f'scene_{trial_idx:04d}.bag'
             rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
 
-            def _restore():
-                self.scenario.restore_from_bag(self.service_provider, self.planner_params, bagfile_name)
+            self.scenario.restore_from_bag(self.service_provider, self.planner_params, bagfile_name)
 
-            catch_timeout(10, func=_restore)
             return SetupInfo(bagfile_name=bagfile_name)
         else:
             rospy.loginfo(Fore.GREEN + f"Randomizing Environment")
