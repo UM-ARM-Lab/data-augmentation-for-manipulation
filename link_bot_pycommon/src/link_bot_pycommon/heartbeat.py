@@ -14,6 +14,6 @@ class HeartBeat:
         self.thread.start()
 
     def thread_main(self):
-        while True:
+        while not rospy.is_shutdown():
             sleep(self.period)
             self.pub.publish(Header(stamp=rospy.Time.now()))

@@ -67,6 +67,9 @@ def main():
                 elif time_since_last_heartbeat > args.period * 1.1:  # give it some wiggle room
                     kill = True
                     break
+                elif proc.poll() is not None:
+                    print("Process finished!")
+                    return
 
         print("Missed a heartbeat! killing")
         proc.kill()
