@@ -128,19 +128,19 @@ class IterativeFineTuning:
             planning_results_dir = self.plan_and_execute(iteration_data)
 
             # convert results to classifier dataset
-            # new_dataset_dir = self.update_datasets(iteration_data, planning_results_dir)
-            # iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
+            new_dataset_dir = self.update_datasets(iteration_data, planning_results_dir)
+            iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
             # fine tune (on all of the classifier datasets so far)
 
-            # latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
+            latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
 
-            # # TODO: add fine tuning recovery
-            # iteration_end_time = iteration_chunker.get_result('end_time')
-            # if iteration_end_time is None:
-            #     iteration_end_time = perf_counter()
-            #     iteration_chunker.store_result('end_time', iteration_end_time)
-            # iteration_time = iteration_end_time - iteration_start_time
-            # print(Fore.CYAN + f"Finished iteration {iteration_idx}, {iteration_time:.1f}s")
+            # TODO: add fine tuning recovery
+            iteration_end_time = iteration_chunker.get_result('end_time')
+            if iteration_end_time is None:
+                iteration_end_time = perf_counter()
+                iteration_chunker.store_result('end_time', iteration_end_time)
+            iteration_time = iteration_end_time - iteration_start_time
+            print(Fore.CYAN + f"Finished iteration {iteration_idx}, {iteration_time:.1f}s")
 
         [p.kill() for p in self.gazebo_processes]
 

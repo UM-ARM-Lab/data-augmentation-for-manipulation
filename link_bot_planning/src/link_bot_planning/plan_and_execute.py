@@ -216,9 +216,6 @@ class PlanAndExecute:
 
         self.on_start_trial(trial_idx)
 
-        print("DEBUGGING")
-        return
-
         start_time = time.perf_counter()
         total_timeout = self.planner_params['termination_criteria']['total_timeout']
 
