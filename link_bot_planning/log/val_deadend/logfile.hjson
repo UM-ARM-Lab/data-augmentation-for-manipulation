@@ -16,14 +16,6 @@
     ]
     classifier_threshold: 0.05
   }
-  make_recovery_dataset:
-  {
-    recovery_dataset_dir: recovery_data/val_car_1611326554
-  }
-  learn_recovery:
-  {
-    model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e
-  }
   collect_dynamics_data_2:
   {
     dynamics_dataset_dir: fwd_model_data/val_deadend_1617195836_464b9e00ae_3072/
