@@ -28,7 +28,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('script')
     parser.add_argument('args', nargs='*')
-    parser.add_argument('--period', type=int, default=1)
+    parser.add_argument('--period', type=int, default=10)
+    parser.add_argument('--verbose', '-v', action='count', default=0)
 
     args = parser.parse_args()
 
@@ -47,17 +48,20 @@ def main():
 
         kill = False
         while not kill:
-            print("starting heartbeat timer")
+            if args.verbose > 1:
+                print("starting heartbeat timer")
             t0 = perf_counter()
 
             while True:
                 time_since_last_heartbeat = perf_counter() - t0
-                print(f'{time_since_last_heartbeat:.2f}')
+                if args.verbose > 1:
+                    print(f'{time_since_last_heartbeat:.2f}')
 
                 sleep(1)
 
                 if heartbeat_received:
-                    print("got heartbeat")
+                    if args.verbose > 1:
+                        print("got heartbeat")
                     heartbeat_received = False
                     break
                 elif time_since_last_heartbeat > args.period * 1.1:  # give it some wiggle room
