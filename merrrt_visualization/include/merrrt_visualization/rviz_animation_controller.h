@@ -46,6 +46,8 @@ class RVizAnimationController : public rviz::Panel
 
   void AutoPlayToggled();
 
+  void StepNumberChanged();
+
   void PeriodChanged(double period);
 
  private:

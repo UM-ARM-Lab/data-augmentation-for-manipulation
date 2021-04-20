@@ -28,6 +28,7 @@ RVizAnimationController::RVizAnimationController(QWidget *parent) : rviz::Panel(
   connect(ui.loop_checkbox, &QCheckBox::toggled, this, &RVizAnimationController::LoopToggled);
   connect(ui.auto_play_checkbox, &QCheckBox::toggled, this, &RVizAnimationController::AutoPlayToggled);
   connect(ui.period_spinbox, qOverload<double>(&QDoubleSpinBox::valueChanged), this, &RVizAnimationController::PeriodChanged);
+  connect(ui.step_number_lineedit, &QLineEdit::returnPressed, this, &RVizAnimationController::StepNumberChanged);
 
   command_pub_ = ros_node_.advertise<peter_msgs::AnimationControl>("rviz_anim/control", 10);
 
@@ -73,9 +74,10 @@ RVizAnimationController::~RVizAnimationController()
 
 void RVizAnimationController::TimeCallback(const std_msgs::Int64::ConstPtr &msg)
 {
-  QString text;
-  text.sprintf("%3ld", msg->data);
-  ui.step_number_label->setText(text);
+  {
+    const QSignalBlocker blocker(ui.step_number_lineedit);
+    ui.step_number_lineedit->setText(QString::number(msg->data));
+  }
   update();
 }
 
@@ -154,6 +156,15 @@ void RVizAnimationController::AutoPlayToggled()
   }
 }
 
+
+void RVizAnimationController::StepNumberChanged()
+{
+  auto const idx = ui.step_number_lineedit->text().toInt();
+  peter_msgs::AnimationControl cmd;
+  cmd.state.idx = idx;
+  cmd.command = peter_msgs::AnimationControl::SET_IDX;
+  command_pub_.publish(cmd);
+}
 
 void RVizAnimationController::PeriodChanged(double period)
 {

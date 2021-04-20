@@ -16,6 +16,7 @@ add_message_files(
         ReconstructionInputs.msg
         SubspaceDescription.msg
         Vector2.msg
+        VizOptions.msg
         WheelSpeeds.msg
 )
 
@@ -31,6 +32,7 @@ add_service_files(
         GetOverstretching.srv
         GetPosition3D.srv
         GetRopeState.srv
+        GetVizOptions.srv
         GrippersTrajectory.srv
         LinkBotReset.srv
         LinkBotState.srv

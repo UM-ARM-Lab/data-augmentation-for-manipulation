@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>186</width>
+    <width>299</width>
     <height>224</height>
    </rect>
   </property>
@@ -42,6 +42,20 @@
        </property>
        <property name="text">
         <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="error_label">
+       <property name="text">
+        <string>Error</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLabel" name="error">
+       <property name="text">
+        <string>-</string>
        </property>
       </widget>
      </item>
@@ -101,24 +115,26 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="error_label">
-       <property name="text">
-        <string>Error</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QLabel" name="error">
-       <property name="text">
-        <string>-</string>
-       </property>
-      </widget>
-     </item>
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout"/>
+    <widget class="QGroupBox" name="groupBox">
+     <property name="title">
+      <string>filtering</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <widget class="QCheckBox" name="accumulate_checkbox">
+        <property name="text">
+         <string>accumulate</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="filter_layout"/>
+      </item>
+     </layout>
+    </widget>
    </item>
   </layout>
  </widget>

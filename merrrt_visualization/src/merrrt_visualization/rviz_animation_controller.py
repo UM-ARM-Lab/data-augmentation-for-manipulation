@@ -40,6 +40,7 @@ class RvizAnimationController:
         self.playing = self.auto_play or self.loop
         self.should_step = False
         self.fwd = True
+        self.bwd = False
         self.done = False
 
     def on_control(self, msg: AnimationControl):
@@ -61,6 +62,11 @@ class RvizAnimationController:
             self.loop = msg.state.loop
         elif msg.command == AnimationControl.SET_PERIOD:
             self.period = msg.state.period
+        elif msg.command == AnimationControl.SET_IDX:
+            self.idx = msg.state.idx
+            self.should_step = True
+            self.fwd = False
+            self.bwd = False
         else:
             raise NotImplementedError(f"Unsupported animation control {msg.command}")
 
@@ -68,19 +74,23 @@ class RvizAnimationController:
         self.should_step = True
         self.playing = False
         self.fwd = True
+        self.bwd = False
 
     def on_bwd(self):
         self.should_step = True
         self.playing = False
         self.fwd = False
+        self.bwd = True
 
     def on_play_forward(self):
         self.playing = True
         self.fwd = True
+        self.bwd = False
 
     def on_play_backward(self):
         self.playing = True
         self.fwd = False
+        self.bwd = True
 
     def on_pause(self):
         self.playing = False
@@ -106,7 +116,7 @@ class RvizAnimationController:
                     self.idx = 0
                 else:
                     self.playing = False
-        else:
+        elif self.bwd:
             if self.idx > 0:
                 self.idx -= 1
             elif self.loop:

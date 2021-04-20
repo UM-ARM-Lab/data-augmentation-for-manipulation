@@ -1,5 +1,6 @@
 #pragma once
 
+#include <peter_msgs/GetVizOptions.h>
 #include <peter_msgs/LabelStatus.h>
 #include <peter_msgs/WorldControl.h>
 #include <ros/ros.h>
@@ -12,12 +13,22 @@
 #include <QObject>
 #include <QWidget>
 
+#include "ui_filter_widget.h"
 #include "ui_merrrt_widget.h"
 
-namespace merrrt_visualization
-{
-class MerrrtWidget : public rviz::Panel
-{
+class FilterWidget : public QWidget {
+  Q_OBJECT
+public:
+  FilterWidget(QWidget *parent, std::string const &name);
+
+  int GetFilterType();
+
+private:
+  Ui_FilterWidget ui;
+};
+
+namespace merrrt_visualization {
+class MerrrtWidget : public rviz::Panel {
   Q_OBJECT
 
 public:
@@ -32,7 +43,9 @@ public:
 
   void load(const rviz::Config &config) override;
   void save(rviz::Config config) const override;
-  void Settle();
+
+  bool GetVizOptions(peter_msgs::GetVizOptions::Request &req,
+                     peter_msgs::GetVizOptions::Response &res);
 
 private:
   Ui_MerrrtWidget ui;
@@ -44,6 +57,9 @@ private:
   ros::Subscriber recov_prob_sub_;
   ros::Subscriber accept_probability_sub_;
   ros::ServiceClient world_control_srv_;
+  ros::ServiceServer viz_options_srv_;
+
+  std::map<std::string, FilterWidget*> filter_widgets;
 };
 
-}  // namespace merrrt_visualization
+} // namespace merrrt_visualization
