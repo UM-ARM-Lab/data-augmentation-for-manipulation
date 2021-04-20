@@ -1,14 +1,13 @@
 import argparse
 import signal
 import subprocess
-from multiprocessing import Queue
-from time import sleep
+from time import perf_counter, sleep
 
 import rospy
 from std_msgs.msg import Header
 
 exit = False
-heartbeat_queue = Queue()
+heartbeat_received = False
 
 
 def signal_handler(_, __):
@@ -17,8 +16,8 @@ def signal_handler(_, __):
 
 
 def heartbeat_callback(msg: Header):
-    print("got heartbeat")
-    heartbeat_queue.put(msg)
+    global heartbeat_received
+    heartbeat_received = True
 
 
 def main():
@@ -28,11 +27,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('script')
     parser.add_argument('args', nargs='*')
-    parser.add_argument('--period', type=int, default=2)
+    parser.add_argument('--period', type=int, default=1)
 
     args = parser.parse_args()
 
     heartbeat_subscriber = rospy.Subscriber('heartbeat', Header, heartbeat_callback)
+    global heartbeat_received
 
     command = [args.script] + args.args
 
@@ -40,14 +40,28 @@ def main():
         print("starting:", command)
         proc = subprocess.Popen(command)
 
-        sleep(2 * args.period)
+        # wait until the first message
+        while not heartbeat_received:
+            pass
 
-        while True:
-            sleep(args.period)
-            if heartbeat_queue.empty():
-                break
-            else:
-                heartbeat_queue.get()
+        kill = False
+        while not kill:
+            print("starting heartbeat timer")
+            t0 = perf_counter()
+
+            while True:
+                time_since_last_heartbeat = perf_counter() - t0
+                print(f'{time_since_last_heartbeat:.2f}')
+
+                sleep(1)
+
+                if heartbeat_received:
+                    print("got heartbeat")
+                    heartbeat_received = False
+                    break
+                elif time_since_last_heartbeat > args.period * 1.1:  # give it some wiggle room
+                    kill = True
+                    break
 
         print("Missed a heartbeat! killing")
         proc.kill()
