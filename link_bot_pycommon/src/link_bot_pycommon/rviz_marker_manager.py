@@ -9,14 +9,13 @@ class RVizMarkerManager:
     def __init__(self):
         self.markers: Dict[str, Dict[int, Tuple[rospy.Publisher, str]]] = {}
 
-    def add(self, label, index):
-        pass
+    def add(self, publisher: rospy.Publisher, label: str, index: int):
+        if publisher.name not in self.markers:
+            self.markers[publisher.name] = {}
 
-    def delete(self, label: str):
-        if label in self.markers:
-            for marker_id, (publisher, ns) in self.markers[label].items():
-                m = make_delete_marker(ns=ns, marker_id=marker_id)
-                publisher.publish(m)
+    def delete(self, publisher: rospy.Publisher, label: str, index: int):
+        m = make_delete_marker(ns=label, marker_id=index)
+        publisher.publish(m)
 
     def delete_all(self):
         pass

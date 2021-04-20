@@ -14,6 +14,7 @@ from link_bot_pycommon.latex_utils import make_cell
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation, get_figsize
 from link_bot_pycommon.metric_utils import row_stats
 from link_bot_pycommon.pycommon import quote_string
+import pandas as pd
 
 colors_cache = {}
 
@@ -162,6 +163,16 @@ class LinePlotAcrossIterationsFigure(MyFigure):
 
     def finish_figure(self):
         super().finish_figure()
+
+
+def moving_window_average(x, window: int):
+    return pd.DataFrame(x).rolling(window).mean()
+
+
+class MWALinePlotAcrossIterationsFigure(LinePlotAcrossIterationsFigure):
+    def add_to_figure(self, method_name: str, values: List, color):
+        values = moving_window_average(self.metric.values[method_name], 30)
+        self.ax.plot(values, c=color, label=method_name)
 
 
 class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
@@ -364,6 +375,7 @@ __all__ = [
     'BarChartPercentagePerMethodFigure',
     'TaskErrorLineFigure',
     'LinePlotAcrossIterationsFigure',
+    'MWALinePlotAcrossIterationsFigure',
     'box_plot',
     'violin_plot',
 ]

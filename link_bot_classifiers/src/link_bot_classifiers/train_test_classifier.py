@@ -148,6 +148,7 @@ def eval_generator(dataset_dirs: List[pathlib.Path],
                    old_compat: bool = False,
                    take: Optional[int] = None,
                    balance: bool = True,
+                   scenario: Optional[ScenarioWithVisualization] = None,
                    **kwargs):
     model, runner, tf_dataset = eval_setup(balance,
                                            batch_size,
@@ -157,7 +158,8 @@ def eval_generator(dataset_dirs: List[pathlib.Path],
                                            old_compat,
                                            take,
                                            threshold,
-                                           use_gt_rope)
+                                           use_gt_rope,
+                                           scenario)
 
     val_metrics = model.create_metrics()
     for example, outputs in runner.val_generator(tf_dataset, val_metrics):
@@ -192,7 +194,7 @@ def eval_main(dataset_dirs: List[pathlib.Path],
     return val_metrics
 
 
-def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, take, threshold, use_gt_rope):
+def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, take, threshold, use_gt_rope, scenario):
     ###############
     # Model
     ###############
@@ -206,7 +208,8 @@ def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, 
                                       load_true_states=True,
                                       use_gt_rope=use_gt_rope,
                                       old_compat=old_compat,
-                                      threshold=threshold)
+                                      threshold=threshold,
+                                      scenario=scenario)
     tf_dataset = dataset.get_datasets(mode=mode)
     if balance:
         rospy.loginfo(Fore.CYAN + "NOTE! These metrics are on the balanced dataset")

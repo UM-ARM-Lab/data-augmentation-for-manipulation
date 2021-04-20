@@ -9,6 +9,7 @@ from link_bot_data.base_dataset import BaseDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, use_gt_rope, add_label, pprint_example
 from link_bot_data.visualization import classifier_transition_viz_t, init_viz_action, init_viz_env
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_time_with_metadata
 
@@ -23,6 +24,7 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
                  threshold: Optional[float] = None,
                  old_compat: Optional[bool] = False,
                  verbose: int = 0,
+                 scenario: Optional[ScenarioWithVisualization] = None,
                  ):
         super(ClassifierDatasetLoader, self).__init__(dataset_dirs, verbose)
         self.no_balance = no_balance
@@ -34,7 +36,10 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
             rospy.loginfo(Fore.GREEN + f"Using groud-truth rope" + Fore.RESET)
         rospy.loginfo(f"classifier using threshold {self.threshold}")
         self.horizon = self.hparams['labeling_params']['classifier_horizon']
-        self.scenario = get_scenario(self.hparams['scenario'])
+        if scenario is None:
+            self.scenario = get_scenario(self.hparams['scenario'])
+        else:
+            self.scenario = scenario
 
         self.true_state_keys = self.hparams['true_state_keys']
         self.old_compat = old_compat

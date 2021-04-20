@@ -80,13 +80,13 @@ def execute_actions(
             after_state = dataset_utils.use_gt_rope(after_state)
         actual_path.append(after_state)
 
-        if stop_condition:
-            stopped = True
+        if stop_condition is not None:
             stop = stop_condition(t=t,
                                   before_state=before_state,
                                   action=action,
                                   after_state=after_state)
             if stop:
+                stopped = True
                 spinner.stop()
                 rospy.logwarn("Stopping mid-execution")
                 break
@@ -215,6 +215,9 @@ class PlanAndExecute:
         setup_info = self.setup_test_scene(trial_idx)
 
         self.on_start_trial(trial_idx)
+
+        print("DEBUGGING")
+        return
 
         start_time = time.perf_counter()
         total_timeout = self.planner_params['termination_criteria']['total_timeout']
