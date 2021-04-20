@@ -69,6 +69,8 @@ def execute_actions(
     stopped = False
 
     for t, action in enumerate(actions):
+        spinner.update()
+
         if plot:
             scenario.plot_environment_rviz(environment)
             scenario.plot_state_rviz(before_state, label='actual')
@@ -92,7 +94,6 @@ def execute_actions(
                 break
 
         before_state = after_state
-        spinner.update()
 
     if plot and after_state:
         scenario.plot_environment_rviz(environment)
