@@ -79,7 +79,7 @@ class IterativeFineTuning:
         self.trials_directory = self.outdir / 'classifier_training_logdir'
         self.planning_results_root_dir = self.outdir / 'planning_results'
 
-        all_trial_indices = get_all_scene_indices(self.test_scenes_dir)
+        all_trial_indices = list(get_all_scene_indices(self.test_scenes_dir))
         trials_generator_type = self.ift_config['trials_generator_type']
         if trials_generator_type == 'cycle':
             self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices),
@@ -87,7 +87,7 @@ class IterativeFineTuning:
         elif trials_generator_type == 'random':
             def _random_trial_index_generator():
                 while True:
-                    yield random.choice(list(all_trial_indices))
+                    yield random.choice(all_trial_indices)
             self.trial_indices_generator = _random_trial_index_generator()
         else:
             raise NotImplementedError(f"Unimplemented {trials_generator_type}")
