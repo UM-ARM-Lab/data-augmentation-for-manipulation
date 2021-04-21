@@ -86,8 +86,9 @@ class IterativeFineTuning:
                                                    self.ift_config['trials_per_iteration'])
         elif trials_generator_type == 'random':
             def _random():
+                rng = random.Random(0)
                 while True:
-                    yield random.choice(all_trial_indices)
+                    yield rng.choice(all_trial_indices)
             self.trial_indices_generator = chunked(_random(),
                                                    self.ift_config['trials_per_iteration'])
         else:
