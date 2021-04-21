@@ -87,7 +87,7 @@ class IterativeFineTuning:
         elif trials_generator_type == 'random':
             def _random_trial_index_generator():
                 while True:
-                    yield random.choice(all_trial_indices)
+                    yield random.choice(list(all_trial_indices))
             self.trial_indices_generator = _random_trial_index_generator()
         else:
             raise NotImplementedError(f"Unimplemented {trials_generator_type}")
