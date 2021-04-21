@@ -30,4 +30,12 @@
   }
   val_deadend: {}
   planning_evaluation: /home/peter/catkin_ws/src/link_bot/link_bot_planning/results/log/val_deadend
+  make_recovery_dataset:
+  {
+    recovery_dataset_dir: recovery_data/val_deadend_1618928716
+  }
+  learn_recovery:
+  {
+    model_dir: /home/peter/catkin_ws/src/link_bot/link_bot_planning/recovery_trials/val_deadend_1618928716/April_20_18-07-54_b97f7f037c
+  }
 }
