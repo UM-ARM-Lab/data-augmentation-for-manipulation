@@ -1,8 +1,8 @@
 {
   epochs: 25
-  trials_generator_type: cycle
+  trials_generator_type: random
   early_stopping: true
-  trials_per_iteration: 30
+  trials_per_iteration: 3
   fine_tune_conv: false
   fine_tune_dense: false
   fine_tune_lstm: false

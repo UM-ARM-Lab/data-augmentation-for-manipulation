@@ -38,7 +38,7 @@ def generate_augmented_examples(example: Dict, params: Dict):
             d_position_noise = 0.03
             d_position = tf.random.uniform([1, 1, 3], -d_position_noise, d_position_noise)
             s_k_points_augmented = s_k_points + d_position
-            s_k_augmented = tf.reshape(s_k_points_augmented, [-1])
+            s_k_augmented = tf.reshape(s_k_points_augmented, [2, -1])
             augmented_example[add_predicted(k)] = s_k_augmented
 
         yield augmented_example
