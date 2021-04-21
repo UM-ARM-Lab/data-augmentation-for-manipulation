@@ -85,10 +85,11 @@ class IterativeFineTuning:
             self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices),
                                                    self.ift_config['trials_per_iteration'])
         elif trials_generator_type == 'random':
-            def _random_trial_index_generator():
+            def _random():
                 while True:
                     yield random.choice(all_trial_indices)
-            self.trial_indices_generator = _random_trial_index_generator()
+            self.trial_indices_generator = chunked(_random(),
+                                                   self.ift_config['trials_per_iteration'])
         else:
             raise NotImplementedError(f"Unimplemented {trials_generator_type}")
 
