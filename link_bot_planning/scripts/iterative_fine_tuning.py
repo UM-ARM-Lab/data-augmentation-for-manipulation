@@ -30,7 +30,7 @@ with warnings.catch_warnings():
 import colorama
 import hjson
 import tensorflow as tf
-from colorama import Fore
+from colorama import Fore, Style
 
 import rospy
 from arc_utilities import ros_init
@@ -88,7 +88,7 @@ class IterativeFineTuning:
             def _random_trial_index_generator():
                 while True:
                     yield random.choice(all_trial_indices)
-            self.trial_indices_generator = _random_trial_index_generator
+            self.trial_indices_generator = _random_trial_index_generator()
         else:
             raise NotImplementedError(f"Unimplemented {trials_generator_type}")
 
@@ -150,7 +150,7 @@ class IterativeFineTuning:
                 iteration_end_time = perf_counter()
                 iteration_chunker.store_result('end_time', iteration_end_time)
             iteration_time = iteration_end_time - iteration_start_time
-            print(Fore.CYAN + f"Finished iteration {iteration_idx}, {iteration_time:.1f}s")
+            print(Style.BRIGHT + f"Finished iteration {iteration_idx}, {iteration_time:.1f}s" + Style.RESET_ALL)
 
         [p.kill() for p in self.gazebo_processes]
 
