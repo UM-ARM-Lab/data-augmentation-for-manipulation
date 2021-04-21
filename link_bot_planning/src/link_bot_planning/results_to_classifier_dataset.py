@@ -1,9 +1,10 @@
 import pathlib
 import tempfile
 from time import sleep, perf_counter
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 
 import numpy as np
+import tensorflow as tf
 
 import rospy
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error
@@ -26,12 +27,29 @@ def compute_example_idx(trial_idx, example_idx_for_trial):
     return 10_000 * trial_idx + example_idx_for_trial
 
 
+def generate_augmented_examples(example: Dict, params: Dict):
+    n_augmentations = params.get("n_augmentations", 10)
+    state_keys = ['left_gripper', 'right_gripper', 'rope']
+    action_keys = ['left_gripper_position', 'right_gripper_position']
+    for i in range(n_augmentations):
+        augmented_example = example.copy()
+        for k in state_keys:
+            s_k_points = tf.reshape(example[add_predicted(k)], [2, -1, 3])
+            d_position_noise = 0.03
+            d_position = tf.random.uniform([1, 1, 3], -d_position_noise, d_position_noise)
+            s_k_points_augmented = s_k_points + d_position
+            s_k_augmented = tf.reshape(s_k_points_augmented, [-1])
+            augmented_example[add_predicted(k)] = s_k_augmented
+
+        yield augmented_example
+
+
 class ResultsToClassifierDataset:
 
     def __init__(self,
                  results_dir: pathlib.Path,
                  outdir: pathlib.Path,
-                 labeling_params: Optional[pathlib.Path] = None,
+                 labeling_params: Optional[Union[pathlib.Path, Dict]] = None,
                  trial_indices: Optional[List[int]] = None,
                  visualize: bool = False,
                  full_tree: bool = False,
@@ -53,6 +71,13 @@ class ResultsToClassifierDataset:
         if labeling_params is None:
             labeling_params = pathlib.Path('labeling_params/classifier/dual.hjson')
 
+        if isinstance(labeling_params, Dict):
+            self.labeling_params = labeling_params
+        else:
+            self.labeling_params = load_hjson(labeling_params)
+
+        self.threshold = self.labeling_params['threshold']
+
         self.visualize = visualize
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
 
@@ -65,8 +90,6 @@ class ResultsToClassifierDataset:
 
         outdir.mkdir(exist_ok=True, parents=True)
 
-        self.labeling_params = load_hjson(labeling_params)
-        self.threshold = self.labeling_params['threshold']
 
         self.gazebo_restarting_sub = rospy.Subscriber("gazebo_restarting", Empty, self.on_gazebo_restarting)
 
@@ -318,8 +341,15 @@ class ResultsToClassifierDataset:
         if test_shape == 1:
             valid_out_example = remove_batch(valid_out_examples_batched)
             yield valid_out_example
+
+            # optionally do augmentation?
+            use_augmentation = self.labeling_params.get("use_augmentation")
+            if use_augmentation:
+                yield from generate_augmented_examples(valid_out_example, self.labeling_params)
         elif test_shape > 1:
-            raise ValueError()
+            raise NotImplementedError()
+        else:
+            pass  # do nothing if there are no examples, i.e. test_shape == 0
 
     def execute(self, environment: Dict, action: Dict):
         self.service_provider.play()

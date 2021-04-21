@@ -70,6 +70,8 @@ class IterativeFineTuning:
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
         self.verbose = -1
+        self.labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
+        self.labeling_params.update(self.ift_config.get('labeling_params_update', {}))
 
         self.gazebo_processes = get_gazebo_processes()
 
@@ -89,6 +91,7 @@ class IterativeFineTuning:
                 rng = random.Random(0)
                 while True:
                     yield rng.choice(all_trial_indices)
+
             self.trial_indices_generator = chunked(_random(),
                                                    self.ift_config['trials_per_iteration'])
         else:
@@ -212,7 +215,7 @@ class IterativeFineTuning:
 
             new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i:04d}_dataset'
             r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir,
-                                           verbose=self.verbose)
+                                           labeling_params=self.labeling_params, verbose=self.verbose)
             r.run()
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
         return new_dataset_dir

@@ -1,0 +1,13 @@
+{
+  epochs: 25
+  trials_generator_type: cycle
+  early_stopping: true
+  trials_per_iteration: 1
+  fine_tune_conv: false
+  fine_tune_dense: false
+  fine_tune_lstm: false
+  fine_tune_output: true
+  labeling_params_update: {
+      use_augmentation: true
+  }
+}
