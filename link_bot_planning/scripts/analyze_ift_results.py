@@ -15,7 +15,7 @@ from link_bot_planning.analysis.results_figures import *
 from link_bot_planning.analysis.results_figures import make_figures
 from link_bot_planning.analysis.results_metrics import *
 from link_bot_planning.analysis.results_metrics import generate_multi_trial_metrics
-from link_bot_planning.analysis.results_utils import load_order
+from link_bot_planning.analysis.results_utils import load_order, add_number_to_method_name
 from link_bot_pycommon.args import my_formatter
 from moonshine.filepath_tools import load_hjson
 from moonshine.gpu_config import limit_gpu_mem
@@ -47,7 +47,7 @@ def metrics_main(args):
         method_name = f'{from_env}_to_{to_env}'
         subfolders = sorted(get_all_subdirs([results_dir]))
         if method_name in results_dirs_dict:
-            method_name = method_name + '2'
+            method_name = add_number_to_method_name(method_name)
         results_dirs_dict[method_name] = (subfolders, log)
         sort_order_dict[method_name] = idx
 

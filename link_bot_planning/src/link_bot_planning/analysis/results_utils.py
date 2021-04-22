@@ -241,3 +241,11 @@ def load_order(prompt_order: bool, directories: List[pathlib.Path], out_dir: pat
     else:
         dirs_ordered = load_sort_order(out_dir, directories)
     return dirs_ordered
+
+
+def add_number_to_method_name(method_name: str):
+    if method_name[-1].isnumeric():
+        i = int(method_name[-1])
+        return method_name[:-1] + str(i + 1)
+    else:
+        return method_name + "2"
