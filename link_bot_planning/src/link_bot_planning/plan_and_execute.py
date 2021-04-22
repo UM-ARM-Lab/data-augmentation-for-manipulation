@@ -20,7 +20,6 @@ from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, Plannin
 from link_bot_planning.test_scenes import get_all_scenes
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
-from link_bot_pycommon.pycommon import catch_timeout
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.spinners import SynchronousSpinner
 from moonshine.moonshine_utils import numpify, remove_batch, add_batch

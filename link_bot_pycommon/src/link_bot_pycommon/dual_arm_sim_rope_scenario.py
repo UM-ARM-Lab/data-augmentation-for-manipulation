@@ -100,9 +100,12 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.service_provider.pause()
         self.make_rope_endpoints_follow_gripper()
         self.service_provider.play()
+        print("0", flush=True)
         rospy.sleep(settling_time)
+        print("1", flush=True)
         self.robot.close_left_gripper()
         self.robot.close_right_gripper()
+        print("2", flush=True)
 
         self.reset_cdcpd()
 
