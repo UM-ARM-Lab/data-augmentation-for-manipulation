@@ -261,7 +261,7 @@ def generate_per_trial_metrics(analysis_params: Dict, subfolders_ordered: List, 
         if skip_filename.exists():
             print(f"skipping {subfolder.name}")
         else:
-            print(Fore.GREEN + f"processing {subfolder.name}")
+            print(Fore.GREEN + f"processing {subfolder.name} for metrics")
 
         metrics_filenames = list(subfolder.glob("*_metrics.pkl.gz"))
 
