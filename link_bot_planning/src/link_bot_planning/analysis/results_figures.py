@@ -171,7 +171,7 @@ def moving_window_average(x, window: int):
 
 class MWALinePlotAcrossIterationsFigure(LinePlotAcrossIterationsFigure):
     def add_to_figure(self, method_name: str, values: List, color):
-        values = moving_window_average(self.metric.values[method_name], 30)
+        values = moving_window_average(self.metric.values[method_name], 5)
         self.ax.plot(values, c=color, label=method_name)
 
 

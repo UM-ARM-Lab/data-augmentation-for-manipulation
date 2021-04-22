@@ -14,7 +14,6 @@ from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import deserialize_scene_msg
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -27,11 +26,12 @@ from peter_msgs.srv import GetVizOptionsResponse, GetVizOptions, GetVizOptionsRe
 
 def eval_classifier_no_batch(scenario: ScenarioWithVisualization,
                              checkpoint: pathlib.Path,
-                             iteration_dataset_dir: pathlib.Path):
+                             iteration_dataset_dir: pathlib.Path,
+                             mode: str):
     data_for_classifier_on_dataset = eval_generator(scenario=scenario,
                                                     dataset_dirs=[iteration_dataset_dir],
                                                     checkpoint=checkpoint,
-                                                    mode='all',
+                                                    mode=mode,
                                                     balance=False,
                                                     batch_size=1,
                                                     use_gt_rope=True)
@@ -45,23 +45,25 @@ def eval_classifier_no_batch(scenario: ScenarioWithVisualization,
 def get_data(scenario: ScenarioWithVisualization,
              ift_dir: pathlib.Path,
              dataset_iteration_idx: int,
-             classifier_iteration_idx: int):
+             classifier_iteration_idx: int,
+             mode: str):
     classifier_datasets_dir = ift_dir / 'classifier_datasets'
     classifiers_dir = ift_dir / 'classifier_training_logdir'
 
-    iteration_dataset_dir = classifier_datasets_dir / f'iteration_{dataset_iteration_idx}_dataset'
+    iteration_dataset_dir = get_named_item_in_dir(classifier_datasets_dir, classifier_iteration_idx)
 
     if classifier_iteration_idx == 0:
         log = load_hjson(ift_dir / 'logfile.hjson')
-        assert len(log['checkpoints']) == 1
-        pretrained_classifier_dir = log['checkpoints'][0]
+        classifier_checkpoints = log['classifier_checkpoints']
+        assert len(classifier_checkpoints) == 1
+        pretrained_classifier_dir = classifier_checkpoints[0]
         checkpoint = pathlib.Path(pretrained_classifier_dir)
     else:
-        checkpoint = classifiers_dir / f'iteration_{classifier_iteration_idx - 1}_training_logdir'
+        checkpoint = get_named_item_in_dir(classifiers_dir, classifier_iteration_idx - 1)
         checkpoint = next(checkpoint.iterdir())
 
     checkpoint = checkpoint / 'best_checkpoint'
-    return eval_classifier_no_batch(scenario, checkpoint, iteration_dataset_dir)
+    return eval_classifier_no_batch(scenario, checkpoint, iteration_dataset_dir, mode)
 
 
 class MyFilter:
@@ -106,6 +108,8 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
     log = load_hjson(ift_dir / 'logfile.hjson')
     scenario = get_scenario(log['planner_params']['scenario'])
     planning_iteration_dirs = ift_dir / 'planning_results'
+
+    mode = 'val'
 
     iterations = []
     for k in log.keys():
@@ -153,7 +157,9 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
         for i in iterations_to_plot:
             data, planning_iteration_data = get_data_cached(classifier_cache, ift_dir, i,
                                                             planning_data_cache,
-                                                            planning_iteration_dirs, scenario)
+                                                            planning_iteration_dirs,
+                                                            scenario,
+                                                            mode)
 
             goal = planning_iteration_data['goal']
             scenario.plot_goal_rviz(goal, goal_threshold)
@@ -178,27 +184,28 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
         rviz_stepper.step()
 
 
-def get_data_cached(classifier_cache, ift_dir, iteration_idx, planning_data_cache, planning_iteration_dirs, scenario):
+def get_data_cached(classifier_cache, ift_dir, iteration_idx, planning_data_cache, planning_iteration_dirs, scenario,
+                    mode):
     dataset_iteration_idx = iteration_idx
     classifier_iteration_idx = iteration_idx
     if iteration_idx in planning_data_cache:
         planning_iteration_data = planning_data_cache[iteration_idx]
     else:
-        planning_iteration_dir = get_named_file_in_dir(planning_iteration_dirs, iteration_idx)
+        planning_iteration_dir = get_named_item_in_dir(planning_iteration_dirs, iteration_idx)
         planning_iteration_data = load_gzipped_pickle(next(planning_iteration_dir.glob("*.pkl.gz")))
         planning_data_cache[iteration_idx] = planning_iteration_data
     if dataset_iteration_idx in classifier_cache and classifier_iteration_idx in classifier_cache[
         dataset_iteration_idx]:
         data = classifier_cache[dataset_iteration_idx][classifier_iteration_idx]
     else:
-        data = get_data(scenario, ift_dir, dataset_iteration_idx, classifier_iteration_idx)
+        data = get_data(scenario, ift_dir, dataset_iteration_idx, classifier_iteration_idx, mode)
         if dataset_iteration_idx not in classifier_cache:
             classifier_cache[dataset_iteration_idx] = {}
         classifier_cache[dataset_iteration_idx][classifier_iteration_idx] = data
     return data, planning_iteration_data
 
 
-def get_named_file_in_dir(directory, idx: int):
+def get_named_item_in_dir(directory, idx: int):
     for d in directory.iterdir():
         if re.match(f".*0*{idx}[^\d]", d.name):
             return d

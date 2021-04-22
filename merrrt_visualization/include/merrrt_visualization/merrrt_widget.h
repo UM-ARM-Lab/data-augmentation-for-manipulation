@@ -47,6 +47,14 @@ public:
   bool GetVizOptions(peter_msgs::GetVizOptions::Request &req,
                      peter_msgs::GetVizOptions::Response &res);
 
+  signals:
+
+  void setTrajIdxText(const QString &text);
+  void setErrorText(const QString &text);
+  void setStdevText(const QString &text);
+  void setRecoveryProbText(const QString &text);
+  void setAcceptProbText(const QString &text);
+
 private:
   Ui_MerrrtWidget ui;
   ros::NodeHandle ros_node_;

@@ -18,6 +18,13 @@ namespace merrrt_visualization {
 MerrrtWidget::MerrrtWidget(QWidget *parent)
     : rviz::Panel(parent), world_control_srv_(ros_node_.serviceClient<peter_msgs::WorldControl>("world_control")) {
   ui.setupUi(this);
+
+  connect(this, &MerrrtWidget::setAcceptProbText, ui.accept_probability, &QLabel::setText);
+  connect(this, &MerrrtWidget::setRecoveryProbText, ui.recovery_probability, &QLabel::setText);
+  connect(this, &MerrrtWidget::setErrorText, ui.error, &QLabel::setText);
+  connect(this, &MerrrtWidget::setStdevText, ui.stdev, &QLabel::setText);
+  connect(this, &MerrrtWidget::setTrajIdxText, ui.traj_idx, &QLabel::setText);
+
   label_sub_ = ros_node_.subscribe<peter_msgs::LabelStatus>("label_viz", 10, &MerrrtWidget::LabelCallback, this);
   error_sub_ = ros_node_.subscribe<std_msgs::Float32>("error", 10, &MerrrtWidget::ErrorCallback, this);
   stdev_sub_ = ros_node_.subscribe<std_msgs::Float32>("stdev", 10, &MerrrtWidget::StdevCallback, this);
@@ -26,22 +33,23 @@ MerrrtWidget::MerrrtWidget(QWidget *parent)
   traj_idx_sub_ = ros_node_.subscribe<std_msgs::Float32>("traj_idx_viz", 10, &MerrrtWidget::OnTrajIdx, this);
   recov_prob_sub_ = ros_node_.subscribe<std_msgs::Float32>("recovery_probability_viz", 10,
                                                            &MerrrtWidget::OnRecoveryProbability, this);
-
   viz_options_srv_ = ros_node_.advertiseService("get_viz_options", &MerrrtWidget::GetVizOptions, this);
 }
 
 void MerrrtWidget::OnTrajIdx(const std_msgs::Float32::ConstPtr &msg) {
   auto const text = QString::asprintf("%0.4f", msg->data);
-  ui.traj_idx->setText(text);
+  emit setTrajIdxText(text);
 }
 
 void MerrrtWidget::ErrorCallback(const std_msgs::Float32::ConstPtr &msg) {
   auto const text = QString::asprintf("%0.4f", msg->data);
+  emit setErrorText(text);
   ui.error->setText(text);
 }
 
 void MerrrtWidget::StdevCallback(const std_msgs::Float32::ConstPtr &msg) {
   auto const text = QString::asprintf("%0.4f", msg->data);
+  emit setStdevText(text);
   ui.stdev->setText(text);
 }
 
@@ -70,6 +78,7 @@ void MerrrtWidget::OnRecoveryProbability(const std_msgs::Float32::ConstPtr &msg)
   }
   ui.recovery_probability->setStyleSheet(QString("color: rgb(%1, %2, %3);").arg(red).arg(green).arg(blue));
   auto const text = QString::asprintf("%0.4f", msg->data);
+  emit setRecoveryProbText(text);
   ui.recovery_probability->setText(text);
 }
 
@@ -88,6 +97,7 @@ void MerrrtWidget::OnAcceptProbability(const std_msgs::Float32::ConstPtr &msg) {
   }
   ui.accept_probability->setStyleSheet(QString("color: rgb(%1, %2, %3);").arg(red).arg(green).arg(blue));
   auto const text = QString::asprintf("%0.4f", msg->data);
+  emit setAcceptProbText(text);
   ui.accept_probability->setText(text);
 }
 

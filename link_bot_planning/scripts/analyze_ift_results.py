@@ -44,7 +44,10 @@ def metrics_main(args):
         log = load_hjson(results_dir.parent / 'logfile.hjson')
         from_env = log['from_env']
         to_env = log['to_env']
-        method_name = f'{from_env}_to_{to_env}'
+        if args.use_nickname:
+            method_name = log['nickname']
+        else:
+            method_name = f'{from_env}_to_{to_env}'
         subfolders = sorted(get_all_subdirs([results_dir]))
         if method_name in results_dirs_dict:
             method_name = add_number_to_method_name(method_name)
@@ -107,6 +110,7 @@ def main():
     parser.add_argument('--analysis-params', type=pathlib.Path,
                         default=pathlib.Path("analysis_params/env_across_methods.json"))
     parser.add_argument('--no-plot', action='store_true')
+    parser.add_argument('--use-nickname', action='store_true')
     parser.add_argument('--show-all-trials', action='store_true')
     parser.add_argument('--latex', action='store_true')
     parser.add_argument('--order', action='store_true')

@@ -6,7 +6,7 @@ from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
 
 
-def make_gripper_marker(position, id, color: ColorRGBA, label, type, s=0.02):
+def make_gripper_marker(position, id, color: ColorRGBA, label, type, s=0.01):
     gripper_marker = Marker()
     gripper_marker.action = Marker.ADD  # create or modify
     gripper_marker.type = type

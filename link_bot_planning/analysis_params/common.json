@@ -22,6 +22,9 @@
     "with recovery": "#0022FF",
     "no recovery": "#AA1155",
 
-    "combined classifier": "#FFBB22"
+    "combined classifier": "#FFBB22",
+
+    "with augmentation": "#0022FF",
+    "without augmentation": "#AA1155"
   }
 }

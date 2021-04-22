@@ -214,8 +214,11 @@ class IterativeFineTuning:
             [p.suspend() for p in self.gazebo_processes]
 
             new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i:04d}_dataset'
-            r = ResultsToClassifierDataset(results_dir=planning_results_dir, outdir=new_dataset_dir,
-                                           labeling_params=self.labeling_params, verbose=self.verbose)
+            r = ResultsToClassifierDataset(results_dir=planning_results_dir,
+                                           outdir=new_dataset_dir,
+                                           labeling_params=self.labeling_params,
+                                           verbose=self.verbose,
+                                           **self.ift_config['results_to_dataset'])
             r.run()
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
         return new_dataset_dir

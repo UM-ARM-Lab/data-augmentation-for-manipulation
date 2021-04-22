@@ -5,19 +5,17 @@
 #include <rviz/panel.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Int64.h>
-#include <QPropertyAnimation>
 
 #include <QObject>
+#include <QPropertyAnimation>
 #include <QWidget>
 #include <thread>
 
 #include "ui_animation_controller.h"
 
-namespace merrrt_visualization
-{
-class RVizAnimationController : public rviz::Panel
-{
- Q_OBJECT
+namespace merrrt_visualization {
+class RVizAnimationController : public rviz::Panel {
+  Q_OBJECT
 
  public:
   explicit RVizAnimationController(QWidget *parent = nullptr);
@@ -49,6 +47,10 @@ class RVizAnimationController : public rviz::Panel
   void StepNumberChanged();
 
   void PeriodChanged(double period);
+
+ signals:
+  void setStepText(const QString& text);
+  void setMaxText(const QString& text);
 
  private:
   void QueueThread();

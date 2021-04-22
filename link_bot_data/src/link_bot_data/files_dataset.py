@@ -1,6 +1,6 @@
 import pathlib
 import shutil
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -9,9 +9,12 @@ from link_bot_data.dataset_utils import DEFAULT_VAL_SPLIT, DEFAULT_TEST_SPLIT
 
 class FilesDataset:
 
-    def __init__(self, root_dir: pathlib.Path):
+    def __init__(self, root_dir: pathlib.Path, val_split: Optional[float] = DEFAULT_VAL_SPLIT,
+                 test_split: Optional[float] = DEFAULT_TEST_SPLIT):
         self.root_dir = root_dir
         self.paths = []
+        self.test_split = test_split if test_split is not None else DEFAULT_TEST_SPLIT
+        self.val_split = val_split if val_split is not None else DEFAULT_VAL_SPLIT
 
     def add(self, full_filename: pathlib.Path):
         self.paths.append(full_filename)
@@ -24,8 +27,8 @@ class FilesDataset:
         make_subdir(self.root_dir, 'test')
 
         n_files = len(self.paths)
-        n_validation = int(DEFAULT_VAL_SPLIT * n_files)
-        n_testing = int(DEFAULT_TEST_SPLIT * n_files)
+        n_validation = int(self.val_split * n_files)
+        n_testing = int(self.test_split * n_files)
 
         if shuffle:
             rng.shuffle(self.paths)

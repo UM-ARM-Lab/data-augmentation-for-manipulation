@@ -266,6 +266,8 @@ class ModelRunner:
                     print(Fore.CYAN + f"New best checkpoint {save_path}l" + Fore.RESET)
                 elif self.early_stopping:
                     print(Fore.YELLOW + f"No new best checkpoint, triggering early stopping." + Fore.RESET)
+                    return self.latest_ckpt.epoch - 1
+                    last_
                     break
 
         except KeyboardInterrupt:

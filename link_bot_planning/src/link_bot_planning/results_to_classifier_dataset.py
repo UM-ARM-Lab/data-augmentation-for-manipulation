@@ -53,6 +53,8 @@ class ResultsToClassifierDataset:
                  trial_indices: Optional[List[int]] = None,
                  visualize: bool = False,
                  full_tree: bool = False,
+                 test_split: Optional[float] = None,
+                 val_split: Optional[float] = None,
                  gui: Optional[bool] = None,
                  launch: Optional[str] = None,
                  world: Optional[str] = None,
@@ -82,7 +84,7 @@ class ResultsToClassifierDataset:
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
 
         self.example_idx = None
-        self.files = FilesDataset(outdir)
+        self.files = FilesDataset(outdir, val_split, test_split)
 
         if self.full_tree:
             self.scenario.on_before_get_state_or_execute_action()
