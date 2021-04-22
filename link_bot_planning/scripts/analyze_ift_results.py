@@ -46,6 +46,8 @@ def metrics_main(args):
         to_env = log['to_env']
         method_name = f'{from_env}_to_{to_env}'
         subfolders = sorted(get_all_subdirs([results_dir]))
+        if method_name in results_dirs_dict:
+            method_name = method_name + '2'
         results_dirs_dict[method_name] = (subfolders, log)
         sort_order_dict[method_name] = idx
 
