@@ -76,7 +76,12 @@ class PointsCollisionChecker(BaseConstraintChecker):
             c_s.append(c_b)
         return tf.stack(c_s, axis=0)
 
-    def check_constraint_from_example(self, example: Dict, training: Optional[bool] = False):
+    def check_constraint_from_example(self,
+                                      example: Dict,
+                                      training: Optional[bool] = False,
+                                      batch_size: Optional[int] = 1,
+                                      state_sequence_length: Optional[int] = 1,
+                                      ):
         # NOTE: input will be batched
         # TODO: where should this come from?
         env_keys = ['env', 'res', 'origin', 'extent']
@@ -85,11 +90,35 @@ class PointsCollisionChecker(BaseConstraintChecker):
         environment = {k: example[k] for k in env_keys}
         states = {k: example[k] for k in state_keys}
         actions = {k: example[k] for k in action_keys}
-        batch_size = 1
-        state_sequence_length = 1
 
         return self.check_constraint_tf_batched(environment,
                                                 states,
                                                 actions,
                                                 batch_size,
                                                 state_sequence_length)
+
+    def label_in_collision(self,
+                           example: Dict,
+                           batch_size: Optional[int] = 1,
+                           state_sequence_length: Optional[int] = 1,
+                           ):
+        # NOTE: input will be batched and have time dimension
+        # TODO: where should this come from?
+        env_keys = ['env', 'res', 'origin', 'extent']
+        state_keys = ['rope', 'left_gripper', 'right_gripper']
+        action_keys = ['left_gripper_position', 'right_gripper_position']
+        environment = {k: example[k] for k in env_keys}
+        states = {k: example[k] for k in state_keys}
+
+        # TODO: optimize this code
+        environments_list = dict_of_sequences_to_sequence_of_dicts(environment)
+        states_list = dict_of_sequences_to_sequence_of_dicts(states)
+        in_collision = []
+        for b in range(batch_size):
+            states_sequence = dict_of_sequences_to_sequence_of_dicts(states_list[b])
+            in_collision_b = []
+            for t, state in enumerate(states_sequence):
+                in_collision_t = bool(check_collision(self.scenario, environments_list[b], state))
+                in_collision_b.append(in_collision_t)
+            in_collision.append(in_collision_b)
+        return tf.constant(in_collision, dtype=tf.float32)

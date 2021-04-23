@@ -3,25 +3,34 @@ import argparse
 import itertools
 import logging
 import pathlib
+import pickle
 import random
 import warnings
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Dict, List
 
+import numpy as np
 from more_itertools import chunked
+from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
+from link_bot_classifiers.nn_classifier import NNClassifier
+from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
+from link_bot_data.files_dataset import FilesDataset
 from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
 from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
-from link_bot_pycommon import notifyme
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.heartbeat import HeartBeat
-from link_bot_pycommon.pycommon import pathify, paths_from_json, deal_with_exceptions
+from link_bot_pycommon.pycommon import pathify, deal_with_exceptions
+from moonshine.metrics import LossMetric
+from moonshine.moonshine_utils import repeat, add_batch
+from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors as tt
+from moonshine.my_keras_model import MyKerasModel
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -34,11 +43,12 @@ from colorama import Fore, Style
 
 import rospy
 from arc_utilities import ros_init
-from link_bot_data.dataset_utils import data_directory, compute_batch_size
+from link_bot_data.dataset_utils import data_directory, compute_batch_size, tf_write_example, add_predicted, \
+    replaced_true_with_predicted
 from link_bot_planning.planning_evaluation import load_planner_params, EvaluatePlanning
 from link_bot_pycommon.args import run_subparsers
 from link_bot_pycommon.job_chunking import JobChunker
-from moonshine.filepath_tools import load_hjson
+from moonshine.filepath_tools import load_hjson, load_params
 
 
 @dataclass
@@ -61,7 +71,6 @@ class IterativeFineTuning:
                  ):
         self.no_execution = no_execution
         self.on_exception = on_exception
-        self.timeout = timeout
         self.log = log
         self.ift_config = self.log['ift_config']
         self.initial_planner_params = pathify(self.log['planner_params'])
@@ -72,6 +81,14 @@ class IterativeFineTuning:
         self.verbose = -1
         self.labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
         self.labeling_params.update(self.ift_config.get('labeling_params_update', {}))
+        self.collision_pretraining_config = self.ift_config.get('collision_pretraining', {})
+
+        # DEBUGGING
+        if timeout is not None:
+            rospy.loginfo(f"Overriding with timeout {timeout}")
+            self.initial_planner_params["termination_criteria"]['timeout'] = timeout
+            self.initial_planner_params["termination_criteria"]['total_timeout'] = timeout
+        # DEBUGGING
 
         self.gazebo_processes = get_gazebo_processes()
 
@@ -120,12 +137,18 @@ class IterativeFineTuning:
         self.heartbeat = HeartBeat(10)
 
     def run(self, num_fine_tuning_iterations: int):
-        classifier_checkpoints = paths_from_json(self.log['classifier_checkpoints'])
-        latest_classifier_checkpoint_dir = classifier_checkpoints[-1]
-        recovery_checkpoints = paths_from_json(self.log['recovery_checkpoints'])
-        latest_recovery_checkpoint_dir = recovery_checkpoints[-1]
+        initial_classifier_checkpoint = pathlib.Path(self.log['initial_classifier_checkpoint'])
+        initial_recovery_checkpoint = pathlib.Path(self.log['initial_recovery_checkpoint'])
         fine_tuning_dataset_dirs = []
 
+        # Pre-adaptation training steps
+        if self.collision_pretraining_config.get('use_collision_pretraining', False):
+            print("Collision Pretraining")
+            [p.suspend() for p in self.gazebo_processes]
+            self.collision_pretraining(initial_classifier_checkpoint)
+
+        latest_classifier_checkpoint_dir = initial_classifier_checkpoint
+        latest_recovery_checkpoint_dir = initial_recovery_checkpoint
         for iteration_idx in range(num_fine_tuning_iterations):
             jobkey = f"iteration {iteration_idx}"
             iteration_chunker = self.job_chunker.sub_chunker(jobkey)
@@ -142,12 +165,14 @@ class IterativeFineTuning:
             # planning
             planning_results_dir = self.plan_and_execute(iteration_data)
 
-            # convert results to classifier dataset
-            new_dataset_dir = self.update_datasets(iteration_data, planning_results_dir)
-            iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
-            # fine tune (on all of the classifier datasets so far)
-
-            latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
+            # DEBUGGING
+            # # convert results to classifier dataset
+            # new_dataset_dir = self.update_datasets(iteration_data, planning_results_dir)
+            # iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
+            # # fine tune (on all of the classifier datasets so far)
+            #
+            # latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
+            # DEBUGGING
 
             # TODO: add fine tuning recovery
             iteration_end_time = iteration_chunker.get_result('end_time')
@@ -158,6 +183,130 @@ class IterativeFineTuning:
             print(Style.BRIGHT + f"Finished iteration {iteration_idx}, {iteration_time:.1f}s" + Style.RESET_ALL)
 
         [p.kill() for p in self.gazebo_processes]
+
+    def collision_pretraining(self, initial_classifier_checkpoint: pathlib.Path):
+        # create a dataset (unlabeled)
+        dataset_dir = self.generate_collision_pretraining_dataset(initial_classifier_checkpoint)
+
+        # fine-tune the classifier
+        def compute_loss(self: NNClassifier, dataset_element, outputs):
+            labels = tf.expand_dims(dataset_element['not_in_collision'], axis=2)
+            logits = outputs['logits']
+            bce = tf.keras.losses.binary_crossentropy(y_true=labels, y_pred=logits, from_logits=True)
+
+            return {
+                'loss': bce,
+            }
+
+        def create_metrics(self: NNClassifier):
+            MyKerasModel.create_metrics(self)
+            return {
+                'accuracy':  BinaryAccuracy(),
+                'precision': Precision(),
+                'recall':    Recall(),
+                'loss':      LossMetric(),
+            }
+
+        def compute_metrics(self: NNClassifier, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
+            labels = tf.expand_dims(dataset_element['not_in_collision'], axis=2)
+            probabilities = outputs['probabilities']
+            metrics['accuracy'].update_state(y_true=labels, y_pred=probabilities)
+            metrics['precision'].update_state(y_true=labels, y_pred=probabilities)
+            metrics['recall'].update_state(y_true=labels, y_pred=probabilities)
+
+        new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=[dataset_dir],
+                                                         checkpoint=initial_classifier_checkpoint,
+                                                         log=f'collision_pretraining_logdir',
+                                                         trials_directory=self.outdir,
+                                                         batch_size=32,
+                                                         verbose=self.verbose,
+                                                         validate_first=True,
+                                                         compute_loss=compute_loss,
+                                                         create_metrics=create_metrics,
+                                                         compute_metrics=compute_metrics,
+                                                         **self.collision_pretraining_config)
+        return new_latest_checkpoint_dir
+
+    def generate_collision_pretraining_dataset(self, initial_classifier_checkpoint: pathlib.Path):
+        dataset_dir = self.outdir / 'pretraining_dataset'
+        dataset_dir.mkdir(exist_ok=True)
+
+        cc = PointsCollisionChecker(pathlib.Path('cl_trials/cc_baseline/none'), self.scenario)
+
+        # write hparams file
+        new_hparams_filename = dataset_dir / 'hparams.hjson'
+        classifier_hparams = load_params(initial_classifier_checkpoint)
+        new_dataset_hparams = classifier_hparams["classifier_dataset_hparams"]
+        with new_hparams_filename.open('w') as new_hparams_file:
+            hjson.dump(new_dataset_hparams, new_hparams_file)
+
+        files_dataset = FilesDataset(root_dir=dataset_dir)
+
+        def configs_generator():
+            rng = random.Random(0)
+            configs_dir = pathlib.Path(self.collision_pretraining_config['configs_dir'])
+            configs_repeated = list(configs_dir.glob("initial_config_*.pkl"))
+            while True:
+                config_filename = rng.choice(configs_repeated)
+                config = pickle.load(config_filename.open("rb"))
+                yield config['state'], config['env']
+
+        n_examples = self.collision_pretraining_config['n_examples']
+        action_rng = np.random.RandomState(0)
+        batch_size = 16
+        action_sequence_length = 10
+        action_params_filename = pathlib.Path(self.collision_pretraining_config['action_params_filename'])
+        action_params = load_hjson(action_params_filename)
+        for example_idx in range(n_examples):
+            # get environment, this is the magic where we use the fact that we have the environment description
+            state, environment = next(configs_generator())
+
+            # sample action sequences
+            state_batched = repeat(state, batch_size, 0, True)
+            environment_batched = {k: [v] * batch_size for k, v in environment.items()}
+            actions_list = self.scenario.sample_action_sequences(environment=environment,
+                                                                 state=state_batched,
+                                                                 action_params=action_params,
+                                                                 n_action_sequences=batch_size,
+                                                                 action_sequence_length=action_sequence_length,
+                                                                 validate=True,
+                                                                 action_rng=action_rng)
+            actions = tt([tt(a) for a in actions_list])
+            state_batch_time = add_batch(state_batched, batch_axis=1)
+
+            # pass through forward model
+            states, _ = self.planner.fwd_model.propagate_tf_batched(environment=environment_batched,
+                                                                    state=state_batch_time,
+                                                                    actions=actions)
+
+            # make example
+            example = {
+                'classifier_start_t': 0,
+                'classifier_end_t':   2,
+                'prediction_start_t': 0,
+                'traj_idx':           example_idx,
+                'time_idx':           [0, 1],
+            }
+            example.update(environment_batched)
+            example.update({add_predicted(k): v for k, v in states.items()})
+            example.update(actions)
+
+            # check collision
+            example_for_cc = replaced_true_with_predicted(example)
+            not_in_collision = cc.label_in_collision(example_for_cc,
+                                                     batch_size=batch_size,
+                                                     state_sequence_length=(action_sequence_length + 1))
+            example['not_in_collision'] = not_in_collision
+
+            # split the sequence into individual transitions
+
+            # write example
+            full_filename = tf_write_example(dataset_dir, example, example_idx)
+            files_dataset.add(full_filename)
+
+        files_dataset.split()
+
+        return dataset_dir
 
     def plan_and_execute(self, iteration_data: IterationData):
         i = iteration_data.iteration
@@ -255,6 +404,13 @@ def start_iterative_fine_tuning(nickname: str,
                                 test_scenes_dir: pathlib.Path,
                                 on_exception: str,
                                 ):
+    # DEBUGGING
+    # from_env = input("from: ")
+    # to_env = input("to: ")
+    from_env = "debugging"
+    to_env = "debugging"
+    # DEBUGGING
+
     # setup
     outdir = data_directory(pathlib.Path('results') / 'iterative_fine_tuning' / f"{nickname}")
 
@@ -265,19 +421,17 @@ def start_iterative_fine_tuning(nickname: str,
     ift_config = load_hjson(ift_config_filename)
 
     initial_planner_params = load_planner_params(planner_params_filename)
-    from_env = input("from: ")
-    to_env = input("to: ")
 
     logfile_name = outdir / 'logfile.hjson'
     log = {
-        'nickname':               nickname,
-        'planner_params':         initial_planner_params,
-        'test_scenes_dir':        test_scenes_dir.as_posix(),
-        'classifier_checkpoints': [classifier_checkpoint.as_posix()],
-        'recovery_checkpoints':   [recovery_checkpoint.as_posix()],
-        'from_env':               from_env,
-        'to_env':                 to_env,
-        'ift_config':             ift_config,
+        'nickname':                      nickname,
+        'planner_params':                initial_planner_params,
+        'test_scenes_dir':               test_scenes_dir.as_posix(),
+        'initial_classifier_checkpoint': classifier_checkpoint.as_posix(),
+        'initial_recovery_checkpoint':   recovery_checkpoint.as_posix(),
+        'from_env':                      from_env,
+        'to_env':                        to_env,
+        'ift_config':                    ift_config,
     }
     with logfile_name.open("w") as logfile:
         hjson.dump(log, logfile)
@@ -324,7 +478,7 @@ def add_args(start_parser):
     start_parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
 
 
-@notifyme.notify()
+# @notifyme.notify()
 @ros_init.with_ros("iterative_fine_tuning")
 def ift_main():
     colorama.init(autoreset=True)

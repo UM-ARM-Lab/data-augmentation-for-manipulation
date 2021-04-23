@@ -1,5 +1,5 @@
 import pathlib
-from typing import List
+from typing import List, Optional, Callable
 
 import link_bot_classifiers
 from link_bot_classifiers.train_test_classifier import setup_datasets
@@ -21,6 +21,9 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          fine_tune_output: bool,
                          verbose: int = 0,
                          trials_directory: pathlib.Path = pathlib.Path("./trials"),
+                         compute_loss: Optional[Callable] = None,
+                         create_metrics: Optional[Callable] = None,
+                         compute_metrics: Optional[Callable] = None,
                          **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
     model_hparams['datasets'].extend(paths_to_json(dataset_dirs))
@@ -35,6 +38,15 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
     # decrease the learning rate, this is often done in fine-tuning
     model_hparams['learning_rate'] = 1e-4  # normally 1e-3
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)
+
+    # override loss and metrics
+    if compute_loss is not None:
+        model.compute_loss = compute_loss
+    if create_metrics is not None:
+        model.create_metrics = create_metrics
+    if compute_metrics is not None:
+        model.compute_metrics = compute_metrics
+
     runner = ModelRunner(model=model,
                          training=True,
                          params=model_hparams,

@@ -189,6 +189,8 @@ def repeat(d: Dict, repetitions: int, axis: int, new_axis: bool):
 def repeat_tensor(v, repetitions, axis, new_axis):
     if np.isscalar(v):
         multiples = []
+    elif isinstance(v, genpy.Message):
+        raise NotImplementedError("ROS Messages can't be put in tensors, don't use this function with messages")
     else:
         multiples = [1] * v.ndim
 
