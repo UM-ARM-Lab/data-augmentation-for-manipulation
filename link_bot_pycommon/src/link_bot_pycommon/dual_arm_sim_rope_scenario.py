@@ -101,10 +101,14 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.make_rope_endpoints_follow_gripper()
         self.service_provider.play()
         rospy.sleep(settling_time)
+        print("1", flush=True)
         self.robot.close_left_gripper()
+        print("2", flush=True)
         self.robot.close_right_gripper()
+        print("3", flush=True)
 
         self.reset_cdcpd()
+        print("4", flush=True)
 
     def move_rope_out_of_the_scene(self):
         set_req = Position3DActionRequest()
@@ -187,8 +191,11 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
         self.service_provider.pause()
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
+        print("a", flush=True)
         self.grasp_rope_endpoints(settling_time=1.0)
+        print("b", flush=True)
         self.service_provider.play()
+        print("c", flush=True)
 
     def publish_robot_state(self, joint_state):
         pub = rospy.Publisher('display_robot_state', DisplayRobotState, queue_size=10)
