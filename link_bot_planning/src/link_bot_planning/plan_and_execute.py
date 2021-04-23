@@ -226,7 +226,7 @@ class PlanAndExecute:
         attempt_idx = 0
         steps_data = []
         planning_queries = []
-        max_attempts = 20  # to save time, since it's unlikely we succeed after this many attempts
+        max_attempts = self.planner_params['termination_criteria'].get('max_attempts', 20)
         while True:
             # get start states
             self.service_provider.play()

@@ -174,6 +174,8 @@ class MWALinePlotAcrossIterationsFigure(LinePlotAcrossIterationsFigure):
         values = moving_window_average(self.metric.values[method_name], 5)
         self.ax.plot(values, c=color, label=method_name)
 
+    def get_figsize(self):
+        return 10, 5
 
 class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
     def __init__(self, analysis_params: Dict, metric, ylabel: str):

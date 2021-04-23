@@ -14,6 +14,7 @@ import numpy as np
 from more_itertools import chunked
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
+from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_classifiers.nn_classifier import NNClassifier
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
@@ -80,7 +81,8 @@ class IterativeFineTuning:
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
         self.verbose = -1
         self.labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
-        self.labeling_params.update(self.ift_config.get('labeling_params_update', {}))
+        self.labeling_params = nested_dict_update(self.labeling_params, self.ift_config.get('labeling_params_update', {}))
+        self.initial_planner_params = nested_dict_update(self.initial_planner_params, self.ift_config.get('planner_params_update', {}))
         self.collision_pretraining_config = self.ift_config.get('collision_pretraining', {})
 
         # DEBUGGING
@@ -228,6 +230,9 @@ class IterativeFineTuning:
         return new_latest_checkpoint_dir
 
     def generate_collision_pretraining_dataset(self, initial_classifier_checkpoint: pathlib.Path):
+        # FIXME:
+        # I should actually the run planner and use ResultsToClassifier dataset with the full-tree option?
+
         dataset_dir = self.outdir / 'pretraining_dataset'
         dataset_dir.mkdir(exist_ok=True)
 

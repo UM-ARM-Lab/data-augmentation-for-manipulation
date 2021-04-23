@@ -176,6 +176,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
         self.service_provider.play()
 
+        print("a", flush=True)
         self.move_objects_out_of_scene(params)
         self.detach_rope_from_grippers()
 
@@ -189,13 +190,14 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
             joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
         self.robot.plan_to_joint_config("whole_body", joint_config)
 
+        print("b", flush=True)
         self.service_provider.pause()
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
-        print("a", flush=True)
-        self.grasp_rope_endpoints(settling_time=1.0)
-        print("b", flush=True)
-        self.service_provider.play()
         print("c", flush=True)
+        self.grasp_rope_endpoints(settling_time=1.0)
+        print("d", flush=True)
+        self.service_provider.play()
+        print("e", flush=True)
 
     def publish_robot_state(self, joint_state):
         pub = rospy.Publisher('display_robot_state', DisplayRobotState, queue_size=10)
