@@ -1,7 +1,7 @@
 {
   trials_generator_type: random
-  early_stopping: true
-  epochs: 25
+  early_stopping: false
+  epochs: 5
   trials_per_iteration: 1
   planner_params_update: {
     termination_criteria: {

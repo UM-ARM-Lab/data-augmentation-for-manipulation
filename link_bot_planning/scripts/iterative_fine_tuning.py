@@ -25,8 +25,8 @@ from link_bot_planning.analysis.results_metrics import load_analysis_params, gen
 from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
+from link_bot_pycommon import notifyme
 from link_bot_pycommon.get_scenario import get_scenario
-from link_bot_pycommon.heartbeat import HeartBeat
 from link_bot_pycommon.pycommon import pathify, deal_with_exceptions
 from moonshine.metrics import LossMetric
 from moonshine.moonshine_utils import repeat, add_batch
@@ -81,8 +81,10 @@ class IterativeFineTuning:
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
         self.verbose = -1
         self.labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
-        self.labeling_params = nested_dict_update(self.labeling_params, self.ift_config.get('labeling_params_update', {}))
-        self.initial_planner_params = nested_dict_update(self.initial_planner_params, self.ift_config.get('planner_params_update', {}))
+        self.labeling_params = nested_dict_update(self.labeling_params,
+                                                  self.ift_config.get('labeling_params_update', {}))
+        self.initial_planner_params = nested_dict_update(self.initial_planner_params,
+                                                         self.ift_config.get('planner_params_update', {}))
         self.collision_pretraining_config = self.ift_config.get('collision_pretraining', {})
 
         if timeout is not None:
@@ -471,7 +473,7 @@ def add_args(start_parser):
     start_parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
 
 
-# @notifyme.notify()
+@notifyme.notify()
 @ros_init.with_ros("iterative_fine_tuning")
 def ift_main():
     colorama.init(autoreset=True)
