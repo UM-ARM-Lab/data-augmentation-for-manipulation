@@ -149,6 +149,7 @@ class ModelRunner:
             t0 = time.time()
 
             for batch_idx, train_batch in enumerate(train_dataset):
+                self.model.scenario.heartbeat()
                 train_batch.update(self.batch_metadata)
                 self.num_train_batches += 1
                 self.latest_ckpt.step.assign_add(1)
@@ -189,6 +190,7 @@ class ModelRunner:
             v.reset_states()
 
         for i, val_batch in enumerate(val_dataset.take(self.mid_epoch_val_batches)):
+            self.model.scenario.heartbeat()
             val_batch.update(self.batch_metadata)
             _ = self.model.val_step(val_batch, val_metrics)
 
@@ -221,6 +223,7 @@ class ModelRunner:
         with progressbar.ProgressBar(widgets=widgets, max_value=self.num_val_batches) as bar:
             self.num_val_batches = 0
             for val_batch in val_dataset:
+                self.model.scenario.heartbeat()
                 val_batch.update(self.batch_metadata)
                 self.num_val_batches += 1
                 self.model.val_step(val_batch, val_metrics)
