@@ -4,6 +4,7 @@ from typing import Dict, List, Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from colorama import Fore
 from matplotlib.lines import Line2D
 
@@ -14,7 +15,6 @@ from link_bot_pycommon.latex_utils import make_cell
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation, get_figsize
 from link_bot_pycommon.metric_utils import row_stats
 from link_bot_pycommon.pycommon import quote_string
-import pandas as pd
 
 colors_cache = {}
 
@@ -29,12 +29,18 @@ class MyFigure:
 
     def set_title(self):
         metadata_for_method = next(iter(self.metric.metadatas.values()))
-        cl_data_params = classifer_dataset_params_from_planner_params(metadata_for_method['planner_params'])
-        classifier_training_scene_name_for_method = cl_data_params['data_collection_params']['name']
+        try:
+            cl_data_params = classifer_dataset_params_from_planner_params(metadata_for_method['planner_params'])
+            classifier_training_scene_name_for_method = cl_data_params['data_collection_params']['name']
+            # noinspection PyUnusedLocal
+            classifier_training_scene = classifier_training_scene_name_for_method
+        except Exception:
+            pass
         # noinspection PyUnusedLocal
-        classifier_training_scene = classifier_training_scene_name_for_method
-        # noinspection PyUnusedLocal
-        scene_name = metadata_for_method['scene_name']
+        try:
+            scene_name = metadata_for_method['scene_name']
+        except Exception:
+            pass
 
         # This magic lets us specify variable names in the title in the json file. Any variable name used there
         # must be in scope here, hence the above local variables which appear unused
@@ -136,14 +142,6 @@ class MyFigure:
         return get_figsize(len(self.metric.values))
 
 
-# class MultiIterationsFigure:
-#     def __init__(self, analysis_params: Dict, metric: TrialMetrics, name: str):
-#         super().__init__(analysis_params, metric, name)
-#
-#     def set_title(self):
-#         pass
-
-
 class LinePlotAcrossIterationsFigure(MyFigure):
     def __init__(self, analysis_params: Dict, metric, ylabel: str):
         self.ylabel = ylabel
@@ -176,6 +174,7 @@ class MWALinePlotAcrossIterationsFigure(LinePlotAcrossIterationsFigure):
 
     def get_figsize(self):
         return 10, 5
+
 
 class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
     def __init__(self, analysis_params: Dict, metric, ylabel: str):

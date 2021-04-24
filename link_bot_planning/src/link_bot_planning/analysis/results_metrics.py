@@ -23,6 +23,7 @@ class TrialMetrics:
 
     def setup_method(self, method_name: str, metadata: Dict):
         self.values[method_name] = []
+        self.metadatas[method_name] = metadata
 
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
         raise NotImplementedError()
