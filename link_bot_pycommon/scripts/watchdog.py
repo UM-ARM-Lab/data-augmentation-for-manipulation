@@ -26,6 +26,7 @@ class Watchdog:
         self.period = period
         self.verbose = verbose
         self.n_kills = 0
+        self.time_since_last_heartbeat = 0
 
         self.heartbeat_received = False
         self.heartbeat_subscriber = rospy.Subscriber('heartbeat', Header, self.heartbeat_callback)
