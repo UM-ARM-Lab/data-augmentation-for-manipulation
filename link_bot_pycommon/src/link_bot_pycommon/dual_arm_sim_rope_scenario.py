@@ -16,6 +16,7 @@ from moveit_msgs.msg import DisplayRobotState
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState
+from std_msgs.msg import Header
 from tf.transformations import quaternion_from_euler
 
 
@@ -28,6 +29,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.service_provider = GazeboServices()
 
         self.set_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set"), Position3DAction)
+        self.pub = rospy.Publisher("heartbeat", Header, queue_size=10)
 
     def execute_action(self, environment, state, action: Dict):
         return dual_arm_rope_execute_action(self.robot, environment, state, action)
@@ -101,14 +103,10 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.make_rope_endpoints_follow_gripper()
         self.service_provider.play()
         rospy.sleep(settling_time)
-        print("1", flush=True)
         self.robot.close_left_gripper()
-        print("2", flush=True)
         self.robot.close_right_gripper()
-        print("3", flush=True)
 
         self.reset_cdcpd()
-        print("4", flush=True)
 
     def move_rope_out_of_the_scene(self):
         set_req = Position3DActionRequest()
@@ -172,11 +170,11 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
         self.service_provider.play()
 
-    # @Halo(text='Restoring', spinner='dots')
+    @Halo(text='Restoring', spinner='dots')
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
+        self.pub.publish(Header(stamp=rospy.Time.now()))
         self.service_provider.play()
 
-        print("a", flush=True)
         self.move_objects_out_of_scene(params)
         self.detach_rope_from_grippers()
 
@@ -190,14 +188,10 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
             joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
         self.robot.plan_to_joint_config("whole_body", joint_config)
 
-        print("b", flush=True)
         self.service_provider.pause()
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
-        print("c", flush=True)
         self.grasp_rope_endpoints(settling_time=1.0)
-        print("d", flush=True)
         self.service_provider.play()
-        print("e", flush=True)
 
     def publish_robot_state(self, joint_state):
         pub = rospy.Publisher('display_robot_state', DisplayRobotState, queue_size=10)

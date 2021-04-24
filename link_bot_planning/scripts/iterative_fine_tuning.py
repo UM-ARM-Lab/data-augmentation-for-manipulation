@@ -134,10 +134,6 @@ class IterativeFineTuning:
                                    log_full_tree=self.log_full_tree,
                                    scenario=self.scenario)
 
-        # Emits a message every 10 seconds,
-        # so that another node can monitor for the program getting hung-up and restart it
-        self.heartbeat = HeartBeat(10)
-
     def run(self, num_fine_tuning_iterations: int):
         initial_classifier_checkpoint = pathlib.Path(self.log['initial_classifier_checkpoint'])
         initial_recovery_checkpoint = pathlib.Path(self.log['initial_recovery_checkpoint'])
