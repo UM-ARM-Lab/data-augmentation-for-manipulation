@@ -23,5 +23,5 @@ class HeartBeat:
 
     def update(self):
         if self.counter == 10:
-            self.counter = 0
+            self.counter += 1
             self.pub.publish(Header(stamp=rospy.Time.now()))
