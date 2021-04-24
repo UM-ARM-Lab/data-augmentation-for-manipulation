@@ -1,4 +1,5 @@
 import pathlib
+import shutil
 from typing import Dict, Any, Optional
 
 import hjson
@@ -13,8 +14,11 @@ def read_logfile(logfile_name: pathlib.Path, serializer=hjson):
 
 
 def write_logfile(log: Dict, logfile_name: pathlib.Path, serializer=MyHJsonSerializer):
-    with logfile_name.open("w") as logfile:
+    # prevents the user from losing the logfile by interrupting and killing the program
+    temp_logfile_name = logfile_name.parent / (logfile_name.name + ".tmp")
+    with temp_logfile_name.open("w") as logfile:
         serializer.dump(log, logfile)
+    shutil.copy(temp_logfile_name, logfile_name)
 
 
 class JobChunker:
