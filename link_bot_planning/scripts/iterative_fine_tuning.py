@@ -85,12 +85,10 @@ class IterativeFineTuning:
         self.initial_planner_params = nested_dict_update(self.initial_planner_params, self.ift_config.get('planner_params_update', {}))
         self.collision_pretraining_config = self.ift_config.get('collision_pretraining', {})
 
-        # DEBUGGING
         if timeout is not None:
             rospy.loginfo(f"Overriding with timeout {timeout}")
             self.initial_planner_params["termination_criteria"]['timeout'] = timeout
             self.initial_planner_params["termination_criteria"]['total_timeout'] = timeout
-        # DEBUGGING
 
         self.gazebo_processes = get_gazebo_processes()
 
@@ -163,14 +161,12 @@ class IterativeFineTuning:
             # planning
             planning_results_dir = self.plan_and_execute(iteration_data)
 
-            # DEBUGGING
-            # # convert results to classifier dataset
-            # new_dataset_dir = self.update_datasets(iteration_data, planning_results_dir)
-            # iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
-            # # fine tune (on all of the classifier datasets so far)
-            #
-            # latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
-            # DEBUGGING
+            # convert results to classifier dataset
+            new_dataset_dir = self.update_datasets(iteration_data, planning_results_dir)
+            iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
+
+            # fine tune (on all of the classifier datasets so far)
+            latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
 
             # TODO: add fine tuning recovery
             iteration_end_time = iteration_chunker.get_result('end_time')
@@ -405,12 +401,8 @@ def start_iterative_fine_tuning(nickname: str,
                                 test_scenes_dir: pathlib.Path,
                                 on_exception: str,
                                 ):
-    # DEBUGGING
-    # from_env = input("from: ")
-    # to_env = input("to: ")
-    from_env = "debugging"
-    to_env = "debugging"
-    # DEBUGGING
+    from_env = input("from: ")
+    to_env = input("to: ")
 
     # setup
     outdir = data_directory(pathlib.Path('results') / 'iterative_fine_tuning' / f"{nickname}")

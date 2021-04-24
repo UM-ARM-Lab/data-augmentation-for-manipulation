@@ -10,7 +10,7 @@ from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.sample_object_positions import sample_object_position, sample_object_positions
 from moonshine.indexing import index_dict_of_batched_tensors_tf, index_time_2
 from peter_msgs.srv import GetPosition3DRequest, Position3DEnableRequest, Position3DActionRequest
-from std_msgs.msg import Int64, Float32
+from std_msgs.msg import Int64, Float32, Header
 from visualization_msgs.msg import MarkerArray
 
 
@@ -24,6 +24,7 @@ class ExperimentScenario:
         self.stdev_viz_pub = rospy.Publisher("stdev", Float32, queue_size=10)
         self.state_viz_pub = rospy.Publisher("state_viz", MarkerArray, queue_size=10, latch=True)
         self.action_viz_pub = rospy.Publisher("action_viz", MarkerArray, queue_size=10, latch=True)
+        self.heartbeat_pub = rospy.Publisher("heartbeat", Header, queue_size=10)
 
         self.tf = TF2Wrapper()
 
@@ -322,3 +323,7 @@ class ExperimentScenario:
 
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
         service_provider.restore_from_bag(bagfile_name)
+
+    def heartbeat(self):
+        self.heartbeat_pub.publish(Header(stamp=rospy.Time.now()))
+

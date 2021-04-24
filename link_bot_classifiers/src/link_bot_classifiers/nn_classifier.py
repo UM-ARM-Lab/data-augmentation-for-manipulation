@@ -364,6 +364,12 @@ class NNClassifier(MyKerasModel):
 
                 # stepper.step()
 
+    def on_end_epoch(self):
+        self.scenario.heartbeat()
+
+    def on_mid_epoch_validation(self):
+        self.scenario.heartbeat()
+
 
 class NNClassifierWrapper(BaseConstraintChecker):
     def __init__(self, path: pathlib.Path, batch_size: int, scenario: ExperimentScenario):

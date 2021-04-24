@@ -98,3 +98,9 @@ class MyKerasModel(tf.keras.Model):
     def create_metrics(self):
         print(Fore.YELLOW + "Creating Metrics")
         return {}
+
+    def on_end_epoch(self):
+        pass
+
+    def on_mid_epoch_validation(self):
+        pass

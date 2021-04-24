@@ -128,6 +128,8 @@ class ResultsToClassifierDataset:
         last_t = t0
         total_examples = 0
         for trial_idx, datum in results_utils.trials_generator(self.results_dir, self.trial_indices):
+            self.scenario.heartbeat()
+
             if job_chunker.has_result(str(trial_idx)):
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
                 continue

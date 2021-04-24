@@ -69,6 +69,7 @@ def execute_actions(
 
     for t, action in enumerate(actions):
         spinner.update()
+        scenario.heartbeat()
 
         if plot:
             scenario.plot_environment_rviz(environment)

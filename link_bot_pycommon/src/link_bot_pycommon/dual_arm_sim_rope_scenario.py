@@ -16,7 +16,6 @@ from moveit_msgs.msg import DisplayRobotState
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Header
 from tf.transformations import quaternion_from_euler
 
 
@@ -29,7 +28,6 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.service_provider = GazeboServices()
 
         self.set_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set"), Position3DAction)
-        self.pub = rospy.Publisher("heartbeat", Header, queue_size=10)
 
     def execute_action(self, environment, state, action: Dict):
         return dual_arm_rope_execute_action(self.robot, environment, state, action)
@@ -172,7 +170,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
     @Halo(text='Restoring', spinner='dots')
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
-        self.pub.publish(Header(stamp=rospy.Time.now()))
+        self.heartbeat()
         self.service_provider.play()
 
         self.move_objects_out_of_scene(params)
