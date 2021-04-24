@@ -274,6 +274,8 @@ class NNClassifier(MyKerasModel):
         if self.hparams.get('uncertainty_head', False):
             outputs['uncertainty'] = out_uncertainty
 
+        self.scenario.heartbeat()
+
         return outputs
 
     def fc(self, conv_output, input_dict, training):
@@ -364,11 +366,6 @@ class NNClassifier(MyKerasModel):
 
                 # stepper.step()
 
-    def on_end_epoch(self):
-        self.scenario.heartbeat()
-
-    def on_mid_epoch_validation(self):
-        self.scenario.heartbeat()
 
 
 class NNClassifierWrapper(BaseConstraintChecker):

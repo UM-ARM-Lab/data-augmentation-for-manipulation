@@ -173,7 +173,6 @@ class ModelRunner:
                         and batch_idx % self.val_every_n_batches == 0 \
                         and batch_idx > 0:
                     self.mid_epoch_validation(val_dataset, val_metrics)
-                    self.model.on_mid_epoch_validation()
 
                 # Mid-epoch checkpointing
                 overall_job_dt = now - self.overall_job_start_time
@@ -268,8 +267,6 @@ class ModelRunner:
                 elif self.early_stopping:
                     print(Fore.YELLOW + f"No new best checkpoint, triggering early stopping." + Fore.RESET)
                     break
-
-            self.model.on_end_epoch()
 
         except KeyboardInterrupt:
             print(Fore.YELLOW + "Interrupted." + Fore.RESET)

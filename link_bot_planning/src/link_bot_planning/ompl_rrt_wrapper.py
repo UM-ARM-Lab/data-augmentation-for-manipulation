@@ -255,6 +255,7 @@ class OmplRRTWrapper(MyPlanner):
         # log the data
         if self.log_full_tree:
             self.tree.add(before_state=previous_state, action=new_action, after_state=np_final_state)
+
         self.scenario.heartbeat()
 
         # visualize
