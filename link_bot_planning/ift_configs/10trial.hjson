@@ -13,7 +13,7 @@
       max_attempts: 1
     }
   }
-  result_to_dataset: {
+  results_to_dataset: {
     val_split: 0.0
     test_split: 0.0
   }
