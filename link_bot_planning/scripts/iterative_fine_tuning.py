@@ -310,6 +310,7 @@ class IterativeFineTuning:
     def plan_and_execute(self, iteration_data: IterationData):
         i = iteration_data.iteration
         trials = next(self.trial_indices_generator)
+        print(len(trials))
         planning_chunker = iteration_data.iteration_chunker.sub_chunker('planning')
         planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
         if planning_results_dir is None:
