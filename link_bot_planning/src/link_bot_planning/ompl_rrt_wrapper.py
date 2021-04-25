@@ -365,10 +365,6 @@ class OmplRRTWrapper(MyPlanner):
         # handle results and cleanup
         planner_status = self.ptc.interpret_planner_status(ob_planner_status)
 
-        # DEBUGGING
-        print(self.classifier_models[0].net.weights[1][0])
-        # DEBUGGING
-
         if planner_status == MyPlannerStatus.Solved:
             ompl_path = self.ss.getSolutionPath()
             actions, planned_path = self.convert_path(ompl_path)
