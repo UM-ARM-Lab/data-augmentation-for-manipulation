@@ -84,7 +84,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('script')
     parser.add_argument('args', nargs='*')
-    parser.add_argument('--period', type=int, default=10)
+    parser.add_argument('--period', type=int, default=240)
     parser.add_argument('--verbose', '-v', action='count', default=0)
 
     args = parser.parse_args()
