@@ -58,7 +58,7 @@ class Watchdog:
                             print("got heartbeat")
                         self.heartbeat_received = False
                         break
-                    elif self.time_since_last_heartbeat > self.period * 1.1:  # give it some wiggle room
+                    elif self.time_since_last_heartbeat > self.period:
                         kill = True
                         break
                     elif proc.poll() is not None:
