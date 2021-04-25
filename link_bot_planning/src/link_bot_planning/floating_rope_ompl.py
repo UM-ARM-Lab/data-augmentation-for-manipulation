@@ -429,7 +429,7 @@ class DualGripperControlSampler(oc.ControlSampler):
         right_theta = rng.uniform(-np.pi, np.pi)
         m = action_params['max_distance_gripper_can_move']
         right_r = rng.uniform(0, m)
-        rospy.logwarn_throttle(5, self.control_sampler_rng.get_state()))
+        rospy.logwarn_throttle(5, rng.get_state())
 
         control_out[0][0] = left_r
         control_out[0][1] = left_phi
