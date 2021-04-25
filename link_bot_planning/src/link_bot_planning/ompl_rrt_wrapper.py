@@ -33,7 +33,7 @@ class OmplRRTWrapper(MyPlanner):
     def __init__(self,
                  fwd_model: BaseDynamicsFunction,
                  filter_model: BaseFilterFunction,
-                 classifier_models: [BaseConstraintChecker],
+                 classifier_models: List[BaseConstraintChecker],
                  planner_params: Dict,
                  action_params: Dict,
                  scenario: ScenarioWithVisualization,
@@ -364,6 +364,10 @@ class OmplRRTWrapper(MyPlanner):
 
         # handle results and cleanup
         planner_status = self.ptc.interpret_planner_status(ob_planner_status)
+
+        # DEBUGGING
+        print(self.classifier_models[0].net.weights[1][0])
+        # DEBUGGING
 
         if planner_status == MyPlannerStatus.Solved:
             ompl_path = self.ss.getSolutionPath()

@@ -86,8 +86,7 @@ class IterativeFineTuning:
         self.initial_planner_params = nested_dict_update(self.initial_planner_params,
                                                          self.ift_config.get('planner_params_update', {}))
         self.collision_pretraining_config = self.ift_config.get('collision_pretraining', {})
-        use_best_ckpt = self.ift_config.get('use_best_ckpt', True)
-        self.checkpoint_suffix = 'best_checkpoint' if use_best_ckpt else 'latest_checkpoint'
+        self.checkpoint_suffix = 'best_checkpoint' if self.ift_config['early_stopping'] else 'latest_checkpoint'
 
         if timeout is not None:
             rospy.loginfo(f"Overriding with timeout {timeout}")
@@ -375,7 +374,7 @@ class IterativeFineTuning:
 
     def fine_tune(self, iteration_data: IterationData):
         i = iteration_data.iteration
-        latest_checkpoint = iteration_data.latest_classifier_checkpoint_dir / 'best_checkpoint'
+        latest_checkpoint = iteration_data.latest_classifier_checkpoint_dir / self.checkpoint_suffix
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune')
         new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
