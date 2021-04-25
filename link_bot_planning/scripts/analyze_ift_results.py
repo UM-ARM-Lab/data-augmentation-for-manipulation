@@ -86,9 +86,16 @@ def metrics_main(args):
         LinePlotAcrossIterationsFigure(analysis_params, metrics[NormalizedModelError], 'Normalized Model Error'),
         LinePlotAcrossIterationsFigure(analysis_params, metrics[Successes], 'Percentage Success'),
         LinePlotAcrossIterationsFigure(analysis_params, metrics[PlannerSolved], 'Planner Returned Solved'),
-        MWALinePlotAcrossIterationsFigure(analysis_params, metrics[NormalizedModelError],
-                                          'Normalized Model Error (moving average)'),
-        MWALinePlotAcrossIterationsFigure(analysis_params, metrics[Successes], 'Percentage Success (moving average)'),
+        RollingAverageLinePlotAcrossItersFig(analysis_params,
+                                             metrics[NormalizedModelError],
+                                             'Normalized Model Error (moving average)'),
+        RollingAverageLinePlotAcrossItersFig(analysis_params, metrics[Successes],
+                                             'Percentage Success (moving average)'),
+        CumulativeLinePlotAcrossItersFig(analysis_params,
+                                         metrics[NormalizedModelError],
+                                         'Normalized Model Error (cumulative)'),
+        CumulativeLinePlotAcrossItersFig(analysis_params, metrics[Successes],
+                                         'Percentage Success (cumulative)'),
     ]
 
     make_figures(figures, analysis_params, sort_order_dict, table_format, tables_filename, out_dir)

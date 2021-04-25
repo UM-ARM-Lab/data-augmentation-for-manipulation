@@ -1,21 +1,15 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-from typing import Dict
 
 import colorama
 import numpy as np
 
-import rospy
 from arc_utilities import ros_init
 from link_bot_planning.analysis import results_utils
-from link_bot_planning.my_planner import PlanningQuery
+from link_bot_planning.analysis.results_utils import classifier_params_from_planner_params, plot_steps
 from link_bot_planning.plan_and_execute import TrialStatus
-from link_bot_planning.analysis.results_utils import labeling_params_from_planner_params, get_paths, \
-    classifier_params_from_planner_params
 from link_bot_pycommon.args import my_formatter, int_set_arg
-from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 
 
 @ros_init.with_ros("plot_results")
@@ -47,82 +41,6 @@ def main():
         print(f"trial {trial_idx} ...")
         plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose, args.full_plan)
         print(f"... complete with status {datum['trial_status']}")
-
-
-def get_goal_threshold(planner_params):
-    if 'goal_params' in planner_params:
-        goal_threshold = planner_params['goal_params']['threshold']
-    else:
-        goal_threshold = planner_params['goal_threshold']
-    return goal_threshold
-
-
-def plot_steps(scenario: ScenarioWithVisualization,
-               datum: Dict,
-               metadata: Dict,
-               fallback_labeing_params: Dict,
-               verbose: int,
-               full_plan: bool):
-    planner_params = metadata['planner_params']
-    goal_threshold = get_goal_threshold(planner_params)
-
-    labeling_params = labeling_params_from_planner_params(planner_params, fallback_labeing_params)
-
-    steps = datum['steps']
-
-    if len(steps) == 0:
-        q: PlanningQuery = datum['planning_queries'][0]
-        start = q.start
-        goal = q.goal
-        environment = q.environment
-        anim = RvizAnimationController(n_time_steps=1)
-        scenario.plot_state_rviz(start, label='actual', color='#ff0000aa')
-        scenario.plot_goal_rviz(goal, goal_threshold)
-        scenario.plot_environment_rviz(environment)
-        anim.step()
-        return
-
-    goal = datum['goal']
-    first_step = steps[0]
-    planning_query: PlanningQuery = first_step['planning_query']
-    environment = planning_query.environment
-    paths = list(get_paths(datum, verbose, full_plan))
-
-    if len(paths) == 0:
-        rospy.logwarn("empty trial!")
-        return
-
-    anim = RvizAnimationController(n_time_steps=len(paths))
-
-    def _type_action_color(type_t: str):
-        if type_t == 'executed_plan':
-            return 'b'
-        elif type_t == 'executed_recovery':
-            return '#ff00ff'
-
-    scenario.reset_planning_viz()
-    while not anim.done:
-        scenario.plot_environment_rviz(environment)
-        t = anim.t()
-        a_t, s_t, s_t_pred, type_t = paths[t]
-        scenario.plot_state_rviz(s_t, label='actual', color='#ff0000aa')
-        c = '#0000ffaa'
-        if t < anim.max_t:
-            action_color = _type_action_color(type_t)
-            scenario.plot_action_rviz(s_t, a_t, color=action_color)
-
-        if s_t_pred is not None:
-            scenario.plot_state_rviz(s_t_pred, label='predicted', color=c)
-            is_close = scenario.compute_label(s_t, s_t_pred, labeling_params)
-            scenario.plot_is_close(is_close)
-        else:
-            scenario.plot_is_close(None)
-
-        dist_to_goal = scenario.distance_to_goal(s_t, goal)
-        actually_at_goal = dist_to_goal < goal_threshold
-        scenario.plot_goal_rviz(goal, goal_threshold, actually_at_goal)
-
-        anim.step()
 
 
 if __name__ == '__main__':

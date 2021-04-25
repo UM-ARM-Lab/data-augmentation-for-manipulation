@@ -167,7 +167,16 @@ def moving_window_average(x, window: int):
     return pd.DataFrame(x).rolling(window).mean()
 
 
-class MWALinePlotAcrossIterationsFigure(LinePlotAcrossIterationsFigure):
+class CumulativeLinePlotAcrossItersFig(LinePlotAcrossIterationsFigure):
+    def add_to_figure(self, method_name: str, values: List, color):
+        values = np.cumsum(self.metric.values[method_name])
+        self.ax.plot(values, c=color, label=method_name)
+
+    def get_figsize(self):
+        return 10, 5
+
+
+class RollingAverageLinePlotAcrossItersFig(LinePlotAcrossIterationsFigure):
     def add_to_figure(self, method_name: str, values: List, color):
         values = moving_window_average(self.metric.values[method_name], 5)
         self.ax.plot(values, c=color, label=method_name)
@@ -376,7 +385,8 @@ __all__ = [
     'BarChartPercentagePerMethodFigure',
     'TaskErrorLineFigure',
     'LinePlotAcrossIterationsFigure',
-    'MWALinePlotAcrossIterationsFigure',
+    'RollingAverageLinePlotAcrossItersFig',
+    'CumulativeLinePlotAcrossItersFig',
     'box_plot',
     'violin_plot',
 ]

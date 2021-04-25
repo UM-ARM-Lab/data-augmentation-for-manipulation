@@ -54,9 +54,7 @@ def get_data(scenario: ScenarioWithVisualization,
 
     if classifier_iteration_idx == 0:
         log = load_hjson(ift_dir / 'logfile.hjson')
-        classifier_checkpoints = log['classifier_checkpoints']
-        assert len(classifier_checkpoints) == 1
-        pretrained_classifier_dir = classifier_checkpoints[0]
+        pretrained_classifier_dir = log['initial_classifier_checkpoint']
         checkpoint = pathlib.Path(pretrained_classifier_dir)
     else:
         checkpoint = get_named_item_in_dir(classifiers_dir, classifier_iteration_idx - 1)
@@ -109,7 +107,7 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
     scenario = get_scenario(log['planner_params']['scenario'])
     planning_iteration_dirs = ift_dir / 'planning_results'
 
-    mode = 'val'
+    mode = 'all'
 
     iterations = []
     for k in log.keys():
@@ -207,7 +205,7 @@ def get_data_cached(classifier_cache, ift_dir, iteration_idx, planning_data_cach
 
 def get_named_item_in_dir(directory, idx: int):
     for d in directory.iterdir():
-        if re.match(f".*0*{idx}[^\d]", d.name):
+        if re.match(f"[^\d]*0*{idx}[^\d]*$", d.name):
             return d
 
 
