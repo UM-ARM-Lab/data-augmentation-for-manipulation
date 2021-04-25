@@ -122,6 +122,7 @@ class OmplRRTWrapper(MyPlanner):
         self.misc_rng.seed(seed)
         self.goal_sampler_rng.seed(seed)
         self.control_sampler_rng.seed(seed)
+        print(self.control_sampler_rng.get_state())
 
         self.last_propagate_time = time.perf_counter()
         self.progagate_dts = []
