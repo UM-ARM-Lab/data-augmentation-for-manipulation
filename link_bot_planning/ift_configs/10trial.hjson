@@ -17,4 +17,7 @@
     val_split: 0.0
     test_split: 0.0
   }
+  labeling_params_update: {
+    use_augmentation: false
+  }
 }

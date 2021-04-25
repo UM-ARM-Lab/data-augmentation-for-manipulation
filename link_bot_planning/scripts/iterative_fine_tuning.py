@@ -86,6 +86,8 @@ class IterativeFineTuning:
         self.initial_planner_params = nested_dict_update(self.initial_planner_params,
                                                          self.ift_config.get('planner_params_update', {}))
         self.collision_pretraining_config = self.ift_config.get('collision_pretraining', {})
+        use_best_ckpt = self.ift_config.get('use_best_ckpt', True)
+        self.checkpoint_suffix = 'best_checkpoint' if use_best_ckpt else 'latest_checkpoint'
 
         if timeout is not None:
             rospy.loginfo(f"Overriding with timeout {timeout}")
@@ -314,7 +316,7 @@ class IterativeFineTuning:
         planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
         if planning_results_dir is None:
             planning_results_dir = self.planning_results_root_dir / f'iteration_{i:04d}_planning'
-            latest_classifier_checkpoint = iteration_data.latest_classifier_checkpoint_dir / 'best_checkpoint'
+            latest_classifier_checkpoint = iteration_data.latest_classifier_checkpoint_dir / self.checkpoint_suffix
             latest_recovery_checkpoint = iteration_data.latest_recovery_checkpoint_dir / 'best_checkpoint'
             planner_params = self.initial_planner_params.copy()
             planner_params['recovery']['recovery_model_dir'] = latest_recovery_checkpoint
