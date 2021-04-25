@@ -310,12 +310,15 @@ class IterativeFineTuning:
 
     def plan_and_execute(self, iteration_data: IterationData):
         i = iteration_data.iteration
+        # always last the best checkpoint at iteration 0, that's the pretrained model
+        checkpoint_suffix = self.checkpoint_suffix if i != 0 else 'best_checkpoint'
+
         trials = next(self.trial_indices_generator)
         planning_chunker = iteration_data.iteration_chunker.sub_chunker('planning')
         planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
         if planning_results_dir is None:
             planning_results_dir = self.planning_results_root_dir / f'iteration_{i:04d}_planning'
-            latest_classifier_checkpoint = iteration_data.latest_classifier_checkpoint_dir / self.checkpoint_suffix
+            latest_classifier_checkpoint = iteration_data.latest_classifier_checkpoint_dir / checkpoint_suffix
             latest_recovery_checkpoint = iteration_data.latest_recovery_checkpoint_dir / 'best_checkpoint'
             planner_params = self.initial_planner_params.copy()
             planner_params['recovery']['recovery_model_dir'] = latest_recovery_checkpoint
