@@ -432,14 +432,6 @@ def start_iterative_fine_tuning(nickname: str,
     with logfile_name.open("w") as logfile:
         hjson.dump(log, logfile)
 
-    ift = IterativeFineTuning(log=log,
-                              no_execution=no_execution,
-                              timeout=timeout,
-                              on_exception=on_exception,
-                              logfile_name=logfile_name,
-                              )
-    ift.run(num_fine_tuning_iterations=num_fine_tuning_iterations)
-
 
 def start_main(args):
     start_iterative_fine_tuning(nickname=args.nickname,
