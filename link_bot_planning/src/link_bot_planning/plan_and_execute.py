@@ -334,7 +334,7 @@ class PlanAndExecute:
                 time_since_start > total_timeout,
                 self.no_execution,
                 execution_result.end_trial,
-                attempt_idx > max_attempts,
+                attempt_idx >= max_attempts,
             ]
             end_trial = any(end_conditions)
             if end_trial:
