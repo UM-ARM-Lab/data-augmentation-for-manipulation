@@ -431,6 +431,7 @@ def start_iterative_fine_tuning(nickname: str,
     }
     with logfile_name.open("w") as logfile:
         hjson.dump(log, logfile)
+    print(logfile_name.as_posix())
 
 
 def start_main(args):
