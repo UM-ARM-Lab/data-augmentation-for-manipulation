@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>999</width>
+    <width>1058</width>
     <height>38</height>
    </rect>
   </property>
@@ -41,7 +41,14 @@
     </widget>
    </item>
    <item>
-    <widget class="QLineEdit" name="step_number_lineedit"/>
+    <widget class="QLineEdit" name="step_number_lineedit">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
    </item>
    <item>
     <widget class="QLabel" name="label">

@@ -174,6 +174,7 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
                 t0_marker_idx = next(g)
                 t1_marker_idx = next(g)
                 label = 'predicted'
+                print(example['is_close'], predictions['probabilities'])
                 color = 'blue' if example['is_close'][1] else 'red'
                 scenario.plot_state_rviz(pred, label=label, color=color, idx=t0_marker_idx)
                 scenario.plot_state_rviz(pred_next, label=label, color=color, idx=t1_marker_idx)

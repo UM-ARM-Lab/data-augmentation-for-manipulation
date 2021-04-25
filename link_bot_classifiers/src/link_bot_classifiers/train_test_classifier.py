@@ -165,6 +165,11 @@ def eval_generator(dataset_dirs: List[pathlib.Path],
     for example, outputs in runner.val_generator(tf_dataset, val_metrics):
         yield example, outputs
 
+    try:
+        print(model.weights[1])
+    except Exception:
+        pass
+
 
 def eval_main(dataset_dirs: List[pathlib.Path],
               checkpoint: pathlib.Path,
