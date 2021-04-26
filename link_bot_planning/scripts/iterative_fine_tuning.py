@@ -451,6 +451,7 @@ def start_main(args):
                                 )
 
 
+@notifyme.notify()
 def resume_main(args):
     log = load_hjson(args.logfile)
     ift = IterativeFineTuning(log=log,
@@ -470,7 +471,6 @@ def add_args(start_parser):
     start_parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
 
 
-@notifyme.notify()
 @ros_init.with_ros("iterative_fine_tuning")
 def ift_main():
     colorama.init(autoreset=True)
