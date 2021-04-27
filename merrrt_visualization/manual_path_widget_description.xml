@@ -1,0 +1,7 @@
+<library path="lib/libmanual_path_widget">
+    <class name="merrrt_visualization/ManualPathWidget"
+           type="merrrt_visualization::ManualPathWidget"
+           base_class_type="rviz::Panel">
+        <description></description>
+    </class>
+</library>

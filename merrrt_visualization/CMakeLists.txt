@@ -36,3 +36,8 @@ add_library(color_filter_widget src/merrrt_visualization/color_filter_widget.cpp
 target_include_directories(color_filter_widget PUBLIC include ${catkin_INCLUDE_DIRS})
 target_link_libraries(color_filter_widget PUBLIC Qt5::Core Qt5::Widgets ${catkin_LIBRARIES})
 add_dependencies(color_filter_widget ${catkin_EXPORTED_TARGETS})
+
+add_library(manual_path_widget src/merrrt_visualization/manual_path_widget.cpp include/merrrt_visualization/manual_path_widget.h)
+target_include_directories(manual_path_widget PUBLIC include ${catkin_INCLUDE_DIRS})
+target_link_libraries(manual_path_widget PUBLIC Qt5::Core Qt5::Widgets ${catkin_LIBRARIES})
+add_dependencies(manual_path_widget ${catkin_EXPORTED_TARGETS})
