@@ -134,7 +134,7 @@ class IterativeFineTuning:
                                    log_full_tree=self.log_full_tree,
                                    scenario=self.scenario)
 
-    def run(self, num_fine_tuning_iterations: int):
+    def run(self, n_iters: int):
         initial_classifier_checkpoint = pathlib.Path(self.log['initial_classifier_checkpoint'])
         initial_recovery_checkpoint = pathlib.Path(self.log['initial_recovery_checkpoint'])
         fine_tuning_dataset_dirs = []
@@ -147,7 +147,7 @@ class IterativeFineTuning:
 
         latest_classifier_checkpoint_dir = initial_classifier_checkpoint
         latest_recovery_checkpoint_dir = initial_recovery_checkpoint
-        for iteration_idx in range(num_fine_tuning_iterations):
+        for iteration_idx in range(n_iters):
             jobkey = f"iteration {iteration_idx}"
             iteration_chunker = self.job_chunker.sub_chunker(jobkey)
             iteration_start_time = iteration_chunker.get_result('start_time')
@@ -176,7 +176,8 @@ class IterativeFineTuning:
                 iteration_end_time = perf_counter()
                 iteration_chunker.store_result('end_time', iteration_end_time)
             iteration_time = iteration_end_time - iteration_start_time
-            print(Style.BRIGHT + f"Finished iteration {iteration_idx}, {iteration_time:.1f}s" + Style.RESET_ALL)
+            end_iter_msg = f"Finished iteration {iteration_idx}/{n_iters}, {iteration_time:.1f}s"
+            print(Style.BRIGHT + end_iter_msg + Style.RESET_ALL)
 
         [p.kill() for p in self.gazebo_processes]
 
@@ -459,7 +460,7 @@ def resume_main(args):
                               timeout=args.timeout,
                               on_exception=args.on_exception,
                               )
-    ift.run(num_fine_tuning_iterations=args.n_iters)
+    ift.run(n_iters=args.n_iters)
 
 
 def add_args(start_parser):
