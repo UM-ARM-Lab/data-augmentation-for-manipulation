@@ -222,24 +222,29 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
                                    out_example=out_example)
 
         # compute label
-        valid_out_examples = add_model_error(scenario, sliced_actual, sliced_predictions, out_example, labeling_params,
-                                             prediction_actual.batch_size)
+        valid_out_examples = add_model_error_and_filter(scenario, sliced_actual, sliced_predictions, out_example, labeling_params,
+                                                        prediction_actual.batch_size)
         valid_out_example_batches.append(valid_out_examples)
 
     return valid_out_example_batches
 
 
-def add_model_error(scenario, actual, predictions, out_example, labeling_params: Dict, batch_size: int):
-    threshold = labeling_params['threshold']
-    error = scenario.classifier_distance(actual, predictions)
-    out_example['error'] = tf.cast(error, dtype=tf.float32)
-    is_close = error < threshold
+def add_model_error_and_filter(scenario, actual, predictions, out_example, labeling_params: Dict, batch_size: int):
+    is_close = add_model_error(actual, labeling_params, out_example, predictions, scenario)
 
     valid_out_examples = filter_valid_example_batches(is_close,
                                                       labeling_params,
                                                       out_example,
                                                       batch_size)
     return valid_out_examples
+
+
+def add_model_error(actual, labeling_params, out_example, predictions, scenario):
+    threshold = labeling_params['threshold']
+    error = scenario.classifier_distance(actual, predictions)
+    out_example['error'] = tf.cast(error, dtype=tf.float32)
+    is_close = error < threshold
+    return is_close
 
 
 def slice_to_fixed_length(classifier_horizon: int,
@@ -272,6 +277,7 @@ def int_scalar_to_batched_float(batch_size: int, t: int):
 
 def filter_valid_example_batches(is_close, labeling_params: Dict, examples: Dict, batch_size: int):
     if not labeling_params.get('includes_starts_far', False):
+        rospy.logerr("wrong dimension?")
         is_first_predicted_state_close = is_close[:, 0]
         valid_indices = tf.where(is_first_predicted_state_close)
         valid_indices = tf.squeeze(valid_indices, axis=1)

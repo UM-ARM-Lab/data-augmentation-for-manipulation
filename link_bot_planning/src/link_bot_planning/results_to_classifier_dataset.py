@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 import rospy
-from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error
+from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
 from link_bot_data.dataset_utils import tf_write_example, add_predicted
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_gazebo.gazebo_services import GazeboServices
@@ -335,12 +335,12 @@ class ResultsToClassifierDataset:
                                    predictions=predicted_batched,
                                    out_example=example_batched,
                                    labeling_params=self.labeling_params)
-        valid_out_examples_batched = add_model_error(self.scenario,
-                                                     actual=actual_batched,
-                                                     predictions=predicted_batched,
-                                                     out_example=example_batched,
-                                                     labeling_params=self.labeling_params,
-                                                     batch_size=1)
+        valid_out_examples_batched = add_model_error_and_filter(self.scenario,
+                                                                actual=actual_batched,
+                                                                predictions=predicted_batched,
+                                                                out_example=example_batched,
+                                                                labeling_params=self.labeling_params,
+                                                                batch_size=1)
         test_shape = valid_out_examples_batched['time_idx'].shape[0]
         if test_shape == 1:
             valid_out_example = remove_batch(valid_out_examples_batched)
