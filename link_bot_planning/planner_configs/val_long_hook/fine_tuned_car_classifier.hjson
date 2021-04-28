@@ -1,14 +1,14 @@
 {
-  method_name: car classifier fine tuned*
+  method_name: fine tuned, manual data
   classifier_model_dir: [
-    cl_trials/car_fine_tune_long_hook_stop_on_error/April_08_09-03-20_184d5d5948/best_checkpoint
+    cl_trials/long_hook_manual/April_27_15-20-06_f62e041dcf/best_checkpoint
     cl_trials/new_feasibility_baseline/none
   ]
-  stop_on_error_above: 0.1
   recovery: {
-    use_recovery: false
+    use_recovery: true
   }
   termination_criteria: {
-    attempted_extensions_threshold: 500
+    # if use_recovery is false, we should set attempted_extensions_threshold to a large number
+    # attempted_extensions_threshold: 500
   }
 }

@@ -507,6 +507,9 @@ class OmplRRTWrapper(MyPlanner):
         return action_sequence, state_sequence
 
     def plot_path(self, state_sequence, action_sequence, label='smoothed'):
+        if len(action_sequence) == 0 or len(state_sequence) == 0:
+            return
+
         # TODO: make this one message so dropped messages are less of an issue?
         for t, (state_t, action_t) in enumerate(zip_repeat_shorter(state_sequence, action_sequence)):
             self.scenario.plot_state_rviz(state_t, label=label, idx=t)

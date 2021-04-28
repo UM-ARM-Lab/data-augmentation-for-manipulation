@@ -8,7 +8,7 @@ import numpy as np
 import rospy
 from arc_utilities import ros_init
 from link_bot_data.classifier_dataset_utils import add_model_error
-from link_bot_data.dataset_utils import tf_write_example, add_predicted
+from link_bot_data.dataset_utils import tf_write_example, add_predicted, use_gt_rope
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import try_make_dict_tf_float32
@@ -49,7 +49,7 @@ def main():
     classifier_dataset_hparams['fwd_model_hparams'] = fwd_model.hparams
     classifier_dataset_hparams['predicted_state_keys'] = fwd_model.state_keys
     classifier_dataset_hparams['dataset_dir'] = 'manual'
-    classifier_dataset_hparams['true_state_keys'] = fwd_model.state_keys
+    classifier_dataset_hparams['true_state_keys'] = fwd_model.state_keys + ['gt_rope']
     classifier_dataset_hparams['state_metadata_keys'] = fwd_model.state_metadata_keys
     classifier_dataset_hparams['action_keys'] = fwd_model.action_keys
 
@@ -97,6 +97,7 @@ def main():
         example.update(states)
         example.update({add_predicted(k): v for k, v in predictions.items()})
         example.update(actions)
+        example = use_gt_rope(example)
         add_model_error(states, labeling_params, example, predictions, scenario)
 
         # write example to file

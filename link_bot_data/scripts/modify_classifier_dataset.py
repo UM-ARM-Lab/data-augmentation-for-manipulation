@@ -21,14 +21,12 @@ def main():
 
     args = parser.parse_args()
 
-    rospy.init_node("modify_dynamics_dataset")
+    rospy.init_node("modify_classifier_dataset")
 
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset: ClassifierDatasetLoader, example: Dict):
-        for k, v in example.items():
-            if v.dtype in [tf.int32, tf.int64, tf.float32, tf.float64]:
-                example[k] = tf.cast(v, tf.float32)
+        example['gt_rope'] = example['rope']
         yield example
 
     hparams_update = {}
@@ -39,7 +37,7 @@ def main():
                    outdir=outdir,
                    process_example=_process_example,
                    hparams_update=hparams_update,
-                   slow=True)
+                   slow=False)
 
 
 if __name__ == '__main__':
