@@ -442,14 +442,6 @@ def ift_main(args):
     ift.run(n_iters=args.n_iters)
 
 
-def add_args(start_parser):
-    start_parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
-    start_parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
-    start_parser.add_argument("--n-iters", '-n', type=int, help='number of iterations of fine tuning', default=100)
-    start_parser.add_argument("--no-execution", action="store_true", help='no execution')
-    start_parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
-
-
 @ros_init.with_ros("iterative_fine_tuning")
 def main():
     colorama.init(autoreset=True)
@@ -459,21 +451,24 @@ def main():
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
-    start_parser = subparsers.add_parser('start')
-    resume_parser = subparsers.add_parser('resume')
+    setup_parser = subparsers.add_parser('start')
+    run_parser = subparsers.add_parser('resume')
 
-    start_parser.add_argument("ift_config", type=pathlib.Path, help='hjson file from ift_config/')
-    start_parser.add_argument('planner_params', type=pathlib.Path, help='hjson file from planner_configs/')
-    start_parser.add_argument("classifier_checkpoint", type=pathlib.Path, help='classifier checkpoint to start from')
-    start_parser.add_argument("recovery_checkpoint", type=pathlib.Path, help='recovery checkpoint to start from')
-    start_parser.add_argument("nickname", type=str, help='used in making the output directory')
-    start_parser.add_argument("test_scenes_dir", type=pathlib.Path)
-    start_parser.set_defaults(func=setup_ift)
-    add_args(start_parser)
+    setup_parser.add_argument("ift_config", type=pathlib.Path, help='hjson file from ift_config/')
+    setup_parser.add_argument('planner_params', type=pathlib.Path, help='hjson file from planner_configs/')
+    setup_parser.add_argument("classifier_checkpoint", type=pathlib.Path, help='classifier checkpoint to setup from')
+    setup_parser.add_argument("recovery_checkpoint", type=pathlib.Path, help='recovery checkpoint to setup from')
+    setup_parser.add_argument("nickname", type=str, help='used in making the output directory')
+    setup_parser.add_argument("test_scenes_dir", type=pathlib.Path)
+    setup_parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
+    setup_parser.set_defaults(func=setup_ift)
 
-    resume_parser.add_argument("logfile", type=pathlib.Path)
-    resume_parser.set_defaults(func=ift_main)
-    add_args(resume_parser)
+    run_parser.add_argument("logfile", type=pathlib.Path)
+    run_parser.add_argument("--n-iters", '-n', type=int, help='number of iterations of fine tuning', default=100)
+    run_parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
+    run_parser.add_argument("--no-execution", action="store_true", help='no execution')
+    run_parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
+    run_parser.set_defaults(func=ift_main)
 
     # deal_with_exceptions(how_to_handle='retry', function=run_subparsers(parser))
     run_subparsers(parser)
