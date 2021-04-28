@@ -408,9 +408,9 @@ def setup_ift(args):
         rospy.loginfo(Fore.YELLOW + "Creating output directory: {}".format(outdir))
         outdir.mkdir(parents=True)
 
-    ift_config = load_hjson(args.ift_config_filename)
+    ift_config = load_hjson(args.ift_config)
 
-    initial_planner_params = load_planner_params(args.planner_params_filename)
+    initial_planner_params = load_planner_params(args.planner_params)
 
     logfile_name = outdir / 'logfile.hjson'
     log = {
