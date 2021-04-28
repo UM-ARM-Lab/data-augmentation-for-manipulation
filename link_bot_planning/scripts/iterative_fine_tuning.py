@@ -458,8 +458,8 @@ def main():
     setup_parser.add_argument('planner_params', type=pathlib.Path, help='hjson file from planner_configs/')
     setup_parser.add_argument("classifier_checkpoint", type=pathlib.Path, help='classifier checkpoint to setup from')
     setup_parser.add_argument("recovery_checkpoint", type=pathlib.Path, help='recovery checkpoint to setup from')
-    setup_parser.add_argument("nickname", type=str, help='used in making the output directory')
     setup_parser.add_argument("test_scenes_dir", type=pathlib.Path)
+    setup_parser.add_argument("nickname", type=str, help='used in making the output directory')
     setup_parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
     setup_parser.set_defaults(func=setup_ift)
 
