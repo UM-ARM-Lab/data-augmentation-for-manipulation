@@ -108,7 +108,7 @@ class IterativeFineTuning:
                                                    self.ift_config['trials_per_iteration'])
         elif trials_generator_type == 'random':
             def _random():
-                rng = np.random.RandomState(0)
+                rng = np.random.RandomState(self.log['seed'])
                 while True:
                     yield rng.choice(all_trial_indices, size=self.ift_config['trials_per_iteration'], replace=False)
 
@@ -243,7 +243,7 @@ class IterativeFineTuning:
         files_dataset = FilesDataset(root_dir=dataset_dir)
 
         def configs_generator():
-            rng = random.Random(0)
+            rng = random.Random(self.log['seed'])
             configs_dir = pathlib.Path(self.collision_pretraining_config['configs_dir'])
             configs_repeated = list(configs_dir.glob("initial_config_*.pkl"))
             while True:
@@ -252,7 +252,7 @@ class IterativeFineTuning:
                 yield config['state'], config['env']
 
         n_examples = self.collision_pretraining_config['n_examples']
-        action_rng = np.random.RandomState(0)
+        action_rng = np.random.RandomState(self.log['seed'])
         batch_size = 16
         action_sequence_length = 10
         action_params_filename = pathlib.Path(self.collision_pretraining_config['action_params_filename'])
@@ -340,7 +340,8 @@ class IterativeFineTuning:
                                       planner_params=planner_params,
                                       outdir=planning_results_dir,
                                       trials=trials,
-                                      test_scenes_dir=self.test_scenes_dir)
+                                      test_scenes_dir=self.test_scenes_dir,
+                                      seed=self.log['seed'])
 
             deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)
             [p.suspend() for p in self.gazebo_processes]
@@ -396,69 +397,47 @@ class IterativeFineTuning:
         return new_latest_checkpoint_dir
 
 
-def start_iterative_fine_tuning(nickname: str,
-                                planner_params_filename: pathlib.Path,
-                                classifier_checkpoint: pathlib.Path,
-                                recovery_checkpoint: pathlib.Path,
-                                ift_config_filename: pathlib.Path,
-                                num_fine_tuning_iterations: int,
-                                no_execution: bool,
-                                timeout: int,
-                                test_scenes_dir: pathlib.Path,
-                                on_exception: str,
-                                ):
+def setup_ift(args):
     from_env = input("from: ")
     to_env = input("to: ")
 
     # setup
-    outdir = data_directory(pathlib.Path('results') / 'iterative_fine_tuning' / f"{nickname}")
+    outdir = data_directory(pathlib.Path('results') / 'iterative_fine_tuning' / f"{args.nickname}")
 
     if not outdir.exists():
         rospy.loginfo(Fore.YELLOW + "Creating output directory: {}".format(outdir))
         outdir.mkdir(parents=True)
 
-    ift_config = load_hjson(ift_config_filename)
+    ift_config = load_hjson(args.ift_config_filename)
 
-    initial_planner_params = load_planner_params(planner_params_filename)
+    initial_planner_params = load_planner_params(args.planner_params_filename)
 
     logfile_name = outdir / 'logfile.hjson'
     log = {
-        'nickname':                      nickname,
+        'nickname':                      args.nickname,
         'planner_params':                initial_planner_params,
-        'test_scenes_dir':               test_scenes_dir.as_posix(),
-        'initial_classifier_checkpoint': classifier_checkpoint.as_posix(),
-        'initial_recovery_checkpoint':   recovery_checkpoint.as_posix(),
+        'test_scenes_dir':               args.test_scenes_dir.as_posix(),
+        'initial_classifier_checkpoint': args.classifier_checkpoint.as_posix(),
+        'initial_recovery_checkpoint':   args.recovery_checkpoint.as_posix(),
         'from_env':                      from_env,
         'to_env':                        to_env,
         'ift_config':                    ift_config,
+        'seed':                          args.seed,
     }
     with logfile_name.open("w") as logfile:
         hjson.dump(log, logfile)
     print(logfile_name.as_posix())
 
 
-def start_main(args):
-    start_iterative_fine_tuning(nickname=args.nickname,
-                                planner_params_filename=args.planner_params,
-                                classifier_checkpoint=args.classifier_checkpoint,
-                                recovery_checkpoint=args.recovery_checkpoint,
-                                num_fine_tuning_iterations=args.n_iters,
-                                ift_config_filename=args.ift_config,
-                                no_execution=args.no_execution,
-                                timeout=args.timeout,
-                                test_scenes_dir=args.test_scenes_dir,
-                                on_exception=args.on_exception,
-                                )
-
-
 @notifyme.notify()
-def resume_main(args):
+def ift_main(args):
     log = load_hjson(args.logfile)
     ift = IterativeFineTuning(log=log,
                               logfile_name=args.logfile,
                               no_execution=args.no_execution,
                               timeout=args.timeout,
                               on_exception=args.on_exception,
+                              seed=args.seed,
                               )
     ift.run(n_iters=args.n_iters)
 
@@ -472,7 +451,7 @@ def add_args(start_parser):
 
 
 @ros_init.with_ros("iterative_fine_tuning")
-def ift_main():
+def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
     ou.setLogLevel(ou.LOG_ERROR)
@@ -489,11 +468,11 @@ def ift_main():
     start_parser.add_argument("recovery_checkpoint", type=pathlib.Path, help='recovery checkpoint to start from')
     start_parser.add_argument("nickname", type=str, help='used in making the output directory')
     start_parser.add_argument("test_scenes_dir", type=pathlib.Path)
-    start_parser.set_defaults(func=start_main)
+    start_parser.set_defaults(func=setup_ift)
     add_args(start_parser)
 
     resume_parser.add_argument("logfile", type=pathlib.Path)
-    resume_parser.set_defaults(func=resume_main)
+    resume_parser.set_defaults(func=ift_main)
     add_args(resume_parser)
 
     # deal_with_exceptions(how_to_handle='retry', function=run_subparsers(parser))
@@ -501,4 +480,4 @@ def ift_main():
 
 
 if __name__ == '__main__':
-    ift_main()
+    main()
