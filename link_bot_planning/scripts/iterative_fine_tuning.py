@@ -451,8 +451,8 @@ def main():
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
-    setup_parser = subparsers.add_parser('start')
-    run_parser = subparsers.add_parser('resume')
+    setup_parser = subparsers.add_parser('setup')
+    run_parser = subparsers.add_parser('run')
 
     setup_parser.add_argument("ift_config", type=pathlib.Path, help='hjson file from ift_config/')
     setup_parser.add_argument('planner_params', type=pathlib.Path, help='hjson file from planner_configs/')
