@@ -163,14 +163,13 @@ class LinePlotAcrossIterationsFigure(MyFigure):
         super().finish_figure()
 
 
-def moving_window_average(x, window: int):
-    return pd.DataFrame(x).rolling(window).mean()
-
-
 class CumulativeLinePlotAcrossItersFig(LinePlotAcrossIterationsFigure):
     def add_to_figure(self, method_name: str, values: List, color):
-        values = np.cumsum(self.metric.values[method_name])
-        self.ax.plot(values, c=color, label=method_name)
+        x = self.metric.all_values[method_name]
+        total_numerators = np.cumsum([np.sum(x_i) for x_i in x])
+        total_denominators = np.cumsum([len(x_i) for x_i in x])
+        cumulative_averages = total_numerators / total_denominators
+        self.ax.plot(cumulative_averages, c=color, label=method_name)
 
     def get_figsize(self):
         return 10, 5
@@ -178,7 +177,7 @@ class CumulativeLinePlotAcrossItersFig(LinePlotAcrossIterationsFigure):
 
 class RollingAverageLinePlotAcrossItersFig(LinePlotAcrossIterationsFigure):
     def add_to_figure(self, method_name: str, values: List, color):
-        values = moving_window_average(self.metric.values[method_name], 5)
+        values = pd.DataFrame(self.metric.values[method_name]).rolling(5).mean()
         self.ax.plot(values, c=color, label=method_name)
 
     def get_figsize(self):
