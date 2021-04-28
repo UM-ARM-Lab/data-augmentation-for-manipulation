@@ -437,7 +437,6 @@ def ift_main(args):
                               no_execution=args.no_execution,
                               timeout=args.timeout,
                               on_exception=args.on_exception,
-                              seed=args.seed,
                               )
     ift.run(n_iters=args.n_iters)
 
