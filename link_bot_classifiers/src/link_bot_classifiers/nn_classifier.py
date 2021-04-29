@@ -477,7 +477,7 @@ class NNClassifierWrapper(BaseConstraintChecker):
         if manager.latest_checkpoint:
             print(Fore.CYAN + "Restored from {}".format(manager.latest_checkpoint) + Fore.RESET)
             if manager.latest_checkpoint:
-                status.assert_existing_objects_matched()
+                status.assert_nontrivial_match()
         else:
             raise RuntimeError(f"Failed to restore {manager.latest_checkpoint}!!!")
 
