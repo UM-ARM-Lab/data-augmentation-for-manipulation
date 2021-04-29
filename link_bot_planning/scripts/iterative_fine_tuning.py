@@ -385,8 +385,7 @@ class IterativeFineTuning:
             [p.suspend() for p in self.gazebo_processes]
 
             adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_dataset_dirs, max_batch_size=16)
-            augmentation_3d = self.classifier_augmentation(adaptive_batch_size,
-                                                           iteration_data.latest_classifier_checkpoint_dir)
+            augmentation_3d = self.get_classifier_augmentation_func()
             new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=iteration_data.fine_tuning_dataset_dirs,
                                                              checkpoint=latest_checkpoint,
                                                              log=f'iteration_{i:04d}_training_logdir',
@@ -399,8 +398,10 @@ class IterativeFineTuning:
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         return new_latest_checkpoint_dir
 
-    def classifier_augmentation(self, batch_size: int, classifier_dir: pathlib.Path):
+    def get_classifier_augmentation_func(self):
         augmentation_type = self.labeling_params.get('augmentation_type', None)
+        if augmentation_type is not None:
+            print(f"Augmentation: {augmentation_type}")
         if augmentation_type == 'env_augmentation_1':
             return NNClassifier.env_augmentation_1
 
