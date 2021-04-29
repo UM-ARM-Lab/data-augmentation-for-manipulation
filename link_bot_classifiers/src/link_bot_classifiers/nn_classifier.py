@@ -14,11 +14,11 @@ from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
-    batch_point_to_idx_tf_3d_in_batched_envs
+    batch_point_to_idx_tf_3d_in_batched_envs, send_occupancy_tf, environment_to_occupancy_msg, environment_to_pc2
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
-from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
+from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env, create_env_indices
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, \
     FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
@@ -26,8 +26,9 @@ from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
 from mps_shape_completion_msgs.msg import OccupancyStamped
+from sensor_msgs.msg import PointCloud2
 
-DEBUG_VIZ = False
+DEBUG_VIZ = True
 
 
 class NNClassifier(MyKerasModel):
@@ -39,6 +40,7 @@ class NNClassifier(MyKerasModel):
             rospy.Publisher(f'classifier_raster_debug_{i}', OccupancyStamped, queue_size=10, latch=False) for i in
             range(4)]
         self.local_env_bbox_pub = rospy.Publisher('local_env_bbox', BoundingBox, queue_size=10, latch=True)
+        self.env_aug_pub = rospy.Publisher("env_aug", PointCloud2, queue_size=10)
 
         self.classifier_dataset_hparams = self.hparams['classifier_dataset_hparams']
         self.dynamics_dataset_hparams = self.classifier_dataset_hparams['fwd_model_hparams']['dynamics_dataset_hparams']
@@ -49,6 +51,8 @@ class NNClassifier(MyKerasModel):
         self.local_env_w_cols = self.hparams['local_env_w_cols']
         self.local_env_c_channels = self.hparams['local_env_c_channels']
         self.rope_image_k = self.hparams['rope_image_k']
+
+        self.augmentation_3d = None  # caller can set this to a function that modifies the 3d state/env representation
 
         # TODO: add stdev to states keys?
         self.state_keys = self.hparams['state_keys']
@@ -88,22 +92,8 @@ class NNClassifier(MyKerasModel):
                                                       layers.Dense(self.certs_k, activation=None),
                                                       ])
 
-    def make_traj_voxel_grids_from_input_dict(self, input_dict: Dict, batch_size, time: int):
-        # Construct a [b, h, w, c, 3] grid of the indices which make up the local environment
-        pixel_row_indices = tf.range(0, self.local_env_h_rows, dtype=tf.float32)
-        pixel_col_indices = tf.range(0, self.local_env_w_cols, dtype=tf.float32)
-        pixel_channel_indices = tf.range(0, self.local_env_c_channels, dtype=tf.float32)
-        x_indices, y_indices, z_indices = tf.meshgrid(pixel_col_indices, pixel_row_indices, pixel_channel_indices)
-
-        # Make batched versions for creating the local environment
-        batch_y_indices = tf.cast(tf.tile(tf.expand_dims(y_indices, axis=0), [batch_size, 1, 1, 1]), tf.int64)
-        batch_x_indices = tf.cast(tf.tile(tf.expand_dims(x_indices, axis=0), [batch_size, 1, 1, 1]), tf.int64)
-        batch_z_indices = tf.cast(tf.tile(tf.expand_dims(z_indices, axis=0), [batch_size, 1, 1, 1]), tf.int64)
-
-        # Convert for rastering state
-        pixel_indices = tf.stack([y_indices, x_indices, z_indices], axis=3)
-        pixel_indices = tf.expand_dims(pixel_indices, axis=0)
-        pixel_indices = tf.tile(pixel_indices, [batch_size, 1, 1, 1, 1])
+    def conv_encoder(self, input_dict: Dict, batch_size, time: int, training: bool):
+        indices = self.create_env_indices(batch_size)
 
         conv_outputs_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
         debug_info_seq = []
@@ -112,8 +102,8 @@ class NNClassifier(MyKerasModel):
 
             local_env_center_t = self.scenario.local_environment_center_differentiable(state_t)
             # by converting too and from the frame of the full environment, we ensure the grids are aligned
-            indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center_t, input_dict)
-            local_env_center_t = batch_idx_to_point_3d_in_env_tf(*indices, input_dict)
+            center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center_t, input_dict)
+            local_env_center_t = batch_idx_to_point_3d_in_env_tf(*center_indices, input_dict)
 
             local_env_t, local_env_origin_t = get_local_env(center_point=local_env_center_t,
                                                             full_env=input_dict['env'],
@@ -122,16 +112,16 @@ class NNClassifier(MyKerasModel):
                                                             local_h_rows=self.local_env_h_rows,
                                                             local_w_cols=self.local_env_w_cols,
                                                             local_c_channels=self.local_env_c_channels,
-                                                            batch_x_indices=batch_x_indices,
-                                                            batch_y_indices=batch_y_indices,
-                                                            batch_z_indices=batch_z_indices,
+                                                            batch_x_indices=indices.batch_x,
+                                                            batch_y_indices=indices.batch_y,
+                                                            batch_z_indices=indices.batch_z,
                                                             batch_size=batch_size)
 
             local_voxel_grid_t_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
             local_voxel_grid_t_array = local_voxel_grid_t_array.write(0, local_env_t)
             for i, (k, state_component_t) in enumerate(state_t.items()):
                 state_component_voxel_grid = raster_3d(state=state_component_t,
-                                                       pixel_indices=pixel_indices,
+                                                       pixel_indices=indices.pixels,
                                                        res=input_dict['res'],
                                                        origin=local_env_origin_t,
                                                        h=self.local_env_h_rows,
@@ -145,6 +135,10 @@ class NNClassifier(MyKerasModel):
             # add channel dimension information because tf.function erases it somehow...
             local_voxel_grid_t.set_shape([None, None, None, None, len(self.state_keys) + 1])
 
+            # optionally augment the local environment
+            if self.augmentation_3d is not None:
+                local_voxel_grid_t = self.augmentation_3d(self, input_dict, state_t, local_voxel_grid_t, training)
+
             out_conv_z = self.fwd_conv(batch_size, local_voxel_grid_t)
 
             conv_outputs_array = conv_outputs_array.write(t, out_conv_z)
@@ -154,6 +148,81 @@ class NNClassifier(MyKerasModel):
 
         conv_outputs = conv_outputs_array.stack()
         return tf.transpose(conv_outputs, [1, 0, 2]), debug_info_seq
+
+    def env_augmentation_1(self,
+                           example: Dict,
+                           state: Dict,
+                           local_voxel_grid: tf.Tensor,
+                           training: bool):
+        @tf.function
+        def _env_augmentation_1():
+            extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
+            extent_lower = tf.gather(extent, 0, axis=-1)
+            extent_upper = tf.gather(extent, 1, axis=-1)
+            local_env_center = tf.random.uniform([self.batch_size, 3], extent_lower, extent_upper)
+
+            # NOTE: copied from nn_classifier
+            center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center, example)
+            local_env_center = batch_idx_to_point_3d_in_env_tf(*center_indices, example)
+            indices = create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels,
+                                         self.batch_size)
+            local_env_aug, local_env_aug_origin = get_local_env(center_point=local_env_center,
+                                                                full_env=example['env'],
+                                                                full_env_origin=example['origin'],
+                                                                res=example['res'],
+                                                                local_h_rows=self.local_env_h_rows,
+                                                                local_w_cols=self.local_env_w_cols,
+                                                                local_c_channels=self.local_env_c_channels,
+                                                                batch_x_indices=indices.batch_x,
+                                                                batch_y_indices=indices.batch_y,
+                                                                batch_z_indices=indices.batch_z,
+                                                                batch_size=self.batch_size)
+            return local_env_aug, local_env_aug_origin
+
+        n_state_components = len(self.state_keys)
+        local_env_aug, local_env_aug_origin = _env_augmentation_1()
+
+        # check if the augmentation is valid. This makes use of prior knowledge.
+        local_voxel_grid_rastered_states = local_voxel_grid[:, :, :, :, 1:]
+        states_flat = tf.reshape(local_voxel_grid_rastered_states, [self.batch_size, -1, n_state_components])
+        aug_flat = tf.reshape(local_env_aug, [self.batch_size, -1])
+        states_flat_bool = tf.reduce_any(states_flat > 0.5, axis=-1)
+        aug_flat_bool = tf.cast(aug_flat, tf.bool)
+        intersects_state = tf.reduce_any(tf.logical_and(states_flat_bool, aug_flat_bool), axis=1)
+
+        # the dims of local_voxel_grid are batch, rows, cols, channels, features
+        # and features[0] is the local env, so pad the other feature dims with zero
+        paddings = [[0, 0], [0, 0], [0, 0], [0, 0], [0, n_state_components]]
+        local_voxel_grid_plus_aug = local_voxel_grid + tf.pad(tf.expand_dims(local_env_aug, axis=-1), paddings)
+
+        if DEBUG_VIZ:
+            from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
+            from link_bot_pycommon.grid_utils import compute_extent_3d
+            from time import time
+
+            stepper = RvizSimpleStepper()
+            for b in range(self.batch_size):
+                intersects_state_b = intersects_state[b]
+                local_env_aug_extent_b = compute_extent_3d(self.local_env_h_rows,
+                                                           self.local_env_w_cols,
+                                                           self.local_env_c_channels,
+                                                           example['res'][b],
+                                                           local_env_aug_origin[b])
+                env_aug_dict = {
+                    'env':    local_env_aug[b].numpy(),
+                    'origin': local_env_aug_origin[b].numpy(),
+                    'extent': local_env_aug_extent_b,
+                    'res':    example['res'][b].numpy(),
+                }
+                raster_msg = environment_to_pc2(env_aug_dict, frame='env_aug', stamp=rospy.Time(0))
+                self.env_aug_pub.publish(raster_msg)
+                send_occupancy_tf(self.scenario.tf.tf_broadcaster, env_aug_dict, frame='env_aug')
+                stepper.step()
+
+        return local_voxel_grid_plus_aug
+
+    def create_env_indices(self, batch_size: int):
+        return create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels, batch_size)
 
     def fwd_conv(self, batch_size, local_voxel_grid_t):
         conv_z = local_voxel_grid_t
@@ -245,12 +314,12 @@ class NNClassifier(MyKerasModel):
         metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
 
-    @tf.function
+    # @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
         batch_size = input_dict['batch_size']
         time = tf.cast(input_dict['time'], tf.int32)
 
-        conv_output, debug_info_seq = self.make_traj_voxel_grids_from_input_dict(input_dict, batch_size, time)
+        conv_output, debug_info_seq = self.conv_encoder(input_dict, batch_size, time, training)
 
         out_h = self.fc(conv_output, input_dict, training)
 
@@ -311,7 +380,7 @@ class NNClassifier(MyKerasModel):
         from link_bot_pycommon.bbox_visualization import grid_to_bbox
         from moonshine.moonshine_utils import numpify
         from moonshine.indexing import index_dict_of_batched_tensors_tf, index_time_with_metadata
-        from link_bot_pycommon.grid_utils import environment_to_occupancy_msg, send_occupancy_tf
+        from link_bot_pycommon.grid_utils import environment_to_occupancy_msg, send_occupancy_tf, compute_extent_3d
         import numpy as np
         from time import time
 
@@ -335,13 +404,19 @@ class NNClassifier(MyKerasModel):
                         'origin': local_env_origin_t[b].numpy(),
                         'res':    input_dict['res'][b].numpy(),
                     }
-                    raster_msg = environment_to_occupancy_msg(raster_dict, frame='local_occupancy')
+                    raster_msg = environment_to_occupancy_msg(raster_dict, frame='local_occupancy', stamp=rospy.Time(0))
                     self.raster_debug_pubs[i].publish(raster_msg)
 
+                local_env_extent_t_b = compute_extent_3d(self.local_env_h_rows,
+                                                         self.local_env_w_cols,
+                                                         self.local_env_c_channels,
+                                                         example['res'],
+                                                         local_env_origin_t[b])
                 local_env_dict = {
                     'env':    local_env_t[b],
+                    'extent': local_env_extent_t_b,
                     'origin': local_env_origin_t[b].numpy(),
-                    'res':    input_dict['res'][b].numpy(),
+                    'res':    example['res'].numpy(),
                 }
                 send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_dict, frame='local_occupancy')
 
@@ -362,8 +437,7 @@ class NNClassifier(MyKerasModel):
                 bbox_msg.header.frame_id = 'local_occupancy'
                 self.local_env_bbox_pub.publish(bbox_msg)
 
-                # stepper.step()
-
+                stepper.step()
 
 
 class NNClassifierWrapper(BaseConstraintChecker):

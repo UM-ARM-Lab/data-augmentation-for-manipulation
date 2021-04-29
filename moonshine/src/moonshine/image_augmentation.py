@@ -1,11 +1,17 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 import tensorflow as tf
-
 
 # CuRL and other papers suggest that random crop is the most important data augmentation for learning state/dynamics
 # https://arxiv.org/pdf/2004.13649.pdf
 # https://www.tensorflow.org/tutorials/images/data_augmentation
+from arc_utilities.ros_helpers import get_connected_publisher
+from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_in_batched_envs, batch_idx_to_point_3d_in_env_tf, \
+    send_occupancy_tf, environment_to_occupancy_msg, compute_extent_3d
+from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
+from moonshine.get_local_environment import create_env_indices
+from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
+from mps_shape_completion_msgs.msg import OccupancyStamped
 
 
 def augment(image_sequence, image_h: int, image_w: int, generator: tf.random.Generator):

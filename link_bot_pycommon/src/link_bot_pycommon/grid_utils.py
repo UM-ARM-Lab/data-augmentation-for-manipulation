@@ -3,9 +3,11 @@ from typing import Dict, Optional
 import numpy as np
 import tensorflow as tf
 
+import ros_numpy
 import rospy
 from geometry_msgs.msg import TransformStamped
 from mps_shape_completion_msgs.msg import OccupancyStamped
+from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import MultiArrayDimension, Float32MultiArray
 
 
@@ -18,10 +20,10 @@ def batch_idx_to_point_3d_in_env_tf(row,
                                     channel,
                                     env: Dict):
     origin = tf.cast(env['origin'], tf.int64)
-    y = tf.cast(row - origin[:, 0], tf.float32) * env['res']
-    x = tf.cast(col - origin[:, 1], tf.float32) * env['res']
-    z = tf.cast(channel - origin[:, 2], tf.float32) * env['res']
-    return tf.stack([x, y, z], axis=1)
+    y = tf.cast(row - tf.gather(origin, 0, axis=-1), tf.float32) * env['res']
+    x = tf.cast(col - tf.gather(origin, 1, axis=-1), tf.float32) * env['res']
+    z = tf.cast(channel - tf.gather(origin, 2, axis=-1), tf.float32) * env['res']
+    return tf.stack([x, y, z], axis=-1)
 
 
 def idx_to_point_3d_in_env(row: int,
@@ -117,7 +119,26 @@ def extent_to_origin_point(extent, res):
     return np.array([ox, oy, oz])
 
 
-def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy') -> OccupancyStamped:
+def environment_to_pc2(environment: Dict, frame_id: str = 'occupancy', stamp=None):
+    return voxel_grid_to_pc2(environment['env'], environment['res'], frame_id, stamp)
+
+
+def voxel_grid_to_pc2(voxel_grid: np.ndarray, scale: float, frame_id: str, stamp: rospy.Time):
+    intensity = voxel_grid.flatten()
+    slices = [slice(0, s) for s in voxel_grid.shape]
+    indices = np.reshape(np.mgrid[slices], [3, -1]).T
+    points = indices * scale + scale / 2
+    points = list(zip(points[:, 0], points[:, 1], points[:, 2], intensity))
+    dtype = [('x', np.float32), ('y', np.float32), ('z', np.float32), ('intensity', np.float32)]
+    np_record_array = np.array(points, dtype=dtype)
+    msg = ros_numpy.msgify(PointCloud2, np_record_array, frame_id=frame_id, stamp=stamp)
+    return msg
+
+
+def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy', stamp=None):
+    if stamp is None:
+        stamp = rospy.Time.now()
+
     occupancy = Float32MultiArray()
     env = environment['env']
     # NOTE: The plugin assumes data is ordered [x,y,z] so transpose here
@@ -130,7 +151,7 @@ def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy') ->
     msg = OccupancyStamped()
     msg.occupancy = occupancy
     msg.scale = environment['res']
-    msg.header.stamp = rospy.Time.now()
+    msg.header.stamp = stamp
     msg.header.frame_id = frame
     return msg
 
@@ -179,12 +200,12 @@ def batch_point_to_idx_tf(x,
 
 
 def batch_point_to_idx_tf_3d_in_batched_envs(points, env: Dict):
-    x = points[:, 0]
-    y = points[:, 1]
-    z = points[:, 2]
-    col = tf.cast(x / env['res'] + env['origin'][:, 1], tf.int64)
-    row = tf.cast(y / env['res'] + env['origin'][:, 0], tf.int64)
-    channel = tf.cast(z / env['res'] + env['origin'][:, 2], tf.int64)
+    x = tf.gather(points, 0, axis=-1)
+    y = tf.gather(points, 1, axis=-1)
+    z = tf.gather(points, 2, axis=-1)
+    col = tf.cast(x / env['res'] + tf.gather(env['origin'], 1, axis=-1), tf.int64)
+    row = tf.cast(y / env['res'] + tf.gather(env['origin'], 0, axis=-1), tf.int64)
+    channel = tf.cast(z / env['res'] + tf.gather(env['origin'], 2, axis=-1), tf.int64)
     return row, col, channel
 
 
@@ -273,3 +294,21 @@ def pad_voxel_grid(voxel_grid, origin, res, new_shape):
     new_extent = compute_extent_3d(new_shape[0], new_shape[1], new_shape[2], res, new_origin)
 
     return padded_env, new_origin, new_extent
+
+
+if __name__ == '__main__':
+    import rospy
+    from arc_utilities.ros_helpers import get_connected_publisher
+
+    rospy.init_node("test_voxel_grid_to_pc2")
+    pub = get_connected_publisher('env_aug', PointCloud2, queue_size=10)
+    voxel_grid = np.zeros([10, 10, 10], dtype=np.float32)
+    voxel_grid[0, 0, 0] = 1
+    voxel_grid[-1, -1, -1] = 1
+    voxel_grid[0, -1, -1] = 1
+    voxel_grid[-1, 0, -1] = 1
+    voxel_grid[-1, 0, 0] = 1
+    msg = voxel_grid_to_pc2(voxel_grid, 0.01, 'world', rospy.Time.now())
+    pub.publish(msg)
+
+    rospy.sleep(1)

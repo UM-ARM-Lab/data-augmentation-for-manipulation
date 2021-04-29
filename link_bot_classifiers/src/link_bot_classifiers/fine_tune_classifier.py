@@ -21,6 +21,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          fine_tune_output: bool,
                          verbose: int = 0,
                          trials_directory: pathlib.Path = pathlib.Path("./trials"),
+                         preprocess_no_gradient: Optional[Callable] = None,
                          compute_loss: Optional[Callable] = None,
                          create_metrics: Optional[Callable] = None,
                          compute_metrics: Optional[Callable] = None,
@@ -39,13 +40,10 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
     model_hparams['learning_rate'] = 1e-4  # normally 1e-3
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)
 
-    # override loss and metrics
-    if compute_loss is not None:
-        model.compute_loss = compute_loss
-    if create_metrics is not None:
-        model.create_metrics = create_metrics
-    if compute_metrics is not None:
-        model.compute_metrics = compute_metrics
+    # override arbitrary parts of the model
+    for k, v in kwargs.items():
+        if hasattr(model, k):
+            setattr(model, k, v)
 
     runner = ModelRunner(model=model,
                          training=True,

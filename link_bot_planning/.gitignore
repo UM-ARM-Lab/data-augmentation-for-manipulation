@@ -7,3 +7,4 @@ results
 recovery_models
 bags
 *.bag.bak
+debug*.pkl

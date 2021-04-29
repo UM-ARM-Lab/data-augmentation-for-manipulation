@@ -3,7 +3,7 @@ from unittest import TestCase
 import numpy as np
 
 from link_bot_pycommon.grid_utils import compute_extent_3d, extent_to_env_size, idx_to_point_3d_from_extent, \
-    extent_to_env_shape, extent_to_origin_point
+    extent_to_env_shape, extent_to_origin_point, voxel_grid_to_pc2
 
 
 class Test(TestCase):

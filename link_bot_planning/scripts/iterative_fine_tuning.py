@@ -15,6 +15,7 @@ from more_itertools import chunked
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 from arc_utilities.algorithms import nested_dict_update
+from link_bot_classifiers.classifier_utils import local_env_size_for_classifier
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_classifiers.nn_classifier import NNClassifier
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
@@ -385,6 +386,8 @@ class IterativeFineTuning:
             [p.suspend() for p in self.gazebo_processes]
 
             adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_dataset_dirs, max_batch_size=16)
+            augmentation_3d = self.classifier_augmentation(adaptive_batch_size,
+                                                           iteration_data.latest_classifier_checkpoint_dir)
             new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=iteration_data.fine_tuning_dataset_dirs,
                                                              checkpoint=latest_checkpoint,
                                                              log=f'iteration_{i:04d}_training_logdir',
@@ -392,9 +395,14 @@ class IterativeFineTuning:
                                                              batch_size=adaptive_batch_size,
                                                              verbose=self.verbose,
                                                              validate_first=True,
+                                                             augmentation_3d=augmentation_3d,
                                                              **self.ift_config)
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         return new_latest_checkpoint_dir
+
+    def classifier_augmentation(self, batch_size: int, classifier_dir: pathlib.Path):
+        if self.labeling_params['augmentation_type'] == 'env_augmentation_1':
+            return NNClassifier.env_augmentation_1
 
 
 def setup_ift(args):
@@ -403,10 +411,8 @@ def setup_ift(args):
 
     # setup
     outdir = data_directory(pathlib.Path('results') / 'iterative_fine_tuning' / f"{args.nickname}")
-
-    if not outdir.exists():
-        rospy.loginfo(Fore.YELLOW + "Creating output directory: {}".format(outdir))
-        outdir.mkdir(parents=True)
+    rospy.loginfo(Fore.YELLOW + "Creating output directory: {}".format(outdir))
+    outdir.mkdir(parents=True)
 
     ift_config = load_hjson(args.ift_config)
 
@@ -455,7 +461,8 @@ def main():
 
     setup_parser.add_argument("ift_config", type=pathlib.Path, help='hjson file from ift_config/')
     setup_parser.add_argument('planner_params', type=pathlib.Path, help='hjson file from planner_configs/')
-    setup_parser.add_argument("classifier_checkpoint", type=pathlib.Path, help='classifier checkpoint to setup from')
+    setup_parser.add_argument("classifier_checkpoint", type=pathlib.Path,
+                              help='classifier checkpoint to setup from')
     setup_parser.add_argument("recovery_checkpoint", type=pathlib.Path, help='recovery checkpoint to setup from')
     setup_parser.add_argument("test_scenes_dir", type=pathlib.Path)
     setup_parser.add_argument("nickname", type=str, help='used in making the output directory')

@@ -10,7 +10,7 @@ from link_bot_classifiers.nn_classifier import NNClassifierWrapper
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
-from moonshine.filepath_tools import load_trial
+from moonshine.filepath_tools import load_trial, load_params
 
 
 def load_generic_model(path: pathlib.Path,
@@ -39,3 +39,10 @@ def load_generic_model(path: pathlib.Path,
         return FastRobotFeasibilityChecker(path, scenario=scenario)
     else:
         raise NotImplementedError("invalid model type {}".format(model_type))
+
+
+def local_env_size_for_classifier(classifier_dir: pathlib.Path):
+    classifier_params = load_params(classifier_dir)
+    return (classifier_params["local_env_h_rows"],
+            classifier_params["local_env_w_cols"],
+            classifier_params["local_env_c_channels"])

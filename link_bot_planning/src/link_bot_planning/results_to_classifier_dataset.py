@@ -1,6 +1,6 @@
 import pathlib
 import tempfile
-from time import sleep, perf_counter
+from time import perf_counter
 from typing import Optional, List, Dict, Union
 
 import numpy as np
@@ -15,10 +15,12 @@ from link_bot_planning.analysis import results_utils
 from link_bot_planning.analysis.results_utils import NoTransitionsError, get_transitions
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
+from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_in_batched_envs, batch_idx_to_point_3d_in_env_tf
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions, try_make_dict_tf_float32
 from moonshine.filepath_tools import load_hjson
+from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch_single, add_batch, remove_batch
 from std_msgs.msg import Empty
 
@@ -31,15 +33,19 @@ def generate_augmented_examples(example: Dict, params: Dict):
     n_augmentations = params.get("n_augmentations", 10)
     state_keys = ['left_gripper', 'right_gripper', 'rope']
     action_keys = ['left_gripper_position', 'right_gripper_position']
+
     for i in range(n_augmentations):
         augmented_example = example.copy()
-        for k in state_keys:
-            s_k_points = tf.reshape(example[add_predicted(k)], [2, -1, 3])
-            d_position_noise = 0.03
-            d_position = tf.random.uniform([1, 1, 3], -d_position_noise, d_position_noise)
-            s_k_points_augmented = s_k_points + d_position
-            s_k_augmented = tf.reshape(s_k_points_augmented, [2, -1])
-            augmented_example[add_predicted(k)] = s_k_augmented
+        if params['augmentation_type'] == 'state_jitter':
+            for k in state_keys:
+                s_k_points = tf.reshape(example[add_predicted(k)], [2, -1, 3])
+                d_position_noise = 0.03
+                d_position = tf.random.uniform([1, 1, 3], -d_position_noise, d_position_noise)
+                s_k_points_augmented = s_k_points + d_position
+                s_k_augmented = tf.reshape(s_k_points_augmented, [2, -1])
+                augmented_example[add_predicted(k)] = s_k_augmented
+        elif params['augmentation_type'] == 'swept_volume_rejection':
+            raise NotImplementedError()
 
         yield augmented_example
 
@@ -92,33 +98,14 @@ class ResultsToClassifierDataset:
 
         outdir.mkdir(exist_ok=True, parents=True)
 
-
         self.gazebo_restarting_sub = rospy.Subscriber("gazebo_restarting", Empty, self.on_gazebo_restarting)
 
     def run(self):
         results_utils.save_dynamics_dataset_hparams(self.results_dir, self.outdir, self.metadata)
-
         if self.full_tree:
-            def _on_exception():
-                self.restart = False
-                sleep(10)
-                self.scenario.on_before_get_state_or_execute_action()
-                self.scenario.grasp_rope_endpoints(settling_time=0.0)
-
-            def _results_to_classifier_dataset():
-                self.full_results_to_classifier_dataset()
+            self.full_results_to_classifier_dataset()
         else:
-            def _on_exception():
-                pass
-
-            def _results_to_classifier_dataset():
-                self.results_to_classifier_dataset()
-
-        deal_with_exceptions(how_to_handle='raise',
-                             function=_results_to_classifier_dataset,
-                             exception_callback=_on_exception,
-                             print_exception=True,
-                             )
+            self.results_to_classifier_dataset()
 
     def results_to_classifier_dataset(self):
         logfilename = self.outdir / 'logfile.hjson'
@@ -344,12 +331,13 @@ class ResultsToClassifierDataset:
         test_shape = valid_out_examples_batched['time_idx'].shape[0]
         if test_shape == 1:
             valid_out_example = remove_batch(valid_out_examples_batched)
-            yield valid_out_example
 
-            # optionally do augmentation?
+            # optionally do augmentation
             use_augmentation = self.labeling_params.get("use_augmentation")
             if use_augmentation:
                 yield from generate_augmented_examples(valid_out_example, self.labeling_params)
+            else:
+                yield valid_out_example
         elif test_shape > 1:
             raise NotImplementedError()
         else:
