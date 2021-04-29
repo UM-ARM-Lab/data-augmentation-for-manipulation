@@ -108,7 +108,7 @@ class IterativeFineTuning:
                                                    self.ift_config['trials_per_iteration'])
         elif trials_generator_type == 'random':
             def _random():
-                rng = np.random.RandomState(self.log['seed'])
+                rng = np.random.RandomState(self.log.get('seed', 0))
                 while True:
                     yield rng.choice(all_trial_indices, size=self.ift_config['trials_per_iteration'], replace=False)
 
@@ -243,7 +243,7 @@ class IterativeFineTuning:
         files_dataset = FilesDataset(root_dir=dataset_dir)
 
         def configs_generator():
-            rng = random.Random(self.log['seed'])
+            rng = random.Random(self.log.get('seed', 0))
             configs_dir = pathlib.Path(self.collision_pretraining_config['configs_dir'])
             configs_repeated = list(configs_dir.glob("initial_config_*.pkl"))
             while True:
@@ -252,7 +252,7 @@ class IterativeFineTuning:
                 yield config['state'], config['env']
 
         n_examples = self.collision_pretraining_config['n_examples']
-        action_rng = np.random.RandomState(self.log['seed'])
+        action_rng = np.random.RandomState(self.log.get('seed', 0))
         batch_size = 16
         action_sequence_length = 10
         action_params_filename = pathlib.Path(self.collision_pretraining_config['action_params_filename'])
@@ -341,7 +341,7 @@ class IterativeFineTuning:
                                       outdir=planning_results_dir,
                                       trials=trials,
                                       test_scenes_dir=self.test_scenes_dir,
-                                      seed=self.log['seed'])
+                                      seed=self.log.get('seed', 0))
 
             deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)
             [p.suspend() for p in self.gazebo_processes]

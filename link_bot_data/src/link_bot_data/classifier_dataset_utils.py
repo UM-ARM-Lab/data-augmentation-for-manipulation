@@ -277,7 +277,6 @@ def int_scalar_to_batched_float(batch_size: int, t: int):
 
 def filter_valid_example_batches(is_close, labeling_params: Dict, examples: Dict, batch_size: int):
     if not labeling_params.get('includes_starts_far', False):
-        rospy.logerr("wrong dimension?")
         is_first_predicted_state_close = is_close[:, 0]
         valid_indices = tf.where(is_first_predicted_state_close)
         valid_indices = tf.squeeze(valid_indices, axis=1)
