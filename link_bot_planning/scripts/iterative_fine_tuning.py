@@ -15,7 +15,6 @@ from more_itertools import chunked
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 from arc_utilities.algorithms import nested_dict_update
-from link_bot_classifiers.classifier_utils import local_env_size_for_classifier
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_classifiers.nn_classifier import NNClassifier
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
@@ -401,7 +400,8 @@ class IterativeFineTuning:
         return new_latest_checkpoint_dir
 
     def classifier_augmentation(self, batch_size: int, classifier_dir: pathlib.Path):
-        if self.labeling_params['augmentation_type'] == 'env_augmentation_1':
+        augmentation_type = self.labeling_params.get('augmentation_type', None)
+        if augmentation_type == 'env_augmentation_1':
             return NNClassifier.env_augmentation_1
 
 
