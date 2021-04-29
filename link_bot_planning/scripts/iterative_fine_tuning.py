@@ -412,8 +412,7 @@ def setup_ift(args):
 
     # setup
     outdir = data_directory(pathlib.Path('results') / 'iterative_fine_tuning' / f"{args.nickname}")
-    rospy.loginfo(Fore.YELLOW + "Creating output directory: {}".format(outdir))
-    outdir.mkdir(parents=True)
+    rospy.loginfo(Fore.YELLOW + "Created output directory: {}".format(outdir))
 
     ift_config = load_hjson(args.ift_config)
 
