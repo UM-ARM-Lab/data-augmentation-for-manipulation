@@ -14,7 +14,7 @@ from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
-    batch_point_to_idx_tf_3d_in_batched_envs, send_occupancy_tf, environment_to_occupancy_msg, environment_to_pc2
+    batch_point_to_idx_tf_3d_in_batched_envs, send_occupancy_tf, environment_to_occupancy_msg
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
@@ -26,7 +26,6 @@ from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
 from mps_shape_completion_msgs.msg import OccupancyStamped
-from sensor_msgs.msg import PointCloud2
 
 DEBUG_VIZ = True
 
@@ -40,7 +39,7 @@ class NNClassifier(MyKerasModel):
             rospy.Publisher(f'classifier_raster_debug_{i}', OccupancyStamped, queue_size=10, latch=False) for i in
             range(4)]
         self.local_env_bbox_pub = rospy.Publisher('local_env_bbox', BoundingBox, queue_size=10, latch=True)
-        self.env_aug_pub = rospy.Publisher("env_aug", PointCloud2, queue_size=10)
+        self.env_aug_pub = rospy.Publisher("env_aug", OccupancyStamped, queue_size=10)
 
         self.classifier_dataset_hparams = self.hparams['classifier_dataset_hparams']
         self.dynamics_dataset_hparams = self.classifier_dataset_hparams['fwd_model_hparams']['dynamics_dataset_hparams']
@@ -91,6 +90,8 @@ class NNClassifier(MyKerasModel):
                                                       layers.Dense(128, activation='relu'),
                                                       layers.Dense(self.certs_k, activation=None),
                                                       ])
+
+        self.aug_generator = tf.random.Generator.from_seed(0)
 
     def conv_encoder(self, input_dict: Dict, batch_size, time: int, training: bool):
         indices = self.create_env_indices(batch_size)
@@ -159,7 +160,7 @@ class NNClassifier(MyKerasModel):
             extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
             extent_lower = tf.gather(extent, 0, axis=-1)
             extent_upper = tf.gather(extent, 1, axis=-1)
-            local_env_center = tf.random.uniform([self.batch_size, 3], extent_lower, extent_upper)
+            local_env_center = self.aug_generator.uniform([self.batch_size, 3], extent_lower, extent_upper)
 
             # NOTE: copied from nn_classifier
             center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center, example)
@@ -188,21 +189,26 @@ class NNClassifier(MyKerasModel):
         aug_flat = tf.reshape(local_env_aug, [self.batch_size, -1])
         states_flat_bool = tf.reduce_any(states_flat > 0.5, axis=-1)
         aug_flat_bool = tf.cast(aug_flat, tf.bool)
-        intersects_state = tf.reduce_any(tf.logical_and(states_flat_bool, aug_flat_bool), axis=1)
+        aug_intersects_state_bool = tf.reduce_any(tf.logical_and(states_flat_bool, aug_flat_bool), axis=1)
+        aug_intersects_state = 1 - tf.cast(aug_intersects_state_bool, tf.float32)[:, tf.newaxis, tf.newaxis, tf.newaxis]
+        # masks out the invalid augmentations
+        local_env_aug_masked = aug_intersects_state * local_env_aug
 
         # the dims of local_voxel_grid are batch, rows, cols, channels, features
         # and features[0] is the local env, so pad the other feature dims with zero
         paddings = [[0, 0], [0, 0], [0, 0], [0, 0], [0, n_state_components]]
-        local_voxel_grid_plus_aug = local_voxel_grid + tf.pad(tf.expand_dims(local_env_aug, axis=-1), paddings)
+        local_voxel_grid_plus_aug = local_voxel_grid + tf.pad(tf.expand_dims(local_env_aug_masked, axis=-1), paddings)
+        local_voxel_grid_plus_aug = tf.clip_by_value(local_voxel_grid_plus_aug, 0.0, 1.0)
 
         if DEBUG_VIZ:
             from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
             from link_bot_pycommon.grid_utils import compute_extent_3d
+            from std_msgs.msg import ColorRGBA
             from time import time
 
             stepper = RvizSimpleStepper()
             for b in range(self.batch_size):
-                intersects_state_b = intersects_state[b]
+                aug_intersects_state_b = aug_intersects_state_bool[b]
                 local_env_aug_extent_b = compute_extent_3d(self.local_env_h_rows,
                                                            self.local_env_w_cols,
                                                            self.local_env_c_channels,
@@ -214,10 +220,12 @@ class NNClassifier(MyKerasModel):
                     'extent': local_env_aug_extent_b,
                     'res':    example['res'][b].numpy(),
                 }
-                raster_msg = environment_to_pc2(env_aug_dict, frame='env_aug', stamp=rospy.Time(0))
+                color = ColorRGBA(r=1, g=0, b=0) if aug_intersects_state_b else ColorRGBA(r=0, g=1, b=0)
+                raster_msg = environment_to_occupancy_msg(env_aug_dict, frame='env_aug', stamp=rospy.Time(0),
+                                                          color=color)
                 self.env_aug_pub.publish(raster_msg)
                 send_occupancy_tf(self.scenario.tf.tf_broadcaster, env_aug_dict, frame='env_aug')
-                stepper.step()
+                # stepper.step()
 
         return local_voxel_grid_plus_aug
 

@@ -8,7 +8,7 @@ import rospy
 from geometry_msgs.msg import TransformStamped
 from mps_shape_completion_msgs.msg import OccupancyStamped
 from sensor_msgs.msg import PointCloud2
-from std_msgs.msg import MultiArrayDimension, Float32MultiArray
+from std_msgs.msg import MultiArrayDimension, Float32MultiArray, ColorRGBA
 
 
 def indeces_to_point(rowcols, resolution, origin):
@@ -135,7 +135,7 @@ def voxel_grid_to_pc2(voxel_grid: np.ndarray, scale: float, frame_id: str, stamp
     return msg
 
 
-def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy', stamp=None):
+def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy', stamp=None, color=None):
     if stamp is None:
         stamp = rospy.Time.now()
 
@@ -150,6 +150,8 @@ def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy', st
     occupancy.layout.dim.append(MultiArrayDimension(label='z', size=z_shape, stride=z_shape))
     msg = OccupancyStamped()
     msg.occupancy = occupancy
+    if color is not None:
+        msg.color = color
     msg.scale = environment['res']
     msg.header.stamp = stamp
     msg.header.frame_id = frame

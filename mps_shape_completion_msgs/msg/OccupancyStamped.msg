@@ -14,4 +14,5 @@ float32 scale
 # 0.66... <= x <= 1.0     --> 1
 std_msgs/Float32MultiArray occupancy
 # assumed to have the same layout as occupancy
-std_msgs/ColorRGBA[] color
+std_msgs/ColorRGBA[] colors
+std_msgs/ColorRGBA color

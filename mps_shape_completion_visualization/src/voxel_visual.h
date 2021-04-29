@@ -1,8 +1,8 @@
 #ifndef VOXEL_VISUAL_H
 #define VOXEL_VISUAL_H
 
+#include <OgreSceneManager.h>
 #include <mps_shape_completion_msgs/OccupancyStamped.h>
-
 
 namespace Ogre
 {

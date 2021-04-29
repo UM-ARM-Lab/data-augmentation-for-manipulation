@@ -37,32 +37,51 @@ void VoxelGridVisual::updatePointCloud() {
     return;
   }
 
-  double scale = latest_msg.scale;
+  auto const scale = static_cast<float>(latest_msg.scale);
   voxel_grid_->setDimensions(scale, scale, scale);
 
-  const std::vector<float> data = latest_msg.occupancy.data;
-  const std::vector<std_msgs::MultiArrayDimension> dims = latest_msg.occupancy.layout.dim;
-  int data_offset = latest_msg.occupancy.layout.data_offset;
+  auto const data = latest_msg.occupancy.data;
+  auto const colors = latest_msg.colors;
+  auto const dims = latest_msg.occupancy.layout.dim;
+  auto const data_offset = latest_msg.occupancy.layout.data_offset;
 
   std::vector<rviz::PointCloud::Point> points;
   for (int i = 0; i < dims[0].size; i++) {
     for (int j = 0; j < dims[1].size; j++) {
       for (int k = 0; k < dims[2].size; k++) {
-        float val = data[data_offset + dims[1].stride * i + dims[2].stride * j + k];
+        auto const index = data_offset + dims[1].stride * i + dims[2].stride * j + k;
+        auto val = data[index];
+        auto const color = [&]() {
+          if (not colors.empty()) {
+            return colors[index];
+          }
+          // if the user sets nothing, assume they want to use the color that was set in the rviz color picker
+          else if (latest_msg.color.r == 0 and latest_msg.color.g == 0 and latest_msg.color.b == 0 and latest_msg.color.a == 0)
+          {
+            std_msgs::ColorRGBA color;
+            color.r = r_;
+            color.g = g_;
+            color.b = b_;
+            color.a = a_;
+            return color;
+          }
+          return latest_msg.color;
+        }();
+
         if (val < threshold_) {
           continue;
         }
 
         rviz::PointCloud::Point p;
-        p.position.x = scale / 2 + i * scale;
-        p.position.y = scale / 2 + j * scale;
-        p.position.z = scale / 2 + k * scale;
+        p.position.x = scale / 2.f + static_cast<float>(i) * scale;
+        p.position.y = scale / 2.f + static_cast<float>(j) * scale;
+        p.position.z = scale / 2.f + static_cast<float>(k) * scale;
 
         if (binary_display_) {
           val = 1.0;
         }
 
-        p.setColor(r_, g_, b_, std::min(val * a_, (float)1.0));
+        p.setColor(color.r, color.g, color.b, std::min(val * a_, 1.f));
 
         points.push_back(p);
       }
