@@ -10,7 +10,6 @@
   planner_params_update: {
     termination_criteria:
     {
-      max_attempts: 1
     }
   }
   results_to_dataset: {
