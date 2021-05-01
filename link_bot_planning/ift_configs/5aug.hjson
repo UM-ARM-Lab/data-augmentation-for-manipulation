@@ -1,0 +1,23 @@
+{
+  trials_per_iteration: 5
+  early_stopping: true
+  epochs: 25
+  trials_generator_type: random
+  fine_tune_conv: false
+  fine_tune_dense: false
+  fine_tune_lstm: false
+  fine_tune_output: true
+  planner_params_update: {
+    termination_criteria:
+    {
+    }
+  }
+  results_to_dataset: {
+    val_split: 0.5
+    test_split: 0.0
+  }
+  labeling_params_update: {
+    use_augmentation: true
+    augmentation_type: env_augmentation_1
+  }
+}
