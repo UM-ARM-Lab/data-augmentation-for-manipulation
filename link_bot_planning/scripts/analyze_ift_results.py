@@ -56,7 +56,7 @@ def metrics_main(args):
         else:
             method_name = f'{from_env}_to_{to_env}'
         subfolders = sorted(get_all_subdirs([results_dir]))
-        if method_name in results_dirs_dict:
+        while method_name in results_dirs_dict:
             method_name = add_number_to_method_name(method_name)
         results_dirs_dict[method_name] = (subfolders, log)
         sort_order_dict[method_name] = idx
