@@ -51,11 +51,12 @@ class MyFigure:
         fig, ax = plt.subplots(figsize=self.get_figsize())
         return fig, ax
 
-    def make_figure(self, data, method_names: List[str]):
+    def make_figure(self, data, series_names):
         # Methods need to have consistent colors across different plots
-        for data_for_method, method_name in zip(data, method_names):
-            color = self.get_color_for_method(method_name)
-            self.add_to_figure(data_for_method, method_name=method_name, color=color)
+        for series_name in series_names:
+            color = self.get_color_for_method(series_name)
+            data_for_series = data.loc[series_name]
+            self.add_to_figure(data_for_series, series_name=series_name, color=color)
         self.finish_figure()
 
     def get_color_for_method(self, method_name):
@@ -94,7 +95,7 @@ class MyFigure:
         colors_cache[method_name] = color
         return color
 
-    def add_to_figure(self, data: List, method_name: str, color):
+    def add_to_figure(self, data: List, series_name: str, color):
         raise NotImplementedError()
 
     def finish_figure(self):
@@ -134,10 +135,10 @@ class LinePlot(MyFigure):
         self.ax.set_xlabel("Iteration")
         self.ax.set_ylabel(self.ylabel)
 
-    def add_to_figure(self, data: List, method_name: str, color):
-        x = data[0]
-        y = data[1]
-        self.ax.plot(x, y, c=color, label=method_name)
+    def add_to_figure(self, data: pd.DataFrame, series_name: str, color):
+        x = data['x'].values
+        y = data['y'].values
+        self.ax.plot(x, y, c=color, label=series_name)
 
     def set_title(self):
         self.fig.suptitle(f"{self.ylabel} over time")
@@ -157,8 +158,8 @@ class LinePlotAcrossIterations(MyFigure):
     def get_table_header(self):
         return ["Name", "min", "max", "mean", "median", "std"]
 
-    def add_to_figure(self, method_name: str, values: List, color):
-        self.ax.plot(self.metric.values[method_name], c=color, label=method_name)
+    def add_to_figure(self, series_name: str, values: List, color):
+        self.ax.plot(self.metric.values[series_name], c=color, label=series_name)
 
     def set_title(self):
         self.fig.suptitle(f"{self.ylabel} over time")
@@ -172,32 +173,32 @@ class LinePlotAcrossSteps(LinePlotAcrossIterations):
         super().__init__(analysis_params, metric, ylabel)
         self.ax.set_xlabel("Steps")
 
-    def add_to_figure(self, method_name: str, values: List, color):
-        values = self.metric.values[method_name]
+    def add_to_figure(self, series_name: str, values: List, color):
+        values = self.metric.values[series_name]
         x = np.cumsum([v[0] for v in values])
         y = [v[1] for v in values]
-        self.ax.plot(x, y, c=color, label=method_name)
+        self.ax.plot(x, y, c=color, label=series_name)
 
 
 class CumulativeLinePlotAcrossIters(LinePlotAcrossIterations):
-    def add_to_figure(self, method_name: str, values: List, color):
-        x = self.metric.all_values[method_name]
+    def add_to_figure(self, series_name: str, values: List, color):
+        x = self.metric.all_values[series_name]
         total_numerators = np.cumsum([np.sum(x_i) for x_i in x])
         total_denominators = np.cumsum([len(x_i) for x_i in x])
         cumulative_averages = total_numerators / total_denominators
-        self.ax.plot(cumulative_averages, c=color, label=method_name)
+        self.ax.plot(cumulative_averages, c=color, label=series_name)
 
     def get_figsize(self):
         return 10, 5
 
 
 class MovingAverageAcrossItersLinePlot(LinePlotAcrossIterations):
-    def add_to_figure(self, method_name: str, values: List, color):
-        values = self.metric.values[method_name]
+    def add_to_figure(self, series_name: str, values: List, color):
+        values = self.metric.values[series_name]
         x = np.cumsum([v[0] for v in values])
         y = [v[1] for v in values]
         y_avg = pd.DataFrame(y).rolling(5).mean()
-        self.ax.plot(x, y_avg, c=color, label=method_name)
+        self.ax.plot(x, y_avg, c=color, label=series_name)
 
     def get_figsize(self):
         return 10, 5
@@ -211,17 +212,17 @@ class ViolinPlotOverTrialsPerMethodFigure(MyFigure):
         self.ax.set_ylabel(ylabel)
         self.trendline = self.params.get('trendline', False)
 
-    def add_to_figure(self, method_name: str, values: List, color):
-        x = self.metric.method_indices[method_name]
+    def add_to_figure(self, series_name: str, values: List, color):
+        x = self.metric.method_indices[series_name]
         if self.trendline:
             self.ax.plot(x, np.mean(values, axis=0), c=color, zorder=2, label='mean')
         if color is None:
-            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
+            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {series_name}")
             color = 'k'
         parts = self.ax.violinplot(values, positions=[x], widths=0.9, showmeans=True, bw_method=0.3)
         color_violinplot(parts, color)
 
-        x = self.metric.method_indices[method_name]
+        x = self.metric.method_indices[series_name]
         n_values = len(values)
         xs = [x] * n_values + np.random.RandomState(0).uniform(-0.08, 0.08, size=n_values)
         self.ax.scatter(xs, values, edgecolors='k', s=50, marker='o', facecolors='none')
@@ -247,10 +248,10 @@ class BarChartPercentagePerMethodFigure(MyFigure):
         self.ax.set_ylabel(ylabel)
         self.ax.set_ylim([-0.1, 100.5])
 
-    def add_to_figure(self, method_name: str, values: List, color):
-        x = self.metric.method_indices[method_name]
+    def add_to_figure(self, series_name: str, values: List, color):
+        x = self.metric.method_indices[series_name]
         if color is None:
-            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
+            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {series_name}")
         percentage_solved = np.sum(values) / values.shape[0] * 100
         self.ax.bar(x, percentage_solved, color=color)
 
@@ -275,12 +276,12 @@ class BoxplotOverTrialsPerMethodFigure(MyFigure):
         self.ax.set_ylabel(ylabel)
         self.trendline = self.params.get('trendline', False)
 
-    def add_to_figure(self, method_name: str, values: List, color):
-        x = self.metric.method_indices[method_name]
+    def add_to_figure(self, series_name: str, values: List, color):
+        x = self.metric.method_indices[series_name]
         if self.trendline:
             self.ax.plot(x, np.mean(values, axis=0), c=color, zorder=2, label='mean')
         if color is None:
-            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {method_name}")
+            print(Fore.YELLOW + f"color is None! Set a color in the analysis file for method {series_name}")
         self.ax.boxplot(values,
                         positions=[x],
                         widths=0.9,
@@ -312,12 +313,12 @@ class TaskErrorLineFigure(MyFigure):
         self.ax.set_ylabel("Success Rate")
         self.ax.set_ylim([-0.1, 100.5])
 
-    def add_to_figure(self, method_name: str, values: List, color):
+    def add_to_figure(self, series_name: str, values: List, color):
         success_rate_at_thresholds = []
         for threshold in self.errors_thresholds:
             success_rate_at_threshold = np.count_nonzero(values < threshold) / len(values) * 100
             success_rate_at_thresholds.append(success_rate_at_threshold)
-        self.ax.plot(self.errors_thresholds, success_rate_at_thresholds, label=method_name, color=color)
+        self.ax.plot(self.errors_thresholds, success_rate_at_thresholds, label=series_name, color=color)
         self.ax.axvline(self.metric.goal_threshold, color='#aaaaaa', linestyle='--')
 
     def get_table_header(self):

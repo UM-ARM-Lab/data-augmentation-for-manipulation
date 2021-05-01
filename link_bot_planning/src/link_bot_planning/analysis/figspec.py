@@ -1,18 +1,15 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 
 from link_bot_planning.analysis.results_figures import MyFigure
-from link_bot_planning.analysis.results_metrics import Reduction
 
 
 @dataclass
 class FigSpec:
     fig: MyFigure
-    metrics_indices: List
-    metrics: List
-    reductions: List[List[Reduction]]
+    reductions: Dict[str, List[str]]
 
 
 def make_groups(metrics_indices: np.ndarray, metrics: np.ndarray, n_matching_dims: int):

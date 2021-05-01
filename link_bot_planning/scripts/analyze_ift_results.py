@@ -2,19 +2,18 @@
 import argparse
 import pathlib
 import pickle
-from typing import Dict
 
 import colorama
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from colorama import Fore
 
 import rospy
 from arc_utilities.filesystem_utils import get_all_subdirs
-from link_bot_planning.analysis.figspec import FigSpec, reduce_metrics_for_figure
+from link_bot_planning.analysis.figspec import FigSpec
 from link_bot_planning.analysis.results_figures import *
 from link_bot_planning.analysis.results_metrics import *
-from link_bot_planning.analysis.results_metrics import MeanReduction, NoReduction, SumReduction, CumSumReduction
 from link_bot_planning.analysis.results_utils import load_order, add_number_to_method_name
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
@@ -38,10 +37,12 @@ def metrics_main(args):
     else:
         table_format = 'fancy_grid'
 
-    metric_funcs = [
+    metrics_funcs = [
         num_steps,
         task_error,
     ]
+    metrics_names = [func.__name__ for func in metrics_funcs]
+    column_names = metrics_names
 
     results_dirs_ordered = load_order(prompt_order=args.order, directories=planning_results_dirs, out_dir=out_dir)
 
@@ -70,17 +71,13 @@ def metrics_main(args):
     if pickle_filename.exists() and not args.regenerate:
         rospy.loginfo(Fore.GREEN + f"Loading existing metrics from {pickle_filename}")
         with pickle_filename.open("rb") as pickle_file:
-            metrics_indices, metrics = pickle.load(pickle_file)
+            metrics = pickle.load(pickle_file)
     else:
         rospy.loginfo(Fore.GREEN + f"Generating metrics")
 
-        metrics: Dict = {}
-        metrics_indices: Dict = {}
-        for metric_func in metric_funcs:
-            metrics[metric_func.__name__] = []
-            metrics_indices[metric_func.__name__] = []
-
-        for method_idx, (method_name, (dirs, _)) in enumerate(results_dirs_dict.items()):
+        data = []
+        index_tuples = []
+        for method_name, (dirs, _) in results_dirs_dict.items():
             print(Fore.GREEN + f"processing {method_name} {[d.name for d in dirs]}")
 
             logfile = load_json_or_hjson(dirs[0].parent.parent, 'logfile')
@@ -95,55 +92,70 @@ def metrics_main(args):
                 metrics_filenames = list(iteration_folder.glob("*_metrics.pkl.gz"))
                 for file_idx, metrics_filename in enumerate(metrics_filenames):
                     datum = load_gzipped_pickle(metrics_filename)
-                    for metric_func in metric_funcs:
-                        metric_value = metric_func(scenario, metadata, datum)
-                        indices = [method_idx, iteration, file_idx]
-                        metrics_indices[metric_func.__name__].append(indices)
-                        metrics[metric_func.__name__].append(metric_value)
+                    index_tuples.append([method_name, iteration, file_idx])
+                    data.append([metric_func(scenario, metadata, datum) for metric_func in metrics_funcs])
+
+        index = pd.MultiIndex.from_tuples(index_tuples, names=["method_name", "iteration_idx", "file_idx"])
+        metrics = pd.DataFrame(data=data, index=index, columns=column_names)
 
         with pickle_filename.open("wb") as pickle_file:
-            pickle.dump((metrics_indices, metrics), pickle_file)
+            pickle.dump(metrics, pickle_file)
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
 
+    ######
+
+    ######
+
     # Figures & Tables
-    figures = [
+    figspecs = [
         FigSpec(fig=LinePlot(analysis_params, ylabel='Task Error'),
-                metrics_indices=[metrics_indices[num_steps.__name__],
-                                 metrics_indices[task_error.__name__]],
-                metrics=[metrics[num_steps.__name__],
-                         metrics[task_error.__name__]],
-                reductions=[[NoReduction(), CumSumReduction(), SumReduction()],
-                            [NoReduction(), NoReduction(), MeanReduction()]]),
-        # LinePlotAcrossSteps(analysis_params, metrics[TaskError], 'Task Error'),
-        # LinePlotAcrossIterations(analysis_params, metrics[TotalTime], 'Total Time'),
-        # LinePlotAcrossIterations(analysis_params, metrics[PlanningTime], 'Planning Time'),
-        # LinePlotAcrossIterations(analysis_params, metrics[NormalizedModelError], 'Normalized Model Error'),
-        # LinePlotAcrossIterations(analysis_params, metrics[Successes], 'Percentage Success'),
-        # LinePlotAcrossIterations(analysis_params, metrics[PlannerSolved], 'Planner Returned Solved'),
-        # MovingAverageAcrossItersLinePlot(analysis_params, metrics[NormalizedModelError],
-        #                                  'Normalized Model Error (moving average)'),
-        # MovingAverageAcrossItersLinePlot(analysis_params, metrics[Successes], 'Percentage Success (moving average)'),
-        # CumulativeLinePlotAcrossIters(analysis_params, metrics[NormalizedModelError],
-        #                               'Normalized Model Error (cumulative)'),
-        # CumulativeLinePlotAcrossIters(analysis_params, metrics[Successes], 'Percentage Success (cumulative)'),
+                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
+                            task_error.__name__: [None, None, 'mean']}),
     ]
 
-    for figspec in figures:
-        data = reduce_metrics_for_figure(figspec)
+    for figspec in figspecs:
+        data_for_figure = None
+        for axis_name, reductions in figspec.reductions.items():
+            data_for_axis = metrics[axis_name]
+            index_names = list(data_for_axis.index.names)
+            for reduction in reversed(reductions):
+                index_names.pop(-1)
+                if reduction is not None:
+                    data_for_axis = data_for_axis.groupby(index_names)
+                    data_for_axis = data_for_axis.agg(reduction, axis=index_names[-1])
+            if data_for_figure is None:
+                data_for_figure = data_for_axis
+            else:
+                data_for_figure = pd.merge(data_for_figure, data_for_axis, on=metrics.index.names[:-1])
+
+        # data_for_figure = data_for_axes[0]
+        # data_for_figure = pd.merge(, on=['method_name', 'iteration_idx'])
+        # data_for_figure.rename(columns={num_steps.__name__: 'x', task_error.__name__: 'y'}, inplace=True)
+
+        # x = x.groupby(['method_name', 'iteration_idx']).agg('sum')
+        # x = x.groupby(['method_name']).agg('cumsum')
+        # x = x.agg('cumsum')
+        #
+        # y = metrics[task_error.__name__]
+        # y = y.groupby(['method_name', 'iteration_idx']).mean()
+
+        axis_names = ['x', 'y', 'z']
+        columns = dict(zip(figspec.reductions.keys(), axis_names))
+        data_for_figure.rename(columns=columns, inplace=True)
 
         figure = figspec.fig
         figure.params = analysis_params
         # figure.sort_methods(sort_order_dict)
         # figure.enumerate_methods()
-        figure.make_figure(data, method_names)
+        figure.make_figure(data_for_figure, method_names)
         figure.save_figure(out_dir)
 
     # make_figures(figures, analysis_params, sort_order_dict, out_dir)
     # make_tables(tables, analysis_params, sort_order_dict, table_format, tables_filename)
 
     if not args.no_plot:
-        for figure in figures:
-            figure.fig.set_tight_layout(True)
+        for figspec in figspecs:
+            figspec.fig.fig.set_tight_layout(True)
         plt.show()
 
 
@@ -151,7 +163,7 @@ def main():
     colorama.init(autoreset=True)
 
     rospy.init_node("analyse_ift_results")
-    np.set_printoptions(suppress=True, precision=4, linewidth=180)
+    np.set_printoptions(suppress=True, precision=4, linewidth=220)
 
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument('ift_dirs', help='results directory', type=pathlib.Path, nargs='+')

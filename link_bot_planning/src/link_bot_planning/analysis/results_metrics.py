@@ -133,7 +133,7 @@ def task_error(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: 
     goal = trial_datum['goal']
     final_actual_state = trial_datum['end_state']
     final_execution_to_goal_error = scenario.distance_to_goal(final_actual_state, goal)
-    return final_execution_to_goal_error
+    return final_execution_to_goal_error.numpy()
 
 
 class TaskError(TrialMetrics):
