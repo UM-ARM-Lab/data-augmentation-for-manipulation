@@ -11,12 +11,13 @@ from colorama import Fore
 
 import rospy
 from arc_utilities.filesystem_utils import get_all_subdirs
-from link_bot_planning.analysis.figspec import FigSpec
+from link_bot_planning.analysis.figspec import FigSpec, get_data_for_figure
 from link_bot_planning.analysis.results_figures import *
 from link_bot_planning.analysis.results_metrics import *
 from link_bot_planning.analysis.results_utils import load_order, add_number_to_method_name
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.pycommon import quote_string
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson, load_json_or_hjson
 from moonshine.gpu_config import limit_gpu_mem
@@ -102,60 +103,26 @@ def metrics_main(args):
             pickle.dump(metrics, pickle_file)
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
 
-    ######
-
-    ######
-
     # Figures & Tables
+    title = eval(quote_string(analysis_params['experiment_name']))
     figspecs = [
-        FigSpec(fig=LinePlot(analysis_params, ylabel='Task Error'),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Task Error'),
                 reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
                             task_error.__name__: [None, None, 'mean']}),
     ]
 
-    for figspec in figspecs:
-        data_for_figure = None
-        for axis_name, reductions in figspec.reductions.items():
-            data_for_axis = metrics[axis_name]
-            index_names = list(data_for_axis.index.names)
-            for reduction in reversed(reductions):
-                index_names.pop(-1)
-                if reduction is not None:
-                    data_for_axis = data_for_axis.groupby(index_names)
-                    data_for_axis = data_for_axis.agg(reduction, axis=index_names[-1])
-            if data_for_figure is None:
-                data_for_figure = data_for_axis
-            else:
-                data_for_figure = pd.merge(data_for_figure, data_for_axis, on=metrics.index.names[:-1])
+    for spec in figspecs:
+        data_for_figure = get_data_for_figure(spec, metrics)
 
-        # data_for_figure = data_for_axes[0]
-        # data_for_figure = pd.merge(, on=['method_name', 'iteration_idx'])
-        # data_for_figure.rename(columns={num_steps.__name__: 'x', task_error.__name__: 'y'}, inplace=True)
+        spec.fig.make_figure(data_for_figure, method_names)
+        spec.fig.save_figure(out_dir)
+        spec.fig.fig.suptitle(title)
 
-        # x = x.groupby(['method_name', 'iteration_idx']).agg('sum')
-        # x = x.groupby(['method_name']).agg('cumsum')
-        # x = x.agg('cumsum')
-        #
-        # y = metrics[task_error.__name__]
-        # y = y.groupby(['method_name', 'iteration_idx']).mean()
-
-        axis_names = ['x', 'y', 'z']
-        columns = dict(zip(figspec.reductions.keys(), axis_names))
-        data_for_figure.rename(columns=columns, inplace=True)
-
-        figure = figspec.fig
-        figure.params = analysis_params
-        # figure.sort_methods(sort_order_dict)
-        # figure.enumerate_methods()
-        figure.make_figure(data_for_figure, method_names)
-        figure.save_figure(out_dir)
-
-    # make_figures(figures, analysis_params, sort_order_dict, out_dir)
     # make_tables(tables, analysis_params, sort_order_dict, table_format, tables_filename)
 
     if not args.no_plot:
-        for figspec in figspecs:
-            figspec.fig.fig.set_tight_layout(True)
+        for spec in figspecs:
+            spec.fig.fig.set_tight_layout(True)
         plt.show()
 
 

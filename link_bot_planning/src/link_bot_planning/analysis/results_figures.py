@@ -12,7 +12,7 @@ from link_bot_data.visualization import color_violinplot
 from link_bot_planning.analysis.results_metrics import TrialMetrics
 from link_bot_planning.analysis.results_utils import classifer_dataset_params_from_planner_params
 from link_bot_pycommon.latex_utils import make_cell
-from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation, get_figsize
+from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation
 from link_bot_pycommon.metric_utils import row_stats
 from link_bot_pycommon.pycommon import quote_string
 
@@ -25,27 +25,6 @@ class MyFigure:
         self.params = analysis_params
         self.name = name
         self.fig, self.ax = self.create_figure()
-
-    def set_title(self, metric):
-        metadata_for_method = next(iter(metric.metadatas.values()))
-        try:
-            cl_data_params = classifer_dataset_params_from_planner_params(metadata_for_method['planner_params'])
-            classifier_training_scene_name_for_method = cl_data_params['data_collection_params']['name']
-            # noinspection PyUnusedLocal
-            classifier_training_scene = classifier_training_scene_name_for_method
-        except Exception:
-            pass
-        # noinspection PyUnusedLocal
-        try:
-            scene_name = metadata_for_method['scene_name']
-        except Exception:
-            pass
-
-        # This magic lets us specify variable names in the title in the json file. Any variable name used there
-        # must be in scope here, hence the above local variables which appear unused
-        title = eval(quote_string(self.params['experiment_name']))
-
-        self.fig.suptitle(title)
 
     def create_figure(self):
         fig, ax = plt.subplots(figsize=self.get_figsize())
@@ -99,7 +78,6 @@ class MyFigure:
         raise NotImplementedError()
 
     def finish_figure(self):
-        self.set_title()
         self.ax.legend()
 
     def methods_on_x_axis(self):
@@ -128,20 +106,18 @@ class MyFigure:
 
 
 class LinePlot(MyFigure):
-    def __init__(self, analysis_params: Dict, ylabel: str):
+    def __init__(self, analysis_params: Dict, xlabel: str, ylabel: str):
+        self.xlabel = xlabel
         self.ylabel = ylabel
         name = self.ylabel.lower().replace(" ", "_") + "_lineplot"
         super().__init__(analysis_params, name)
-        self.ax.set_xlabel("Iteration")
+        self.ax.set_xlabel(self.xlabel)
         self.ax.set_ylabel(self.ylabel)
 
     def add_to_figure(self, data: pd.DataFrame, series_name: str, color):
         x = data['x'].values
         y = data['y'].values
         self.ax.plot(x, y, c=color, label=series_name)
-
-    def set_title(self):
-        self.fig.suptitle(f"{self.ylabel} over time")
 
     def finish_figure(self):
         super().finish_figure()
