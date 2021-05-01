@@ -346,17 +346,18 @@ class IterativeFineTuning:
             deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)
             [p.suspend() for p in self.gazebo_processes]
 
-            analysis_params = load_analysis_params()
-            metrics = generate_per_trial_metrics(analysis_params=analysis_params,
-                                                 subfolders_ordered=[planning_results_dir],
-                                                 method_names=[self.initial_planner_params['method_name']])
-            successes = metrics[Successes].values[self.initial_planner_params['method_name']]
-            latest_success_rate = successes.sum() / successes.shape[0]
-            planning_chunker.store_result('latest_success_rate', latest_success_rate)
+            # analysis_params = load_analysis_params()
+            # metrics = generate_per_trial_metrics(analysis_params=analysis_params,
+            #                                      subfolders_ordered=[planning_results_dir],
+            #                                      method_names=[self.initial_planner_params['method_name']])
+            # successes = metrics[Successes].values[self.initial_planner_params['method_name']]
+            # latest_success_rate = successes.sum() / successes.shape[0]
+            # planning_chunker.store_result('latest_success_rate', latest_success_rate)
         else:
             latest_success_rate = planning_chunker.get_result('latest_success_rate')
 
-        print(Fore.CYAN + f"Iteration {i} {latest_success_rate * 100:.1f}%")
+        # print(Fore.CYAN + f"Iteration {i} {latest_success_rate * 100:.1f}%")
+        print(Fore.CYAN + f"Iteration {i}")
         return planning_results_dir
 
     def update_datasets(self, iteration_data: IterationData, planning_results_dir):

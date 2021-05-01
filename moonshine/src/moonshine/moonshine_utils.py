@@ -1,5 +1,5 @@
 import pathlib
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import genpy
 import numpy as np
@@ -346,3 +346,11 @@ def restore_variables(classifier_checkpoint: pathlib.Path, **variables):
     status.assert_existing_objects_matched()
     assert checkpoint_manager.latest_checkpoint is not None
     print(Fore.MAGENTA + "Restored {}".format(checkpoint_manager.latest_checkpoint) + Fore.RESET)
+
+
+def list_of_tuples_to_tuple_of_lists(values: List[tuple]):
+    tuple_size = len(values[0])
+    lists = []
+    for i in range(tuple_size):
+        lists.append([v[i] for v in values])
+    return tuple(lists)

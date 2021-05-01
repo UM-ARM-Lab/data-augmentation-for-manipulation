@@ -20,15 +20,14 @@ colors_cache = {}
 
 
 class MyFigure:
-    def __init__(self, analysis_params: Dict, metric: TrialMetrics, name: str):
+    def __init__(self, analysis_params: Dict, name: str):
         super().__init__()
-        self.metric = metric
         self.params = analysis_params
         self.name = name
         self.fig, self.ax = self.create_figure()
 
-    def set_title(self):
-        metadata_for_method = next(iter(self.metric.metadatas.values()))
+    def set_title(self, metric):
+        metadata_for_method = next(iter(metric.metadatas.values()))
         try:
             cl_data_params = classifer_dataset_params_from_planner_params(metadata_for_method['planner_params'])
             classifier_training_scene_name_for_method = cl_data_params['data_collection_params']['name']
@@ -52,27 +51,11 @@ class MyFigure:
         fig, ax = plt.subplots(figsize=self.get_figsize())
         return fig, ax
 
-    def make_table(self, table_format):
-        table_data = []
-        for method_name, values_for_method in self.metric.values.items():
-            table_data.append(self.make_row(method_name, values_for_method, table_format))
-        return self.get_table_header(), table_data
-
-    def get_table_header(self):
-        raise NotImplementedError()
-
-    def make_row(self, method_name: str, values_for_method: np.array, table_format: str):
-        row = [
-            make_cell(method_name, table_format),
-        ]
-        row.extend(row_stats(values_for_method))
-        return row
-
-    def make_figure(self):
+    def make_figure(self, data, method_names: List[str]):
         # Methods need to have consistent colors across different plots
-        for method_name, values_for_method in self.metric.values.items():
+        for data_for_method, method_name in zip(data, method_names):
             color = self.get_color_for_method(method_name)
-            self.add_to_figure(method_name=method_name, values=values_for_method, color=color)
+            self.add_to_figure(data_for_method, method_name=method_name, color=color)
         self.finish_figure()
 
     def get_color_for_method(self, method_name):
@@ -111,7 +94,7 @@ class MyFigure:
         colors_cache[method_name] = color
         return color
 
-    def add_to_figure(self, method_name: str, values: List, color):
+    def add_to_figure(self, data: List, method_name: str, color):
         raise NotImplementedError()
 
     def finish_figure(self):
@@ -129,20 +112,41 @@ class MyFigure:
         print(Fore.GREEN + f"Saving {filename}")
         save_unconstrained_layout(self.fig, filename, dpi=300)
 
-    def enumerate_methods(self):
-        for i, k in enumerate(self.metric.values):
-            self.metric.method_indices[k] = i
+    def enumerate_methods(self, metric):
+        for i, k in enumerate(metric.values):
+            metric.method_indices[k] = i
 
-    def sort_methods(self, sort_order: Dict):
-        sorted_values = {k: self.metric.values[k] for k in sort_order.keys()}
-        self.metric.values = sorted_values
-        self.enumerate_methods()
+    # def sort_methods(self, metric, sort_order: Dict):
+    #     sorted_values = {k: metric.values[k] for k in sort_order.keys()}
+    #     metric.values = sorted_values
+    #     self.enumerate_methods()
 
     def get_figsize(self):
-        return get_figsize(len(self.metric.values))
+        #     return get_figsize(len(self.metric.values))
+        return 10, 5
 
 
-class LinePlotAcrossIterationsFigure(MyFigure):
+class LinePlot(MyFigure):
+    def __init__(self, analysis_params: Dict, ylabel: str):
+        self.ylabel = ylabel
+        name = self.ylabel.lower().replace(" ", "_") + "_lineplot"
+        super().__init__(analysis_params, name)
+        self.ax.set_xlabel("Iteration")
+        self.ax.set_ylabel(self.ylabel)
+
+    def add_to_figure(self, data: List, method_name: str, color):
+        x = data[0]
+        y = data[1]
+        self.ax.plot(x, y, c=color, label=method_name)
+
+    def set_title(self):
+        self.fig.suptitle(f"{self.ylabel} over time")
+
+    def finish_figure(self):
+        super().finish_figure()
+
+
+class LinePlotAcrossIterations(MyFigure):
     def __init__(self, analysis_params: Dict, metric, ylabel: str):
         self.ylabel = ylabel
         name = self.ylabel.lower().replace(" ", "_") + "_lineplot"
@@ -163,7 +167,19 @@ class LinePlotAcrossIterationsFigure(MyFigure):
         super().finish_figure()
 
 
-class CumulativeLinePlotAcrossItersFig(LinePlotAcrossIterationsFigure):
+class LinePlotAcrossSteps(LinePlotAcrossIterations):
+    def __init__(self, analysis_params: Dict, metric, ylabel: str):
+        super().__init__(analysis_params, metric, ylabel)
+        self.ax.set_xlabel("Steps")
+
+    def add_to_figure(self, method_name: str, values: List, color):
+        values = self.metric.values[method_name]
+        x = np.cumsum([v[0] for v in values])
+        y = [v[1] for v in values]
+        self.ax.plot(x, y, c=color, label=method_name)
+
+
+class CumulativeLinePlotAcrossIters(LinePlotAcrossIterations):
     def add_to_figure(self, method_name: str, values: List, color):
         x = self.metric.all_values[method_name]
         total_numerators = np.cumsum([np.sum(x_i) for x_i in x])
@@ -175,10 +191,13 @@ class CumulativeLinePlotAcrossItersFig(LinePlotAcrossIterationsFigure):
         return 10, 5
 
 
-class RollingAverageLinePlotAcrossItersFig(LinePlotAcrossIterationsFigure):
+class MovingAverageAcrossItersLinePlot(LinePlotAcrossIterations):
     def add_to_figure(self, method_name: str, values: List, color):
-        values = pd.DataFrame(self.metric.values[method_name]).rolling(5).mean()
-        self.ax.plot(values, c=color, label=method_name)
+        values = self.metric.values[method_name]
+        x = np.cumsum([v[0] for v in values])
+        y = [v[1] for v in values]
+        y_avg = pd.DataFrame(y).rolling(5).mean()
+        self.ax.plot(x, y_avg, c=color, label=method_name)
 
     def get_figsize(self):
         return 10, 5
@@ -328,8 +347,6 @@ def violin_plot(analysis_params: Dict, metric: TrialMetrics, name: str):
 def make_figures(figures: Iterable[MyFigure],
                  analysis_params: Dict,
                  sort_order_dict: Dict,
-                 table_format: str,
-                 tables_filename: pathlib.Path,
                  out_dir: pathlib.Path):
     for figure in figures:
         figure.params = analysis_params
@@ -379,13 +396,15 @@ def make_figures(figures: Iterable[MyFigure],
 
 __all__ = [
     'MyFigure',
+    'LinePlot',
     'ViolinPlotOverTrialsPerMethodFigure',
     'BoxplotOverTrialsPerMethodFigure',
     'BarChartPercentagePerMethodFigure',
     'TaskErrorLineFigure',
-    'LinePlotAcrossIterationsFigure',
-    'RollingAverageLinePlotAcrossItersFig',
-    'CumulativeLinePlotAcrossItersFig',
+    'LinePlotAcrossIterations',
+    'LinePlotAcrossSteps',
+    'MovingAverageAcrossItersLinePlot',
+    'CumulativeLinePlotAcrossIters',
     'box_plot',
     'violin_plot',
 ]

@@ -21,7 +21,6 @@ from moonshine.moonshine_utils import numpify
 class NoTransitionsError(Exception):
     pass
 
-
 def fwd_model_params_from_planner_params(planner_params: Dict):
     fwd_model_dirs = paths_from_json(planner_params['fwd_model_dir'])
     representative_fwd_model_dir = fwd_model_dirs[0]
