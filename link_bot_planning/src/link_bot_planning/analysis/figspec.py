@@ -40,16 +40,16 @@ def make_groups(metrics_indices: np.ndarray, metrics: np.ndarray, n_matching_dim
 
 
 def restructure(metric_indices, metric_values):
-    by_method = []
-    lists_for_method = [x_metric_where_method is 0, y]
-    by_method.append(lists_for_method)
-    for metric_indices_i, metric_values_i in zip(metric_indices, metric_values):
-        for metric_indices_i_j, metric_values_i_j in zip(metric_indices_i, metric_values_i):
-            if metric_indices_i_j[0] == method_idx
-                out_i.append(metric_values_i_j)
-
+    # by_method = []
+    # lists_for_method = [x_metric_where_method is 0, y]
+    # by_method.append(lists_for_method)
+    # for metric_indices_i, metric_values_i in zip(metric_indices, metric_values):
+    #     for metric_indices_i_j, metric_values_i_j in zip(metric_indices_i, metric_values_i):
+    #         if metric_indices_i_j[0] == method_idx
+    #             out_i.append(metric_values_i_j)
+    #
+    # return by_method
     pass
-    return by_method
 
 
 def reduce_metrics_for_figure(figspec: FigSpec):
@@ -57,7 +57,7 @@ def reduce_metrics_for_figure(figspec: FigSpec):
     reduced_metric = []
     for metric_indices, metric, reductions in zip(figspec.metrics_indices, figspec.metrics, figspec.reductions):
         assert len(reductions) <= len(metric_indices[0])
-        for reduction in reversed(reductions):
+        for reduction_idx, reduction in enumerate(reversed(reductions)):
             # data is a 2d array, each row looks like [i, j, k, ..., data]
             n_matching_dims = len(metric_indices[0]) - 1
             groups_indices, groups_values = make_groups(metric_indices, metric, n_matching_dims)
@@ -67,7 +67,7 @@ def reduce_metrics_for_figure(figspec: FigSpec):
                 group_indices = np.array(group_indices)
                 group_values = np.array(group_values)
                 if reduction is not None:
-                    reduced_group_value = reduction(group_values)
+                    reduced_group_value = reduction(group_values, axis=axis)
                     if reduction.reduces:
                         reduced_group_indices = group_indices[0, :-1]  # -2 to drop the last index
                     else:
@@ -88,4 +88,4 @@ def reduce_metrics_for_figure(figspec: FigSpec):
         reduced_metric_indices.append(metric_indices)
         reduced_metric.append(metric)
 
-    return restructure(reduced_metric_indices, reduced_metric)
+    return reduced_metric_indices, reduced_metric
