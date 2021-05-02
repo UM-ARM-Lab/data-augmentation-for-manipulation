@@ -151,6 +151,9 @@ def any_solved(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: 
     return solved
 
 
+def num_trials(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    return 1
+
 def normalized_model_error(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     total_model_error = 0.0
     n_total_actions = 0
@@ -377,13 +380,15 @@ def generate_per_trial_metrics(analysis_params: Dict, subfolders_ordered: List, 
 
 
 __all__ = [
-    'TrialMetrics',
+    'num_trials',
     'task_error',
     'num_steps',
     'any_solved',
     'success',
+
     'TaskError',
     'Successes',
+    'TrialMetrics',
     'normalized_model_error',
     'NRecoveryActions',
     'PercentageMERViolations',

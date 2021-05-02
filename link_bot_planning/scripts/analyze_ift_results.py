@@ -39,6 +39,7 @@ def metrics_main(args):
         table_format = 'fancy_grid'
 
     metrics_funcs = [
+        num_trials,
         num_steps,
         task_error,
         any_solved,
@@ -110,23 +111,33 @@ def metrics_main(args):
     title = eval(quote_string(analysis_params['experiment_name']))
     figspecs = [
         FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Normalized Model Error'),
-                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
+                reductions={num_steps.__name__:              [None, 'cumsum', 'sum'],
                             normalized_model_error.__name__: [None, None, 'mean']}),
-        FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Task Error'),
-                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
-                            task_error.__name__: [None, None, 'mean']}),
         FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Solved'),
                 reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
                             any_solved.__name__: [None, None, 'mean']}),
-        FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Percent Success'),
-                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
-                            success.__name__: [None, None, 'mean']}),
-        FigSpec(fig=LinePlot(analysis_params, xlabel="Iterations", ylabel='Task Error'),
-                reductions={task_error.__name__: [None, None, 'mean']},
-                axis_names=['y']),
         FigSpec(fig=LinePlot(analysis_params, xlabel="Iterations", ylabel='Solved'),
                 reductions={any_solved.__name__: [None, None, 'mean']},
                 axis_names=['y']),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Iterations", ylabel='Task Error'),
+                reductions={task_error.__name__: [None, None, 'mean']},
+                axis_names=['y']),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Iterations", ylabel='Percent Success'),
+                reductions={success.__name__: [None, None, 'mean']},
+                axis_names=['y']),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Percent Success'),
+                reductions={num_steps.__name__: [None, 'cumsum', 'sum'],
+                            success.__name__:   [None, None, 'mean']}),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Task Error'),
+                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
+                            task_error.__name__: [None, None, 'mean']}),
+        # FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Cumulative Task Error'),
+        #         reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
+        #                     task_error.__name__: [None, 'cumsum', 'sum']}),
+        # FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Cumulative Percent Success'),
+        #         reductions={num_trials.__name__: [None, 'cumsum', 'sum'],
+        #                     success.__name__:    [None, 'cumsum', 'sum'],
+        #                     }),
     ]
 
     for spec in figspecs:
