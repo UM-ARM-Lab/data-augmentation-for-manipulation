@@ -151,6 +151,20 @@ def any_solved(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: 
     return solved
 
 
+def normalized_model_error(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    total_model_error = 0.0
+    n_total_actions = 0
+    for _, actual_state_t, planned_state_t, type_t in get_paths(trial_datum):
+        if type_t == 'executed_plan' and planned_state_t is not None:
+            model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
+            total_model_error += model_error
+            n_total_actions += 1
+    if n_total_actions == 0:
+        print(Fore.YELLOW + "no actions!?!")
+        return 0
+    return total_model_error / n_total_actions
+
+
 class TaskError(TrialMetrics):
     def __init__(self, analysis_params: Dict):
         super().__init__(analysis_params)
@@ -370,6 +384,7 @@ __all__ = [
     'success',
     'TaskError',
     'Successes',
+    'normalized_model_error',
     'NRecoveryActions',
     'PercentageMERViolations',
     'NMERViolations',

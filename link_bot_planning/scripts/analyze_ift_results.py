@@ -43,6 +43,7 @@ def metrics_main(args):
         task_error,
         any_solved,
         success,
+        normalized_model_error,
     ]
     metrics_names = [func.__name__ for func in metrics_funcs]
     column_names = metrics_names
@@ -108,6 +109,9 @@ def metrics_main(args):
     # Figures & Tables
     title = eval(quote_string(analysis_params['experiment_name']))
     figspecs = [
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Normalized Model Error'),
+                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
+                            normalized_model_error.__name__: [None, None, 'mean']}),
         FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Task Error'),
                 reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
                             task_error.__name__: [None, None, 'mean']}),
