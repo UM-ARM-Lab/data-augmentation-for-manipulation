@@ -41,6 +41,8 @@ def metrics_main(args):
     metrics_funcs = [
         num_steps,
         task_error,
+        any_solved,
+        success,
     ]
     metrics_names = [func.__name__ for func in metrics_funcs]
     column_names = metrics_names
@@ -109,6 +111,18 @@ def metrics_main(args):
         FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Task Error'),
                 reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
                             task_error.__name__: [None, None, 'mean']}),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Solved'),
+                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
+                            any_solved.__name__: [None, None, 'mean']}),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Percent Success'),
+                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
+                            success.__name__: [None, None, 'mean']}),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Iterations", ylabel='Task Error'),
+                reductions={task_error.__name__: [None, None, 'mean']},
+                axis_names=['y']),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Iterations", ylabel='Solved'),
+                reductions={any_solved.__name__: [None, None, 'mean']},
+                axis_names=['y']),
     ]
 
     for spec in figspecs:

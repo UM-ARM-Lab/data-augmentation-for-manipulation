@@ -136,6 +136,21 @@ def task_error(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: 
     return final_execution_to_goal_error.numpy()
 
 
+def success(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    final_execution_to_goal_error = task_error(scenario, trial_metadata, trial_datum)
+    return final_execution_to_goal_error < trial_metadata['planner_params']['goal_params']['threshold']
+
+
+def any_solved(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    solved = False
+    for step in trial_datum['steps']:
+        if step['type'] == 'executed_plan':
+            planning_result: PlanningResult = step['planning_result']
+            if planning_result.status == MyPlannerStatus.Solved:
+                solved = True
+    return solved
+
+
 class TaskError(TrialMetrics):
     def __init__(self, analysis_params: Dict):
         super().__init__(analysis_params)
@@ -240,17 +255,7 @@ class PlanningTime(TrialMetrics):
 
 class PlannerSolved(TrialMetrics):
     def get_metric(self, scenario: ExperimentScenario, trial_datum: Dict):
-        return any_solved(trial_datum)
-
-
-def any_solved(trial_datum: Dict):
-    solved = False
-    for step in trial_datum['steps']:
-        if step['type'] == 'executed_plan':
-            planning_result: PlanningResult = step['planning_result']
-            if planning_result.status == MyPlannerStatus.Solved:
-                solved = True
-    return solved
+        return any_solved(scenario=scenario, trial_metadata={}, trial_datum=trial_datum)
 
 
 def load_analysis_params(analysis_params_filename: Optional[pathlib.Path] = None):
@@ -361,6 +366,8 @@ __all__ = [
     'TrialMetrics',
     'task_error',
     'num_steps',
+    'any_solved',
+    'success',
     'TaskError',
     'Successes',
     'NRecoveryActions',

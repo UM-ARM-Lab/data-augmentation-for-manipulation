@@ -115,9 +115,12 @@ class LinePlot(MyFigure):
         self.ax.set_ylabel(self.ylabel)
 
     def add_to_figure(self, data: pd.DataFrame, series_name: str, color):
-        x = data['x'].values
         y = data['y'].values
-        self.ax.plot(x, y, c=color, label=series_name)
+        if 'x' in data:
+            x = data['x'].values
+            self.ax.plot(x, y, c=color, label=series_name)
+        else:
+            self.ax.plot(y, c=color, label=series_name)
 
     def finish_figure(self):
         super().finish_figure()
