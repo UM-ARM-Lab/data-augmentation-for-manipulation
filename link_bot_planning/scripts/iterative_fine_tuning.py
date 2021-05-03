@@ -21,7 +21,6 @@ from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
-from link_bot_planning.analysis.results_metrics import load_analysis_params, generate_per_trial_metrics, Successes
 from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
@@ -368,10 +367,15 @@ class IterativeFineTuning:
             [p.suspend() for p in self.gazebo_processes]
 
             new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i:04d}_dataset'
+            trial_indices = None
+            max_trials = self.ift_config['results_to_dataset'].get('max_trials', None)
+            if max_trials is not None:
+                trial_indices = range(max_trials)
             r = ResultsToClassifierDataset(results_dir=planning_results_dir,
                                            outdir=new_dataset_dir,
                                            labeling_params=self.labeling_params,
                                            verbose=self.verbose,
+                                           trial_indices=trial_indices,
                                            **self.ift_config['results_to_dataset'])
             r.run()
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
