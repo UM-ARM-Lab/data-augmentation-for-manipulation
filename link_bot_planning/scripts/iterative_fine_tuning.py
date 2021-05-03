@@ -79,6 +79,7 @@ class IterativeFineTuning:
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
         self.verbose = -1
+        self.tpi = self.ift_config['trials_per_iteration']
         self.labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
         self.labeling_params = nested_dict_update(self.labeling_params,
                                                   self.ift_config.get('labeling_params_update', {}))
@@ -103,13 +104,12 @@ class IterativeFineTuning:
         all_trial_indices = list(get_all_scene_indices(self.test_scenes_dir))
         trials_generator_type = self.ift_config['trials_generator_type']
         if trials_generator_type == 'cycle':
-            self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices),
-                                                   self.ift_config['trials_per_iteration'])
+            self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices), self.tpi)
         elif trials_generator_type == 'random':
             def _random():
                 rng = np.random.RandomState(self.log.get('seed', 0))
                 while True:
-                    yield rng.choice(all_trial_indices, size=self.ift_config['trials_per_iteration'], replace=False)
+                    yield rng.choice(all_trial_indices, size=self.tpi, replace=False)
 
             self.trial_indices_generator = _random()
         else:
@@ -370,6 +370,7 @@ class IterativeFineTuning:
             trial_indices = None
             max_trials = self.ift_config['results_to_dataset'].get('max_trials', None)
             if max_trials is not None:
+                print(Fore.GREEN + f"Using only {max_trials}/{self.tpi} trials for learning" + Fore.RESET)
                 trial_indices = range(max_trials)
             r = ResultsToClassifierDataset(results_dir=planning_results_dir,
                                            outdir=new_dataset_dir,
