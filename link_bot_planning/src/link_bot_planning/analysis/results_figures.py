@@ -10,11 +10,9 @@ from matplotlib.lines import Line2D
 
 from link_bot_data.visualization import color_violinplot
 from link_bot_planning.analysis.results_metrics import TrialMetrics
-from link_bot_planning.analysis.results_utils import classifer_dataset_params_from_planner_params
 from link_bot_pycommon.latex_utils import make_cell
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation
 from link_bot_pycommon.metric_utils import row_stats
-from link_bot_pycommon.pycommon import quote_string
 
 colors_cache = {}
 
@@ -106,13 +104,15 @@ class MyFigure:
 
 
 class LinePlot(MyFigure):
-    def __init__(self, analysis_params: Dict, xlabel: str, ylabel: str):
+    def __init__(self, analysis_params: Dict, xlabel: str, ylabel: str, ylim=None):
         self.xlabel = xlabel
         self.ylabel = ylabel
         name = self.ylabel.lower().replace(" ", "_") + "_lineplot"
         super().__init__(analysis_params, name)
         self.ax.set_xlabel(self.xlabel)
         self.ax.set_ylabel(self.ylabel)
+        if ylim is not None:
+            self.ax.set_ylim(ylim)
 
     def add_to_figure(self, data: pd.DataFrame, series_name: str, color):
         y = data['y'].values
@@ -374,7 +374,12 @@ def make_figures(figures: Iterable[MyFigure],
         figure.save_figure(out_dir)
 
 
+def my_rolling(window: int = 10):
+    return lambda x: x.rolling(window=window, min_periods=0).mean()
+
+
 __all__ = [
+    'my_rolling',
     'MyFigure',
     'LinePlot',
     'ViolinPlotOverTrialsPerMethodFigure',

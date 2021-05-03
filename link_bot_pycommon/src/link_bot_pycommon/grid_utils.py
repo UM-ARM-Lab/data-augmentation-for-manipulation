@@ -2,13 +2,13 @@ from typing import Dict, Optional
 
 import numpy as np
 import tensorflow as tf
+from rviz_voxelgrid_visuals.rviz_voxelgrid_visuals.src.rviz_voxelgrid_visuals.conversions import \
+    vox_to_voxelgrid_stamped
 
 import ros_numpy
 import rospy
-from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import PointCloud2
-from std_msgs.msg import MultiArrayDimension, Float32MultiArray, ColorRGBA
 
 
 def indeces_to_point(rowcols, resolution, origin):
@@ -136,25 +136,18 @@ def voxel_grid_to_pc2(voxel_grid: np.ndarray, scale: float, frame_id: str, stamp
 
 
 def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy', stamp=None, color=None):
-    if stamp is None:
-        stamp = rospy.Time.now()
-
-    occupancy = Float32MultiArray()
     env = environment['env']
     # NOTE: The plugin assumes data is ordered [x,y,z] so transpose here
     env = np.transpose(env, [1, 0, 2])
-    occupancy.data = env.astype(np.float32).flatten().tolist()
-    x_shape, y_shape, z_shape = env.shape
-    occupancy.layout.dim.append(MultiArrayDimension(label='x', size=x_shape, stride=y_shape * z_shape))
-    occupancy.layout.dim.append(MultiArrayDimension(label='y', size=y_shape, stride=z_shape))
-    occupancy.layout.dim.append(MultiArrayDimension(label='z', size=z_shape, stride=1))
-    msg = VoxelgridStamped()
-    msg.occupancy = occupancy
+    msg = vox_to_voxelgrid_stamped(voxel_grid=env, scale=environment['res'], frame_id=frame)
+    if stamp is None:
+        msg.header.stamp = rospy.Time.now()
+    else:
+        msg.header.stamp = stamp
+
     if color is not None:
         msg.color = color
-    msg.scale = environment['res']
-    msg.header.stamp = stamp
-    msg.header.frame_id = frame
+
     return msg
 
 
