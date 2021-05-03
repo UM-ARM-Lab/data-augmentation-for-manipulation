@@ -65,7 +65,8 @@ class ResultsToClassifierDataset:
                  launch: Optional[str] = None,
                  world: Optional[str] = None,
                  verbose: int = 1,
-                 subsample_fraction: Optional[float] = None):
+                 subsample_fraction: Optional[float] = None,
+                 **kwargs):
         self.restart = False
         self.rng = np.random.RandomState(0)
         self.service_provider = GazeboServices()
