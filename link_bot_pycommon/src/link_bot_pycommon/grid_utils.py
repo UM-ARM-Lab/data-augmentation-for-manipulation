@@ -2,12 +2,11 @@ from typing import Dict, Optional
 
 import numpy as np
 import tensorflow as tf
-from rviz_voxelgrid_visuals.rviz_voxelgrid_visuals.src.rviz_voxelgrid_visuals.conversions import \
-    vox_to_voxelgrid_stamped
 
 import ros_numpy
 import rospy
 from geometry_msgs.msg import TransformStamped
+from rviz_voxelgrid_visuals.conversions import vox_to_voxelgrid_stamped
 from sensor_msgs.msg import PointCloud2
 
 
