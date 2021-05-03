@@ -9,6 +9,7 @@ import rospy
 from arc_utilities.algorithms import zip_repeat_shorter
 from link_bot_planning.my_planner import PlanningResult, PlanningQuery
 from link_bot_planning.plan_and_execute import ExecutionResult
+from link_bot_planning.planning_evaluation import planning_trial_name
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -171,7 +172,7 @@ def trials_generator(results_dir: pathlib.Path, trial_indices: Optional[List[int
     else:
         filenames = []
         for trial_idx in trial_indices:
-            filenames.append((trial_idx, results_dir / f'{trial_idx}_metrics.pkl.gz'))
+            filenames.append((trial_idx, results_dir / planning_trial_name(trial_idx)))
 
     sorted_filenames = sorted(filenames)
     for trial_idx, results_filename in sorted_filenames:
