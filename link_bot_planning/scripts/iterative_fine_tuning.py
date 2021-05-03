@@ -21,6 +21,7 @@ from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
+from link_bot_planning.analysis.results_utils import list_all_planning_results_trials
 from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
@@ -371,7 +372,8 @@ class IterativeFineTuning:
             max_trials = self.ift_config['results_to_dataset'].get('max_trials', None)
             if max_trials is not None:
                 print(Fore.GREEN + f"Using only {max_trials}/{self.tpi} trials for learning" + Fore.RESET)
-                trial_indices = range(max_trials)
+                filenames = list_all_planning_results_trials(planning_results_dir)
+                trial_indices = filenames[:max_trials]
             r = ResultsToClassifierDataset(results_dir=planning_results_dir,
                                            outdir=new_dataset_dir,
                                            labeling_params=self.labeling_params,
