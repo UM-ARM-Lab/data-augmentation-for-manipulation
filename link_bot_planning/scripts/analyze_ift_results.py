@@ -57,10 +57,10 @@ def metrics_main(args):
         log = load_hjson(results_dir.parent / 'logfile.hjson')
         from_env = log['from_env']
         to_env = log['to_env']
-        if args.use_nickname:
-            method_name = log['nickname']
-        else:
+        if args.no_use_nickname:
             method_name = f'{from_env}_to_{to_env}'
+        else:
+            method_name = log['nickname']
         subfolders = sorted(get_all_subdirs([results_dir]))
         while method_name in results_dirs_dict:
             method_name = add_number_to_method_name(method_name)
@@ -113,6 +113,9 @@ def metrics_main(args):
         FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Normalized Model Error'),
                 reductions={num_steps.__name__:              [None, 'cumsum', 'sum'],
                             normalized_model_error.__name__: [None, None, 'mean']}),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Normalized Model Error (rolling)'),
+                reductions={num_steps.__name__:              [None, 'cumsum', 'sum'],
+                            normalized_model_error.__name__: [None, lambda x: x.rolling(window=10, min_periods=0).mean(), 'mean']}),
         FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Solved'),
                 reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
                             any_solved.__name__: [None, None, 'mean']}),
@@ -131,6 +134,9 @@ def metrics_main(args):
         FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Task Error'),
                 reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
                             task_error.__name__: [None, None, 'mean']}),
+        FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Task Error (rolling)'),
+                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
+                            task_error.__name__: [None, lambda x: x.rolling(window=10, min_periods=0).mean(), 'mean']}),
         # FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Cumulative Task Error'),
         #         reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
         #                     task_error.__name__: [None, 'cumsum', 'sum']}),
@@ -166,7 +172,7 @@ def main():
     parser.add_argument('--analysis-params', type=pathlib.Path,
                         default=pathlib.Path("analysis_params/env_across_methods.json"))
     parser.add_argument('--no-plot', action='store_true')
-    parser.add_argument('--use-nickname', action='store_true')
+    parser.add_argument('--no-use-nickname', action='store_true')
     parser.add_argument('--show-all-trials', action='store_true')
     parser.add_argument('--latex', action='store_true')
     parser.add_argument('--order', action='store_true')
