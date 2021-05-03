@@ -373,7 +373,7 @@ class IterativeFineTuning:
             if max_trials is not None:
                 print(Fore.GREEN + f"Using only {max_trials}/{self.tpi} trials for learning" + Fore.RESET)
                 filenames = list_all_planning_results_trials(planning_results_dir)
-                trial_indices = filenames[:max_trials]
+                trial_indices = [i for (i, _) in filenames][:max_trials]
             r = ResultsToClassifierDataset(results_dir=planning_results_dir,
                                            outdir=new_dataset_dir,
                                            labeling_params=self.labeling_params,
