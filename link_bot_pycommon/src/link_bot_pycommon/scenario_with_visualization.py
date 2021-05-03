@@ -20,9 +20,9 @@ from link_bot_pycommon.grid_utils import environment_to_occupancy_msg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.rviz_marker_manager import RVizMarkerManager
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
-from mps_shape_completion_msgs.msg import OccupancyStamped
 from peter_msgs.msg import LabelStatus
 from peter_msgs.srv import WorldControl, WorldControlRequest
+from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
@@ -37,7 +37,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
     def __init__(self):
         super().__init__()
         self.world_control_srv = rospy.ServiceProxy("gz_world_control", WorldControl)
-        self.env_viz_pub = rospy.Publisher('occupancy', OccupancyStamped, queue_size=10, latch=True)
+        self.env_viz_pub = rospy.Publisher('occupancy', VoxelgridStamped, queue_size=10, latch=True)
         self.env_bbox_pub = rospy.Publisher('env_bbox', BoundingBox, queue_size=10, latch=True)
         self.obs_bbox_pub = rospy.Publisher('obs_bbox', BoundingBox, queue_size=10, latch=True)
         self.label_viz_pub = rospy.Publisher("label_viz", LabelStatus, queue_size=10, latch=True)

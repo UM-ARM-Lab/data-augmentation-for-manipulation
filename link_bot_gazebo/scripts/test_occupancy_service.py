@@ -11,12 +11,12 @@ from link_bot_gazebo import gazebo_services
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
-from mps_shape_completion_msgs.msg import OccupancyStamped
+from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
 
 @ros_init.with_ros("test_occupancy_service")
 def main():
-    pub = rospy.Publisher('occupancy', OccupancyStamped, queue_size=10)
+    pub = rospy.Publisher('occupancy', VoxelgridStamped, queue_size=10)
     bbox_pub = rospy.Publisher('bbox', BoundingBox, queue_size=10)
 
     services = gazebo_services.GazeboServices()

@@ -21,7 +21,7 @@ from moonshine.metrics import LossMetric
 from moonshine.moonshine_utils import add_batch
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
-from mps_shape_completion_msgs.msg import OccupancyStamped
+from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
 
 class NNRecoveryModel(MyKerasModel):
@@ -29,8 +29,8 @@ class NNRecoveryModel(MyKerasModel):
         super().__init__(hparams, batch_size)
         self.scenario = scenario
 
-        self.debug_pub = rospy.Publisher('classifier_debug', OccupancyStamped, queue_size=10, latch=True)
-        self.raster_debug_pub = rospy.Publisher('classifier_raster_debug', OccupancyStamped, queue_size=10, latch=True)
+        self.debug_pub = rospy.Publisher('classifier_debug', VoxelgridStamped, queue_size=10, latch=True)
+        self.raster_debug_pub = rospy.Publisher('classifier_raster_debug', VoxelgridStamped, queue_size=10, latch=True)
         self.local_env_bbox_pub = rospy.Publisher('local_env_bbox', BoundingBox, queue_size=10, latch=True)
 
         self.classifier_dataset_hparams = self.hparams['recovery_dataset_hparams']

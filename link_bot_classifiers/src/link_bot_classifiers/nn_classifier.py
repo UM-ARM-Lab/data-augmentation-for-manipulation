@@ -25,7 +25,7 @@ from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegativ
 from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
-from mps_shape_completion_msgs.msg import OccupancyStamped
+from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
 DEBUG_VIZ = False
 
@@ -36,10 +36,10 @@ class NNClassifier(MyKerasModel):
         self.scenario = scenario
 
         self.raster_debug_pubs = [
-            rospy.Publisher(f'classifier_raster_debug_{i}', OccupancyStamped, queue_size=10, latch=False) for i in
+            rospy.Publisher(f'classifier_raster_debug_{i}', VoxelgridStamped, queue_size=10, latch=False) for i in
             range(4)]
         self.local_env_bbox_pub = rospy.Publisher('local_env_bbox', BoundingBox, queue_size=10, latch=True)
-        self.env_aug_pub = rospy.Publisher("env_aug", OccupancyStamped, queue_size=10)
+        self.env_aug_pub = rospy.Publisher("env_aug", VoxelgridStamped, queue_size=10)
 
         self.classifier_dataset_hparams = self.hparams['classifier_dataset_hparams']
         self.dynamics_dataset_hparams = self.classifier_dataset_hparams['fwd_model_hparams']['dynamics_dataset_hparams']
@@ -322,7 +322,7 @@ class NNClassifier(MyKerasModel):
         metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
 
-    @tf.function
+    # @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
         batch_size = input_dict['batch_size']
         time = tf.cast(input_dict['time'], tf.int32)

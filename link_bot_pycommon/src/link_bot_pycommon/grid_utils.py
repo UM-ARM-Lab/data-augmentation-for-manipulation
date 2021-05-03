@@ -5,8 +5,8 @@ import tensorflow as tf
 
 import ros_numpy
 import rospy
+from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from geometry_msgs.msg import TransformStamped
-from mps_shape_completion_msgs.msg import OccupancyStamped
 from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import MultiArrayDimension, Float32MultiArray, ColorRGBA
 
@@ -145,10 +145,10 @@ def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy', st
     env = np.transpose(env, [1, 0, 2])
     occupancy.data = env.astype(np.float32).flatten().tolist()
     x_shape, y_shape, z_shape = env.shape
-    occupancy.layout.dim.append(MultiArrayDimension(label='x', size=x_shape, stride=x_shape * y_shape * z_shape))
-    occupancy.layout.dim.append(MultiArrayDimension(label='y', size=y_shape, stride=y_shape * z_shape))
-    occupancy.layout.dim.append(MultiArrayDimension(label='z', size=z_shape, stride=z_shape))
-    msg = OccupancyStamped()
+    occupancy.layout.dim.append(MultiArrayDimension(label='x', size=x_shape, stride=y_shape * z_shape))
+    occupancy.layout.dim.append(MultiArrayDimension(label='y', size=y_shape, stride=z_shape))
+    occupancy.layout.dim.append(MultiArrayDimension(label='z', size=z_shape, stride=1))
+    msg = VoxelgridStamped()
     msg.occupancy = occupancy
     if color is not None:
         msg.color = color
