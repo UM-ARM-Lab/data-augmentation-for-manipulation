@@ -104,10 +104,9 @@ class MyFigure:
 
 
 class LinePlot(MyFigure):
-    def __init__(self, analysis_params: Dict, xlabel: str, ylabel: str, ylim=None):
+    def __init__(self, analysis_params: Dict, name: str, xlabel: str, ylabel: str, ylim=None):
         self.xlabel = xlabel
         self.ylabel = ylabel
-        name = self.ylabel.lower().replace(" ", "_") + "_lineplot"
         super().__init__(analysis_params, name)
         self.ax.set_xlabel(self.xlabel)
         self.ax.set_ylabel(self.ylabel)
