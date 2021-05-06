@@ -34,6 +34,7 @@ def create_env_indices(local_env_h_rows: int, local_env_w_cols: int, local_env_c
 
 
 # FIXME: use origin_point, not origin, origin is not as precise.
+@tf.function
 def get_local_env_and_origin_3d_tf(center_point,
                                    full_env,
                                    full_env_origin,
