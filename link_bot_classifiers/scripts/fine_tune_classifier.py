@@ -9,6 +9,8 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
+from link_bot_classifiers.nn_classifier import NNClassifier
+from moonshine.filepath_tools import load_hjson
 
 
 @ros_init.with_ros("fine_tune_classifier")
@@ -22,6 +24,7 @@ def main():
     parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
     parser.add_argument('checkpoint', type=pathlib.Path)
     parser.add_argument('log')
+    parser.add_argument('--params', '-p', type=pathlib.Path, help='an hjson file to override the model hparams')
     parser.add_argument('--batch-size', type=int, default=24)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--log-scalars-every', type=int, help='loss/accuracy every this many batches', default=100)
@@ -33,6 +36,11 @@ def main():
 
     args = parser.parse_args()
 
+    if args.params is not None:
+        model_hparams_update = load_hjson(args.params)
+    else:
+        model_hparams_update = None
+
     fine_tune_classifier(dataset_dirs=args.dataset_dirs,
                          checkpoint=args.checkpoint,
                          log=args.log,
@@ -40,12 +48,14 @@ def main():
                          early_stopping=False,
                          epochs=args.epochs,
                          validate_first=True,
+                         model_hparams_update=model_hparams_update,
                          val_every_n_batches=500,
                          mid_epoch_val_batches=100,
                          fine_tune_conv=False,
                          fine_tune_lstm=False,
                          fine_tune_dense=False,
-                         fine_tune_output=True)
+                         fine_tune_output=True,
+                         )
 
 
 if __name__ == '__main__':

@@ -21,6 +21,7 @@
   <depend>roscpp</depend>
   <depend>rospy</depend>
   <depend>rospy_message_converter</depend>
+  <depend>jsk_rviz_plugins</depend>
   <depend>std_msgs</depend>
   <depend>tf2_sensors_msgs</depend>
 

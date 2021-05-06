@@ -1,7 +1,8 @@
 import pathlib
-from typing import List, Optional, Callable
+from typing import List, Optional, Callable, Dict
 
 import link_bot_classifiers
+from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.train_test_classifier import setup_datasets
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_pycommon.pycommon import paths_to_json
@@ -19,6 +20,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          fine_tune_dense: bool,
                          fine_tune_lstm: bool,
                          fine_tune_output: bool,
+                         model_hparams_update: Optional[Dict] = None,
                          verbose: int = 0,
                          trials_directory: pathlib.Path = pathlib.Path("./trials"),
                          preprocess_no_gradient: Optional[Callable] = None,
@@ -28,6 +30,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
     model_hparams['datasets'].extend(paths_to_json(dataset_dirs))
+    model_hparams = nested_dict_update(model_hparams, model_hparams_update)
 
     trial_path, _ = create_trial(log, model_hparams, trials_directory=trials_directory)
 

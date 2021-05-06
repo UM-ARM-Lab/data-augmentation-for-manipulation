@@ -411,7 +411,7 @@ class IterativeFineTuning:
         if augmentation_type is not None:
             print(f"Augmentation: {augmentation_type}")
         if augmentation_type == 'env_augmentation_1':
-            return NNClassifier.env_augmentation_1
+            return NNClassifier.additive_env_resample_augmentation
 
 
 def setup_ift(args):

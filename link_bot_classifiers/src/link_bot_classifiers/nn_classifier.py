@@ -1,33 +1,40 @@
 #!/usr/bin/env python
 import pathlib
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
+import rospy
 import tensorflow as tf
 from colorama import Fore
+from jsk_recognition_msgs.msg import BoundingBox
+from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
+from std_msgs.msg import ColorRGBA
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
-import rospy
-from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_data.dataset_utils import add_predicted
+from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
     batch_point_to_idx_tf_3d_in_batched_envs, send_occupancy_tf, environment_to_occupancy_msg
+from link_bot_pycommon.grid_utils import compute_extent_3d
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
 from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env, create_env_indices
+from moonshine.indexing import index_time_with_metadata
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, \
     FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
 from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors
+from moonshine.moonshine_utils import numpify
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
-from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
-DEBUG_VIZ = False
+DEBUG_VIZ = True
+SHOW_ALL = False
 
 
 class NNClassifier(MyKerasModel):
@@ -37,9 +44,13 @@ class NNClassifier(MyKerasModel):
 
         self.raster_debug_pubs = [
             rospy.Publisher(f'classifier_raster_debug_{i}', VoxelgridStamped, queue_size=10, latch=False) for i in
-            range(4)]
+            range(5)]
         self.local_env_bbox_pub = rospy.Publisher('local_env_bbox', BoundingBox, queue_size=10, latch=True)
-        self.env_aug_pub = rospy.Publisher("env_aug", VoxelgridStamped, queue_size=10)
+        self.env_aug_pub1 = rospy.Publisher("env_aug", VoxelgridStamped, queue_size=10)
+        self.env_aug_pub2 = rospy.Publisher("env_aug2", VoxelgridStamped, queue_size=10)
+        self.env_aug_pub3 = rospy.Publisher("env_aug3", VoxelgridStamped, queue_size=10)
+        self.env_aug_pub4 = rospy.Publisher("env_aug4", VoxelgridStamped, queue_size=10)
+        self.env_aug_pub5 = rospy.Publisher("env_aug5", VoxelgridStamped, queue_size=10)
 
         self.classifier_dataset_hparams = self.hparams['classifier_dataset_hparams']
         self.dynamics_dataset_hparams = self.classifier_dataset_hparams['fwd_model_hparams']['dynamics_dataset_hparams']
@@ -51,7 +62,14 @@ class NNClassifier(MyKerasModel):
         self.local_env_c_channels = self.hparams['local_env_c_channels']
         self.rope_image_k = self.hparams['rope_image_k']
 
-        self.augmentation_3d = None  # caller can set this to a function that modifies the 3d state/env representation
+        self.env_augmentation_type = self.hparams.get('augmentation_type', None)
+        if self.env_augmentation_type in ['env_augmentation_1', 'additive_env_resample_augmentation']:
+            self.augmentation_3d = NNClassifier.additive_env_resample_augmentation
+        elif self.env_augmentation_type in ['env_augmentation_2', 'fitted_env_augmentation']:
+            self.augmentation_3d = NNClassifier.fitted_env_augmentation
+        else:
+            # NOTE: this gets hacked in fine_tune_classifier.py when you pass in "augmentation_3d=my_aug_func"
+            self.augmentation_3d = None
 
         # TODO: add stdev to states keys?
         self.state_keys = self.hparams['state_keys']
@@ -97,7 +115,6 @@ class NNClassifier(MyKerasModel):
         indices = self.create_env_indices(batch_size)
 
         conv_outputs_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        debug_info_seq = []
         for t in tf.range(time):
             state_t = {k: input_dict[add_predicted(k)][:, t] for k in self.state_keys}
 
@@ -136,6 +153,9 @@ class NNClassifier(MyKerasModel):
             # add channel dimension information because tf.function erases it somehow...
             local_voxel_grid_t.set_shape([None, None, None, None, len(self.state_keys) + 1])
 
+            if DEBUG_VIZ:
+                self.debug_viz_local_env_pre_aug(input_dict, local_env_origin_t, local_env_t, local_voxel_grid_t)
+
             # optionally augment the local environment
             if self.augmentation_3d is not None:
                 local_voxel_grid_t = self.augmentation_3d(self, input_dict, state_t, local_voxel_grid_t, training)
@@ -144,54 +164,129 @@ class NNClassifier(MyKerasModel):
 
             conv_outputs_array = conv_outputs_array.write(t, out_conv_z)
 
-            if DEBUG_VIZ:
-                debug_info_seq.append((state_t, local_env_origin_t, local_env_t, local_voxel_grid_t))
+            # if DEBUG_VIZ:
+            # self.debug_t(t, input_dict, state_t, local_env_origin_t, local_env_t, local_voxel_grid_t)
 
         conv_outputs = conv_outputs_array.stack()
-        return tf.transpose(conv_outputs, [1, 0, 2]), debug_info_seq
+        return tf.transpose(conv_outputs, [1, 0, 2])
 
-    def env_augmentation_1(self,
-                           example: Dict,
-                           state: Dict,
-                           local_voxel_grid: tf.Tensor,
-                           training: bool):
-        @tf.function
-        def _env_augmentation_1():
-            extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
-            extent_lower = tf.gather(extent, 0, axis=-1)
-            extent_upper = tf.gather(extent, 1, axis=-1)
-            local_env_center = self.aug_generator.uniform([self.batch_size, 3], extent_lower, extent_upper)
-
-            # NOTE: copied from nn_classifier
-            center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center, example)
-            local_env_center = batch_idx_to_point_3d_in_env_tf(*center_indices, example)
-            indices = create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels,
-                                         self.batch_size)
-            local_env_aug, local_env_aug_origin = get_local_env(center_point=local_env_center,
-                                                                full_env=example['env'],
-                                                                full_env_origin=example['origin'],
-                                                                res=example['res'],
-                                                                local_h_rows=self.local_env_h_rows,
-                                                                local_w_cols=self.local_env_w_cols,
-                                                                local_c_channels=self.local_env_c_channels,
-                                                                batch_x_indices=indices.batch_x,
-                                                                batch_y_indices=indices.batch_y,
-                                                                batch_z_indices=indices.batch_z,
-                                                                batch_size=self.batch_size)
-            return local_env_aug, local_env_aug_origin
-
+    def fitted_env_augmentation(self,
+                                example: Dict,
+                                state: Dict,
+                                local_voxel_grid: tf.Tensor,
+                                training: bool):
         n_state_components = len(self.state_keys)
-        local_env_aug, local_env_aug_origin = _env_augmentation_1()
 
-        # check if the augmentation is valid. This makes use of prior knowledge.
-        local_voxel_grid_rastered_states = local_voxel_grid[:, :, :, :, 1:]
-        states_flat = tf.reshape(local_voxel_grid_rastered_states, [self.batch_size, -1, n_state_components])
-        aug_flat = tf.reshape(local_env_aug, [self.batch_size, -1])
-        states_flat_bool = tf.reduce_any(states_flat > 0.5, axis=-1)
-        aug_flat_bool = tf.cast(aug_flat, tf.bool)
-        aug_intersects_state_bool = tf.reduce_any(tf.logical_and(states_flat_bool, aug_flat_bool), axis=1)
+        indices, local_env_center = self.sample_local_env_position(example)
+        local_env_new, local_env_new_origin = get_local_env(center_point=local_env_center,
+                                                            full_env=example['env'],
+                                                            full_env_origin=example['origin'],
+                                                            res=example['res'],
+                                                            local_h_rows=self.local_env_h_rows,
+                                                            local_w_cols=self.local_env_w_cols,
+                                                            local_c_channels=self.local_env_c_channels,
+                                                            batch_x_indices=indices.batch_x,
+                                                            batch_y_indices=indices.batch_y,
+                                                            batch_z_indices=indices.batch_z,
+                                                            batch_size=self.batch_size)
+        if DEBUG_VIZ:
+            stepper = RvizSimpleStepper()
+            for b in self.debug_viz_batch_indices():
+                local_env_new_extent_b = compute_extent_3d(self.local_env_h_rows,
+                                                           self.local_env_w_cols,
+                                                           self.local_env_c_channels,
+                                                           example['res'][b],
+                                                           local_env_new_origin[b])
+                local_env_new_dict = {
+                    'env':    local_env_new[b].numpy(),
+                    'origin': local_env_new_origin[b].numpy(),
+                    'res':    example['res'][b].numpy(),
+                    'extent': local_env_new_extent_b,
+                }
+                send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_new_dict, frame='local_env_new')
+                msg = environment_to_occupancy_msg(local_env_new_dict, frame='local_env_new', stamp=rospy.Time(0))
+                # Show the new local environment we've sampled, in the place we sampled it
+                self.env_aug_pub1.publish(msg)
+
+                stepper.step()
+
+                # Show the new local environment we've sampled, moved into the frame of the original lacol env,
+                # the one we're augmenting
+                msg2 = environment_to_occupancy_msg(local_env_new_dict, frame='local_env', stamp=rospy.Time(0))
+                self.env_aug_pub2.publish(msg2)
+
+                stepper.step()
+
+        # equivalent version of "logical or" over all state channels
+        local_voxel_grid_rastered_states_any = tf.minimum(tf.reduce_sum(local_voxel_grid[:, :, :, :, 1:], axis=-1), 1)
+        local_env = local_voxel_grid[:, :, :, :, 0]
+
+        # voxel from the original local env that can be removed
+        remove = local_env * (1 - local_env_new) * (1 - local_voxel_grid_rastered_states_any)
+
+        local_env_aug_removed = tf.maximum(local_env_new - remove, 0)
+
+        # visualize which voxels will be removed
+        if DEBUG_VIZ:
+            stepper = RvizSimpleStepper()
+            for b in self.debug_viz_batch_indices():
+                remove_dict = {
+                    'env':    remove[b].numpy(),
+                    'origin': local_env_new_origin[b].numpy(),
+                    'res':    example['res'][b].numpy(),
+                }
+                msg = environment_to_occupancy_msg(remove_dict, frame='local_env', stamp=rospy.Time(0))
+                self.env_aug_pub3.publish(msg)
+                stepper.step()
+
+                final_aug_dict = {
+                    'env':    local_env_aug_removed[b].numpy(),
+                    'origin': local_env_new_origin[b].numpy(),
+                    'res':    example['res'][b].numpy(),
+                }
+                msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
+                self.env_aug_pub4.publish(msg)
+                stepper.step()
+
+        aug_intersects_state_bool = self.is_env_augmentation_valid(local_env_new, local_voxel_grid, n_state_components)
+
+        # if the augmentation is invalid, use the original local env
         aug_intersects_state = 1 - tf.cast(aug_intersects_state_bool, tf.float32)[:, tf.newaxis, tf.newaxis, tf.newaxis]
+        local_env_aug_masked = local_env_aug_removed * aug_intersects_state + local_env * (1 - aug_intersects_state)
+
+        # the dims of local_voxel_grid are batch, rows, cols, channels, features
+        # and features[0] is the local env, so pad the other feature dims with zero
+        paddings = [[0, 0], [0, 0], [0, 0], [0, 0], [0, n_state_components]]
+        local_voxel_grid_aug = local_voxel_grid + tf.pad(tf.expand_dims(local_env_aug_masked, axis=-1), paddings,
+                                                         constant_values=0)
+        local_voxel_grid_aug = tf.clip_by_value(local_voxel_grid_aug, 0.0, 1.0)
+
+        if DEBUG_VIZ:
+            stepper = RvizSimpleStepper()
+            for b in self.debug_viz_batch_indices():
+                final_aug_dict = {
+                    'env':    local_env_aug_masked[b].numpy(),
+                    'origin': local_env_new_origin[b].numpy(),
+                    'res':    example['res'][b].numpy(),
+                }
+                msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
+                self.env_aug_pub5.publish(msg)
+                stepper.step()
+
+        return local_voxel_grid_aug
+
+    def additive_env_resample_augmentation(self,
+                                           example: Dict,
+                                           state: Dict,
+                                           local_voxel_grid: tf.Tensor,
+                                           training: bool):
+        n_state_components = len(self.state_keys)
+        local_env_aug, local_env_aug_origin = self.propose_additive_env_resample_augmentation(example, local_voxel_grid)
+
+        aug_intersects_state_bool = self.is_env_augmentation_valid(local_env_aug, local_voxel_grid, n_state_components)
+
         # masks out the invalid augmentations
+        aug_intersects_state = 1 - tf.cast(aug_intersects_state_bool, tf.float32)[:, tf.newaxis, tf.newaxis, tf.newaxis]
         local_env_aug_masked = aug_intersects_state * local_env_aug
 
         # the dims of local_voxel_grid are batch, rows, cols, channels, features
@@ -201,33 +296,67 @@ class NNClassifier(MyKerasModel):
         local_voxel_grid_plus_aug = tf.clip_by_value(local_voxel_grid_plus_aug, 0.0, 1.0)
 
         if DEBUG_VIZ:
-            from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-            from link_bot_pycommon.grid_utils import compute_extent_3d
-            from std_msgs.msg import ColorRGBA
-            from time import time
-
-            stepper = RvizSimpleStepper()
-            for b in range(self.batch_size):
-                aug_intersects_state_b = aug_intersects_state_bool[b]
-                local_env_aug_extent_b = compute_extent_3d(self.local_env_h_rows,
-                                                           self.local_env_w_cols,
-                                                           self.local_env_c_channels,
-                                                           example['res'][b],
-                                                           local_env_aug_origin[b])
-                env_aug_dict = {
-                    'env':    local_env_aug[b].numpy(),
-                    'origin': local_env_aug_origin[b].numpy(),
-                    'extent': local_env_aug_extent_b,
-                    'res':    example['res'][b].numpy(),
-                }
-                color = ColorRGBA(r=1, g=0, b=0) if aug_intersects_state_b else ColorRGBA(r=0, g=1, b=0)
-                raster_msg = environment_to_occupancy_msg(env_aug_dict, frame='env_aug', stamp=rospy.Time(0),
-                                                          color=color)
-                self.env_aug_pub.publish(raster_msg)
-                send_occupancy_tf(self.scenario.tf.tf_broadcaster, env_aug_dict, frame='env_aug')
-                # stepper.step()
+            self.viz_env_resample_augmentation(aug_intersects_state_bool, example, local_env_aug, local_env_aug_origin)
 
         return local_voxel_grid_plus_aug
+
+    def viz_env_resample_augmentation(self, aug_intersects_state_bool, example, local_env_aug, local_env_aug_origin):
+        stepper = RvizSimpleStepper()
+
+        for b in self.debug_viz_batch_indices():
+            aug_intersects_state_b = aug_intersects_state_bool[b]
+            local_env_aug_extent_b = compute_extent_3d(self.local_env_h_rows,
+                                                       self.local_env_w_cols,
+                                                       self.local_env_c_channels,
+                                                       example['res'][b],
+                                                       local_env_aug_origin[b])
+            env_aug_dict = {
+                'env':    local_env_aug[b].numpy(),
+                'origin': local_env_aug_origin[b].numpy(),
+                'extent': local_env_aug_extent_b,
+                'res':    example['res'][b].numpy(),
+            }
+            color = ColorRGBA(r=1, g=0, b=0) if aug_intersects_state_b else ColorRGBA(r=0, g=1, b=0)
+            raster_msg = environment_to_occupancy_msg(env_aug_dict, frame='local_env', stamp=rospy.Time(0), color=color)
+            self.env_aug_pub.publish(raster_msg)
+            stepper.step()
+
+    def is_env_augmentation_valid(self, local_env_aug, local_voxel_grid, n_state_components):
+        # check if the augmentation is valid.
+        local_voxel_grid_rastered_states = local_voxel_grid[:, :, :, :, 1:]
+        states_flat = tf.reshape(local_voxel_grid_rastered_states, [self.batch_size, -1, n_state_components])
+        aug_flat = tf.reshape(local_env_aug, [self.batch_size, -1])
+        states_flat_bool = tf.reduce_any(states_flat > 0.5, axis=-1)
+        aug_flat_bool = tf.cast(aug_flat, tf.bool)
+        aug_intersects_state_bool = tf.reduce_any(tf.logical_and(states_flat_bool, aug_flat_bool), axis=1)
+        return aug_intersects_state_bool
+
+    def propose_additive_env_resample_augmentation(self, example, local_voxel_grid):
+        indices, local_env_center = self.sample_local_env_position(example)
+        local_env_aug, local_env_aug_origin = get_local_env(center_point=local_env_center,
+                                                            full_env=example['env'],
+                                                            full_env_origin=example['origin'],
+                                                            res=example['res'],
+                                                            local_h_rows=self.local_env_h_rows,
+                                                            local_w_cols=self.local_env_w_cols,
+                                                            local_c_channels=self.local_env_c_channels,
+                                                            batch_x_indices=indices.batch_x,
+                                                            batch_y_indices=indices.batch_y,
+                                                            batch_z_indices=indices.batch_z,
+                                                            batch_size=self.batch_size)
+        return local_env_aug, local_env_aug_origin
+
+    def sample_local_env_position(self, example):
+        extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
+        extent_lower = tf.gather(extent, 0, axis=-1)
+        extent_upper = tf.gather(extent, 1, axis=-1)
+        local_env_center = self.aug_generator.uniform([self.batch_size, 3], extent_lower, extent_upper)
+        center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center, example)
+        local_env_center = batch_idx_to_point_3d_in_env_tf(*center_indices, example)
+        indices = create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels,
+                                     self.batch_size)
+
+        return indices, local_env_center
 
     def create_env_indices(self, batch_size: int):
         return create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels, batch_size)
@@ -322,12 +451,24 @@ class NNClassifier(MyKerasModel):
         metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
 
-    @tf.function
+    # @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
         batch_size = input_dict['batch_size']
         time = tf.cast(input_dict['time'], tf.int32)
 
-        conv_output, debug_info_seq = self.conv_encoder(input_dict, batch_size, time, training)
+        if DEBUG_VIZ:
+            stepper = RvizSimpleStepper()
+            for b in self.debug_viz_batch_indices():
+                env_b = {
+                    'env':    input_dict['env'][b],
+                    'res':    input_dict['res'][b],
+                    'extent': input_dict['extent'][b],
+                    'origin': input_dict['origin'][b],
+                }
+                self.scenario.plot_environment_rviz(env_b)
+                stepper.step()
+
+        conv_output = self.conv_encoder(input_dict, batch_size, time, training)
 
         out_h = self.fc(conv_output, input_dict, training)
 
@@ -339,9 +480,6 @@ class NNClassifier(MyKerasModel):
         # ignore the first output, it is meaningless to predict the validity of a single state
         valid_accept_logits = all_accept_logits[:, 1:]
         valid_accept_probabilities = self.sigmoid(valid_accept_logits)
-
-        if DEBUG_VIZ:
-            self.debug_rviz(input_dict, debug_info_seq)
 
         outputs = {
             'logits':        valid_accept_logits,
@@ -382,70 +520,78 @@ class NNClassifier(MyKerasModel):
         out_h = self.lstm(out_d)
         return out_h
 
-    def debug_rviz(self, input_dict: Dict, debug_info_seq: List[Tuple]):
-        import pickle
-        from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-        from link_bot_pycommon.bbox_visualization import grid_to_bbox
-        from moonshine.moonshine_utils import numpify
-        from moonshine.indexing import index_dict_of_batched_tensors_tf, index_time_with_metadata
-        from link_bot_pycommon.grid_utils import environment_to_occupancy_msg, send_occupancy_tf, compute_extent_3d
-        import numpy as np
-        from time import time
-
-        debug_filename = f'debug_{int(time())}.pkl'
-        print(f"Saving debug info to {debug_filename}")
-        with open(debug_filename, "wb") as debug_file:
-            pickle.dump({'input_dict': input_dict, 'debug_info': debug_info_seq}, debug_file)
+    def debug_t(self, t, input_dict: Dict, state_t, local_env_origin_t, local_env_t, local_voxel_grid_t):
+        # debug_filename = f'debug_{int(time())}.pkl'
+        # print(f"Saving debug info to {debug_filename}")
+        # with open(debug_filename, "wb") as debug_file:
+        #     pickle.dump({'input_dict': input_dict, 'debug_info': debug_info_seq}, debug_file)
 
         stepper = RvizSimpleStepper()
-        batch_size = input_dict.pop("batch_size").numpy().astype(np.int32)
-        input_dict.pop("time")
+        for b in self.debug_viz_batch_indices():
+            local_env_extent_t_b = compute_extent_3d(self.local_env_h_rows,
+                                                     self.local_env_w_cols,
+                                                     self.local_env_c_channels,
+                                                     input_dict['res'][b],
+                                                     local_env_origin_t[b])
+            local_env_dict = {
+                'env':    local_env_t[b],
+                'extent': local_env_extent_t_b,
+                'origin': local_env_origin_t[b].numpy(),
+                'res':    input_dict['res'][b].numpy(),
+            }
+            send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_dict, frame='local_env')
 
-        for b in range(batch_size):
-            example = index_dict_of_batched_tensors_tf(input_dict, b)
+            pred_t = numpify(index_time_with_metadata({}, example, self.pred_state_keys, t))
+            self.scenario.plot_state_rviz(pred_t, label='predicted', color='#0000ffff')
+            # if t < len(time) - 1:
+            #    action_t = numpify({k: example[k][t] for k in self.action_keys})
+            #    self.scenario.plot_action_rviz(pred_t, action_t, label='action', color='#0000ffff')
+            # # Ground-Truth
+            # true_t = index_time_with_metadata({}, example, self.true_state_keys, t)
+            # self.scenario.plot_state_rviz(numpify(true_t), label='actual', color='#ff0000ff', scale=1.1)
+            # label_t = example['is_close'][1]
+            # self.scenario.plot_is_close(label_t)
 
-            for t, debug_info_t in enumerate(debug_info_seq):
-                state_t, local_env_origin_t, local_env_t, local_voxel_grid_t = debug_info_t
-                for i, state_component_k_voxel_grid in enumerate(tf.transpose(local_voxel_grid_t, [4, 0, 1, 2, 3])):
-                    raster_dict = {
-                        'env':    tf.clip_by_value(state_component_k_voxel_grid[b], 0, 1),
-                        'origin': local_env_origin_t[b].numpy(),
-                        'res':    input_dict['res'][b].numpy(),
-                    }
-                    raster_msg = environment_to_occupancy_msg(raster_dict, frame='local_occupancy', stamp=rospy.Time(0))
-                    self.raster_debug_pubs[i].publish(raster_msg)
+            stepper.step()
 
-                local_env_extent_t_b = compute_extent_3d(self.local_env_h_rows,
-                                                         self.local_env_w_cols,
-                                                         self.local_env_c_channels,
-                                                         example['res'],
-                                                         local_env_origin_t[b])
-                local_env_dict = {
-                    'env':    local_env_t[b],
-                    'extent': local_env_extent_t_b,
+    def debug_viz_local_env_pre_aug(self, example: Dict, local_env_origin_t, local_env_t, local_voxel_grid_t):
+        stepper = RvizSimpleStepper()
+        for b in self.debug_viz_batch_indices():
+            bbox_msg = grid_to_bbox(rows=self.local_env_h_rows,
+                                    cols=self.local_env_w_cols,
+                                    channels=self.local_env_c_channels,
+                                    resolution=example['res'][b].numpy())
+            bbox_msg.header.frame_id = 'local_env'
+            self.local_env_bbox_pub.publish(bbox_msg)
+
+            local_env_extent_t_b = compute_extent_3d(self.local_env_h_rows,
+                                                     self.local_env_w_cols,
+                                                     self.local_env_c_channels,
+                                                     example['res'][b],
+                                                     local_env_origin_t[b])
+            local_env_dict = {
+                'extent': local_env_extent_t_b,
+                'origin': local_env_origin_t[b].numpy(),
+                'res':    example['res'][b].numpy(),
+            }
+            send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_dict, frame='local_env')
+
+            for i, state_component_k_voxel_grid in enumerate(tf.transpose(local_voxel_grid_t, [4, 0, 1, 2, 3])):
+                raster_dict = {
+                    'env':    tf.clip_by_value(state_component_k_voxel_grid[b], 0, 1),
                     'origin': local_env_origin_t[b].numpy(),
-                    'res':    example['res'].numpy(),
+                    'res':    example['res'][b].numpy(),
                 }
-                send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_dict, frame='local_occupancy')
+                raster_msg = environment_to_occupancy_msg(raster_dict, frame='local_env', stamp=rospy.Time(0))
+                self.raster_debug_pubs[i].publish(raster_msg)
 
-                pred_t = numpify(index_time_with_metadata({}, example, self.pred_state_keys, t))
-                self.scenario.plot_state_rviz(pred_t, label='predicted', color='#0000ffff')
-                if t < len(debug_info_seq) - 1:
-                    action_t = numpify({k: example[k][t] for k in self.action_keys})
-                    self.scenario.plot_action_rviz(pred_t, action_t, label='action', color='#0000ffff')
-                # # Ground-Truth
-                # true_t = index_time_with_metadata({}, example, self.true_state_keys, t)
-                # self.scenario.plot_state_rviz(numpify(true_t), label='actual', color='#ff0000ff', scale=1.1)
-                # label_t = example['is_close'][1]
-                # self.scenario.plot_is_close(label_t)
-                bbox_msg = grid_to_bbox(rows=self.local_env_h_rows,
-                                        cols=self.local_env_w_cols,
-                                        channels=self.local_env_c_channels,
-                                        resolution=example['res'].numpy())
-                bbox_msg.header.frame_id = 'local_occupancy'
-                self.local_env_bbox_pub.publish(bbox_msg)
+            stepper.step()
 
-                stepper.step()
+    def debug_viz_batch_indices(self):
+        if SHOW_ALL:
+            return range(self.batch_size)
+        else:
+            return [2]
 
 
 class NNClassifierWrapper(BaseConstraintChecker):

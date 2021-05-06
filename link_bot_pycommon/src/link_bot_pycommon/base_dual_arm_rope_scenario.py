@@ -6,8 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 import rosnode
-from link_bot_pycommon.moveit_utils import make_joint_state
-from arm_robots.robot_utils import merge_joint_state_and_scene_msg
+from link_bot_pycommon.moveit_utils import make_joint_state, merge_joint_state_and_scene_msg
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin

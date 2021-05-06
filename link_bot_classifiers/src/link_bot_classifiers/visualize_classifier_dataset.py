@@ -164,7 +164,7 @@ def compare_examples_from_datasets(args, classifier_dataset1, classifier_dataset
 
         if args.example_indices is not None and i not in args.example_indices:
             continue
-        elif not args.show_all and not is_close1 == is_close2:
+        elif not args.SHOW_ALL and not is_close1 == is_close2:
             continue
 
         status = f"Example {i}: " \
