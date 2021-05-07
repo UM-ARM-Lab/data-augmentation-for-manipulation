@@ -1,6 +1,7 @@
 from time import sleep
 from typing import List, Callable, Any
 
+import halo
 import numpy as np
 
 import rospy
@@ -156,6 +157,7 @@ class RvizSimpleStepper:
         elif msg.command == AnimationControl.PAUSE:
             self.play = False
 
+    @halo.Halo('click step')
     def step(self):
         while not self.should_step:
             sleep(0.05)
