@@ -145,6 +145,7 @@ def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy', st
         msg.header.stamp = stamp
 
     if color is not None:
+        msg.has_color = True
         msg.color = color
 
     return msg
