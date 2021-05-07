@@ -21,13 +21,14 @@ from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
-from link_bot_planning.analysis.results_utils import list_all_planning_results_trials
+from link_bot_planning.analysis.results_utils import list_all_planning_results_trials, \
+    classifier_params_from_planner_params
 from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
 from link_bot_pycommon import notifyme
 from link_bot_pycommon.get_scenario import get_scenario
-from link_bot_pycommon.pycommon import pathify, deal_with_exceptions
+from link_bot_pycommon.pycommon import pathify, deal_with_exceptions, paths_from_json
 from moonshine.metrics import LossMetric
 from moonshine.moonshine_utils import repeat, add_batch
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors as tt
@@ -86,7 +87,7 @@ class IterativeFineTuning:
                                                   self.ift_config.get('labeling_params_update', {}))
         self.initial_planner_params = nested_dict_update(self.initial_planner_params,
                                                          self.ift_config.get('planner_params_update', {}))
-        self.collision_pretraining_config = self.ift_config.get('collision_pretraining', {})
+        self.pretraining_config = self.ift_config.get('pretraining', {})
         self.checkpoint_suffix = 'best_checkpoint' if self.ift_config['early_stopping'] else 'latest_checkpoint'
 
         if timeout is not None:
@@ -140,10 +141,10 @@ class IterativeFineTuning:
         fine_tuning_dataset_dirs = []
 
         # Pre-adaptation training steps
-        if self.collision_pretraining_config.get('use_collision_pretraining', False):
-            print("Collision Pretraining")
+        if self.pretraining_config.get('use_pretraining', False):
+            print("RUnning Pretraining")
             [p.suspend() for p in self.gazebo_processes]
-            self.collision_pretraining(initial_classifier_checkpoint)
+            self.pretraining(initial_classifier_checkpoint)
 
         latest_classifier_checkpoint_dir = initial_classifier_checkpoint
         latest_recovery_checkpoint_dir = initial_recovery_checkpoint
@@ -181,47 +182,66 @@ class IterativeFineTuning:
 
         [p.kill() for p in self.gazebo_processes]
 
-    def collision_pretraining(self, initial_classifier_checkpoint: pathlib.Path):
-        # create a dataset (unlabeled)
-        dataset_dir = self.generate_collision_pretraining_dataset(initial_classifier_checkpoint)
+    def pretraining(self, initial_classifier_checkpoint: pathlib.Path):
+        pretraining_type = self.pretraining_config['pretraining_type']
 
-        # fine-tune the classifier
-        def compute_loss(self: NNClassifier, dataset_element, outputs):
-            labels = tf.expand_dims(dataset_element['not_in_collision'], axis=2)
-            logits = outputs['logits']
-            bce = tf.keras.losses.binary_crossentropy(y_true=labels, y_pred=logits, from_logits=True)
+        if pretraining_type == 'collision':
+            # create a dataset (unlabeled)
+            dataset_dir = self.generate_collision_pretraining_dataset(initial_classifier_checkpoint)
+            dataset_dirs = [dataset_dir]
 
-            return {
-                'loss': bce,
-            }
+            # fine-tune the classifier
+            def override_compute_loss(self: NNClassifier, dataset_element, outputs):
+                labels = tf.expand_dims(dataset_element['not_in_collision'], axis=2)
+                logits = outputs['logits']
+                bce = tf.keras.losses.binary_crossentropy(y_true=labels, y_pred=logits, from_logits=True)
 
-        def create_metrics(self: NNClassifier):
-            MyKerasModel.create_metrics(self)
-            return {
-                'accuracy':  BinaryAccuracy(),
-                'precision': Precision(),
-                'recall':    Recall(),
-                'loss':      LossMetric(),
-            }
+                return {
+                    'loss': bce,
+                }
 
-        def compute_metrics(self: NNClassifier, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
-            labels = tf.expand_dims(dataset_element['not_in_collision'], axis=2)
-            probabilities = outputs['probabilities']
-            metrics['accuracy'].update_state(y_true=labels, y_pred=probabilities)
-            metrics['precision'].update_state(y_true=labels, y_pred=probabilities)
-            metrics['recall'].update_state(y_true=labels, y_pred=probabilities)
+            def override_create_metrics(self: NNClassifier):
+                MyKerasModel.create_metrics(self)
+                return {
+                    'accuracy':  BinaryAccuracy(),
+                    'precision': Precision(),
+                    'recall':    Recall(),
+                    'loss':      LossMetric(),
+                }
 
-        new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=[dataset_dir],
+            def override_compute_metrics(self: NNClassifier,
+                                         metrics: Dict[str, Metric],
+                                         losses: Dict,
+                                         dataset_element, outputs):
+                labels = tf.expand_dims(dataset_element['not_in_collision'], axis=2)
+                probabilities = outputs['probabilities']
+                metrics['accuracy'].update_state(y_true=labels, y_pred=probabilities)
+                metrics['precision'].update_state(y_true=labels, y_pred=probabilities)
+                metrics['recall'].update_state(y_true=labels, y_pred=probabilities)
+
+            model_hparams_update = {}
+        elif pretraining_type == 'augmentation':
+            classifier_params = classifier_params_from_planner_params(self.initial_planner_params)
+            dataset_dirs = paths_from_json(classifier_params['datasets'])
+            override_compute_loss = None
+            override_create_metrics = None
+            override_compute_metrics = None
+            model_hparams_update = load_hjson(self.pretraining_config['model_hparams_update'])
+        else:
+            raise NotImplementedError()
+
+        new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=dataset_dirs,
                                                          checkpoint=initial_classifier_checkpoint,
                                                          log=f'collision_pretraining_logdir',
                                                          trials_directory=self.outdir,
                                                          batch_size=32,
                                                          verbose=self.verbose,
                                                          validate_first=True,
-                                                         compute_loss=compute_loss,
-                                                         create_metrics=create_metrics,
-                                                         compute_metrics=compute_metrics,
-                                                         **self.collision_pretraining_config)
+                                                         model_hparams_update=model_hparams_update,
+                                                         compute_loss=override_compute_loss,
+                                                         create_metrics=override_create_metrics,
+                                                         compute_metrics=override_compute_metrics,
+                                                         **self.pretraining_config)
         return new_latest_checkpoint_dir
 
     def generate_collision_pretraining_dataset(self, initial_classifier_checkpoint: pathlib.Path):

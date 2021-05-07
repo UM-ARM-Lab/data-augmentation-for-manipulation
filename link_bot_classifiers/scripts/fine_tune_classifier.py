@@ -25,6 +25,7 @@ def main():
     parser.add_argument('checkpoint', type=pathlib.Path)
     parser.add_argument('log')
     parser.add_argument('--params', '-p', type=pathlib.Path, help='an hjson file to override the model hparams')
+    parser.add_argument('--pretransfer-config-dir', type=pathlib.Path, help='dir of pkl files with state/env')
     parser.add_argument('--batch-size', type=int, default=24)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--log-scalars-every', type=int, help='loss/accuracy every this many batches', default=100)
@@ -55,6 +56,7 @@ def main():
                          fine_tune_lstm=False,
                          fine_tune_dense=False,
                          fine_tune_output=True,
+                         pretransfer_config_dir=args.pretransfer_config_dir,
                          )
 
 

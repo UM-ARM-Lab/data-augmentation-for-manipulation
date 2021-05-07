@@ -245,6 +245,7 @@ def data_directory(outdir: pathlib.Path, *names):
     return full_output_directory
 
 
+NEW_PREFIX = 'new/'
 PREDICTED_PREFIX = 'predicted/'
 POSITIVE_PREFIX = 'positive/'
 NEXT_PREFIX = 'next/'
@@ -279,6 +280,10 @@ def add_next(feature_name):
 
 def add_predicted(feature_name: str):
     return PREDICTED_PREFIX + feature_name
+
+
+def add_new(feature_name: str):
+    return NEW_PREFIX + feature_name
 
 
 def null_pad(sequence, start=None, end=None):

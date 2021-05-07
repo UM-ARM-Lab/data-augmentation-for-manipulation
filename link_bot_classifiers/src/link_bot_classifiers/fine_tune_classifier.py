@@ -1,13 +1,17 @@
+import itertools
 import pathlib
+import pickle
 from typing import List, Optional, Callable, Dict
 
 import link_bot_classifiers
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.train_test_classifier import setup_datasets
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
+from link_bot_data.dataset_utils import add_new
 from link_bot_pycommon.pycommon import paths_to_json
 from moonshine.filepath_tools import load_trial, create_trial
 from moonshine.model_runner import ModelRunner
+from moonshine.moonshine_utils import repeat
 
 
 def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
@@ -23,6 +27,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          model_hparams_update: Optional[Dict] = None,
                          verbose: int = 0,
                          trials_directory: pathlib.Path = pathlib.Path("./trials"),
+                         pretransfer_config_dir: Optional[pathlib.Path] = None,
                          preprocess_no_gradient: Optional[Callable] = None,
                          compute_loss: Optional[Callable] = None,
                          create_metrics: Optional[Callable] = None,
@@ -45,8 +50,9 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
 
     # override arbitrary parts of the model
     for k, v in kwargs.items():
-        if hasattr(model, k):
-            setattr(model, k, v)
+        if v is not None:
+            if hasattr(model, k):
+                setattr(model, k, v)
 
     runner = ModelRunner(model=model,
                          training=True,
@@ -58,6 +64,35 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          **kwargs)
 
     train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset)
+
+    pretransfer_configs = []
+    if pretransfer_config_dir is not None:
+        # load the pkl files and add them to the dataset?
+        for filename in pretransfer_config_dir.glob("initial_config*.pkl"):
+            with filename.open("rb") as file:
+                pretransfer_config = pickle.load(file)
+                pretransfer_config['env'].pop("scene_msg")
+                pretransfer_configs.append(pretransfer_config)
+    pretransfer_config_gen = itertools.cycle(pretransfer_configs)
+
+    def _add_pretransfer_env(example: Dict):
+        if pretransfer_config_dir is not None:
+            config = next(pretransfer_config_gen)
+            # add batching
+            new_example = config['env']
+            new_example = repeat(new_example, batch_size, axis=0, new_axis=True)
+        else:
+            new_example = example.copy()
+
+        example[add_new('env')] = new_example['env']
+        example[add_new('extent')] = new_example['extent']
+        example[add_new('origin')] = new_example['origin']
+        example[add_new('res')] = new_example['res']
+
+        return example
+
+    train_tf_dataset = train_tf_dataset.map(_add_pretransfer_env)
+    val_tf_dataset = val_tf_dataset.map(_add_pretransfer_env)
 
     # Modify the model for feature transfer & fine-tuning
     for c in model.conv_layers:

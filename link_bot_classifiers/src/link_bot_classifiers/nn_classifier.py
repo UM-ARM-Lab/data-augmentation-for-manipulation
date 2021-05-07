@@ -11,7 +11,7 @@ from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
-from link_bot_data.dataset_utils import add_predicted
+from link_bot_data.dataset_utils import add_predicted, add_new
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
@@ -212,20 +212,8 @@ class NNClassifier(MyKerasModel):
                                 local_voxel_grids_array: tf.TensorArray,
                                 indices,
                                 ):
-        n_state_components = len(self.state_keys)
+        local_env_new, local_env_new_origin = self.get_new_local_env(indices, example)
 
-        local_env_center = self.sample_local_env_position(example)
-        local_env_new, local_env_new_origin = get_local_env_and_origin(center_point=local_env_center,
-                                                                       full_env=example['env'],
-                                                                       full_env_origin=example['origin'],
-                                                                       res=example['res'],
-                                                                       local_h_rows=self.local_env_h_rows,
-                                                                       local_w_cols=self.local_env_w_cols,
-                                                                       local_c_channels=self.local_env_c_channels,
-                                                                       batch_x_indices=indices.batch_x,
-                                                                       batch_y_indices=indices.batch_y,
-                                                                       batch_z_indices=indices.batch_z,
-                                                                       batch_size=self.batch_size)
         if DEBUG_VIZ:
             stepper = RvizSimpleStepper()
             for b in self.debug_viz_batch_indices():
@@ -285,6 +273,7 @@ class NNClassifier(MyKerasModel):
                 self.env_aug_pub4.publish(msg)
                 stepper.step()
 
+        n_state_components = len(self.state_keys)
         aug_intersects_state_bool = self.is_env_augmentation_valid(time, local_env_new, local_voxel_grids_array,
                                                                    n_state_components)
 
@@ -319,24 +308,22 @@ class NNClassifier(MyKerasModel):
                                            local_voxel_grids_array: tf.TensorArray,
                                            indices,
                                            ):
-        n_state_components = len(self.state_keys)
-        local_env_aug, local_env_aug_origin = self.propose_additive_env_resample_augmentation(example,
-                                                                                              local_voxel_grids_array,
-                                                                                              indices)
+        local_env_new, local_env_new_origin = self.get_new_local_env(indices, example)
 
+        n_state_components = len(self.state_keys)
         aug_is_valid = self.is_env_augmentation_valid(self,
                                                       time,
-                                                      local_env_aug,
+                                                      local_env_new,
                                                       local_voxel_grids_array,
                                                       n_state_components)
 
         # masks out the invalid augmentations
-        local_env_aug_masked = aug_is_valid[:, tf.newaxis, tf.newaxis, tf.newaxis] * local_env_aug
+        local_env_aug_masked = aug_is_valid[:, tf.newaxis, tf.newaxis, tf.newaxis] * local_env_new
         paddings = [[0, 0], [0, 0], [0, 0], [0, 0], [0, n_state_components]]
         local_env_aug_padded = tf.pad(tf.expand_dims(local_env_aug_masked, axis=-1), paddings)
 
         if DEBUG_VIZ:
-            self.viz_env_resample_augmentation(aug_is_valid, example, local_env_aug, local_env_aug_origin)
+            self.viz_new_env_and_validity(aug_is_valid, example, local_env_new, local_env_new_origin)
 
         local_voxel_grids_aug_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
         for t in tf.range(time):
@@ -348,49 +335,60 @@ class NNClassifier(MyKerasModel):
 
         return local_voxel_grids_aug_array
 
-    def viz_env_resample_augmentation(self, aug_is_valid, example, local_env_aug, local_env_aug_origin):
+    def viz_new_env_and_validity(self, is_valid, example, local_env_new, local_env_new_origin):
         stepper = RvizSimpleStepper()
 
         for b in self.debug_viz_batch_indices():
-            aug_is_valid_b = tf.cast(aug_is_valid[b], tf.bool)
+            is_valid_b = tf.cast(is_valid[b], tf.bool)
             local_env_aug_extent_b = compute_extent_3d(self.local_env_h_rows,
                                                        self.local_env_w_cols,
                                                        self.local_env_c_channels,
                                                        example['res'][b],
-                                                       local_env_aug_origin[b])
+                                                       local_env_new_origin[b])
             env_aug_dict = {
-                'env':    local_env_aug[b].numpy(),
-                'origin': local_env_aug_origin[b].numpy(),
+                'env':    local_env_new[b].numpy(),
+                'origin': local_env_new_origin[b].numpy(),
                 'extent': local_env_aug_extent_b,
                 'res':    example['res'][b].numpy(),
             }
-            color = ColorRGBA(r=0, g=1, b=0) if aug_is_valid_b else ColorRGBA(r=1, g=0, b=0)
+            color = ColorRGBA(r=0, g=1, b=0) if is_valid_b else ColorRGBA(r=1, g=0, b=0)
             raster_msg = environment_to_occupancy_msg(env_aug_dict, frame='local_env', stamp=rospy.Time(0), color=color)
             self.env_aug_pub1.publish(raster_msg)
             stepper.step()
+
+    def get_new_local_env(self, indices, example):
+        if add_new('env') not in example:
+            example[add_new('env')] = example['env']
+            example[add_new('extent')] = example['extent']
+            example[add_new('origin')] = example['origin']
+            example[add_new('res')] = example['res']
+        else:
+            new_env_example = {
+                'env':    example[add_new('env')],
+                'extent': example[add_new('extent')],
+                'origin': example[add_new('origin')],
+                'res':    example[add_new('res')],
+            }
+        local_env_center = self.sample_local_env_position(new_env_example)
+        local_env_new, local_env_new_origin = get_local_env_and_origin(center_point=local_env_center,
+                                                                       full_env=new_env_example['env'],
+                                                                       full_env_origin=new_env_example['origin'],
+                                                                       res=new_env_example['res'],
+                                                                       local_h_rows=self.local_env_h_rows,
+                                                                       local_w_cols=self.local_env_w_cols,
+                                                                       local_c_channels=self.local_env_c_channels,
+                                                                       batch_x_indices=indices.batch_x,
+                                                                       batch_y_indices=indices.batch_y,
+                                                                       batch_z_indices=indices.batch_z,
+                                                                       batch_size=self.batch_size)
+        return local_env_new, local_env_new_origin
 
     def is_env_augmentation_valid_swept(self,
                                         time,
                                         local_env_aug,
                                         local_voxel_grids_array: tf.TensorArray,
                                         n_state_components):
-        aug_intersects_state_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        n_discretizations = 10
-        for i in tf.range(n_discretizations):
-            # local_voxel_grid_i = interpolate????()
-            local_voxel_grid_rastered_states_i = local_voxel_grid_i[:, :, :, :, 1:]
-            states_flat_i = tf.reshape(local_voxel_grid_rastered_states_i, [self.batch_size, -1, n_state_components])
-            aug_flat = tf.reshape(local_env_aug, [self.batch_size, -1])
-            states_flat = tf.cast(tf.reduce_any(states_flat_i > 0.5, axis=-1), tf.float32)
-            aug_intersects_state_i = tf.minimum(tf.reduce_sum(states_flat * aug_flat, axis=-1), 1.0)
-            aug_intersects_state_array = aug_intersects_state_array.write(i, aug_intersects_state_i)
-
-        # logical or over all the discrete steps
-        aug_intersects_state = aug_intersects_state_array.stack()
-        aug_intersects_state = tf.transpose(aug_intersects_state, [1, 0])
-        aug_intersects_state_any_t = tf.minimum(tf.reduce_sum(aug_intersects_state, axis=-1), 1.0)
-        aug_is_valid = 1 - aug_intersects_state_any_t
-        return aug_is_valid
+        raise NotImplementedError()
 
     def is_env_augmentation_valid_discrete(self, time, local_env_aug, local_voxel_grids_array: tf.TensorArray,
                                            n_state_components):
@@ -410,21 +408,6 @@ class NNClassifier(MyKerasModel):
         aug_intersects_state_any_t = tf.minimum(tf.reduce_sum(aug_intersects_state, axis=-1), 1.0)
         aug_is_valid = 1 - aug_intersects_state_any_t
         return aug_is_valid
-
-    def propose_additive_env_resample_augmentation(self, example, local_voxel_grids_array: tf.TensorArray, indices):
-        local_env_center = self.sample_local_env_position(example)
-        local_env_aug, local_env_aug_origin = get_local_env_and_origin(center_point=local_env_center,
-                                                                       full_env=example['env'],
-                                                                       full_env_origin=example['origin'],
-                                                                       res=example['res'],
-                                                                       local_h_rows=self.local_env_h_rows,
-                                                                       local_w_cols=self.local_env_w_cols,
-                                                                       local_c_channels=self.local_env_c_channels,
-                                                                       batch_x_indices=indices.batch_x,
-                                                                       batch_y_indices=indices.batch_y,
-                                                                       batch_z_indices=indices.batch_z,
-                                                                       batch_size=self.batch_size)
-        return local_env_aug, local_env_aug_origin
 
     def sample_local_env_position(self, example):
         extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
