@@ -6,10 +6,11 @@ import numpy as np
 import tensorflow as tf
 
 import rosnode
-from link_bot_pycommon.moveit_utils import make_joint_state, merge_joint_state_and_scene_msg
+from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
+from link_bot_pycommon.moveit_utils import make_joint_state
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
 from trajectory_msgs.msg import JointTrajectoryPoint
 
@@ -341,14 +342,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 scene_msg_b, robot_state = merge_joint_state_and_scene_msg(scene_msg_b, joint_state_b_t)
                 plan: RobotTrajectory
                 reached_t: bool
-                plan, reached_t = j.plan_from_scene_and_state(group_name='both_arms',
-                                                              tool_names=tool_names,
-                                                              preferred_tool_orientations=preferred_tool_orientations,
-                                                              start_state=robot_state,
-                                                              scene=scene_msg_b,
-                                                              grippers=grippers,
-                                                              max_velocity_scaling_factor=0.1,
-                                                              max_acceleration_scaling_factor=0.1)
+                plan, reached_t = j.plan(group_name='both_arms',
+                                         tool_names=tool_names,
+                                         preferred_tool_orientations=preferred_tool_orientations,
+                                         start_state=robot_state,
+                                         scene=scene_msg_b,
+                                         grippers=grippers,
+                                         max_velocity_scaling_factor=0.1,
+                                         max_acceleration_scaling_factor=0.1)
                 pred_joint_positions_t = get_joint_positions_given_state_and_plan(plan, robot_state)
 
                 target_reached.append(reached_t)

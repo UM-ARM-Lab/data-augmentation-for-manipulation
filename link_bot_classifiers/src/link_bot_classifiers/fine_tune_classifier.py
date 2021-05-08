@@ -32,6 +32,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          compute_loss: Optional[Callable] = None,
                          create_metrics: Optional[Callable] = None,
                          compute_metrics: Optional[Callable] = None,
+                         take: Optional[int] = None,
                          **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
     model_hparams['datasets'].extend(paths_to_json(dataset_dirs))
@@ -63,7 +64,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          trial_path=trial_path,
                          **kwargs)
 
-    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset)
+    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take)
 
     pretransfer_configs = []
     if pretransfer_config_dir is not None:

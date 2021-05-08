@@ -21,12 +21,10 @@ from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
-from link_bot_planning.analysis.results_utils import list_all_planning_results_trials, \
-    classifier_params_from_planner_params
+from link_bot_planning.analysis.results_utils import list_all_planning_results_trials
 from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
-from link_bot_pycommon import notifyme
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import pathify, deal_with_exceptions, paths_from_json
 from moonshine.metrics import LossMetric
@@ -138,13 +136,15 @@ class IterativeFineTuning:
     def run(self, n_iters: int):
         initial_classifier_checkpoint = pathlib.Path(self.log['initial_classifier_checkpoint'])
         initial_recovery_checkpoint = pathlib.Path(self.log['initial_recovery_checkpoint'])
-        fine_tuning_dataset_dirs = []
 
         # Pre-adaptation training steps
         if self.pretraining_config.get('use_pretraining', False):
-            print("RUnning Pretraining")
+            print(Style.BRIGHT + Fore.LIGHTBLUE_EX + "Running Pretraining" + Style.RESET_ALL)
             [p.suspend() for p in self.gazebo_processes]
-            self.pretraining(initial_classifier_checkpoint)
+            initial_classifier_checkpoint = self.pretraining(initial_classifier_checkpoint)
+
+        # NOTE: should I append the pretraining datasets to this? Possibly...
+        fine_tuning_dataset_dirs = []
 
         latest_classifier_checkpoint_dir = initial_classifier_checkpoint
         latest_recovery_checkpoint_dir = initial_recovery_checkpoint
@@ -172,6 +172,7 @@ class IterativeFineTuning:
             latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
 
             # TODO: add fine tuning recovery
+
             iteration_end_time = iteration_chunker.get_result('end_time')
             if iteration_end_time is None:
                 iteration_end_time = perf_counter()
@@ -183,6 +184,8 @@ class IterativeFineTuning:
         [p.kill() for p in self.gazebo_processes]
 
     def pretraining(self, initial_classifier_checkpoint: pathlib.Path):
+        pretraining_chunker = self.job_chunker.sub_chunker('pretraining')
+
         pretraining_type = self.pretraining_config['pretraining_type']
 
         if pretraining_type == 'collision':
@@ -221,27 +224,30 @@ class IterativeFineTuning:
 
             model_hparams_update = {}
         elif pretraining_type == 'augmentation':
-            classifier_params = classifier_params_from_planner_params(self.initial_planner_params)
+            classifier_params = load_params(initial_classifier_checkpoint)
             dataset_dirs = paths_from_json(classifier_params['datasets'])
             override_compute_loss = None
             override_create_metrics = None
             override_compute_metrics = None
-            model_hparams_update = load_hjson(self.pretraining_config['model_hparams_update'])
+            model_hparams_update = load_hjson(pathlib.Path(self.pretraining_config['model_hparams_update_filename']))
         else:
             raise NotImplementedError()
 
-        new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=dataset_dirs,
-                                                         checkpoint=initial_classifier_checkpoint,
-                                                         log=f'collision_pretraining_logdir',
-                                                         trials_directory=self.outdir,
-                                                         batch_size=32,
-                                                         verbose=self.verbose,
-                                                         validate_first=True,
-                                                         model_hparams_update=model_hparams_update,
-                                                         compute_loss=override_compute_loss,
-                                                         create_metrics=override_create_metrics,
-                                                         compute_metrics=override_compute_metrics,
-                                                         **self.pretraining_config)
+        new_latest_checkpoint_dir = pathify(pretraining_chunker.get_result('new_latest_checkpoint_dir'))
+        if new_latest_checkpoint_dir is None:
+            new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=dataset_dirs,
+                                                             checkpoint=initial_classifier_checkpoint / 'best_checkpoint',
+                                                             log=f'pretraining_logdir',
+                                                             early_stopping=True,
+                                                             validate_first=True,
+                                                             model_hparams_update=model_hparams_update,
+                                                             compute_loss=override_compute_loss,
+                                                             create_metrics=override_create_metrics,
+                                                             compute_metrics=override_compute_metrics,
+                                                             verbose=self.verbose,
+                                                             trials_directory=self.outdir,
+                                                             **self.pretraining_config)
+            pretraining_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         return new_latest_checkpoint_dir
 
     def generate_collision_pretraining_dataset(self, initial_classifier_checkpoint: pathlib.Path):
@@ -264,18 +270,18 @@ class IterativeFineTuning:
 
         def configs_generator():
             rng = random.Random(self.log.get('seed', 0))
-            configs_dir = pathlib.Path(self.collision_pretraining_config['configs_dir'])
+            configs_dir = pathlib.Path(self.pretraining_config['configs_dir'])
             configs_repeated = list(configs_dir.glob("initial_config_*.pkl"))
             while True:
                 config_filename = rng.choice(configs_repeated)
                 config = pickle.load(config_filename.open("rb"))
                 yield config['state'], config['env']
 
-        n_examples = self.collision_pretraining_config['n_examples']
+        n_examples = self.pretraining_config['n_examples']
         action_rng = np.random.RandomState(self.log.get('seed', 0))
         batch_size = 16
         action_sequence_length = 10
-        action_params_filename = pathlib.Path(self.collision_pretraining_config['action_params_filename'])
+        action_params_filename = pathlib.Path(self.pretraining_config['action_params_filename'])
         action_params = load_hjson(action_params_filename)
         for example_idx in range(n_examples):
             # get environment, this is the magic where we use the fact that we have the environment description
@@ -463,7 +469,7 @@ def setup_ift(args):
     print(logfile_name.as_posix())
 
 
-@notifyme.notify()
+# @notifyme.notify()
 def ift_main(args):
     log = load_hjson(args.logfile)
     ift = IterativeFineTuning(log=log,
