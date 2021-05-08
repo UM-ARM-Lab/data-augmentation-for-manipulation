@@ -32,7 +32,7 @@ from moonshine.raster_3d import raster_3d
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from std_msgs.msg import ColorRGBA
 
-DEBUG_VIZ = True
+DEBUG_VIZ = False
 SHOW_ALL = False
 
 
@@ -192,6 +192,7 @@ class NNClassifier(MyKerasModel):
     def get_local_env(self, batch_size, indices, input_dict):
         state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
 
+        # NOTE: to be more general, this should return a pose not just a point/position
         local_env_center = self.scenario.local_environment_center_differentiable(state_0)
         # by converting too and from the frame of the full environment, we ensure the grids are aligned
         center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center, input_dict)
@@ -418,6 +419,8 @@ class NNClassifier(MyKerasModel):
         return aug_is_valid
 
     def sample_local_env_position(self, example):
+        # NOTE: for my specific implementation of state_to_local_env_pose,
+        #  sampling random states and calling state_to_local_env_pose is equivalent to sampling a point in the extent
         extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
         extent_lower = tf.gather(extent, 0, axis=-1)
         extent_upper = tf.gather(extent, 1, axis=-1)
