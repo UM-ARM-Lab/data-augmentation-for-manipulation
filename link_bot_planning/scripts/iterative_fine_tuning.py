@@ -25,6 +25,7 @@ from link_bot_planning.analysis.results_utils import list_all_planning_results_t
 from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
+from link_bot_pycommon import notifyme
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import pathify, deal_with_exceptions, paths_from_json
 from moonshine.metrics import LossMetric
