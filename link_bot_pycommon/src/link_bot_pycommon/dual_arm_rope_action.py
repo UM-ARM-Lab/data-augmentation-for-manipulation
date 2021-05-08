@@ -1,13 +1,17 @@
+import warnings
 from typing import Dict
 
 import ros_numpy
 import rospy
 from actionlib_msgs.msg import GoalStatus
-from arm_robots.robot import MoveitEnabledRobot
 from link_bot_pycommon.base_dual_arm_rope_scenario import joint_state_msg_from_state_dict
 from peter_msgs.srv import GetOverstretching, GetOverstretchingResponse, GetOverstretchingRequest
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    from arm_robots.robot import MoveitEnabledRobot
 
 
 def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, environment: Dict, state: Dict, action: Dict):

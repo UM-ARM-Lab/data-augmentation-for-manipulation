@@ -1,4 +1,3 @@
-import itertools
 import time
 import warnings
 from typing import Dict, List, Tuple

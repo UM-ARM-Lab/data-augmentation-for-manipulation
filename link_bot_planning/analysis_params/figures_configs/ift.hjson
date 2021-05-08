@@ -1,0 +1,208 @@
+[
+  {
+    type: LinePlot
+    name: nme
+    xlabel: Num Steps
+    ylabel: Normalized Model Error
+    reductions: {
+      num_steps: [
+        null
+        cumsum
+        sum
+      ]
+      normalized_model_error: [
+        null
+        null
+        mean
+      ]
+    }
+  }
+  {
+    type: LinePlot
+    name: nme_rolling
+    xlabel: Num Steps
+    ylabel: Normalized Model Error (rolling)
+    reductions: {
+      num_steps: [
+        null
+        cumsum
+        sum
+      ]
+      normalized_model_error: [
+        null
+        my_rolling()
+        mean
+      ]
+    }
+  }
+  {
+    type: LinePlot
+    name: solved
+    xlabel: Num Steps
+    ylabel: Solved
+    ylim: [
+      -0.01
+      1.01
+    ]
+    reductions: {
+      num_steps: [
+        null
+        cumsum
+        sum
+      ]
+      any_solved: [
+        null
+        null
+        mean
+      ]
+    }
+  }
+  {
+    type: LinePlot
+    name: solved_vs_iters
+    xlabel: Iterations
+    ylabel: Task Error
+    reductions: {
+      task_error: [
+        null
+        null
+        mean
+      ]
+    }
+    axes_names: [
+      y
+    ]
+  }
+  {
+    type: LinePlot
+    name: success_vs_iters
+    xlabel: Iterations
+    ylabel: Percent Success
+    ylim: [
+      -0.01
+      1.01
+    ]
+    reductions: {
+      success: [
+        null
+        null
+        mean
+      ]
+    }
+    axes_names: [
+      y
+    ]
+  }
+  {
+    type: LinePlot
+    name: success
+    xlabel: Num Steps
+    ylabel: Percent Success
+    ylim: [
+      -0.01
+      1.01
+    ]
+    reductions: {
+      num_steps: [
+        null
+        cumsum
+        sum
+      ]
+      success: [
+        null
+        null
+        mean
+      ]
+    }
+  }
+  {
+    type: LinePlot
+    name: success_rolling
+    xlabel: Num Steps
+    ylabel: Percent Success (rolling)
+    ylim: [
+      -0.01
+      1.01
+    ]
+    reductions: {
+      num_steps: [
+        null
+        cumsum
+        sum
+      ]
+      success: [
+        null
+        my_rolling()
+        mean
+      ]
+    }
+  }
+  {
+    type: LinePlot
+    name: task_error
+    xlabel: Num Steps
+    ylabel: Task Error
+    reductions: {
+      num_steps:  [
+        null
+        cumsum
+        sum
+      ]
+      task_error: [
+        null
+        null
+        mean
+      ]
+    }
+  }
+  {
+    type: LinePlot
+    name: task_error_rolling
+    xlabel: Num Steps
+    ylabel: Task Error (rolling)
+    reductions: {
+      num_steps:  [
+        null
+        cumsum
+        sum
+      ]
+      task_error: [
+        null
+        my_rolling()
+        mean
+      ]
+    }
+  }
+  {
+    type: LinePlot
+    name: num_recovery_actions
+    xlabel: Num Iterations
+    ylabel: Num Recovery Actions
+    reductions: {
+      num_recovery_actions: [
+        null
+        null
+        sum
+      ]
+    }
+    axes_names: [
+      y
+    ]
+  }
+  {
+    type: LinePlot
+    name: num_recovery_actions_rolling
+    xlabel: Num Iterations
+    ylabel: Num Recovery Actions (rolling)
+    reductions: {
+      num_recovery_actions: [
+        null
+        my_rolling()
+        sum
+      ]
+    }
+    axes_names: [
+      y
+    ]
+  }
+]

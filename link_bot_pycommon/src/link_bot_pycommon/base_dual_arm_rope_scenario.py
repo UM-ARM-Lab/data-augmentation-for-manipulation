@@ -17,9 +17,10 @@ from trajectory_msgs.msg import JointTrajectoryPoint
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
     import moveit_commander
+    from arm_robots.get_robot import get_moveit_robot
+
 import rospy
 from arc_utilities.listener import Listener
-from arm_robots.get_robot import get_moveit_robot
 from geometry_msgs.msg import PoseStamped
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario

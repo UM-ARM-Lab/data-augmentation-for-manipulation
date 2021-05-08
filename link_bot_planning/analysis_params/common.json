@@ -25,6 +25,10 @@
     "combined classifier": "#FFBB22",
 
     "with augmentation": "#0022FF",
-    "without augmentation": "#AA1155"
+    "without augmentation": "#AA1155",
+
+    ".*_\\d+t\\d*": "#FFBB22",
+    ".*_\\d+t_aug\\d*": "#0022FF",
+    ".*_aug_pretrain\\d*": "#AA1155"
   }
 }

@@ -1,7 +1,10 @@
 import numpy as np
 
 import ros_numpy
-from arm_robots.robot import MoveitEnabledRobot
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    from arm_robots.robot import MoveitEnabledRobot
 
 
 class DualArmGetGripperPositions:

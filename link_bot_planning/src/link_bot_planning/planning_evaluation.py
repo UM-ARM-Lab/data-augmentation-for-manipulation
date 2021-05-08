@@ -1,12 +1,16 @@
 import pathlib
 import tempfile
 import uuid
+import warnings
 from time import time, sleep
 from typing import Optional, Dict, List, Tuple
 
 import numpy as np
 from colorama import Fore
-from ompl import util as ou
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    from ompl import util as ou
 
 import rosbag
 import rospy

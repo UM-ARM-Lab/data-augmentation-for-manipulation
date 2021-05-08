@@ -11,13 +11,13 @@ from colorama import Fore
 
 import rospy
 from arc_utilities.filesystem_utils import get_all_subdirs
-from link_bot_planning.analysis.figspec import FigSpec, get_data_for_figure
-from link_bot_planning.analysis.results_figures import *
+from link_bot_planning.analysis.figspec import FigSpec, get_data_for_figure, DEFAULT_AXES_NAMES
 from link_bot_planning.analysis.results_metrics import *
 from link_bot_planning.analysis.results_utils import load_order, add_number_to_method_name
+# noinspection PyUnresolvedReferences
+from link_bot_planning.analysis.results_figures import *
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
-from link_bot_pycommon.pycommon import quote_string
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson, load_json_or_hjson
 from moonshine.gpu_config import limit_gpu_mem
@@ -38,6 +38,26 @@ def metrics_main(args):
     else:
         table_format = 'fancy_grid'
 
+    method_names, metrics = get_metrics(args, out_dir, planning_results_dirs)
+
+    # Figures & Tables
+    figspecs = load_figspecs(analysis_params, args)
+
+    for spec in figspecs:
+        data_for_figure = get_data_for_figure(spec, metrics)
+
+        spec.fig.make_figure(data_for_figure, method_names)
+        spec.fig.save_figure(out_dir)
+
+    # make_tables(tables, analysis_params, sort_order_dict, table_format, tables_filename)
+
+    if not args.no_plot:
+        for spec in figspecs:
+            spec.fig.fig.set_tight_layout(True)
+        plt.show()
+
+
+def get_metrics(args, out_dir, planning_results_dirs):
     metrics_funcs = [
         num_trials,
         num_steps,
@@ -45,12 +65,14 @@ def metrics_main(args):
         any_solved,
         success,
         normalized_model_error,
+        num_recovery_actions,
     ]
     metrics_names = [func.__name__ for func in metrics_funcs]
     column_names = metrics_names
-
     results_dirs_ordered = load_order(prompt_order=args.order, directories=planning_results_dirs, out_dir=out_dir)
-
+    with (out_dir / 'info.txt').open('w') as info_file:
+        for f in args.ift_dirs:
+            info_file.write(f.as_posix() + '\n')
     results_dirs_dict = {}
     sort_order_dict = {}
     for idx, results_dir in enumerate(results_dirs_ordered):
@@ -67,11 +89,9 @@ def metrics_main(args):
         results_dirs_dict[method_name] = (subfolders, log)
         sort_order_dict[method_name] = idx
     method_names = list(sort_order_dict.keys())
-
     tables_filename = out_dir / 'tables.txt'
     with tables_filename.open("w") as tables_file:
         tables_file.truncate()
-
     pickle_filename = out_dir / f"metrics.pkl"
     if pickle_filename.exists() and not args.regenerate:
         rospy.loginfo(Fore.GREEN + f"Loading existing metrics from {pickle_filename}")
@@ -106,60 +126,25 @@ def metrics_main(args):
         with pickle_filename.open("wb") as pickle_file:
             pickle.dump(metrics, pickle_file)
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}")
+    return method_names, metrics
 
-    # Figures & Tables
-    title = eval(quote_string(analysis_params['experiment_name']))
-    ylim = [-0.01, 1.01]
-    figspecs = [
-        FigSpec(fig=LinePlot(analysis_params, name='nme', xlabel="Num Steps", ylabel='Normalized Model Error'),
-                reductions={num_steps.__name__:              [None, 'cumsum', 'sum'],
-                            normalized_model_error.__name__: [None, None, 'mean']}),
-        FigSpec(fig=LinePlot(analysis_params, name='nme_rolling', xlabel="Num Steps", ylabel='Normalized Model Error (rolling)'),
-                reductions={num_steps.__name__:              [None, 'cumsum', 'sum'],
-                            normalized_model_error.__name__: [None, my_rolling(), 'mean']}),
-        FigSpec(fig=LinePlot(analysis_params, name='solved', xlabel="Num Steps", ylabel='Solved', ylim=ylim),
-                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
-                            any_solved.__name__: [None, None, 'mean']}),
-        FigSpec(fig=LinePlot(analysis_params, name='solved_vs_iters', xlabel="Iterations", ylabel='Task Error'),
-                reductions={task_error.__name__: [None, None, 'mean']},
-                axis_names=['y']),
-        FigSpec(fig=LinePlot(analysis_params, name='success_vs_iters', xlabel="Iterations", ylabel='Percent Success', ylim=ylim),
-                reductions={success.__name__: [None, None, 'mean']},
-                axis_names=['y']),
-        FigSpec(fig=LinePlot(analysis_params, name='success', xlabel="Num Steps", ylabel='Percent Success', ylim=ylim),
-                reductions={num_steps.__name__: [None, 'cumsum', 'sum'],
-                            success.__name__:   [None, None, 'mean']}),
-        FigSpec(fig=LinePlot(analysis_params, name='success_rolling', xlabel="Num Steps", ylabel='Percent Success (rolling)', ylim=ylim),
-                reductions={num_steps.__name__: [None, 'cumsum', 'sum'],
-                            success.__name__:   [None, my_rolling(), 'mean']}),
-        FigSpec(fig=LinePlot(analysis_params, name='task_error', xlabel="Num Steps", ylabel='Task Error'),
-                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
-                            task_error.__name__: [None, None, 'mean']}),
-        FigSpec(fig=LinePlot(analysis_params, name='task_error_rolling', xlabel="Num Steps", ylabel='Task Error (rolling)'),
-                reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
-                            task_error.__name__: [None, my_rolling(), 'mean']}),
-        # FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Cumulative Task Error'),
-        #         reductions={num_steps.__name__:  [None, 'cumsum', 'sum'],
-        #                     task_error.__name__: [None, 'cumsum', 'sum']}),
-        # FigSpec(fig=LinePlot(analysis_params, xlabel="Num Steps", ylabel='Cumulative Percent Success'),
-        #         reductions={num_trials.__name__: [None, 'cumsum', 'sum'],
-        #                     success.__name__:    [None, 'cumsum', 'sum'],
-        #                     }),
-    ]
 
-    for spec in figspecs:
-        data_for_figure = get_data_for_figure(spec, metrics)
+def load_figspecs(analysis_params, args):
+    figures_config = load_hjson(args.figures_config)
+    figspecs = []
+    for fig_config in figures_config:
+        figure_type = eval(fig_config.pop('type'))
+        reductions = fig_config.pop('reductions')
+        if 'axes_names' in fig_config:
+            axes_names = fig_config.pop('axes_names')
+        else:
+            axes_names = DEFAULT_AXES_NAMES
 
-        spec.fig.make_figure(data_for_figure, method_names)
-        spec.fig.save_figure(out_dir)
-        spec.fig.fig.suptitle(title)
+        fig = figure_type(analysis_params, **fig_config)
 
-    # make_tables(tables, analysis_params, sort_order_dict, table_format, tables_filename)
-
-    if not args.no_plot:
-        for spec in figspecs:
-            spec.fig.fig.set_tight_layout(True)
-        plt.show()
+        figspec = FigSpec(fig=fig, reductions=reductions, axes_names=axes_names)
+        figspecs.append(figspec)
+    return figspecs
 
 
 def main():
@@ -170,6 +155,8 @@ def main():
 
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument('ift_dirs', help='results directory', type=pathlib.Path, nargs='+')
+    parser.add_argument('--figures-config', type=pathlib.Path,
+                        default=pathlib.Path("analysis_params/figures_configs/ift.hjson"))
     parser.add_argument('--analysis-params', type=pathlib.Path,
                         default=pathlib.Path("analysis_params/env_across_methods.json"))
     parser.add_argument('--no-plot', action='store_true')
