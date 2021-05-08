@@ -1,6 +1,7 @@
 from copy import deepcopy
 from typing import List
 
+from arm_robots.robot_utils import make_robot_state_from_joint_state
 from moveit_msgs.msg import Constraints, JointConstraint, MotionPlanRequest, MoveGroupGoal, PlanningScene, RobotState
 from sensor_msgs.msg import JointState
 
@@ -28,19 +29,6 @@ def make_joint_state(position: List, name: List[str]):
     joint_state.name = name
     joint_state.velocity = [0.0] * len(joint_state.name)
     return joint_state
-
-
-def make_robot_state_from_joint_state(scene_msg: PlanningScene, joint_state: JointState):
-    return RobotState(attached_collision_objects=scene_msg.robot_state.attached_collision_objects,
-                      joint_state=joint_state)
-
-
-def merge_joint_state_and_scene_msg(scene_msg, joint_state):
-    robot_state = make_robot_state_from_joint_state(scene_msg=scene_msg, joint_state=joint_state)
-    scene_msg_with_state = deepcopy(scene_msg)
-    scene_msg_with_state.robot_state.joint_state = joint_state
-    return scene_msg_with_state, robot_state
-
 
 def make_robot_state(scene_msg: PlanningScene, position: List, name: List[str]):
     joint_state = make_joint_state(position, name)

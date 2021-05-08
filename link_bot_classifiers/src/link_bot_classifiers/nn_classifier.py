@@ -118,7 +118,7 @@ class NNClassifier(MyKerasModel):
 
         self.aug_generator = tf.random.Generator.from_seed(0)
 
-    def make_voxel_grid_inputs(self, input_dict: Dict, batch_size, time):
+    def make_voxel_grid_inputs(self, input_dict: Dict, batch_size, time, training: bool):
         indices = self.create_env_indices(batch_size)
 
         local_env, local_env_origin = self.get_local_env(batch_size, indices, input_dict)
@@ -154,7 +154,7 @@ class NNClassifier(MyKerasModel):
             self.debug_viz_local_env_pre_aug(input_dict, local_voxel_grids_array, local_env_origin, time)
 
         # optionally augment the local environment
-        if self.augmentation_3d is not None:
+        if self.augmentation_3d is not None and training:
             local_voxel_grids_aug_array = self.augmentation_3d(self, time, input_dict, local_voxel_grids_array, indices)
         else:
             local_voxel_grids_aug_array = local_voxel_grids_array
@@ -540,7 +540,7 @@ class NNClassifier(MyKerasModel):
                 self.scenario.plot_environment_rviz(env_b)
                 stepper.step()
 
-        voxel_grids = self.make_voxel_grid_inputs(input_dict, batch_size=batch_size, time=time)
+        voxel_grids = self.make_voxel_grid_inputs(input_dict, batch_size=batch_size, time=time, training=training)
 
         # encoder
         conv_output = self.conv_encoder(voxel_grids, batch_size=batch_size, time=time)
