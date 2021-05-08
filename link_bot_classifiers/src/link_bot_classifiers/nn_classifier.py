@@ -171,6 +171,9 @@ class NNClassifier(MyKerasModel):
                 self.env_aug_pub5.publish(msg)
                 stepper.step()
 
+            for b in self.debug_viz_batch_indices():
+                self.animate_voxel_grid_states(b, input_dict, local_env_origin, local_voxel_grids_array, time)
+
         return local_voxel_grids_aug_array
 
     def conv_encoder(self, local_voxel_grids_aug_array: tf.TensorArray, batch_size, time):
@@ -256,7 +259,7 @@ class NNClassifier(MyKerasModel):
         local_env = local_voxel_grids_array.read(0)[:, :, :, :, 0]
         remove = local_env * (1 - local_env_new) * (1 - states_any)
 
-        local_env_aug_removed = tf.maximum(local_env_new - remove, 0)
+        local_env_aug_removed = local_env_new + tf.maximum(local_env - remove, 0)
 
         # visualize which voxels will be removed
         if DEBUG_VIZ:
@@ -609,28 +612,31 @@ class NNClassifier(MyKerasModel):
             }
             send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_dict, frame='local_env')
 
-            anim = RvizAnimationController(n_time_steps=time)
-            while not anim.done:
-                t = anim.t()
+            self.animate_voxel_grid_states(b, example, local_env_origin, local_voxel_grids_array, time)
 
-                local_voxel_grid_t = local_voxel_grids_array.read(t)
+    def animate_voxel_grid_states(self, b, example, local_env_origin, local_voxel_grids_array, time):
+        anim = RvizAnimationController(n_time_steps=time)
+        while not anim.done:
+            t = anim.t()
 
-                for i, state_component_k_voxel_grid in enumerate(tf.transpose(local_voxel_grid_t, [4, 0, 1, 2, 3])):
-                    raster_dict = {
-                        'env':    tf.clip_by_value(state_component_k_voxel_grid[b], 0, 1),
-                        'origin': local_env_origin[b].numpy(),
-                        'res':    example['res'][b].numpy(),
-                    }
-                    raster_msg = environment_to_occupancy_msg(raster_dict, frame='local_env', stamp=rospy.Time(0))
-                    self.raster_debug_pubs[i].publish(raster_msg)
+            local_voxel_grid_t = local_voxel_grids_array.read(t)
 
-                anim.step()
+            for i, state_component_k_voxel_grid in enumerate(tf.transpose(local_voxel_grid_t, [4, 0, 1, 2, 3])):
+                raster_dict = {
+                    'env':    tf.clip_by_value(state_component_k_voxel_grid[b], 0, 1),
+                    'origin': local_env_origin[b].numpy(),
+                    'res':    example['res'][b].numpy(),
+                }
+                raster_msg = environment_to_occupancy_msg(raster_dict, frame='local_env', stamp=rospy.Time(0))
+                self.raster_debug_pubs[i].publish(raster_msg)
+
+            anim.step()
 
     def debug_viz_batch_indices(self):
         if SHOW_ALL:
             return range(self.batch_size)
         else:
-            return [0]
+            return [8]
 
 
 class NNClassifierWrapper(BaseConstraintChecker):
