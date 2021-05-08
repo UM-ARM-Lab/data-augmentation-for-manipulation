@@ -243,11 +243,18 @@ class NNClassifier(MyKerasModel):
                 stepper.step()
 
         # equivalent version of "logical or" over all state channels
-        local_voxel_grid_rastered_states_any = tf.minimum(tf.reduce_sum(local_voxel_grid[:, :, :, :, 1:], axis=-1), 1)
-        local_env = local_voxel_grid[:, :, :, :, 0]
+        states_any_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        for t in range(time):
+            local_voxel_grid_t = local_voxel_grids_array.read(t)
+            states_any_t = tf.minimum(tf.reduce_sum(local_voxel_grid_t[:, :, :, :, 1:], axis=-1), 1)
+            states_any_array = states_any_array.write(t, states_any_t)
+        states_any = tf.transpose(states_any_array.stack(), [1, 0, 2, 3, 4])
+        states_any = tf.minimum(tf.reduce_sum(states_any, axis=1), 1)
 
         # voxel from the original local env that can be removed
-        remove = local_env * (1 - local_env_new) * (1 - local_voxel_grid_rastered_states_any)
+        # we just read 0 because it's the same at all time steps
+        local_env = local_voxel_grids_array.read(0)[:, :, :, :, 0]
+        remove = local_env * (1 - local_env_new) * (1 - states_any)
 
         local_env_aug_removed = tf.maximum(local_env_new - remove, 0)
 
@@ -274,33 +281,20 @@ class NNClassifier(MyKerasModel):
                 stepper.step()
 
         n_state_components = len(self.state_keys)
-        aug_intersects_state_bool = self.is_env_augmentation_valid(time, local_env_new, local_voxel_grids_array,
-                                                                   n_state_components)
+        is_valid = self.is_env_augmentation_valid(self,
+                                                  time,
+                                                  local_env_new,
+                                                  local_voxel_grids_array,
+                                                  n_state_components)
 
         # if the augmentation is invalid, use the original local env
-        aug_intersects_state = 1 - tf.cast(aug_intersects_state_bool, tf.float32)[:, tf.newaxis, tf.newaxis, tf.newaxis]
-        local_env_aug_masked = local_env_aug_removed * aug_intersects_state + local_env * (1 - aug_intersects_state)
+        is_valid = is_valid[:, tf.newaxis, tf.newaxis, tf.newaxis]
+        local_env_aug_masked = local_env_aug_removed * is_valid + local_env * (1 - is_valid)
 
-        # the dims of local_voxel_grid are batch, rows, cols, channels, features
-        # and features[0] is the local env, so pad the other feature dims with zero
-        paddings = [[0, 0], [0, 0], [0, 0], [0, 0], [0, n_state_components]]
-        local_voxel_grid_aug = local_voxel_grid + tf.pad(tf.expand_dims(local_env_aug_masked, axis=-1), paddings,
-                                                         constant_values=0)
-        local_voxel_grid_aug = tf.clip_by_value(local_voxel_grid_aug, 0.0, 1.0)
-
-        if DEBUG_VIZ:
-            stepper = RvizSimpleStepper()
-            for b in self.debug_viz_batch_indices():
-                final_aug_dict = {
-                    'env':    local_env_aug_masked[b].numpy(),
-                    'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
-                }
-                msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
-                self.env_aug_pub5.publish(msg)
-                stepper.step()
-
-        return local_voxel_grid_aug
+        return self.merge_aug_and_local_voxel_grids(local_env_aug_masked,
+                                                    local_voxel_grids_array,
+                                                    n_state_components,
+                                                    time)
 
     def additive_env_resample_augmentation(self,
                                            time,
@@ -317,23 +311,17 @@ class NNClassifier(MyKerasModel):
                                                       local_voxel_grids_array,
                                                       n_state_components)
 
-        # masks out the invalid augmentations
-        local_env_aug_masked = aug_is_valid[:, tf.newaxis, tf.newaxis, tf.newaxis] * local_env_new
-        paddings = [[0, 0], [0, 0], [0, 0], [0, 0], [0, n_state_components]]
-        local_env_aug_padded = tf.pad(tf.expand_dims(local_env_aug_masked, axis=-1), paddings)
-
         if DEBUG_VIZ:
             self.viz_new_env_and_validity(aug_is_valid, example, local_env_new, local_env_new_origin)
 
-        local_voxel_grids_aug_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
-        for t in tf.range(time):
-            # the dims of local_voxel_grid are batch, rows, cols, channels, features
-            # and features[0] is the local env, so pad the other feature dims with zero
-            local_voxel_grid_plus_aug_t = local_voxel_grids_array.read(t) + local_env_aug_padded
-            local_voxel_grid_plus_aug_t = tf.clip_by_value(local_voxel_grid_plus_aug_t, 0.0, 1.0)
-            local_voxel_grids_aug_array = local_voxel_grids_aug_array.write(t, local_voxel_grid_plus_aug_t)
+        # masks out the invalid augmentations
+        local_env = local_voxel_grids_array.read(0)[:, :, :, :, 0]
+        local_env_aug_masked = local_env + aug_is_valid[:, tf.newaxis, tf.newaxis, tf.newaxis] * local_env_new
 
-        return local_voxel_grids_aug_array
+        return self.merge_aug_and_local_voxel_grids(local_env_aug_masked,
+                                                    local_voxel_grids_array,
+                                                    n_state_components,
+                                                    time)
 
     def viz_new_env_and_validity(self, is_valid, example, local_env_new, local_env_new_origin):
         stepper = RvizSimpleStepper()
@@ -355,6 +343,23 @@ class NNClassifier(MyKerasModel):
             raster_msg = environment_to_occupancy_msg(env_aug_dict, frame='local_env', stamp=rospy.Time(0), color=color)
             self.env_aug_pub1.publish(raster_msg)
             stepper.step()
+
+    def merge_aug_and_local_voxel_grids(self,
+                                        local_env_aug_masked,
+                                        local_voxel_grids_array: tf.TensorArray,
+                                        n_state_components,
+                                        time):
+        local_env_aug_expanded = tf.expand_dims(local_env_aug_masked, axis=-1)
+        local_voxel_grids_aug_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
+        for t in tf.range(time):
+            # the dims of local_voxel_grid are batch, rows, cols, channels, features
+            # and features[0] is the local env, so pad the other feature dims with zero
+            local_voxel_grid_t = local_voxel_grids_array.read(t)
+            local_voxel_grid_states_t = local_voxel_grid_t[:, :, :, :, 1:]
+            local_voxel_grid_aug_t = tf.concat([local_env_aug_expanded, local_voxel_grid_states_t], axis=-1)
+            local_voxel_grid_aug_t = tf.clip_by_value(local_voxel_grid_aug_t, 0.0, 1.0)
+            local_voxel_grids_aug_array = local_voxel_grids_aug_array.write(t, local_voxel_grid_aug_t)
+        return local_voxel_grids_aug_array
 
     def get_new_local_env(self, indices, example):
         if add_new('env') not in example:
