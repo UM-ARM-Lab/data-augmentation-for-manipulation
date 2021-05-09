@@ -7,7 +7,7 @@
     reductions: {
       num_steps: [
         null
-        cumsum
+        shifted_cumsum
         sum
       ]
       normalized_model_error: [
@@ -25,7 +25,7 @@
     reductions: {
       num_steps: [
         null
-        cumsum
+        shifted_cumsum
         sum
       ]
       normalized_model_error: [
@@ -47,7 +47,7 @@
     reductions: {
       num_steps: [
         null
-        cumsum
+        shifted_cumsum
         sum
       ]
       any_solved: [
@@ -105,34 +105,12 @@
     reductions: {
       num_steps: [
         null
-        cumsum
+        shifted_cumsum
         sum
       ]
       success: [
         null
         null
-        mean
-      ]
-    }
-  }
-  {
-    type: LinePlot
-    name: success_rolling
-    xlabel: Num Steps
-    ylabel: Percent Success (rolling)
-    ylim: [
-      -0.01
-      1.01
-    ]
-    reductions: {
-      num_steps: [
-        null
-        cumsum
-        sum
-      ]
-      success: [
-        null
-        my_rolling()
         mean
       ]
     }
@@ -145,7 +123,7 @@
     reductions: {
       num_steps:  [
         null
-        cumsum
+        shifted_cumsum
         sum
       ]
       task_error: [
@@ -163,7 +141,7 @@
     reductions: {
       num_steps:  [
         null
-        cumsum
+        shifted_cumsum
         sum
       ]
       task_error: [
@@ -204,5 +182,27 @@
     axes_names: [
       y
     ]
+  }
+  {
+    type: LinePlot
+    name: success_rolling
+    xlabel: Num Steps
+    ylabel: Percent Success (rolling)
+    ylim: [
+      -0.01
+      1.01
+    ]
+    reductions: {
+      num_steps: [
+        null
+        shifted_cumsum
+        sum
+      ]
+      success: [
+        null
+        my_rolling()
+        mean
+      ]
+    }
   }
 ]

@@ -37,7 +37,7 @@ class RecoveryDatasetLoader(BaseDatasetLoader):
             'traj_idx',
             'start_t',
             'end_t',
-            'accept_probabilities'
+            'accept_probabilities',
         ]
 
         for k in self.hparams['state_keys']:

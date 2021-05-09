@@ -174,8 +174,14 @@ def my_rolling(window: int = 10):
     return lambda x: x.rolling(window=window, min_periods=0).mean()
 
 
+def shifted_cumsum(x):
+    x = x.cumsum()
+    return x - x[0]
+
+
 __all__ = [
     'my_rolling',
+    'shifted_cumsum',
     'MyFigure',
     'LinePlot',
 ]

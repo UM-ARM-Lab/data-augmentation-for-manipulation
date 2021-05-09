@@ -26,9 +26,7 @@ def main():
     parser.add_argument('out_dir', type=pathlib.Path, help='out dir')
     parser.add_argument('--start-at', type=str, help='string of the form mode,idx (ex: val:30)')
     parser.add_argument('--stop-at', type=str, help='string of the form mode,idx (ex: val:30)')
-    parser.add_argument('--max-examples-per-record', type=int, default=128, help="examples per file")
     parser.add_argument('--batch-size', type=int, help="batch size", default=2)
-    parser.add_argument('--use-gt-rope', action='store_true')
     parser.add_argument('--yes', action='store_true')
 
     args = parser.parse_args()
@@ -41,7 +39,7 @@ def main():
     make_recovery_dataset(dataset_dir=args.dataset_dir,
                           fwd_model_dir=args.fwd_model_dir,
                           classifier_model_dir=args.classifier_model_dir,
-                          use_gt_rope=args.use_gt_rope,
+                          use_gt_rope=True,
                           labeling_params=args.labeling_params,
                           outdir=args.out_dir,
                           batch_size=args.batch_size,

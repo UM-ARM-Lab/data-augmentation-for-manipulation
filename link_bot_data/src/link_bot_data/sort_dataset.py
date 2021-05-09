@@ -8,11 +8,11 @@ from link_bot_data.base_dataset import BaseDatasetLoader, SORT_FILE_NAME
 
 
 def sort_dataset_mode(mode: str, dataset: BaseDatasetLoader, get_value: Callable, reverse: bool):
+    all_filenames = dataset.get_record_filenames(mode)
     tf_dataset = dataset.get_datasets(mode=mode, shuffle_files=False, do_not_process=True)
 
     values_and_record_filenames = []
-    for example in progressbar(tf_dataset, widgets=base_dataset.widgets):
-        record_filename = example['tfrecord_path'].numpy().decode("utf-8")
+    for example, record_filename in progressbar(zip(tf_dataset, all_filenames), widgets=base_dataset.widgets):
         value = get_value(dataset, example)
         values_and_record_filenames.append((value, record_filename))
 

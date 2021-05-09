@@ -6,13 +6,12 @@ from typing import Optional, List, Dict
 import hjson
 import numpy as np
 import tensorflow as tf
-from link_bot_data.dataset_utils import add_predicted, index_batch_time_with_metadata
-from link_bot_data.recovery_dataset import compute_recovery_probabilities
-from matplotlib import cm
 from colorama import Fore
+from matplotlib import cm
 
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.nn_classifier import NNClassifierWrapper
+from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.dataset_utils import tf_write_example, count_up_to_next_record_idx, deserialize_scene_msg
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.recovery_dataset import compute_recovery_probabilities
@@ -22,7 +21,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.serialization import my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
-from moonshine.indexing import index_dict_of_batched_tensors_tf
+from moonshine.indexing import index_dict_of_batched_tensors_tf, index_batch_time_with_metadata
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, repeat
 from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
@@ -295,7 +294,6 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
 
         all_accept_probabilities.append(accept_probabilities)
 
-
         if DEBUG:
             recovery_probabilities = compute_recovery_probabilities(accept_probabilities, n_action_samples)
             environment_b = index_dict_of_batched_tensors_tf(environment, 0)
@@ -318,7 +316,8 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
                 scenario.plot_action_rviz(pred_0, action, label='true action')
 
             def _init_viz_start_state(scenario, example):
-                start_state = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0, t=ast)
+                start_state = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0,
+                                                             t=ast)
                 scenario.plot_state_rviz(start_state, label='pred', color='#ff3333aa')
 
             def _viz_action_i(scenario: ExperimentScenario, example: Dict, i: int):
@@ -340,7 +339,8 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
                                  t_funcs=[init_viz_env,
                                           _recovery_transition_viz_i,
                                           _viz_action_i,
-                                          lambda s, e, i: scenario.plot_accept_probability(e['accept_probabilities'][i]),
+                                          lambda s, e, i: scenario.plot_accept_probability(
+                                              e['accept_probabilities'][i]),
                                           ])
 
             anim.play(viz_example_b)

@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 import pathlib
-from typing import Dict
+from dataclasses import dataclass
+from typing import Dict, List
 
+import numpy as np
 import tensorflow as tf
 from colorama import Fore
+from matplotlib import cm
 from numpy.random import RandomState
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -15,13 +18,17 @@ from link_bot_classifiers.base_recovery_policy import BaseRecoveryPolicy
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
     batch_point_to_idx_tf_3d_in_batched_envs
-from link_bot_pycommon.pycommon import make_dict_tf_float32
+from link_bot_pycommon.pycommon import make_dict_tf_float32, log_scale_0_to_1
+from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
 from moonshine.metrics import LossMetric
 from moonshine.moonshine_utils import add_batch
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
+
+DEBUG_VIZ = False
+POLICY_DEBUG_VIZ = True
 
 
 class NNRecoveryModel(MyKerasModel):
@@ -206,7 +213,7 @@ class NNRecoveryModel(MyKerasModel):
     def create_metrics(self):
         super().create_metrics()
         return {
-            'loss':                  LossMetric(),
+            'loss': LossMetric(),
         }
 
     def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
@@ -272,6 +279,14 @@ class NNRecoveryModel(MyKerasModel):
         }
 
 
+@dataclass
+class RecoveryDebugVizInfo:
+    actions: List[Dict]
+    recovery_probabilities: List
+    states: List[Dict]
+    environment: Dict
+
+
 class NNRecoveryPolicy(BaseRecoveryPolicy):
 
     def __init__(self, hparams: Dict, model_dir: pathlib.Path, scenario: ExperimentScenario, rng: RandomState):
@@ -298,8 +313,12 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
         # sample a bunch of actions (batched?) and pick the best one
         max_unstuck_probability = -1
         best_action = None
-        # anim = RvizAnimationController(np.arange(self.n_action_samples))
-        # while not anim.done:
+
+        info = RecoveryDebugVizInfo(actions=[],
+                                    states=[],
+                                    recovery_probabilities=[],
+                                    environment=environment)
+
         for _ in range(self.n_action_samples):
             self.scenario.last_action = None
             action, _ = self.scenario.sample_action(action_rng=self.action_rng,
@@ -327,17 +346,36 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
             recovery_model_output = self.model(recovery_model_input, training=False)
             recovery_probability = recovery_model_output['probabilities']
 
-            # self.scenario.plot_environment_rviz(environment)
-            # self.scenario.plot_state_rviz(state, label='stuck state')
-            # self.scenario.plot_recovery_probability(recovery_probability)
-            # color_factor = log_scale_0_to_1(tf.squeeze(recovery_probability), k=100)
-            # self.scenario.plot_action_rviz(state, action, label='proposed', color=cm.Greens(color_factor), idx=1)
+            info.states.append(state)
+            info.actions.append(action)
+            info.recovery_probabilities.append(recovery_probability)
 
             if recovery_probability > max_unstuck_probability:
                 max_unstuck_probability = recovery_probability
                 best_action = action
-                # print(max_unstuck_probability)
-                # self.scenario.plot_action_rviz(state, action, label='best_proposed', color='g', idx=2)
 
-            # anim.step()
+        if POLICY_DEBUG_VIZ:
+            self.debug_viz(info)
+
         return best_action
+
+    def debug_viz(self, info: RecoveryDebugVizInfo):
+        anim = RvizAnimationController(np.arange(self.n_action_samples))
+        debug_viz_max_unstuck_probability = -1
+        while not anim.done:
+            i = anim.t()
+            s_i = info.states[i]
+            a_i = info.actions[i]
+            p_i = info.recovery_probabilities[i]
+
+            self.scenario.plot_recovery_probability(p_i)
+            color_factor = log_scale_0_to_1(tf.squeeze(p_i), k=100)
+            self.scenario.plot_action_rviz(s_i, a_i, label='proposed', color=cm.Greens(color_factor), idx=1)
+            self.scenario.plot_environment_rviz(info.environment)
+            self.scenario.plot_state_rviz(s_i, label='stuck_state')
+
+            if p_i > debug_viz_max_unstuck_probability:
+                debug_viz_max_unstuck_probability = p_i
+                self.scenario.plot_action_rviz(s_i, a_i, label='best_proposed', color='g', idx=2)
+
+            anim.step()
