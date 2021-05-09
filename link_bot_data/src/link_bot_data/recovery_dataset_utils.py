@@ -6,6 +6,9 @@ from typing import Optional, List, Dict
 import hjson
 import numpy as np
 import tensorflow as tf
+from link_bot_data.dataset_utils import add_predicted, index_batch_time_with_metadata
+from link_bot_data.recovery_dataset import compute_recovery_probabilities
+from matplotlib import cm
 from colorama import Fore
 
 from link_bot_classifiers import classifier_utils
@@ -292,60 +295,55 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
 
         all_accept_probabilities.append(accept_probabilities)
 
-        # recovery_probabilities = compute_recovery_probabilities(accept_probabilities, n_action_samples)
-        # print(ast, accept_probabilities[0])
 
-        # # BEGIN DEBUG
-        # from link_bot_data.dataset_utils import add_predicted, index_batch_time_with_metadata
-        # from link_bot_data.recovery_dataset import compute_recovery_probabilities
-        # from matplotlib import cm
-        # environment_b = index_dict_of_batched_tensors_tf(environment, 0)
-        # actual_states_b = index_dict_of_batched_tensors_tf(actual_states_tiled, 0)
-        # predictions_b = index_dict_of_batched_tensors_tf(predictions, 0)
-        # actions_b = index_dict_of_batched_tensors_tf(random_actions_dict, 0)
-        # accept_probabilities_b = accept_probabilities[0]
-        # recovery_probability = recovery_probabilities[0]
-        # viz_example_b = {}
-        # viz_example_b.update(environment_b)
-        # viz_example_b.update(actual_states_b)
-        # viz_example_b.update({add_predicted(k): v for k, v in predictions_b.items()})
-        # viz_example_b.update(actions_b)
-        # viz_example_b['accept_probabilities'] = accept_probabilities_b.numpy()
-        # pred_state_keys = classifier_model.pred_state_keys
-        #
-        # def _init_viz_true_action(scenario, example):
-        #     pred_0 = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0, t=ast)
-        #     action = {k: actual_actions[k][0, 0] for k in fwd_model.action_keys}
-        #     scenario.plot_action_rviz(pred_0, action, label='true action')
-        #
-        # def _init_viz_start_state(scenario, example):
-        #     start_state = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0, t=ast)
-        #     scenario.plot_state_rviz(start_state, label='pred', color='#ff3333aa')
-        #
-        # def _viz_action_i(scenario: ExperimentScenario, example: Dict, i: int):
-        #     action = {k: example[k][i, 0] for k in fwd_model.action_keys}
-        #     pred_t = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=i, t=ast)
-        #     scenario.plot_action_rviz(pred_t, action, color=cm.Blues(accept_probabilities_b[i]))
-        #
-        # def _recovery_transition_viz_i(scenario: ExperimentScenario, example: Dict, i: int):
-        #     e_t_next = index_batch_time_with_metadata(scenario_metadata, example, pred_state_keys, b=i, t=1)
-        #     scenario.plot_state_rviz(e_t_next, label='pred', color='#ff3333aa')
-        #
-        # anim = RvizAnimation(scenario=scenario,
-        #                      n_time_steps=n_action_samples,
-        #                      init_funcs=[init_viz_env,
-        #                                  lambda s, e: scenario.plot_recovery_probability(recovery_probability),
-        #                                  _init_viz_start_state,
-        #                                  _init_viz_true_action,
-        #                                  ],
-        #                      t_funcs=[init_viz_env,
-        #                               _recovery_transition_viz_i,
-        #                               _viz_action_i,
-        #                               lambda s, e, i: scenario.plot_accept_probability(e['accept_probabilities'][i]),
-        #                               ])
-        #
-        # anim.play(viz_example_b)
-        # # END DEBUG
+        if DEBUG:
+            recovery_probabilities = compute_recovery_probabilities(accept_probabilities, n_action_samples)
+            environment_b = index_dict_of_batched_tensors_tf(environment, 0)
+            actual_states_b = index_dict_of_batched_tensors_tf(actual_states_tiled, 0)
+            predictions_b = index_dict_of_batched_tensors_tf(predictions, 0)
+            actions_b = index_dict_of_batched_tensors_tf(random_actions_dict, 0)
+            accept_probabilities_b = accept_probabilities[0]
+            recovery_probability = recovery_probabilities[0]
+            viz_example_b = {}
+            viz_example_b.update(environment_b)
+            viz_example_b.update(actual_states_b)
+            viz_example_b.update({add_predicted(k): v for k, v in predictions_b.items()})
+            viz_example_b.update(actions_b)
+            viz_example_b['accept_probabilities'] = accept_probabilities_b.numpy()
+            pred_state_keys = classifier_model.pred_state_keys
+
+            def _init_viz_true_action(scenario, example):
+                pred_0 = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0, t=ast)
+                action = {k: actual_actions[k][0, 0] for k in fwd_model.action_keys}
+                scenario.plot_action_rviz(pred_0, action, label='true action')
+
+            def _init_viz_start_state(scenario, example):
+                start_state = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0, t=ast)
+                scenario.plot_state_rviz(start_state, label='pred', color='#ff3333aa')
+
+            def _viz_action_i(scenario: ExperimentScenario, example: Dict, i: int):
+                action = {k: example[k][i, 0] for k in fwd_model.action_keys}
+                pred_t = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=i, t=ast)
+                scenario.plot_action_rviz(pred_t, action, color=cm.Blues(accept_probabilities_b[i]))
+
+            def _recovery_transition_viz_i(scenario: ExperimentScenario, example: Dict, i: int):
+                e_t_next = index_batch_time_with_metadata(scenario_metadata, example, pred_state_keys, b=i, t=1)
+                scenario.plot_state_rviz(e_t_next, label='pred', color='#ff3333aa')
+
+            anim = RvizAnimation(scenario=scenario,
+                                 n_time_steps=n_action_samples,
+                                 init_funcs=[init_viz_env,
+                                             lambda s, e: scenario.plot_recovery_probability(recovery_probability),
+                                             _init_viz_start_state,
+                                             _init_viz_true_action,
+                                             ],
+                                 t_funcs=[init_viz_env,
+                                          _recovery_transition_viz_i,
+                                          _viz_action_i,
+                                          lambda s, e, i: scenario.plot_accept_probability(e['accept_probabilities'][i]),
+                                          ])
+
+            anim.play(viz_example_b)
 
     # NOTE: just store all examples with their probabilities, we can filter later, which is more flexible
     #  so we want avoid doing that many times

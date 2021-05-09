@@ -15,8 +15,7 @@ from link_bot_pycommon.args import my_formatter
 @ros_init.with_ros("plot_ift_results")
 def main():
     colorama.init(autoreset=True)
-    np.set_printoptions(linewidth=250, precision=3, suppress=True)
-    parser = argparse.ArgumentParser(formatter_class=my_formatter)
+    parser = argparse.ArgumentParser()
     parser.add_argument("ift_dir", type=pathlib.Path)
     parser.add_argument("--threshold", type=float)
     parser.add_argument("--full-plan", action='store_true')

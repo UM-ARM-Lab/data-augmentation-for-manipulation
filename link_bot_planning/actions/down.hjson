@@ -1,0 +1,15 @@
+[
+  # NOTE: test_classifier takes a batch of actions, not a sequence of actions
+  {
+    left_gripper_position: [
+      -0.32
+      0.57
+      0.24
+    ]
+    right_gripper_position: [
+      -0.04
+      0.52
+      0.24
+    ]
+  }
+]

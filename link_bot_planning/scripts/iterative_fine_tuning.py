@@ -16,6 +16,7 @@ from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
+from link_bot_classifiers.fine_tune_recovery import fine_tune_recovery
 from link_bot_classifiers.nn_classifier import NNClassifier
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_data.files_dataset import FilesDataset
@@ -24,6 +25,7 @@ from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_utils import list_all_planning_results_trials
 from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
+from link_bot_planning.results_to_recovery_dataset import ResultsToRecoveryDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
 from link_bot_pycommon import notifyme
 from link_bot_pycommon.get_scenario import get_scenario
@@ -56,7 +58,8 @@ from moonshine.filepath_tools import load_hjson, load_params
 class IterationData:
     iteration: int
     iteration_chunker: JobChunker
-    fine_tuning_dataset_dirs: List[pathlib.Path]
+    fine_tuning_classifier_dataset_dirs: List[pathlib.Path]
+    fine_tuning_recovery_dataset_dirs: List[pathlib.Path]
     latest_classifier_checkpoint_dir: pathlib.Path
     latest_recovery_checkpoint_dir: pathlib.Path
 
@@ -145,7 +148,8 @@ class IterativeFineTuning:
             initial_classifier_checkpoint = self.pretraining(initial_classifier_checkpoint)
 
         # NOTE: should I append the pretraining datasets to this? Possibly...
-        fine_tuning_dataset_dirs = []
+        fine_tuning_classifier_dataset_dirs = []
+        fine_tuning_recovery_dataset_dirs = []
 
         latest_classifier_checkpoint_dir = initial_classifier_checkpoint
         latest_recovery_checkpoint_dir = initial_recovery_checkpoint
@@ -156,7 +160,8 @@ class IterativeFineTuning:
             if iteration_start_time is None:
                 iteration_start_time = perf_counter()
                 iteration_chunker.store_result('start_time', iteration_start_time)
-            iteration_data = IterationData(fine_tuning_dataset_dirs=fine_tuning_dataset_dirs,
+            iteration_data = IterationData(fine_tuning_classifier_dataset_dirs=fine_tuning_classifier_dataset_dirs,
+                                           fine_tuning_recovery_dataset_dirs=fine_tuning_recovery_dataset_dirs,
                                            iteration=iteration_idx,
                                            iteration_chunker=iteration_chunker,
                                            latest_classifier_checkpoint_dir=latest_classifier_checkpoint_dir,
@@ -166,13 +171,15 @@ class IterativeFineTuning:
             planning_results_dir = self.plan_and_execute(iteration_data)
 
             # convert results to classifier dataset
-            new_dataset_dir = self.update_datasets(iteration_data, planning_results_dir)
-            iteration_data.fine_tuning_dataset_dirs.append(new_dataset_dir)
+            new_classifier_dataset_dir, new_recovery_dataset_dir = self.update_datasets(iteration_data,
+                                                                                        planning_results_dir)
+
+            iteration_data.fine_tuning_classifier_dataset_dirs.append(new_classifier_dataset_dir)
+            iteration_data.fine_tuning_recovery_dataset_dirs.append(new_recovery_dataset_dir)
 
             # fine tune (on all of the classifier datasets so far)
-            latest_classifier_checkpoint_dir = self.fine_tune(iteration_data)
-
-            # TODO: add fine tuning recovery
+            # these variables will be used to create the new IterationData
+            latest_classifier_checkpoint_dir, latest_recovery_checkpoint_dir = self.fine_tune(iteration_data)
 
             iteration_end_time = iteration_chunker.get_result('end_time')
             if iteration_end_time is None:
@@ -388,8 +395,13 @@ class IterativeFineTuning:
         return planning_results_dir
 
     def update_datasets(self, iteration_data: IterationData, planning_results_dir):
+        new_classifier_dataset_dir = self.update_classifier_datasets(iteration_data, planning_results_dir)
+        new_recovery_dataset_dir = self.update_recovery_datasets(iteration_data, planning_results_dir)
+        return new_classifier_dataset_dir, new_recovery_dataset_dir
+
+    def update_classifier_datasets(self, iteration_data: IterationData, planning_results_dir):
         i = iteration_data.iteration
-        dataset_chunker = iteration_data.iteration_chunker.sub_chunker('dataset')
+        dataset_chunker = iteration_data.iteration_chunker.sub_chunker('classifier dataset')
         new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
             [p.suspend() for p in self.gazebo_processes]
@@ -406,30 +418,84 @@ class IterativeFineTuning:
                                            labeling_params=self.labeling_params,
                                            verbose=self.verbose,
                                            trial_indices=trial_indices,
-                                           **self.ift_config['results_to_dataset'])
+                                           **self.ift_config['results_to_classifier_dataset'])
+            r.run()
+            dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
+        return new_dataset_dir
+
+    def update_recovery_datasets(self, iteration_data: IterationData, planning_results_dir):
+        i = iteration_data.iteration
+        dataset_chunker = iteration_data.iteration_chunker.sub_chunker('recovery dataset')
+        new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
+        if new_dataset_dir is None:
+            [p.suspend() for p in self.gazebo_processes]
+
+            new_dataset_dir = self.outdir / 'recovery_datasets' / f'iteration_{i:04d}_dataset'
+            trial_indices = None
+            max_trials = self.ift_config['results_to_dataset'].get('max_trials', None)
+            if max_trials is not None:
+                print(Fore.GREEN + f"Using only {max_trials}/{self.tpi} trials for learning" + Fore.RESET)
+                filenames = list_all_planning_results_trials(planning_results_dir)
+                trial_indices = [i for (i, _) in filenames][:max_trials]
+            r = ResultsToRecoveryDataset(results_dir=planning_results_dir,
+                                         outdir=new_dataset_dir,
+                                         labeling_params=self.labeling_params,
+                                         verbose=self.verbose,
+                                         trial_indices=trial_indices,
+                                         **self.ift_config['results_to_recovery_dataset'])
             r.run()
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir.as_posix())
         return new_dataset_dir
 
     def fine_tune(self, iteration_data: IterationData):
+        classifier_checkpoint_dir = self.fine_tune_classifier(iteration_data)
+        # recovery_checkpoint_dir = self.fine_tune_recovery(iteration_data)
+        recovery_checkpoint_dir = None
+        return classifier_checkpoint_dir, recovery_checkpoint_dir
+
+    def fine_tune_classifier(self, iteration_data: IterationData):
         i = iteration_data.iteration
         latest_checkpoint = iteration_data.latest_classifier_checkpoint_dir / self.checkpoint_suffix
-        fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune')
+        fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune classifier')
         new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
             [p.suspend() for p in self.gazebo_processes]
 
-            adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_dataset_dirs, max_batch_size=16)
+            adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_classifier_dataset_dirs,
+                                                     max_batch_size=16)
             augmentation_3d = self.get_classifier_augmentation_func()
-            new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=iteration_data.fine_tuning_dataset_dirs,
-                                                             checkpoint=latest_checkpoint,
-                                                             log=f'iteration_{i:04d}_training_logdir',
-                                                             trials_directory=self.trials_directory,
-                                                             batch_size=adaptive_batch_size,
-                                                             verbose=self.verbose,
-                                                             validate_first=True,
-                                                             augmentation_3d=augmentation_3d,
-                                                             **self.ift_config)
+            new_latest_checkpoint_dir = fine_tune_classifier(
+                dataset_dirs=iteration_data.fine_tuning_classifier_dataset_dirs,
+                checkpoint=latest_checkpoint,
+                log=f'iteration_{i:04d}_classifier_training_logdir',
+                trials_directory=self.trials_directory,
+                batch_size=adaptive_batch_size,
+                verbose=self.verbose,
+                validate_first=True,
+                augmentation_3d=augmentation_3d,
+                **self.ift_config['fine_tune_classifier'])
+            fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
+        return new_latest_checkpoint_dir
+
+    def fine_tune_recovery(self, iteration_data: IterationData):
+        i = iteration_data.iteration
+        latest_checkpoint = iteration_data.latest_recovery_checkpoint_dir / self.checkpoint_suffix
+        fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune recovery')
+        new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
+        if new_latest_checkpoint_dir is None:
+            [p.suspend() for p in self.gazebo_processes]
+
+            adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_classifier_dataset_dirs,
+                                                     max_batch_size=16)
+            new_latest_checkpoint_dir = fine_tune_recovery(
+                dataset_dirs=iteration_data.fine_tuning_classifier_dataset_dirs,
+                checkpoint=latest_checkpoint,
+                log=f'iteration_{i:04d}_recovery_training_logdir',
+                trials_directory=self.trials_directory,
+                batch_size=adaptive_batch_size,
+                verbose=self.verbose,
+                validate_first=True,
+                **self.ift_config['fine_tune_recovery'])
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         return new_latest_checkpoint_dir
 

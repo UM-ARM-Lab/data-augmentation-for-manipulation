@@ -28,10 +28,6 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          verbose: int = 0,
                          trials_directory: pathlib.Path = pathlib.Path("./trials"),
                          pretransfer_config_dir: Optional[pathlib.Path] = None,
-                         preprocess_no_gradient: Optional[Callable] = None,
-                         compute_loss: Optional[Callable] = None,
-                         create_metrics: Optional[Callable] = None,
-                         compute_metrics: Optional[Callable] = None,
                          take: Optional[int] = None,
                          **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
@@ -66,6 +62,24 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
 
     train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take)
 
+    train_tf_dataset = add_pretransfer_configs_to_dataset(pretransfer_config_dir, train_tf_dataset, batch_size)
+    val_tf_dataset = add_pretransfer_configs_to_dataset(pretransfer_config_dir, val_tf_dataset, batch_size)
+
+    # Modify the model for feature transfer & fine-tuning
+    for c in model.conv_layers:
+        c.trainable = fine_tune_conv
+    for d in model.dense_layers:
+        d.trainable = fine_tune_dense
+    model.lstm.trainable = fine_tune_lstm
+    model.output_layer.trainable = fine_tune_output
+
+    runner.reset_best_ket_metric_value()
+    runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
+
+    return trial_path
+
+
+def add_pretransfer_configs_to_dataset(pretransfer_config_dir, tf_dataset, batch_size):
     pretransfer_configs = []
     if pretransfer_config_dir is not None:
         # load the pkl files and add them to the dataset?
@@ -92,18 +106,4 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
 
         return example
 
-    train_tf_dataset = train_tf_dataset.map(_add_pretransfer_env)
-    val_tf_dataset = val_tf_dataset.map(_add_pretransfer_env)
-
-    # Modify the model for feature transfer & fine-tuning
-    for c in model.conv_layers:
-        c.trainable = fine_tune_conv
-    for d in model.dense_layers:
-        d.trainable = fine_tune_dense
-    model.lstm.trainable = fine_tune_lstm
-    model.output_layer.trainable = fine_tune_output
-
-    runner.reset_best_ket_metric_value()
-    runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
-
-    return trial_path
+    return tf_dataset.map(_add_pretransfer_env)
