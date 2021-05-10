@@ -84,13 +84,16 @@ class IterativeFineTuning:
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
         self.verbose = -1
         self.tpi = self.ift_config['trials_per_iteration']
-        self.labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
-        self.labeling_params = nested_dict_update(self.labeling_params,
-                                                  self.ift_config.get('labeling_params_update', {}))
+        self.classifier_labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
+        self.classifier_labeling_params = nested_dict_update(self.classifier_labeling_params,
+                                                             self.ift_config.get('labeling_params_update', {}))
+        self.recovery_labeling_params = load_hjson(pathlib.Path('labeling_params/recovery/dual.json'))
+        self.recovery_labeling_params = nested_dict_update(self.recovery_labeling_params,
+                                                           self.ift_config.get('labeling_params_update', {}))
         self.initial_planner_params = nested_dict_update(self.initial_planner_params,
                                                          self.ift_config.get('planner_params_update', {}))
         self.pretraining_config = self.ift_config.get('pretraining', {})
-        self.checkpoint_suffix = 'best_checkpoint' if self.ift_config['early_stopping'] else 'latest_checkpoint'
+        self.checkpoint_suffix = 'best_checkpoint'
 
         if timeout is not None:
             rospy.loginfo(f"Overriding with timeout {timeout}")
@@ -396,7 +399,10 @@ class IterativeFineTuning:
 
     def update_datasets(self, iteration_data: IterationData, planning_results_dir):
         new_classifier_dataset_dir = self.update_classifier_datasets(iteration_data, planning_results_dir)
-        new_recovery_dataset_dir = self.update_recovery_datasets(iteration_data, planning_results_dir)
+        if self.ift_config['fine_tune_recovery'] is None:
+            new_recovery_dataset_dir = None
+        else:
+            new_recovery_dataset_dir = self.update_recovery_datasets(iteration_data, planning_results_dir)
         return new_classifier_dataset_dir, new_recovery_dataset_dir
 
     def update_classifier_datasets(self, iteration_data: IterationData, planning_results_dir):
@@ -415,7 +421,7 @@ class IterativeFineTuning:
                 trial_indices = [i for (i, _) in filenames][:max_trials]
             r = ResultsToClassifierDataset(results_dir=planning_results_dir,
                                            outdir=new_dataset_dir,
-                                           labeling_params=self.labeling_params,
+                                           labeling_params=self.classifier_labeling_params,
                                            verbose=self.verbose,
                                            trial_indices=trial_indices,
                                            **self.ift_config['results_to_classifier_dataset'])
@@ -439,7 +445,7 @@ class IterativeFineTuning:
                 trial_indices = [i for (i, _) in filenames][:max_trials]
             r = ResultsToRecoveryDataset(results_dir=planning_results_dir,
                                          outdir=new_dataset_dir,
-                                         labeling_params=self.labeling_params,
+                                         labeling_params=self.recovery_labeling_params,
                                          verbose=self.verbose,
                                          trial_indices=trial_indices,
                                          **self.ift_config['results_to_recovery_dataset'])
@@ -449,8 +455,11 @@ class IterativeFineTuning:
 
     def fine_tune(self, iteration_data: IterationData):
         classifier_checkpoint_dir = self.fine_tune_classifier(iteration_data)
-        recovery_checkpoint_dir = self.fine_tune_recovery(iteration_data)
-        return classifier_checkpoint_dir, recovery_checkpoint_dir
+        if self.ift_config['fine_tune_recovery'] is None:
+            recovery_checkpoint_dir = iteration_data.latest_recovery_checkpoint_dir
+        else:
+            recovery_checkpoint_dir = self.fine_tune_recovery(iteration_data)
+        return None, recovery_checkpoint_dir
 
     def fine_tune_classifier(self, iteration_data: IterationData):
         i = iteration_data.iteration
@@ -471,6 +480,7 @@ class IterativeFineTuning:
                 batch_size=adaptive_batch_size,
                 verbose=self.verbose,
                 validate_first=True,
+                early_stopping=True,
                 augmentation_3d=augmentation_3d,
                 **self.ift_config['fine_tune_classifier'])
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
@@ -484,22 +494,22 @@ class IterativeFineTuning:
         if new_latest_checkpoint_dir is None:
             [p.suspend() for p in self.gazebo_processes]
 
-            adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_classifier_dataset_dirs,
-                                                     max_batch_size=16)
+            adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_recovery_dataset_dirs, max_batch_size=4)
             new_latest_checkpoint_dir = fine_tune_recovery(
-                dataset_dirs=iteration_data.fine_tuning_classifier_dataset_dirs,
+                dataset_dirs=iteration_data.fine_tuning_recovery_dataset_dirs,
                 checkpoint=latest_checkpoint,
                 log=f'iteration_{i:04d}_recovery_training_logdir',
                 trials_directory=self.trials_directory,
                 batch_size=adaptive_batch_size,
                 verbose=self.verbose,
+                early_stopping=True,
                 validate_first=True,
                 **self.ift_config['fine_tune_recovery'])
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         return new_latest_checkpoint_dir
 
     def get_classifier_augmentation_func(self):
-        augmentation_type = self.labeling_params.get('augmentation_type', None)
+        augmentation_type = self.classifier_labeling_params.get('augmentation_type', None)
         if augmentation_type is not None:
             print(f"Augmentation: {augmentation_type}")
         if augmentation_type == 'env_augmentation_1':
@@ -535,7 +545,7 @@ def setup_ift(args):
     print(logfile_name.as_posix())
 
 
-@notifyme.notify()
+# @notifyme.notify()
 def ift_main(args):
     log = load_hjson(args.logfile)
     ift = IterativeFineTuning(log=log,

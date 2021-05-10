@@ -13,21 +13,20 @@ from link_bot_data.dataset_utils import tf_write_example
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader, compute_recovery_probabilities
 from link_bot_data.recovery_dataset_utils import batch_stateless_sample_action, \
-    predict_and_classify_for_recovery_dataset, visualize_recovery_generation
+    predict_and_classify_for_recovery_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.analysis import results_utils
 from link_bot_planning.analysis.results_utils import NoTransitionsError, get_recovery_transitions, \
     classifier_params_from_planner_params, dynamics_dataset_params_from_classifier_params
 from link_bot_planning.results_to_classifier_dataset import compute_example_idx
 from link_bot_pycommon.job_chunking import JobChunker
-from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import try_make_dict_tf_float32, pathify, log_scale_0_to_1
 from link_bot_pycommon.serialization import my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_batch_time
 from moonshine.moonshine_utils import repeat, remove_batch, \
-    add_batch
+    add_batch, sequence_of_dicts_to_dict_of_tensors
 from state_space_dynamics import dynamics_utils
 
 
@@ -135,11 +134,7 @@ class ResultsToRecoveryDataset:
                     total_dt = now - t0
                     last_t = now
 
-                    if self.visualize:
-                        pass
-                        # TODO: make this visualization work? do we really need this?
-                        # visualize_recovery_generation(self.scenario, dataset_for_viz, self.fwd_model, example,
-                        #                               self.labeling_params)
+                    self.scenario.heartbeat()
 
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
@@ -227,7 +222,8 @@ class ResultsToRecoveryDataset:
             classifier_horizon)
 
         if self.visualize:
-            recovery_probability = remove_batch(compute_recovery_probabilities(add_batch(accept_probabilities), n_action_samples))
+            recovery_probability = remove_batch(
+                compute_recovery_probabilities(add_batch(accept_probabilities), n_action_samples))
             anim = RvizAnimationController(n_time_steps=n_action_samples)
             while not anim.done:
                 i = anim.t()
@@ -246,8 +242,10 @@ class ResultsToRecoveryDataset:
             'accept_probabilities': accept_probabilities,
         }
         example.update(environment)
-        example.update(before_state)
-        example.update(action)
+        states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
+        example.update(states)
+        action_with_time = add_batch(action, batch_axis=0)
+        example.update(action_with_time)
 
         return example
 

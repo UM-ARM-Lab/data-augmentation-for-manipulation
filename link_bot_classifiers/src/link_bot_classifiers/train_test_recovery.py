@@ -16,6 +16,23 @@ from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import restore_variables
 
 
+def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: Optional[int] = None):
+    # Dataset preprocessing
+    train_tf_dataset = train_dataset.get_datasets(mode='train', shuffle_files=True)
+    val_tf_dataset = val_dataset.get_datasets(mode='val', shuffle_files=True)
+
+    train_tf_dataset = batch_tf_dataset(train_tf_dataset, batch_size, drop_remainder=True)
+    val_tf_dataset = batch_tf_dataset(val_tf_dataset, batch_size, drop_remainder=True)
+
+    train_tf_dataset = train_tf_dataset.take(take)
+    val_tf_dataset = val_tf_dataset.take(take)
+
+    train_tf_dataset = train_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    val_tf_dataset = val_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+
+    return train_tf_dataset, val_tf_dataset
+
+
 def train_main(dataset_dirs: List[pathlib.Path],
                model_hparams: pathlib.Path,
                classifier_checkpoint: pathlib.Path,
@@ -49,8 +66,6 @@ def train_main(dataset_dirs: List[pathlib.Path],
 
     train_tf_dataset = batch_tf_dataset(train_tf_dataset, batch_size, drop_remainder=True)
     val_tf_dataset = batch_tf_dataset(val_tf_dataset, batch_size, drop_remainder=True)
-
-    train_tf_dataset = train_tf_dataset.shuffle(buffer_size=512, seed=seed)
 
     train_tf_dataset = train_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
     val_tf_dataset = val_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)

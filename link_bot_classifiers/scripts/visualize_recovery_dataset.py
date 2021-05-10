@@ -10,6 +10,7 @@ from progressbar import progressbar
 
 import rospy
 from link_bot_data import base_dataset
+from link_bot_data.dataset_utils import pprint_example
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -38,6 +39,10 @@ def main():
             tf_dataset = dataset.get_datasets(mode=args.mode, sort=True)
         else:
             tf_dataset = dataset.get_datasets(mode=args.mode)
+
+        example = next(iter(tf_dataset))
+        print("Example:")
+        pprint_example(example)
 
         for example in progressbar(tf_dataset, widgets=base_dataset.widgets):
             n_accepts = tf.math.count_nonzero(example['accept_probabilities'] > 0.5, axis=1)

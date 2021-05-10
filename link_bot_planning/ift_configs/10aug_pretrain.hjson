@@ -1,12 +1,15 @@
 {
   trials_per_iteration: 10
-  early_stopping: true
-  epochs: 25
   trials_generator_type: random
-  fine_tune_conv: false
-  fine_tune_dense: false
-  fine_tune_lstm: false
-  fine_tune_output: true
+  fine_tune_classifier: {
+    early_stopping: true
+    epochs: 25
+    fine_tune_conv: false
+    fine_tune_dense: false
+    fine_tune_lstm: false
+    fine_tune_output: true
+  }
+  fine_tune_recovery: null
   planner_params_update: {
     termination_criteria:
     {

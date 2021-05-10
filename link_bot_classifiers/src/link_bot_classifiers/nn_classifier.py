@@ -150,8 +150,8 @@ class NNClassifier(MyKerasModel):
 
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
 
-        if DEBUG_VIZ:
-            self.debug_viz_local_env_pre_aug(input_dict, local_voxel_grids_array, local_env_origin, time)
+        # if DEBUG_VIZ:
+        #     self.debug_viz_local_env_pre_aug(input_dict, local_voxel_grids_array, local_env_origin, time)
 
         # optionally augment the local environment
         if self.augmentation_3d is not None and training:
@@ -159,20 +159,20 @@ class NNClassifier(MyKerasModel):
         else:
             local_voxel_grids_aug_array = local_voxel_grids_array
 
-        if DEBUG_VIZ:
-            stepper = RvizSimpleStepper()
-            for b in self.debug_viz_batch_indices():
-                final_aug_dict = {
-                    'env':    local_voxel_grids_aug_array.read(0)[b, :, :, :, 0].numpy(),
-                    'origin': local_env_origin[b].numpy(),
-                    'res':    input_dict['res'][b].numpy(),
-                }
-                msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
-                self.env_aug_pub5.publish(msg)
-                stepper.step()
-
-            for b in self.debug_viz_batch_indices():
-                self.animate_voxel_grid_states(b, input_dict, local_env_origin, local_voxel_grids_array, time)
+        # if DEBUG_VIZ:
+        #     stepper = RvizSimpleStepper()
+        #     for b in self.debug_viz_batch_indices():
+        #         final_aug_dict = {
+        #             'env':    local_voxel_grids_aug_array.read(0)[b, :, :, :, 0].numpy(),
+        #             'origin': local_env_origin[b].numpy(),
+        #             'res':    input_dict['res'][b].numpy(),
+        #         }
+        #         msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
+        #         self.env_aug_pub5.publish(msg)
+        #         stepper.step()
+        #
+        #     for b in self.debug_viz_batch_indices():
+        #         self.animate_voxel_grid_states(b, input_dict, local_env_origin, local_voxel_grids_array, time)
 
         return local_voxel_grids_aug_array
 
@@ -218,33 +218,33 @@ class NNClassifier(MyKerasModel):
                                 ):
         local_env_new, local_env_new_origin = self.get_new_local_env(indices, example)
 
-        if DEBUG_VIZ:
-            stepper = RvizSimpleStepper()
-            for b in self.debug_viz_batch_indices():
-                local_env_new_extent_b = compute_extent_3d(self.local_env_h_rows,
-                                                           self.local_env_w_cols,
-                                                           self.local_env_c_channels,
-                                                           example['res'][b],
-                                                           local_env_new_origin[b])
-                local_env_new_dict = {
-                    'env':    local_env_new[b].numpy(),
-                    'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
-                    'extent': local_env_new_extent_b,
-                }
-                send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_new_dict, frame='local_env_new')
-                msg = environment_to_occupancy_msg(local_env_new_dict, frame='local_env_new', stamp=rospy.Time(0))
-                # Show the new local environment we've sampled, in the place we sampled it
-                self.env_aug_pub1.publish(msg)
-
-                stepper.step()
-
-                # Show the new local environment we've sampled, moved into the frame of the original lacol env,
-                # the one we're augmenting
-                msg2 = environment_to_occupancy_msg(local_env_new_dict, frame='local_env', stamp=rospy.Time(0))
-                self.env_aug_pub2.publish(msg2)
-
-                stepper.step()
+        # if DEBUG_VIZ:
+        #     stepper = RvizSimpleStepper()
+        #     for b in self.debug_viz_batch_indices():
+        #         local_env_new_extent_b = compute_extent_3d(self.local_env_h_rows,
+        #                                                    self.local_env_w_cols,
+        #                                                    self.local_env_c_channels,
+        #                                                    example['res'][b],
+        #                                                    local_env_new_origin[b])
+        #         local_env_new_dict = {
+        #             'env':    local_env_new[b].numpy(),
+        #             'origin': local_env_new_origin[b].numpy(),
+        #             'res':    example['res'][b].numpy(),
+        #             'extent': local_env_new_extent_b,
+        #         }
+        #         send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_new_dict, frame='local_env_new')
+        #         msg = environment_to_occupancy_msg(local_env_new_dict, frame='local_env_new', stamp=rospy.Time(0))
+        #         # Show the new local environment we've sampled, in the place we sampled it
+        #         self.env_aug_pub1.publish(msg)
+        #
+        #         stepper.step()
+        #
+        #         # Show the new local environment we've sampled, moved into the frame of the original lacol env,
+        #         # the one we're augmenting
+        #         msg2 = environment_to_occupancy_msg(local_env_new_dict, frame='local_env', stamp=rospy.Time(0))
+        #         self.env_aug_pub2.publish(msg2)
+        #
+        #         stepper.step()
 
         # equivalent version of "logical or" over all state channels
         states_any_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
@@ -263,26 +263,26 @@ class NNClassifier(MyKerasModel):
         local_env_aug_removed = local_env_new + tf.maximum(local_env - remove, 0)
 
         # visualize which voxels will be removed
-        if DEBUG_VIZ:
-            stepper = RvizSimpleStepper()
-            for b in self.debug_viz_batch_indices():
-                remove_dict = {
-                    'env':    remove[b].numpy(),
-                    'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
-                }
-                msg = environment_to_occupancy_msg(remove_dict, frame='local_env', stamp=rospy.Time(0))
-                self.env_aug_pub3.publish(msg)
-                stepper.step()
-
-                final_aug_dict = {
-                    'env':    local_env_aug_removed[b].numpy(),
-                    'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
-                }
-                msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
-                self.env_aug_pub4.publish(msg)
-                stepper.step()
+        # if DEBUG_VIZ:
+        #     stepper = RvizSimpleStepper()
+        #     for b in self.debug_viz_batch_indices():
+        #         remove_dict = {
+        #             'env':    remove[b].numpy(),
+        #             'origin': local_env_new_origin[b].numpy(),
+        #             'res':    example['res'][b].numpy(),
+        #         }
+        #         msg = environment_to_occupancy_msg(remove_dict, frame='local_env', stamp=rospy.Time(0))
+        #         self.env_aug_pub3.publish(msg)
+        #         stepper.step()
+        #
+        #         final_aug_dict = {
+        #             'env':    local_env_aug_removed[b].numpy(),
+        #             'origin': local_env_new_origin[b].numpy(),
+        #             'res':    example['res'][b].numpy(),
+        #         }
+        #         msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
+        #         self.env_aug_pub4.publish(msg)
+        #         stepper.step()
 
         n_state_components = len(self.state_keys)
         is_valid = self.is_env_augmentation_valid(self,
@@ -315,8 +315,8 @@ class NNClassifier(MyKerasModel):
                                                       local_voxel_grids_array,
                                                       n_state_components)
 
-        if DEBUG_VIZ:
-            self.viz_new_env_and_validity(aug_is_valid, example, local_env_new, local_env_new_origin)
+        # if DEBUG_VIZ:
+        #     self.viz_new_env_and_validity(aug_is_valid, example, local_env_new, local_env_new_origin)
 
         # masks out the invalid augmentations
         local_env = local_voxel_grids_array.read(0)[:, :, :, :, 0]
@@ -528,17 +528,17 @@ class NNClassifier(MyKerasModel):
         batch_size = input_dict['batch_size']
         time = tf.cast(input_dict['time'], tf.int32)
 
-        if DEBUG_VIZ:
-            stepper = RvizSimpleStepper()
-            for b in self.debug_viz_batch_indices():
-                env_b = {
-                    'env':    input_dict['env'][b],
-                    'res':    input_dict['res'][b],
-                    'extent': input_dict['extent'][b],
-                    'origin': input_dict['origin'][b],
-                }
-                self.scenario.plot_environment_rviz(env_b)
-                stepper.step()
+        # if DEBUG_VIZ:
+        #     stepper = RvizSimpleStepper()
+        #     for b in self.debug_viz_batch_indices():
+        #         env_b = {
+        #             'env':    input_dict['env'][b],
+        #             'res':    input_dict['res'][b],
+        #             'extent': input_dict['extent'][b],
+        #             'origin': input_dict['origin'][b],
+        #         }
+        #         self.scenario.plot_environment_rviz(env_b)
+        #         stepper.step()
 
         voxel_grids = self.make_voxel_grid_inputs(input_dict, batch_size=batch_size, time=time, training=training)
 

@@ -2,43 +2,36 @@
   trials_per_iteration: 10
   trials_generator_type: random
   fine_tune_classifier: {
-    early_stopping: true
-    epochs: 25
     fine_tune_conv: false
     fine_tune_dense: false
     fine_tune_lstm: false
     fine_tune_output: true
-  }
-  fine_tune_recovery: {
     early_stopping: true
     epochs: 25
+  }
+  fine_tune_recovery: {
     fine_tune_conv: false
     fine_tune_dense: false
-    fine_tune_output1: false
-    fine_tune_output2: true
+    fine_tune_lstm: false
+    fine_tune_output: true
+    early_stopping: true
+    epochs: 25
   }
   planner_params_update: {
     termination_criteria:
     {
     }
   }
-  results_to_recovery_dataset: {
+  results_to_dataset: {
     val_split: 0.5
     test_split: 0.0
-    max_trials: 1
-  }
-  results_to_classifier_dataset: {
-    val_split: 0.5
-    test_split: 0.0
-    max_trials: 1
   }
   labeling_params_update: {
     use_augmentation: true
-    augmentation_type: env_augmentation_1
+    augmentation_type: env_augmentation_2
   }
   pretraining: {
     use_pretraining: true
-    include_pretraining_data_in_online_data: true  # TODO: implement this
     pretraining_type: augmentation
     model_hparams_update_filename: ../link_bot_classifiers/hparams/aug.hjson
     epochs: 10

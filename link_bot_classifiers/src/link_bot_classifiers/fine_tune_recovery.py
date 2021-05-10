@@ -3,7 +3,7 @@ from typing import List, Optional, Dict
 
 import link_bot_classifiers
 from arc_utilities.algorithms import nested_dict_update
-from link_bot_classifiers.train_test_classifier import setup_datasets
+from link_bot_classifiers.train_test_recovery import setup_datasets
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
 from link_bot_pycommon.pycommon import paths_to_json
 from moonshine.filepath_tools import load_trial, create_trial

@@ -51,7 +51,8 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: 
     train_tf_dataset = train_dataset.get_datasets(mode='train', shuffle_files=True)
     val_tf_dataset = val_dataset.get_datasets(mode='val', shuffle_files=True)
 
-    train_tf_dataset = train_tf_dataset.shuffle(model_hparams['shuffle_buffer_size'], reshuffle_each_iteration=True)
+    if 'shuffle_buffer_size' in model_hparams:
+        train_tf_dataset = train_tf_dataset.shuffle(model_hparams['shuffle_buffer_size'], reshuffle_each_iteration=True)
 
     # rospy.logerr_once("NOT BALANCING!")
     train_tf_dataset = train_tf_dataset.balance()
