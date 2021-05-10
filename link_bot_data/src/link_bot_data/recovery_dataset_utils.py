@@ -5,6 +5,7 @@ from typing import Optional, List, Dict
 
 import hjson
 import numpy as np
+import rospy
 import tensorflow as tf
 from colorama import Fore
 from matplotlib import cm
@@ -20,13 +21,14 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.serialization import my_hdump
-from merrrt_visualization.rviz_animation_controller import RvizAnimation
+from merrrt_visualization.rviz_animation_controller import RvizAnimation, RvizSimpleStepper
 from moonshine.indexing import index_dict_of_batched_tensors_tf, index_batch_time_with_metadata
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, repeat
 from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
-DEBUG = False
+DEBUG = True
+SHOW_ALL = False
 
 
 def make_recovery_dataset(dataset_dir: pathlib.Path,
@@ -69,6 +71,7 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
     np.random.seed(0)
     tf.random.set_seed(0)
 
+    rospy.logwarn("hard coded scenario name here...")
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
     classifier_model = classifier_utils.load_generic_model(classifier_model_dir, scenario)
 
@@ -133,7 +136,6 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
 
                 if DEBUG:
                     visualize_recovery_generation(scenario, dataset, fwd_model, out_example_b, labeling_params)
-                    # END DEBUG
 
                 tf_write_example(full_output_directory, out_example_b, record_idx)
                 record_idx += 1
@@ -215,7 +217,6 @@ def generate_recovery_examples(tf_dataset: tf.data.Dataset,
             constants = (actual_batch_size,
                          action_sequence_horizon,
                          classifier_model.horizon,
-                         actual_batch_size,
                          start_t,
                          end_t,
                          dataset.env_keys,
@@ -234,7 +235,7 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
                                        constants,
                                        action_rng: np.random.RandomState):
     example, actual_actions, actual_states, labeling_params, data_collection_params = data
-    actual_batch_size, action_sequence_horizon, classifier_horizon, batch_size, start_t, end_t, env_keys = constants
+    batch_size, action_sequence_horizon, classifier_horizon, start_t, end_t, env_keys = constants
     scenario = fwd_model.scenario
 
     environment = {k: example[k] for k in env_keys}
@@ -256,36 +257,26 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
         random_actions_dict = batch_stateless_sample_action(scenario=scenario,
                                                             environment=environment,
                                                             state=actual_state_t,
-                                                            batch_size=actual_batch_size,
+                                                            batch_size=batch_size,
                                                             n_action_samples=n_action_samples,
                                                             n_actions=n_actions,
                                                             action_params=data_collection_params,
                                                             action_rng=action_rng)
 
         # NOTE: perhaps write generic "collapse" functions to merging (unmerging?) dimensions?
-        bs = actual_batch_size * n_action_samples
+        bs = batch_size * n_action_samples
         environment_tiled_batched = repeat(environment, n_action_samples, 0, False)
         start_states_tiled_t_batched = {k: tf.reshape(v, [bs, 1, -1]) for k, v in start_states_tiled_t.items()}
         random_actions_dict_batched = {k: tf.reshape(v, [bs, 1, -1]) for k, v in random_actions_dict.items()}
 
-        def _predict_and_classify(_environment, _actual_states, _random_actions_dict):
-            # Predict
-            mean_dynamics_predictions, _ = fwd_model.propagate_tf_batched(environment=_environment,
-                                                                          state=_actual_states,
-                                                                          actions=_random_actions_dict)
-
-            # Check classifier
-            accept_probabilities = classifier_model.check_constraint_tf_batched(environment=_environment,
-                                                                                states=mean_dynamics_predictions,
-                                                                                actions=_random_actions_dict,
-                                                                                batch_size=bs,
-                                                                                state_sequence_length=classifier_horizon)
-
-            return mean_dynamics_predictions, accept_probabilities
-
-        predictions, accept_probabilities = _predict_and_classify(environment_tiled_batched,  # [b*nas, ...]
-                                                                  start_states_tiled_t_batched,  # [b*nas, 1, ...]
-                                                                  random_actions_dict_batched)  # [b*nas, 1, ...]
+        predictions, accept_probabilities = predict_and_classify_for_recovery_dataset(
+            fwd_model,
+            classifier_model,
+            environment_tiled_batched,  # [b*nas, ...]
+            start_states_tiled_t_batched,  # [b*nas, 1, ...]
+            random_actions_dict_batched,  # [b*nas, 1, ...]
+            batch_size,
+            classifier_horizon)
 
         # reshape to separate batch from sampled actions
         accept_probabilities = tf.reshape(accept_probabilities, [batch_size, n_action_samples])
@@ -295,55 +286,8 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
         all_accept_probabilities.append(accept_probabilities)
 
         if DEBUG:
-            recovery_probabilities = compute_recovery_probabilities(accept_probabilities, n_action_samples)
-            environment_b = index_dict_of_batched_tensors_tf(environment, 0)
-            actual_states_b = index_dict_of_batched_tensors_tf(actual_states_tiled, 0)
-            predictions_b = index_dict_of_batched_tensors_tf(predictions, 0)
-            actions_b = index_dict_of_batched_tensors_tf(random_actions_dict, 0)
-            accept_probabilities_b = accept_probabilities[0]
-            recovery_probability = recovery_probabilities[0]
-            viz_example_b = {}
-            viz_example_b.update(environment_b)
-            viz_example_b.update(actual_states_b)
-            viz_example_b.update({add_predicted(k): v for k, v in predictions_b.items()})
-            viz_example_b.update(actions_b)
-            viz_example_b['accept_probabilities'] = accept_probabilities_b.numpy()
-            pred_state_keys = classifier_model.pred_state_keys
-
-            def _init_viz_true_action(scenario, example):
-                pred_0 = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0, t=ast)
-                action = {k: actual_actions[k][0, 0] for k in fwd_model.action_keys}
-                scenario.plot_action_rviz(pred_0, action, label='true action')
-
-            def _init_viz_start_state(scenario, example):
-                start_state = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0,
-                                                             t=ast)
-                scenario.plot_state_rviz(start_state, label='pred', color='#ff3333aa')
-
-            def _viz_action_i(scenario: ExperimentScenario, example: Dict, i: int):
-                action = {k: example[k][i, 0] for k in fwd_model.action_keys}
-                pred_t = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=i, t=ast)
-                scenario.plot_action_rviz(pred_t, action, color=cm.Blues(accept_probabilities_b[i]))
-
-            def _recovery_transition_viz_i(scenario: ExperimentScenario, example: Dict, i: int):
-                e_t_next = index_batch_time_with_metadata(scenario_metadata, example, pred_state_keys, b=i, t=1)
-                scenario.plot_state_rviz(e_t_next, label='pred', color='#ff3333aa')
-
-            anim = RvizAnimation(scenario=scenario,
-                                 n_time_steps=n_action_samples,
-                                 init_funcs=[init_viz_env,
-                                             lambda s, e: scenario.plot_recovery_probability(recovery_probability),
-                                             _init_viz_start_state,
-                                             _init_viz_true_action,
-                                             ],
-                                 t_funcs=[init_viz_env,
-                                          _recovery_transition_viz_i,
-                                          _viz_action_i,
-                                          lambda s, e, i: scenario.plot_accept_probability(
-                                              e['accept_probabilities'][i]),
-                                          ])
-
-            anim.play(viz_example_b)
+            viz_generate_example_batch(accept_probabilities, actual_states_tiled, classifier_model, environment,
+                                       n_action_samples, predictions, random_actions_dict, scenario, batch_size)
 
     # NOTE: just store all examples with their probabilities, we can filter later, which is more flexible
     #  so we want avoid doing that many times
@@ -366,6 +310,82 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
     return out_examples
 
 
+def predict_and_classify_for_recovery_dataset(fwd_model, classifier_model, environment, actual_states,
+                                              random_actions_dict, batch_size, state_sequence_length):
+    # Predict
+    mean_dynamics_predictions, _ = fwd_model.propagate_tf_batched(environment=environment,
+                                                                  state=actual_states,
+                                                                  actions=random_actions_dict)
+
+    # Check classifier
+    accept_probabilities = classifier_model.check_constraint_tf_batched(environment=environment,
+                                                                        states=mean_dynamics_predictions,
+                                                                        actions=random_actions_dict,
+                                                                        batch_size=batch_size,
+                                                                        state_sequence_length=state_sequence_length)
+
+    return mean_dynamics_predictions, accept_probabilities
+
+
+def viz_generate_example_batch(accept_probabilities, actual_states_tiled, classifier_model, environment, n_action_samples,
+                               predictions, random_actions_dict, scenario, batch_size):
+    stepper = RvizSimpleStepper()
+    for b in debug_viz_batch_indices(batch_size):
+        recovery_probabilities = compute_recovery_probabilities(accept_probabilities, n_action_samples)
+        environment_b = index_dict_of_batched_tensors_tf(environment, b)
+        actual_states_b = index_dict_of_batched_tensors_tf(actual_states_tiled, b)
+        predictions_b = index_dict_of_batched_tensors_tf(predictions, b)
+        actions_b = index_dict_of_batched_tensors_tf(random_actions_dict, b)
+        accept_probabilities_b = accept_probabilities[b]
+        recovery_probability = recovery_probabilities[b]
+        viz_example_b = {}
+        viz_example_b.update(environment_b)
+        viz_example_b.update(actual_states_b)
+        viz_example_b.update({add_predicted(k): v for k, v in predictions_b.items()})
+        viz_example_b.update(actions_b)
+        viz_example_b['accept_probabilities'] = accept_probabilities_b.numpy()
+        pred_state_keys = classifier_model.pred_state_keys
+
+        viz_generate_example_single(n_action_samples, scenario, viz_example_b, recovery_probability)
+        stepper.step()
+
+
+def viz_generate_example_single(n_action_samples, scenario, viz_example_b, recovery_probability):
+    def _init_viz_true_action(scenario, example):
+        pred_0 = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0, t=ast)
+        action = {k: actual_actions[k][0, 0] for k in fwd_model.action_keys}
+        scenario.plot_action_rviz(pred_0, action, label='true action')
+
+    def _init_viz_start_state(scenario, example):
+        start_state = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0,
+                                                     t=ast)
+        scenario.plot_state_rviz(start_state, label='pred', color='#ff3333aa')
+
+    def _viz_action_i(scenario: ExperimentScenario, example: Dict, i: int):
+        action = {k: example[k][i, 0] for k in fwd_model.action_keys}
+        pred_t = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=i, t=ast)
+        scenario.plot_action_rviz(pred_t, action, color=cm.Blues(accept_probabilities_b[i]))
+
+    def _recovery_transition_viz_i(scenario: ExperimentScenario, example: Dict, i: int):
+        e_t_next = index_batch_time_with_metadata(scenario_metadata, example, pred_state_keys, b=i, t=1)
+        scenario.plot_state_rviz(e_t_next, label='pred', color='#ff3333aa')
+
+    anim = RvizAnimation(scenario=scenario,
+                         n_time_steps=n_action_samples,
+                         init_funcs=[init_viz_env,
+                                     lambda s, e: scenario.plot_recovery_probability(recovery_probability),
+                                     _init_viz_start_state,
+                                     _init_viz_true_action,
+                                     ],
+                         t_funcs=[init_viz_env,
+                                  _recovery_transition_viz_i,
+                                  _viz_action_i,
+                                  lambda s, e, i: scenario.plot_accept_probability(
+                                      e['accept_probabilities'][i]),
+                                  ])
+    anim.play(viz_example_b)
+
+
 def batch_stateless_sample_action(scenario: ExperimentScenario,
                                   environment: Dict,
                                   state: Dict,
@@ -385,6 +405,13 @@ def batch_stateless_sample_action(scenario: ExperimentScenario,
     action_sequences = [sequence_of_dicts_to_dict_of_tensors(a) for a in action_sequences]
     action_sequences = sequence_of_dicts_to_dict_of_tensors(action_sequences)
     return {k: tf.tile(v[tf.newaxis], [batch_size, 1, 1, 1]) for k, v in action_sequences.items()}
+
+
+def debug_viz_batch_indices(batch_size):
+    if SHOW_ALL:
+        return range(batch_size)
+    else:
+        return [8]
 
 
 def recovering_mask(needs_recovery):

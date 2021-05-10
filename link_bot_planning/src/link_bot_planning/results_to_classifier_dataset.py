@@ -78,7 +78,7 @@ class ResultsToClassifierDataset:
         self.gazebo_restarting_sub = rospy.Subscriber("gazebo_restarting", Empty, self.on_gazebo_restarting)
 
     def run(self):
-        results_utils.save_dynamics_dataset_hparams(self.results_dir, self.outdir, self.metadata)
+        results_utils.save_classifier_dataset_hparams(self.results_dir, self.outdir, self.metadata)
         if self.full_tree:
             self.full_results_to_classifier_dataset()
         else:

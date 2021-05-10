@@ -52,7 +52,7 @@ def num_trials(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: 
 def normalized_model_error(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     total_model_error = 0.0
     n_total_actions = 0
-    for _, actual_state_t, planned_state_t, type_t in get_paths(trial_datum):
+    for _, _, actual_state_t, planned_state_t, type_t in get_paths(trial_datum):
         if type_t == 'executed_plan' and planned_state_t is not None:
             model_error = scenario.classifier_distance(actual_state_t, planned_state_t)
             total_model_error += model_error

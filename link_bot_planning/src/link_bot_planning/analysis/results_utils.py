@@ -22,6 +22,7 @@ from moonshine.moonshine_utils import numpify
 class NoTransitionsError(Exception):
     pass
 
+
 def fwd_model_params_from_planner_params(planner_params: Dict):
     fwd_model_dirs = paths_from_json(planner_params['fwd_model_dir'])
     representative_fwd_model_dir = fwd_model_dirs[0]
@@ -83,6 +84,8 @@ def get_paths(datum: Dict, verbose: int = 0, full_path: bool = True):
 
     types = []
     for step_idx, step in enumerate(steps):
+        e = step['planning_query'].environment
+
         if verbose >= 1:
             print(step['type'])
         if step['type'] == 'executed_plan':
@@ -108,16 +111,30 @@ def get_paths(datum: Dict, verbose: int = 0, full_path: bool = True):
 
         types = [step['type']] * len(actions)
         if full_path:
-            yield from zip_repeat_shorter(actions, actual_states, predicted_states, types)
+            full_path_for_step = zip_repeat_shorter(actions, actual_states, predicted_states, types)
+            yield from [(e, *p_t) for p_t in full_path_for_step]
         else:
-            yield from zip(actions, actual_states, predicted_states, types)
+            path_for_step = zip(actions, actual_states, predicted_states, types)
+            yield from [(e, *p_t) for p_t in path_for_step]
 
     # but do add the actual final states
+    # e will be whatever the environment from the last step was
     if len(actions) > 0 and actions[0] is not None:
-        yield actions[-1], actual_states[-1], predicted_states[-1], types[-1]
+        yield e, actions[-1], actual_states[-1], predicted_states[-1], types[-1]
 
     if len(types) > 0:
-        yield actions[-1], datum['end_state'], predicted_states[-1], types[-1]
+        yield e, actions[-1], datum['end_state'], predicted_states[-1], types[-1]
+
+
+def get_recovery_transitions(datum: Dict):
+    paths = get_paths(datum, full_path=False)
+    next_paths = get_paths(datum, full_path=False)
+    next(next_paths)
+    for before, after in zip(paths, next_paths):
+        e, action, before_state, _, before_type = before
+        _, _, after_state, _, _ = after
+        if before_type == 'executed_recovery':
+            yield e, action, before_state, after_state, before_type
 
 
 def get_transitions(datum: Dict):
@@ -194,7 +211,7 @@ def list_all_planning_results_trials(results_dir):
     return list_numbered_files(results_dir, extension='pkl.gz', pattern=r'.*?([0-9]+)_metrics.')
 
 
-def save_dynamics_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.Path, metadata: Dict):
+def save_classifier_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.Path, metadata: Dict):
     planner_params = metadata['planner_params']
     classifier_params = classifier_params_from_planner_params(planner_params)
     phase2_dataset_params = dynamics_dataset_params_from_classifier_params(classifier_params)
@@ -289,8 +306,6 @@ def plot_steps(scenario: ScenarioWithVisualization,
 
     goal = datum['goal']
     first_step = steps[0]
-    planning_query: PlanningQuery = first_step['planning_query']
-    environment = planning_query.environment
     paths = list(get_paths(datum, verbose, full_plan))
 
     if len(paths) == 0:
@@ -307,9 +322,9 @@ def plot_steps(scenario: ScenarioWithVisualization,
 
     scenario.reset_planning_viz()
     while not anim.done:
-        scenario.plot_environment_rviz(environment)
         t = anim.t()
-        a_t, s_t, s_t_pred, type_t = paths[t]
+        e_t, a_t, s_t, s_t_pred, type_t = paths[t]
+        scenario.plot_environment_rviz(e_t)
         scenario.plot_state_rviz(s_t, label='actual', color='#ff0000aa')
         c = '#0000ffaa'
         if t < anim.max_t:
