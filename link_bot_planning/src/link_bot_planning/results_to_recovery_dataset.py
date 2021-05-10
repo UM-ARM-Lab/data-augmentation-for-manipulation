@@ -124,9 +124,6 @@ class ResultsToRecoveryDataset:
                 continue
 
             self.clear_markers()
-            self.before_state_idx = marker_index_generator(0)
-            self.after_state_idx = marker_index_generator(3)
-            self.action_idx = marker_index_generator(5)
 
             example_idx_for_trial = 0
 
@@ -178,7 +175,7 @@ class ResultsToRecoveryDataset:
                                        before_state=before_state,
                                        environment=environment)
 
-            yield from self.generate_example(
+            yield self.generate_example(
                 environment=environment,
                 action=action,
                 before_state=before_state,
@@ -230,13 +227,13 @@ class ResultsToRecoveryDataset:
             classifier_horizon)
 
         if self.visualize:
+            recovery_probability = remove_batch(compute_recovery_probabilities(add_batch(accept_probabilities), n_action_samples))
             anim = RvizAnimationController(n_time_steps=n_action_samples)
             while not anim.done:
                 i = anim.t()
-                p_i = remove_batch(compute_recovery_probabilities(add_batch(accept_probabilities), n_action_samples))
                 a_i = index_batch_time(random_actions_dict, self.fwd_model.action_keys, i, 0)
-                self.scenario.plot_recovery_probability(p_i)
-                temp = log_scale_0_to_1(tf.squeeze(p_i), k=100)
+                self.scenario.plot_recovery_probability(recovery_probability)
+                temp = log_scale_0_to_1(tf.squeeze(recovery_probability), k=100)
                 self.scenario.plot_action_rviz(after_state, a_i, label='proposed', color=cm.Greens(temp), idx=1)
                 self.scenario.plot_accept_probability(accept_probabilities[i])
 
@@ -252,7 +249,7 @@ class ResultsToRecoveryDataset:
         example.update(before_state)
         example.update(action)
 
-        yield example
+        return example
 
     def visualize_example(self,
                           action: Dict,
@@ -260,9 +257,9 @@ class ResultsToRecoveryDataset:
                           before_state: Dict,
                           environment: Dict):
         self.scenario.plot_environment_rviz(environment)
-        self.scenario.plot_state_rviz(before_state, idx=next(self.before_state_idx), label='actual')
-        self.scenario.plot_action_rviz(before_state, action, idx=next(self.action_idx), label='actual', color='pink')
-        self.scenario.plot_state_rviz(after_state, idx=next(self.after_state_idx), label='actual')
+        self.scenario.plot_state_rviz(before_state, idx=0, label='actual')
+        self.scenario.plot_action_rviz(before_state, action, idx=0, label='actual', color='pink')
+        self.scenario.plot_state_rviz(after_state, idx=1, label='actual')
 
     def clear_markers(self):
         self.scenario.reset_planning_viz()

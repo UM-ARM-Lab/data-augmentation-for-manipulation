@@ -449,8 +449,7 @@ class IterativeFineTuning:
 
     def fine_tune(self, iteration_data: IterationData):
         classifier_checkpoint_dir = self.fine_tune_classifier(iteration_data)
-        # recovery_checkpoint_dir = self.fine_tune_recovery(iteration_data)
-        recovery_checkpoint_dir = None
+        recovery_checkpoint_dir = self.fine_tune_recovery(iteration_data)
         return classifier_checkpoint_dir, recovery_checkpoint_dir
 
     def fine_tune_classifier(self, iteration_data: IterationData):
