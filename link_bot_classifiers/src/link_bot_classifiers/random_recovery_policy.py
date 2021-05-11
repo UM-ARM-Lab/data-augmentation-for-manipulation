@@ -7,11 +7,10 @@ from link_bot_classifiers.base_recovery_policy import BaseRecoveryPolicy
 
 class RandomRecoveryPolicy(BaseRecoveryPolicy):
 
-    def __init__(self, hparams: Dict, model_dir: pathlib.Path, scenario: ExperimentScenario,
-                 rng: np.random.RandomState):
-        super().__init__(hparams, model_dir, scenario, rng)
+    def __init__(self, path: pathlib.Path, scenario: ExperimentScenario, rng: np.random.RandomState, u: Dict):
+        super().__init__(path, scenario, rng, u)
 
     def __call__(self, environment: Dict, state: Dict):
         action, _ = self.scenario.sample_action(action_rng=self.rng, environment=environment, state=state,
-                                           action_params=self.hparams, validate=True)
+                                                action_params=self.params, validate=True)
         return action

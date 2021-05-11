@@ -9,6 +9,6 @@ def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
         'seed':                     seed,
         'datasets':                 paths_to_json(dataset_dirs),
         'latest_training_time':     int(time.time()),
-        'dynamics_dataset_hparams': train_dataset.hparams,
+        'dynamics_dataset_hparams': train_dataset.params,
         'use_gt_rope':              use_gt_rope,
     }

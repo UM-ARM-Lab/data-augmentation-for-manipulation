@@ -20,6 +20,7 @@ from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
     batch_point_to_idx_tf_3d_in_batched_envs
 from link_bot_pycommon.pycommon import make_dict_tf_float32, log_scale_0_to_1
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
+from moonshine.ensemble import Ensemble2
 from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
 from moonshine.metrics import LossMetric
 from moonshine.moonshine_utils import add_batch
@@ -217,22 +218,6 @@ class NNRecoveryModel(MyKerasModel):
         }
 
     def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
-        # def compute_metrics(self, dataset_element, outputs):
-        # y_true = dataset_element['recovery_probability'][:, 1]
-        # y_pred = tf.squeeze(outputs['probabilities'], axis=1)
-        # error = tf.reduce_mean(tf.math.abs(y_true - y_pred))
-        # # BEGIN DEBUG
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # y_true_n = y_true / tf.reduce_sum(y_true)
-        # y_pred_n = y_pred / tf.reduce_sum(y_pred)
-        # indices = np.arange(16)
-        # plt.scatter(indices, y_true.numpy(), s=100)
-        # plt.scatter(indices, y_pred.numpy(), s=100)
-        # # plt.scatter(indices, y_true_n.numpy(), s=100)
-        # # plt.scatter(indices, y_pred_n.numpy(), s=100)
-        # plt.show()
-        # # END DEBUG
         pass
 
     @tf.function
@@ -286,15 +271,18 @@ class RecoveryDebugVizInfo:
     states: List[Dict]
     environment: Dict
 
+    def __len__(self):
+        return len(self.states)
+
 
 class NNRecoveryPolicy(BaseRecoveryPolicy):
 
-    def __init__(self, hparams: Dict, model_dir: pathlib.Path, scenario: ExperimentScenario, rng: RandomState):
-        super().__init__(hparams, model_dir, scenario, rng)
+    def __init__(self, path: pathlib.Path, scenario: ExperimentScenario, rng: RandomState, u: Dict):
+        super().__init__(path, scenario, rng, u)
 
-        self.model = NNRecoveryModel(hparams=self.hparams, batch_size=1, scenario=self.scenario)
+        self.model = NNRecoveryModel(hparams=self.params, batch_size=1, scenario=self.scenario)
         self.ckpt = tf.train.Checkpoint(model=self.model)
-        self.manager = tf.train.CheckpointManager(self.ckpt, model_dir, max_to_keep=1)
+        self.manager = tf.train.CheckpointManager(self.ckpt, path, max_to_keep=1)
 
         self.ckpt.restore(self.manager.latest_checkpoint)
         if self.manager.latest_checkpoint:
@@ -303,11 +291,14 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
             raise RuntimeError("Failed to restore!!!")
 
         self.action_rng = RandomState(0)
-        dataset_params = self.hparams['recovery_dataset_hparams']
+        dataset_params = self.params['recovery_dataset_hparams']
         self.data_collection_params = dataset_params['data_collection_params']
         self.n_action_samples = dataset_params['labeling_params']['n_action_samples']
 
         self.noise_rng = RandomState(0)
+
+    def from_example(self, example: Dict):
+        return self.model(example)
 
     def __call__(self, environment: Dict, state: Dict):
         # sample a bunch of actions (batched?) and pick the best one
@@ -331,20 +322,7 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
             if not valid:
                 continue
 
-            recovery_model_input = {}
-            recovery_model_input.update(environment)
-            recovery_model_input.update(add_batch(state))  # add time dimension to state and action
-            recovery_model_input.update(add_batch(action))
-            recovery_model_input = add_batch(recovery_model_input)
-            if 'scene_msg' in environment:
-                recovery_model_input.pop('scene_msg')
-            recovery_model_input = make_dict_tf_float32(recovery_model_input)
-            recovery_model_input.update({
-                'batch_size': 1,
-                'time':       2,
-            })
-            recovery_model_output = self.model(recovery_model_input, training=False)
-            recovery_probability = recovery_model_output['probabilities']
+            recovery_probability = self.compute_recovery_probability(environment, state, action)
 
             info.states.append(state)
             info.actions.append(action)
@@ -359,8 +337,25 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
 
         return best_action
 
+    def compute_recovery_probability(self, environment, state, action):
+        recovery_model_input = {}
+        recovery_model_input.update(environment)
+        recovery_model_input.update(add_batch(state))  # add time dimension to state and action
+        recovery_model_input.update(add_batch(action))
+        recovery_model_input = add_batch(recovery_model_input)
+        if 'scene_msg' in environment:
+            recovery_model_input.pop('scene_msg')
+        recovery_model_input = make_dict_tf_float32(recovery_model_input)
+        recovery_model_input.update({
+            'batch_size': 1,
+            'time':       2,
+        })
+        recovery_model_output = self.model(recovery_model_input, training=False)
+        recovery_probability = recovery_model_output['probabilities']
+        return recovery_probability
+
     def debug_viz(self, info: RecoveryDebugVizInfo):
-        anim = RvizAnimationController(np.arange(self.n_action_samples))
+        anim = RvizAnimationController(np.arange(len(info)))
         debug_viz_max_unstuck_probability = -1
         while not anim.done:
             i = anim.t()
@@ -369,7 +364,7 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
             p_i = info.recovery_probabilities[i]
 
             self.scenario.plot_recovery_probability(p_i)
-            color_factor = log_scale_0_to_1(tf.squeeze(p_i), k=100)
+            color_factor = log_scale_0_to_1(tf.squeeze(p_i), k=500)
             self.scenario.plot_action_rviz(s_i, a_i, label='proposed', color=cm.Greens(color_factor), idx=1)
             self.scenario.plot_environment_rviz(info.environment)
             self.scenario.plot_state_rviz(s_i, label='stuck_state')
@@ -379,3 +374,20 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
                 self.scenario.plot_action_rviz(s_i, a_i, label='best_proposed', color='g', idx=2)
 
             anim.step()
+
+
+class NNRecoveryEnsemble(BaseRecoveryPolicy):
+    def __init__(self, path, elements, constants_keys: List[str], rng: RandomState, u: Dict):
+        self.ensemble = Ensemble2(elements, constants_keys)
+        m0 = self.ensemble.elements[0]
+        self.element_class = m0.__class__
+
+        super().__init__(path, m0.scenario, rng, u)
+
+    def from_example(self, example: Dict):
+        mean, stdev = self.ensemble(self.element_class.from_example, example)
+        return mean, stdev
+
+    def __call__(self, environment: Dict, state: Dict):
+        mean, stdev = self.ensemble(self.element_class.__call__, environment, state)
+        return mean, stdev

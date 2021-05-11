@@ -4,9 +4,13 @@ import pathlib
 import time
 from typing import Optional, List
 
+import numpy as np
 import tensorflow as tf
+from progressbar import progressbar
 
+from link_bot_classifiers import recovery_policy_utils
 from link_bot_classifiers.nn_recovery_policy import NNRecoveryModel
+from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import batch_tf_dataset
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
 from link_bot_pycommon.get_scenario import get_scenario
@@ -110,6 +114,7 @@ def eval_main(dataset_dirs: List[pathlib.Path],
               checkpoint: pathlib.Path,
               mode: str,
               batch_size: int,
+              take: int,
               **kwargs,
               ):
     ###############
@@ -120,25 +125,81 @@ def eval_main(dataset_dirs: List[pathlib.Path],
     _, params = filepath_tools.create_or_load_trial(trial_path=trial_path,
                                                     trials_directory=trials_directory)
     scenario = get_scenario(params['scenario'])
-    net = NNRecoveryModel(hparams=params, scenario=scenario, batch_size=1)
+    net = NNRecoveryModel(hparams=params, scenario=scenario, batch_size=batch_size)
 
     ###############
     # Dataset
     ###############
     test_dataset = RecoveryDatasetLoader(dataset_dirs)
     test_tf_dataset = test_dataset.get_datasets(mode=mode)
+    test_tf_dataset = test_tf_dataset.take(take)
 
     ###############
     # Evaluate
     ###############
     test_tf_dataset = batch_tf_dataset(test_tf_dataset, batch_size, drop_remainder=True)
 
+    val_metrics = net.create_metrics()
     runner = ModelRunner(model=net,
                          training=False,
                          params=params,
                          checkpoint=checkpoint,
                          trial_path=trial_path,
                          batch_metadata=test_dataset.batch_metadata)
-    validation_metrics = runner.val_epoch(test_tf_dataset)
-    for name, value in validation_metrics.items():
-        print(f"{name}: {value:.3f}")
+    runner.val_epoch(test_tf_dataset, val_metrics)
+    for metric_name, metric_value in val_metrics.items():
+        print(f"{metric_name:30s}: {metric_value.result().numpy().squeeze():.4f}")
+
+
+def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
+                            ensemble_path: pathlib.Path,
+                            mode: str,
+                            batch_size: int,
+                            take: Optional[int] = None,
+                            **kwargs):
+    ensemble = recovery_policy_utils.load_generic_model(ensemble_path)
+
+    # Dataset
+    dataset = RecoveryDatasetLoader([dataset_dir])
+    tf_dataset = dataset.get_datasets(mode=mode)
+    tf_dataset = tf_dataset.take(take)
+    tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
+
+    # Evaluate
+    for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+        batch.update(dataset.batch_metadata)
+
+        mean_predictions, stdev_predictions = ensemble.from_example(batch)
+
+        yield dataset, batch_idx, batch, mean_predictions, stdev_predictions
+
+
+def eval_ensemble_main(dataset_dir: pathlib.Path,
+                       ensemble_path: pathlib.Path,
+                       mode: str,
+                       batch_size: int,
+                       take: Optional[int] = None,
+                       no_plot: Optional[bool] = True,
+                       **kwargs):
+    ensemble_nickname = ensemble_path.parent.name
+    outdir = pathlib.Path('results') / dataset_dir / ensemble_nickname
+    outdir.mkdir(exist_ok=True, parents=True)
+
+    itr = run_ensemble_on_dataset(dataset_dir=dataset_dir,
+                                  ensemble_path=ensemble_path,
+                                  mode=mode,
+                                  batch_size=batch_size,
+                                  take=take,
+                                  **kwargs)
+    all_mean_probabilities = []
+    all_std_probabilities = []
+    for dataset, batch_idx, batch, mean_predictions, stdev_predictions in itr:
+        mean_probabilities = mean_predictions['probabilities']
+        stdev_probabilities = stdev_predictions['probabilities']
+        all_mean_probabilities.append(mean_probabilities)
+        all_std_probabilities.append(stdev_probabilities)
+
+    print(np.mean(all_std_probabilities))
+    print(np.median(all_std_probabilities))
+    print(np.min(all_std_probabilities))
+    print(np.max(all_std_probabilities))

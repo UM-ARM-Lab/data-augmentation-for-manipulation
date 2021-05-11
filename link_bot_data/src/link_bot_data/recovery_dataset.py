@@ -67,7 +67,7 @@ class RecoveryDatasetLoader(BaseDatasetLoader):
         dataset = super().post_process(dataset, n_parallel_calls)
 
         dataset = dataset.map(self.add_recovery_probabilities)
-        dataset = dataset.filter(is_stuck)
+        # dataset = dataset.filter(is_stuck)
         return dataset
 
     def add_recovery_probabilities(self, example):

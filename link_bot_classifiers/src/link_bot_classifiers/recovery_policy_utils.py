@@ -3,24 +3,40 @@ from typing import Optional, Dict
 
 import numpy as np
 
-from link_bot_classifiers.nn_recovery_policy import NNRecoveryPolicy
+from arc_utilities.algorithms import nested_dict_update
+from link_bot_classifiers.nn_recovery_policy import NNRecoveryPolicy, NNRecoveryEnsemble
 from link_bot_classifiers.random_recovery_policy import RandomRecoveryPolicy
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.filepath_tools import load_trial
 
 
-def load_generic_model(model_dir: pathlib.Path,
-                       scenario: ExperimentScenario,
-                       rng: np.random.RandomState,
+def load_generic_model(path: pathlib.Path,
+                       scenario: Optional[ScenarioWithVisualization] = None,
+                       rng: np.random.RandomState = None,
                        update_hparams: Optional[Dict] = None):
-    _, hparams = load_trial(model_dir.parent.absolute())
-    if update_hparams is not None:
-        hparams.update(update_hparams)
+    _, params = load_trial(path.parent.absolute())
 
-    model_class = hparams['model_class']
+    if scenario is None:
+        scenario_name = params['scenario']
+        scenario = get_scenario(scenario_name)
+
+    if rng is None:
+        rng = np.random.RandomState(0)
+
+    if update_hparams is not None:
+        params = nested_dict_update(params, update_hparams)
+
+    model_class = params['model_class']
     if model_class == 'random':
-        return RandomRecoveryPolicy(hparams, model_dir, scenario, rng)
+        return RandomRecoveryPolicy(path, scenario, rng, update_hparams)
     elif model_class == 'nn':
-        return NNRecoveryPolicy(hparams, model_dir, scenario, rng)
+        return NNRecoveryPolicy(path, scenario, rng, update_hparams)
+    elif model_class == 'ensemble':
+        const_keys_for_classifier = []
+        models = [load_generic_model(pathlib.Path(checkpoint), scenario, rng, update_hparams) for checkpoint in
+                  params['checkpoints']]
+        ensemble = NNRecoveryEnsemble(path, models, const_keys_for_classifier, rng, update_hparams)
+        return ensemble
     else:
         raise NotImplementedError(f"model type {model_class} not implemented")

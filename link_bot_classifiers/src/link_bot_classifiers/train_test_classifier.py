@@ -16,7 +16,6 @@ import rospy
 from geometry_msgs.msg import Point
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
-from link_bot_classifiers.classifier_utils import load_generic_model
 from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
@@ -41,7 +40,7 @@ from visualization_msgs.msg import MarkerArray, Marker
 def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
     hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope)
     hparams.update({
-        'classifier_dataset_hparams': train_dataset.hparams,
+        'classifier_dataset_hparams': train_dataset.params,
     })
     return hparams
 
@@ -421,7 +420,7 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
     # models = [load_generic_model(checkpoint) for checkpoint in checkpoints]
     # const_keys_for_classifier = []
     # ensemble = Ensemble2(models, const_keys_for_classifier)
-    ensemble = load_generic_model(ensemble_path)
+    ensemble = classifier_utils.load_generic_model(ensemble_path)
 
     # Dataset
     dataset = ClassifierDatasetLoader([dataset_dir], load_true_states=True, use_gt_rope=use_gt_rope)
