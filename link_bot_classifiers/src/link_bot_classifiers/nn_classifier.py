@@ -723,7 +723,7 @@ class NNClassifierWrapper(BaseConstraintChecker):
             net_inputs[add_predicted('stdev')] = tf.cast(states['stdev'], tf.float32)
 
         net_inputs = make_dict_tf_float32(net_inputs)
-        predictions = self.check_constraint_from_example(net_inputs, training=False)
+        predictions = numpify(self.check_constraint_from_example(net_inputs, training=False))
         probability = predictions['probabilities']
         probability = tf.squeeze(probability, axis=2)
         return probability
