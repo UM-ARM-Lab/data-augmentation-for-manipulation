@@ -28,7 +28,7 @@ from moonshine.raster_3d import raster_3d
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
 DEBUG_VIZ = False
-POLICY_DEBUG_VIZ = True
+POLICY_DEBUG_VIZ = False
 
 
 class NNRecoveryModel(MyKerasModel):

@@ -28,7 +28,7 @@ from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 DEBUG = True
-SHOW_ALL = False
+SHOW_ALL = True
 
 
 def make_recovery_dataset(dataset_dir: pathlib.Path,
@@ -411,7 +411,7 @@ def debug_viz_batch_indices(batch_size):
     if SHOW_ALL:
         return range(batch_size)
     else:
-        return [8]
+        return [0]
 
 
 def recovering_mask(needs_recovery):

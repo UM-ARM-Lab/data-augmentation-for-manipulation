@@ -46,7 +46,6 @@ def main():
 
         for example in progressbar(tf_dataset, widgets=base_dataset.widgets):
             n_accepts = tf.math.count_nonzero(example['accept_probabilities'] > 0.5, axis=1)
-            print(n_accepts)
             # if not is_stuck(example):
             #     print("found a not-stuck example")
             #     dataset.anim_rviz(example)
