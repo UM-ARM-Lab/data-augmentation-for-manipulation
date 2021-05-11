@@ -146,7 +146,6 @@ class IterativeFineTuning:
 
         # Pre-adaptation training steps
         if self.pretraining_config.get('use_pretraining', False):
-            print(Style.BRIGHT + Fore.LIGHTBLUE_EX + "Running Pretraining" + Style.RESET_ALL)
             [p.suspend() for p in self.gazebo_processes]
             initial_classifier_checkpoint = self.pretraining(initial_classifier_checkpoint)
 
@@ -246,6 +245,7 @@ class IterativeFineTuning:
 
         new_latest_checkpoint_dir = pathify(pretraining_chunker.get_result('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
+            print(Style.BRIGHT + Fore.LIGHTBLUE_EX + "Running Pretraining" + Style.RESET_ALL)
             new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=dataset_dirs,
                                                              checkpoint=initial_classifier_checkpoint / 'best_checkpoint',
                                                              log=f'pretraining_logdir',
@@ -410,6 +410,7 @@ class IterativeFineTuning:
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('classifier dataset')
         new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
+            print("Updating Classifier Dataset")
             [p.suspend() for p in self.gazebo_processes]
 
             new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i:04d}_dataset'
@@ -434,6 +435,7 @@ class IterativeFineTuning:
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('recovery dataset')
         new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
+            print("Updating Recovery Dataset")
             [p.suspend() for p in self.gazebo_processes]
 
             new_dataset_dir = self.outdir / 'recovery_datasets' / f'iteration_{i:04d}_dataset'
