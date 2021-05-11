@@ -34,7 +34,7 @@ from std_msgs.msg import ColorRGBA
 
 DEBUG_INPUT_ENV = False
 DEBUG_PRE_AUG = False
-DEBUG_POST_AUG = True
+DEBUG_POST_AUG = False
 DEBUG_FITTED_ENV_AUG = False
 DEBUG_ADDITIVE_AUG = False
 SHOW_ALL = False
