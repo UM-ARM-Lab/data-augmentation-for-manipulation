@@ -5,13 +5,6 @@ import tensorflow as tf
 from colorama import Fore
 from tensorflow.keras.metrics import Metric
 
-print("YOU NEED TO RE-ENABLE TF.FUNCTION!!!!!!!")
-print("YOU NEED TO RE-ENABLE TF.FUNCTION!!!!!!!")
-print("YOU NEED TO RE-ENABLE TF.FUNCTION!!!!!!!")
-print("YOU NEED TO RE-ENABLE TF.FUNCTION!!!!!!!")
-print("YOU NEED TO RE-ENABLE TF.FUNCTION!!!!!!!")
-
-
 class MyKerasModel(tf.keras.Model):
 
     def get_config(self):
@@ -74,7 +67,7 @@ class MyKerasModel(tf.keras.Model):
     def preprocess_no_gradient(self, element, training: bool):
         return element
 
-    # @tf.function
+    @tf.function
     def train_step(self, train_element, metrics: Dict[str, Metric]):
         train_element = self.preprocess_no_gradient(train_element, training=True)
         with tf.GradientTape(persistent=True) as tape:

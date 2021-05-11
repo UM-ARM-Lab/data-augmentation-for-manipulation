@@ -4,7 +4,6 @@ from time import perf_counter
 from typing import Optional, List, Dict, Union
 
 import numpy as np
-import tensorflow as tf
 
 import rospy
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
@@ -15,12 +14,10 @@ from link_bot_planning.analysis import results_utils
 from link_bot_planning.analysis.results_utils import NoTransitionsError, get_transitions
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
-from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_in_batched_envs, batch_idx_to_point_3d_in_env_tf
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions, try_make_dict_tf_float32
 from moonshine.filepath_tools import load_hjson
-from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch_single, add_batch, remove_batch
 from std_msgs.msg import Empty
 

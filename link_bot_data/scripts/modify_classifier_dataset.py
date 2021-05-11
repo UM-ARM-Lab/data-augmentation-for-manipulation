@@ -26,7 +26,7 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset: ClassifierDatasetLoader, example: Dict):
-        example['gt_rope'] = example['rope']
+        # TODO: run the augmentation, then write those results?
         yield example
 
     hparams_update = {}

@@ -59,7 +59,7 @@
   }
   {
     type: LinePlot
-    name: solved_vs_iters
+    name: task_error_vs_iters
     xlabel: Iterations
     ylabel: Task Error
     reductions: {
@@ -92,28 +92,6 @@
     axes_names: [
       y
     ]
-  }
-  {
-    type: LinePlot
-    name: success
-    xlabel: Num Steps
-    ylabel: Percent Success
-    ylim: [
-      -0.01
-      1.01
-    ]
-    reductions: {
-      num_steps: [
-        null
-        shifted_cumsum
-        sum
-      ]
-      success: [
-        null
-        null
-        mean
-      ]
-    }
   }
   {
     type: LinePlot
@@ -182,6 +160,28 @@
     axes_names: [
       y
     ]
+  }
+  {
+    type: LinePlot
+    name: success
+    xlabel: Num Steps
+    ylabel: Percent Success
+    ylim: [
+      -0.01
+      1.01
+    ]
+    reductions: {
+      num_steps: [
+        null
+        shifted_cumsum
+        sum
+      ]
+      success: [
+        null
+        null
+        mean
+      ]
+    }
   }
   {
     type: LinePlot

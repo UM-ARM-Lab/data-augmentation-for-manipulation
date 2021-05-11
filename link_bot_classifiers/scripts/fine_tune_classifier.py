@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--pretransfer-config-dir', type=pathlib.Path, help='dir of pkl files with state/env')
     parser.add_argument('--batch-size', type=int, default=24)
     parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--take', type=int, default=10)
     parser.add_argument('--log-scalars-every', type=int, help='loss/accuracy every this many batches', default=100)
     parser.add_argument('--validation-every', type=int, help='report validation every this many epochs', default=1)
     parser.add_argument('--threshold', type=float, default=None)
@@ -49,6 +50,7 @@ def main():
                          early_stopping=False,
                          epochs=args.epochs,
                          validate_first=True,
+                         take=args.take,
                          model_hparams_update=model_hparams_update,
                          val_every_n_batches=500,
                          mid_epoch_val_batches=100,

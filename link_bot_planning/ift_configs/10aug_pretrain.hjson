@@ -15,7 +15,11 @@
     {
     }
   }
-  results_to_dataset: {
+  results_to_classifier_dataset: {
+    val_split: 0.5
+    test_split: 0.0
+  }
+  results_to_recovery_dataset: {
     val_split: 0.5
     test_split: 0.0
   }
