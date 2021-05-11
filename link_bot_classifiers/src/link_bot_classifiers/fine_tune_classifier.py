@@ -80,15 +80,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
 
 
 def add_pretransfer_configs_to_dataset(pretransfer_config_dir, tf_dataset, batch_size):
-    pretransfer_configs = []
-    if pretransfer_config_dir is not None:
-        # load the pkl files and add them to the dataset?
-        for filename in pretransfer_config_dir.glob("initial_config*.pkl"):
-            with filename.open("rb") as file:
-                pretransfer_config = pickle.load(file)
-                pretransfer_config['env'].pop("scene_msg")
-                pretransfer_configs.append(pretransfer_config)
-    pretransfer_config_gen = itertools.cycle(pretransfer_configs)
+    pretransfer_config_gen = load_pretransfer_configs(pretransfer_config_dir)
 
     def _add_pretransfer_env(example: Dict):
         if pretransfer_config_dir is not None:
@@ -107,3 +99,16 @@ def add_pretransfer_configs_to_dataset(pretransfer_config_dir, tf_dataset, batch
         return example
 
     return tf_dataset.map(_add_pretransfer_env)
+
+
+def load_pretransfer_configs(pretransfer_config_dir: pathlib.Path):
+    pretransfer_configs = []
+    if pretransfer_config_dir is not None:
+        # load the pkl files and add them to the dataset?
+        for filename in pretransfer_config_dir.glob("initial_config*.pkl"):
+            with filename.open("rb") as file:
+                pretransfer_config = pickle.load(file)
+                pretransfer_config['env'].pop("scene_msg")
+                pretransfer_configs.append(pretransfer_config)
+    pretransfer_config_gen = itertools.cycle(pretransfer_configs)
+    return pretransfer_config_gen

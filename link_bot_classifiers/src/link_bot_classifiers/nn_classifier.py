@@ -367,17 +367,18 @@ class NNClassifier(MyKerasModel):
 
     def get_new_local_env(self, indices, example):
         if add_new('env') not in example:
+            print("new env not in example. did you forget the load from the pretransfer config?")
             example[add_new('env')] = example['env']
             example[add_new('extent')] = example['extent']
             example[add_new('origin')] = example['origin']
             example[add_new('res')] = example['res']
-        else:
-            new_env_example = {
-                'env':    example[add_new('env')],
-                'extent': example[add_new('extent')],
-                'origin': example[add_new('origin')],
-                'res':    example[add_new('res')],
-            }
+
+        new_env_example = {
+            'env':    example[add_new('env')],
+            'extent': example[add_new('extent')],
+            'origin': example[add_new('origin')],
+            'res':    example[add_new('res')],
+        }
         local_env_center = self.sample_local_env_position(new_env_example)
         local_env_new, local_env_new_origin = get_local_env_and_origin(center_point=local_env_center,
                                                                        full_env=new_env_example['env'],
