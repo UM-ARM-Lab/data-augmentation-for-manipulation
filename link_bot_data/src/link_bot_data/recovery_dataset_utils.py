@@ -27,7 +27,7 @@ from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, repe
 from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
-DEBUG = True
+DEBUG = False
 SHOW_ALL = True
 
 
@@ -275,7 +275,7 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
             environment_tiled_batched,  # [b*nas, ...]
             start_states_tiled_t_batched,  # [b*nas, 1, ...]
             random_actions_dict_batched,  # [b*nas, 1, ...]
-            batch_size,
+            bs,
             classifier_horizon)
 
         # reshape to separate batch from sampled actions
