@@ -8,8 +8,7 @@
   }
   n_shortcut_attempts: 0
   classifier_model_dir: [
-    # results/iterative_fine_tuning/car_to_long_hook_5t_aug_pretrain_1620480461_092afb22c7/classifier_training_logdir/iteration_0018_training_logdir/May_09_09-52-15_c9bfeb1e28/best_checkpoint
-    results/iterative_fine_tuning/car_to_long_hook_10t_aug_pretrain_1620440595_9395fc1689/classifier_training_logdir/iteration_0006_training_logdir/May_08_09-28-37_092afb22c7/best_checkpoint
+    results/iterative_fine_tuning/car_to_long_hook_10t_aug_pretrain_1620440595_9395fc1689/pretraining_logdir/May_07_22-29-14_092afb22c7/best_checkpoint
     cl_trials/new_feasibility_baseline/none
   ]
 }

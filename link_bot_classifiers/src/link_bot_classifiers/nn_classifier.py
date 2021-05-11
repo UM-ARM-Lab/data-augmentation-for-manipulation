@@ -32,7 +32,11 @@ from moonshine.raster_3d import raster_3d
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from std_msgs.msg import ColorRGBA
 
-DEBUG_VIZ = False
+DEBUG_INPUT_ENV = False
+DEBUG_PRE_AUG = False
+DEBUG_POST_AUG = True
+DEBUG_FITTED_ENV_AUG = False
+DEBUG_ADDITIVE_AUG = False
 SHOW_ALL = False
 
 
@@ -150,7 +154,7 @@ class NNClassifier(MyKerasModel):
 
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
 
-        if DEBUG_VIZ:
+        if DEBUG_PRE_AUG:
             self.debug_viz_local_env_pre_aug(input_dict, local_voxel_grids_array, local_env_origin, time)
 
         # optionally augment the local environment
@@ -159,7 +163,7 @@ class NNClassifier(MyKerasModel):
         else:
             local_voxel_grids_aug_array = local_voxel_grids_array
 
-        if DEBUG_VIZ:
+        if DEBUG_POST_AUG:
             stepper = RvizSimpleStepper()
             for b in self.debug_viz_batch_indices():
                 final_aug_dict = {
@@ -169,6 +173,12 @@ class NNClassifier(MyKerasModel):
                 }
                 msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
                 self.env_aug_pub5.publish(msg)
+                state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
+                action_0 = {k: input_dict[k][:, 0] for k in self.action_keys}
+                state_1 = {k: input_dict[add_predicted(k)][:, 1] for k in self.state_keys}
+                self.scenario.plot_state_rviz(state_0, idx=0)
+                self.scenario.plot_state_rviz(state_1, idx=1)
+                self.scenario.plot_action_rviz(state_0, action_0, idx=1)
                 stepper.step()
 
             for b in self.debug_viz_batch_indices():
@@ -218,7 +228,7 @@ class NNClassifier(MyKerasModel):
                                 ):
         local_env_new, local_env_new_origin = self.get_new_local_env(indices, example)
 
-        if DEBUG_VIZ:
+        if DEBUG_FITTED_ENV_AUG:
             stepper = RvizSimpleStepper()
             for b in self.debug_viz_batch_indices():
                 local_env_new_extent_b = compute_extent_3d(self.local_env_h_rows,
@@ -263,7 +273,7 @@ class NNClassifier(MyKerasModel):
         local_env_aug_removed = local_env_new + tf.maximum(local_env - remove, 0)
 
         # visualize which voxels will be removed
-        if DEBUG_VIZ:
+        if DEBUG_FITTED_ENV_AUG:
             stepper = RvizSimpleStepper()
             for b in self.debug_viz_batch_indices():
                 remove_dict = {
@@ -315,7 +325,7 @@ class NNClassifier(MyKerasModel):
                                                       local_voxel_grids_array,
                                                       n_state_components)
 
-        if DEBUG_VIZ:
+        if DEBUG_ADDITIVE_AUG:
             self.viz_new_env_and_validity(aug_is_valid, example, local_env_new, local_env_new_origin)
 
         # masks out the invalid augmentations
@@ -529,7 +539,7 @@ class NNClassifier(MyKerasModel):
         batch_size = input_dict['batch_size']
         time = tf.cast(input_dict['time'], tf.int32)
 
-        if DEBUG_VIZ:
+        if DEBUG_INPUT_ENV:
             stepper = RvizSimpleStepper()
             for b in self.debug_viz_batch_indices():
                 env_b = {
