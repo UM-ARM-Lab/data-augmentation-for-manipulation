@@ -44,6 +44,7 @@ def main():
             # if not is_stuck(example):
             #     print("found a not-stuck example")
             #     dataset.anim_rviz(example)
+            print(example['recovery_probability'])
             dataset.anim_rviz(example)
 
 

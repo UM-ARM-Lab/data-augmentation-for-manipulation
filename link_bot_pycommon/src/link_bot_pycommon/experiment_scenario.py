@@ -134,6 +134,7 @@ class ExperimentScenario:
         self.recovery_prob_viz_pub.publish(msg)
 
     def plot_recovery_probability_t(self, example: Dict, t: int):
+        print(example['recovery_probability'].shape)
         self.plot_recovery_probability(example['recovery_probability'][t])
 
     def plot_accept_probability_t(self, example: Dict, t: int):

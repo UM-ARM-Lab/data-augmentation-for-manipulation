@@ -212,7 +212,7 @@ class ResultsToRecoveryDataset:
         environment_batched = repeat(environment, n_action_samples, 0, True)
         environment_batched['scene_msg'] = [scene_msg] * n_action_samples
 
-        predictions, accept_probabilities = predict_and_classify_for_recovery_dataset(
+        predictions, after_accept_probabilities = predict_and_classify_for_recovery_dataset(
             self.fwd_model,
             self.classifier,
             environment_batched,  # [b*nas, ...]
@@ -223,7 +223,7 @@ class ResultsToRecoveryDataset:
 
         if self.visualize:
             recovery_probability = remove_batch(
-                compute_recovery_probabilities(add_batch(accept_probabilities), n_action_samples))
+                compute_recovery_probabilities(add_batch(after_accept_probabilities), n_action_samples))
             anim = RvizAnimationController(n_time_steps=n_action_samples)
             while not anim.done:
                 i = anim.t()
@@ -231,15 +231,17 @@ class ResultsToRecoveryDataset:
                 self.scenario.plot_recovery_probability(recovery_probability)
                 temp = log_scale_0_to_1(tf.squeeze(recovery_probability), k=100)
                 self.scenario.plot_action_rviz(after_state, a_i, label='proposed', color=cm.Greens(temp), idx=1)
-                self.scenario.plot_accept_probability(accept_probabilities[i])
+                self.scenario.plot_accept_probability(after_accept_probabilities[i])
 
                 anim.step()
 
+        after_accept_probabilities = tf.squeeze(after_accept_probabilities, axis=-1)
+        accept_probabilities = tf.stack([tf.zeros_like(after_accept_probabilities), after_accept_probabilities], axis=0)
         example = {
             'start_t':              start_t,
             'end_t':                start_t + classifier_horizon,
             'traj_idx':             self.example_idx,
-            'accept_probabilities': accept_probabilities,
+            'accept_probabilities': accept_probabilities, # [2, n_action_samples]
         }
         example.update(environment)
         states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
