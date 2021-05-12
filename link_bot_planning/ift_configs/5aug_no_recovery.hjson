@@ -1,0 +1,44 @@
+{
+  trials_per_iteration: 5
+  trials_generator_type: random
+  fine_tune_classifier: {
+    epochs: 25
+    fine_tune_conv: false
+    fine_tune_dense: false
+    fine_tune_lstm: false
+    fine_tune_output: true
+  }
+  fine_tune_recovery: null
+  planner_params_update: {
+    termination_criteria:
+    {
+      attempted_extensions_threshold: 600
+    }
+    recovery: {
+      use_recovery: false
+    }
+  }
+  results_to_classifier_dataset: {
+    val_split: 0.5
+    test_split: 0.0
+  }
+  results_to_recovery_dataset: {
+    val_split: 0.5
+    test_split: 0.0
+  }
+  labeling_params_update: {
+    use_augmentation: true
+    augmentation_type: env_augmentation_2
+  }
+  pretraining: {
+    use_pretraining: true
+    pretraining_type: augmentation
+    model_hparams_update_filename: ../link_bot_classifiers/hparams/aug.hjson
+    epochs: 10
+    batch_size: 16
+    fine_tune_conv: false
+    fine_tune_dense: false
+    fine_tune_lstm: false
+    fine_tune_output: true
+  }
+}

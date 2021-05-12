@@ -1,7 +1,0 @@
-{
-  method_name: combined classifier
-  classifier_model_dir: [
-    cl_trials/val_combined2/April_03_18-37-17_ae305b1c43/best_checkpoint
-    cl_trials/new_feasibility_baseline/none
-  ]
-}
