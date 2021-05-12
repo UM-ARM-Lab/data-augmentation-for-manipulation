@@ -23,6 +23,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from peter_msgs.msg import LabelStatus
 from peter_msgs.srv import WorldControl, WorldControlRequest
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
+from std_msgs.msg import Float32
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
@@ -41,6 +42,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.env_bbox_pub = rospy.Publisher('env_bbox', BoundingBox, queue_size=10, latch=True)
         self.obs_bbox_pub = rospy.Publisher('obs_bbox', BoundingBox, queue_size=10, latch=True)
         self.label_viz_pub = rospy.Publisher("label_viz", LabelStatus, queue_size=10, latch=True)
+        self.error_pub = rospy.Publisher("error", Float32, queue_size=10)
 
         self.sampled_goal_marker_idx = 0
         self.tree_state_idx = 0

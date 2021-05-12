@@ -81,7 +81,6 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         self.right_gripper_bbox_pub = rospy.Publisher('/right_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
         self.overstretching_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "rope_overstretched"),
                                                      GetOverstretching)
-        self.error_pub = rospy.Publisher("error", Float32, queue_size=10)
 
         self.max_action_attempts = 100
 

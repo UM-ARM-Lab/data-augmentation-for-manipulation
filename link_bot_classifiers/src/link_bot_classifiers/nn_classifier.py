@@ -30,7 +30,7 @@ from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
-from std_msgs.msg import ColorRGBA
+from std_msgs.msg import ColorRGBA, Float32
 
 DEBUG_INPUT_ENV = False
 DEBUG_AUG = False
@@ -178,14 +178,23 @@ class NNClassifier(MyKerasModel):
                     'res':    input_dict['res'][b].numpy(),
                 }
                 msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
-                send_occupancy_tf(self.scenario.tf.tf_broadcaster, final_aug_dict, frame='local_env')
-                self.env_aug_pub5.publish(msg)
+
                 state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in self.state_keys})
                 action_0 = numpify({k: input_dict[k][b, 0] for k in self.action_keys})
                 state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in self.state_keys})
+
+                error_msg = Float32()
+                error_t = input_dict['error'][b, 1]
+                error_msg.data = error_t
+
+                send_occupancy_tf(self.scenario.tf.tf_broadcaster, final_aug_dict, frame='local_env')
+                self.env_aug_pub5.publish(msg)
                 self.scenario.plot_state_rviz(state_0, idx=0)
                 self.scenario.plot_state_rviz(state_1, idx=1)
                 self.scenario.plot_action_rviz(state_0, action_0, idx=1)
+                self.scenario.plot_is_close(input_dict['is_close'][b, 1])
+                self.scenario.error_pub.publish(error_msg)
+
                 stepper.step()
 
             for b in self.debug_viz_batch_indices():
@@ -564,6 +573,7 @@ class NNClassifier(MyKerasModel):
                     'extent': input_dict['extent'][b],
                     'origin': input_dict['origin'][b],
                 }
+                # FIXME: viz is out of sync?
                 self.scenario.plot_environment_rviz(env_b)
                 # stepper.step()
 
