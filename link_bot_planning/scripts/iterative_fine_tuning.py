@@ -415,7 +415,7 @@ class IterativeFineTuning:
 
             new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i:04d}_dataset'
             trial_indices = None
-            max_trials = self.ift_config['results_to_dataset'].get('max_trials', None)
+            max_trials = self.ift_config['results_to_classifier_dataset'].get('max_trials', None)
             if max_trials is not None:
                 print(Fore.GREEN + f"Using only {max_trials}/{self.tpi} trials for learning" + Fore.RESET)
                 filenames = list_all_planning_results_trials(planning_results_dir)
@@ -440,7 +440,7 @@ class IterativeFineTuning:
 
             new_dataset_dir = self.outdir / 'recovery_datasets' / f'iteration_{i:04d}_dataset'
             trial_indices = None
-            max_trials = self.ift_config['results_to_dataset'].get('max_trials', None)
+            max_trials = self.ift_config['results_to_recovery_dataset'].get('max_trials', None)
             if max_trials is not None:
                 print(Fore.GREEN + f"Using only {max_trials}/{self.tpi} trials for learning" + Fore.RESET)
                 filenames = list_all_planning_results_trials(planning_results_dir)
