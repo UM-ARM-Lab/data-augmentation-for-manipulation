@@ -2,7 +2,6 @@
   trials_per_iteration: 10
   trials_generator_type: random
   fine_tune_classifier: {
-    early_stopping: true
     epochs: 25
     fine_tune_conv: false
     fine_tune_dense: false

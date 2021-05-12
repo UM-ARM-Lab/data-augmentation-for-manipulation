@@ -1,6 +1,5 @@
 {
   trials_per_iteration: 5
-  early_stopping: true
   epochs: 25
   trials_generator_type: random
   fine_tune_conv: false
