@@ -175,8 +175,7 @@ def my_rolling(window: int = 10):
 
 
 def shifted_cumsum(x):
-    x = x.cumsum()
-    return x - x[0]
+    return x.cumsum() - x.first()
 
 
 __all__ = [
