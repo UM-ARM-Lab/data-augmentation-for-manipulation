@@ -26,15 +26,14 @@ from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as ge
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, \
     FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
-from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors
+from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors, numpify
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from std_msgs.msg import ColorRGBA
 
 DEBUG_INPUT_ENV = False
-DEBUG_PRE_AUG = False
-DEBUG_POST_AUG = False
+DEBUG_AUG = False
 DEBUG_FITTED_ENV_AUG = False
 DEBUG_ADDITIVE_AUG = False
 SHOW_ALL = False
@@ -54,6 +53,7 @@ class NNClassifier(MyKerasModel):
         self.env_aug_pub3 = rospy.Publisher("env_aug3", VoxelgridStamped, queue_size=10)
         self.env_aug_pub4 = rospy.Publisher("env_aug4", VoxelgridStamped, queue_size=10)
         self.env_aug_pub5 = rospy.Publisher("env_aug5", VoxelgridStamped, queue_size=10)
+        self.rope_state_pub = rospy.Publisher("rope_state", VoxelgridStamped, queue_size=10)
 
         self.classifier_dataset_hparams = self.hparams['classifier_dataset_hparams']
         self.dynamics_dataset_hparams = self.classifier_dataset_hparams['fwd_model_hparams']['dynamics_dataset_hparams']
@@ -154,7 +154,7 @@ class NNClassifier(MyKerasModel):
 
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
 
-        if DEBUG_PRE_AUG:
+        if DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(input_dict, local_voxel_grids_array, local_env_origin, time)
 
         # optionally augment the local environment
@@ -163,19 +163,26 @@ class NNClassifier(MyKerasModel):
         else:
             local_voxel_grids_aug_array = local_voxel_grids_array
 
-        if DEBUG_POST_AUG:
+        if DEBUG_AUG:
             stepper = RvizSimpleStepper()
             for b in self.debug_viz_batch_indices():
+                local_env_extent_b = compute_extent_3d(self.local_env_h_rows,
+                                                       self.local_env_w_cols,
+                                                       self.local_env_c_channels,
+                                                       input_dict['res'][b],
+                                                       local_env_origin[b])
                 final_aug_dict = {
+                    'extent': local_env_extent_b,
                     'env':    local_voxel_grids_aug_array.read(0)[b, :, :, :, 0].numpy(),
                     'origin': local_env_origin[b].numpy(),
                     'res':    input_dict['res'][b].numpy(),
                 }
                 msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
+                send_occupancy_tf(self.scenario.tf.tf_broadcaster, final_aug_dict, frame='local_env')
                 self.env_aug_pub5.publish(msg)
-                state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
-                action_0 = {k: input_dict[k][:, 0] for k in self.action_keys}
-                state_1 = {k: input_dict[add_predicted(k)][:, 1] for k in self.state_keys}
+                state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in self.state_keys})
+                action_0 = numpify({k: input_dict[k][b, 0] for k in self.action_keys})
+                state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in self.state_keys})
                 self.scenario.plot_state_rviz(state_0, idx=0)
                 self.scenario.plot_state_rviz(state_1, idx=1)
                 self.scenario.plot_action_rviz(state_0, action_0, idx=1)
@@ -247,14 +254,14 @@ class NNClassifier(MyKerasModel):
                 # Show the new local environment we've sampled, in the place we sampled it
                 self.env_aug_pub1.publish(msg)
 
-                stepper.step()
+                # stepper.step()
 
                 # Show the new local environment we've sampled, moved into the frame of the original lacol env,
                 # the one we're augmenting
                 msg2 = environment_to_occupancy_msg(local_env_new_dict, frame='local_env', stamp=rospy.Time(0))
                 self.env_aug_pub2.publish(msg2)
 
-                stepper.step()
+                # stepper.step()
 
         # equivalent version of "logical or" over all state channels
         states_any_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
@@ -276,6 +283,15 @@ class NNClassifier(MyKerasModel):
         if DEBUG_FITTED_ENV_AUG:
             stepper = RvizSimpleStepper()
             for b in self.debug_viz_batch_indices():
+                rope_state_dict = {
+                    'env':    states_any[b].numpy(),
+                    'origin': local_env_new_origin[b].numpy(),
+                    'res':    example['res'][b].numpy(),
+                }
+                msg = environment_to_occupancy_msg(rope_state_dict, frame='local_env', stamp=rospy.Time(0))
+                self.rope_state_pub.publish(msg)
+                # stepper.step()
+
                 remove_dict = {
                     'env':    remove[b].numpy(),
                     'origin': local_env_new_origin[b].numpy(),
@@ -283,7 +299,7 @@ class NNClassifier(MyKerasModel):
                 }
                 msg = environment_to_occupancy_msg(remove_dict, frame='local_env', stamp=rospy.Time(0))
                 self.env_aug_pub3.publish(msg)
-                stepper.step()
+                # stepper.step()
 
                 final_aug_dict = {
                     'env':    local_env_aug_removed[b].numpy(),
@@ -292,7 +308,7 @@ class NNClassifier(MyKerasModel):
                 }
                 msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
                 self.env_aug_pub4.publish(msg)
-                stepper.step()
+                # stepper.step()
 
         n_state_components = len(self.state_keys)
         is_valid = self.is_env_augmentation_valid(self,
@@ -549,7 +565,7 @@ class NNClassifier(MyKerasModel):
                     'origin': input_dict['origin'][b],
                 }
                 self.scenario.plot_environment_rviz(env_b)
-                stepper.step()
+                # stepper.step()
 
         voxel_grids = self.make_voxel_grid_inputs(input_dict, batch_size=batch_size, time=time, training=training)
 
