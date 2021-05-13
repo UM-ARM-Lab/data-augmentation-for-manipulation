@@ -410,18 +410,22 @@ def count_up_to_next_record_idx(full_output_directory):
 
 def deserialize_scene_msg(example: Dict):
     if 'scene_msg' in example:
-        scene_msg = example['scene_msg']
-        if isinstance(scene_msg, tf.Tensor):
-            scene_msg = scene_msg.numpy()
-
-        if isinstance(scene_msg, np.ndarray):
-            assert scene_msg.ndim == 1
-            if not isinstance(scene_msg[0], PlanningScene):
-                scene_msg = np.array([bytes_to_ros_msg(m_i, PlanningScene) for m_i in scene_msg])
-        elif isinstance(scene_msg, bytes):
-            scene_msg = bytes_to_ros_msg(scene_msg, PlanningScene)
+        scene_msg = _deserialize_scene_msg(example)
 
         example['scene_msg'] = scene_msg
+
+
+def _deserialize_scene_msg(example):
+    scene_msg = example['scene_msg']
+    if isinstance(scene_msg, tf.Tensor):
+        scene_msg = scene_msg.numpy()
+    if isinstance(scene_msg, np.ndarray):
+        assert scene_msg.ndim == 1
+        if not isinstance(scene_msg[0], PlanningScene):
+            scene_msg = np.array([bytes_to_ros_msg(m_i, PlanningScene) for m_i in scene_msg])
+    elif isinstance(scene_msg, bytes):
+        scene_msg = bytes_to_ros_msg(scene_msg, PlanningScene)
+    return scene_msg
 
 
 def convert_to_tf_features(example: Dict):

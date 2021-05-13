@@ -1,4 +1,5 @@
 {
   augmentation_type: env_augmentation_2
   augmentation_valid_type: discrete
+  state_augmentation_type: "uniform" # set to null to not do any
 }

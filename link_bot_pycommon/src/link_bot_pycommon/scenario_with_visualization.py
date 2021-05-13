@@ -43,6 +43,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.obs_bbox_pub = rospy.Publisher('obs_bbox', BoundingBox, queue_size=10, latch=True)
         self.label_viz_pub = rospy.Publisher("label_viz", LabelStatus, queue_size=10, latch=True)
         self.error_pub = rospy.Publisher("error", Float32, queue_size=10)
+        self.point_pub = rospy.Publisher("point", Marker, queue_size=10)
 
         self.sampled_goal_marker_idx = 0
         self.tree_state_idx = 0
@@ -332,3 +333,25 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
                     self.plot_action_rviz(planned_path[t - 1], actions[t - 1])
 
             anim.step()
+
+    def plot_point_rviz(self, position, label: str, frame_id: str = 'world', id: int = 0, scale: float = 0.02):
+        msg = Marker()
+        msg.header.frame_id = frame_id
+        msg.header.stamp = rospy.Time.now()
+        msg.ns = label
+        msg.id = id
+        msg.pose.position.x = position[0]
+        msg.pose.position.y = position[1]
+        msg.pose.position.z = position[2]
+        msg.pose.orientation.w = 1
+        msg.type = Marker.SPHERE
+        msg.action = Marker.ADD
+        msg.scale.x = scale
+        msg.scale.y = scale
+        msg.scale.z = scale
+        msg.color.r = 1
+        msg.color.g = 1
+        msg.color.b = 0
+        msg.color.a = 1
+
+        self.point_pub.publish(msg)

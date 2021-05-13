@@ -32,9 +32,9 @@ from moonshine.raster_3d import raster_3d
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from std_msgs.msg import ColorRGBA, Float32
 
-DEBUG_INPUT_ENV = False
-DEBUG_AUG = False
-DEBUG_FITTED_ENV_AUG = False
+DEBUG_INPUT_ENV = True
+DEBUG_AUG = True
+DEBUG_FITTED_ENV_AUG = True
 DEBUG_ADDITIVE_AUG = False
 SHOW_ALL = False
 
@@ -179,21 +179,10 @@ class NNClassifier(MyKerasModel):
                 }
                 msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
 
-                state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in self.state_keys})
-                action_0 = numpify({k: input_dict[k][b, 0] for k in self.action_keys})
-                state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in self.state_keys})
-
-                error_msg = Float32()
-                error_t = input_dict['error'][b, 1]
-                error_msg.data = error_t
-
                 send_occupancy_tf(self.scenario.tf.tf_broadcaster, final_aug_dict, frame='local_env')
                 self.env_aug_pub5.publish(msg)
-                self.scenario.plot_state_rviz(state_0, idx=0)
-                self.scenario.plot_state_rviz(state_1, idx=1)
-                self.scenario.plot_action_rviz(state_0, action_0, idx=1)
-                self.scenario.plot_is_close(input_dict['is_close'][b, 1])
-                self.scenario.error_pub.publish(error_msg)
+
+                self.debug_viz_state_action(input_dict, b)
 
                 stepper.step()
 
@@ -201,6 +190,19 @@ class NNClassifier(MyKerasModel):
                 self.animate_voxel_grid_states(b, input_dict, local_env_origin, local_voxel_grids_array, time)
 
         return local_voxel_grids_aug_array
+
+    def debug_viz_state_action(self, input_dict, b):
+        state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in self.state_keys})
+        action_0 = numpify({k: input_dict[k][b, 0] for k in self.action_keys})
+        state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in self.state_keys})
+        error_msg = Float32()
+        error_t = input_dict['error'][b, 1]
+        error_msg.data = error_t
+        self.scenario.plot_state_rviz(state_0, idx=0)
+        self.scenario.plot_state_rviz(state_1, idx=1)
+        self.scenario.plot_action_rviz(state_0, action_0, idx=1)
+        self.scenario.plot_is_close(input_dict['is_close'][b, 1])
+        self.scenario.error_pub.publish(error_msg)
 
     def conv_encoder(self, local_voxel_grids_aug_array: tf.TensorArray, batch_size, time):
         conv_outputs_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
@@ -559,7 +561,6 @@ class NNClassifier(MyKerasModel):
         metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
 
-    # @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
         batch_size = input_dict['batch_size']
         time = tf.cast(input_dict['time'], tf.int32)
@@ -573,9 +574,14 @@ class NNClassifier(MyKerasModel):
                     'extent': input_dict['extent'][b],
                     'origin': input_dict['origin'][b],
                 }
-                # FIXME: viz is out of sync?
                 self.scenario.plot_environment_rviz(env_b)
+                self.debug_viz_state_action(input_dict, b)
                 # stepper.step()
+
+        if training:
+            state_augmentation_type = self.hparams.get('state_augmentation_type', None)
+            if state_augmentation_type == 'uniform':
+                self.scenario.uniform_state_augmentation(input_dict, batch_size, time, self.aug_generator)
 
         voxel_grids = self.make_voxel_grid_inputs(input_dict, batch_size=batch_size, time=time, training=training)
 
@@ -676,7 +682,7 @@ class NNClassifier(MyKerasModel):
         if SHOW_ALL:
             return range(self.batch_size)
         else:
-            return [8]
+            return [0]
 
 
 class NNClassifierWrapper(BaseConstraintChecker):
