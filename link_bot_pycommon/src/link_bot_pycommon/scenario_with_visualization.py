@@ -38,10 +38,10 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
     def __init__(self):
         super().__init__()
         self.world_control_srv = rospy.ServiceProxy("gz_world_control", WorldControl)
-        self.env_viz_pub = rospy.Publisher('occupancy', VoxelgridStamped, queue_size=10, latch=True)
-        self.env_bbox_pub = rospy.Publisher('env_bbox', BoundingBox, queue_size=10, latch=True)
-        self.obs_bbox_pub = rospy.Publisher('obs_bbox', BoundingBox, queue_size=10, latch=True)
-        self.label_viz_pub = rospy.Publisher("label_viz", LabelStatus, queue_size=10, latch=True)
+        self.env_viz_pub = rospy.Publisher('occupancy', VoxelgridStamped, queue_size=10)
+        self.env_bbox_pub = rospy.Publisher('env_bbox', BoundingBox, queue_size=10)
+        self.obs_bbox_pub = rospy.Publisher('obs_bbox', BoundingBox, queue_size=10)
+        self.label_viz_pub = rospy.Publisher("label_viz", LabelStatus, queue_size=10)
         self.error_pub = rospy.Publisher("error", Float32, queue_size=10)
         self.point_pub = rospy.Publisher("point", Marker, queue_size=10)
 
@@ -87,10 +87,10 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
     def plot_environment_rviz(self, environment: Dict, **kwargs):
         if 'env' in environment and 'res' in environment and 'origin' in environment:
-            self.send_occupancy_tf(environment)
-
             env_msg = environment_to_occupancy_msg(environment)
             self.env_viz_pub.publish(env_msg)
+
+            self.send_occupancy_tf(environment)
 
             bbox_msg = extent_to_bbox(environment['extent'])
             bbox_msg.header.frame_id = 'world'

@@ -11,7 +11,10 @@ from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, _d
 from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
+from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
+from moonshine.moonshine_utils import numpify
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
+from std_msgs.msg import Float32
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():
@@ -375,18 +378,21 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         joint_names_batched = np.array(joint_names_batched)
         return target_reached_batched, pred_joint_positions_batched, joint_names_batched
 
-    def uniform_state_augmentation(self, input_dict: Dict, batch_size, time, rng: tf.random.Generator):
+    def uniform_state_augmentation(self,
+                                   input_dict: Dict,
+                                   local_env_origin,
+                                   batch_size,
+                                   time,
+                                   rng: tf.random.Generator):
         # TODO: what do we have to "check" here? or is this function just "proposing"
 
         assert time == 2
 
-        output_dict = input_dict.copy()
         # sample a new x,y,z,theta
         extent = tf.reshape(input_dict['extent'], [batch_size, -1, 2])
         minval = tf.expand_dims(extent[:, :, 0], axis=1)
         maxval = tf.expand_dims(extent[:, :, 1], axis=1)
-        new_position = tf.tile(rng.uniform([batch_size, 1, 3], minval, maxval), [1, 2, 1])
-        new_position = tf.expand_dims(new_position, axis=-2)  # add dimension for the n points that are in object state
+        new_position = rng.uniform([batch_size, 1, 3], minval, maxval)
 
         # apply those to the rope and grippers
         rope_points = tf.reshape(input_dict[add_predicted('rope')], [batch_size, time, -1, 3])
@@ -395,22 +401,20 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
         right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
-        # sampling the original new_position from the full extend and then picking the left gripper (arbitrarily)
+        # sampling the original new_position from the full extent and then picking the left gripper (arbitrarily)
         # as the way of computing delta. This is easier then sampling a delta directly, because then we'd have to trade
         # off the max magnitude with diveristy or do out of bounds checking.
-        left_gripper_points_aug = new_position
-        delta_position = new_position - left_gripper_points
+        delta_position = new_position - left_gripper_points[:, 0]
+        delta_position = tf.tile(tf.expand_dims(delta_position, axis=1), [1, 2, 1, 1])
 
-        rope_points_aug = rope_points + delta_position
+        left_gripper_points_aug = left_gripper_points + delta_position
         right_gripper_points_aug = right_gripper_points + delta_position
+        rope_points_aug = rope_points + delta_position
+        local_env_origin_aug = local_env_origin + delta_position[:, 0, 0] / input_dict['res']
 
+        # compute the new action
         left_gripper_position_aug = input_dict['left_gripper_position'] + delta_position[:, 0]
         right_gripper_position_aug = input_dict['right_gripper_position'] + delta_position[:, 0]
-
-        if DEBUG_VIZ_STATE_AUG:
-            for b in debug_viz_batch_indices(batch_size):
-                new_position_b = new_position[b, 0, 0].numpy().tolist()
-                self.plot_point_rviz(new_position_b, 'new_position')
 
         # use IK to get a new starting joint configuration
         # note to self -- I might have to use "follow jacobian to position ignoring obstacles" to figure out this joint
@@ -423,7 +427,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         out_joint_positions_start = []
         out_joint_positions_end = []
-        out_reached = []
+        reached = []
         for b in range(batch_size):
             # use the joint config pre-augmentation to see IK for the augmented joint config
             seed_joint_position_b = input_dict[add_predicted('joint_positions')][b, 0].numpy().tolist()
@@ -436,9 +440,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             grippers_start = [[left_gripper_aug_start_point], [right_gripper_aug_start_point]]
             grippers_end = [[left_gripper_aug_end_point], [right_gripper_aug_end_point]]
 
+            # run jacobian follower as a hack to try to solve for a joint config with grippers matching the augmented
+            #  gripper positions
             seed_joint_state = JointState(name=joint_names, position=seed_joint_position_b)
             empty_scene_msg_b, seed_robot_state = merge_joint_state_and_scene_msg(empty_scene_msgs[b], seed_joint_state)
-            plan_to_start, reached_start = self.robot.jacobian_follower.plan(
+            plan_to_start, reached_start_b = self.robot.jacobian_follower.plan(
                 group_name='whole_body',
                 tool_names=tool_names,
                 preferred_tool_orientations=preferred_tool_orientations,
@@ -451,14 +457,15 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
             planned_to_start_points = plan_to_start.joint_trajectory.points
             if len(planned_to_start_points) > 0:
-                out_joint_position_b_start = planned_to_start_points[-1].positions
+                out_joint_position_start_b = planned_to_start_points[-1].positions
             else:
-                out_joint_position_b_start = seed_joint_position_b
+                out_joint_position_start_b = seed_joint_position_b
 
-            start_joint_state = JointState(name=joint_names, position=out_joint_position_b_start)
+            # run jacobian follower (again) to produce the next joint state and confirm the motion is feasible
+            start_joint_state = JointState(name=joint_names, position=out_joint_position_start_b)
             empty_scene_msg_b, start_robot_state = merge_joint_state_and_scene_msg(empty_scene_msgs[b],
                                                                                    start_joint_state)
-            plan_to_end, reached_end = self.robot.jacobian_follower.plan(
+            plan_to_end, reached_end_b = self.robot.jacobian_follower.plan(
                 group_name='whole_body',
                 tool_names=tool_names,
                 preferred_tool_orientations=preferred_tool_orientations,
@@ -471,37 +478,63 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
             planned_to_end_points = plan_to_end.joint_trajectory.points
             if len(planned_to_end_points) > 0:
-                out_joint_position_b_end = planned_to_end_points[-1].positions
+                out_joint_position_end_b = planned_to_end_points[-1].positions
             else:
-                out_joint_position_b_end = seed_joint_position_b
+                out_joint_position_end_b = seed_joint_position_b
 
-            reached = reached_start and reached_end
+            reached_b = reached_start_b and reached_end_b
 
-            out_joint_positions_start.append(out_joint_position_b_start)
-            out_joint_positions_end.append(out_joint_position_b_end)
-            out_reached.append(reached)
-
-        # compute the new action (both absolute and delta position)
-
-        # run jacobian follower to produce the next joint state and confirm the motion is feasible
+            out_joint_positions_start.append(out_joint_position_start_b)
+            out_joint_positions_end.append(out_joint_position_end_b)
+            reached.append(reached_b)
 
         # return the new robot joint configs, grippers+rope states, and action in output_dict
         joint_positions_aug = tf.stack((tf.constant(out_joint_positions_start, tf.float32),
                                         tf.constant(out_joint_positions_end, tf.float32)), axis=1)
-        out_reached = tf.cast(tf.constant(out_reached), tf.float32)[:, tf.newaxis, tf.newaxis]
+        reached = tf.cast(tf.constant(reached), tf.float32)[:, tf.newaxis, tf.newaxis]
         rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
         left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
         right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
 
-        update_if_valid(output_dict, out_reached, add_predicted('joint_positions'), joint_positions_aug)
-        update_if_valid(output_dict, out_reached, add_predicted('rope'), rope_aug)
-        update_if_valid(output_dict, out_reached, add_predicted('left_gripper'), left_gripper_aug)
-        update_if_valid(output_dict, out_reached, add_predicted('right_gripper'), right_gripper_aug)
-        update_if_valid(output_dict, out_reached, 'left_gripper_position', left_gripper_position_aug)
-        update_if_valid(output_dict, out_reached, 'right_gripper_position', right_gripper_position_aug)
+        update_if_valid(input_dict, reached, add_predicted('joint_positions'), joint_positions_aug)
+        update_if_valid(input_dict, reached, add_predicted('rope'), rope_aug)
+        update_if_valid(input_dict, reached, add_predicted('left_gripper'), left_gripper_aug)
+        update_if_valid(input_dict, reached, add_predicted('right_gripper'), right_gripper_aug)
+        update_if_valid(input_dict, reached, 'left_gripper_position', left_gripper_position_aug)
+        update_if_valid(input_dict, reached, 'right_gripper_position', right_gripper_position_aug)
 
-        return output_dict
+        if DEBUG_VIZ_STATE_AUG:
+            stepper = RvizSimpleStepper()
+            for b in debug_viz_batch_indices(batch_size):
+                env_b = {
+                    'env':    input_dict['env'][b],
+                    'res':    input_dict['res'][b],
+                    'extent': input_dict['extent'][b],
+                    'origin': input_dict['origin'][b],
+                }
+                self.plot_environment_rviz(env_b)
+                self.debug_viz_state_action(input_dict, b, 'aug', color='white')
+                stepper.step()
+
+        reached_no_time = reached[:, 0, 0]
+        local_env_origin_aug = reached_no_time * local_env_origin_aug + (1 - reached_no_time) * local_env_origin
+        return local_env_origin_aug
+
+    def debug_viz_state_action(self, input_dict, b, label: str, color='red'):
+        state_keys = ['left_gripper', 'right_gripper', 'rope']
+        action_keys = ['left_gripper_position', 'right_gripper_position']
+        state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in state_keys})
+        action_0 = numpify({k: input_dict[k][b, 0] for k in action_keys})
+        state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in state_keys})
+        error_msg = Float32()
+        error_t = input_dict['error'][b, 1]
+        error_msg.data = error_t
+        self.plot_state_rviz(state_0, idx=0, label=label, color=color)
+        self.plot_state_rviz(state_1, idx=1, label=label, color=color)
+        self.plot_action_rviz(state_0, action_0, idx=1, label=label, color=color)
+        self.plot_is_close(input_dict['is_close'][b, 1])
+        self.error_pub.publish(error_msg)
 
 
-def update_if_valid(output_dict: Dict, is_valid, k: str, v_aug):
-    output_dict[k] = is_valid * v_aug + (1 - is_valid) * output_dict[k]
+def update_if_valid(d: Dict, is_valid, k: str, v_aug):
+    d[k] = is_valid * v_aug + (1 - is_valid) * d[k]

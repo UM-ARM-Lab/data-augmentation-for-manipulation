@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import pathlib
+import numpy as np
 from typing import Dict, List, Optional
 
 import tensorflow as tf
@@ -29,6 +30,7 @@ from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegativ
 from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors, numpify
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import raster_3d
+from rviz_voxelgrid_visuals import conversions
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from std_msgs.msg import ColorRGBA, Float32
 
@@ -120,13 +122,9 @@ class NNClassifier(MyKerasModel):
                                                       layers.Dense(self.certs_k, activation=None),
                                                       ])
 
-        self.aug_generator = tf.random.Generator.from_seed(0)
+        self.aug_gen = tf.random.Generator.from_seed(0)
 
-    def make_voxel_grid_inputs(self, input_dict: Dict, batch_size, time, training: bool):
-        indices = self.create_env_indices(batch_size)
-
-        local_env, local_env_origin = self.get_local_env(batch_size, indices, input_dict)
-
+    def make_voxel_grid_inputs(self, input_dict: Dict, indices, local_env, local_env_origin, batch_size, time):
         local_voxel_grids_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
         for t in tf.range(time):
             state_t = {k: input_dict[add_predicted(k)][:, t] for k in self.state_keys}
@@ -154,14 +152,13 @@ class NNClassifier(MyKerasModel):
 
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
 
+        return local_voxel_grids_array
+
+    def augment_voxel_grids(self, indices, input_dict, local_env_origin, local_voxel_grids_array, time):
         if DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(input_dict, local_voxel_grids_array, local_env_origin, time)
 
-        # optionally augment the local environment
-        if self.augmentation_3d is not None and training:
-            local_voxel_grids_aug_array = self.augmentation_3d(self, time, input_dict, local_voxel_grids_array, indices)
-        else:
-            local_voxel_grids_aug_array = local_voxel_grids_array
+        local_voxel_grids_aug_array = self.augmentation_3d(self, time, input_dict, local_voxel_grids_array, indices)
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
@@ -179,28 +176,27 @@ class NNClassifier(MyKerasModel):
                 }
                 msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
 
-                send_occupancy_tf(self.scenario.tf.tf_broadcaster, final_aug_dict, frame='local_env')
                 self.env_aug_pub5.publish(msg)
+                send_occupancy_tf(self.scenario.tf.tf_broadcaster, final_aug_dict, frame='local_env')
 
-                self.debug_viz_state_action(input_dict, b)
+                self.debug_viz_state_action(input_dict, b, '')
 
                 stepper.step()
 
             for b in self.debug_viz_batch_indices():
                 self.animate_voxel_grid_states(b, input_dict, local_env_origin, local_voxel_grids_array, time)
-
         return local_voxel_grids_aug_array
 
-    def debug_viz_state_action(self, input_dict, b):
+    def debug_viz_state_action(self, input_dict, b, label: str, color='red'):
         state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in self.state_keys})
         action_0 = numpify({k: input_dict[k][b, 0] for k in self.action_keys})
         state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in self.state_keys})
         error_msg = Float32()
         error_t = input_dict['error'][b, 1]
         error_msg.data = error_t
-        self.scenario.plot_state_rviz(state_0, idx=0)
-        self.scenario.plot_state_rviz(state_1, idx=1)
-        self.scenario.plot_action_rviz(state_0, action_0, idx=1)
+        self.scenario.plot_state_rviz(state_0, idx=0, label=label, color=color)
+        self.scenario.plot_state_rviz(state_1, idx=1, label=label, color=color)
+        self.scenario.plot_action_rviz(state_0, action_0, idx=1, label=label, color=color)
         self.scenario.plot_is_close(input_dict['is_close'][b, 1])
         self.scenario.error_pub.publish(error_msg)
 
@@ -260,10 +256,10 @@ class NNClassifier(MyKerasModel):
                     'res':    example['res'][b].numpy(),
                     'extent': local_env_new_extent_b,
                 }
-                send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_new_dict, frame='local_env_new')
                 msg = environment_to_occupancy_msg(local_env_new_dict, frame='local_env_new', stamp=rospy.Time(0))
                 # Show the new local environment we've sampled, in the place we sampled it
                 self.env_aug_pub1.publish(msg)
+                send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_new_dict, frame='local_env_new')
 
                 # stepper.step()
 
@@ -287,6 +283,7 @@ class NNClassifier(MyKerasModel):
         # we just read 0 because it's the same at all time steps
         local_env = local_voxel_grids_array.read(0)[:, :, :, :, 0]
         remove = local_env * (1 - local_env_new) * (1 - states_any)
+        non_removable = states_any * local_env
 
         local_env_aug_removed = local_env_new + tf.maximum(local_env - remove, 0)
 
@@ -303,23 +300,14 @@ class NNClassifier(MyKerasModel):
                 self.rope_state_pub.publish(msg)
                 # stepper.step()
 
-                remove_dict = {
-                    'env':    remove[b].numpy(),
+                non_removable_dict = {
+                    'env':    non_removable[b].numpy(),
                     'origin': local_env_new_origin[b].numpy(),
                     'res':    example['res'][b].numpy(),
                 }
-                msg = environment_to_occupancy_msg(remove_dict, frame='local_env', stamp=rospy.Time(0))
+                msg = environment_to_occupancy_msg(non_removable_dict, frame='local_env', stamp=rospy.Time(0))
                 self.env_aug_pub3.publish(msg)
-                # stepper.step()
-
-                final_aug_dict = {
-                    'env':    local_env_aug_removed[b].numpy(),
-                    'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
-                }
-                msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
-                self.env_aug_pub4.publish(msg)
-                # stepper.step()
+                stepper.step()
 
         n_state_components = len(self.state_keys)
         is_valid = self.is_env_augmentation_valid(self,
@@ -462,7 +450,7 @@ class NNClassifier(MyKerasModel):
         extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
         extent_lower = tf.gather(extent, 0, axis=-1)
         extent_upper = tf.gather(extent, 1, axis=-1)
-        local_env_center = self.aug_generator.uniform([self.batch_size, 3], extent_lower, extent_upper)
+        local_env_center = self.aug_gen.uniform([self.batch_size, 3], extent_lower, extent_upper)
         center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center, example)
         local_env_center = batch_idx_to_point_3d_in_env_tf(*center_indices, example)
 
@@ -566,6 +554,15 @@ class NNClassifier(MyKerasModel):
         time = tf.cast(input_dict['time'], tf.int32)
 
         if DEBUG_INPUT_ENV:
+            # clear the other voxel grids from previous calls
+            vg_empty = np.zeros((64, 64, 64))
+            empty_msg = conversions.vox_to_voxelgrid_stamped(vg_empty, scale=0.01, frame_id='world', origin=[0] * 3)
+            self.env_aug_pub1.publish(empty_msg)
+            self.env_aug_pub2.publish(empty_msg)
+            self.env_aug_pub3.publish(empty_msg)
+            self.env_aug_pub4.publish(empty_msg)
+            self.env_aug_pub5.publish(empty_msg)
+
             stepper = RvizSimpleStepper()
             for b in self.debug_viz_batch_indices():
                 env_b = {
@@ -575,15 +572,35 @@ class NNClassifier(MyKerasModel):
                     'origin': input_dict['origin'][b],
                 }
                 self.scenario.plot_environment_rviz(env_b)
-                self.debug_viz_state_action(input_dict, b)
-                # stepper.step()
+                self.debug_viz_state_action(input_dict, b, 'input')
+                stepper.step()
+
+        # Create voxel grids
+        indices = self.create_env_indices(batch_size)
+        local_env, local_env_origin = self.get_local_env(batch_size, indices, input_dict)
+        voxel_grids = self.make_voxel_grid_inputs(input_dict,
+                                                  indices,
+                                                  local_env,
+                                                  local_env_origin,
+                                                  batch_size=batch_size,
+                                                  time=time)
 
         if training:
             state_augmentation_type = self.hparams.get('state_augmentation_type', None)
             if state_augmentation_type == 'uniform':
-                self.scenario.uniform_state_augmentation(input_dict, batch_size, time, self.aug_generator)
+                local_env_origin = self.scenario.uniform_state_augmentation(input_dict,
+                                                                            local_env_origin,
+                                                                            batch_size,
+                                                                            time,
+                                                                            self.aug_gen)
 
-        voxel_grids = self.make_voxel_grid_inputs(input_dict, batch_size=batch_size, time=time, training=training)
+            # Voxel grid augmentation
+            if self.augmentation_3d is not None:
+                voxel_grids = self.augment_voxel_grids(indices,
+                                                       input_dict,
+                                                       local_env_origin,
+                                                       voxel_grids,
+                                                       time)
 
         # encoder
         conv_output = self.conv_encoder(voxel_grids, batch_size=batch_size, time=time)
