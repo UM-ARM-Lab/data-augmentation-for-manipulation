@@ -410,7 +410,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_points_aug = left_gripper_points + delta_position
         right_gripper_points_aug = right_gripper_points + delta_position
         rope_points_aug = rope_points + delta_position
-        local_env_origin_aug = local_env_origin + delta_position[:, 0, 0] / input_dict['res']
+        delta_origin_xyz = delta_position[:, 0, 0] / input_dict['res']
+        delta_origin_xyz = flip_xy(delta_origin_xyz)
+        local_env_origin_aug = local_env_origin -
 
         # compute the new action
         left_gripper_position_aug = input_dict['left_gripper_position'] + delta_position[:, 0]
@@ -512,8 +514,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                     'extent': input_dict['extent'][b],
                     'origin': input_dict['origin'][b],
                 }
+
                 self.plot_environment_rviz(env_b)
                 self.debug_viz_state_action(input_dict, b, 'aug', color='white')
+
                 stepper.step()
 
         reached_no_time = reached[:, 0, 0]

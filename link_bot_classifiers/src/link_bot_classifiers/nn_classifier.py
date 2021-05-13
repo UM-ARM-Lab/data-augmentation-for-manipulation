@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import pathlib
 import numpy as np
 from typing import Dict, List, Optional
@@ -16,7 +15,7 @@ from link_bot_data.dataset_utils import add_predicted, add_new
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
-    batch_point_to_idx_tf_3d_in_batched_envs, send_occupancy_tf, environment_to_occupancy_msg
+    batch_point_to_idx_tf_3d_in_batched_envs, send_occupancy_tf, environment_to_occupancy_msg, _send_occupancy_tf
 from link_bot_pycommon.grid_utils import compute_extent_3d
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -33,6 +32,7 @@ from moonshine.raster_3d import raster_3d
 from rviz_voxelgrid_visuals import conversions
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from std_msgs.msg import ColorRGBA, Float32
+from visualization_msgs.msg import MarkerArray, Marker
 
 DEBUG_INPUT_ENV = True
 DEBUG_AUG = True
@@ -45,6 +45,7 @@ class NNClassifier(MyKerasModel):
     def __init__(self, hparams: Dict, batch_size: int, scenario: ScenarioWithVisualization):
         super().__init__(hparams, batch_size)
         self.scenario = scenario
+        self.broadcaster = self.scenario.tf.tf_broadcaster
 
         self.raster_debug_pubs = [
             rospy.Publisher(f'classifier_raster_debug_{i}', VoxelgridStamped, queue_size=10, latch=False) for i in
@@ -177,15 +178,29 @@ class NNClassifier(MyKerasModel):
                 msg = environment_to_occupancy_msg(final_aug_dict, frame='local_env', stamp=rospy.Time(0))
 
                 self.env_aug_pub5.publish(msg)
-                send_occupancy_tf(self.scenario.tf.tf_broadcaster, final_aug_dict, frame='local_env')
+                send_occupancy_tf(self.broadcaster, final_aug_dict, frame='local_env')
 
-                self.debug_viz_state_action(input_dict, b, '')
+                # self.debug_viz_state_action(input_dict, b, 'input')
 
                 stepper.step()
 
             for b in self.debug_viz_batch_indices():
                 self.animate_voxel_grid_states(b, input_dict, local_env_origin, local_voxel_grids_array, time)
         return local_voxel_grids_aug_array
+
+    def delete_state_action_markers(self, label):
+        def _make_delete_marker(ns):
+            delete_marker = Marker()
+            delete_marker.action = Marker.DELETEALL
+            delete_marker.ns = ns
+            return delete_marker
+
+        state_delete_msg = MarkerArray(markers=[_make_delete_marker(label + '_l'),
+                                                _make_delete_marker(label + 'aug_r'),
+                                                _make_delete_marker(label + 'aug_rope')])
+        self.scenario.state_viz_pub.publish(state_delete_msg)
+        action_delete_msg = MarkerArray(markers=[_make_delete_marker(label)])
+        self.scenario.action_viz_pub.publish(action_delete_msg)
 
     def debug_viz_state_action(self, input_dict, b, label: str, color='red'):
         state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in self.state_keys})
@@ -259,7 +274,7 @@ class NNClassifier(MyKerasModel):
                 msg = environment_to_occupancy_msg(local_env_new_dict, frame='local_env_new', stamp=rospy.Time(0))
                 # Show the new local environment we've sampled, in the place we sampled it
                 self.env_aug_pub1.publish(msg)
-                send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_new_dict, frame='local_env_new')
+                send_occupancy_tf(self.broadcaster, local_env_new_dict, frame='local_env_new')
 
                 # stepper.step()
 
@@ -572,6 +587,7 @@ class NNClassifier(MyKerasModel):
                     'origin': input_dict['origin'][b],
                 }
                 self.scenario.plot_environment_rviz(env_b)
+                self.delete_state_action_markers('aug')
                 self.debug_viz_state_action(input_dict, b, 'input')
                 stepper.step()
 
@@ -588,6 +604,19 @@ class NNClassifier(MyKerasModel):
         if training:
             state_augmentation_type = self.hparams.get('state_augmentation_type', None)
             if state_augmentation_type == 'uniform':
+                # show where local env is before we augment
+                if DEBUG_AUG:
+                    stepper = RvizSimpleStepper()
+                    for b in self.debug_viz_batch_indices():
+                        res_b = input_dict['res'][b]
+                        local_env_extent_b = compute_extent_3d(self.local_env_h_rows,
+                                                               self.local_env_w_cols,
+                                                               self.local_env_c_channels,
+                                                               res_b,
+                                                               local_env_origin[b])
+                        _send_occupancy_tf(self.broadcaster, local_env_extent_b, res_b, 'local_env_pre_aug')
+                        # stepper.step()
+
                 local_env_origin = self.scenario.uniform_state_augmentation(input_dict,
                                                                             local_env_origin,
                                                                             batch_size,
@@ -673,7 +702,7 @@ class NNClassifier(MyKerasModel):
                 'origin': local_env_origin[b].numpy(),
                 'res':    example['res'][b].numpy(),
             }
-            send_occupancy_tf(self.scenario.tf.tf_broadcaster, local_env_dict, frame='local_env')
+            send_occupancy_tf(self.broadcaster, local_env_dict, frame='local_env')
 
             self.animate_voxel_grid_states(b, example, local_env_origin, local_voxel_grids_array, time)
 

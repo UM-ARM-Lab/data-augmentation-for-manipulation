@@ -175,6 +175,7 @@ def eval_main(dataset_dirs: List[pathlib.Path],
               old_compat: bool = False,
               take: Optional[int] = None,
               balance: bool = True,
+              scenario: Optional[ScenarioWithVisualization] = None,
               **kwargs):
     model, runner, tf_dataset = eval_setup(balance,
                                            batch_size,
@@ -184,7 +185,8 @@ def eval_main(dataset_dirs: List[pathlib.Path],
                                            old_compat,
                                            take,
                                            threshold,
-                                           use_gt_rope)
+                                           use_gt_rope,
+                                           scenario)
 
     val_metrics = model.create_metrics()
     runner.val_epoch(tf_dataset, val_metrics)

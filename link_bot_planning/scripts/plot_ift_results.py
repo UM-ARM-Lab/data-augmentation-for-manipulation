@@ -42,9 +42,8 @@ def main():
             if should_skip:
                 continue
 
-            print(f"trial {trial_idx} ...")
+            print(f"trial {trial_idx}, status {datum['trial_status']}")
             plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose, args.full_plan)
-            print(f"... complete with status {datum['trial_status']}")
 
 
 if __name__ == '__main__':

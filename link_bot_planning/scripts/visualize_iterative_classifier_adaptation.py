@@ -54,7 +54,15 @@ def get_data(scenario: ScenarioWithVisualization,
 
     if classifier_iteration_idx == 0:
         log = load_hjson(ift_dir / 'logfile.hjson')
-        pretrained_classifier_dir = log['initial_classifier_checkpoint']
+        initial_classifier_dir = log['initial_classifier_checkpoint']
+        pretraining_log = log.get("pretraining", None)
+        if pretraining_log is None:
+            pretrained_classifier_dir = initial_classifier_dir
+        else:
+            pretrained_classifier_dir = pretraining_log.get("new_latest_checkpoint_dir", None)
+            if pretrained_classifier_dir is None:
+                pretrained_classifier_dir = initial_classifier_dir
+
         checkpoint = pathlib.Path(pretrained_classifier_dir)
     else:
         checkpoint = get_named_item_in_dir(classifiers_dir, classifier_iteration_idx - 1)
@@ -163,7 +171,6 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
             scenario.plot_goal_rviz(goal, goal_threshold)
 
             for j, (example, predictions) in enumerate(data):
-
                 if not f.should_keep(viz_options, example, predictions):
                     continue
 
