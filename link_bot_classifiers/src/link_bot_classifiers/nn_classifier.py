@@ -1,8 +1,9 @@
 import pathlib
-import numpy as np
 from typing import Dict, List, Optional
 
+import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 from colorama import Fore
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -124,6 +125,7 @@ class NNClassifier(MyKerasModel):
                                                       ])
 
         self.aug_gen = tf.random.Generator.from_seed(0)
+        self.aug_seed_stream = tfp.util.SeedStream(0, salt="nn_classifier_aug")
 
     def make_voxel_grid_inputs(self, input_dict: Dict, indices, local_env, local_env_origin, batch_size, time):
         local_voxel_grids_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
@@ -619,9 +621,12 @@ class NNClassifier(MyKerasModel):
 
                 local_env_origin = self.scenario.uniform_state_augmentation(input_dict,
                                                                             local_env_origin,
+                                                                            self.local_env_h_rows,
+                                                                            self.local_env_w_cols,
+                                                                            self.local_env_c_channels,
                                                                             batch_size,
                                                                             time,
-                                                                            self.aug_gen)
+                                                                            self.aug_seed_stream)
 
             # Voxel grid augmentation
             if self.augmentation_3d is not None:

@@ -203,6 +203,7 @@ class OmplRRTWrapper(MyPlanner):
 
         if accept:
             final_predicted_state['num_diverged'] = np.array([0.0])
+
         else:
             final_predicted_state['num_diverged'] = last_previous_state['num_diverged'] + 1
 

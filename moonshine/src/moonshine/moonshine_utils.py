@@ -340,7 +340,8 @@ def restore_variables(classifier_checkpoint: pathlib.Path, **variables):
     # "model" matches the name used in the checkpoint (see ckpt creation in model_runner.py, "model=self.model")
     # the saved checkpoint contains things other than the model, hence why we have this second Checkpoint
     complete_checkpoint = tf.train.Checkpoint(model=model_checkpoint)
-    checkpoint_manager = tf.train.CheckpointManager(complete_checkpoint, classifier_checkpoint.as_posix(), max_to_keep=1)
+    checkpoint_manager = tf.train.CheckpointManager(complete_checkpoint, classifier_checkpoint.as_posix(),
+                                                    max_to_keep=1)
     status = complete_checkpoint.restore(checkpoint_manager.latest_checkpoint)
     status.expect_partial()
     status.assert_existing_objects_matched()
@@ -354,3 +355,20 @@ def list_of_tuples_to_tuple_of_lists(values: List[tuple]):
     for i in range(tuple_size):
         lists.append([v[i] for v in values])
     return tuple(lists)
+
+
+def swap_xy(x):
+    """
+
+    Args:
+        x: has shape [b1, b2, ..., bn, 3]
+        n_batch_dims: same as n in the above shape, number of dimensions before the dimension of 3 (x,y,z)
+
+    Returns: the x/y will be swapped
+
+    """
+    first = tf.gather(x, 0, axis=-1)
+    second = tf.gather(x, 1, axis=-1)
+    z = tf.gather(x, 2, axis=-1)
+    swapped = tf.stack([second, first, z], axis=-1)
+    return swapped

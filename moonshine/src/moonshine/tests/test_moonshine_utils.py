@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from moonshine.moonshine_utils import dict_of_sequences_to_sequence_of_dicts, dict_of_sequences_to_sequence_of_dicts_tf, \
-    flatten_batch_and_time, gather_dict, repeat, add_time_dim
+    flatten_batch_and_time, gather_dict, repeat, add_time_dim, swap_xy
 from moonshine.tests import testing_utils
 
 
@@ -111,3 +111,20 @@ class Test(TestCase):
         }
         out_dict = add_time_dim(input_dict)
         testing_utils.assert_dicts_close_tf(out_dict, expected_dict)
+
+    def test_swap_xy(self):
+        a = tf.constant([0.0, 0.1, 0.2])
+        b = tf.constant([0.1, 0.0, 0.2])
+        testing_utils.assert_close_tf(swap_xy(a), b)
+
+        a = tf.constant([[0.0, 0.1, 0.2]])
+        b = tf.constant([[0.1, 0.0, 0.2]])
+        testing_utils.assert_close_tf(swap_xy(a), b)
+
+        a = tf.constant([[0.0, 0.1, 0.2], [0.1, 0.2, 0.3]])
+        b = tf.constant([[0.1, 0.0, 0.2], [0.2, 0.1, 0.3]])
+        testing_utils.assert_close_tf(swap_xy(a), b)
+
+        a = tf.constant([[[0.0, 0.1, 0.2], [0.1, 0.2, 0.3]]])
+        b = tf.constant([[[0.1, 0.0, 0.2], [0.2, 0.1, 0.3]]])
+        testing_utils.assert_close_tf(swap_xy(a), b)

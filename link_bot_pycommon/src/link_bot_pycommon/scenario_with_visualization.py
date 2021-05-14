@@ -355,3 +355,24 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         msg.color.a = 1
 
         self.point_pub.publish(msg)
+
+    def plot_points_rviz(self, positions, label: str, frame_id: str = 'world', id: int = 0, scale: float = 0.02):
+        msg = Marker()
+        msg.header.frame_id = frame_id
+        msg.header.stamp = rospy.Time.now()
+        msg.ns = label
+        msg.id = id
+        msg.type = Marker.SPHERE_LIST
+        msg.action = Marker.ADD
+        msg.scale.x = scale
+        msg.scale.y = scale
+        msg.scale.z = scale
+        msg.color.r = 1
+        msg.color.g = 1
+        msg.color.b = 0
+        msg.color.a = 1
+        for position in positions:
+            p = Point(x=position[0], y=position[1], z=position[2])
+            msg.points.append(p)
+
+        self.point_pub.publish(msg)

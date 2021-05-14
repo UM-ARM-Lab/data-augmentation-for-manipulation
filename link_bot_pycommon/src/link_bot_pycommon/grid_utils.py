@@ -110,6 +110,16 @@ def extent_to_center(extent_3d):
 
 
 def extent_to_origin_point(extent, res):
+    """
+
+    Args:
+        extent: [minx, maxx, miny, maxy, minz, maxz
+        res: scalar
+
+    Returns: the origin point is the x, y, z translation
+      from the center of the index[0,0,0] voxel to the point [0.0, 0.0, 0.0] in the voxel grid's frame (usually world)
+
+    """
     center = extent_to_center(extent_3d=extent)
     h_rows, w_cols, c_channels = extent_to_env_shape(extent=extent, res=res)
     oy = center[1] - (h_rows * res / 2)

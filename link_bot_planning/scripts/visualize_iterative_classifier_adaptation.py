@@ -128,7 +128,7 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
 
     rviz_stepper = RvizAnimationController(iterations)
 
-    dataset_dir_for_viz = pathlib.Path(log['iteration 0']['dataset']['new_dataset_dir'])
+    dataset_dir_for_viz = pathlib.Path(log['iteration 0']['classifier dataset']['new_dataset_dir'])
     dataset_for_viz = ClassifierDatasetLoader([dataset_dir_for_viz], load_true_states=True, scenario=scenario)
     metadata = dataset_for_viz.scenario_metadata
     state_metadata_keys = dataset_for_viz.state_metadata_keys

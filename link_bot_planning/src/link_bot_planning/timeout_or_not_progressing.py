@@ -2,8 +2,6 @@ import warnings
 from time import perf_counter
 from typing import Dict
 
-from ompl import base as ob
-
 from link_bot_planning.my_planner import PlanningQuery, MyPlannerStatus
 
 with warnings.catch_warnings():
@@ -26,6 +24,7 @@ class TimeoutOrNotProgressing(ob.PlannerTerminationCondition):
         self.not_progressing = None
         self.timed_out = False
         self.attempted_extensions = 0
+        self.debugging_terminate = False
 
         self.t0 = perf_counter()
 
@@ -38,6 +37,7 @@ class TimeoutOrNotProgressing(ob.PlannerTerminationCondition):
         total_trial_timed_out = total_trial_dt_s > self.total_timeout
         self.timed_out = planning_query_timed_out or total_trial_timed_out
         should_terminate = self.timed_out or self.not_progressing
+
         return should_terminate
 
     def interpret_planner_status(self, planner_status: ob.PlannerStatus):
