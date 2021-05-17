@@ -6,5 +6,4 @@
   }
   termination_criteria: {
   }
-  n_shortcut_attempts: 0
 }
