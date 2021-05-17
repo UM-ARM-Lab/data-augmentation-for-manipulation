@@ -10,7 +10,6 @@ import rosnode
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, _deserialize_scene_msg
 from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
-from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_in_batched_envs, batch_idx_to_point_3d_in_env_tf
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
@@ -385,6 +384,25 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         joint_names_batched = np.array(joint_names_batched)
         return target_reached_batched, pred_joint_positions_batched, joint_names_batched
 
+    def sample_state_augmentation_variables(self,
+                                            input_dict: Dict,
+                                            batch_size,
+                                            time,
+                                            seed: tfp.util.SeedStream):
+
+        # sample a new delta x,y,z,theta
+        # TODO: finish implement rotation about z?
+        zeros = np.zeros_like([batch_size, time, 3])
+        delta_distribution = tfp.distributions.TruncatedNormal(zeros, 0.2, -0.5, 0.5)  # these are hyper-parameters
+        delta_position = delta_distribution.sample(seed=seed())
+
+        theta_low = [-np.pi] * batch_size
+        theta_high = [np.pi] * batch_size
+        theta_distribution = tfp.distributions.Uniform(theta_low, theta_high)
+        theta = theta_distribution.sample(seed=seed())
+
+        return delta_position, theta
+
     def uniform_state_augmentation(self,
                                    input_dict: Dict,
                                    batch_size,
@@ -400,7 +418,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
         # sample a new delta x,y,z,theta
-        # TODO: implement rotation about z
+        # TODO: finish implement rotation about z?
         zeros = np.zeros_like(left_gripper_point[:, 0])
         delta_distribution = tfp.distributions.TruncatedNormal(zeros, 0.2, -0.5, 0.5)  # these are hyper-parameters
         theta_low = [-np.pi] * left_gripper_point.shape[0]

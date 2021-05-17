@@ -398,6 +398,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                                              view.dataset.init_viz_action(),
                                              ],
                                  t_funcs=[_custom_viz_t,
+                                          init_viz_env,
                                           view.dataset.classifier_transition_viz_t(),
                                           ExperimentScenario.plot_dynamics_stdev_t,
                                           ])
