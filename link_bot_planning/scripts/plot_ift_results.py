@@ -4,6 +4,7 @@ import pathlib
 
 import colorama
 import numpy as np
+from colorama import Style, Fore
 
 from arc_utilities import ros_init
 from link_bot_planning.analysis import results_utils
@@ -29,7 +30,7 @@ def main():
         if not results_dir.is_dir():
             continue
 
-        print(results_dir.name)
+        print(Style.BRIGHT + Fore.GREEN + results_dir.name + Style.RESET_ALL)
         scenario, metadata = results_utils.get_scenario_and_metadata(results_dir)
         classifier_params = classifier_params_from_planner_params(metadata['planner_params'])
         if args.threshold is None:
@@ -42,7 +43,8 @@ def main():
             if should_skip:
                 continue
 
-            print(f"trial {trial_idx}, status {datum['trial_status']}")
+            msg = f"trial {trial_idx}, status {datum['trial_status']}"
+            print(Fore.LIGHTBLUE_EX + msg)
             plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose, args.full_plan)
 
 

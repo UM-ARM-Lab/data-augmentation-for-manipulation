@@ -1,7 +1,7 @@
 import itertools
 import pathlib
 import pickle
-from typing import List, Optional, Callable, Dict
+from typing import List, Optional, Dict
 
 import link_bot_classifiers
 from arc_utilities.algorithms import nested_dict_update

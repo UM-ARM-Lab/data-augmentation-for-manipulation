@@ -4,14 +4,17 @@ from typing import Dict, List
 
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 import rosnode
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, _deserialize_scene_msg
 from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
+from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_in_batched_envs, batch_idx_to_point_3d_in_env_tf
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
+from moonshine.geometry import rotate_points_3d, make_rotation_matrix_like
 from moonshine.moonshine_utils import numpify
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
 from std_msgs.msg import Float32
@@ -24,7 +27,7 @@ with warnings.catch_warnings():
 
 import rospy
 from arc_utilities.listener import Listener
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Point
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
@@ -95,6 +98,10 @@ def to_list_of_strings(x):
         return [n.decode("utf-8") for n in x.numpy()]
     else:
         raise NotImplementedError()
+
+
+def to_point_msg(v):
+    return Point(x=v[0], y=v[1], z=v[2])
 
 
 class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioMixin):
@@ -380,19 +387,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
     def uniform_state_augmentation(self,
                                    input_dict: Dict,
-                                   local_env_origin,
                                    batch_size,
                                    time,
-                                   rng: tf.random.Generator):
-        # TODO: what do we have to "check" here? or is this function just "proposing"
-
+                                   seed: tfp.util.SeedStream):
         assert time == 2
-
-        # sample a new x,y,z,theta
-        extent = tf.reshape(input_dict['extent'], [batch_size, -1, 2])
-        minval = tf.expand_dims(extent[:, :, 0], axis=1)
-        maxval = tf.expand_dims(extent[:, :, 1], axis=1)
-        new_position = rng.uniform([batch_size, 1, 3], minval, maxval)
 
         # apply those to the rope and grippers
         rope_points = tf.reshape(input_dict[add_predicted('rope')], [batch_size, time, -1, 3])
@@ -401,27 +399,44 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
         right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
-        # sampling the original new_position from the full extent and then picking the left gripper (arbitrarily)
-        # as the way of computing delta. This is easier then sampling a delta directly, because then we'd have to trade
-        # off the max magnitude with diveristy or do out of bounds checking.
-        delta_position = new_position - left_gripper_points[:, 0]
-        delta_position = tf.tile(tf.expand_dims(delta_position, axis=1), [1, 2, 1, 1])
+        # sample a new delta x,y,z,theta
+        # TODO: implement rotation about z
+        zeros = np.zeros_like(left_gripper_point[:, 0])
+        delta_distribution = tfp.distributions.TruncatedNormal(zeros, 0.2, -0.5, 0.5)  # these are hyper-parameters
+        theta_low = [-np.pi] * left_gripper_point.shape[0]
+        theta_high = [np.pi] * left_gripper_point.shape[0]
+        theta_distribution = tfp.distributions.Uniform(theta_low, theta_high)
+        delta_position = delta_distribution.sample(seed=seed())
+        theta = theta_distribution.sample(seed=seed())
 
-        left_gripper_points_aug = left_gripper_points + delta_position
-        right_gripper_points_aug = right_gripper_points + delta_position
-        rope_points_aug = rope_points + delta_position
-        delta_origin_xyz = delta_position[:, 0, 0] / input_dict['res']
-        delta_origin_xyz = flip_xy(delta_origin_xyz)
-        local_env_origin_aug = local_env_origin -
+        rotation_matrix = make_rotation_matrix_like(delta_position, theta)
+
+        # rotates about the world origin, which isn't great because it's less likely to produce a feasible augmentation
+        def _rot(points):
+            n = points.shape[2]
+            rotation_matrix_tiled = tf.tile(rotation_matrix[:, tf.newaxis, tf.newaxis], [1, 2, n, 1, 1])
+            points_rotated = rotate_points_3d(rotation_matrix_tiled, points)
+            return points_rotated
+
+        rope_points_rotated = _rot(rope_points)
+        left_gripper_points_rotated = _rot(left_gripper_points)
+        right_gripper_points_rotated = _rot(right_gripper_points)
+
+        delta_position = tf.tile(delta_position[:, tf.newaxis, tf.newaxis], [1, 2, 1, 1])
+
+        left_gripper_points_aug = left_gripper_points_rotated + delta_position
+        right_gripper_points_aug = right_gripper_points_rotated + delta_position
+        rope_points_aug = rope_points_rotated + delta_position
 
         # compute the new action
-        left_gripper_position_aug = input_dict['left_gripper_position'] + delta_position[:, 0]
-        right_gripper_position_aug = input_dict['right_gripper_position'] + delta_position[:, 0]
+        left_gripper_position = input_dict['left_gripper_position']
+        right_gripper_position = input_dict['right_gripper_position']
+        left_gripper_position_rotated = rotate_points_3d(rotation_matrix[:, tf.newaxis], left_gripper_position)
+        right_gripper_position_rotated = rotate_points_3d(rotation_matrix[:, tf.newaxis], right_gripper_position)
+        left_gripper_position_aug = left_gripper_position_rotated + delta_position[:, 0]
+        right_gripper_position_aug = right_gripper_position_rotated + delta_position[:, 0]
 
         # use IK to get a new starting joint configuration
-        # note to self -- I might have to use "follow jacobian to position ignoring obstacles" to figure out this joint
-        #  position. I'm not aware of any existing moveit-integrated IK plugins that handle trees
-
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         empty_scene_msgs = _deserialize_scene_msg(input_dict)
         for s in empty_scene_msgs:
@@ -435,6 +450,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             seed_joint_position_b = input_dict[add_predicted('joint_positions')][b, 0].numpy().tolist()
             joint_names = input_dict['joint_names'][b, 0].numpy().tolist()
             preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
+
             left_gripper_aug_start_point = left_gripper_points_aug[b, 0, 0].numpy()
             right_gripper_aug_start_point = right_gripper_points_aug[b, 0, 0].numpy()
             left_gripper_aug_end_point = left_gripper_points_aug[b, 1, 0].numpy()
@@ -443,7 +459,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             grippers_end = [[left_gripper_aug_end_point], [right_gripper_aug_end_point]]
 
             # run jacobian follower as a hack to try to solve for a joint config with grippers matching the augmented
-            #  gripper positions
+            # gripper positions
             seed_joint_state = JointState(name=joint_names, position=seed_joint_position_b)
             empty_scene_msg_b, seed_robot_state = merge_joint_state_and_scene_msg(empty_scene_msgs[b], seed_joint_state)
             plan_to_start, reached_start_b = self.robot.jacobian_follower.plan(
@@ -490,20 +506,24 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             out_joint_positions_end.append(out_joint_position_end_b)
             reached.append(reached_b)
 
-        # return the new robot joint configs, grippers+rope states, and action in output_dict
         joint_positions_aug = tf.stack((tf.constant(out_joint_positions_start, tf.float32),
                                         tf.constant(out_joint_positions_end, tf.float32)), axis=1)
-        reached = tf.cast(tf.constant(reached), tf.float32)[:, tf.newaxis, tf.newaxis]
         rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
         left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
         right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
 
-        update_if_valid(input_dict, reached, add_predicted('joint_positions'), joint_positions_aug)
-        update_if_valid(input_dict, reached, add_predicted('rope'), rope_aug)
-        update_if_valid(input_dict, reached, add_predicted('left_gripper'), left_gripper_aug)
-        update_if_valid(input_dict, reached, add_predicted('right_gripper'), right_gripper_aug)
-        update_if_valid(input_dict, reached, 'left_gripper_position', left_gripper_position_aug)
-        update_if_valid(input_dict, reached, 'right_gripper_position', right_gripper_position_aug)
+        reached = tf.cast(reached, tf.float32)
+        aug_valid = reached  # NOTE: there could be other constraints we need to check?
+        aug_valid_expanded = aug_valid[:, tf.newaxis, tf.newaxis]
+
+        update_if_valid(input_dict, aug_valid_expanded, add_predicted('joint_positions'), joint_positions_aug)
+        update_if_valid(input_dict, aug_valid_expanded, add_predicted('rope'), rope_aug)
+        update_if_valid(input_dict, aug_valid_expanded, add_predicted('left_gripper'), left_gripper_aug)
+        update_if_valid(input_dict, aug_valid_expanded, add_predicted('right_gripper'), right_gripper_aug)
+        update_if_valid(input_dict, aug_valid_expanded, 'left_gripper_position', left_gripper_position_aug)
+        update_if_valid(input_dict, aug_valid_expanded, 'right_gripper_position', right_gripper_position_aug)
+        # update_if_valid(input_dict, aug_valid_expanded, 'env', env_aug) ????
+        # or we could return?
 
         if DEBUG_VIZ_STATE_AUG:
             stepper = RvizSimpleStepper()
@@ -519,10 +539,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 self.debug_viz_state_action(input_dict, b, 'aug', color='white')
 
                 stepper.step()
-
-        reached_no_time = reached[:, 0, 0]
-        local_env_origin_aug = reached_no_time * local_env_origin_aug + (1 - reached_no_time) * local_env_origin
-        return local_env_origin_aug
 
     def debug_viz_state_action(self, input_dict, b, label: str, color='red'):
         state_keys = ['left_gripper', 'right_gripper', 'rope']

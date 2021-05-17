@@ -10,6 +10,10 @@ from rviz_voxelgrid_visuals.conversions import vox_to_voxelgrid_stamped
 from sensor_msgs.msg import PointCloud2
 
 
+def voxel_grid_distance(a, b):
+    return tf.abs(a - b)
+
+
 def indeces_to_point(rowcols, resolution, origin):
     return (rowcols - origin) * resolution
 
