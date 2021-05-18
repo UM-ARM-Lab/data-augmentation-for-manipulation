@@ -4,7 +4,11 @@ from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_res_origin
 
 
 @tf.function
-def raster_3d(state, pixel_indices, res, origin, h, w, c, k, batch_size: int):
+def raster_3d_wrapped(state, pixel_indices, res, origin, h, w, c, k, batch_size):
+    return raster_3d(state, pixel_indices, res, origin, h, w, c, k, batch_size)
+
+
+def raster_3d(state, pixel_indices, res, origin, h, w, c, k, batch_size):
     """
     Args:
         state: [batch_size, 3*k]
@@ -40,7 +44,12 @@ def raster_3d(state, pixel_indices, res, origin, h, w, c, k, batch_size: int):
 
 
 # this function is slower with tf.function, don't use it
-def points_to_voxel_grid(batch_indices, points, res, origin, h, w, c, batch_size: int):
+@tf.function
+def points_to_voxel_grid_wrapped(batch_indices, points, res, origin, h, w, c, batch_size):
+    return points_to_voxel_grid(batch_indices, points, res, origin, h, w, c, batch_size)
+
+
+def points_to_voxel_grid(batch_indices, points, res, origin, h, w, c, batch_size):
     """
     Args:
         batch_indices: [n], batch_indices[i] is the batch indices for point points[i]. Must be int64 type

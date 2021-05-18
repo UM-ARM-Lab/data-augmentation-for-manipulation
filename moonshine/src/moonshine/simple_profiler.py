@@ -1,10 +1,15 @@
 from time import perf_counter
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class SimpleProfiler:
 
     def __init__(self):
+        self.fig = plt.figure()
+        self.ax = plt.gca()
+        self.ax.set_xlabel("time (ms)")
+        self.ax.set_ylabel("frequency")
         self.t0 = perf_counter()
         self.dts = []
 
@@ -22,20 +27,30 @@ class SimpleProfiler:
         self.dts.append(dt)
         self.t0 = now
 
-    def __str__(self):
+    def get_results_str(self):
+        def ninety_fifth_percentile(x):
+            return np.percentile(x, 90)
+
+        def fifth_percentile(x):
+            return np.percentile(x, 5)
+
         measurements = [
             np.mean,
             np.median,
             np.min,
             np.max,
+            fifth_percentile,
         ]
         s = ""
         for measurement in measurements:
-            s += f"{measurement.__name__}: {measurement(self.dts) * 1e3:.5f}ms "
+            s += f"{measurement.__name__}: {measurement(self.dts) * 1e3:.4f}ms "
         return s
 
     def profile(self, max_iters, f, *args, **kwargs):
         # the first call often is slow for caching reasons, but we don't want to measure that
+        f(*args, **kwargs)
+        f(*args, **kwargs)
+        f(*args, **kwargs)
         f(*args, **kwargs)
 
         self.start()
@@ -50,3 +65,10 @@ class SimpleProfiler:
                 break
 
             self.lap()
+
+        self.ax.hist(self.dts, label=f.__name__, alpha=0.3, bins=20)
+
+        return self.get_results_str()
+
+    def __str__(self):
+        return self.get_results_str()

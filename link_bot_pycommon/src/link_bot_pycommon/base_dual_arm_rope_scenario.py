@@ -13,6 +13,7 @@ from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPo
 from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_in_batched_envs, batch_idx_to_point_3d_in_env_tf
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
+from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import rotate_points_3d, make_rotation_matrix_like
 from moonshine.moonshine_utils import numpify, repeat_tensor
@@ -37,14 +38,6 @@ from sensor_msgs.msg import JointState, PointCloud2
 from tf.transformations import quaternion_from_euler
 
 DEBUG_VIZ_STATE_AUG = True
-SHOW_ALL = False
-
-
-def debug_viz_batch_indices(batch_size):
-    if SHOW_ALL:
-        return range(batch_size)
-    else:
-        return [1]
 
 
 def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, robot_state: RobotState):
