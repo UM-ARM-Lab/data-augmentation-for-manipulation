@@ -18,15 +18,16 @@ def indeces_to_point(rowcols, resolution, origin):
     return (rowcols - origin) * resolution
 
 
-def batch_idx_to_point_3d_in_env_tf(row,
-                                    col,
-                                    channel,
-                                    env: Dict):
-    origin = tf.cast(env['origin'], tf.int64)
-    y = tf.cast(row - tf.gather(origin, 0, axis=-1), tf.float32) * env['res']
-    x = tf.cast(col - tf.gather(origin, 1, axis=-1), tf.float32) * env['res']
-    z = tf.cast(channel - tf.gather(origin, 2, axis=-1), tf.float32) * env['res']
+def batch_idx_to_point_3d_in_env_tf_res_origin(row, col, channel, res, origin):
+    origin = tf.cast(origin, tf.int64)
+    y = tf.cast(row - tf.gather(origin, 0, axis=-1), tf.float32) * res
+    x = tf.cast(col - tf.gather(origin, 1, axis=-1), tf.float32) * res
+    z = tf.cast(channel - tf.gather(origin, 2, axis=-1), tf.float32) * res
     return tf.stack([x, y, z], axis=-1)
+
+
+def batch_idx_to_point_3d_in_env_tf(row, col, channel, env: Dict):
+    return batch_idx_to_point_3d_in_env_tf_res_origin(row, col, channel, env['res'], env['origin'])
 
 
 def idx_to_point_3d_in_env(row: int,
@@ -54,6 +55,17 @@ def idx_to_point_3d(row: int,
     x = (col - origin[1]) * resolution
     z = (channel - origin[2]) * resolution
     return np.array([x, y, z])
+
+
+def idx_to_point_3d_tf(row: int,
+                       col: int,
+                       channel: int,
+                       resolution: float,
+                       origin: np.ndarray):
+    y = (row - origin[0]) * resolution
+    x = (col - origin[1]) * resolution
+    z = (channel - origin[2]) * resolution
+    return tf.stack([x, y, z], axis=-1)
 
 
 def idx_to_point(row: int,
@@ -212,14 +224,18 @@ def batch_point_to_idx_tf(x,
     return row, col
 
 
-def batch_point_to_idx_tf_3d_in_batched_envs(points, env: Dict):
+def batch_point_to_idx_tf_3d_res_origin(points, res, origin):
     x = tf.gather(points, 0, axis=-1)
     y = tf.gather(points, 1, axis=-1)
     z = tf.gather(points, 2, axis=-1)
-    col = tf.cast(x / env['res'] + tf.gather(env['origin'], 1, axis=-1), tf.int64)
-    row = tf.cast(y / env['res'] + tf.gather(env['origin'], 0, axis=-1), tf.int64)
-    channel = tf.cast(z / env['res'] + tf.gather(env['origin'], 2, axis=-1), tf.int64)
+    col = tf.cast(x / res + tf.gather(origin, 1, axis=-1), tf.int64)
+    row = tf.cast(y / res + tf.gather(origin, 0, axis=-1), tf.int64)
+    channel = tf.cast(z / res + tf.gather(origin, 2, axis=-1), tf.int64)
     return row, col, channel
+
+
+def batch_point_to_idx_tf_3d_in_batched_envs(points, env: Dict):
+    return batch_point_to_idx_tf_3d_res_origin(points, env['res'], env['origin'])
 
 
 def batch_point_to_idx_tf_3d(x,

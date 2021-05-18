@@ -11,7 +11,6 @@ def make_rotation_matrix_like(x, theta):
     return rotation_matrix
 
 
-# TODO: write tests
 def rotate_points_3d(rotation_matrix, points):
     """
 
