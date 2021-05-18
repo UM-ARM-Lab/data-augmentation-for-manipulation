@@ -5,8 +5,8 @@ import numpy as np
 import rospy
 import tf2_ros
 from link_bot_pycommon import grid_utils
-from link_bot_pycommon.grid_utils import environment_to_occupancy_msg
-from moonshine.get_local_environment import get_local_env_and_origin_3d_tf
+from link_bot_pycommon.grid_utils import environment_to_vg_msg
+from moonshine.get_local_environment import get_local_env_and_origin_3d_tf_old
 from moonshine.gpu_config import limit_gpu_mem
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
@@ -33,13 +33,13 @@ for _ in range(500):
     channel = int(np.random.uniform(0, full_c_channels))
     full_env[:, row, col, channel] = 1.0
 
-local_env, local_env_origin = get_local_env_and_origin_3d_tf(center_point,
-                                                             full_env,
-                                                             full_env_origin,
-                                                             res,
-                                                             local_h_rows,
-                                                             local_w_cols,
-                                                             local_c_channels)
+local_env, local_env_origin = get_local_env_and_origin_3d_tf_old(center_point,
+                                                                 full_env,
+                                                                 full_env_origin,
+                                                                 res,
+                                                                 local_h_rows,
+                                                                 local_w_cols,
+                                                                 local_c_channels)
 
 full_environment = {
     'env': full_env[0],
@@ -58,13 +58,13 @@ broadcaster = tf2_ros.StaticTransformBroadcaster()
 local_occupancy_pub = rospy.Publisher('local_occupancy', VoxelgridStamped, queue_size=10, latch=True)
 full_pub = rospy.Publisher('occupancy', VoxelgridStamped, queue_size=10, latch=True)
 
-local_occupancy_msg = environment_to_occupancy_msg(local_environment, frame='local_occupancy')
-full_occupancy_msg = environment_to_occupancy_msg(full_environment, frame='occupancy')
+local_occupancy_msg = environment_to_vg_msg(local_environment, frame='local_occupancy')
+full_occupancy_msg = environment_to_vg_msg(full_environment, frame='occupancy')
 
 while True:
     rospy.sleep(0.1)
-    grid_utils.send_occupancy_tf(broadcaster, local_environment, frame='local_occupancy')
+    grid_utils.send_voxelgrid_tf(broadcaster, local_environment, frame='local_occupancy')
     local_occupancy_pub.publish(local_occupancy_msg)
 
-    grid_utils.send_occupancy_tf(broadcaster, full_environment, frame='occupancy')
+    grid_utils.send_voxelgrid_tf(broadcaster, full_environment, frame='occupancy')
     full_pub.publish(full_occupancy_msg)

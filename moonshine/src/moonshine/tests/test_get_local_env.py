@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from moonshine.get_local_environment import get_local_env_and_origin_2d_tf, get_local_env_and_origin_3d_tf
+from moonshine.get_local_environment import get_local_env_and_origin_2d_tf, get_local_env_and_origin_3d_tf_old
 from moonshine.gpu_config import limit_gpu_mem
 from moonshine.tests.testing_utils import assert_close_tf
 
@@ -64,13 +64,13 @@ class Test(unittest.TestCase):
         full_env[:, 1, 2, 1] = 1
         full_env[:, 2, 3, 3] = 1
 
-        local_env, local_env_origin = get_local_env_and_origin_3d_tf(center_point,
-                                                                     full_env,
-                                                                     full_env_origin,
-                                                                     res,
-                                                                     local_h_rows,
-                                                                     local_w_cols,
-                                                                     local_c_channels)
+        local_env, local_env_origin = get_local_env_and_origin_3d_tf_old(center_point,
+                                                                         full_env,
+                                                                         full_env_origin,
+                                                                         res,
+                                                                         local_h_rows,
+                                                                         local_w_cols,
+                                                                         local_c_channels)
         expected_origins = tf.constant([[1.5, 1.5, 1.5], [0.5, 2.5, 0.5]], dtype=tf.float32)
         expected_env_occupied_indicies= tf.constant(
             [

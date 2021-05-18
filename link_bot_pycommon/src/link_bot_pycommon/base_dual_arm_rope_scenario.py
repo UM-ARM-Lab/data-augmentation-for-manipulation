@@ -555,14 +555,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 self.plot_environment_rviz(env_b)
                 self.debug_viz_state_action(input_dict, b, 'aug', color='white')
 
-                stepper.step()
+                # stepper.step()
 
         # return new local env?
         state_keys = ['left_gripper', 'right_gripper', 'rope']
         state_aug = {k: input_dict[add_predicted(k)] for k in state_keys}
         local_env_center_aug = self.local_environment_center_differentiable(state_aug)
         center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center_aug, input_dict)
-        local_env_center_aug = batch_idx_to_point_3d_in_env_tf(*center_indices, input_dict)
+        local_env_center_aug = batch_idx_to_point_3d_in_env_tf(*tf.unstack(center_indices, axis=-1), input_dict)
         local_center = tf.stack([local_h_rows / 2, local_w_cols / 2, local_c_channels / 2], axis=0)
         center_cols = local_env_center_aug[:, 0] / input_dict['res'] + input_dict['origin'][:, 1]
         center_rows = local_env_center_aug[:, 1] / input_dict['res'] + input_dict['origin'][:, 0]

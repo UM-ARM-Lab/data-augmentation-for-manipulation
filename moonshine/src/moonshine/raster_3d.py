@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_res_origin
+from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_res_origin, batch_point_to_idx_tf_3d_res_origin_point
 
 
 @tf.function
@@ -66,6 +66,30 @@ def points_to_voxel_grid(batch_indices, points, res, origin, h, w, c, batch_size
     n = points.shape[0]
     indices = batch_point_to_idx_tf_3d_res_origin(points, res, origin)  # [n, 4]
     indices = tf.stack([batch_indices, *indices], axis=-1)
+    ones = tf.ones([n])
+    voxel_grid = tf.scatter_nd(indices, ones, [batch_size, h, w, c])
+    voxel_grid = tf.clip_by_value(voxel_grid, 0, 1)
+    return voxel_grid
+
+
+def points_to_voxel_grid_res_origin_point(batch_indices, points, res, origin_point, h, w, c, batch_size):
+    """
+    Args:
+        batch_indices: [n], batch_indices[i] is the batch indices for point points[i]. Must be int64 type
+        points: [n, 3]
+        res: [n]
+        origin_point: [n, 3]
+        h:
+        w:
+        c:
+        batch_size:
+
+    Returns: 1-channel binary voxel grid
+    """
+    n = points.shape[0]
+    indices = batch_point_to_idx_tf_3d_res_origin_point(points, res, origin_point)  # [n, 4]
+    rows, cols, channels = tf.unstack(indices, axis=-1)
+    indices = tf.stack([batch_indices, rows, cols, channels], axis=-1)
     ones = tf.ones([n])
     voxel_grid = tf.scatter_nd(indices, ones, [batch_size, h, w, c])
     voxel_grid = tf.clip_by_value(voxel_grid, 0, 1)

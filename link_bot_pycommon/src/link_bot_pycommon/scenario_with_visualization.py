@@ -16,7 +16,7 @@ from link_bot_data.dataset_utils import NULL_PAD_VALUE
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.grid_utils import environment_to_occupancy_msg
+from link_bot_pycommon.grid_utils import environment_to_vg_msg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.rviz_marker_manager import RVizMarkerManager
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -86,18 +86,20 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.sample_idx = 0
 
     def plot_environment_rviz(self, environment: Dict, **kwargs):
-        if 'env' in environment and 'res' in environment and 'origin' in environment:
-            env_msg = environment_to_occupancy_msg(environment)
-            self.env_viz_pub.publish(env_msg)
+        assert 'env' in environment and 'res' in environment and 'origin_point' in environment and 'extent' in environment
+        env_msg = environment_to_vg_msg(environment)
+        self.env_viz_pub.publish(env_msg)
 
-            self.send_occupancy_tf(environment)
+        self.send_occupancy_tf(environment)
 
-            bbox_msg = extent_to_bbox(environment['extent'])
-            bbox_msg.header.frame_id = 'world'
-            self.env_bbox_pub.publish(bbox_msg)
+        bbox_msg = extent_to_bbox(environment['extent'])
+        bbox_msg.header.frame_id = 'world'
+        self.env_bbox_pub.publish(bbox_msg)
 
     def send_occupancy_tf(self, environment: Dict):
-        grid_utils.send_occupancy_tf(self.tf.tf_broadcaster, environment)
+        grid_utils.send_voxelgrid_tf_origin_point_res_tf(self.tf.tf_broadcaster,
+                                                         environment['origin_point'],
+                                                         environment['res'])
 
     def plot_executed_action(self, state: Dict, action: Dict, **kwargs):
         self.plot_action_rviz(state, action, label='executed action', color="#3876EB", idx1=1, idx2=1, **kwargs)

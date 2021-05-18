@@ -6,8 +6,29 @@ import tensorflow as tf
 import ros_numpy
 import rospy
 from geometry_msgs.msg import TransformStamped
-from rviz_voxelgrid_visuals.conversions import vox_to_voxelgrid_stamped
+from moonshine.moonshine_utils import swap_xy
+from rviz_voxelgrid_visuals import conversions
 from sensor_msgs.msg import PointCloud2
+
+
+def round_to_res(x, res):
+    # helps with stupid numerics issues
+    return tf.cast(tf.round(x / res), tf.int64)
+
+
+def batch_align_to_grid_tf(point, origin_point, res):
+    """
+
+    Args:
+        point: [n, 3], meters, in the same frame as origin_point
+        origin_point: [n, 3], meters, in the same frame as point
+        res: [n], meters
+
+    Returns:
+
+    """
+    res_expanded = tf.expand_dims(res, axis=-1)
+    return tf.cast(tf.round((point - origin_point) / res_expanded), tf.float32) * res_expanded + origin_point
 
 
 def voxel_grid_distance(a, b):
@@ -99,6 +120,13 @@ def compute_extent_3d(rows: int,
     return np.array([xmin, xmax, ymin, ymax, zmin, zmax], dtype=np.float32)
 
 
+def batch_extent_to_env_size_tf(extent_3d):
+    extent_3d = tf.reshape(extent_3d, [-1, 3, 2])
+    min = tf.gather(extent_3d, 0, axis=-1)
+    max = tf.gather(extent_3d, 1, axis=-1)
+    return tf.abs(max - min)
+
+
 def extent_to_env_size(extent_3d):
     min_x, max_x, min_y, max_y, min_z, max_z = extent_3d
     env_h_m = abs(max_y - min_y)
@@ -117,12 +145,35 @@ def extent_to_env_shape(extent, res):
     return env_h_rows, env_w_cols, env_c_channels
 
 
+def batch_extent_to_env_shape_xyz_tf(extent, res):
+    extent = tf.cast(extent, tf.float32)
+    res = tf.cast(res, tf.float32)
+    env_size = batch_extent_to_env_size_tf(extent)
+    return round_to_res(env_size, tf.expand_dims(res, axis=-1))
+
+
+def batch_extent_to_center_tf(extent_3d):
+    extent_3d = tf.reshape(extent_3d, [-1, 3, 2])
+    return tf.reduce_mean(extent_3d, axis=-1)
+
+
 def extent_to_center(extent_3d):
     min_x, max_x, min_y, max_y, min_z, max_z = extent_3d
     cx = (max_x + min_x) / 2
     cy = (max_y + min_y) / 2
     cz = (max_z + min_z) / 2
     return cx, cy, cz
+
+
+def batch_extent_to_origin_point_tf_center_res_shape(center, res, h, w, c):
+    shape_xyz = tf.stack([w, h, c], axis=-1)
+    return center - (tf.cast(shape_xyz, tf.float32) * tf.expand_dims(res, axis=-1) / 2)
+
+
+def batch_extent_to_origin_point_tf(extent, res):
+    center_xyz = batch_extent_to_center_tf(extent_3d=extent)
+    shape_xyz = batch_extent_to_env_shape_xyz_tf(extent=extent, res=res)
+    return center_xyz - (tf.cast(shape_xyz, tf.float32) * tf.expand_dims(res, axis=-1) / 2)
 
 
 def extent_to_origin_point(extent, res):
@@ -160,11 +211,11 @@ def voxel_grid_to_pc2(voxel_grid: np.ndarray, scale: float, frame_id: str, stamp
     return msg
 
 
-def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy', stamp=None, color=None):
-    env = environment['env']
+def vox_to_voxelgrid_stamped(env, scale, frame: str = 'vg', stamp=None, color=None):
     # NOTE: The plugin assumes data is ordered [x,y,z] so transpose here
     env = np.transpose(env, [1, 0, 2])
-    msg = vox_to_voxelgrid_stamped(voxel_grid=env, scale=environment['res'], frame_id=frame)
+    msg = conversions.vox_to_voxelgrid_stamped(voxel_grid=env, scale=scale, frame_id=frame)
+
     if stamp is None:
         msg.header.stamp = rospy.Time.now()
     else:
@@ -177,21 +228,50 @@ def environment_to_occupancy_msg(environment: Dict, frame: str = 'occupancy', st
     return msg
 
 
-def send_occupancy_tf(broadcaster, environment: Dict, frame: str = 'occupancy'):
-    _send_occupancy_tf(broadcaster, environment['extent'], environment['res'], frame)
+def environment_to_vg_msg(environment: Dict, frame: str = 'vg', stamp=None, color=None):
+    return vox_to_voxelgrid_stamped(environment['env'], environment['res'], frame, stamp, color)
 
 
-def _send_occupancy_tf(broadcaster, extent, res, frame: str = 'occupancy'):
+def send_voxelgrid_tf(broadcaster, environment: Dict, frame: str = 'vg'):
+    _send_voxelgrid_tf(broadcaster, environment['extent'], environment['res'], frame)
+
+
+def _send_voxelgrid_tf(broadcaster, extent, res, frame: str = 'vg'):
+    origin_point = extent_to_origin_point(extent, res)
+    send_voxelgrid_tf_origin_point_res(broadcaster, origin_point, res, frame)
+
+
+def send_voxelgrid_tf_origin_point_res_tf(broadcaster, origin_point, res, frame: str = 'vg'):
     transform = TransformStamped()
     transform.header.stamp = rospy.Time.now()
     transform.header.frame_id = "world"
     transform.child_frame_id = frame
 
-    origin_point = extent_to_origin_point(extent, res)
+    origin_xyz = (origin_point - res / 2).numpy()
+    # the rviz plugin displays the boxes with the corner at the given translation, not the center
+    # but the origin_point is at the center, so this offsets things correctly
+    transform.transform.translation.x = origin_xyz[0]
+    transform.transform.translation.y = origin_xyz[1]
+    transform.transform.translation.z = origin_xyz[2]
+    transform.transform.rotation.x = 0
+    transform.transform.rotation.y = 0
+    transform.transform.rotation.z = 0
+    transform.transform.rotation.w = 1
+    broadcaster.sendTransform(transform)
+
+
+def send_voxelgrid_tf_origin_point_res(broadcaster, origin_point, res, frame):
+    transform = TransformStamped()
+    transform.header.stamp = rospy.Time.now()
+    transform.header.frame_id = "world"
+    transform.child_frame_id = frame
+
     origin_x, origin_y, origin_z = origin_point
-    transform.transform.translation.x = origin_x
-    transform.transform.translation.y = origin_y
-    transform.transform.translation.z = origin_z
+    # the rviz plugin displays the boxes with the corner at the given translation, not the center
+    # but the origin_point is at the center, so this offsets things correctly
+    transform.transform.translation.x = origin_x - res / 2
+    transform.transform.translation.y = origin_y - res / 2
+    transform.transform.translation.z = origin_z - res / 2
     transform.transform.rotation.x = 0
     transform.transform.rotation.y = 0
     transform.transform.rotation.z = 0
@@ -219,9 +299,23 @@ def batch_point_to_idx_tf(x,
                           y,
                           resolution: float,
                           origin):
-    col = tf.cast(x / resolution + origin[1], tf.int64)
-    row = tf.cast(y / resolution + origin[0], tf.int64)
+    col = round_to_res(x, resolution + origin[1])
+    row = round_to_res(y, resolution + origin[0])
     return row, col
+
+
+def batch_point_to_idx_tf_3d_res_origin_point(points, res, origin_point):
+    """
+
+    Args:
+        points: [b,3] points in a frame, call it world
+        res: [b] meters
+        origin_point: [b,3] the position [x,y,z] of the center of the voxel (0,0,0) in the same frame as points
+
+    Returns:
+
+    """
+    return swap_xy(round_to_res((points - origin_point), tf.expand_dims(res, axis=-1)))
 
 
 def batch_point_to_idx_tf_3d_res_origin(points, res, origin):
@@ -235,7 +329,7 @@ def batch_point_to_idx_tf_3d_res_origin(points, res, origin):
 
 
 def batch_point_to_idx_tf_3d_in_batched_envs(points, env: Dict):
-    return batch_point_to_idx_tf_3d_res_origin(points, env['res'], env['origin'])
+    return batch_point_to_idx_tf_3d_res_origin_point(points, env['res'], env['origin_point'])
 
 
 def batch_point_to_idx_tf_3d(x,
@@ -243,9 +337,9 @@ def batch_point_to_idx_tf_3d(x,
                              z,
                              resolution: float,
                              origin):
-    col = tf.cast(x / resolution + origin[1], tf.int64)
-    row = tf.cast(y / resolution + origin[0], tf.int64)
-    channel = tf.cast(z / resolution + origin[2], tf.int64)
+    col = round_to_res(x, resolution + origin[1])
+    row = round_to_res(y, resolution + origin[0])
+    channel = round_to_res(z, resolution + origin[2])
     return row, col, channel
 
 

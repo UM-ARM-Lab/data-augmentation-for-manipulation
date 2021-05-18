@@ -2,6 +2,11 @@ from dataclasses import dataclass
 
 import tensorflow as tf
 
+from link_bot_pycommon.debugging_utils import DEBUG_VIZ_B
+from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf_center_res_shape, batch_align_to_grid_tf, \
+    round_to_res
+from moonshine.moonshine_utils import swap_xy
+
 
 @dataclass
 class EnvIndices:
@@ -34,10 +39,10 @@ def create_env_indices(local_env_h_rows: int, local_env_w_cols: int, local_env_c
 
 
 # FIXME: use origin_point, not origin, origin is not as precise.
-@tf.function
+# @tf.function
 def get_local_env_and_origin_3d_tf(center_point,
                                    full_env,
-                                   full_env_origin,
+                                   full_env_origin_point,
                                    res,
                                    local_h_rows: int,
                                    local_w_cols: int,
@@ -46,6 +51,57 @@ def get_local_env_and_origin_3d_tf(center_point,
                                    batch_y_indices,
                                    batch_z_indices,
                                    batch_size: int):
+    """
+    :param center_point: [batch, 3]
+    :param full_env: [batch, h, w, c]
+    :param full_env_origin_point: [batch, 3]
+    :param res: [batch]
+    :param local_h_rows: scalar
+    :param local_w_cols: scalar
+    :return:
+    """
+    local_env_origin_point = batch_extent_to_origin_point_tf_center_res_shape(center=center_point,
+                                                                              res=res,
+                                                                              h=local_h_rows,
+                                                                              w=local_w_cols,
+                                                                              c=local_c_channels)
+
+    local_env_origin_point = batch_align_to_grid_tf(local_env_origin_point, full_env_origin_point, res)
+
+    res_expanded = tf.expand_dims(res, axis=-1)
+    local_to_full_offset_xyz = round_to_res(local_env_origin_point - full_env_origin_point, res_expanded)
+    local_to_full_offset = swap_xy(local_to_full_offset_xyz)
+
+    # Transform into coordinate of the full_env
+    batch_y_indices_in_full_env_frame = batch_y_indices + local_to_full_offset[:, 0, tf.newaxis, tf.newaxis, tf.newaxis]
+    batch_x_indices_in_full_env_frame = batch_x_indices + local_to_full_offset[:, 1, tf.newaxis, tf.newaxis, tf.newaxis]
+    batch_z_indices_in_full_env_frame = batch_z_indices + local_to_full_offset[:, 2, tf.newaxis, tf.newaxis, tf.newaxis]
+
+    tile_sizes = [1, local_h_rows, local_w_cols, local_c_channels]
+    batch_int64 = tf.cast(batch_size, tf.int64)
+    batch_indices = tf.tile(tf.range(0, batch_int64, dtype=tf.int64)[:, tf.newaxis, tf.newaxis, tf.newaxis], tile_sizes)
+    gather_indices = tf.stack(
+        [batch_indices, batch_y_indices_in_full_env_frame, batch_x_indices_in_full_env_frame,
+         batch_z_indices_in_full_env_frame],
+        axis=4)
+    local_env = tf.gather_nd(full_env, gather_indices)
+
+    return local_env, local_env_origin_point
+
+
+# FIXME: use origin_point, not origin, origin is not as precise.
+@tf.function
+def get_local_env_and_origin_3d_tf_old(center_point,
+                                       full_env,
+                                       full_env_origin,
+                                       res,
+                                       local_h_rows: int,
+                                       local_w_cols: int,
+                                       local_c_channels: int,
+                                       batch_x_indices,
+                                       batch_y_indices,
+                                       batch_z_indices,
+                                       batch_size: int):
     """
     :param center_point: [batch, 3]
     :param full_env: [batch, h, w, c]

@@ -39,13 +39,13 @@ def main():
                                                          res=res,
                                                          service_provider=services,
                                                          excluded_models=['hdt_michigan', 'rope_3d'])
-            msg = grid_utils.environment_to_occupancy_msg(environment)
+            msg = grid_utils.environment_to_vg_msg(environment)
             bbox_marker = extent_to_bbox(extent_3d)
             bbox_marker.header.frame_id = 'robot_root'
             bbox_pub.publish(bbox_marker)
             print(msg.header.stamp)
 
-            grid_utils.send_occupancy_tf(broadcaster, environment)
+            grid_utils.send_voxelgrid_tf(broadcaster, environment)
             pub.publish(msg)
 
             sleep(0.1)

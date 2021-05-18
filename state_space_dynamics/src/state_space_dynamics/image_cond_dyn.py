@@ -6,7 +6,7 @@ from tensorflow import keras
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, batch_point_to_idx_tf_3d_in_batched_envs
-from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
+from moonshine.get_local_environment import get_local_env_and_origin_3d_tf_old as get_local_env
 from moonshine.matrix_operations import batch_outer_product
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors
 from moonshine.raster_3d import raster_3d

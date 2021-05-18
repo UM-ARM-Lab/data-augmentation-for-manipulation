@@ -21,7 +21,7 @@ from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
 from link_bot_pycommon.pycommon import make_dict_tf_float32, log_scale_0_to_1
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.ensemble import Ensemble2
-from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env
+from moonshine.get_local_environment import get_local_env_and_origin_3d_tf_old as get_local_env
 from moonshine.metrics import LossMetric
 from moonshine.moonshine_utils import add_batch
 from moonshine.my_keras_model import MyKerasModel
