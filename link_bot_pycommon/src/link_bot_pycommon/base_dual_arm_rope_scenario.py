@@ -549,7 +549,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                     'env':    input_dict['env'][b],
                     'res':    input_dict['res'][b],
                     'extent': input_dict['extent'][b],
-                    'origin': input_dict['origin'][b],
+                    'origin_point': input_dict['origin_point'][b],
                 }
 
                 self.plot_environment_rviz(env_b)
