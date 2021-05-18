@@ -10,11 +10,12 @@ import rosnode
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, _deserialize_scene_msg
 from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
+from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_in_batched_envs, batch_idx_to_point_3d_in_env_tf
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import rotate_points_3d, make_rotation_matrix_like
-from moonshine.moonshine_utils import numpify
+from moonshine.moonshine_utils import numpify, repeat_tensor
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
 from std_msgs.msg import Float32
 from trajectory_msgs.msg import JointTrajectoryPoint
@@ -43,7 +44,7 @@ def debug_viz_batch_indices(batch_size):
     if SHOW_ALL:
         return range(batch_size)
     else:
-        return [0]
+        return [1]
 
 
 def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, robot_state: RobotState):
@@ -385,19 +386,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         return target_reached_batched, pred_joint_positions_batched, joint_names_batched
 
     def sample_state_augmentation_variables(self,
-                                            input_dict: Dict,
                                             batch_size,
-                                            time,
                                             seed: tfp.util.SeedStream):
-
-        # sample a new delta x,y,z,theta
-        # TODO: finish implement rotation about z?
-        zeros = np.zeros_like([batch_size, time, 3])
+        zeros = tf.zeros([batch_size, 3], dtype=tf.float32)
         delta_distribution = tfp.distributions.TruncatedNormal(zeros, 0.2, -0.5, 0.5)  # these are hyper-parameters
         delta_position = delta_distribution.sample(seed=seed())
 
-        theta_low = [-np.pi] * batch_size
-        theta_high = [np.pi] * batch_size
+        theta_low = repeat_tensor(-np.pi, batch_size, 0, True)
+        theta_high = repeat_tensor(np.pi, batch_size, 0, True)
         theta_distribution = tfp.distributions.Uniform(theta_low, theta_high)
         theta = theta_distribution.sample(seed=seed())
 
@@ -407,27 +403,32 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                    input_dict: Dict,
                                    batch_size,
                                    time,
+                                   local_h_rows: int,
+                                   local_w_cols: int,
+                                   local_c_channels: int,
                                    seed: tfp.util.SeedStream):
-        assert time == 2
-
-        # apply those to the rope and grippers
-        rope_points = tf.reshape(input_dict[add_predicted('rope')], [batch_size, time, -1, 3])
-        left_gripper_point = input_dict[add_predicted('left_gripper')]
-        right_gripper_point = input_dict[add_predicted('right_gripper')]
-        left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
-        right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
-
-        # sample a new delta x,y,z,theta
-        # TODO: finish implement rotation about z?
-        zeros = np.zeros_like(left_gripper_point[:, 0])
-        delta_distribution = tfp.distributions.TruncatedNormal(zeros, 0.2, -0.5, 0.5)  # these are hyper-parameters
-        theta_low = [-np.pi] * left_gripper_point.shape[0]
-        theta_high = [np.pi] * left_gripper_point.shape[0]
-        theta_distribution = tfp.distributions.Uniform(theta_low, theta_high)
-        delta_position = delta_distribution.sample(seed=seed())
-        theta = theta_distribution.sample(seed=seed())
-
+        # sample a translation and rotation for the object state
+        delta_position, theta = self.sample_state_augmentation_variables(batch_size, seed)
         rotation_matrix = make_rotation_matrix_like(delta_position, theta)
+        return self.apply_state_augmentation(delta_position,
+                                             rotation_matrix,
+                                             input_dict,
+                                             batch_size,
+                                             time,
+                                             local_h_rows,
+                                             local_w_cols, local_c_channels)
+
+    def apply_state_augmentation(self,
+                                 delta_position,
+                                 rotation_matrix,
+                                 input_dict: Dict,
+                                 batch_size,
+                                 time,
+                                 local_h_rows: int,
+                                 local_w_cols: int,
+                                 local_c_channels: int,
+                                 ):
+        assert time == 2
 
         # rotates about the world origin, which isn't great because it's less likely to produce a feasible augmentation
         def _rot(points):
@@ -435,6 +436,13 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             rotation_matrix_tiled = tf.tile(rotation_matrix[:, tf.newaxis, tf.newaxis], [1, 2, n, 1, 1])
             points_rotated = rotate_points_3d(rotation_matrix_tiled, points)
             return points_rotated
+
+        # apply those to the rope and grippers
+        rope_points = tf.reshape(input_dict[add_predicted('rope')], [batch_size, time, -1, 3])
+        left_gripper_point = input_dict[add_predicted('left_gripper')]
+        right_gripper_point = input_dict[add_predicted('right_gripper')]
+        left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
+        right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
         rope_points_rotated = _rot(rope_points)
         left_gripper_points_rotated = _rot(left_gripper_points)
@@ -540,8 +548,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         update_if_valid(input_dict, aug_valid_expanded, add_predicted('right_gripper'), right_gripper_aug)
         update_if_valid(input_dict, aug_valid_expanded, 'left_gripper_position', left_gripper_position_aug)
         update_if_valid(input_dict, aug_valid_expanded, 'right_gripper_position', right_gripper_position_aug)
-        # update_if_valid(input_dict, aug_valid_expanded, 'env', env_aug) ????
-        # or we could return?
 
         if DEBUG_VIZ_STATE_AUG:
             stepper = RvizSimpleStepper()
@@ -557,6 +563,21 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 self.debug_viz_state_action(input_dict, b, 'aug', color='white')
 
                 stepper.step()
+
+        # return new local env?
+        state_keys = ['left_gripper', 'right_gripper', 'rope']
+        state_aug = {k: input_dict[add_predicted(k)] for k in state_keys}
+        local_env_center_aug = self.local_environment_center_differentiable(state_aug)
+        center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center_aug, input_dict)
+        local_env_center_aug = batch_idx_to_point_3d_in_env_tf(*center_indices, input_dict)
+        local_center = tf.stack([local_h_rows / 2, local_w_cols / 2, local_c_channels / 2], axis=0)
+        center_cols = local_env_center_aug[:, 0] / input_dict['res'] + input_dict['origin'][:, 1]
+        center_rows = local_env_center_aug[:, 1] / input_dict['res'] + input_dict['origin'][:, 0]
+        center_channels = local_env_center_aug[:, 2] / input_dict['res'] + input_dict['origin'][:, 2]
+        center_point_coordinates = tf.stack([center_rows, center_cols, center_channels], axis=1)
+        local_env_origin_aug = input_dict['origin'] - center_point_coordinates + local_center
+
+        return local_env_origin_aug
 
     def debug_viz_state_action(self, input_dict, b, label: str, color='red'):
         state_keys = ['left_gripper', 'right_gripper', 'rope']

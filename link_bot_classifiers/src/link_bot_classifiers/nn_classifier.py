@@ -16,12 +16,14 @@ from link_bot_data.dataset_utils import add_predicted, add_new
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
-    batch_point_to_idx_tf_3d_in_batched_envs, send_occupancy_tf, environment_to_occupancy_msg, _send_occupancy_tf
+    batch_point_to_idx_tf_3d_in_batched_envs, send_occupancy_tf, environment_to_occupancy_msg, \
+    batch_idx_to_point_3d_in_env_tf_res_origin
 from link_bot_pycommon.grid_utils import compute_extent_3d
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
+from moonshine.geometry import make_rotation_matrix_like, rotate_points_3d
 from moonshine.get_local_environment import create_env_indices
 from moonshine.get_local_environment import get_local_env_and_origin_3d_tf as get_local_env_and_origin
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
@@ -29,16 +31,14 @@ from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegativ
     FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
 from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors, numpify
 from moonshine.my_keras_model import MyKerasModel
-from moonshine.raster_3d import raster_3d
+from moonshine.raster_3d import raster_3d, points_to_voxel_grid
 from rviz_voxelgrid_visuals import conversions
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
-from std_msgs.msg import ColorRGBA, Float32
+from std_msgs.msg import Float32
 from visualization_msgs.msg import MarkerArray, Marker
 
 DEBUG_INPUT = True
 DEBUG_AUG = True
-DEBUG_FITTED_ENV_AUG = True
-DEBUG_ADDITIVE_AUG = False
 SHOW_ALL = False
 
 
@@ -70,14 +70,6 @@ class NNClassifier(MyKerasModel):
         self.rope_image_k = self.hparams['rope_image_k']
 
         self.aug_hparams = self.hparams.get('augmentation', {})
-        self.env_augmentation_type = self.aug_hparams.get('type', None)
-        if self.env_augmentation_type in ['env_augmentation_1', 'additive_env_resample_augmentation']:
-            self.augmentation_3d = NNClassifier.additive_env_resample_augmentation
-        elif self.env_augmentation_type in ['env_augmentation_2', 'fitted_env_augmentation', 'optimization']:
-            self.augmentation_3d = NNClassifier.fitted_env_augmentation
-        else:
-            # NOTE: this gets hacked in fine_tune_classifier.py when you pass in "augmentation_3d=my_aug_func"
-            self.augmentation_3d = None
 
         if self.aug_hparams.get('swept', True):
             self.is_env_augmentation_valid = NNClassifier.is_env_augmentation_valid_swept
@@ -123,7 +115,7 @@ class NNClassifier(MyKerasModel):
                                                       ])
 
         self.aug_gen = tf.random.Generator.from_seed(0)
-        self.aug_seed_stream = tfp.util.SeedStream(0, salt="nn_classifier_aug")
+        self.aug_seed_stream = tfp.util.SeedStream(1, salt="nn_classifier_aug")
         self.aug_opt = tf.keras.optimizers.Adam(1e-4)
 
     def make_voxel_grid_inputs(self, input_dict: Dict, indices, local_env, local_env_origin, batch_size, time):
@@ -138,6 +130,7 @@ class NNClassifier(MyKerasModel):
             # insert the rastered states
             channel_idx = 0
             for channel_idx, (k, state_component_t) in enumerate(state_t.items()):
+                # FIXME: these looks off in my visualization?
                 state_component_voxel_grid = raster_3d(state=state_component_t,
                                                        pixel_indices=indices.pixels,
                                                        res=input_dict['res'],
@@ -262,21 +255,21 @@ class NNClassifier(MyKerasModel):
                                                                batch_size=batch_size)
         return local_env, local_env_origin
 
-    def sdf_opt_env_augmentation(self, example: Dict, indices, local_voxel_grids_array: tf.TensorArray, time):
-        local_env_new, local_env_new_origin = self.get_new_local_env(indices, example)
+    def sdf_opt_env_augmentation(self, example: Dict, indices, voxel_grids, add_aug, remove_aug):
+        local_env_new, local_env_new_origin = self.get_new_local_env(indices, input_dict)
 
-        if DEBUG_FITTED_ENV_AUG:
+        if DEBUG_AUG:
             stepper = RvizSimpleStepper()
             for b in self.debug_viz_batch_indices():
                 local_env_new_extent_b = compute_extent_3d(self.local_env_h_rows,
                                                            self.local_env_w_cols,
                                                            self.local_env_c_channels,
-                                                           example['res'][b],
+                                                           input_dict['res'][b],
                                                            local_env_new_origin[b])
                 local_env_new_dict = {
                     'env':    local_env_new[b].numpy(),
                     'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
+                    'res':    input_dict['res'][b].numpy(),
                     'extent': local_env_new_extent_b,
                 }
                 msg = environment_to_occupancy_msg(local_env_new_dict, frame='local_env_new', stamp=rospy.Time(0))
@@ -286,206 +279,27 @@ class NNClassifier(MyKerasModel):
 
                 # stepper.step()
 
-                # Show the new local environment we've sampled, moved into the frame of the original lacol env,
+                # Show the new local environment we've sampled, moved into the frame of the original local env,
                 # the one we're augmenting
                 msg2 = environment_to_occupancy_msg(local_env_new_dict, frame='local_env', stamp=rospy.Time(0))
                 self.env_aug_pub2.publish(msg2)
 
                 # stepper.step()
 
-        # equivalent version of "logical or" over all state channels
-        states_any_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        for t in range(time):
-            local_voxel_grid_t = local_voxel_grids_array.read(t)
-            states_any_t = tf.minimum(tf.reduce_sum(local_voxel_grid_t[:, :, :, :, 1:], axis=-1), 1)
-            states_any_array = states_any_array.write(t, states_any_t)
-        states_any = tf.transpose(states_any_array.stack(), [1, 0, 2, 3, 4])
-        states_any = tf.minimum(tf.reduce_sum(states_any, axis=1), 1)
+        step_size = 1.0
+        n_steps = 10
+        p_e_nw = None
+        for i in range(n_steps):
+            add_sdf = compute_sdf(add_aug)
+            remove_sdf = compute_sdf(remove_aug)
+            add_gradient = compute_sdf_gradient(add_sdf)
+            remove_gradient = compute_sdf_gradient(remove_sdf)
+            sdf_gradient = add_gradient + remove_gradient  # [batch_size, num occupied voxels?]
+            gradient = tf.reduce_mean(sdf_gradient, axis=-1)
+            p_e_new = p_e_new + step_size * gradient
+            e_new = apply_gradient_to_voxel_grid(e_new, p_e_new, gradient)
 
-        # voxel from the original local env that can be removed
-        # we just read 0 because it's the same at all time steps
-        local_env = local_voxel_grids_array.read(0)[:, :, :, :, 0]
-        remove = local_env * (1 - local_env_new) * (1 - states_any)
-        non_removable = states_any * local_env
-
-        local_env_aug_removed = local_env_new + tf.maximum(local_env - remove, 0)
-
-        # visualize which voxels will be removed
-        if DEBUG_FITTED_ENV_AUG:
-            stepper = RvizSimpleStepper()
-            for b in self.debug_viz_batch_indices():
-                object_state_dict = {
-                    'env':    states_any[b].numpy(),
-                    'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
-                }
-                msg = environment_to_occupancy_msg(object_state_dict, frame='local_env', stamp=rospy.Time(0))
-                self.object_state_pub.publish(msg)
-                # stepper.step()
-
-                non_removable_dict = {
-                    'env':    non_removable[b].numpy(),
-                    'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
-                }
-                msg = environment_to_occupancy_msg(non_removable_dict, frame='local_env', stamp=rospy.Time(0))
-                self.env_aug_pub3.publish(msg)
-                stepper.step()
-
-        n_state_components = len(self.state_keys)
-        is_valid = self.is_env_augmentation_valid(self,
-                                                  time,
-                                                  local_env_new,
-                                                  local_voxel_grids_array,
-                                                  n_state_components)
-
-        # if the augmentation is invalid, use the original local env
-        is_valid = is_valid[:, tf.newaxis, tf.newaxis, tf.newaxis]
-        local_env_aug_masked = local_env_aug_removed * is_valid + local_env * (1 - is_valid)
-
-        return self.merge_aug_and_local_voxel_grids(local_env_aug_masked,
-                                                    local_voxel_grids_array,
-                                                    n_state_components,
-                                                    time)
-
-    def fitted_env_augmentation(self,
-                                time,
-                                example: Dict,
-                                local_voxel_grids_array: tf.TensorArray,
-                                indices,
-                                ):
-        local_env_new, local_env_new_origin = self.get_new_local_env(indices, example)
-
-        if DEBUG_FITTED_ENV_AUG:
-            stepper = RvizSimpleStepper()
-            for b in self.debug_viz_batch_indices():
-                local_env_new_extent_b = compute_extent_3d(self.local_env_h_rows,
-                                                           self.local_env_w_cols,
-                                                           self.local_env_c_channels,
-                                                           example['res'][b],
-                                                           local_env_new_origin[b])
-                local_env_new_dict = {
-                    'env':    local_env_new[b].numpy(),
-                    'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
-                    'extent': local_env_new_extent_b,
-                }
-                msg = environment_to_occupancy_msg(local_env_new_dict, frame='local_env_new', stamp=rospy.Time(0))
-                # Show the new local environment we've sampled, in the place we sampled it
-                self.env_aug_pub1.publish(msg)
-                send_occupancy_tf(self.broadcaster, local_env_new_dict, frame='local_env_new')
-
-                # stepper.step()
-
-                # Show the new local environment we've sampled, moved into the frame of the original lacol env,
-                # the one we're augmenting
-                msg2 = environment_to_occupancy_msg(local_env_new_dict, frame='local_env', stamp=rospy.Time(0))
-                self.env_aug_pub2.publish(msg2)
-
-                # stepper.step()
-
-        # equivalent version of "logical or" over all state channels
-        states_any_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        for t in range(time):
-            local_voxel_grid_t = local_voxel_grids_array.read(t)
-            states_any_t = tf.minimum(tf.reduce_sum(local_voxel_grid_t[:, :, :, :, 1:], axis=-1), 1)
-            states_any_array = states_any_array.write(t, states_any_t)
-        states_any = tf.transpose(states_any_array.stack(), [1, 0, 2, 3, 4])
-        states_any = tf.minimum(tf.reduce_sum(states_any, axis=1), 1)
-
-        # voxel from the original local env that can be removed
-        # we just read 0 because it's the same at all time steps
-        local_env = local_voxel_grids_array.read(0)[:, :, :, :, 0]
-        remove = local_env * (1 - local_env_new) * (1 - states_any)
-        non_removable = states_any * local_env
-
-        local_env_aug_removed = local_env_new + tf.maximum(local_env - remove, 0)
-
-        # visualize which voxels will be removed
-        if DEBUG_FITTED_ENV_AUG:
-            stepper = RvizSimpleStepper()
-            for b in self.debug_viz_batch_indices():
-                object_state_dict = {
-                    'env':    states_any[b].numpy(),
-                    'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
-                }
-                msg = environment_to_occupancy_msg(object_state_dict, frame='local_env', stamp=rospy.Time(0))
-                self.object_state_pub.publish(msg)
-                # stepper.step()
-
-                non_removable_dict = {
-                    'env':    non_removable[b].numpy(),
-                    'origin': local_env_new_origin[b].numpy(),
-                    'res':    example['res'][b].numpy(),
-                }
-                msg = environment_to_occupancy_msg(non_removable_dict, frame='local_env', stamp=rospy.Time(0))
-                self.env_aug_pub3.publish(msg)
-                stepper.step()
-
-        n_state_components = len(self.state_keys)
-        is_valid = self.is_env_augmentation_valid(self,
-                                                  time,
-                                                  local_env_new,
-                                                  local_voxel_grids_array,
-                                                  n_state_components)
-
-        # if the augmentation is invalid, use the original local env
-        is_valid = is_valid[:, tf.newaxis, tf.newaxis, tf.newaxis]
-        local_env_aug_masked = local_env_aug_removed * is_valid + local_env * (1 - is_valid)
-
-        return self.merge_aug_and_local_voxel_grids(local_env_aug_masked,
-                                                    local_voxel_grids_array,
-                                                    n_state_components,
-                                                    time)
-
-    def additive_env_resample_augmentation(self,
-                                           time,
-                                           example: Dict,
-                                           local_voxel_grids_array: tf.TensorArray,
-                                           indices,
-                                           ):
-        local_env_new, local_env_new_origin = self.get_new_local_env(indices, example)
-
-        n_state_components = len(self.state_keys)
-        aug_is_valid = self.is_env_augmentation_valid(self,
-                                                      time,
-                                                      local_env_new,
-                                                      local_voxel_grids_array,
-                                                      n_state_components)
-
-        if DEBUG_ADDITIVE_AUG:
-            self.viz_new_env_and_validity(aug_is_valid, example, local_env_new, local_env_new_origin)
-
-        # masks out the invalid augmentations
-        local_env = local_voxel_grids_array.read(0)[:, :, :, :, 0]
-        local_env_aug_masked = local_env + aug_is_valid[:, tf.newaxis, tf.newaxis, tf.newaxis] * local_env_new
-
-        return self.merge_aug_and_local_voxel_grids(local_env_aug_masked,
-                                                    local_voxel_grids_array,
-                                                    n_state_components,
-                                                    time)
-
-    def viz_new_env_and_validity(self, is_valid, example, local_env_new, local_env_new_origin):
-        stepper = RvizSimpleStepper()
-
-        for b in self.debug_viz_batch_indices():
-            is_valid_b = tf.cast(is_valid[b], tf.bool)
-            local_env_aug_extent_b = compute_extent_3d(self.local_env_h_rows,
-                                                       self.local_env_w_cols,
-                                                       self.local_env_c_channels,
-                                                       example['res'][b],
-                                                       local_env_new_origin[b])
-            env_aug_dict = {
-                'env':    local_env_new[b].numpy(),
-                'origin': local_env_new_origin[b].numpy(),
-                'extent': local_env_aug_extent_b,
-                'res':    example['res'][b].numpy(),
-            }
-            color = ColorRGBA(r=0, g=1, b=0) if is_valid_b else ColorRGBA(r=1, g=0, b=0)
-            raster_msg = environment_to_occupancy_msg(env_aug_dict, frame='local_env', stamp=rospy.Time(0), color=color)
-            self.env_aug_pub1.publish(raster_msg)
-            stepper.step()
+        return voxel_grids
 
     def merge_aug_and_local_voxel_grids(self,
                                         local_env_aug_masked,
@@ -670,49 +484,109 @@ class NNClassifier(MyKerasModel):
         #     print("unsupported augmentation type")
         #     return voxel_grids
 
-        # show where local env is before we augment
+        # sample a translation and rotation for the object state
+        delta_position, theta = self.scenario.sample_state_augmentation_variables(batch_size, self.aug_seed_stream)
+        rotation_matrix = make_rotation_matrix_like(delta_position, theta)
+
+        local_env_origin = self.scenario.apply_state_augmentation(delta_position,
+                                                                  rotation_matrix,
+                                                                  input_dict,
+                                                                  batch_size,
+                                                                  time,
+                                                                  self.local_env_h_rows,
+                                                                  self.local_env_w_cols,
+                                                                  self.local_env_c_channels)
+
+        if DEBUG_AUG:
+            self.debug_viz_local_env_pre_aug(input_dict, voxel_grids, local_env_origin, time)
+
+        # equivalent version of "logical or" over all state channels
+        states_any_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        for t in range(time):
+            local_voxel_grid_t = voxel_grids.read(t)
+            states_any_t = tf.minimum(tf.reduce_sum(local_voxel_grid_t[:, :, :, :, 1:], axis=-1), 1)
+            states_any_array = states_any_array.write(t, states_any_t)
+        states_any = tf.transpose(states_any_array.stack(), [1, 0, 2, 3, 4])
+        states_any = tf.minimum(tf.reduce_sum(states_any, axis=1), 1)
+
+        local_env = voxel_grids.read(0)[:, :, :, :, 0]  # just use 0 because it's the same at all time steps
+        # the voxels where states_any == 1 and local_env == 1. In the future this will need to be swept volume,
+        # and will also need to include the voxelized robot
+        add = states_any * local_env
+
+        # voxels where state_any == 1, and local_env == 0 must _not_ be occupied by the new env
+        remove = states_any * (1 - local_env)
+
+        # apply the transformation, giving two voxel grids that describe which voxels must be on/off for the new
+        # augmented transition
+        add_aug = self.transform_voxel_grid(add, input_dict, delta_position, local_env_origin, rotation_matrix,
+                                            batch_size)
+        remove_aug = self.transform_voxel_grid(remove, input_dict, delta_position, local_env_origin,
+                                               rotation_matrix, batch_size)
+
+        e_aug = self.sdf_opt_env_augmentation(input_dict, indices, voxel_grids, add_aug, remove_aug)
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
             for b in self.debug_viz_batch_indices():
-                res_b = input_dict['res'][b]
                 local_env_extent_b = compute_extent_3d(self.local_env_h_rows,
                                                        self.local_env_w_cols,
                                                        self.local_env_c_channels,
-                                                       res_b,
-                                                       p_e_old[b])
-                _send_occupancy_tf(self.broadcaster, local_env_extent_b, res_b, 'local_env_pre_aug')
-                # stepper.step()
+                                                       input_dict['res'][b],
+                                                       local_env_origin[b])
+                _aug_dict = {
+                    'extent': local_env_extent_b,
+                    'env':    voxel_grids.read(0)[b, :, :, :, 0].numpy(),
+                    'origin': local_env_origin[b].numpy(),
+                    'res':    input_dict['res'][b].numpy(),
+                }
+                msg = environment_to_occupancy_msg(_aug_dict, frame='local_env', stamp=rospy.Time(0))
 
-        self.scenario.uniform_state_augmentation(input_dict, batch_size, time, self.aug_seed_stream)
+                self.env_aug_pub5.publish(msg)
+                send_occupancy_tf(self.broadcaster, _aug_dict, frame='local_env')
 
-        voxel_grids_aug = self.sdf_opt_env_augmentation(input_dict, indices, voxel_grids, time)
+                # self.debug_viz_state_action(input_dict, b, 'input')
 
-        # for i in range(10):
-        #     with tf.GradientTape(persistent=True) as tape:
-        #         # TODO: add comments explaining the variables names, make sure they match the paper
-        #         s_old = {k: input_dict[add_predicted(k)] for k in self.state_keys}
-        #         s_ko = raster() * ???
-        #         s_ko_aug = transform(s_ko, trans_s, rot_s)
-        #         s_aug = transform(s_old, trans_s, rot_s)
-        #         e_ko_aug = raster(s_ko_aug)
-        #         e_s_aug = raster(s_aug)
-        #         e_new = get_local_env(input_dict, indices, p_e_new)
-        #         e_aug = tf.minimum(e_new + e_ko_aug, 1.0) - (e_s_aug - e_ko_aug)
-        #
-        #         if sdf_opt:
-        #             loss = self.sdf_loss
-        #
-        #         voxel_grids_aug = tf.stack([e_aug, e_s_aug], axis=-1)
-        #
-        #         # Compute Loss
-        #         # aug_loss = voxel_grid_distance(e_aug, e_new)
-        #         # loss = aug_loss
-        #
-        #         # Update variables
-        #         gradients = tape.gradient(loss, variables)
-        #         self.aug_opt.apply_gradients(zip(gradients, variables))
+                stepper.step()
 
-        return voxel_grids
+        voxel_grids_aug = self.merge_aug_and_local_voxel_grids(e_aug,
+                                                               voxel_grids,
+                                                               n_state_components,
+                                                               time)
+        return voxel_grids_aug
+
+    def transform_voxel_grid(self, voxel_grid, input_dict, delta_position, local_env_origin, rotation_matrix,
+                             batch_size):
+        indices = np.where(voxel_grid > 0.5)
+        indices = tf.stack(indices, axis=-1)
+        batch_indices = indices[:, 0]
+        row_indices = indices[:, 1]
+        col_indices = indices[:, 2]
+        channel_indices = indices[:, 3]
+        points_res = tf.gather(input_dict['res'], batch_indices)
+        points_origin = tf.gather(local_env_origin, batch_indices)
+        points = batch_idx_to_point_3d_in_env_tf_res_origin(row_indices,
+                                                            col_indices,
+                                                            channel_indices,
+                                                            points_res,
+                                                            points_origin)
+
+        # then apply translation/rotation to those points
+        rotation_matrices = tf.gather(rotation_matrix, batch_indices)
+        delta_position = tf.gather(delta_position, batch_indices)
+        points_rotated = rotate_points_3d(rotation_matrices, points)
+        points_aug = points_rotated + delta_position
+
+        # then convert back to a voxel grid
+        voxel_grid = points_to_voxel_grid(batch_indices,
+                                          points_aug,
+                                          points_res,
+                                          points_origin,
+                                          self.local_env_h_rows,
+                                          self.local_env_w_cols,
+                                          self.local_env_c_channels,
+                                          batch_size)
+
+        return voxel_grid
 
     def sample_p_e_new(self, input_dict):
         if add_new('env') not in input_dict:
@@ -875,7 +749,7 @@ class NNClassifier(MyKerasModel):
         if SHOW_ALL:
             return range(self.batch_size)
         else:
-            return [0]
+            return [1]
 
 
 class NNClassifierWrapper(BaseConstraintChecker):

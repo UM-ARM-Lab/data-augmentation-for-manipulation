@@ -162,21 +162,21 @@ class ResultsToRecoveryDataset:
         self.files.split()
 
     def result_datum_to_recovery_dataset(self, datum: Dict, trial_idx: int):
-        for t, transition in enumerate(get_recovery_transitions(datum)):
-            environment, action, before_state, after_state, _ = transition
-            if self.visualize:
-                self.visualize_example(action=action,
-                                       after_state=after_state,
-                                       before_state=before_state,
-                                       environment=environment)
+            for t, transition in enumerate(get_recovery_transitions(datum)):
+                environment, action, before_state, after_state, _ = transition
+                if self.visualize:
+                    self.visualize_example(action=action,
+                                           after_state=after_state,
+                                           before_state=before_state,
+                                           environment=environment)
 
-            yield self.generate_example(
-                environment=environment,
-                action=action,
-                before_state=before_state,
-                after_state=after_state,
-                start_t=t,
-            )
+                yield self.generate_example(
+                    environment=environment,
+                    action=action,
+                    before_state=before_state,
+                    after_state=after_state,
+                    start_t=t,
+                )
 
     def generate_example(self,
                          environment: Dict,

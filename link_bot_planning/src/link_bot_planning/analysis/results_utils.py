@@ -129,19 +129,24 @@ def get_paths(datum: Dict, verbose: int = 0, full_path: bool = True):
 def get_recovery_transitions(datum: Dict):
     paths = get_paths(datum, full_path=False)
     next_paths = get_paths(datum, full_path=False)
-    next(next_paths)
-    for before, after in zip(paths, next_paths):
-        e, action, before_state, _, before_type = before
-        _, _, after_state, _, _ = after
-        if before_type == 'executed_recovery':
-            yield e, action, before_state, after_state, before_type
+    try:
+        next(next_paths)
+
+        for before, after in zip(paths, next_paths):
+            e, action, before_state, _, before_type = before
+            _, _, after_state, _, _ = after
+            if before_type == 'executed_recovery':
+                yield e, action, before_state, after_state, before_type
+
+    except StopIteration:
+        raise NoTransitionsError()
 
 
 def get_transitions(datum: Dict):
     steps = datum['steps']
 
     if len(steps) == 0:
-        raise NoTransitionsError(steps)
+        raise NoTransitionsError()
 
     for step_idx, step in enumerate(steps):
         if step['type'] == 'executed_plan':
