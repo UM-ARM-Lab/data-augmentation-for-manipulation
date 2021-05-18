@@ -3,14 +3,35 @@ import tensorflow as tf
 import rospy
 from arc_utilities.ros_helpers import get_connected_publisher
 from moonshine.raster_3d import points_to_voxel_grid
+from moonshine.simple_profiler import SimpleProfiler
 from rviz_voxelgrid_visuals.conversions import vox_to_voxelgrid_stamped
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
 
 def main():
     rospy.init_node("points_to_voxel_grid_demo")
-    pub = get_connected_publisher('occupancy', VoxelgridStamped, queue_size=10)
+    perf()
 
+
+def perf():
+    # perf testing
+    p = SimpleProfiler()
+
+    rng = tf.random.Generator.from_seed(0)
+    batch_size = 32
+    s = 64
+    n_points = 10000
+    batch_indices = rng.uniform([n_points], 0, batch_size, dtype=tf.int64)
+    points = rng.uniform([n_points, 3], dtype=tf.float32)
+    res = tf.ones([n_points], dtype=tf.float32) * 0.01
+    origin = tf.zeros([n_points, 3], dtype=tf.float32)
+
+    p.profile(100, points_to_voxel_grid, batch_indices, points, res, origin, h=s, w=s, c=s, batch_size=batch_size)
+
+    print(p)
+
+
+def viz():
     batch_indices = tf.constant([
         0,
         0,
@@ -56,6 +77,7 @@ def main():
     batch_size = 2
     vg = points_to_voxel_grid(batch_indices, points, res, origin, h=4, w=4, c=4, batch_size=batch_size)
 
+    pub = get_connected_publisher('occupancy', VoxelgridStamped, queue_size=10)
     for b in range(batch_size):
         pub.publish(vox_to_voxelgrid_stamped(vg[b].numpy(),
                                              scale=0.1,  # Each voxel is a 1cm cube
