@@ -29,7 +29,7 @@ def perf():
     res = tf.ones([n_points], dtype=tf.float32) * 0.01
     origin = tf.zeros([n_points, 3], dtype=tf.float32)
 
-    p.profile(100, points_to_voxel_grid, batch_indices, points, res, origin, h=s, w=s, c=s, batch_size=batch_size)
+    p.profile(1000, points_to_voxel_grid, batch_indices, points, res, origin, h=s, w=s, c=s, batch_size=batch_size)
 
     print(p)
 

@@ -39,7 +39,7 @@ def raster_3d(state, pixel_indices, res, origin, h, w, c, k, batch_size: int):
     return local_voxel_grid
 
 
-# @tf.function
+# this function is slower with tf.function, don't use it
 def points_to_voxel_grid(batch_indices, points, res, origin, h, w, c, batch_size: int):
     """
     Args:
