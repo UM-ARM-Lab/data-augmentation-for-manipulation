@@ -11,6 +11,16 @@ from rviz_voxelgrid_visuals import conversions
 from sensor_msgs.msg import PointCloud2
 
 
+def occupied_voxels_to_points(vg, res, origin_point):
+    indices = tf.where(vg)
+    batch_indices = indices[:, 0]
+    indices = indices[:, 1:]
+    res_gathered = tf.gather(res, batch_indices, axis=0)
+    origin_point_gathered = tf.gather(origin_point, batch_indices, axis=0)
+    occupied_points = batch_idx_to_point_3d_tf_res_origin_point(indices, res_gathered, origin_point_gathered)
+    return batch_indices, occupied_points
+
+
 def round_to_res(x, res):
     # helps with stupid numerics issues
     return tf.cast(tf.round(x / res), tf.int64)
@@ -309,7 +319,7 @@ def batch_point_to_idx_tf(x,
     return row, col
 
 
-def batch_point_to_idx_tf_3d_res_origin_point(points, res, origin_point):
+def batch_point_to_idx(points, res, origin_point):
     """
 
     Args:
@@ -334,7 +344,7 @@ def batch_point_to_idx_tf_3d_res_origin(points, res, origin):
 
 
 def batch_point_to_idx_tf_3d_in_batched_envs(points, env: Dict):
-    return batch_point_to_idx_tf_3d_res_origin_point(points, env['res'], env['origin_point'])
+    return batch_point_to_idx(points, env['res'], env['origin_point'])
 
 
 def batch_point_to_idx_tf_3d(x,

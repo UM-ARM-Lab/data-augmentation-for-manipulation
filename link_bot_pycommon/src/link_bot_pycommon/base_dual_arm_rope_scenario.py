@@ -570,7 +570,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                                                         local_w_cols,
                                                                         local_c_channels)
 
-        return local_origin_point_aug
+        return aug_valid, local_origin_point_aug
 
     def debug_viz_state_action(self, input_dict, b, label: str, color='red'):
         state_keys = ['left_gripper', 'right_gripper', 'rope']

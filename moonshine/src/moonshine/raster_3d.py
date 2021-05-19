@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_res_origin, batch_point_to_idx_tf_3d_res_origin_point
+from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_res_origin, batch_point_to_idx
 
 
 @tf.function
@@ -87,7 +87,7 @@ def points_to_voxel_grid_res_origin_point(batch_indices, points, res, origin_poi
     Returns: 1-channel binary voxel grid
     """
     n = points.shape[0]
-    indices = batch_point_to_idx_tf_3d_res_origin_point(points, res, origin_point)  # [n, 4]
+    indices = batch_point_to_idx(points, res, origin_point)  # [n, 4]
     rows, cols, channels = tf.unstack(indices, axis=-1)
     indices = tf.stack([batch_indices, rows, cols, channels], axis=-1)
     ones = tf.ones([n])

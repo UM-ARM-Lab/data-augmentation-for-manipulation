@@ -23,3 +23,14 @@ def rotate_points_3d(rotation_matrix, points):
     """
     rotated_points = tf.matmul(rotation_matrix, tf.expand_dims(points, axis=-1))
     return tf.squeeze(rotated_points, axis=-1)
+
+
+def gather_transform(batch_indices, points, rotation, translation):
+    rotation_gather = tf.gather(rotation, batch_indices)
+    translation_gather = tf.gather(translation, batch_indices)
+    return rotate_points_3d(rotation_gather, points) + translation_gather
+
+
+def gather_translate(batch_indices, points, translation):
+    translation_gather = tf.gather(translation, batch_indices)
+    return points + translation_gather
