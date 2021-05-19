@@ -18,7 +18,7 @@ from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import compute_extent_3d, batch_idx_to_point_3d_tf_res_origin_point, \
-    occupied_voxels_to_points, batch_point_to_idx
+    batch_point_to_idx
 from link_bot_pycommon.grid_utils import send_voxelgrid_tf, batch_extent_to_origin_point_tf, environment_to_vg_msg, \
     vox_to_voxelgrid_stamped, send_voxelgrid_tf_origin_point_res_tf
 from link_bot_pycommon.pycommon import make_dict_tf_float32
@@ -29,8 +29,7 @@ from moonshine.geometry import make_rotation_matrix_like, rotate_points_3d, gath
 from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_3d
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
-from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors, numpify, \
-    repeat_tensor
+from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors, numpify
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import points_to_voxel_grid, points_to_voxel_grid_res_origin_point
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
@@ -118,6 +117,217 @@ class NNClassifier(MyKerasModel):
         self.aug_seed_stream = tfp.util.SeedStream(1, salt="nn_classifier_aug")
         self.aug_opt = tf.keras.optimizers.Adam(1e-4)
 
+    def call(self, input_dict: Dict, training, **kwargs):
+        batch_size = input_dict['batch_size']
+        time = tf.cast(input_dict['time'], tf.int32)
+
+        input_dict['origin_point'] = batch_extent_to_origin_point_tf(input_dict['extent'], input_dict['res'])
+
+        if DEBUG_INPUT:
+            # clear the other voxel grids from previous calls
+            vg_empty = np.zeros((64, 64, 64))
+            empty_msg = vox_to_voxelgrid_stamped(vg_empty, scale=0.01, frame='world')
+            for p in self.raster_debug_pubs:
+                p.publish(empty_msg)
+            self.env_aug_pub1.publish(empty_msg)
+            self.env_aug_pub2.publish(empty_msg)
+            self.env_aug_pub3.publish(empty_msg)
+            self.env_aug_pub4.publish(empty_msg)
+            self.env_aug_pub5.publish(empty_msg)
+
+            stepper = RvizSimpleStepper()
+            for b in debug_viz_batch_indices(batch_size):
+                env_b = {
+                    'env':          input_dict['env'][b],
+                    'res':          input_dict['res'][b],
+                    'origin_point': input_dict['origin_point'][b],
+                    'extent':       input_dict['extent'][b],
+                }
+                self.scenario.plot_environment_rviz(env_b)
+                self.delete_state_action_markers('aug')
+                self.debug_viz_state_action(input_dict, b, 'input')
+                origin_point_b = input_dict['origin_point'][b].numpy().tolist()
+                self.scenario.tf.send_transform(origin_point_b, [0, 0, 0, 1], 'world', 'env_origin_point',
+                                                is_static=True)
+                # stepper.step()
+
+        # Create voxel grids
+        indices = self.create_env_indices(batch_size)
+        local_env, local_origin_point = self.get_local_env(batch_size, indices, input_dict)
+
+        voxel_grids = self.make_voxel_grid_inputs(input_dict, local_env, local_origin_point, batch_size, time)
+
+        if DEBUG_AUG:
+            self.debug_viz_local_env_pre_aug(input_dict, voxel_grids, local_origin_point, time)
+
+        if training:
+            # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
+            # so modifying it internally won't change the value for the caller
+            voxel_grids = self.augmentation_optimization(input_dict,
+                                                         indices,
+                                                         local_origin_point,
+                                                         voxel_grids,
+                                                         batch_size,
+                                                         time)
+
+        # encoder
+        conv_output = self.conv_encoder(voxel_grids, batch_size=batch_size, time=time)
+        out_h = self.fc(input_dict, conv_output, training)
+
+        if self.hparams.get('uncertainty_head', False):
+            out_uncertainty = self.uncertainty_head(out_h)
+
+        # for every timestep's output, map down to a single scalar, the logit for accept probability
+        all_accept_logits = self.output_layer(out_h)
+        # ignore the first output, it is meaningless to predict the validity of a single state
+        valid_accept_logits = all_accept_logits[:, 1:]
+        valid_accept_probabilities = self.sigmoid(valid_accept_logits)
+
+        outputs = {
+            'logits':        valid_accept_logits,
+            'probabilities': valid_accept_probabilities,
+            'out_h':         out_h,
+        }
+        if self.hparams.get('uncertainty_head', False):
+            outputs['uncertainty'] = out_uncertainty
+
+        return outputs
+
+    def compute_loss(self, dataset_element, outputs):
+        # the labels are based on whether the predicted & observed rope states are close after the action, so t>=1
+        is_close_after_start = dataset_element['is_close'][:, 1:]
+        labels = tf.expand_dims(is_close_after_start, axis=2)
+        logits = outputs['logits']
+        bce = tf.keras.losses.binary_crossentropy(y_true=labels, y_pred=logits, from_logits=True)
+        alpha = self.hparams.get('negative_label_weight', 0.5)
+        if alpha != 0.5:
+            print(Fore.YELLOW + f"Custom negative label weight = {alpha}")
+
+        # alpha = 1 means ignore positive examples
+        # alpha = 0 means ignore negative examples
+        label_weight = tf.abs(is_close_after_start - alpha)
+        label_weighted_bce = bce * label_weight
+
+        # mask out / ignore examples where is_close [0] is 0
+        if self.hparams.get('ignore_starts_far', False):
+            print(Fore.YELLOW + "Ignoring starts-far")
+            is_close_at_start = dataset_element['is_close'][:, 0]
+            label_weighted_bce = label_weighted_bce * is_close_at_start
+
+        # weight examples by the perception reliability, loss reliable means less important to predict, so lower loss
+        if 'perception_reliability' in dataset_element and self.hparams.get('use_perception_reliability_loss', False):
+            perception_reliability_weight = dataset_element['perception_reliability']
+        else:
+            perception_reliability_weight = tf.ones_like(label_weighted_bce)
+
+        perception_reliability_weighted_bce = label_weighted_bce * perception_reliability_weight
+
+        # mini-batches may not be balanced, weight the losses for positive and negative examples to balance
+        total_bce = class_weighted_mean_loss(perception_reliability_weighted_bce, is_close_after_start)
+
+        if self.hparams.get('uncertainty_head', False):
+            # NOTE: loosely based on Tagasovska & Lopez-Paz, NeurIPS 2019
+            uncertainty_loss = self.orthogonal_certificates_uncertainty_loss(outputs)
+            total_loss = total_bce + uncertainty_loss
+        else:
+            total_loss = total_bce
+
+        return {
+            'loss': total_loss
+        }
+
+    def orthogonal_certificates_uncertainty_loss(self, outputs):
+        w = self.uncertainty_head.weights[0]
+        # loss = tf.reduce_max(tf.abs(outputs['uncertainty']))
+        loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(outputs['uncertainty']),
+                                                                  y_pred=outputs['uncertainty'], from_logits=True))
+        # diversity = tf.reduce_mean(tf.square(tf.matmul(tf.transpose(w), w) - tf.eye(self.certs_k)))
+        return loss  # + diversity
+
+    def create_metrics(self):
+        super().create_metrics()
+        return {
+            'accuracy':              BinaryAccuracy(),
+            'accuracy on negatives': BinaryAccuracyOnNegatives(),
+            'accuracy on positives': BinaryAccuracyOnPositives(),
+            'precision':             Precision(),
+            'recall':                Recall(),
+            'fp/mistakes':           FalsePositiveMistakeRate(),
+            'fn/mistakes':           FalseNegativeMistakeRate(),
+            'fp/total':              FalsePositiveOverallRate(),
+            'fn/total':              FalseNegativeOverallRate(),
+            # don't forget to include metrics for loss
+            'loss':                  LossMetric(),
+        }
+
+    def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
+        labels = tf.expand_dims(dataset_element['is_close'][:, 1:], axis=2)
+        probabilities = outputs['probabilities']
+        metrics['accuracy'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['precision'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['recall'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['fp/mistakes'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['fn/mistakes'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['fp/total'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['fn/total'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
+
+    def fwd_conv(self, batch_size, local_voxel_grid_t):
+        conv_z = local_voxel_grid_t
+        for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
+            conv_h = conv_layer(conv_z)
+            conv_z = pool_layer(conv_h)
+        out_conv_z = conv_z
+        out_conv_z_dim = out_conv_z.shape[1] * out_conv_z.shape[2] * out_conv_z.shape[3] * out_conv_z.shape[4]
+        out_conv_z = tf.reshape(out_conv_z, [batch_size, out_conv_z_dim])
+        return out_conv_z
+
+    def conv_encoder(self, local_voxel_grids_aug_array: tf.TensorArray, batch_size, time):
+        conv_outputs_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        for t in tf.range(time):
+            local_voxel_grid_t = local_voxel_grids_aug_array.read(t)
+
+            out_conv_z = self.fwd_conv(batch_size, local_voxel_grid_t)
+
+            conv_outputs_array = conv_outputs_array.write(t, out_conv_z)
+
+        conv_outputs = conv_outputs_array.stack()
+        conv_outputs = tf.transpose(conv_outputs, [1, 0, 2])
+        return conv_outputs
+
+    def fc(self, input_dict, conv_output, training):
+        states = {k: input_dict[add_predicted(k)] for k in self.state_keys}
+        states_in_local_frame = self.scenario.put_state_local_frame(states)
+        actions = {k: input_dict[k] for k in self.action_keys}
+        all_but_last_states = {k: v[:, :-1] for k, v in states.items()}
+        actions = self.scenario.put_action_local_frame(all_but_last_states, actions)
+        padded_actions = [tf.pad(v, [[0, 0], [0, 1], [0, 0]]) for v in actions.values()]
+        if 'with_robot_frame' not in self.hparams:
+            print("no hparam 'with_robot_frame'. This must be an old model!")
+            concat_args = [conv_output] + list(states_in_local_frame.values()) + padded_actions
+        elif self.hparams['with_robot_frame']:
+            states_in_robot_frame = self.scenario.put_state_robot_frame(states)
+            concat_args = ([conv_output] + list(states_in_robot_frame.values()) +
+                           list(states_in_local_frame.values()) + padded_actions)
+        else:
+            concat_args = [conv_output] + list(states_in_local_frame.values()) + padded_actions
+        if self.hparams['stdev']:
+            stdevs = input_dict[add_predicted('stdev')]
+            concat_args.append(stdevs)
+        concat_output = tf.concat(concat_args, axis=2)
+        if self.hparams['batch_norm']:
+            concat_output = self.batch_norm(concat_output, training=training)
+        z = concat_output
+        for dense_layer in self.dense_layers:
+            z = dense_layer(z)
+        out_d = z
+        out_h = self.lstm(out_d)
+        return out_h
+
+    def create_env_indices(self, batch_size: int):
+        return create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels, batch_size)
+
     def make_voxel_grid_inputs(self, input_dict: Dict, local_env, local_origin_point, batch_size, time):
         local_voxel_grids_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
         for t in tf.range(time):
@@ -165,19 +375,6 @@ class NNClassifier(MyKerasModel):
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
 
         return local_voxel_grids_array
-
-    def conv_encoder(self, local_voxel_grids_aug_array: tf.TensorArray, batch_size, time):
-        conv_outputs_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        for t in tf.range(time):
-            local_voxel_grid_t = local_voxel_grids_aug_array.read(t)
-
-            out_conv_z = self.fwd_conv(batch_size, local_voxel_grid_t)
-
-            conv_outputs_array = conv_outputs_array.write(t, out_conv_z)
-
-        conv_outputs = conv_outputs_array.stack()
-        conv_outputs = tf.transpose(conv_outputs, [1, 0, 2])
-        return conv_outputs
 
     def get_local_env(self, batch_size, indices, input_dict):
         state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
@@ -345,99 +542,6 @@ class NNClassifier(MyKerasModel):
 
         return local_env_center
 
-    def create_env_indices(self, batch_size: int):
-        return create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels, batch_size)
-
-    def fwd_conv(self, batch_size, local_voxel_grid_t):
-        conv_z = local_voxel_grid_t
-        for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
-            conv_h = conv_layer(conv_z)
-            conv_z = pool_layer(conv_h)
-        out_conv_z = conv_z
-        out_conv_z_dim = out_conv_z.shape[1] * out_conv_z.shape[2] * out_conv_z.shape[3] * out_conv_z.shape[4]
-        out_conv_z = tf.reshape(out_conv_z, [batch_size, out_conv_z_dim])
-        return out_conv_z
-
-    def compute_loss(self, dataset_element, outputs):
-        # the labels are based on whether the predicted & observed rope states are close after the action, so t>=1
-        is_close_after_start = dataset_element['is_close'][:, 1:]
-        labels = tf.expand_dims(is_close_after_start, axis=2)
-        logits = outputs['logits']
-        bce = tf.keras.losses.binary_crossentropy(y_true=labels, y_pred=logits, from_logits=True)
-        alpha = self.hparams.get('negative_label_weight', 0.5)
-        if alpha != 0.5:
-            print(Fore.YELLOW + f"Custom negative label weight = {alpha}")
-
-        # alpha = 1 means ignore positive examples
-        # alpha = 0 means ignore negative examples
-        label_weight = tf.abs(is_close_after_start - alpha)
-        label_weighted_bce = bce * label_weight
-
-        # mask out / ignore examples where is_close [0] is 0
-        if self.hparams.get('ignore_starts_far', False):
-            print(Fore.YELLOW + "Ignoring starts-far")
-            is_close_at_start = dataset_element['is_close'][:, 0]
-            label_weighted_bce = label_weighted_bce * is_close_at_start
-
-        # weight examples by the perception reliability, loss reliable means less important to predict, so lower loss
-        if 'perception_reliability' in dataset_element and self.hparams.get('use_perception_reliability_loss', False):
-            perception_reliability_weight = dataset_element['perception_reliability']
-        else:
-            perception_reliability_weight = tf.ones_like(label_weighted_bce)
-
-        perception_reliability_weighted_bce = label_weighted_bce * perception_reliability_weight
-
-        # mini-batches may not be balanced, weight the losses for positive and negative examples to balance
-        total_bce = class_weighted_mean_loss(perception_reliability_weighted_bce, is_close_after_start)
-
-        if self.hparams.get('uncertainty_head', False):
-            # NOTE: loosely based on Tagasovska & Lopez-Paz, NeurIPS 2019
-            uncertainty_loss = self.orthogonal_certificates_uncertainty_loss(outputs)
-            total_loss = total_bce + uncertainty_loss
-        else:
-            total_loss = total_bce
-
-        return {
-            'loss': total_loss
-        }
-
-    def orthogonal_certificates_uncertainty_loss(self, outputs):
-        w = self.uncertainty_head.weights[0]
-        # loss = tf.reduce_max(tf.abs(outputs['uncertainty']))
-        loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(outputs['uncertainty']),
-                                                                  y_pred=outputs['uncertainty'], from_logits=True))
-        # diversity = tf.reduce_mean(tf.square(tf.matmul(tf.transpose(w), w) - tf.eye(self.certs_k)))
-        return loss  # + diversity
-
-    def create_metrics(self):
-        super().create_metrics()
-        return {
-            'accuracy':              BinaryAccuracy(),
-            'accuracy on negatives': BinaryAccuracyOnNegatives(),
-            'accuracy on positives': BinaryAccuracyOnPositives(),
-            'precision':             Precision(),
-            'recall':                Recall(),
-            'fp/mistakes':           FalsePositiveMistakeRate(),
-            'fn/mistakes':           FalseNegativeMistakeRate(),
-            'fp/total':              FalsePositiveOverallRate(),
-            'fn/total':              FalseNegativeOverallRate(),
-            # don't forget to include metrics for loss
-            'loss':                  LossMetric(),
-        }
-
-    def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
-        labels = tf.expand_dims(dataset_element['is_close'][:, 1:], axis=2)
-        probabilities = outputs['probabilities']
-        metrics['accuracy'].update_state(y_true=labels, y_pred=probabilities)
-        metrics['precision'].update_state(y_true=labels, y_pred=probabilities)
-        metrics['recall'].update_state(y_true=labels, y_pred=probabilities)
-        metrics['fp/mistakes'].update_state(y_true=labels, y_pred=probabilities)
-        metrics['fn/mistakes'].update_state(y_true=labels, y_pred=probabilities)
-        metrics['fp/total'].update_state(y_true=labels, y_pred=probabilities)
-        metrics['fn/total'].update_state(y_true=labels, y_pred=probabilities)
-        metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
-        metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
-
     def augmentation_optimization(self, input_dict, indices, local_origin_point, voxel_grids, batch_size, time):
         # # here, before augmenting anything, is where we define the constraints on the voxels of the environment
         # state_augmentation_type = self.hparams.get('state_type', None)
@@ -532,42 +636,36 @@ class NNClassifier(MyKerasModel):
 
         if DEBUG_AUG:
             for b in debug_viz_batch_indices(batch_size):
-                send_voxelgrid_tf_origin_point_res_tf(self.scenario.tf.tf_broadcaster,
-                                                      local_origin_point_aug[b],
-                                                      input_dict['res'][b],
-                                                      'local_env_aug_vg')
-
                 i_debug_b = tf.squeeze(tf.where(add_batch_indices == b), axis=-1)
                 points_debug_b = tf.gather(add_points_aug, i_debug_b)
-                self.scenario.plot_points_rviz(points_debug_b.numpy(), frame_id='world', label='add_aug')
+                self.scenario.plot_points_rviz(points_debug_b.numpy(),
+                                               frame_id='local_origin_point_aug',
+                                               label='add_aug',
+                                               color='g')
 
                 i_debug_b = tf.squeeze(tf.where(remove_batch_indices == b), axis=-1)
                 points_debug_b = tf.gather(remove_points_aug, i_debug_b)
-                self.scenario.plot_points_rviz(points_debug_b.numpy(), frame_id='world', label='remove_aug')
+                self.scenario.plot_points_rviz(points_debug_b.numpy(),
+                                               frame_id='local_origin_point_aug',
+                                               label='remove_aug',
+                                               color='r')
 
         e_aug = self.sdf_opt_env_augmentation(input_dict, indices, voxel_grids, add_points_aug, remove_points_aug)
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
-                local_env_extent_b = compute_extent_3d(self.local_env_h_rows,
-                                                       self.local_env_w_cols,
-                                                       self.local_env_c_channels,
-                                                       input_dict['res'][b],
-                                                       local_env_origin[b])
                 _aug_dict = {
-                    'extent': local_env_extent_b,
-                    'env':    voxel_grids.read(0)[b, :, :, :, 0].numpy(),
-                    'origin': local_env_origin[b].numpy(),
-                    'res':    input_dict['res'][b].numpy(),
+                    'env':          voxel_grids.read(0)[b, :, :, :, 0].numpy(),
+                    'origin_point': local_origin_point_aug[b].numpy(),
+                    'res':          input_dict['res'][b].numpy(),
                 }
                 msg = environment_to_vg_msg(_aug_dict, frame='local_env_vg', stamp=rospy.Time(0))
                 self.env_aug_pub5.publish(msg)
                 send_voxelgrid_tf(self.broadcaster, _aug_dict, frame='local_env_vg')
 
-                # self.debug_viz_state_action(input_dict, b, 'input')
-
-                # stepper.step()
+                self.debug_viz_state_action(input_dict, b, 'input')
+                stepper.step()
 
         voxel_grids_aug = self.merge_aug_and_local_voxel_grids(e_aug,
                                                                voxel_grids,
@@ -590,85 +688,16 @@ class NNClassifier(MyKerasModel):
         """
         n_points = state_points.shape[1]
         vg_indices = batch_point_to_idx(state_points,
-                                             tf.expand_dims(res, axis=1),
-                                             tf.expand_dims(local_origin_point, axis=1))
+                                        tf.expand_dims(res, axis=1),
+                                        tf.expand_dims(local_origin_point, axis=1))
         batch_indices = tf.tile(tf.range(batch_size)[:, tf.newaxis, tf.newaxis], [1, n_points, 1])
         batch_and_vg_indices = tf.concat([batch_indices, vg_indices], axis=-1)
         occupancy_at_state_points = tf.gather_nd(vg, batch_and_vg_indices)
-        interesecting_state_point_indices = tf.where(occupancy_at_state_points > 0.5)
-        intersecting_state_points = tf.gather_nd(state_points, interesecting_state_point_indices)
-        intersecting_state_points_batch_indices = interesecting_state_point_indices[:, 0]
-
-        # vg_batch_indices, vg_points = occupied_voxels_to_points(vg, res, local_origin_point)
-        # n_points = state_points.shape[1]
-        # state_batch_indices = tf.repeat(tf.range(batch_size), n_points)
-        # state_points_flat = tf.reshape(state_points, [-1, 3])
-        # _, _, vg_batch_index_counts = tf.unique_with_counts(vg_batch_indices)
-        # _, _, state_batch_index_counts = tf.unique_with_counts(state_batch_indices)
-        # state_flat_repetitions = tf.gather(vg_batch_index_counts, state_batch_indices)
-        # vg_repetitions = tf.gather(state_batch_index_counts, vg_batch_indices)
-        # vg_cmp_batch_indices = tf.repeat(vg_batch_indices, vg_repetitions, axis=0)
-        # vg_points_cmp = tf.repeat(vg_points, vg_repetitions, axis=0)
-        # state_points_flat_cmp = tf.repeat(state_points_flat, state_flat_repetitions, axis=0)
-        # differences = vg_points_cmp - state_points_flat_cmp
-        # distances = tf.reduce_max(tf.abs(differences), axis=-1)  # infinity norm
-        # res_gathered = tf.gather(res, vg_cmp_batch_indices, axis=0)
-        # intersecting_state_points_indices = tf.where(distances < res_gathered / 2)
-        # intersecting_state_points = tf.squeeze(
-        #     tf.gather(state_points_flat, intersecting_state_points_indices, axis=0), axis=1)
-        # intersecting_state_points_batch_indices = tf.squeeze(
-        #     tf.gather(state_batch_indices, intersecting_state_points_indices, axis=0), axis=-1)
+        intersecting_state_point_indices = tf.where(occupancy_at_state_points > 0.5)
+        intersecting_state_points = tf.gather_nd(state_points, intersecting_state_point_indices)
+        intersecting_state_points_batch_indices = intersecting_state_point_indices[:, 0]
 
         return intersecting_state_points_batch_indices, intersecting_state_points
-
-    def transform_voxel_grid(self, voxel_grid, res, local_origin_point, local_origin_point_aug, translation, rotation,
-                             batch_size):
-        indices = np.where(voxel_grid > 0.5)
-        indices = tf.stack(indices, axis=-1)
-        batch_indices = indices[:, 0]
-        indices_yxz = indices[:, 1:]
-        points_res = tf.gather(res, batch_indices)
-        points_origin_point = tf.gather(local_origin_point, batch_indices)
-        points = batch_idx_to_point_3d_tf_res_origin_point(indices_yxz, points_res, points_origin_point)
-
-        if DEBUG_AUG:
-            try_to_connect(self.scenario.point_pub)
-            for b in debug_viz_batch_indices(batch_size):
-                points_b = tf.gather(points, tf.squeeze(tf.where(batch_indices == b)), axis=0)
-                self.scenario.plot_points_rviz(points_b.numpy(), label='points_1', frame_id='world')
-
-        # then apply translation/rotation to those points
-        rotation_matrices = tf.gather(rotation, batch_indices)
-        translation = tf.gather(translation, batch_indices)
-        points_rotated = rotate_points_3d(rotation_matrices, points)
-        points_aug_world_frame = points_rotated + translation
-
-        if DEBUG_AUG:
-            for b in debug_viz_batch_indices(batch_size):
-                points_aug_b = tf.gather(points_aug_world_frame, tf.squeeze(tf.where(batch_indices == b)), axis=0)
-                self.scenario.plot_points_rviz(points_aug_b.numpy(), label='points_aug_1', frame_id='world')
-
-        # then shift so they're relative to local_origin_point_aug
-        points_origin_points_aug = tf.gather(local_origin_point_aug, batch_indices)
-        points_aug = points_aug_world_frame - points_origin_points_aug
-
-        if DEBUG_AUG:
-            for b in debug_viz_batch_indices(batch_size):
-                points_aug_b = tf.gather(points_aug, tf.squeeze(tf.where(batch_indices == b)), axis=0)
-                self.scenario.plot_points_rviz(points_aug_b.numpy(), label='points_aug_2',
-                                               frame_id='local_origin_point_aug')
-
-        # then convert back to a voxel grid
-        voxel_grid = points_to_voxel_grid(batch_indices,
-                                          points_aug,
-                                          points_res,
-                                          points_origin_points_aug,
-                                          self.local_env_h_rows,
-                                          self.local_env_w_cols,
-                                          self.local_env_c_channels,
-                                          batch_size)
-
-        return voxel_grid
 
     def sample_p_e_new(self, input_dict):
         if add_new('env') not in input_dict:
@@ -686,111 +715,6 @@ class NNClassifier(MyKerasModel):
         }
         p_e_new = self.sample_local_env_position(new_env_dict)
         return p_e_new
-
-    def call(self, input_dict: Dict, training, **kwargs):
-        batch_size = input_dict['batch_size']
-        time = tf.cast(input_dict['time'], tf.int32)
-
-        input_dict['origin_point'] = batch_extent_to_origin_point_tf(input_dict['extent'], input_dict['res'])
-
-        if DEBUG_INPUT:
-            # clear the other voxel grids from previous calls
-            vg_empty = np.zeros((64, 64, 64))
-            empty_msg = vox_to_voxelgrid_stamped(vg_empty, scale=0.01, frame='world')
-            for p in self.raster_debug_pubs:
-                p.publish(empty_msg)
-            self.env_aug_pub1.publish(empty_msg)
-            self.env_aug_pub2.publish(empty_msg)
-            self.env_aug_pub3.publish(empty_msg)
-            self.env_aug_pub4.publish(empty_msg)
-            self.env_aug_pub5.publish(empty_msg)
-
-            stepper = RvizSimpleStepper()
-            for b in debug_viz_batch_indices(batch_size):
-                env_b = {
-                    'env':          input_dict['env'][b],
-                    'res':          input_dict['res'][b],
-                    'origin_point': input_dict['origin_point'][b],
-                    'extent':       input_dict['extent'][b],
-                }
-                self.scenario.plot_environment_rviz(env_b)
-                self.delete_state_action_markers('aug')
-                self.debug_viz_state_action(input_dict, b, 'input')
-                origin_point_b = input_dict['origin_point'][b].numpy().tolist()
-                self.scenario.tf.send_transform(origin_point_b, [0, 0, 0, 1], 'world', 'env_origin_point',
-                                                is_static=True)
-                # stepper.step()
-
-        # Create voxel grids
-        indices = self.create_env_indices(batch_size)
-        local_env, local_origin_point = self.get_local_env(batch_size, indices, input_dict)
-
-        voxel_grids = self.make_voxel_grid_inputs(input_dict, local_env, local_origin_point, batch_size, time)
-
-        if DEBUG_AUG:
-            self.debug_viz_local_env_pre_aug(input_dict, voxel_grids, local_origin_point, time)
-
-        if training:
-            # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
-            # so modifying it internally won't change the value for the caller
-            voxel_grids = self.augmentation_optimization(input_dict,
-                                                         indices,
-                                                         local_origin_point,
-                                                         voxel_grids,
-                                                         batch_size,
-                                                         time)
-
-        # encoder
-        conv_output = self.conv_encoder(voxel_grids, batch_size=batch_size, time=time)
-        out_h = self.fc(input_dict, conv_output, training)
-
-        if self.hparams.get('uncertainty_head', False):
-            out_uncertainty = self.uncertainty_head(out_h)
-
-        # for every timestep's output, map down to a single scalar, the logit for accept probability
-        all_accept_logits = self.output_layer(out_h)
-        # ignore the first output, it is meaningless to predict the validity of a single state
-        valid_accept_logits = all_accept_logits[:, 1:]
-        valid_accept_probabilities = self.sigmoid(valid_accept_logits)
-
-        outputs = {
-            'logits':        valid_accept_logits,
-            'probabilities': valid_accept_probabilities,
-            'out_h':         out_h,
-        }
-        if self.hparams.get('uncertainty_head', False):
-            outputs['uncertainty'] = out_uncertainty
-
-        return outputs
-
-    def fc(self, input_dict, conv_output, training):
-        states = {k: input_dict[add_predicted(k)] for k in self.state_keys}
-        states_in_local_frame = self.scenario.put_state_local_frame(states)
-        actions = {k: input_dict[k] for k in self.action_keys}
-        all_but_last_states = {k: v[:, :-1] for k, v in states.items()}
-        actions = self.scenario.put_action_local_frame(all_but_last_states, actions)
-        padded_actions = [tf.pad(v, [[0, 0], [0, 1], [0, 0]]) for v in actions.values()]
-        if 'with_robot_frame' not in self.hparams:
-            print("no hparam 'with_robot_frame'. This must be an old model!")
-            concat_args = [conv_output] + list(states_in_local_frame.values()) + padded_actions
-        elif self.hparams['with_robot_frame']:
-            states_in_robot_frame = self.scenario.put_state_robot_frame(states)
-            concat_args = ([conv_output] + list(states_in_robot_frame.values()) +
-                           list(states_in_local_frame.values()) + padded_actions)
-        else:
-            concat_args = [conv_output] + list(states_in_local_frame.values()) + padded_actions
-        if self.hparams['stdev']:
-            stdevs = input_dict[add_predicted('stdev')]
-            concat_args.append(stdevs)
-        concat_output = tf.concat(concat_args, axis=2)
-        if self.hparams['batch_norm']:
-            concat_output = self.batch_norm(concat_output, training=training)
-        z = concat_output
-        for dense_layer in self.dense_layers:
-            z = dense_layer(z)
-        out_d = z
-        out_h = self.lstm(out_d)
-        return out_h
 
     def debug_viz_local_env_pre_aug(self, example: Dict, voxel_grids, local_origin_point, time):
         for b in debug_viz_batch_indices(self.batch_size):

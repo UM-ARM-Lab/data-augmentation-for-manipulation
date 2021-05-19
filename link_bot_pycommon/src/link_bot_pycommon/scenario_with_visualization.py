@@ -2,7 +2,7 @@ from abc import ABC
 from typing import Dict, List
 
 import numpy as np
-from matplotlib import cm
+from matplotlib import cm, colors
 
 import ros_numpy
 import rospy
@@ -23,7 +23,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from peter_msgs.msg import LabelStatus
 from peter_msgs.srv import WorldControl, WorldControlRequest
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, ColorRGBA
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
@@ -358,7 +358,11 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
         self.point_pub.publish(msg)
 
-    def plot_points_rviz(self, positions, label: str, frame_id: str = 'world', id: int = 0, scale: float = 0.02):
+    def plot_points_rviz(self, positions, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+        color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
+
+        scale = kwargs.get('scale', 0.02)
+
         msg = Marker()
         msg.header.frame_id = frame_id
         msg.header.stamp = rospy.Time.now()
@@ -370,10 +374,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         msg.scale.x = scale
         msg.scale.y = scale
         msg.scale.z = scale
-        msg.color.r = 1
-        msg.color.g = 1
-        msg.color.b = 0
-        msg.color.a = 1
+        msg.color = color_msg
         for position in positions:
             p = Point(x=position[0], y=position[1], z=position[2])
             msg.points.append(p)
