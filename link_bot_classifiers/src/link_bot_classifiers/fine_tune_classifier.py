@@ -8,10 +8,11 @@ from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.train_test_classifier import setup_datasets
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_new
+from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
 from link_bot_pycommon.pycommon import paths_to_json
 from moonshine.filepath_tools import load_trial, create_trial
 from moonshine.model_runner import ModelRunner
-from moonshine.moonshine_utils import repeat
+from moonshine.moonshine_utils import repeat, remove_batch, add_batch
 
 
 def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
@@ -93,8 +94,11 @@ def add_pretransfer_configs_to_dataset(pretransfer_config_dir, tf_dataset, batch
 
         example[add_new('env')] = new_example['env']
         example[add_new('extent')] = new_example['extent']
-        example[add_new('origin')] = new_example['origin']
         example[add_new('res')] = new_example['res']
+        example[add_new('origin')] = new_example['origin']
+        new_origin_point = remove_batch(batch_extent_to_origin_point_tf(*add_batch(new_example['extent'],
+                                                                                   new_example['res'])))
+        example[add_new('origin_point')] = new_origin_point
 
         return example
 

@@ -39,6 +39,11 @@ def indeces_to_point(rowcols, resolution, origin):
     return (rowcols - origin) * resolution
 
 
+def batch_idx_to_point_3d_tf_res_origin_point(indices, res, origin_point):
+    indices_xyz = swap_xy(indices)
+    return tf.cast(indices_xyz, tf.float32) * tf.expand_dims(res, axis=-1) + origin_point
+
+
 def batch_idx_to_point_3d_in_env_tf_res_origin(row, col, channel, res, origin):
     origin = tf.cast(origin, tf.int64)
     y = tf.cast(row - tf.gather(origin, 0, axis=-1), tf.float32) * res
@@ -165,7 +170,7 @@ def extent_to_center(extent_3d):
     return cx, cy, cz
 
 
-def batch_extent_to_origin_point_tf_center_res_shape(center, res, h, w, c):
+def batch_center_res_shape_to_origin_point(center, res, h, w, c):
     shape_xyz = tf.stack([w, h, c], axis=-1)
     return center - (tf.cast(shape_xyz, tf.float32) * tf.expand_dims(res, axis=-1) / 2)
 

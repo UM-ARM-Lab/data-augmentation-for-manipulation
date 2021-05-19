@@ -1,9 +1,9 @@
 from dataclasses import dataclass
+from typing import Dict
 
 import tensorflow as tf
 
-from link_bot_pycommon.debugging_utils import DEBUG_VIZ_B
-from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf_center_res_shape, batch_align_to_grid_tf, \
+from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point, batch_align_to_grid_tf, \
     round_to_res
 from moonshine.moonshine_utils import swap_xy
 
@@ -38,19 +38,16 @@ def create_env_indices(local_env_h_rows: int, local_env_w_cols: int, local_env_c
                       pixels=pixel_indices)
 
 
-# FIXME: use origin_point, not origin, origin is not as precise.
 # @tf.function
-def get_local_env_and_origin_3d_tf(center_point,
-                                   full_env,
-                                   full_env_origin_point,
-                                   res,
-                                   local_h_rows: int,
-                                   local_w_cols: int,
-                                   local_c_channels: int,
-                                   batch_x_indices,
-                                   batch_y_indices,
-                                   batch_z_indices,
-                                   batch_size: int):
+def get_local_env_and_origin_3d(center_point,
+                                environment: Dict,
+                                local_h_rows: int,
+                                local_w_cols: int,
+                                local_c_channels: int,
+                                batch_x_indices,
+                                batch_y_indices,
+                                batch_z_indices,
+                                batch_size: int):
     """
     :param center_point: [batch, 3]
     :param full_env: [batch, h, w, c]
@@ -60,11 +57,15 @@ def get_local_env_and_origin_3d_tf(center_point,
     :param local_w_cols: scalar
     :return:
     """
-    local_env_origin_point = batch_extent_to_origin_point_tf_center_res_shape(center=center_point,
-                                                                              res=res,
-                                                                              h=local_h_rows,
-                                                                              w=local_w_cols,
-                                                                              c=local_c_channels)
+    res = environment['res']
+    full_env_origin_point = environment['origin_point']
+    full_env = environment['env']
+
+    local_env_origin_point = batch_center_res_shape_to_origin_point(center=center_point,
+                                                                    res=res,
+                                                                    h=local_h_rows,
+                                                                    w=local_w_cols,
+                                                                    c=local_c_channels)
 
     local_env_origin_point = batch_align_to_grid_tf(local_env_origin_point, full_env_origin_point, res)
 
@@ -89,7 +90,6 @@ def get_local_env_and_origin_3d_tf(center_point,
     return local_env, local_env_origin_point
 
 
-# FIXME: use origin_point, not origin, origin is not as precise.
 @tf.function
 def get_local_env_and_origin_3d_tf_old(center_point,
                                        full_env,

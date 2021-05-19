@@ -9,11 +9,11 @@ import tensorflow_probability as tfp
 import rosnode
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, _deserialize_scene_msg
+from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
-from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_in_batched_envs, batch_idx_to_point_3d_in_env_tf
+from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
-from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import rotate_points_3d, make_rotation_matrix_like
 from moonshine.moonshine_utils import numpify, repeat_tensor
@@ -381,13 +381,15 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def sample_state_augmentation_variables(self,
                                             batch_size,
                                             seed: tfp.util.SeedStream):
+        # NOTE: lots of hidden hyper-parameters here :(
         zeros = tf.zeros([batch_size, 3], dtype=tf.float32)
-        delta_distribution = tfp.distributions.TruncatedNormal(zeros, 0.2, -0.5, 0.5)  # these are hyper-parameters
+        delta_distribution = tfp.distributions.TruncatedNormal(zeros, 0.2, -0.5, 0.5)
         delta_position = delta_distribution.sample(seed=seed())
 
-        theta_low = repeat_tensor(-np.pi, batch_size, 0, True)
-        theta_high = repeat_tensor(np.pi, batch_size, 0, True)
-        theta_distribution = tfp.distributions.Uniform(theta_low, theta_high)
+        # theta_low = repeat_tensor(-np.pi, batch_size, 0, True)
+        # theta_high = repeat_tensor(np.pi, batch_size, 0, True)
+        # theta_distribution = tfp.distributions.Uniform(theta_low, theta_high)
+        theta_distribution = tfp.distributions.TruncatedNormal(tf.zeros([batch_size]), 1.0, -np.pi, np.pi)
         theta = theta_distribution.sample(seed=seed())
 
         return delta_position, theta
@@ -546,9 +548,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 env_b = {
-                    'env':    input_dict['env'][b],
-                    'res':    input_dict['res'][b],
-                    'extent': input_dict['extent'][b],
+                    'env':          input_dict['env'][b],
+                    'res':          input_dict['res'][b],
+                    'extent':       input_dict['extent'][b],
                     'origin_point': input_dict['origin_point'][b],
                 }
 
@@ -560,17 +562,15 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         # return new local env?
         state_keys = ['left_gripper', 'right_gripper', 'rope']
         state_aug = {k: input_dict[add_predicted(k)] for k in state_keys}
-        local_env_center_aug = self.local_environment_center_differentiable(state_aug)
-        center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center_aug, input_dict)
-        local_env_center_aug = batch_idx_to_point_3d_in_env_tf(*tf.unstack(center_indices, axis=-1), input_dict)
-        local_center = tf.stack([local_h_rows / 2, local_w_cols / 2, local_c_channels / 2], axis=0)
-        center_cols = local_env_center_aug[:, 0] / input_dict['res'] + input_dict['origin'][:, 1]
-        center_rows = local_env_center_aug[:, 1] / input_dict['res'] + input_dict['origin'][:, 0]
-        center_channels = local_env_center_aug[:, 2] / input_dict['res'] + input_dict['origin'][:, 2]
-        center_point_coordinates = tf.stack([center_rows, center_cols, center_channels], axis=1)
-        local_env_origin_aug = input_dict['origin'] - center_point_coordinates + local_center
+        local_center_aug = self.local_environment_center_differentiable(state_aug)
+        res = input_dict['res']
+        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug,
+                                                                        res,
+                                                                        local_h_rows,
+                                                                        local_w_cols,
+                                                                        local_c_channels)
 
-        return local_env_origin_aug
+        return local_origin_point_aug
 
     def debug_viz_state_action(self, input_dict, b, label: str, color='red'):
         state_keys = ['left_gripper', 'right_gripper', 'rope']

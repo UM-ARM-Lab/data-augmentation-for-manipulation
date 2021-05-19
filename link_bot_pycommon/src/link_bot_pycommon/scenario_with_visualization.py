@@ -366,6 +366,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         msg.id = id
         msg.type = Marker.SPHERE_LIST
         msg.action = Marker.ADD
+        msg.pose.orientation.w = 1
         msg.scale.x = scale
         msg.scale.y = scale
         msg.scale.z = scale
