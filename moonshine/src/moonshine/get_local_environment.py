@@ -38,6 +38,11 @@ def create_env_indices(local_env_h_rows: int, local_env_w_cols: int, local_env_c
                       pixels=pixel_indices)
 
 
+def _expand(x):
+    # for some reason local_to_full_offset[:, 0, None, None, None] didn't work under tf.function !?!?!
+    return tf.expand_dims(tf.expand_dims(tf.expand_dims(x, -1), -1), -1)
+
+
 # @tf.function
 def get_local_env_and_origin_3d(center_point,
                                 environment: Dict,
@@ -74,14 +79,12 @@ def get_local_env_and_origin_3d(center_point,
     local_to_full_offset = swap_xy(local_to_full_offset_xyz)
 
     # Transform into coordinate of the full_env
-    local_to_full_offset_y_tiled = tf.tile(local_to_full_offset[:, 0, None, None, None], [1, 1, h, w, c])
-    local_to_full_offset_x_tiled = tf.tile(local_to_full_offset[:, 1, None, None, None], [1, 1, h, w, c])
-    local_to_full_offset_z_tiled = tf.tile(local_to_full_offset[:, 2, None, None, None], [1, 1, h, w, c])
-    batch_y_indices_in_full_env_frame = batch_y_indices + local_to_full_offset_y_tiled
-    batch_x_indices_in_full_env_frame = batch_x_indices + local_to_full_offset_x_tiled
-    batch_z_indices_in_full_env_frame = batch_z_indices + local_to_full_offset_z_tiled
-
     tile_sizes = [1, h, w, c]
+
+    batch_y_indices_in_full_env_frame = batch_y_indices + _expand(local_to_full_offset[:, 0])
+    batch_x_indices_in_full_env_frame = batch_x_indices + _expand(local_to_full_offset[:, 1])
+    batch_z_indices_in_full_env_frame = batch_z_indices + _expand(local_to_full_offset[:, 2])
+
     batch_int64 = tf.cast(batch_size, tf.int64)
     batch_indices = tf.tile(tf.range(0, batch_int64, dtype=tf.int64)[:, None, None, None], tile_sizes)
     gather_indices = tf.stack(
@@ -127,12 +130,9 @@ def get_local_env_and_origin_3d_tf_old(center_point,
     local_to_full_offset = tf.cast(full_env_origin - local_env_origin, tf.int64)
 
     # Transform into coordinate of the full_env
-    local_to_full_offset_y_tiled = tf.tile(local_to_full_offset[:, 0, None, None, None], [1, 1, h, w, c])
-    local_to_full_offset_x_tiled = tf.tile(local_to_full_offset[:, 1, None, None, None], [1, 1, h, w, c])
-    local_to_full_offset_z_tiled = tf.tile(local_to_full_offset[:, 2, None, None, None], [1, 1, h, w, c])
-    batch_y_indices_in_full_env_frame = batch_y_indices + local_to_full_offset_y_tiled
-    batch_x_indices_in_full_env_frame = batch_x_indices + local_to_full_offset_x_tiled
-    batch_z_indices_in_full_env_frame = batch_z_indices + local_to_full_offset_z_tiled
+    batch_y_indices_in_full_env_frame = batch_y_indices + _expand(local_to_full_offset[:, 0])
+    batch_x_indices_in_full_env_frame = batch_x_indices + _expand(local_to_full_offset[:, 1])
+    batch_z_indices_in_full_env_frame = batch_z_indices + _expand(local_to_full_offset[:, 2])
 
     tile_sizes = [1, h, w, c]
     batch_int64 = tf.cast(batch_size, tf.int64)
