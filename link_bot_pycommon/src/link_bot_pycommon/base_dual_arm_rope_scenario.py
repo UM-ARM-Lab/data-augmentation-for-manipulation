@@ -383,13 +383,13 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                             seed: tfp.util.SeedStream):
         # NOTE: lots of hidden hyper-parameters here :(
         zeros = tf.zeros([batch_size, 3], dtype=tf.float32)
-        delta_distribution = tfp.distributions.TruncatedNormal(zeros, 0.2, -0.5, 0.5)
+        delta_distribution = tfp.distributions.TruncatedNormal(zeros, 0.15, -0.5, 0.5)
         delta_position = delta_distribution.sample(seed=seed())
 
         # theta_low = repeat_tensor(-np.pi, batch_size, 0, True)
         # theta_high = repeat_tensor(np.pi, batch_size, 0, True)
         # theta_distribution = tfp.distributions.Uniform(theta_low, theta_high)
-        theta_distribution = tfp.distributions.TruncatedNormal(tf.zeros([batch_size]), 1.0, -np.pi, np.pi)
+        theta_distribution = tfp.distributions.TruncatedNormal(tf.zeros([batch_size]), 0.8, -np.pi, np.pi)
         theta = theta_distribution.sample(seed=seed())
 
         return delta_position, theta

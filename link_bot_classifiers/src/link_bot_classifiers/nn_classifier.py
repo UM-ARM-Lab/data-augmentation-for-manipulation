@@ -10,28 +10,26 @@ from tensorflow.keras import layers
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 import rospy
-from arc_utilities.ros_helpers import try_to_connect
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_data.dataset_utils import add_predicted, add_new
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.grid_utils import compute_extent_3d, batch_idx_to_point_3d_tf_res_origin_point, \
-    batch_point_to_idx
-from link_bot_pycommon.grid_utils import send_voxelgrid_tf, batch_extent_to_origin_point_tf, environment_to_vg_msg, \
-    vox_to_voxelgrid_stamped, send_voxelgrid_tf_origin_point_res_tf
+from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf, environment_to_vg_msg, \
+    vox_to_voxelgrid_stamped, send_voxelgrid_tf_origin_point_res_tf, occupied_voxels_to_points
+from link_bot_pycommon.grid_utils import batch_point_to_idx
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
-from moonshine.geometry import make_rotation_matrix_like, rotate_points_3d, gather_transform, gather_translate
+from moonshine.geometry import make_rotation_matrix_like, rotate_points_3d
 from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_3d
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
 from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors, numpify
 from moonshine.my_keras_model import MyKerasModel
-from moonshine.raster_3d import points_to_voxel_grid, points_to_voxel_grid_res_origin_point
+from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from std_msgs.msg import Float32
 from visualization_msgs.msg import MarkerArray, Marker
@@ -153,7 +151,7 @@ class NNClassifier(MyKerasModel):
 
         # Create voxel grids
         indices = self.create_env_indices(batch_size)
-        local_env, local_origin_point = self.get_local_env(batch_size, indices, input_dict)
+        local_env, local_origin_point = self.get_local_env(indices, input_dict)
 
         voxel_grids = self.make_voxel_grid_inputs(input_dict, local_env, local_origin_point, batch_size, time)
 
@@ -376,92 +374,24 @@ class NNClassifier(MyKerasModel):
 
         return local_voxel_grids_array
 
-    def get_local_env(self, batch_size, indices, input_dict):
+    def get_local_env(self, indices, input_dict):
         state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
 
         # NOTE: to be more general, this should return a pose not just a point/position
         local_env_center = self.scenario.local_environment_center_differentiable(state_0)
-
         environment = {k: input_dict[k] for k in ['env', 'origin_point', 'res', 'extent']}
-        local_env, local_origin_point = get_local_env_and_origin_3d(center_point=local_env_center,
-                                                                    environment=environment,
-                                                                    local_h_rows=self.local_env_h_rows,
-                                                                    local_w_cols=self.local_env_w_cols,
-                                                                    local_c_channels=self.local_env_c_channels,
-                                                                    batch_x_indices=indices.batch_x,
-                                                                    batch_y_indices=indices.batch_y,
-                                                                    batch_z_indices=indices.batch_z,
-                                                                    batch_size=batch_size)
+        local_env, local_origin_point = self.get_local_env_given_center(local_env_center, environment, indices)
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(self.batch_size):
-                # self.raster_debug_pubs[0].publish(vox_to_voxelgrid_stamped(local_env.numpy()[b],
-                #                                                            input_dict['res'][b].numpy(),
-                #                                                            frame='local_env_vg'))
-                # send_voxelgrid_tf_origin_point_res_tf(self.scenario.tf.tf_broadcaster,
-                #                                       local_origin_point[b],
-                #                                       input_dict['res'][b],
-                #                                       'local_env_vg')
                 self.scenario.tf.send_transform(local_env_center[b], [0, 0, 0, 1], 'world', 'local_env_center',
                                                 is_static=True)
                 self.scenario.tf.send_transform(local_origin_point[b], [0, 0, 0, 1], 'world', 'local_origin_point',
                                                 is_static=True)
-                # bbox_msg = grid_to_bbox(rows=self.local_env_h_rows,
-                #                         cols=self.local_env_w_cols,
-                #                         channels=self.local_env_c_channels,
-                #                         resolution=input_dict['res'][b].numpy())
-                # bbox_msg.header.frame_id = 'local_env_vg'
-                # self.local_env_bbox_pub.publish(bbox_msg)
                 # stepper.step()
 
         return local_env, local_origin_point
-
-    def sdf_opt_env_augmentation(self, example: Dict, indices, voxel_grids, add_aug, remove_aug):
-        local_env_new, local_env_new_origin_point = self.get_new_local_env(indices, example)
-
-        if DEBUG_AUG:
-            stepper = RvizSimpleStepper()
-            for b in debug_viz_batch_indices(self.batch_size):
-                local_env_new_extent_b = compute_extent_3d(self.local_env_h_rows,
-                                                           self.local_env_w_cols,
-                                                           self.local_env_c_channels,
-                                                           example['res'][b],
-                                                           local_env_new_origin_point[b])
-                local_env_new_dict = {
-                    'env':          local_env_new[b].numpy(),
-                    'origin_point': local_env_new_origin_point[b].numpy(),
-                    'res':          example['res'][b].numpy(),
-                    'extent':       local_env_new_extent_b,
-                }
-                msg = environment_to_vg_msg(local_env_new_dict, frame='local_env_new_vg', stamp=rospy.Time(0))
-                # Show the new local environment we've sampled, in the place we sampled it
-                self.env_aug_pub1.publish(msg)
-                send_voxelgrid_tf(self.broadcaster, local_env_new_dict, frame='local_env_new_vg')
-
-                # stepper.step()
-
-                # Show the new local environment we've sampled, moved into the frame of the original local env,
-                # the one we're augmenting
-                msg2 = environment_to_vg_msg(local_env_new_dict, frame='local_env_vg', stamp=rospy.Time(0))
-                self.env_aug_pub2.publish(msg2)
-
-                # stepper.step()
-
-        step_size = 1.0
-        n_steps = 10
-        p_e_nw = None
-        for i in range(n_steps):
-            add_sdf = compute_sdf(add_aug)
-            remove_sdf = compute_sdf(remove_aug)
-            add_gradient = compute_sdf_gradient(add_sdf)
-            remove_gradient = compute_sdf_gradient(remove_sdf)
-            sdf_gradient = add_gradient + remove_gradient  # [batch_size, num occupied voxels?]
-            gradient = tf.reduce_mean(sdf_gradient, axis=-1)
-            p_e_new = p_e_new + step_size * gradient
-            e_new = apply_gradient_to_voxel_grid(e_new, p_e_new, gradient)
-
-        return voxel_grids
 
     def merge_aug_and_local_voxel_grids(self,
                                         local_env_aug_masked,
@@ -480,31 +410,41 @@ class NNClassifier(MyKerasModel):
             local_voxel_grids_aug_array = local_voxel_grids_aug_array.write(t, local_voxel_grid_aug_t)
         return local_voxel_grids_aug_array
 
-    def get_new_local_env(self, indices, example):
+    def get_new_env(self, example):
         if add_new('env') not in example:
             print("new env not in example. did you forget the load from the pretransfer config?")
             example[add_new('env')] = example['env']
             example[add_new('extent')] = example['extent']
             example[add_new('origin_point')] = example['origin_point']
             example[add_new('res')] = example['res']
-
         new_env = {
             'env':          example[add_new('env')],
             'extent':       example[add_new('extent')],
             'origin_point': example[add_new('origin_point')],
             'res':          example[add_new('res')],
         }
-        local_env_center = self.sample_local_env_position(new_env)
-        local_env_new, local_origin_point_new = get_local_env_and_origin_3d(center_point=local_env_center,
-                                                                            environment=new_env,
-                                                                            local_h_rows=self.local_env_h_rows,
-                                                                            local_w_cols=self.local_env_w_cols,
-                                                                            local_c_channels=self.local_env_c_channels,
-                                                                            batch_x_indices=indices.batch_x,
-                                                                            batch_y_indices=indices.batch_y,
-                                                                            batch_z_indices=indices.batch_z,
-                                                                            batch_size=self.batch_size)
-        return local_env_new, local_origin_point_new
+        return new_env
+
+    def sample_local_env_position(self, example):
+        # NOTE: for my specific implementation of state_to_local_env_pose,
+        #  sampling random states and calling state_to_local_env_pose is equivalent to sampling a point in the extent
+        extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
+        extent_lower = tf.gather(extent, 0, axis=-1)
+        extent_upper = tf.gather(extent, 1, axis=-1)
+        local_env_center = self.aug_gen.uniform([self.batch_size, 3], extent_lower, extent_upper)
+
+        return local_env_center
+
+    def get_local_env_given_center(self, center_point, environment, indices):
+        return get_local_env_and_origin_3d(center_point=center_point,
+                                           environment=environment,
+                                           local_h_rows=self.local_env_h_rows,
+                                           local_w_cols=self.local_env_w_cols,
+                                           local_c_channels=self.local_env_c_channels,
+                                           batch_x_indices=indices.batch_x,
+                                           batch_y_indices=indices.batch_y,
+                                           batch_z_indices=indices.batch_z,
+                                           batch_size=self.batch_size)
 
     def is_env_augmentation_valid_swept(self,
                                         time,
@@ -532,17 +472,7 @@ class NNClassifier(MyKerasModel):
         aug_is_valid = 1 - aug_intersects_state_any_t
         return aug_is_valid
 
-    def sample_local_env_position(self, example):
-        # NOTE: for my specific implementation of state_to_local_env_pose,
-        #  sampling random states and calling state_to_local_env_pose is equivalent to sampling a point in the extent
-        extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
-        extent_lower = tf.gather(extent, 0, axis=-1)
-        extent_upper = tf.gather(extent, 1, axis=-1)
-        local_env_center = self.aug_gen.uniform([self.batch_size, 3], extent_lower, extent_upper)
-
-        return local_env_center
-
-    def augmentation_optimization(self, input_dict, indices, local_origin_point, voxel_grids, batch_size, time):
+    def augmentation_optimization(self, example, indices, local_origin_point, voxel_grids, batch_size, time):
         # # here, before augmenting anything, is where we define the constraints on the voxels of the environment
         # state_augmentation_type = self.hparams.get('state_type', None)
         # if state_augmentation_type != 'uniform':
@@ -550,10 +480,10 @@ class NNClassifier(MyKerasModel):
         #     return voxel_grids
 
         # before augmentation
-        states = {k: input_dict[add_predicted(k)] for k in self.state_keys}
+        states = {k: example[add_predicted(k)] for k in self.state_keys}
         state_points = tf.concat([tf.reshape(v, [batch_size, time, -1, 3]) for v in states.values()], axis=2)
         state_points = tf.reshape(state_points, [batch_size, -1, 3])
-        res = input_dict['res']
+        res = example['res']
 
         # sample a translation and rotation for the object state
         translation, theta = self.scenario.sample_state_augmentation_variables(batch_size, self.aug_seed_stream)
@@ -561,7 +491,7 @@ class NNClassifier(MyKerasModel):
 
         valid, local_origin_point_aug = self.scenario.apply_state_augmentation(translation,
                                                                                rotation,
-                                                                               input_dict,
+                                                                               example,
                                                                                batch_size,
                                                                                time,
                                                                                self.local_env_h_rows,
@@ -593,64 +523,64 @@ class NNClassifier(MyKerasModel):
 
                 add_dict = {
                     'env': add[b].numpy(),
-                    'res': input_dict['res'][b].numpy(),
+                    'res': example['res'][b].numpy(),
                 }
                 raster_msg = environment_to_vg_msg(add_dict, frame='local_env_vg', stamp=rospy.Time(0))
                 self.env_aug_pub3.publish(raster_msg)
 
                 remove_dict = {
                     'env': remove[b].numpy(),
-                    'res': input_dict['res'][b].numpy(),
+                    'res': example['res'][b].numpy(),
                 }
                 raster_msg = environment_to_vg_msg(remove_dict, frame='local_env_vg', stamp=rospy.Time(0))
                 self.env_aug_pub4.publish(raster_msg)
 
                 # stepper.step()
 
-        remove_batch_indices, remove_points = self.points_intersecting_vg(state_points,
-                                                                          remove,
-                                                                          res,
-                                                                          local_origin_point,
-                                                                          batch_size)
-        add_batch_indices, add_points = self.points_intersecting_vg(state_points,
-                                                                    add,
-                                                                    res,
-                                                                    local_origin_point,
-                                                                    batch_size)
+        local_env_occupancy = self.lookup_points_in_vg(state_points,
+                                                       local_env,
+                                                       res,
+                                                       local_origin_point,
+                                                       batch_size)
+
+        if DEBUG_AUG:
+            stepper = RvizSimpleStepper()
+            for b in debug_viz_batch_indices(batch_size):
+                debug_i = tf.squeeze(tf.where(1 - local_env_occupancy[b]))
+                points_debug_b = tf.gather(state_points[b], debug_i)
+                self.scenario.plot_points_rviz(points_debug_b.numpy(), frame_id='world', label='remove', color='r')
+
+                debug_i = tf.squeeze(tf.where(local_env_occupancy[b]))
+                points_debug_b = tf.gather(state_points[b], debug_i)
+                self.scenario.plot_points_rviz(points_debug_b.numpy(), frame_id='world', label='add', color='g')
+                # stepper.step()
+
+        state_points_aug = rotate_points_3d(rotation[:, None], state_points) + translation[:, None]
 
         if DEBUG_AUG:
             for b in debug_viz_batch_indices(batch_size):
-                i_debug_b = tf.squeeze(tf.where(remove_batch_indices == b), axis=-1)
-                points_debug_b = tf.gather(remove_points, i_debug_b)
-                self.scenario.plot_points_rviz(points_debug_b.numpy(), frame_id='world', label='remove')
-
-                i_debug_b = tf.squeeze(tf.where(add_batch_indices == b), axis=-1)
-                points_debug_b = tf.gather(add_points, i_debug_b)
-                self.scenario.plot_points_rviz(points_debug_b.numpy(), frame_id='world', label='add')
-
-        remove_points_aug = gather_transform(remove_batch_indices, remove_points, rotation, translation)
-        remove_points_aug = gather_translate(remove_batch_indices, remove_points_aug, -local_origin_point_aug)
-
-        add_points_aug = gather_transform(add_batch_indices, add_points, rotation, translation)
-        add_points_aug = gather_translate(add_batch_indices, add_points_aug, -local_origin_point_aug)
-
-        if DEBUG_AUG:
-            for b in debug_viz_batch_indices(batch_size):
-                i_debug_b = tf.squeeze(tf.where(add_batch_indices == b), axis=-1)
-                points_debug_b = tf.gather(add_points_aug, i_debug_b)
+                debug_i = tf.squeeze(tf.where(local_env_occupancy[b]))
+                points_debug_b = tf.gather(state_points_aug[b], debug_i)
                 self.scenario.plot_points_rviz(points_debug_b.numpy(),
-                                               frame_id='local_origin_point_aug',
+                                               frame_id='world',
                                                label='add_aug',
                                                color='g')
 
-                i_debug_b = tf.squeeze(tf.where(remove_batch_indices == b), axis=-1)
-                points_debug_b = tf.gather(remove_points_aug, i_debug_b)
+                debug_i = tf.squeeze(tf.where(1 - local_env_occupancy[b]))
+                points_debug_b = tf.gather(state_points_aug[b], debug_i)
                 self.scenario.plot_points_rviz(points_debug_b.numpy(),
-                                               frame_id='local_origin_point_aug',
+                                               frame_id='world',
                                                label='remove_aug',
                                                color='r')
 
-        e_aug = self.sdf_opt_env_augmentation(input_dict, indices, voxel_grids, add_points_aug, remove_points_aug)
+        new_env = self.get_new_env(example)
+        self.sdf_opt_env_augmentation(new_env,
+                                      indices,
+                                      state_points_aug,
+                                      local_env_occupancy,
+                                      res,
+                                      local_origin_point_aug,
+                                      batch_size)
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
@@ -658,14 +588,17 @@ class NNClassifier(MyKerasModel):
                 _aug_dict = {
                     'env':          voxel_grids.read(0)[b, :, :, :, 0].numpy(),
                     'origin_point': local_origin_point_aug[b].numpy(),
-                    'res':          input_dict['res'][b].numpy(),
+                    'res':          res[b].numpy(),
                 }
                 msg = environment_to_vg_msg(_aug_dict, frame='local_env_vg', stamp=rospy.Time(0))
                 self.env_aug_pub5.publish(msg)
-                send_voxelgrid_tf(self.broadcaster, _aug_dict, frame='local_env_vg')
+                send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
+                                                      local_origin_point_aug[b].numpy(),
+                                                      res[b].numpy(),
+                                                      frame='local_env_vg')
 
-                self.debug_viz_state_action(input_dict, b, 'input')
-                stepper.step()
+                self.debug_viz_state_action(example, b, 'input')
+                # stepper.step()
 
         voxel_grids_aug = self.merge_aug_and_local_voxel_grids(e_aug,
                                                                voxel_grids,
@@ -673,48 +606,83 @@ class NNClassifier(MyKerasModel):
                                                                time)
         return voxel_grids_aug
 
-    def points_intersecting_vg(self, state_points, vg, res, local_origin_point, batch_size):
-        """
+    def sdf_opt_env_augmentation(self,
+                                 new_env,
+                                 indices,
+                                 state_points_aug,
+                                 local_env_occupancy,
+                                 res,
+                                 local_origin_point_aug,
+                                 batch_size):
+        local_env_center = self.sample_local_env_position(new_env)
+        local_env_new, _ = self.get_local_env_given_center(local_env_center, new_env, indices)
+        # viz new env
+        if DEBUG_AUG:
+            for b in debug_viz_batch_indices(self.batch_size):
+                local_env_new_dict = {
+                    'env': local_env_new[b].numpy(),
+                    'res': res[b].numpy(),
+                }
+                # Show sample new local environment, in the frame of the original local env, the one we're augmenting
+                msg = environment_to_vg_msg(local_env_new_dict, frame='local_env_vg', stamp=rospy.Time(0))
+                self.env_aug_pub1.publish(msg)
 
+                send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
+                                                      origin_point=local_origin_point_aug[b],
+                                                      res=res[b],
+                                                      frame='local_env_vg')
+
+                # stepper.step()
+
+        step_size = 1.0
+        n_steps = 10
+        stepper = RvizSimpleStepper()
+        for b in range(batch_size):
+            for i in range(n_steps):
+                # convert to a point cloud
+                r_b = res[b]
+                o_b = local_origin_point_aug[b]
+                points_b = occupied_voxels_to_points(local_env_new, r_b, o_b)
+
+                matching()
+
+                if DEBUG_AUG:
+                    stepper.step()
+
+                combined_gradient = add_gradient + remove_gradient
+                new_env_indices = tf.where(new_env)
+                new_env_gradients = tf.gather(combined_gradient, new_env_indices)
+                # reduce mean, but grouped by batch index. not sure how to do that?
+                gradient = tf.reduce_mean(new_env_gradients)  # [b, 3]
+
+                if DEBUG_AUG:
+                    stepper.step()
+
+                local_env_center = local_env_center + step_size * gradient  # step
+
+        # TODO: what do we return ???
+
+    def lookup_points_in_vg(self, state_points, local_env, res, local_origin_point, batch_size):
+        """
+        Returns the values of local_env at state_points
         Args:
             state_points: [b, n, 3], in same frame as local_origin_point
-            vg:
+            local_env: [b, h, w, c]
             res:
             local_origin_point: [b, 3] in same frame as state_points
             batch_size:
 
-        Returns:
+        Returns: [b, n]
 
         """
         n_points = state_points.shape[1]
         vg_indices = batch_point_to_idx(state_points,
                                         tf.expand_dims(res, axis=1),
                                         tf.expand_dims(local_origin_point, axis=1))
-        batch_indices = tf.tile(tf.range(batch_size)[:, tf.newaxis, tf.newaxis], [1, n_points, 1])
+        batch_indices = tf.tile(tf.range(batch_size)[:, None, None], [1, n_points, 1])
         batch_and_vg_indices = tf.concat([batch_indices, vg_indices], axis=-1)
-        occupancy_at_state_points = tf.gather_nd(vg, batch_and_vg_indices)
-        intersecting_state_point_indices = tf.where(occupancy_at_state_points > 0.5)
-        intersecting_state_points = tf.gather_nd(state_points, intersecting_state_point_indices)
-        intersecting_state_points_batch_indices = intersecting_state_point_indices[:, 0]
-
-        return intersecting_state_points_batch_indices, intersecting_state_points
-
-    def sample_p_e_new(self, input_dict):
-        if add_new('env') not in input_dict:
-            print("new env not in input_dict. did you forget the load from the pretransfer config?")
-            input_dict[add_new('env')] = input_dict['env']
-            input_dict[add_new('extent')] = input_dict['extent']
-            input_dict[add_new('origin')] = input_dict['origin']
-            input_dict[add_new('res')] = input_dict['res']
-
-        new_env_dict = {
-            'env':    input_dict[add_new('env')],
-            'extent': input_dict[add_new('extent')],
-            'origin': input_dict[add_new('origin')],
-            'res':    input_dict[add_new('res')],
-        }
-        p_e_new = self.sample_local_env_position(new_env_dict)
-        return p_e_new
+        occupancy_at_state_points = tf.gather_nd(local_env, batch_and_vg_indices)  # [b, n_points, 2]
+        return occupancy_at_state_points
 
     def debug_viz_local_env_pre_aug(self, example: Dict, voxel_grids, local_origin_point, time):
         for b in debug_viz_batch_indices(self.batch_size):
