@@ -3,6 +3,7 @@ from typing import Dict, List
 
 import numpy as np
 from matplotlib import cm, colors
+from more_itertools import interleave
 
 import ros_numpy
 import rospy
@@ -376,6 +377,29 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         msg.scale.z = scale
         msg.color = color_msg
         for position in positions:
+            p = Point(x=position[0], y=position[1], z=position[2])
+            msg.points.append(p)
+
+        self.point_pub.publish(msg)
+
+    def plot_lines_rviz(self, starts, ends, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+        color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "y")))
+
+        scale = kwargs.get('scale', 0.001)
+
+        msg = Marker()
+        msg.header.frame_id = frame_id
+        msg.header.stamp = rospy.Time.now()
+        msg.ns = label
+        msg.id = id
+        msg.type = Marker.LINE_LIST
+        msg.action = Marker.ADD
+        msg.pose.orientation.w = 1
+        msg.scale.x = scale
+        msg.scale.y = scale
+        msg.scale.z = scale
+        msg.color = color_msg
+        for position in interleave(starts, ends):
             p = Point(x=position[0], y=position[1], z=position[2])
             msg.points.append(p)
 

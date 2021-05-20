@@ -23,13 +23,15 @@ from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
-from moonshine.geometry import make_rotation_matrix_like, rotate_points_3d
+from moonshine.geometry import make_rotation_matrix_like, rotate_points_3d, pairwise_squared_distances, \
+    best_fit_translation
 from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_3d
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
 from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors, numpify
 from moonshine.my_keras_model import MyKerasModel
-from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
+from moonshine.optimization import log_barrier
+from moonshine.raster_3d import batch_points_to_voxel_grid_res_origin_point, points_to_voxel_grid_res_origin_point
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from std_msgs.msg import Float32
 from visualization_msgs.msg import MarkerArray, Marker
@@ -113,7 +115,9 @@ class NNClassifier(MyKerasModel):
 
         self.aug_gen = tf.random.Generator.from_seed(0)
         self.aug_seed_stream = tfp.util.SeedStream(1, salt="nn_classifier_aug")
-        self.aug_opt = tf.keras.optimizers.Adam(1e-4)
+        self.aug_opt = tf.keras.optimizers.SGD(5e-2)
+        self.k_repel = 1
+        self.log_offset = 0.01
 
     def call(self, input_dict: Dict, training, **kwargs):
         batch_size = input_dict['batch_size']
@@ -345,14 +349,14 @@ class NNClassifier(MyKerasModel):
                 flat_res = tf.repeat(input_dict['res'], n_points_in_component, axis=0)
                 # flat_origin = tf.repeat(local_env_origin, n_points_in_component, axis=0)
                 flat_origin_point = tf.repeat(local_origin_point, n_points_in_component, axis=0)
-                state_component_voxel_grid = points_to_voxel_grid_res_origin_point(flat_batch_indices,
-                                                                                   flat_points,
-                                                                                   flat_res,
-                                                                                   flat_origin_point,
-                                                                                   self.local_env_h_rows,
-                                                                                   self.local_env_w_cols,
-                                                                                   self.local_env_c_channels,
-                                                                                   batch_size)
+                state_component_voxel_grid = batch_points_to_voxel_grid_res_origin_point(flat_batch_indices,
+                                                                                         flat_points,
+                                                                                         flat_res,
+                                                                                         flat_origin_point,
+                                                                                         self.local_env_h_rows,
+                                                                                         self.local_env_w_cols,
+                                                                                         self.local_env_c_channels,
+                                                                                         batch_size)
                 local_voxel_grid_t_array = local_voxel_grid_t_array.write(channel_idx + 1, state_component_voxel_grid)
 
             # insert the rastered robot state
@@ -548,11 +552,11 @@ class NNClassifier(MyKerasModel):
             for b in debug_viz_batch_indices(batch_size):
                 debug_i = tf.squeeze(tf.where(1 - local_env_occupancy[b]))
                 points_debug_b = tf.gather(state_points[b], debug_i)
-                self.scenario.plot_points_rviz(points_debug_b.numpy(), frame_id='world', label='remove', color='r')
+                self.scenario.plot_points_rviz(points_debug_b.numpy(), label='remove', color='r')
 
                 debug_i = tf.squeeze(tf.where(local_env_occupancy[b]))
                 points_debug_b = tf.gather(state_points[b], debug_i)
-                self.scenario.plot_points_rviz(points_debug_b.numpy(), frame_id='world', label='add', color='g')
+                self.scenario.plot_points_rviz(points_debug_b.numpy(), label='add', color='g')
                 # stepper.step()
 
         state_points_aug = rotate_points_3d(rotation[:, None], state_points) + translation[:, None]
@@ -561,26 +565,20 @@ class NNClassifier(MyKerasModel):
             for b in debug_viz_batch_indices(batch_size):
                 debug_i = tf.squeeze(tf.where(local_env_occupancy[b]))
                 points_debug_b = tf.gather(state_points_aug[b], debug_i)
-                self.scenario.plot_points_rviz(points_debug_b.numpy(),
-                                               frame_id='world',
-                                               label='add_aug',
-                                               color='g')
+                self.scenario.plot_points_rviz(points_debug_b.numpy(), label='add_aug', color='g')
 
                 debug_i = tf.squeeze(tf.where(1 - local_env_occupancy[b]))
                 points_debug_b = tf.gather(state_points_aug[b], debug_i)
-                self.scenario.plot_points_rviz(points_debug_b.numpy(),
-                                               frame_id='world',
-                                               label='remove_aug',
-                                               color='r')
+                self.scenario.plot_points_rviz(points_debug_b.numpy(), label='remove_aug', color='r')
 
         new_env = self.get_new_env(example)
-        self.sdf_opt_env_augmentation(new_env,
-                                      indices,
-                                      state_points_aug,
-                                      local_env_occupancy,
-                                      res,
-                                      local_origin_point_aug,
-                                      batch_size)
+        local_env_aug = self.sdf_opt_env_augmentation(new_env,
+                                                      indices,
+                                                      state_points_aug,
+                                                      local_env_occupancy,
+                                                      res,
+                                                      local_origin_point_aug,
+                                                      batch_size)
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
@@ -600,7 +598,7 @@ class NNClassifier(MyKerasModel):
                 self.debug_viz_state_action(example, b, 'input')
                 # stepper.step()
 
-        voxel_grids_aug = self.merge_aug_and_local_voxel_grids(e_aug,
+        voxel_grids_aug = self.merge_aug_and_local_voxel_grids(local_env_aug,
                                                                voxel_grids,
                                                                n_state_components,
                                                                time)
@@ -634,33 +632,73 @@ class NNClassifier(MyKerasModel):
 
                 # stepper.step()
 
-        step_size = 1.0
-        n_steps = 10
+        n_steps = 100
         stepper = RvizSimpleStepper()
-        for b in range(batch_size):
+        local_env_aug = []
+        # for b in range(batch_size):
+        for b in debug_viz_batch_indices(batch_size):
+            r_b = res[b]
+            o_b = local_origin_point_aug[b]
+            state_points_b = state_points_aug[b]
+            local_env_occupancy_b = local_env_occupancy[b]
+            env_points_b_initial = occupied_voxels_to_points(local_env_new[b], r_b, o_b)
+            env_points_b = env_points_b_initial
+
+            translation_b = tf.Variable([0, 0, 0], dtype=tf.float32)
+            variables = [translation_b]
             for i in range(n_steps):
-                # convert to a point cloud
-                r_b = res[b]
-                o_b = local_origin_point_aug[b]
-                points_b = occupied_voxels_to_points(local_env_new, r_b, o_b)
 
-                matching()
+                with tf.GradientTape() as tape:
+                    env_points_b = env_points_b_initial + translation_b
+                    dists_b = pairwise_squared_distances(env_points_b, state_points_b)
+                    min_dists_indices_b = tf.argmin(dists_b, axis=1)
+                    state_points_gathered = tf.gather(state_points_b, min_dists_indices_b)
 
-                if DEBUG_AUG:
-                    stepper.step()
+                    if DEBUG_AUG:
+                        self.scenario.plot_points_rviz(env_points_b, label='icp', color='grey')
+                        self.scenario.plot_lines_rviz(state_points_gathered, env_points_b, label='correspondence')
+                        # stepper.step()
 
-                combined_gradient = add_gradient + remove_gradient
-                new_env_indices = tf.where(new_env)
-                new_env_gradients = tf.gather(combined_gradient, new_env_indices)
-                # reduce mean, but grouped by batch index. not sure how to do that?
-                gradient = tf.reduce_mean(new_env_gradients)  # [b, 3]
+                    min_dists_b = tf.reduce_min(dists_b, axis=1)
+                    local_env_occupancy_gathered = tf.gather(local_env_occupancy_b, min_dists_indices_b)
 
-                if DEBUG_AUG:
-                    stepper.step()
+                    # loss is made of two virtual forces, one that attracts (linear) and one that repels (ln)
+                    barrier = tf.cast((local_env_occupancy_gathered < 0.5), tf.float32) * self.log_barrier(min_dists_b)
+                    attraction = tf.cast((local_env_occupancy_gathered > 0.5), tf.float32) * min_dists_b
+                    loss = tf.reduce_mean(attraction + barrier)
 
-                local_env_center = local_env_center + step_size * gradient  # step
+                gradients = tape.gradient(loss, variables)
+                self.aug_opt.apply_gradients(zip(gradients, variables))
 
-        # TODO: what do we return ???
+                # dists_b = pairwise_squared_distances(env_points_b, state_points_b)
+                # min_dists_indices_b = tf.argmin(dists_b, axis=1)
+                #
+                # nearest_state_points_b = tf.gather(state_points_b, min_dists_indices_b)
+                # # icp_rotation, icp_translation = best_fit_transform(env_points_b, nearest_state_points_b)
+                # icp_translation = best_fit_translation(env_points_b, nearest_state_points_b)
+                #
+                # # transformed_env_points_b = rotate_points_3d(icp_rotation, env_points_b) + icp_translation
+                # transformed_env_points_b = env_points_b + icp_translation
+                #
+                # if DEBUG_AUG:
+                #     self.scenario.plot_points_rviz(env_points_b, label='icp', color='grey')
+                #     stepper.step()
+                #
+                # env_points_b = transformed_env_points_b
+
+            local_env_aug_b = points_to_voxel_grid_res_origin_point(env_points_b,
+                                                                    r_b,
+                                                                    o_b,
+                                                                    self.local_env_h_rows,
+                                                                    self.local_env_w_cols,
+                                                                    self.local_env_c_channels)
+            local_env_aug.append(local_env_aug_b)
+
+        local_env_aug = tf.stack(local_env_aug)
+        return local_env_aug
+
+    def log_barrier(self, min_dists_b):
+        return log_barrier(min_dists_b, a=self.k_repel, b=self.log_offset)
 
     def lookup_points_in_vg(self, state_points, local_env, res, local_origin_point, batch_size):
         """

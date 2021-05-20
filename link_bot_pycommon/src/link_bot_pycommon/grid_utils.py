@@ -12,13 +12,13 @@ from sensor_msgs.msg import PointCloud2
 
 
 def occupied_voxels_to_points(vg, res, origin_point):
-    indices = tf.where(vg)
+    indices = tf.where(vg > 0.5)
     occupied_points = batch_idx_to_point_3d_tf_res_origin_point(indices, res, origin_point)
     return occupied_points
 
 
 def occupied_voxels_to_points_batched(vg, res, origin_point):
-    all_indices = tf.where(vg)
+    all_indices = tf.where(vg > 0.5)
     batch_indices = all_indices[:, 0]
     indices = all_indices[:, 1:]
     res_gathered = tf.gather(res, batch_indices, axis=0)
