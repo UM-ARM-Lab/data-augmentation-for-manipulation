@@ -67,9 +67,12 @@ class MyKerasModel(tf.keras.Model):
     def preprocess_no_gradient(self, element, training: bool):
         return element
 
-    # @tf.function
     def train_step(self, train_element, metrics: Dict[str, Metric]):
         train_element = self.preprocess_no_gradient(train_element, training=True)
+        return self._train_step(train_element, metrics)
+
+    @tf.function
+    def _train_step(self, train_element, metrics: Dict[str, Metric]):
         with tf.GradientTape(persistent=True) as tape:
             train_outputs = self.call(train_element, training=True)
             train_losses = self.compute_loss(train_element, train_outputs)

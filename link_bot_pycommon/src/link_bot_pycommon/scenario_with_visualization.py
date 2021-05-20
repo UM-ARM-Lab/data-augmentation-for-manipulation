@@ -14,6 +14,7 @@ from gazebo_msgs.srv import SetModelState
 from geometry_msgs.msg import Pose, Point, Quaternion
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import NULL_PAD_VALUE
+from link_bot_data.visualization import make_delete_marker
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -21,6 +22,7 @@ from link_bot_pycommon.grid_utils import environment_to_vg_msg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.rviz_marker_manager import RVizMarkerManager
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
+from moveit_msgs.msg import DisplayTrajectory
 from peter_msgs.msg import LabelStatus
 from peter_msgs.srv import WorldControl, WorldControlRequest
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
@@ -404,3 +406,9 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
             msg.points.append(p)
 
         self.point_pub.publish(msg)
+
+    def delete_points_rviz(self, label: str, id: int = 0):
+        self.point_pub.publish(make_delete_marker(id, label))
+
+    def delete_lines_rviz(self, label: str, id: int = 0):
+        self.point_pub.publish(make_delete_marker(id, label))

@@ -1,7 +1,7 @@
 from typing import Dict, Tuple
 
 import rospy
-from link_bot_data.visualization import make_delete_marker
+from link_bot_data.visualization import make_delete_markerarray
 
 
 class RVizMarkerManager:
@@ -14,7 +14,7 @@ class RVizMarkerManager:
             self.markers[publisher.name] = {}
 
     def delete(self, publisher: rospy.Publisher, label: str, index: int):
-        m = make_delete_marker(ns=label, marker_id=index)
+        m = make_delete_markerarray(ns=label, marker_id=index)
         publisher.publish(m)
 
     def delete_all(self):

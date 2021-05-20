@@ -11,6 +11,18 @@ from rviz_voxelgrid_visuals import conversions
 from sensor_msgs.msg import PointCloud2
 
 
+def binary_or(a, b):
+    return tf.clip_by_value(a + b, 0, 1)
+
+
+def binary_and(a, b):
+    return a * b
+
+
+def subtract(a, b):
+    return tf.clip_by_value(a - b, 0, 1)
+
+
 def occupied_voxels_to_points(vg, res, origin_point):
     indices = tf.where(vg > 0.5)
     occupied_points = batch_idx_to_point_3d_tf_res_origin_point(indices, res, origin_point)

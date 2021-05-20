@@ -1,7 +1,3 @@
 {
-  augmentation: {
-  type: optimization
-  swept: false
-  state_type: "uniform" # set to null to not do any
-  }
+  augmentation: null
 }

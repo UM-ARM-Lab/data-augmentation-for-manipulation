@@ -372,3 +372,14 @@ def swap_xy(x):
     z = tf.gather(x, 2, axis=-1)
     swapped = tf.stack([second, first, z], axis=-1)
     return swapped
+
+
+def to_list_of_strings(x):
+    if isinstance(x[0], bytes):
+        return [n.decode("utf-8") for n in x]
+    elif isinstance(x[0], str):
+        return [str(n) for n in x]
+    elif isinstance(x, tf.Tensor):
+        return [n.decode("utf-8") for n in x.numpy()]
+    else:
+        raise NotImplementedError()

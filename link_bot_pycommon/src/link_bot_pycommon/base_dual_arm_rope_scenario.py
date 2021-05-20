@@ -15,8 +15,8 @@ from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-from moonshine.geometry import rotate_points_3d, make_rotation_matrix_like
-from moonshine.moonshine_utils import numpify, repeat_tensor
+from moonshine.geometry import rotate_points_3d
+from moonshine.moonshine_utils import numpify, to_list_of_strings
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
 from std_msgs.msg import Float32
 from trajectory_msgs.msg import JointTrajectoryPoint
@@ -37,7 +37,7 @@ from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState, PointCloud2
 from tf.transformations import quaternion_from_euler
 
-DEBUG_VIZ_STATE_AUG = True
+DEBUG_VIZ_STATE_AUG = False
 
 
 def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, robot_state: RobotState):
@@ -80,17 +80,6 @@ def joint_state_msg_from_state_dict_predicted(state: Dict):
                              name=to_list_of_strings(state['joint_names']))
     joint_state.header.stamp = rospy.Time.now()
     return joint_state
-
-
-def to_list_of_strings(x):
-    if isinstance(x[0], bytes):
-        return [n.decode("utf-8") for n in x]
-    elif isinstance(x[0], str):
-        return [str(n) for n in x]
-    elif isinstance(x, tf.Tensor):
-        return [n.decode("utf-8") for n in x.numpy()]
-    else:
-        raise NotImplementedError()
 
 
 def to_point_msg(v):
@@ -394,29 +383,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         return delta_position, theta
 
-    def uniform_state_augmentation(self,
-                                   input_dict: Dict,
-                                   batch_size,
-                                   time,
-                                   local_h_rows: int,
-                                   local_w_cols: int,
-                                   local_c_channels: int,
-                                   seed: tfp.util.SeedStream):
-        # sample a translation and rotation for the object state
-        delta_position, theta = self.sample_state_augmentation_variables(batch_size, seed)
-        rotation_matrix = make_rotation_matrix_like(delta_position, theta)
-        return self.apply_state_augmentation(delta_position,
-                                             rotation_matrix,
-                                             input_dict,
-                                             batch_size,
-                                             time,
-                                             local_h_rows,
-                                             local_w_cols, local_c_channels)
-
     def apply_state_augmentation(self,
                                  delta_position,
                                  rotation_matrix,
                                  input_dict: Dict,
+                                 local_origin_point,
                                  batch_size,
                                  time,
                                  local_h_rows: int,
@@ -561,14 +532,18 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         # return new local env?
         state_keys = ['left_gripper', 'right_gripper', 'rope']
-        state_aug = {k: input_dict[add_predicted(k)] for k in state_keys}
-        local_center_aug = self.local_environment_center_differentiable(state_aug)
+        # t=0, matching what we do in the network
+        state_aug_0 = {k: input_dict[add_predicted(k)][:, 0] for k in state_keys}
+        local_center_aug = self.local_environment_center_differentiable(state_aug_0)
         res = input_dict['res']
         local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug,
                                                                         res,
                                                                         local_h_rows,
                                                                         local_w_cols,
                                                                         local_c_channels)
+        aug_valid_expanded = aug_valid[:, tf.newaxis]
+        local_origin_point_aug = aug_valid_expanded * local_origin_point_aug + \
+                                 (1 - aug_valid_expanded) * local_origin_point
 
         return aug_valid, local_origin_point_aug
 
