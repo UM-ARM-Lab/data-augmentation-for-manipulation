@@ -394,11 +394,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                  local_w_cols: int,
                                  local_c_channels: int,
                                  ):
-        assert time == 2
-
         # rotates about the world origin, which isn't great because it's less likely to produce a feasible augmentation
-        def _rot(points):
-            n = points.shape[2]
+        def _rot(points, n):
             rotation_matrix_tiled = tf.tile(rotation_matrix[:, tf.newaxis, tf.newaxis], [1, 2, n, 1, 1])
             points_rotated = rotate_points_3d(rotation_matrix_tiled, points)
             return points_rotated
@@ -410,9 +407,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
         right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
-        rope_points_rotated = _rot(rope_points)
-        left_gripper_points_rotated = _rot(left_gripper_points)
-        right_gripper_points_rotated = _rot(right_gripper_points)
+        rope_points_rotated = _rot(rope_points, 25)
+        left_gripper_points_rotated = _rot(left_gripper_points, 1)
+        right_gripper_points_rotated = _rot(right_gripper_points, 1)
 
         delta_position = tf.tile(delta_position[:, tf.newaxis, tf.newaxis], [1, 2, 1, 1])
 
@@ -430,6 +427,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         # use IK to get a new starting joint configuration
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
+        # FIXME: how do we do this inside tf.function?
         empty_scene_msgs = _deserialize_scene_msg(input_dict)
         for s in empty_scene_msgs:
             s.world.collision_objects = []

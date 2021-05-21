@@ -170,7 +170,7 @@ class NNClassifier(MyKerasModel):
         indices = self.create_env_indices(batch_size)
         local_env, local_origin_point = self.get_local_env(indices, input_dict)
 
-        voxel_grids = self.make_voxel_grid_inputs(input_dict, local_env, local_origin_point, batch_size, time)
+        voxel_grids = self.make_voxelgrid_inputs(input_dict, local_env, local_origin_point, batch_size, time)
 
         if DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(input_dict, voxel_grids, local_origin_point, time)
@@ -288,29 +288,23 @@ class NNClassifier(MyKerasModel):
         metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
 
-    def fwd_conv(self, batch_size, local_voxel_grid_t):
-        conv_z = local_voxel_grid_t
-        for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
-            conv_h = conv_layer(conv_z)
-            conv_z = pool_layer(conv_h)
-        out_conv_z = conv_z
-        out_conv_z_dim = out_conv_z.shape[1] * out_conv_z.shape[2] * out_conv_z.shape[3] * out_conv_z.shape[4]
-        out_conv_z = tf.reshape(out_conv_z, [batch_size, out_conv_z_dim])
-        return out_conv_z
-
-    def conv_encoder(self, local_voxel_grids_aug_array: tf.TensorArray, batch_size, time):
+    # @tf.function
+    def conv_encoder(self, voxel_grids, batch_size, time):
         conv_outputs_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        for t in tf.range(time):
-            local_voxel_grid_t = local_voxel_grids_aug_array.read(t)
-
-            out_conv_z = self.fwd_conv(batch_size, local_voxel_grid_t)
-
+        for t in range(time):
+            conv_z = voxel_grids[:, t]
+            for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
+                conv_h = conv_layer(conv_z)
+                conv_z = pool_layer(conv_h)
+            out_conv_z = conv_z
+            out_conv_z_dim = out_conv_z.shape[1] * out_conv_z.shape[2] * out_conv_z.shape[3] * out_conv_z.shape[4]
+            out_conv_z = tf.reshape(out_conv_z, [batch_size, out_conv_z_dim])
             conv_outputs_array = conv_outputs_array.write(t, out_conv_z)
-
         conv_outputs = conv_outputs_array.stack()
         conv_outputs = tf.transpose(conv_outputs, [1, 0, 2])
         return conv_outputs
 
+    # @tf.function
     def fc(self, input_dict, conv_output, training):
         states = {k: input_dict[add_predicted(k)] for k in self.state_keys}
         states_in_local_frame = self.scenario.put_state_local_frame(states)
@@ -340,10 +334,12 @@ class NNClassifier(MyKerasModel):
         out_h = self.lstm(out_d)
         return out_h
 
+    # @tf.function
     def create_env_indices(self, batch_size: int):
         return create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels, batch_size)
 
-    def make_voxel_grid_inputs(self, input_dict: Dict, local_env, local_origin_point, batch_size, time):
+    # @tf.function
+    def make_voxelgrid_inputs(self, input_dict: Dict, local_env, local_origin_point, batch_size, time):
         local_voxel_grids_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
         for t in tf.range(time):
             state_t = {k: input_dict[add_predicted(k)][:, t] for k in self.state_keys}
@@ -361,7 +357,6 @@ class NNClassifier(MyKerasModel):
                 flat_points = tf.reshape(points, [-1, 3])
                 flat_points.set_shape([n_points_in_component * self.batch_size, 3])
                 flat_res = tf.repeat(input_dict['res'], n_points_in_component, axis=0)
-                # flat_origin = tf.repeat(local_env_origin, n_points_in_component, axis=0)
                 flat_origin_point = tf.repeat(local_origin_point, n_points_in_component, axis=0)
                 state_component_voxel_grid = batch_points_to_voxel_grid_res_origin_point(flat_batch_indices,
                                                                                          flat_points,
@@ -385,12 +380,14 @@ class NNClassifier(MyKerasModel):
                 n_channels = len(self.state_keys) + 1
 
             local_voxel_grid_t = tf.transpose(local_voxel_grid_t_array.stack(), [1, 2, 3, 4, 0])
-            # add channel dimension information because tf.function erases it somehow...
+            # add channel dimension information because tf.function erases it?
             local_voxel_grid_t.set_shape([None, None, None, None, n_channels])
 
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
 
-        return local_voxel_grids_array
+        local_voxel_grids = tf.transpose(local_voxel_grids_array.stack(), [1, 0, 2, 3, 4, 5])
+        local_voxel_grids.set_shape([None, 2, None, None, None, None])  # FIXME: 2 is hardcoded here
+        return local_voxel_grids
 
     def get_local_env(self, indices, input_dict):
         state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
@@ -411,22 +408,15 @@ class NNClassifier(MyKerasModel):
 
         return local_env, local_origin_point
 
-    def merge_aug_and_local_voxel_grids(self, env, voxel_grids_array: tf.TensorArray, time):
-        local_env_aug_expanded = tf.expand_dims(env, axis=-1)
-        local_voxel_grids_aug_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
-        for t in tf.range(time):
-            # the dims of local_voxel_grid are batch, rows, cols, channels, features
-            # and features[0] is the local env, so pad the other feature dims with zero
-            local_voxel_grid_t = voxel_grids_array.read(t)
-            local_voxel_grid_states_t = local_voxel_grid_t[:, :, :, :, 1:]
-            local_voxel_grid_aug_t = tf.concat([local_env_aug_expanded, local_voxel_grid_states_t], axis=-1)
-            local_voxel_grid_aug_t = tf.clip_by_value(local_voxel_grid_aug_t, 0.0, 1.0)
-            local_voxel_grids_aug_array = local_voxel_grids_aug_array.write(t, local_voxel_grid_aug_t)
-        return local_voxel_grids_aug_array
+    def merge_aug_and_local_voxel_grids(self, env, voxel_grids, time):
+        env_with_time = tf.tile(env[:, None, :, :, :, None], [1, time, 1, 1, 1, 1])
+        voxel_grids_without_env = voxel_grids[:, :, :, :, :, 1:]
+        voxel_grids = tf.concat([env_with_time, voxel_grids_without_env], axis=-1)
+        voxel_grids = tf.clip_by_value(voxel_grids, 0.0, 1.0)
+        return voxel_grids
 
     def get_new_env(self, example):
         if add_new('env') not in example:
-            print("new env not in example. did you forget the load from the pretransfer config?")
             example[add_new('env')] = example['env']
             example[add_new('extent')] = example['extent']
             example[add_new('origin_point')] = example['origin_point']
@@ -449,15 +439,13 @@ class NNClassifier(MyKerasModel):
 
         return local_env_center
 
-    def local_env_given_center(self, center_point, environment, indices):
+    def local_env_given_center(self, center_point, environment: Dict, indices: Dict):
         return get_local_env_and_origin_3d(center_point=center_point,
                                            environment=environment,
                                            h=self.local_env_h_rows,
                                            w=self.local_env_w_cols,
                                            c=self.local_env_c_channels,
-                                           batch_x_indices=indices.batch_x,
-                                           batch_y_indices=indices.batch_y,
-                                           batch_z_indices=indices.batch_z,
+                                           indices=indices,
                                            batch_size=self.batch_size)
 
     def is_env_augmentation_valid_swept(self,
@@ -486,7 +474,13 @@ class NNClassifier(MyKerasModel):
         aug_is_valid = 1 - aug_intersects_state_any_t
         return aug_is_valid
 
-    def augmentation_optimization(self, example, indices, local_origin_point, voxel_grids, batch_size, time):
+    def augmentation_optimization(self,
+                                  example: Dict,
+                                  indices: Dict,
+                                  local_origin_point,
+                                  voxel_grids,
+                                  batch_size,
+                                  time):
         # before augmentation
         states = {k: example[add_predicted(k)] for k in self.state_keys}
         state_points = tf.concat([tf.reshape(v, [batch_size, time, -1, 3]) for v in states.values()], axis=2)
@@ -507,50 +501,8 @@ class NNClassifier(MyKerasModel):
                                                                                self.local_env_w_cols,
                                                                                self.local_env_c_channels)
 
-        # equivalent version of "logical or" over all state channels
-        states_any_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        for t in range(time):
-            local_voxel_grid_t = voxel_grids.read(t)
-            states_any_t = tf.minimum(tf.reduce_sum(local_voxel_grid_t[:, :, :, :, 1:], axis=-1), 1)
-            states_any_array = states_any_array.write(t, states_any_t)
-        states_any = tf.transpose(states_any_array.stack(), [1, 0, 2, 3, 4])
-        states_any = tf.minimum(tf.reduce_sum(states_any, axis=1), 1)
-
-        local_env = voxel_grids.read(0)[:, :, :, :, 0]  # just use 0 because it's the same at all time steps
-        # the voxels where states_any == 1 and local_env == 1. In the future this will need to be swept volume,
-        # and will also need to include the voxelized robot
-        attract = binary_and(states_any, local_env)
-
-        # voxels where state_any == 1, and local_env == 0 must _not_ be occupied by the new env
-        repel = binary_and(states_any, 1 - local_env)
-
-        if DEBUG_AUG:
-            stepper = RvizSimpleStepper()
-            for b in debug_viz_batch_indices(batch_size):
-                self.scenario.tf.send_transform(local_origin_point_aug[b], [0, 0, 0, 1], 'world',
-                                                'local_origin_point_aug', is_static=True)
-
-                attract_dict = {
-                    'env': attract[b].numpy(),
-                    'res': example['res'][b].numpy(),
-                }
-                raster_msg = environment_to_vg_msg(attract_dict, frame='local_env_aug_vg', stamp=rospy.Time(0))
-                self.env_aug_pub3.publish(raster_msg)
-
-                repel_dict = {
-                    'env': repel[b].numpy(),
-                    'res': example['res'][b].numpy(),
-                }
-                raster_msg = environment_to_vg_msg(repel_dict, frame='local_env_aug_vg', stamp=rospy.Time(0))
-                self.env_aug_pub4.publish(raster_msg)
-
-                # stepper.step()
-
-        local_env_occupancy = self.lookup_points_in_vg(state_points,
-                                                       local_env,
-                                                       res,
-                                                       local_origin_point,
-                                                       batch_size)
+        local_env = voxel_grids[:, 0, :, :, :, 0]  # just use 0 because it's the same at all time steps
+        local_env_occupancy = self.lookup_points_in_vg(state_points, local_env, res, local_origin_point, batch_size)
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
@@ -624,8 +576,8 @@ class NNClassifier(MyKerasModel):
         return voxel_grids_aug
 
     def opt_new_env_augmentation(self,
-                                 new_env,
-                                 indices,
+                                 new_env: Dict,
+                                 indices: Dict,
                                  state_points_aug,
                                  local_env_occupancy,
                                  res,
@@ -680,7 +632,13 @@ class NNClassifier(MyKerasModel):
                 # stepper.step()
 
         n_steps = 100
-        stepper = RvizSimpleStepper()
+        if DEBUG_AUG_SGD:
+            stepper = RvizSimpleStepper()
+
+        nearest_attract_points = None
+        nearest_repel_points = None
+        attract_points_b = None
+        repel_points_b = None
         local_env_aug = []
         for b in range(batch_size):
             r_b = res[b]
@@ -734,27 +692,12 @@ class NNClassifier(MyKerasModel):
                 grad_norm = tf.linalg.norm(gradients)
                 if grad_norm < self.aug_opt_grad_norm_threshold:
                     break
-            local_env_aug_b = points_to_voxel_grid_res_origin_point(env_points_b,
-                                                                    r_b,
-                                                                    o_b,
-                                                                    self.local_env_h_rows,
-                                                                    self.local_env_w_cols,
-                                                                    self.local_env_c_channels)
+            local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b, r_b, o_b)
 
             # after local optimization, enforce the constraint by ensuring voxels with attract points are on,
             # and voxels with repel points are off
-            attract_vg_b = points_to_voxel_grid_res_origin_point(attract_points_b,
-                                                                 r_b,
-                                                                 o_b,
-                                                                 self.local_env_h_rows,
-                                                                 self.local_env_w_cols,
-                                                                 self.local_env_c_channels)
-            repel_vg_b = points_to_voxel_grid_res_origin_point(repel_points_b,
-                                                               r_b,
-                                                               o_b,
-                                                               self.local_env_h_rows,
-                                                               self.local_env_w_cols,
-                                                               self.local_env_c_channels)
+            attract_vg_b = self.points_to_voxel_grid_res_origin_point(attract_points_b, r_b, o_b)
+            repel_vg_b = self.points_to_voxel_grid_res_origin_point(repel_points_b, r_b, o_b)
             local_env_aug_b = subtract(binary_or(local_env_aug_b, attract_vg_b), repel_vg_b)
 
             local_env_aug.append(local_env_aug_b)
@@ -762,6 +705,14 @@ class NNClassifier(MyKerasModel):
         local_env_aug = tf.stack(local_env_aug)
 
         return local_env_aug
+
+    def points_to_voxel_grid_res_origin_point(self, points, res, origin_point):
+        return points_to_voxel_grid_res_origin_point(points,
+                                                     res,
+                                                     origin_point,
+                                                     self.local_env_h_rows,
+                                                     self.local_env_w_cols,
+                                                     self.local_env_c_channels)
 
     def clip_env_aug_grad(self, grad):
         return tf.clip_by_value(grad, -self.env_aug_grad_clip, self.env_aug_grad_clip)

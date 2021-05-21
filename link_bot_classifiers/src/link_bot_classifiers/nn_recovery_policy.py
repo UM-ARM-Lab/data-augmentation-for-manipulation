@@ -16,16 +16,14 @@ import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.base_recovery_policy import BaseRecoveryPolicy
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
-    batch_point_to_idx_tf_3d_in_batched_envs
-from link_bot_pycommon.pycommon import make_dict_tf_float32, log_scale_0_to_1
+from link_bot_pycommon.pycommon import make_dict_tf_float32, log_scale_0_to_1, dgather
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.ensemble import Ensemble2
-from moonshine.get_local_environment import get_local_env_and_origin_3d_tf_old as get_local_env
+from moonshine.get_local_environment import get_local_env_and_origin_3d, create_env_indices
 from moonshine.metrics import LossMetric
 from moonshine.moonshine_utils import add_batch
 from moonshine.my_keras_model import MyKerasModel
-from moonshine.raster_3d import raster_3d
+from moonshine.raster_3d import raster_3d, batch_points_to_voxel_grid_res_origin_point
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
 DEBUG_VIZ = False
@@ -80,117 +78,102 @@ class NNRecoveryModel(MyKerasModel):
         self.output_layer2 = layers.Dense(1, activation=None, trainable=True)
         self.sigmoid = layers.Activation("sigmoid")
 
-    def make_traj_voxel_grids_from_input_dict(self, input_dict: Dict, batch_size, time: int = 1):
+    def make_voxelgrid_inputs(self, input_dict: Dict, batch_size, time: int = 1):
         # Construct a [b, h, w, c, 3] grid of the indices which make up the local environment
-        pixel_row_indices = tf.range(0, self.local_env_h_rows, dtype=tf.float32)
-        pixel_col_indices = tf.range(0, self.local_env_w_cols, dtype=tf.float32)
-        pixel_channel_indices = tf.range(0, self.local_env_c_channels, dtype=tf.float32)
-        x_indices, y_indices, z_indices = tf.meshgrid(pixel_col_indices, pixel_row_indices, pixel_channel_indices)
+        indices = self.create_env_indices(batch_size)
 
-        # Make batched versions for creating the local environment
-        batch_y_indices = tf.cast(tf.tile(tf.expand_dims(y_indices, axis=0), [batch_size, 1, 1, 1]), tf.int64)
-        batch_x_indices = tf.cast(tf.tile(tf.expand_dims(x_indices, axis=0), [batch_size, 1, 1, 1]), tf.int64)
-        batch_z_indices = tf.cast(tf.tile(tf.expand_dims(z_indices, axis=0), [batch_size, 1, 1, 1]), tf.int64)
-
-        # Convert for rastering state
-        pixel_indices = tf.stack([y_indices, x_indices, z_indices], axis=3)
-        pixel_indices = tf.expand_dims(pixel_indices, axis=0)
-        pixel_indices = tf.tile(pixel_indices, [batch_size, 1, 1, 1, 1])
-
-        # # DEBUG
-        # # plot the occupancy grid
-        # time_steps = np.arange(time)
-        # anim = RvizAnimationController(time_steps)
-        # b = 0
-        # full_env_dict = {
-        #     'env': input_dict['env'][b],
-        #     'origin': input_dict['origin'][b],
-        #     'res': input_dict['res'][b],
-        #     'extent': input_dict['extent'][b],
-        # }
-        # self.scenario.plot_environment_rviz(full_env_dict)
-        # # END DEBUG
+        if DEBUG_VIZ:
+            # plot the occupancy grid
+            time_steps = np.arange(time)
+            b = 0
+            full_env_dict = {
+                'env':    input_dict['env'][b],
+                'origin': input_dict['origin'][b],
+                'res':    input_dict['res'][b],
+                'extent': input_dict['extent'][b],
+            }
+            self.scenario.plot_environment_rviz(full_env_dict)
 
         state = {k: input_dict[k][:, 0] for k in self.state_keys}
 
         local_env_center = self.scenario.local_environment_center_differentiable(state)
-        # by converting too and from the frame of the full environment, we ensure the grids are aligned
-        indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center, input_dict)
-        local_env_center = batch_idx_to_point_3d_in_env_tf(*indices, input_dict)
 
-        local_env_t, local_env_origin_t = get_local_env(center_point=local_env_center,
-                                                        full_env=input_dict['env'],
-                                                        full_env_origin=input_dict['origin'],
-                                                        res=input_dict['res'],
-                                                        h=self.local_env_h_rows,
-                                                        w=self.local_env_w_cols,
-                                                        c=self.local_env_c_channels,
-                                                        batch_x_indices=batch_x_indices,
-                                                        batch_y_indices=batch_y_indices,
-                                                        batch_z_indices=batch_z_indices,
-                                                        batch_size=batch_size)
+        env = dgather(input_dict, ['env', 'origin_point', 'res'])
+        local_env, local_origin_point = get_local_env_and_origin_3d(center_point=local_env_center,
+                                                                      environment=env,
+                                                                      h=self.local_env_h_rows,
+                                                                      w=self.local_env_w_cols,
+                                                                      c=self.local_env_c_channels,
+                                                                      indices=indices,
+                                                                      batch_size=batch_size)
 
-        local_voxel_grid_t_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        local_voxel_grid_t_array = local_voxel_grid_t_array.write(0, local_env_t)
-        for i, state_component_t in enumerate(state.values()):
-            state_component_voxel_grid = raster_3d(state=state_component_t,
-                                                   pixel_indices=pixel_indices,
-                                                   res=input_dict['res'],
-                                                   origin=local_env_origin_t,
-                                                   h=self.local_env_h_rows,
-                                                   w=self.local_env_w_cols,
-                                                   c=self.local_env_c_channels,
-                                                   k=self.rope_image_k,
-                                                   batch_size=batch_size)
+        local_voxel_grid_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        local_voxel_grid_array = local_voxel_grid_array.write(0, local_env)
+        for i, state_component in enumerate(state.values()):
+            n_points_in_component = int(state_component.shape[1] / 3)
+            points = tf.reshape(state_component, [batch_size, -1, 3])
+            flat_batch_indices = tf.repeat(tf.range(batch_size, dtype=tf.int64), n_points_in_component, axis=0)
+            flat_points = tf.reshape(points, [-1, 3])
+            flat_points.set_shape([n_points_in_component * self.batch_size, 3])
+            flat_res = tf.repeat(input_dict['res'], n_points_in_component, axis=0)
+            flat_origin_point = tf.repeat(local_origin_point, n_points_in_component, axis=0)
+            state_component_voxel_grid = batch_points_to_voxel_grid_res_origin_point(flat_batch_indices,
+                                                                                     flat_points,
+                                                                                     flat_res,
+                                                                                     flat_origin_point,
+                                                                                     self.local_env_h_rows,
+                                                                                     self.local_env_w_cols,
+                                                                                     self.local_env_c_channels,
+                                                                                     batch_size)
 
-            local_voxel_grid_t_array = local_voxel_grid_t_array.write(i + 1, state_component_voxel_grid)
-        local_voxel_grid_t = tf.transpose(local_voxel_grid_t_array.stack(), [1, 2, 3, 4, 0])
+            local_voxel_grid_array = local_voxel_grid_array.write(i + 1, state_component_voxel_grid)
+        local_voxel_grid = tf.transpose(local_voxel_grid_array.stack(), [1, 2, 3, 4, 0])
         # add channel dimension information because tf.function erases it somehow...
-        local_voxel_grid_t.set_shape([None, None, None, None, len(self.state_keys) + 1])
+        local_voxel_grid.set_shape([None, None, None, None, len(self.state_keys) + 1])
 
-        # # DEBUG
-        # raster_dict = {
-        #     'env': tf.clip_by_value(tf.reduce_max(local_voxel_grid_t[b][:, :, :, 1:], axis=-1), 0, 1),
-        #     'origin': local_env_origin_t[b].numpy(),
-        #     'res': input_dict['res'][b].numpy(),
-        # }
-        # raster_msg = environment_to_occupancy_msg(raster_dict, frame='local_occupancy')
-        # local_env_dict = {
-        #     'env': local_env_t[b],
-        #     'origin': local_env_origin_t[b].numpy(),
-        #     'res': input_dict['res'][b].numpy(),
-        # }
-        # msg = environment_to_occupancy_msg(local_env_dict, frame='local_occupancy')
-        # link_bot_sdf_utils.send_occupancy_tf(self.scenario.broadcaster, local_env_dict, frame='local_occupancy')
-        # self.debug_pub.publish(msg)
-        # self.raster_debug_pub.publish(raster_msg)
-        # # pred state
+        if DEBUG_VIZ:
+            pass
+            # raster_dict = {
+            #     'env': tf.clip_by_value(tf.reduce_max(local_voxel_grid[b][:, :, :, 1:], axis=-1), 0, 1),
+            #     'origin': local_env_origin[b].numpy(),
+            #     'res': input_dict['res'][b].numpy(),
+            # }
+            # raster_msg = environment_to_occupancy_msg(raster_dict, frame='local_occupancy')
+            # local_env_dict = {
+            #     'env': local_env[b],
+            #     'origin': local_env_origin[b].numpy(),
+            #     'res': input_dict['res'][b].numpy(),
+            # }
+            # msg = environment_to_occupancy_msg(local_env_dict, frame='local_occupancy')
+            # link_bot_sdf_utils.send_occupancy_tf(self.scenario.broadcaster, local_env_dict, frame='local_occupancy')
+            # self.debug_pub.publish(msg)
+            # self.raster_debug_pub.publish(raster_msg)
+            # # pred state
+            #
+            # debugging_s = {k: input_dict[k][b, t] for k in self.state_keys}
+            # self.scenario.plot_state_rviz(debugging_s, label='predicted', color='b')
+            # # true state (not known to classifier!)
+            # debugging_true_state = numpify({k: input_dict[k][b, t] for k in self.state_keys})
+            # self.scenario.plot_state_rviz(debugging_true_state, label='actual')
+            # # action
+            # if t < time - 1:
+            #     debuggin_action = numpify({k: input_dict[k][b, t] for k in self.action_keys})
+            #     self.scenario.plot_action_rviz(debugging_s, debuggin_action)
+            # local_extent = compute_extent_3d(*local_voxel_grid[b].shape[:3], resolution=input_dict['res'][b].numpy())
+            # depth, width, height = extent_to_env_size(local_extent)
+            # bbox_msg = BoundingBox()
+            # bbox_msg.header.frame_id = 'local_occupancy'
+            # bbox_msg.pose.position.x = width / 2
+            # bbox_msg.pose.position.y = depth / 2
+            # bbox_msg.pose.position.z = height / 2
+            # bbox_msg.dimensions.x = width
+            # bbox_msg.dimensions.y = depth
+            # bbox_msg.dimensions.z = height
+            # self.local_env_bbox_pub.publish(bbox_msg)
+            #
+            # anim.step()
 
-        # debugging_s_t = {k: input_dict[k][b, t] for k in self.state_keys}
-        # self.scenario.plot_state_rviz(debugging_s_t, label='predicted', color='b')
-        # # true state (not known to classifier!)
-        # debugging_true_state_t = numpify({k: input_dict[k][b, t] for k in self.state_keys})
-        # self.scenario.plot_state_rviz(debugging_true_state_t, label='actual')
-        # # action
-        # if t < time - 1:
-        #     debuggin_action_t = numpify({k: input_dict[k][b, t] for k in self.action_keys})
-        #     self.scenario.plot_action_rviz(debugging_s_t, debuggin_action_t)
-        # local_extent = compute_extent_3d(*local_voxel_grid_t[b].shape[:3], resolution=input_dict['res'][b].numpy())
-        # depth, width, height = extent_to_env_size(local_extent)
-        # bbox_msg = BoundingBox()
-        # bbox_msg.header.frame_id = 'local_occupancy'
-        # bbox_msg.pose.position.x = width / 2
-        # bbox_msg.pose.position.y = depth / 2
-        # bbox_msg.pose.position.z = height / 2
-        # bbox_msg.dimensions.x = width
-        # bbox_msg.dimensions.y = depth
-        # bbox_msg.dimensions.z = height
-        # self.local_env_bbox_pub.publish(bbox_msg)
-
-        # anim.step()
-        # # END DEBUG
-
-        conv_z = local_voxel_grid_t
+        conv_z = local_voxel_grid
         for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
             conv_h = conv_layer(conv_z)
             conv_z = pool_layer(conv_h)
@@ -198,6 +181,9 @@ class NNRecoveryModel(MyKerasModel):
         out_conv_z_dim = out_conv_z.shape[1] * out_conv_z.shape[2] * out_conv_z.shape[3] * out_conv_z.shape[4]
         out_conv_z = tf.reshape(out_conv_z, [batch_size, out_conv_z_dim])
         return out_conv_z
+
+    def create_env_indices(self, batch_size: int):
+        return create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels, batch_size)
 
     def compute_loss(self, dataset_element, outputs):
         y_true = dataset_element['recovery_probability'][:, 1:2]  # 1:2 instead of just 1 to preserve the shape
@@ -224,7 +210,7 @@ class NNRecoveryModel(MyKerasModel):
     def call(self, input_dict: Dict, training, **kwargs):
         batch_size = input_dict['batch_size']
 
-        conv_output = self.make_traj_voxel_grids_from_input_dict(input_dict, batch_size)
+        conv_output = self.make_voxelgrid_inputs(input_dict, batch_size)
 
         state = {k: input_dict[k][:, 0] for k in self.state_keys}
         state_in_local_frame = self.scenario.put_state_local_frame(state)

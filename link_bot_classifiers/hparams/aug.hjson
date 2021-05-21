@@ -1,3 +1,8 @@
 {
-  augmentation: null
+  # augmentation: null
+  augmentation: {
+  type: optimization
+  swept: false
+  state_type: "uniform"
+  }
 }

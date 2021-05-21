@@ -28,7 +28,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          model_hparams_update: Optional[Dict] = None,
                          verbose: int = 0,
                          trials_directory: pathlib.Path = pathlib.Path("./trials"),
-                         pretransfer_config_dir: Optional[pathlib.Path] = None,
+                         augmentation_config_dir: Optional[pathlib.Path] = None,
                          take: Optional[int] = None,
                          **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
@@ -63,8 +63,11 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
 
     train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take)
 
-    train_tf_dataset = add_pretransfer_configs_to_dataset(pretransfer_config_dir, train_tf_dataset, batch_size)
-    val_tf_dataset = add_pretransfer_configs_to_dataset(pretransfer_config_dir, val_tf_dataset, batch_size)
+    if augmentation_config_dir is not None:
+        train_tf_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_tf_dataset, batch_size)
+        val_tf_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, val_tf_dataset, batch_size)
+    else:
+        print("Warning, augmentation_config_dir is None")
 
     # Modify the model for feature transfer & fine-tuning
     for c in model.conv_layers:
@@ -80,12 +83,12 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
     return trial_path
 
 
-def add_pretransfer_configs_to_dataset(pretransfer_config_dir, tf_dataset, batch_size):
-    pretransfer_config_gen = load_pretransfer_configs(pretransfer_config_dir)
+def add_augmentation_configs_to_dataset(augmentation_config_dir, tf_dataset, batch_size):
+    augmentation_config_gen = load_augmentation_configs(augmentation_config_dir)
 
-    def _add_pretransfer_env(example: Dict):
-        if pretransfer_config_dir is not None:
-            config = next(pretransfer_config_gen)
+    def _add_augmentation_env(example: Dict):
+        if augmentation_config_dir is not None:
+            config = next(augmentation_config_gen)
             # add batching
             new_example = config['env']
             new_example = repeat(new_example, batch_size, axis=0, new_axis=True)
@@ -102,17 +105,18 @@ def add_pretransfer_configs_to_dataset(pretransfer_config_dir, tf_dataset, batch
 
         return example
 
-    return tf_dataset.map(_add_pretransfer_env)
+    return tf_dataset.map(_add_augmentation_env)
 
 
-def load_pretransfer_configs(pretransfer_config_dir: pathlib.Path):
-    pretransfer_configs = []
-    if pretransfer_config_dir is not None:
+def load_augmentation_configs(augmentation_config_dir: pathlib.Path):
+    augmentation_configs = []
+    if augmentation_config_dir is not None:
         # load the pkl files and add them to the dataset?
-        for filename in pretransfer_config_dir.glob("initial_config*.pkl"):
+        augmentation_config_dir = pathlib.Path(augmentation_config_dir)
+        for filename in augmentation_config_dir.glob("initial_config*.pkl"):
             with filename.open("rb") as file:
-                pretransfer_config = pickle.load(file)
-                pretransfer_config['env'].pop("scene_msg")
-                pretransfer_configs.append(pretransfer_config)
-    pretransfer_config_gen = itertools.cycle(pretransfer_configs)
-    return pretransfer_config_gen
+                augmentation_config = pickle.load(file)
+                augmentation_config['env'].pop("scene_msg")
+                augmentation_configs.append(augmentation_config)
+    augmentation_config_gen = itertools.cycle(augmentation_configs)
+    return augmentation_config_gen

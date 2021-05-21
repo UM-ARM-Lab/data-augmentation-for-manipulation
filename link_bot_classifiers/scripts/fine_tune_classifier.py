@@ -59,7 +59,7 @@ def main():
                          fine_tune_lstm=False,
                          fine_tune_dense=False,
                          fine_tune_output=True,
-                         pretransfer_config_dir=args.pretransfer_config_dir,
+                         augmentation_config_dir=args.pretransfer_config_dir,
                          )
 
 

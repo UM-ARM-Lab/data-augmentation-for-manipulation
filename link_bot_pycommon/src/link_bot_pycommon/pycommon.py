@@ -5,7 +5,7 @@ import signal
 import string
 import traceback
 import warnings
-from typing import Union, List, Callable, Optional, Tuple
+from typing import Union, List, Callable, Optional, Tuple, Iterable, Dict
 
 import numpy as np
 import tensorflow as tf
@@ -407,3 +407,5 @@ def pathify(x):
         return x
 
 
+def dgather(d: Dict, keys: Iterable[str]):
+    return {k: d[k] for k in keys}

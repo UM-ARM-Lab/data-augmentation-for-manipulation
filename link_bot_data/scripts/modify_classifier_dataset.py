@@ -8,7 +8,7 @@ import tensorflow as tf
 
 import rospy
 from link_bot_classifiers.classifier_utils import load_generic_model
-from link_bot_classifiers.fine_tune_classifier import load_pretransfer_configs
+from link_bot_classifiers.fine_tune_classifier import load_augmentation_configs
 from link_bot_classifiers.nn_classifier import NNClassifier
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_new
@@ -38,7 +38,7 @@ def main():
     net.augmentation_3d = NNClassifier.fitted_env_augmentation
     net.is_env_augmentation_valid = NNClassifier.is_env_augmentation_valid_discrete
 
-    pretransfer_config_gen = load_pretransfer_configs(pathlib.Path("pretransfer_initial_configs/long_hook/"))
+    pretransfer_config_gen = load_augmentation_configs(pathlib.Path("pretransfer_initial_configs/long_hook/"))
 
     def _process_example(dataset: ClassifierDatasetLoader, example: Dict):
         # TODO: run the augmentation, then write those results?
@@ -54,7 +54,7 @@ def main():
         example_batched[add_new('origin')] = new_example['origin']
         example_batched[add_new('res')] = new_example['res']
 
-        voxel_grids = net.make_voxel_grid_inputs(example_batched, batch_size=1, time=2, training=True)
+        voxel_grids = net.make_voxelgrid_inputs(example_batched, batch_size=1, time=2, training=True)
         voxel_grid_0 = voxel_grids.read(0)
         # remove batch
         voxel_grid_0 = voxel_grid_0[0]

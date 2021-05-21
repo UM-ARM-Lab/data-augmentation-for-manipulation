@@ -5,7 +5,6 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_trial
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
-from state_space_dynamics.image_cond_dyn import ImageCondDynamicsWrapper
 from state_space_dynamics.unconstrained_dynamics_nn import UDNNWrapper
 from state_space_dynamics.udnn_with_robot import UDNNWithRobotKinematicsWrapper
 
@@ -27,9 +26,6 @@ def load_generic_model(model_dirs: List[pathlib.Path],
         return nn, representative_model_dir.parts[1:]
     elif model_class == 'UDNN+Robot':
         nn = UDNNWithRobotKinematicsWrapper(model_dirs, batch_size=1, scenario=scenario)
-        return nn, representative_model_dir.parts[1:]
-    elif model_class == 'ImageCondDyn':
-        nn = ImageCondDynamicsWrapper(model_dirs, batch_size=1, scenario=scenario)
         return nn, representative_model_dir.parts[1:]
     else:
         raise NotImplementedError("invalid model type {}".format(model_class))
