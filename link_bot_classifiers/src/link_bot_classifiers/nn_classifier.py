@@ -1,24 +1,22 @@
 import pathlib
 from typing import Dict, List, Optional
 
-import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp
 from colorama import Fore
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 import rospy
-from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
+from link_bot_classifiers.classifier_augmentation import ClassifierAugmentation
+from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_data.dataset_utils import add_predicted, add_new
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf, environment_to_vg_msg, \
-    vox_to_voxelgrid_stamped, send_voxelgrid_tf_origin_point_res_tf, occupied_voxels_to_points, binary_or, binary_and, \
-    subtract
+    send_voxelgrid_tf_origin_point_res_tf, occupied_voxels_to_points, binary_or, subtract
 from link_bot_pycommon.grid_utils import batch_point_to_idx
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -34,7 +32,6 @@ from moonshine.my_keras_model import MyKerasModel
 from moonshine.optimization import log_barrier
 from moonshine.raster_3d import batch_points_to_voxel_grid_res_origin_point, points_to_voxel_grid_res_origin_point
 from moveit_msgs.msg import RobotTrajectory
-from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from std_msgs.msg import Float32
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import MarkerArray, Marker
@@ -51,19 +48,7 @@ class NNClassifier(MyKerasModel):
         self.scenario = scenario
         self.broadcaster = self.scenario.tf.tf_broadcaster
 
-        self.raster_debug_pubs = [
-            rospy.Publisher(f'classifier_raster_debug_{i}', VoxelgridStamped, queue_size=10, latch=False) for i in
-            range(5)]
-        self.local_env_bbox_pub = rospy.Publisher('local_env_bbox', BoundingBox, queue_size=10, latch=True)
-        self.local_env_new_bbox_pub = rospy.Publisher('local_env_new_bbox', BoundingBox, queue_size=10, latch=True)
-        self.aug_bbox_pub = rospy.Publisher('local_env_bbox_aug', BoundingBox, queue_size=10, latch=True)
-        self.env_aug_pub1 = rospy.Publisher("env_aug1", VoxelgridStamped, queue_size=10)
-        self.env_aug_pub2 = rospy.Publisher("env_aug2", VoxelgridStamped, queue_size=10)
-        self.env_aug_pub3 = rospy.Publisher("env_aug3", VoxelgridStamped, queue_size=10)
-        self.env_aug_pub4 = rospy.Publisher("env_aug4", VoxelgridStamped, queue_size=10)
-        self.env_aug_pub5 = rospy.Publisher("env_aug5", VoxelgridStamped, queue_size=10)
-        self.object_state_pub = rospy.Publisher("object_state", VoxelgridStamped, queue_size=10)
-
+        # define network structure from hparams
         self.classifier_dataset_hparams = self.hparams['classifier_dataset_hparams']
         self.dynamics_dataset_hparams = self.classifier_dataset_hparams['fwd_model_hparams']['dynamics_dataset_hparams']
         self.true_state_keys = self.classifier_dataset_hparams['true_state_keys']
@@ -73,11 +58,8 @@ class NNClassifier(MyKerasModel):
         self.local_env_w_cols = self.hparams['local_env_w_cols']
         self.local_env_c_channels = self.hparams['local_env_c_channels']
         self.rope_image_k = self.hparams['rope_image_k']
-
-        # TODO: add stdev to states keys?
         self.state_keys = self.hparams['state_keys']
         self.action_keys = self.hparams['action_keys']
-
         self.conv_layers = []
         self.pool_layers = []
         for n_filters, kernel_size in self.hparams['conv_filters']:
@@ -89,10 +71,8 @@ class NNClassifier(MyKerasModel):
             pool = layers.MaxPool3D(self.hparams['pooling'])
             self.conv_layers.append(conv)
             self.pool_layers.append(pool)
-
         if self.hparams['batch_norm']:
             self.batch_norm = layers.BatchNormalization()
-
         self.dense_layers = []
         for hidden_size in self.hparams['fc_layer_sizes']:
             dense = layers.Dense(hidden_size,
@@ -100,11 +80,9 @@ class NNClassifier(MyKerasModel):
                                  kernel_regularizer=keras.regularizers.l2(self.hparams['kernel_reg']),
                                  bias_regularizer=keras.regularizers.l2(self.hparams['bias_reg']))
             self.dense_layers.append(dense)
-
         self.lstm = layers.LSTM(self.hparams['rnn_size'], unroll=True, return_sequences=True)
         self.output_layer = layers.Dense(1, activation=None)
         self.sigmoid = layers.Activation("sigmoid")
-
         self.certs_k = 100
         if self.hparams.get('uncertainty_head', False):
             self.uncertainty_head = keras.Sequential([layers.Dense(128, activation='relu'),
@@ -112,16 +90,9 @@ class NNClassifier(MyKerasModel):
                                                       layers.Dense(self.certs_k, activation=None),
                                                       ])
 
-        self.aug_hparams = self.hparams.get('augmentation', None)
-        # if self.aug_hparams.get('swept', True):
 
-        self.aug_gen = tf.random.Generator.from_seed(0)
-        self.aug_seed_stream = tfp.util.SeedStream(1, salt="nn_classifier_aug")
-        self.aug_opt = tf.keras.optimizers.SGD(0.1)
-        self.aug_opt_grad_norm_threshold = 0.008  # stopping criteria for the eng aug optimization
-        self.barrier_upper_cutoff = tf.square(0.04)  # stops repelling points from pushing after this distance
-        self.barrier_scale = 1.1  # scales the gradients for the repelling points
-        self.env_aug_grad_clip = 5.0  # max dist step the env aug update can take
+        self.debug = ClassifierDebugging()
+        self.aug = ClassifierAugmentation(self.hparams)
 
     def preprocess_no_gradient(self, example, training: bool):
         example['origin_point'] = batch_extent_to_origin_point_tf(example['extent'], example['res'])
@@ -133,22 +104,13 @@ class NNClassifier(MyKerasModel):
 
         if DEBUG_INPUT:
             # clear the other voxel grids from previous calls
-            vg_empty = np.zeros((64, 64, 64))
-            empty_msg = vox_to_voxelgrid_stamped(vg_empty, scale=0.01, frame='world')
-            for p in self.raster_debug_pubs:
-                p.publish(empty_msg)
-
+            self.debug.clear()
             self.scenario.delete_points_rviz(label='attract')
             self.scenario.delete_points_rviz(label='repel')
             self.scenario.delete_points_rviz(label='attract_aug')
             self.scenario.delete_points_rviz(label='repel_aug')
             self.scenario.delete_lines_rviz(label='attract')
             self.scenario.delete_lines_rviz(label='repel')
-            self.env_aug_pub1.publish(empty_msg)
-            self.env_aug_pub2.publish(empty_msg)
-            self.env_aug_pub3.publish(empty_msg)
-            self.env_aug_pub4.publish(empty_msg)
-            self.env_aug_pub5.publish(empty_msg)
 
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
@@ -447,32 +409,6 @@ class NNClassifier(MyKerasModel):
                                            c=self.local_env_c_channels,
                                            indices=indices,
                                            batch_size=self.batch_size)
-
-    def is_env_augmentation_valid_swept(self,
-                                        time,
-                                        local_env_aug,
-                                        local_voxel_grids_array: tf.TensorArray,
-                                        n_state_components):
-        raise NotImplementedError()
-
-    def is_env_augmentation_valid_discrete(self, time, local_env_aug, local_voxel_grids_array: tf.TensorArray,
-                                           n_state_components):
-        aug_intersects_state_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        for t in tf.range(time):
-            local_voxel_grid_t = local_voxel_grids_array.read(t)
-            local_voxel_grid_rastered_states_t = local_voxel_grid_t[:, :, :, :, 1:]
-            states_flat_t = tf.reshape(local_voxel_grid_rastered_states_t, [self.batch_size, -1, n_state_components])
-            aug_flat = tf.reshape(local_env_aug, [self.batch_size, -1])
-            states_flat = tf.cast(tf.reduce_any(states_flat_t > 0.5, axis=-1), tf.float32)
-            aug_intersects_state_t = tf.minimum(tf.reduce_sum(states_flat * aug_flat, axis=-1), 1.0)
-            aug_intersects_state_array = aug_intersects_state_array.write(t, aug_intersects_state_t)
-
-        # logical or of the validity at time t and t+1
-        aug_intersects_state = aug_intersects_state_array.stack()
-        aug_intersects_state = tf.transpose(aug_intersects_state, [1, 0])
-        aug_intersects_state_any_t = tf.minimum(tf.reduce_sum(aug_intersects_state, axis=-1), 1.0)
-        aug_is_valid = 1 - aug_intersects_state_any_t
-        return aug_is_valid
 
     def augmentation_optimization(self,
                                   example: Dict,
