@@ -23,6 +23,29 @@ def subtract(a, b):
     return tf.clip_by_value(a - b, 0, 1)
 
 
+def lookup_points_in_vg(state_points, local_env, res, local_origin_point, batch_size):
+    """
+    Returns the values of local_env at state_points
+    Args:
+    state_points: [b, n, 3], in same frame as local_origin_point
+    local_env: [b, h, w, c]
+    res:
+    local_origin_point: [b, 3] in same frame as state_points
+    batch_size:
+
+    Returns: [b, n]
+
+    """
+    n_points = state_points.shape[1]
+    vg_indices = batch_point_to_idx(state_points,
+                                    tf.expand_dims(res, axis=1),
+                                    tf.expand_dims(local_origin_point, axis=1))
+    batch_indices = tf.tile(tf.range(batch_size)[:, None, None], [1, n_points, 1])
+    batch_and_vg_indices = tf.concat([batch_indices, vg_indices], axis=-1)
+    occupancy_at_state_points = tf.gather_nd(local_env, batch_and_vg_indices)
+    return occupancy_at_state_points
+
+
 def occupied_voxels_to_points(vg, res, origin_point):
     indices = tf.where(vg > 0.5)
     occupied_points = batch_idx_to_point_3d_tf_res_origin_point(indices, res, origin_point)

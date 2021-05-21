@@ -10,7 +10,7 @@ import tensorflow as tf
 
 from arc_utilities.ros_init import rospy_and_cpp_init
 from link_bot_classifiers.classifier_utils import load_generic_model, make_max_class_prob
-from link_bot_classifiers.nn_classifier import NNClassifierWrapper
+from link_bot_classifiers.nn_classifier_wrapper import NNClassifierWrapper
 from link_bot_classifiers.train_test_classifier import filter_dataset_with_classifier
 from link_bot_data.visualization import noisey_1d_scatter
 from moonshine.ensemble import Ensemble2

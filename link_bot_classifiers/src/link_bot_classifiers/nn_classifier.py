@@ -1,5 +1,4 @@
-import pathlib
-from typing import Dict, List, Optional
+from typing import Dict
 
 import tensorflow as tf
 from colorama import Fore
@@ -8,17 +7,13 @@ from tensorflow.keras import layers
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 import rospy
-from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_classifiers.classifier_augmentation import ClassifierAugmentation
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_data.dataset_utils import add_predicted, add_new
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf, environment_to_vg_msg, \
-    send_voxelgrid_tf_origin_point_res_tf, occupied_voxels_to_points, binary_or, subtract
-from link_bot_pycommon.grid_utils import batch_point_to_idx
-from link_bot_pycommon.pycommon import make_dict_tf_float32
+    send_voxelgrid_tf_origin_point_res_tf, occupied_voxels_to_points, binary_or, subtract, lookup_points_in_vg
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
@@ -26,7 +21,7 @@ from moonshine.geometry import make_rotation_matrix_like, rotate_points_3d, pair
 from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_3d
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
-from moonshine.moonshine_utils import add_batch, remove_batch, sequence_of_dicts_to_dict_of_tensors, numpify, \
+from moonshine.moonshine_utils import numpify, \
     to_list_of_strings
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.optimization import log_barrier
@@ -89,7 +84,6 @@ class NNClassifier(MyKerasModel):
                                                       layers.Dense(128, activation='relu'),
                                                       layers.Dense(self.certs_k, activation=None),
                                                       ])
-
 
         self.debug = ClassifierDebugging()
         self.aug = ClassifierAugmentation(self.hparams)
@@ -439,7 +433,7 @@ class NNClassifier(MyKerasModel):
                                                                                self.local_env_c_channels)
 
         local_env = voxel_grids[:, 0, :, :, :, 0]  # just use 0 because it's the same at all time steps
-        local_env_occupancy = self.lookup_points_in_vg(state_points, local_env, res, local_origin_point, batch_size)
+        local_env_occupancy = lookup_points_in_vg(state_points, local_env, res, local_origin_point, batch_size)
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
@@ -657,28 +651,6 @@ class NNClassifier(MyKerasModel):
     def barrier_func(self, min_dists_b):
         return log_barrier(min_dists_b, scale=self.barrier_scale, cutoff=self.barrier_upper_cutoff)
 
-    def lookup_points_in_vg(self, state_points, local_env, res, local_origin_point, batch_size):
-        """
-        Returns the values of local_env at state_points
-        Args:
-            state_points: [b, n, 3], in same frame as local_origin_point
-            local_env: [b, h, w, c]
-            res:
-            local_origin_point: [b, 3] in same frame as state_points
-            batch_size:
-
-        Returns: [b, n]
-
-        """
-        n_points = state_points.shape[1]
-        vg_indices = batch_point_to_idx(state_points,
-                                        tf.expand_dims(res, axis=1),
-                                        tf.expand_dims(local_origin_point, axis=1))
-        batch_indices = tf.tile(tf.range(batch_size)[:, None, None], [1, n_points, 1])
-        batch_and_vg_indices = tf.concat([batch_indices, vg_indices], axis=-1)
-        occupancy_at_state_points = tf.gather_nd(local_env, batch_and_vg_indices)  # [b, n_points, 2]
-        return occupancy_at_state_points
-
     def debug_viz_local_env_pre_aug(self, example: Dict, voxel_grids, local_origin_point, time):
         for b in debug_viz_batch_indices(self.batch_size):
             send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
@@ -766,109 +738,3 @@ class NNClassifier(MyKerasModel):
         return msg
 
 
-class NNClassifierWrapper(BaseConstraintChecker):
-    def __init__(self, path: pathlib.Path, batch_size: int, scenario: ExperimentScenario):
-        """
-        Unlike the BaseConstraintChecker, this takes in list of paths, like cl_trials/dir1/dir2/best_checkpoint
-        Args:
-            path:
-            batch_size:
-            scenario:
-        """
-        super().__init__(path, scenario)
-        self.name = self.__class__.__name__
-        # FIXME: Bad API design
-        assert isinstance(scenario, ScenarioWithVisualization)
-
-        self.dataset_labeling_params = self.hparams['classifier_dataset_hparams']['labeling_params']
-        self.data_collection_params = self.hparams['classifier_dataset_hparams']['data_collection_params']
-        self.horizon = self.dataset_labeling_params['classifier_horizon']
-
-        net_class_name = self.get_net_class()
-
-        self.net = net_class_name(hparams=self.hparams, batch_size=batch_size, scenario=scenario)
-
-        ckpt = tf.train.Checkpoint(model=self.net)
-        manager = tf.train.CheckpointManager(ckpt, path, max_to_keep=1)
-
-        status = ckpt.restore(manager.latest_checkpoint).expect_partial()
-        if manager.latest_checkpoint:
-            print(Fore.CYAN + "Restored from {}".format(manager.latest_checkpoint) + Fore.RESET)
-            if manager.latest_checkpoint:
-                status.assert_nontrivial_match()
-        else:
-            raise RuntimeError(f"Failed to restore {manager.latest_checkpoint}!!!")
-
-        self.state_keys = self.net.state_keys
-        self.action_keys = self.net.action_keys
-        self.true_state_keys = self.net.true_state_keys
-        self.pred_state_keys = self.net.pred_state_keys
-
-    # @tf.function
-    def check_constraint_from_example(self, example: Dict, training: Optional[bool] = False):
-        example_preprocessed = self.net.preprocess_no_gradient(example, training)
-        predictions = self.net(example_preprocessed, training=training)
-        return predictions
-
-    def check_constraint_tf_batched(self,
-                                    environment: Dict,
-                                    states: Dict,
-                                    actions: Dict,
-                                    batch_size: int,
-                                    state_sequence_length: int):
-        # construct network inputs
-        net_inputs = {
-            'batch_size': batch_size,
-            'time':       state_sequence_length,
-        }
-        if 'scene_msg' in environment:
-            environment.pop('scene_msg')
-        net_inputs.update(make_dict_tf_float32(environment))
-
-        for action_key in self.action_keys:
-            net_inputs[action_key] = tf.cast(actions[action_key], tf.float32)
-
-        for state_key in self.state_keys:
-            planned_state_key = add_predicted(state_key)
-            net_inputs[planned_state_key] = tf.cast(states[state_key], tf.float32)
-
-        if self.hparams['stdev']:
-            net_inputs[add_predicted('stdev')] = tf.cast(states['stdev'], tf.float32)
-
-        net_inputs = make_dict_tf_float32(net_inputs)
-        predictions = self.check_constraint_from_example(net_inputs, training=False)
-        probability = predictions['probabilities']
-        probability = tf.squeeze(probability, axis=2)
-        return probability
-
-    def check_constraint_tf(self,
-                            environment: Dict,
-                            states_sequence: List[Dict],
-                            actions: List[Dict]):
-        environment = add_batch(environment)
-        states_sequence_dict = sequence_of_dicts_to_dict_of_tensors(states_sequence)
-        states_sequence_dict = add_batch(states_sequence_dict)
-        state_sequence_length = len(states_sequence)
-        actions_dict = sequence_of_dicts_to_dict_of_tensors(actions)
-        actions_dict = add_batch(actions_dict)
-        probabilities = self.check_constraint_tf_batched(environment=environment,
-                                                         states=states_sequence_dict,
-                                                         actions=actions_dict,
-                                                         batch_size=1,
-                                                         state_sequence_length=state_sequence_length)
-        probabilities = remove_batch(probabilities)
-        return probabilities
-
-    def check_constraint(self,
-                         environment: Dict,
-                         states_sequence: List[Dict],
-                         actions: List[Dict]):
-        probabilities = self.check_constraint_tf(environment=environment,
-                                                 states_sequence=states_sequence,
-                                                 actions=actions)
-        probabilities = probabilities.numpy()
-        return probabilities
-
-    @staticmethod
-    def get_net_class():
-        return NNClassifier

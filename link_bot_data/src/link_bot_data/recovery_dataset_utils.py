@@ -11,7 +11,7 @@ from colorama import Fore
 from matplotlib import cm
 
 from link_bot_classifiers import classifier_utils
-from link_bot_classifiers.nn_classifier import NNClassifierWrapper
+from link_bot_classifiers.nn_classifier_wrapper import NNClassifierWrapper
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.dataset_utils import tf_write_example, count_up_to_next_record_idx, deserialize_scene_msg
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader

@@ -3,7 +3,7 @@ from typing import Dict, List
 import tensorflow as tf
 
 import rospy
-from link_bot_classifiers.nn_classifier import NNClassifierWrapper
+from link_bot_classifiers.nn_classifier_wrapper import NNClassifierWrapper
 from link_bot_data.classifier_dataset_utils import \
     batch_of_many_of_actions_sequences_to_dict
 from link_bot_planning.plan_and_execute import execute_actions
