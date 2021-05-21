@@ -108,7 +108,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         exclude_srv_name = ns_join(self.robot_namespace, "exclude_models_from_planning_scene")
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
         # FIXME: this blocks until the robot is available, we need lazy construction
-        self.robot = get_moveit_robot(self.robot_namespace, raise_on_failure=True)
+        self.robot = get_moveit_robot(self.robot_namespace,
+                                      raise_on_failure=True,
+                                      jacobian_follower_args={'visualize': False})
 
         self.get_gripper_positions = DualArmGetGripperPositions(self.robot)
 
@@ -424,13 +426,61 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_position_aug = left_gripper_position_rotated + delta_position[:, 0]
         right_gripper_position_aug = right_gripper_position_rotated + delta_position[:, 0]
 
+        joint_positions_aug, reached = self.apply_augmentation_to_robot_state(batch_size,
+                                                                              inputs,
+                                                                              left_gripper_points_aug,
+                                                                              right_gripper_points_aug)
+
+        rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
+        left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
+        right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
+
+        reached = tf.cast(reached, tf.float32)
+        aug_valid = reached  # NOTE: there could be other constraints we need to check?
+        aug_valid_expanded = aug_valid[:, tf.newaxis, tf.newaxis]
+
+        update_if_valid(inputs, aug_valid_expanded, add_predicted('joint_positions'), joint_positions_aug)
+        update_if_valid(inputs, aug_valid_expanded, add_predicted('rope'), rope_aug)
+        update_if_valid(inputs, aug_valid_expanded, add_predicted('left_gripper'), left_gripper_aug)
+        update_if_valid(inputs, aug_valid_expanded, add_predicted('right_gripper'), right_gripper_aug)
+        update_if_valid(inputs, aug_valid_expanded, 'left_gripper_position', left_gripper_position_aug)
+        update_if_valid(inputs, aug_valid_expanded, 'right_gripper_position', right_gripper_position_aug)
+
+        if DEBUG_VIZ_STATE_AUG:
+            stepper = RvizSimpleStepper()
+            for b in debug_viz_batch_indices(batch_size):
+                env_b = {
+                    'env':          inputs['env'][b],
+                    'res':          inputs['res'][b],
+                    'extent':       inputs['extent'][b],
+                    'origin_point': inputs['origin_point'][b],
+                }
+
+                self.plot_environment_rviz(env_b)
+                self.debug_viz_state_action(inputs, b, 'aug', color='white')
+
+                # stepper.step()
+
+        # return new local env?
+        state_keys = ['left_gripper', 'right_gripper', 'rope']
+        # t=0, matching what we do in the network
+        state_aug_0 = {k: inputs[add_predicted(k)][:, 0] for k in state_keys}
+        local_center_aug = self.local_environment_center_differentiable(state_aug_0)
+        res = inputs['res']
+        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
+        aug_valid_expanded = aug_valid[:, tf.newaxis]
+        local_origin_point_aug = aug_valid_expanded * local_origin_point_aug + \
+                                 (1 - aug_valid_expanded) * inputs['local_origin_point']
+
+        return aug_valid, local_origin_point_aug
+
+    def apply_augmentation_to_robot_state(self, batch_size, inputs, left_gripper_points_aug, right_gripper_points_aug):
         # use IK to get a new starting joint configuration
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         # NOTE: we can't do this inside tf.function, that's really annoying
         empty_scene_msgs = _deserialize_scene_msg(inputs)
         for s in empty_scene_msgs:
             s.world.collision_objects = []
-
         out_joint_positions_start = []
         out_joint_positions_end = []
         reached = []
@@ -497,48 +547,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         joint_positions_aug = tf.stack((tf.constant(out_joint_positions_start, tf.float32),
                                         tf.constant(out_joint_positions_end, tf.float32)), axis=1)
-        rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
-        left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
-        right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
-
-        reached = tf.cast(reached, tf.float32)
-        aug_valid = reached  # NOTE: there could be other constraints we need to check?
-        aug_valid_expanded = aug_valid[:, tf.newaxis, tf.newaxis]
-
-        update_if_valid(inputs, aug_valid_expanded, add_predicted('joint_positions'), joint_positions_aug)
-        update_if_valid(inputs, aug_valid_expanded, add_predicted('rope'), rope_aug)
-        update_if_valid(inputs, aug_valid_expanded, add_predicted('left_gripper'), left_gripper_aug)
-        update_if_valid(inputs, aug_valid_expanded, add_predicted('right_gripper'), right_gripper_aug)
-        update_if_valid(inputs, aug_valid_expanded, 'left_gripper_position', left_gripper_position_aug)
-        update_if_valid(inputs, aug_valid_expanded, 'right_gripper_position', right_gripper_position_aug)
-
-        if DEBUG_VIZ_STATE_AUG:
-            stepper = RvizSimpleStepper()
-            for b in debug_viz_batch_indices(batch_size):
-                env_b = {
-                    'env':          inputs['env'][b],
-                    'res':          inputs['res'][b],
-                    'extent':       inputs['extent'][b],
-                    'origin_point': inputs['origin_point'][b],
-                }
-
-                self.plot_environment_rviz(env_b)
-                self.debug_viz_state_action(inputs, b, 'aug', color='white')
-
-                # stepper.step()
-
-        # return new local env?
-        state_keys = ['left_gripper', 'right_gripper', 'rope']
-        # t=0, matching what we do in the network
-        state_aug_0 = {k: inputs[add_predicted(k)][:, 0] for k in state_keys}
-        local_center_aug = self.local_environment_center_differentiable(state_aug_0)
-        res = inputs['res']
-        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
-        aug_valid_expanded = aug_valid[:, tf.newaxis]
-        local_origin_point_aug = aug_valid_expanded * local_origin_point_aug + \
-                                 (1 - aug_valid_expanded) * inputs['local_origin_point']
-
-        return aug_valid, local_origin_point_aug
+        return joint_positions_aug, reached
 
     def compute_swept_state_and_robot_points(self, inputs: Dict):
         state_keys = ['left_gripper', 'right_gripper', 'rope']

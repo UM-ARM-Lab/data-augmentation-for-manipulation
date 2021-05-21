@@ -31,9 +31,9 @@ from std_msgs.msg import Float32
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_INPUT = True
-DEBUG_AUG = True
-DEBUG_AUG_SGD = True
+DEBUG_INPUT = False
+DEBUG_AUG = False
+DEBUG_AUG_SGD = False
 SHOW_ALL = False
 
 
@@ -499,7 +499,7 @@ class NNClassifier(MyKerasModel):
                                                       frame='local_env_aug_vg')
 
                 self.debug_viz_state_action(inputs, b, 'aug', color='blue')
-                stepper.step()
+                # stepper.step()
 
         voxel_grids_aug = self.merge_aug_and_local_voxel_grids(local_env_aug,
                                                                inputs['voxel_grids'],
