@@ -88,13 +88,13 @@ class NNClassifier(MyKerasModel):
         self.debug = ClassifierDebugging()
         self.aug = ClassifierAugmentation(self.hparams)
 
-    def preprocess_no_gradient(self, example, training: bool):
-        example['origin_point'] = batch_extent_to_origin_point_tf(example['extent'], example['res'])
-        return example
+        self.indices = self.create_env_indices(batch_size)
 
-    def call(self, input_dict: Dict, training, **kwargs):
-        batch_size = input_dict['batch_size']
-        time = tf.cast(input_dict['time'], tf.int32)
+    def preprocess_no_gradient(self, inputs, training: bool):
+        batch_size = inputs['batch_size']
+        time = tf.cast(inputs['time'], tf.int32)
+
+        inputs['origin_point'] = batch_extent_to_origin_point_tf(inputs['extent'], inputs['res'])
 
         if DEBUG_INPUT:
             # clear the other voxel grids from previous calls
@@ -109,41 +109,45 @@ class NNClassifier(MyKerasModel):
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 env_b = {
-                    'env':          input_dict['env'][b],
-                    'res':          input_dict['res'][b],
-                    'origin_point': input_dict['origin_point'][b],
-                    'extent':       input_dict['extent'][b],
+                    'env':          inputs['env'][b],
+                    'res':          inputs['res'][b],
+                    'origin_point': inputs['origin_point'][b],
+                    'extent':       inputs['extent'][b],
                 }
                 self.scenario.plot_environment_rviz(env_b)
                 self.delete_state_action_markers('aug')
-                self.debug_viz_state_action(input_dict, b, 'input')
-                origin_point_b = input_dict['origin_point'][b].numpy().tolist()
-                self.scenario.tf.send_transform(origin_point_b, [0, 0, 0, 1], 'world', 'env_origin_point',
-                                                is_static=True)
+                self.debug_viz_state_action(inputs, b, 'input')
+                origin_point_b = inputs['origin_point'][b].numpy().tolist()
+                self.send_transform(origin_point_b, 'env_origin_point')
                 stepper.step()
 
         # Create voxel grids
-        indices = self.create_env_indices(batch_size)
-        local_env, local_origin_point = self.get_local_env(indices, input_dict)
+        local_env, local_origin_point = self.get_local_env(inputs)
 
-        voxel_grids = self.make_voxelgrid_inputs(input_dict, local_env, local_origin_point, batch_size, time)
+        voxel_grids = self.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
+
+        inputs['voxel_grids'] = voxel_grids
+        inputs['local_origin_point'] = local_origin_point
+
+        return inputs
+
+    def call(self, inputs: Dict, training, **kwargs):
+        batch_size = inputs['batch_size']
+        time = tf.cast(inputs['time'], tf.int32)
 
         if DEBUG_AUG:
-            self.debug_viz_local_env_pre_aug(input_dict, voxel_grids, local_origin_point, time)
+            self.debug_viz_local_env_pre_aug(inputs, time)
 
-        if training and self.aug_hparams is not None:
+        if training and self.aug.hparams is not None:
             # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
             # so modifying it internally won't change the value for the caller
-            voxel_grids = self.augmentation_optimization(input_dict,
-                                                         indices,
-                                                         local_origin_point,
-                                                         voxel_grids,
+            voxel_grids = self.augmentation_optimization(inputs,
                                                          batch_size,
                                                          time)
 
         # encoder
         conv_output = self.conv_encoder(voxel_grids, batch_size=batch_size, time=time)
-        out_h = self.fc(input_dict, conv_output, training)
+        out_h = self.fc(inputs, conv_output, training)
 
         if self.hparams.get('uncertainty_head', False):
             out_uncertainty = self.uncertainty_head(out_h)
@@ -345,21 +349,19 @@ class NNClassifier(MyKerasModel):
         local_voxel_grids.set_shape([None, 2, None, None, None, None])  # FIXME: 2 is hardcoded here
         return local_voxel_grids
 
-    def get_local_env(self, indices, input_dict):
+    def get_local_env(self, input_dict):
         state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
 
         # NOTE: to be more general, this should return a pose not just a point/position
         local_env_center = self.scenario.local_environment_center_differentiable(state_0)
         environment = {k: input_dict[k] for k in ['env', 'origin_point', 'res', 'extent']}
-        local_env, local_origin_point = self.local_env_given_center(local_env_center, environment, indices)
+        local_env, local_origin_point = self.local_env_given_center(local_env_center, environment)
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(self.batch_size):
-                self.scenario.tf.send_transform(local_env_center[b], [0, 0, 0, 1], 'world', 'local_env_center',
-                                                is_static=True)
-                self.scenario.tf.send_transform(local_origin_point[b], [0, 0, 0, 1], 'world', 'local_origin_point',
-                                                is_static=True)
+                self.send_transform(local_env_center[b], 'local_env_center')
+                self.send_transform(local_origin_point[b], 'local_origin_point')
                 # stepper.step()
 
         return local_env, local_origin_point
@@ -391,48 +393,45 @@ class NNClassifier(MyKerasModel):
         extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
         extent_lower = tf.gather(extent, 0, axis=-1)
         extent_upper = tf.gather(extent, 1, axis=-1)
-        local_env_center = self.aug_gen.uniform([self.batch_size, 3], extent_lower, extent_upper)
+        local_env_center = self.aug.gen.uniform([self.batch_size, 3], extent_lower, extent_upper)
 
         return local_env_center
 
-    def local_env_given_center(self, center_point, environment: Dict, indices: Dict):
+    def local_env_given_center(self, center_point, environment: Dict):
         return get_local_env_and_origin_3d(center_point=center_point,
                                            environment=environment,
                                            h=self.local_env_h_rows,
                                            w=self.local_env_w_cols,
                                            c=self.local_env_c_channels,
-                                           indices=indices,
+                                           indices=self.indices,
                                            batch_size=self.batch_size)
 
     def augmentation_optimization(self,
-                                  example: Dict,
-                                  indices: Dict,
-                                  local_origin_point,
-                                  voxel_grids,
+                                  inputs: Dict,
                                   batch_size,
                                   time):
         # before augmentation, get all components of the state as a set of points
         # in general this should be the swept volume, and should include the robot
-        states = {k: example[add_predicted(k)] for k in self.state_keys}
+        states = {k: inputs[add_predicted(k)] for k in self.state_keys}
         state_points = tf.concat([tf.reshape(v, [batch_size, time, -1, 3]) for v in states.values()], axis=2)
         state_points = tf.reshape(state_points, [batch_size, -1, 3])
-        res = example['res']
+        res = inputs['res']
 
         # sample a translation and rotation for the object state
-        translation, theta = self.scenario.sample_state_augmentation_variables(batch_size, self.aug_seed_stream)
+        translation, theta = self.scenario.sample_state_augmentation_variables(batch_size, self.aug.seed)
         rotation = make_rotation_matrix_like(translation, theta)
 
         valid, local_origin_point_aug = self.scenario.apply_state_augmentation(translation,
                                                                                rotation,
-                                                                               example,
-                                                                               local_origin_point,
+                                                                               inputs,
                                                                                batch_size,
                                                                                time,
                                                                                self.local_env_h_rows,
                                                                                self.local_env_w_cols,
                                                                                self.local_env_c_channels)
 
-        local_env = voxel_grids[:, 0, :, :, :, 0]  # just use 0 because it's the same at all time steps
+        local_origin_point = inputs['local_origin_point']
+        local_env = inputs['voxel_grids'][:, 0, :, :, :, 0]  # just use 0 because it's the same at all time steps
         local_env_occupancy = lookup_points_in_vg(state_points, local_env, res, local_origin_point, batch_size)
 
         if DEBUG_AUG:
@@ -458,7 +457,7 @@ class NNClassifier(MyKerasModel):
                                         resolution=res[b].numpy())
                 bbox_msg.header.frame_id = 'local_env_aug_vg'
 
-                self.aug_bbox_pub.publish(bbox_msg)
+                self.debug.aug_bbox_pub.publish(bbox_msg)
 
         state_points_aug = rotate_points_3d(rotation[:, None], state_points) + translation[:, None]
         valid_expanded = valid[:, None, None]
@@ -474,9 +473,8 @@ class NNClassifier(MyKerasModel):
                 points_debug_b = tf.gather(state_points_aug[b], debug_i)
                 self.scenario.plot_points_rviz(points_debug_b.numpy(), label='repel_aug', color='r')
 
-        new_env = self.get_new_env(example)
+        new_env = self.get_new_env(inputs)
         local_env_aug = self.opt_new_env_augmentation(new_env,
-                                                      indices,
                                                       state_points_aug,
                                                       local_env_occupancy,
                                                       res,
@@ -498,29 +496,27 @@ class NNClassifier(MyKerasModel):
                                                       res[b],
                                                       frame='local_env_aug_vg')
 
-                self.debug_viz_state_action(example, b, 'aug', color='blue')
+                self.debug_viz_state_action(inputs, b, 'aug', color='blue')
                 stepper.step()
 
         voxel_grids_aug = self.merge_aug_and_local_voxel_grids(local_env_aug,
-                                                               voxel_grids,
+                                                               inputs['voxel_grids'],
                                                                time)
         return voxel_grids_aug
 
     def opt_new_env_augmentation(self,
                                  new_env: Dict,
-                                 indices: Dict,
                                  state_points_aug,
                                  local_env_occupancy,
                                  res,
                                  local_origin_point_aug,
                                  batch_size):
         local_env_new_center = self.sample_local_env_position(new_env)
-        local_env_new, local_env_new_origin_point = self.local_env_given_center(local_env_new_center, new_env, indices)
+        local_env_new, local_env_new_origin_point = self.local_env_given_center(local_env_new_center, new_env)
         # viz new env
         if DEBUG_AUG:
             for b in debug_viz_batch_indices(self.batch_size):
-                self.scenario.tf.send_transform(local_env_new_center[b], [0, 0, 0, 1], 'world', 'local_env_new_center',
-                                                is_static=True)
+                self.send_transform(local_env_new_center[b], 'local_env_new_center')
 
                 send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
                                                       origin_point=local_env_new_origin_point[b],
@@ -617,11 +613,11 @@ class NNClassifier(MyKerasModel):
 
                 gradients = tape.gradient(loss, variables)
 
-                clipped_grads_and_vars = [(self.clip_env_aug_grad(g), v) for (g, v) in zip(gradients, variables)]
-                self.aug_opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
+                clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
+                self.aug.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
 
                 grad_norm = tf.linalg.norm(gradients)
-                if grad_norm < self.aug_opt_grad_norm_threshold:
+                if grad_norm < self.aug.grad_norm_threshold:
                     break
             local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b, r_b, o_b)
 
@@ -645,13 +641,17 @@ class NNClassifier(MyKerasModel):
                                                      self.local_env_w_cols,
                                                      self.local_env_c_channels)
 
-    def clip_env_aug_grad(self, grad):
-        return tf.clip_by_value(grad, -self.env_aug_grad_clip, self.env_aug_grad_clip)
+    def clip_env_aug_grad(self, gradients, variables):
+        def _clip(g):
+            return tf.clip_by_value(g, -self.aug.grad_clip, self.aug.grad_clip)
+
+        return [(_clip(g), v) for (g, v) in zip(gradients, variables)]
 
     def barrier_func(self, min_dists_b):
-        return log_barrier(min_dists_b, scale=self.barrier_scale, cutoff=self.barrier_upper_cutoff)
+        return log_barrier(min_dists_b, scale=self.aug.barrier_scale, cutoff=self.aug.barrier_upper_cutoff)
 
-    def debug_viz_local_env_pre_aug(self, example: Dict, voxel_grids, local_origin_point, time):
+    def debug_viz_local_env_pre_aug(self, example: Dict, time):
+        local_origin_point = example['local_origin_point']
         for b in debug_viz_batch_indices(self.batch_size):
             send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
                                                   origin_point=local_origin_point[b],
@@ -666,29 +666,29 @@ class NNClassifier(MyKerasModel):
 
             self.local_env_bbox_pub.publish(bbox_msg)
 
-            self.animate_voxel_grid_states(b, example, voxel_grids, time)
+            self.animate_voxel_grid_states(b, example, time)
 
-    def animate_voxel_grid_states(self, b, example, voxel_grids, time):
+    def animate_voxel_grid_states(self, b, inputs, time):
         anim = RvizAnimationController(n_time_steps=time)
         while not anim.done:
             t = anim.t()
 
-            local_voxel_grid_t = voxel_grids.read(t)
+            local_voxel_grid_t = inputs['voxel_grids'].read(t)
 
             for i, state_component_k_voxel_grid in enumerate(tf.transpose(local_voxel_grid_t, [4, 0, 1, 2, 3])):
                 raster_dict = {
                     'env': tf.clip_by_value(state_component_k_voxel_grid[b], 0, 1),
-                    'res': example['res'][b].numpy(),
+                    'res': inputs['res'][b].numpy(),
                 }
                 raster_msg = environment_to_vg_msg(raster_dict, frame='local_env_vg', stamp=rospy.Time(0))
                 self.raster_debug_pubs[i].publish(raster_msg)
 
-            state_t = numpify({k: example[add_predicted(k)][b, t] for k in self.state_keys})
+            state_t = numpify({k: inputs[add_predicted(k)][b, t] for k in self.state_keys})
             error_msg = Float32()
-            error_t = example['error'][b, 1]
+            error_t = inputs['error'][b, 1]
             error_msg.data = error_t
             self.scenario.plot_state_rviz(state_t)
-            self.scenario.plot_is_close(example['is_close'][b, 1])
+            self.scenario.plot_is_close(inputs['is_close'][b, 1])
             self.scenario.error_pub.publish(error_msg)
 
             anim.step()
@@ -737,4 +737,5 @@ class NNClassifier(MyKerasModel):
             msg.joint_trajectory.points.append(point)
         return msg
 
-
+    def send_position_transform(self, p, child: str):
+        self.scenario.tf.send_transform(p, [0, 0, 0, 1], 'world', child=child, is_static=True)

@@ -386,8 +386,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def apply_state_augmentation(self,
                                  delta_position,
                                  rotation_matrix,
-                                 input_dict: Dict,
-                                 local_origin_point,
+                                 inputs: Dict,
                                  batch_size,
                                  time,
                                  h: int,
@@ -401,9 +400,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             return points_rotated
 
         # apply those to the rope and grippers
-        rope_points = tf.reshape(input_dict[add_predicted('rope')], [batch_size, time, -1, 3])
-        left_gripper_point = input_dict[add_predicted('left_gripper')]
-        right_gripper_point = input_dict[add_predicted('right_gripper')]
+        rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
+        left_gripper_point = inputs[add_predicted('left_gripper')]
+        right_gripper_point = inputs[add_predicted('right_gripper')]
         left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
         right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
@@ -418,8 +417,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         rope_points_aug = rope_points_rotated + delta_position
 
         # compute the new action
-        left_gripper_position = input_dict['left_gripper_position']
-        right_gripper_position = input_dict['right_gripper_position']
+        left_gripper_position = inputs['left_gripper_position']
+        right_gripper_position = inputs['right_gripper_position']
         left_gripper_position_rotated = rotate_points_3d(rotation_matrix[:, tf.newaxis], left_gripper_position)
         right_gripper_position_rotated = rotate_points_3d(rotation_matrix[:, tf.newaxis], right_gripper_position)
         left_gripper_position_aug = left_gripper_position_rotated + delta_position[:, 0]
@@ -428,7 +427,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         # use IK to get a new starting joint configuration
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         # NOTE: we can't do this inside tf.function, that's really annoying
-        empty_scene_msgs = _deserialize_scene_msg(input_dict)
+        empty_scene_msgs = _deserialize_scene_msg(inputs)
         for s in empty_scene_msgs:
             s.world.collision_objects = []
 
@@ -437,8 +436,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         reached = []
         for b in range(batch_size):
             # use the joint config pre-augmentation to see IK for the augmented joint config
-            seed_joint_position_b = input_dict[add_predicted('joint_positions')][b, 0].numpy().tolist()
-            joint_names = input_dict['joint_names'][b, 0].numpy().tolist()
+            seed_joint_position_b = inputs[add_predicted('joint_positions')][b, 0].numpy().tolist()
+            joint_names = inputs['joint_names'][b, 0].numpy().tolist()
             preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
 
             left_gripper_aug_start_point = left_gripper_points_aug[b, 0, 0].numpy()
@@ -506,38 +505,38 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         aug_valid = reached  # NOTE: there could be other constraints we need to check?
         aug_valid_expanded = aug_valid[:, tf.newaxis, tf.newaxis]
 
-        update_if_valid(input_dict, aug_valid_expanded, add_predicted('joint_positions'), joint_positions_aug)
-        update_if_valid(input_dict, aug_valid_expanded, add_predicted('rope'), rope_aug)
-        update_if_valid(input_dict, aug_valid_expanded, add_predicted('left_gripper'), left_gripper_aug)
-        update_if_valid(input_dict, aug_valid_expanded, add_predicted('right_gripper'), right_gripper_aug)
-        update_if_valid(input_dict, aug_valid_expanded, 'left_gripper_position', left_gripper_position_aug)
-        update_if_valid(input_dict, aug_valid_expanded, 'right_gripper_position', right_gripper_position_aug)
+        update_if_valid(inputs, aug_valid_expanded, add_predicted('joint_positions'), joint_positions_aug)
+        update_if_valid(inputs, aug_valid_expanded, add_predicted('rope'), rope_aug)
+        update_if_valid(inputs, aug_valid_expanded, add_predicted('left_gripper'), left_gripper_aug)
+        update_if_valid(inputs, aug_valid_expanded, add_predicted('right_gripper'), right_gripper_aug)
+        update_if_valid(inputs, aug_valid_expanded, 'left_gripper_position', left_gripper_position_aug)
+        update_if_valid(inputs, aug_valid_expanded, 'right_gripper_position', right_gripper_position_aug)
 
         if DEBUG_VIZ_STATE_AUG:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 env_b = {
-                    'env':          input_dict['env'][b],
-                    'res':          input_dict['res'][b],
-                    'extent':       input_dict['extent'][b],
-                    'origin_point': input_dict['origin_point'][b],
+                    'env':          inputs['env'][b],
+                    'res':          inputs['res'][b],
+                    'extent':       inputs['extent'][b],
+                    'origin_point': inputs['origin_point'][b],
                 }
 
                 self.plot_environment_rviz(env_b)
-                self.debug_viz_state_action(input_dict, b, 'aug', color='white')
+                self.debug_viz_state_action(inputs, b, 'aug', color='white')
 
                 # stepper.step()
 
         # return new local env?
         state_keys = ['left_gripper', 'right_gripper', 'rope']
         # t=0, matching what we do in the network
-        state_aug_0 = {k: input_dict[add_predicted(k)][:, 0] for k in state_keys}
+        state_aug_0 = {k: inputs[add_predicted(k)][:, 0] for k in state_keys}
         local_center_aug = self.local_environment_center_differentiable(state_aug_0)
-        res = input_dict['res']
+        res = inputs['res']
         local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
         aug_valid_expanded = aug_valid[:, tf.newaxis]
         local_origin_point_aug = aug_valid_expanded * local_origin_point_aug + \
-                                 (1 - aug_valid_expanded) * local_origin_point
+                                 (1 - aug_valid_expanded) * inputs['local_origin_point']
 
         return aug_valid, local_origin_point_aug
 
