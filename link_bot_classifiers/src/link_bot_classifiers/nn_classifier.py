@@ -112,7 +112,7 @@ class NNClassifier(MyKerasModel):
                                                       layers.Dense(self.certs_k, activation=None),
                                                       ])
 
-        self.aug_hparams = self.hparams.get('augmentation', {})
+        self.aug_hparams = self.hparams.get('augmentation', None)
         # if self.aug_hparams.get('swept', True):
 
         self.aug_gen = tf.random.Generator.from_seed(0)
@@ -481,7 +481,8 @@ class NNClassifier(MyKerasModel):
                                   voxel_grids,
                                   batch_size,
                                   time):
-        # before augmentation
+        # before augmentation, get all components of the state as a set of points
+        # in general this should be the swept volume, and should include the robot
         states = {k: example[add_predicted(k)] for k in self.state_keys}
         state_points = tf.concat([tf.reshape(v, [batch_size, time, -1, 3]) for v in states.values()], axis=2)
         state_points = tf.reshape(state_points, [batch_size, -1, 3])

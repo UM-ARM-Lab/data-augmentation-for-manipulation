@@ -390,9 +390,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                  local_origin_point,
                                  batch_size,
                                  time,
-                                 local_h_rows: int,
-                                 local_w_cols: int,
-                                 local_c_channels: int,
+                                 h: int,
+                                 w: int,
+                                 c: int,
                                  ):
         # rotates about the world origin, which isn't great because it's less likely to produce a feasible augmentation
         def _rot(points, n):
@@ -427,7 +427,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         # use IK to get a new starting joint configuration
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
-        # FIXME: how do we do this inside tf.function?
+        # NOTE: we can't do this inside tf.function, that's really annoying
         empty_scene_msgs = _deserialize_scene_msg(input_dict)
         for s in empty_scene_msgs:
             s.world.collision_objects = []
@@ -534,11 +534,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         state_aug_0 = {k: input_dict[add_predicted(k)][:, 0] for k in state_keys}
         local_center_aug = self.local_environment_center_differentiable(state_aug_0)
         res = input_dict['res']
-        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug,
-                                                                        res,
-                                                                        local_h_rows,
-                                                                        local_w_cols,
-                                                                        local_c_channels)
+        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
         aug_valid_expanded = aug_valid[:, tf.newaxis]
         local_origin_point_aug = aug_valid_expanded * local_origin_point_aug + \
                                  (1 - aug_valid_expanded) * local_origin_point
