@@ -36,7 +36,7 @@
     use_pretraining: true
     pretraining_type: augmentation
     model_hparams_update_filename: ../link_bot_classifiers/hparams/aug.hjson
-    pretransfer_config_dir: pretransfer_initial_configs/long_hook/
+    augmentation_config_dir: pretransfer_initial_configs/long_hook/
     epochs: 10
     batch_size: 16
     fine_tune_conv: false

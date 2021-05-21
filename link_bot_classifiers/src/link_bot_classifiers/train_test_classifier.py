@@ -40,7 +40,7 @@ from visualization_msgs.msg import MarkerArray, Marker
 def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
     hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope)
     hparams.update({
-        'classifier_dataset_hparams': train_dataset.params,
+        'classifier_dataset_hparams': train_dataset.hparams,
     })
     return hparams
 
