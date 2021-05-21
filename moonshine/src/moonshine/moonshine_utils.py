@@ -1,5 +1,5 @@
 import pathlib
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Callable
 
 import genpy
 import numpy as np
@@ -383,3 +383,17 @@ def to_list_of_strings(x):
         return [n.decode("utf-8") for n in x.numpy()]
     else:
         raise NotImplementedError()
+
+
+def debuggable_tf_function(func: Callable, debug: bool):
+    @tf.function
+    def _non_debug_func(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    def _debug_func(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    if debug:
+        return _debug_func
+    else:
+        return _non_debug_func

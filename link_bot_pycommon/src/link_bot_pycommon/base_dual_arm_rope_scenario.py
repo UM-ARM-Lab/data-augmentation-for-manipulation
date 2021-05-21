@@ -540,6 +540,28 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         return aug_valid, local_origin_point_aug
 
+    def compute_swept_state_and_robot_points(self, inputs: Dict):
+        state_keys = ['left_gripper', 'right_gripper', 'rope']
+        batch_size = inputs['batch_size']
+
+        def _make_points(k, t):
+            v = inputs[add_predicted(k)][:, t]
+            points = tf.reshape(v, [batch_size, -1, 3])
+            return points
+
+        state_points_0 = {k: _make_points(k, 0) for k in state_keys}
+        state_points_1 = {k: _make_points(k, 1) for k in state_keys}
+
+        num_interp = 4
+
+        def _linspace(k):
+            return tf.linspace(state_points_0[k], state_points_1[k], num_interp, axis=1)
+
+        swept_state_points = tf.concat([_linspace(k) for k in state_keys], axis=2)
+        swept_state_points = tf.reshape(swept_state_points, [batch_size, -1, 3])
+
+        return swept_state_points
+
     def debug_viz_state_action(self, input_dict, b, label: str, color='red'):
         state_keys = ['left_gripper', 'right_gripper', 'rope']
         action_keys = ['left_gripper_position', 'right_gripper_position']

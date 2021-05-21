@@ -119,7 +119,7 @@ class NNClassifier(MyKerasModel):
                 self.debug_viz_state_action(inputs, b, 'input')
                 origin_point_b = inputs['origin_point'][b].numpy().tolist()
                 self.send_position_transform(origin_point_b, 'env_origin_point')
-                stepper.step()
+                # stepper.step()
 
         # Create voxel grids
         local_env, local_origin_point = self.get_local_env(inputs)
@@ -129,18 +129,7 @@ class NNClassifier(MyKerasModel):
         inputs['voxel_grids'] = voxel_grids
         inputs['local_origin_point'] = local_origin_point
 
-        # we could compute swept volume of object & robot here, and add it to inputs
-        states = {k: inputs[add_predicted(k)] for k in self.state_keys}
-        state_points = tf.concat([tf.reshape(v, [batch_size, time, -1, 3]) for v in states.values()], axis=2)
-        swept_state_and_robot_points = tf.reshape(state_points, [batch_size, -1, 3])
-        # this is a placeholder for now
-        inputs['swept_state_and_robot_points'] = swept_state_and_robot_points
-
-        return inputs
-
-    def call(self, inputs: Dict, training, **kwargs):
-        batch_size = inputs['batch_size']
-        time = tf.cast(inputs['time'], tf.int32)
+        inputs['swept_state_and_robot_points'] = self.scenario.compute_swept_state_and_robot_points(inputs)
 
         if DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(inputs, time)
@@ -148,11 +137,15 @@ class NNClassifier(MyKerasModel):
         if training and self.aug.hparams is not None:
             # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
             # so modifying it internally won't change the value for the caller
-            voxel_grids = self.augmentation_optimization(inputs,
-                                                         batch_size,
-                                                         time)
+            inputs['voxel_grids'] = self.augmentation_optimization(inputs, batch_size, time)
 
-        # encoder
+        return inputs
+
+    def call(self, inputs: Dict, training, **kwargs):
+        batch_size = inputs['batch_size']
+        time = tf.cast(inputs['time'], tf.int32)
+        voxel_grids = inputs['voxel_grids']
+
         conv_output = self.conv_encoder(voxel_grids, batch_size=batch_size, time=time)
         out_h = self.fc(inputs, conv_output, training)
 
@@ -628,10 +621,16 @@ class NNClassifier(MyKerasModel):
                     loss = attract_loss + repel_loss
 
                 if DEBUG_AUG_SGD:
+                    repel_close_indices = tf.squeeze(tf.where(min_repel_dist_b < self.aug.barrier_upper_lim), axis=-1)
+                    nearest_repel_points_where_close = tf.gather(nearest_repel_points, repel_close_indices)
+                    env_points_b_where_close = tf.gather(env_points_b, repel_close_indices)
                     if b in debug_viz_batch_indices(batch_size):
-                        self.scenario.plot_points_rviz(env_points_b, label='icp', color='grey')
-                        self.scenario.plot_lines_rviz(nearest_attract_points, env_points_b, label='attract', color='g')
-                        self.scenario.plot_lines_rviz(nearest_repel_points, env_points_b, label='repel', color='r')
+                        self.scenario.plot_points_rviz(env_points_b, label='icp', color='grey', scale=0.005)
+                        self.scenario.plot_lines_rviz(nearest_attract_points, env_points_b,
+                                                      label='attract_correspondence', color='g')
+                        self.scenario.plot_lines_rviz(nearest_repel_points_where_close,
+                                                      env_points_b_where_close,
+                                                      label='repel_correspondence', color='r')
                         # stepper.step()
 
                 gradients = tape.gradient(loss, variables)
@@ -671,7 +670,7 @@ class NNClassifier(MyKerasModel):
         return [(_clip(g), v) for (g, v) in zip(gradients, variables)]
 
     def barrier_func(self, min_dists_b):
-        return log_barrier(min_dists_b, scale=self.aug.barrier_scale, cutoff=self.aug.barrier_upper_cutoff)
+        return log_barrier(min_dists_b, scale=self.aug.barrier_scale, cutoff=self.aug.barrier_upper_lim)
 
     def debug_viz_local_env_pre_aug(self, example: Dict, time):
         local_origin_point = example['local_origin_point']

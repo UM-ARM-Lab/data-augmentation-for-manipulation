@@ -9,6 +9,6 @@ class ClassifierAugmentation:
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
         self.opt = tf.keras.optimizers.SGD(0.1)
         self.grad_norm_threshold = 0.008  # stopping criteria for the eng aug optimization
-        self.barrier_upper_cutoff = tf.square(0.04)  # stops repelling points from pushing after this distance
-        self.barrier_scale = 1.1  # scales the gradients for the repelling points
+        self.barrier_upper_lim = tf.square(0.035)  # stops repelling points from pushing after this distance
+        self.barrier_scale = 0.5  # scales the gradients for the repelling points
         self.grad_clip = 5.0  # max dist step the env aug update can take
