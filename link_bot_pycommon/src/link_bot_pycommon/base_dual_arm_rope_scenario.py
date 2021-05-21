@@ -544,15 +544,32 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         state_keys = ['left_gripper', 'right_gripper', 'rope']
         batch_size = inputs['batch_size']
 
+        def _densify_points(points):
+            """
+            Args:
+                points: [b, n, 3]
+            Returns: [b, n * num_density, 3]
+            """
+            num_densify = 5
+            if points.shape[1] <= 1:
+                return points
+
+            starts = points[:, :-1]
+            ends = points[:, 1:]
+            linspaced = tf.linspace(starts, ends, num_densify, axis=2)  # [b, n, num_density, 3]
+            densitifed_points = tf.reshape(linspaced, [batch_size, -1, 3])
+            return densitifed_points
+
         def _make_points(k, t):
             v = inputs[add_predicted(k)][:, t]
             points = tf.reshape(v, [batch_size, -1, 3])
+            points = _densify_points(points)
             return points
 
         state_points_0 = {k: _make_points(k, 0) for k in state_keys}
         state_points_1 = {k: _make_points(k, 1) for k in state_keys}
 
-        num_interp = 4
+        num_interp = 5
 
         def _linspace(k):
             return tf.linspace(state_points_0[k], state_points_1[k], num_interp, axis=1)

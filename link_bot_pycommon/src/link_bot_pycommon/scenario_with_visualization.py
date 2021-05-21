@@ -386,6 +386,9 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.point_pub.publish(msg)
 
     def plot_lines_rviz(self, starts, ends, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+        if starts is None or ends is None:
+            return
+
         color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "y")))
 
         scale = kwargs.get('scale', 0.001)

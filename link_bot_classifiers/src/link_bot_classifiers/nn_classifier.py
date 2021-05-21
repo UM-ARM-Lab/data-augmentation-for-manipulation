@@ -469,11 +469,11 @@ class NNClassifier(MyKerasModel):
             for b in debug_viz_batch_indices(batch_size):
                 debug_i = tf.squeeze(tf.where(local_env_occupancy[b]), -1)
                 points_debug_b = tf.gather(points_aug[b], debug_i)
-                self.scenario.plot_points_rviz(points_debug_b.numpy(), label='attract_aug', color='g')
+                self.scenario.plot_points_rviz(points_debug_b.numpy(), label='attract_aug', color='g', scale=0.005)
 
                 debug_i = tf.squeeze(tf.where(1 - local_env_occupancy[b]), -1)
                 points_debug_b = tf.gather(points_aug[b], debug_i)
-                self.scenario.plot_points_rviz(points_debug_b.numpy(), label='repel_aug', color='r')
+                self.scenario.plot_points_rviz(points_debug_b.numpy(), label='repel_aug', color='r', scale=0.005)
 
         new_env = self.get_new_env(inputs)
         local_env_aug = self.opt_new_env_augmentation(new_env,
@@ -591,7 +591,15 @@ class NNClassifier(MyKerasModel):
             env_points_b_initial = occupied_voxels_to_points(local_env_new[b], r_b, o_b)
             env_points_b = env_points_b_initial
 
-            translation_b = tf.Variable([0, 0, 0], dtype=tf.float32)
+            initial_is_attract_indices = tf.squeeze(tf.where(local_env_occupancy_b > 0.5), 1)
+            initial_attract_points_b = tf.gather(state_points_b, initial_is_attract_indices)
+            if tf.size(initial_is_attract_indices) == 0:
+                initial_translation_b = tf.zeros(3)
+            else:
+                env_points_b_initial_mean = tf.reduce_mean(env_points_b_initial, axis=0)
+                initial_attract_points_b_mean = tf.reduce_mean(initial_attract_points_b, axis=0)
+                initial_translation_b = initial_attract_points_b_mean - env_points_b_initial_mean
+            translation_b = tf.Variable(initial_translation_b, dtype=tf.float32)
             variables = [translation_b]
             for i in range(n_steps):
                 with tf.GradientTape() as tape:
@@ -600,7 +608,9 @@ class NNClassifier(MyKerasModel):
                     attract_points_b = tf.gather(state_points_b, is_attract_indices)
                     if tf.size(is_attract_indices) == 0:
                         attract_loss = 0
+                        min_attract_dist_b = 0.0
                     else:
+                        # NOTE: these are SQUARED distances!
                         attract_dists_b = pairwise_squared_distances(env_points_b, attract_points_b)
                         min_attract_dist_indices_b = tf.argmin(attract_dists_b, axis=1)
                         min_attract_dist_b = tf.reduce_min(attract_dists_b, axis=1)
@@ -611,6 +621,7 @@ class NNClassifier(MyKerasModel):
                     repel_points_b = tf.gather(state_points_b, is_repel_indices)
                     if tf.size(is_repel_indices) == 0:
                         repel_loss = 0
+                        min_repel_dist_b = 0.0
                     else:
                         repel_dists_b = pairwise_squared_distances(env_points_b, repel_points_b)
                         min_repel_dist_indices_b = tf.argmin(repel_dists_b, axis=1)
@@ -638,8 +649,12 @@ class NNClassifier(MyKerasModel):
                 clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
                 self.aug.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
 
+                hard_repel_constraint_satisfied = tf.reduce_min(min_repel_dist_b) > tf.square(res[b])
+                hard_attract_constraint_satisfied = tf.reduce_max(min_attract_dist_b) < tf.square(res[b])
+                hard_constraints_satisfied = tf.logical_and(hard_repel_constraint_satisfied,
+                                                            hard_attract_constraint_satisfied)
                 grad_norm = tf.linalg.norm(gradients)
-                if grad_norm < self.aug.grad_norm_threshold:
+                if grad_norm < self.aug.grad_norm_threshold or hard_constraints_satisfied:
                     break
             local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b, r_b, o_b)
 
@@ -647,6 +662,7 @@ class NNClassifier(MyKerasModel):
             # and voxels with repel points are off
             attract_vg_b = self.points_to_voxel_grid_res_origin_point(attract_points_b, r_b, o_b)
             repel_vg_b = self.points_to_voxel_grid_res_origin_point(repel_points_b, r_b, o_b)
+            # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
             local_env_aug_b = subtract(binary_or(local_env_aug_b, attract_vg_b), repel_vg_b)
 
             local_env_aug.append(local_env_aug_b)
