@@ -2,7 +2,7 @@ import numpy as np
 
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.base_services import BaseServices
-from link_bot_pycommon.grid_utils import extent_to_center, extent_to_env_shape
+from link_bot_pycommon.grid_utils import extent_to_center, extent_to_env_shape, extent_res_to_origin_point
 from peter_msgs.srv import ComputeOccupancyRequest
 
 
@@ -57,11 +57,13 @@ def get_environment_for_extents_3d(extent,
     origin_col = -x_min / res
     origin_channel = -z_min / res
     origin = np.array([origin_row, origin_col, origin_channel], np.int32)
+    origin_point = extent_res_to_origin_point(extent, res)
     return {
-        'env':    grid,
-        'res':    res,
-        'origin': origin,
-        'extent': extent,
+        'env':          grid,
+        'res':          res,
+        'origin':       origin,
+        'origin_point': origin_point,
+        'extent':       extent,
     }
 
 

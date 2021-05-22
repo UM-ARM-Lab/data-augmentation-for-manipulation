@@ -92,7 +92,7 @@ def idx_to_point_3d_in_env(row: int,
 
 
 def idx_to_point_3d_from_extent(row, col, channel, resolution, extent):
-    origin_point = extent_to_origin_point(extent=extent, res=resolution)
+    origin_point = extent_res_to_origin_point(extent=extent, res=resolution)
     y = origin_point[1] + row * resolution
     x = origin_point[0] + col * resolution
     z = origin_point[2] + channel * resolution
@@ -209,7 +209,7 @@ def batch_extent_to_origin_point_tf(extent, res):
     return center_xyz - (tf.cast(shape_xyz, tf.float32) * tf.expand_dims(res, axis=-1) / 2)
 
 
-def extent_to_origin_point(extent, res):
+def extent_res_to_origin_point(extent, res):
     """
 
     Args:
@@ -270,7 +270,7 @@ def send_voxelgrid_tf(broadcaster, environment: Dict, frame: str = 'vg'):
 
 
 def _send_voxelgrid_tf(broadcaster, extent, res, frame: str = 'vg'):
-    origin_point = extent_to_origin_point(extent, res)
+    origin_point = extent_res_to_origin_point(extent, res)
     send_voxelgrid_tf_origin_point_res(broadcaster, origin_point, res, frame)
 
 
