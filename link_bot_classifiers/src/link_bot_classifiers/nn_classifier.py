@@ -12,7 +12,7 @@ from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
-    batch_point_to_idx_tf_3d_in_batched_envs, send_voxelgrid_tf, environment_to_vg_msg
+    batch_point_to_idx_tf_3d_in_batched_envs, send_voxelgrid_tf, environment_to_vg_msg, batch_extent_to_origin_point_tf
 from link_bot_pycommon.grid_utils import compute_extent_3d
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
@@ -114,6 +114,10 @@ class NNClassifier(MyKerasModel):
                                                       ])
 
         self.aug_generator = tf.random.Generator.from_seed(0)
+
+    def preprocess_no_gradient(self, inputs, training: bool):
+        inputs['origin_point'] = batch_extent_to_origin_point_tf(inputs['extent'], inputs['res'])
+        return inputs
 
     # @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
