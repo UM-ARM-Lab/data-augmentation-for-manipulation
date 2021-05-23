@@ -9,8 +9,8 @@ from colorama import Fore
 from matplotlib import cm
 from numpy.random import RandomState
 
+from link_bot_classifiers import nn_recovery_model2, nn_recovery_model
 from link_bot_classifiers.base_recovery_policy import BaseRecoveryPolicy
-from link_bot_classifiers.nn_recovery_model import NNRecoveryModel
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32, log_scale_0_to_1
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -37,7 +37,7 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
     def __init__(self, path: pathlib.Path, scenario: ExperimentScenario, rng: RandomState, u: Dict):
         super().__init__(path, scenario, rng, u)
 
-        self.model = NNRecoveryModel(hparams=self.params, batch_size=1, scenario=self.scenario)
+        self.model = self.model_class()(hparams=self.params, batch_size=1, scenario=self.scenario)
         self.ckpt = tf.train.Checkpoint(model=self.model)
         self.manager = tf.train.CheckpointManager(self.ckpt, path, max_to_keep=1)
 
@@ -131,6 +131,15 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
                 self.scenario.plot_action_rviz(s_i, a_i, label='best_proposed', color='g', idx=2)
 
             anim.step()
+
+    def model_class(self):
+        return nn_recovery_model.NNRecoveryModel
+
+
+class NNRecoveryPolicy2(NNRecoveryPolicy):
+
+    def model_class(self):
+        return nn_recovery_model2.NNRecoveryModel
 
 
 class NNRecoveryEnsemble(BaseRecoveryPolicy):
