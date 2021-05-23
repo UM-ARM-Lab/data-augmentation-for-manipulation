@@ -11,7 +11,7 @@ from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
 from link_bot_pycommon.pycommon import dgather
-from moonshine.get_local_environment import get_local_env_and_origin_3d, create_env_indices
+from moonshine.get_local_environment import get_local_env_and_origin_point, create_env_indices
 from moonshine.metrics import LossMetric
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.raster_3d import batch_points_to_voxel_grid_res_origin_point
@@ -156,13 +156,13 @@ class NNRecoveryModel(MyKerasModel):
         local_env_center = self.scenario.local_environment_center_differentiable(state)
 
         env = dgather(input_dict, ['env', 'origin_point', 'res'])
-        local_env, local_origin_point = get_local_env_and_origin_3d(center_point=local_env_center,
-                                                                    environment=env,
-                                                                    h=self.local_env_h_rows,
-                                                                    w=self.local_env_w_cols,
-                                                                    c=self.local_env_c_channels,
-                                                                    indices=indices,
-                                                                    batch_size=batch_size)
+        local_env, local_origin_point = get_local_env_and_origin_point(center_point=local_env_center,
+                                                                       environment=env,
+                                                                       h=self.local_env_h_rows,
+                                                                       w=self.local_env_w_cols,
+                                                                       c=self.local_env_c_channels,
+                                                                       indices=indices,
+                                                                       batch_size=batch_size)
 
         local_voxel_grid_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
         local_voxel_grid_array = local_voxel_grid_array.write(0, local_env)

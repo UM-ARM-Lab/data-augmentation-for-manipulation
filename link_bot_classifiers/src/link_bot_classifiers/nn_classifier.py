@@ -11,13 +11,13 @@ import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
-from link_bot_pycommon.grid_utils import batch_idx_to_point_3d_in_env_tf, \
-    batch_point_to_idx_tf_3d_in_batched_envs, send_voxelgrid_tf, environment_to_vg_msg, batch_extent_to_origin_point_tf
 from link_bot_pycommon.grid_utils import compute_extent_3d
+from link_bot_pycommon.grid_utils import send_voxelgrid_tf, environment_to_vg_msg, batch_extent_to_origin_point_tf
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
-from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_3d
+from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_point, \
+    get_local_env_and_origin
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, \
     FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
@@ -235,7 +235,7 @@ class NNClassifier(MyKerasModel):
             # insert the rastered states
             for i, (k, state_component_t) in enumerate(state_t.items()):
                 state_component_voxel_grid = raster_3d(state=state_component_t,
-                                                       pixel_indices=indices.pixels,
+                                                       pixel_indices=indices['pixel_indices'],
                                                        res=input_dict['res'],
                                                        origin=local_env_origin,
                                                        h=self.local_env_h_rows,
@@ -296,26 +296,19 @@ class NNClassifier(MyKerasModel):
         conv_outputs = tf.transpose(conv_outputs, [1, 0, 2])
         return conv_outputs
 
-    def get_local_env(self, batch_size, indices, input_dict):
-        state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
+    def get_local_env(self, batch_size, indices, inputs):
+        state_0 = {k: inputs[add_predicted(k)][:, 0] for k in self.state_keys}
 
         # NOTE: to be more general, this should return a pose not just a point/position
         local_env_center = self.scenario.local_environment_center_differentiable(state_0)
         # by converting too and from the frame of the full environment, we ensure the grids are aligned
-        center_indices = batch_point_to_idx_tf_3d_in_batched_envs(local_env_center, input_dict)
-        local_env_center = batch_idx_to_point_3d_in_env_tf(*center_indices, input_dict)
-        # local_env, local_env_origin = get_local_env_and_origin(center_point=local_env_center,
-        #                                                        full_env=input_dict['env'],
-        #                                                        full_env_origin=input_dict['origin'],
-        #                                                        res=input_dict['res'],
-        #                                                        local_h_rows=self.local_env_h_rows,
-        #                                                        local_w_cols=self.local_env_w_cols,
-        #                                                        local_c_channels=self.local_env_c_channels,
-        #                                                        batch_x_indices=indices.batch_x,
-        #                                                        batch_y_indices=indices.batch_y,
-        #                                                        batch_z_indices=indices.batch_z,
-        #                                                        batch_size=batch_size)
-        local_env, local_env_origin = self.get_new_local_env()
+        local_env, local_env_origin = get_local_env_and_origin(center_point=local_env_center,
+                                                               environment=inputs,
+                                                               h=self.local_env_h_rows,
+                                                               w=self.local_env_w_cols,
+                                                               c=self.local_env_c_channels,
+                                                               indices=indices,
+                                                               batch_size=batch_size)
         return local_env, local_env_origin
 
     def create_env_indices(self, batch_size: int):
@@ -381,15 +374,6 @@ class NNClassifier(MyKerasModel):
                                                                   y_pred=outputs['uncertainty'], from_logits=True))
         # diversity = tf.reduce_mean(tf.square(tf.matmul(tf.transpose(w), w) - tf.eye(self.certs_k)))
         return loss  # + diversity
-
-    def local_env_given_center(self, center_point, environment: Dict):
-        return get_local_env_and_origin_3d(center_point=center_point,
-                                           environment=environment,
-                                           h=self.local_env_h_rows,
-                                           w=self.local_env_w_cols,
-                                           c=self.local_env_c_channels,
-                                           indices=self.indices,
-                                           batch_size=self.batch_size)
 
     def debug_viz_local_env_pre_aug(self, example: Dict, local_voxel_grids_array, local_env_origin, time):
         for b in self.debug_viz_batch_indices():

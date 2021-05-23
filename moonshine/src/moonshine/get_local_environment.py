@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Dict
 
 import tensorflow as tf
@@ -20,10 +19,16 @@ def create_env_indices(local_env_h_rows: int, local_env_w_cols: int, local_env_c
     batch_x_indices = tf.cast(tf.tile(tf.expand_dims(x_indices, axis=0), [batch_size, 1, 1, 1]), tf.int64)
     batch_z_indices = tf.cast(tf.tile(tf.expand_dims(z_indices, axis=0), [batch_size, 1, 1, 1]), tf.int64)
 
+    # Convert for rastering state
+    pixel_indices = tf.stack([y_indices, x_indices, z_indices], axis=3)
+    pixel_indices = tf.expand_dims(pixel_indices, axis=0)
+    pixel_indices = tf.tile(pixel_indices, [batch_size, 1, 1, 1, 1])
+
     return {
         'x': batch_x_indices,
         'y': batch_y_indices,
         'z': batch_z_indices,
+        'pixel_indices': pixel_indices
     }
 
 
@@ -33,13 +38,13 @@ def _expand(x):
 
 
 # @tf.function
-def get_local_env_and_origin_3d(center_point,
-                                environment: Dict,
-                                h: int,
-                                w: int,
-                                c: int,
-                                indices: Dict,
-                                batch_size: int):
+def get_local_env_and_origin_point(center_point,
+                                   environment: Dict,
+                                   h: int,
+                                   w: int,
+                                   c: int,
+                                   indices: Dict,
+                                   batch_size: int):
     """
     :param center_point: [batch, 3]
     :param full_env: [batch, h, w, c]
@@ -81,6 +86,36 @@ def get_local_env_and_origin_3d(center_point,
     local_env = tf.gather_nd(full_env, gather_indices)
 
     return local_env, local_env_origin_point
+
+
+# @tf.function
+def get_local_env_and_origin(center_point,
+                             environment: Dict,
+                             h: int,
+                             w: int,
+                             c: int,
+                             indices: Dict,
+                             batch_size: int):
+    local_env, _ = get_local_env_and_origin_point(center_point,
+                                                  environment,
+                                                  h,
+                                                  w,
+                                                  c,
+                                                  indices,
+                                                  batch_size)
+    full_env_origin = environment['origin']
+    res = environment['res']
+
+    local_center = tf.stack([h / 2, w / 2, c / 2], axis=0)
+
+    center_cols = center_point[:, 0] / res + full_env_origin[:, 1]
+    center_rows = center_point[:, 1] / res + full_env_origin[:, 0]
+    center_channels = center_point[:, 2] / res + full_env_origin[:, 2]
+
+    center_point_coordinates = tf.stack([center_rows, center_cols, center_channels], axis=1)
+    local_env_origin = full_env_origin - center_point_coordinates + local_center
+
+    return local_env, local_env_origin
 
 
 def get_local_env_and_origin_2d_tf(center_point,

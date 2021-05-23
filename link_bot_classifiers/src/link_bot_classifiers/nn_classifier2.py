@@ -19,7 +19,7 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
 from moonshine.geometry import make_rotation_matrix_like, rotate_points_3d, pairwise_squared_distances
-from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_3d
+from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_point
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
 from moonshine.moonshine_utils import numpify, \
@@ -333,13 +333,13 @@ class NNClassifier(MyKerasModel):
         return local_env_center
 
     def local_env_given_center(self, center_point, environment: Dict):
-        return get_local_env_and_origin_3d(center_point=center_point,
-                                           environment=environment,
-                                           h=self.local_env_h_rows,
-                                           w=self.local_env_w_cols,
-                                           c=self.local_env_c_channels,
-                                           indices=self.indices,
-                                           batch_size=self.batch_size)
+        return get_local_env_and_origin_point(center_point=center_point,
+                                              environment=environment,
+                                              h=self.local_env_h_rows,
+                                              w=self.local_env_w_cols,
+                                              c=self.local_env_c_channels,
+                                              indices=self.indices,
+                                              batch_size=self.batch_size)
 
     def augmentation_optimization(self,
                                   inputs: Dict,
