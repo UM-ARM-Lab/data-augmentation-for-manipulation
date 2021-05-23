@@ -108,9 +108,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         exclude_srv_name = ns_join(self.robot_namespace, "exclude_models_from_planning_scene")
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
         # FIXME: this blocks until the robot is available, we need lazy construction
-        self.robot = get_moveit_robot(self.robot_namespace,
-                                      raise_on_failure=True,
-                                      jacobian_follower_args={'visualize': False})
+        self.robot = get_moveit_robot(self.robot_namespace, raise_on_failure=True)
 
         self.get_gripper_positions = DualArmGetGripperPositions(self.robot)
 

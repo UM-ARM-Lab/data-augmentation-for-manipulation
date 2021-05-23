@@ -1,12 +1,10 @@
 import pathlib
 from typing import Optional
 
-import numpy as np
-
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker, ConstraintCheckerEnsemble
 from link_bot_classifiers.feasibility_checker import RobotFeasibilityChecker, FastRobotFeasibilityChecker
 from link_bot_classifiers.gripper_distance_checker import GripperDistanceChecker
-from link_bot_classifiers.nn_classifier_wrapper import NNClassifierWrapper
+from link_bot_classifiers.nn_classifier_wrapper import NNClassifierWrapper, NNClassifier2Wrapper
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
@@ -24,6 +22,8 @@ def load_generic_model(path: pathlib.Path,
     model_type = params['model_class']
     if model_type == 'rnn':
         return NNClassifierWrapper(path, batch_size=1, scenario=scenario)
+    elif model_type == 'nn_classifier2':
+        return NNClassifier2Wrapper(path, batch_size=1, scenario=scenario)
     elif model_type == 'ensemble':
         const_keys_for_classifier = []
         models = [load_generic_model(pathlib.Path(checkpoint)) for checkpoint in params['checkpoints']]
@@ -46,3 +46,5 @@ def local_env_size_for_classifier(classifier_dir: pathlib.Path):
     return (classifier_params["local_env_h_rows"],
             classifier_params["local_env_w_cols"],
             classifier_params["local_env_c_channels"])
+
+

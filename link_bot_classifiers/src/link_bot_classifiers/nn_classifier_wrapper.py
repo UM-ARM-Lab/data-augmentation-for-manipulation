@@ -4,28 +4,18 @@ from typing import Dict, Optional, List
 import tensorflow as tf
 from colorama import Fore
 
+from link_bot_classifiers import nn_classifier, nn_classifier2
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
-from link_bot_classifiers.nn_classifier import NNClassifier
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import add_batch, sequence_of_dicts_to_dict_of_tensors, remove_batch
 
 
 class NNClassifierWrapper(BaseConstraintChecker):
-    def __init__(self, path: pathlib.Path, batch_size: int, scenario: ExperimentScenario):
-        """
-        Unlike the BaseConstraintChecker, this takes in list of paths, like cl_trials/dir1/dir2/best_checkpoint
-        Args:
-            path:
-            batch_size:
-            scenario:
-        """
+    def __init__(self, path: pathlib.Path, batch_size: int, scenario: ScenarioWithVisualization):
         super().__init__(path, scenario)
         self.name = self.__class__.__name__
-        # FIXME: Bad API design
-        assert isinstance(scenario, ScenarioWithVisualization)
 
         self.dataset_labeling_params = self.hparams['classifier_dataset_hparams']['labeling_params']
         self.data_collection_params = self.hparams['classifier_dataset_hparams']['data_collection_params']
@@ -118,4 +108,11 @@ class NNClassifierWrapper(BaseConstraintChecker):
 
     @staticmethod
     def get_net_class():
-        return NNClassifier
+        return nn_classifier.NNClassifier
+
+
+class NNClassifier2Wrapper(NNClassifierWrapper):
+
+    @staticmethod
+    def get_net_class():
+        return nn_classifier2.NNClassifier

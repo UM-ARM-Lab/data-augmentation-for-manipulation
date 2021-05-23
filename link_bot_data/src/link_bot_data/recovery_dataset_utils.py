@@ -17,6 +17,7 @@ from link_bot_data.dataset_utils import tf_write_example, count_up_to_next_recor
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.recovery_dataset import compute_recovery_probabilities
 from link_bot_data.visualization import init_viz_env, recovery_transition_viz_t, init_viz_action
+from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32
@@ -405,13 +406,6 @@ def batch_stateless_sample_action(scenario: ExperimentScenario,
     action_sequences = [sequence_of_dicts_to_dict_of_tensors(a) for a in action_sequences]
     action_sequences = sequence_of_dicts_to_dict_of_tensors(action_sequences)
     return {k: tf.tile(v[tf.newaxis], [batch_size, 1, 1, 1]) for k, v in action_sequences.items()}
-
-
-def debug_viz_batch_indices(batch_size):
-    if SHOW_ALL:
-        return range(batch_size)
-    else:
-        return [0]
 
 
 def recovering_mask(needs_recovery):

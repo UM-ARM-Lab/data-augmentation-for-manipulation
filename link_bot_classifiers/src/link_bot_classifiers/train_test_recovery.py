@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import json
 import pathlib
 import time
 from typing import Optional, List
@@ -16,6 +15,7 @@ from link_bot_data.recovery_dataset import RecoveryDatasetLoader
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_to_json
 from moonshine import filepath_tools
+from moonshine.filepath_tools import load_hjson
 from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import restore_variables
 
@@ -56,7 +56,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
     ###############
     # Model
     ###############
-    model_hparams = json.load((model_hparams).open('r'))
+    model_hparams = load_hjson(model_hparams)
     model_hparams['recovery_dataset_hparams'] = train_dataset.hparams
     model_hparams['batch_size'] = batch_size
     model_hparams['seed'] = seed
