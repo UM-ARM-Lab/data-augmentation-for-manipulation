@@ -9,7 +9,7 @@ import tensorflow as tf
 from progressbar import progressbar
 
 from link_bot_classifiers import recovery_policy_utils
-from link_bot_classifiers.nn_recovery_policy import NNRecoveryModel
+from link_bot_classifiers.nn_recovery_model import NNRecoveryModel
 from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import batch_tf_dataset
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader

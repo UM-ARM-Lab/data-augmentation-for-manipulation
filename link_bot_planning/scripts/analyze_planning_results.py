@@ -4,14 +4,11 @@ import pathlib
 
 import colorama
 import matplotlib.pyplot as plt
-import numpy as np
 
-import rospy
 from arc_utilities import ros_init
-from link_bot_planning.analysis.analyze_results import get_metrics, load_figspecs
+from link_bot_planning.analysis.analyze_results import load_figspecs, get_metrics2
 from link_bot_planning.analysis.figspec import get_data_for_figure
 from link_bot_planning.analysis.results_metrics import load_analysis_params
-from link_bot_pycommon.args import my_formatter
 from moonshine.filepath_tools import load_hjson, load_json_or_hjson
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -37,7 +34,7 @@ def metrics_main(args):
         metadata = load_hjson(results_dir / 'metadata.hjson')
         return metadata['planner_params']['method_name']
 
-    method_names, metrics = get_metrics(args, out_dir, args.results_dirs, _get_method_name, _get_metadata)
+    method_names, metrics = get_metrics2(args, out_dir, args.results_dirs, _get_method_name, _get_metadata)
 
     # Figures & Tables
     figspecs = load_figspecs(analysis_params, args)
@@ -58,8 +55,6 @@ def metrics_main(args):
 
 @ros_init.with_ros("analyse_planning_results")
 def main():
-    colorama.init(autoreset=True)
-
     parser = argparse.ArgumentParser()
     parser.add_argument('results_dirs', help='results directory', type=pathlib.Path, nargs='+')
     parser.add_argument('--figures-config', type=pathlib.Path,
