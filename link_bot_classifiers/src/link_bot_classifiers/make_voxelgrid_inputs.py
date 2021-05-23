@@ -6,14 +6,6 @@ import tensorflow as tf
 from link_bot_data.dataset_utils import add_predicted
 from moonshine.raster_3d import batch_points_to_voxel_grid_res_origin_point
 
-# FIXME: this is a huge hack. The problem is that querying the tensor's shape doesn't work in all casees
-# because it's not always known/inferred correctly. We should really pass this info in somehow
-state_shapes = {
-    'rope':          25,
-    'left_gripper':  1,
-    'right_gripper': 1,
-}
-
 
 @dataclass
 class MakeVoxelgridInfo:
@@ -37,7 +29,7 @@ def make_voxelgrid_inputs_t(
     local_voxel_grid_t_array = local_voxel_grid_t_array.write(0, local_env)
     # insert the rastered states
     for channel_idx, (k, state_component_t) in enumerate(state_t.items()):
-        n_points_in_component = state_shapes[k]
+        n_points_in_component = int(state_component_t.shape[1] / 3)
         points = tf.reshape(state_component_t, [info.batch_size, -1, 3])
         flat_batch_indices = tf.repeat(tf.range(info.batch_size, dtype=tf.int64), n_points_in_component, axis=0)
         flat_points = tf.reshape(points, [-1, 3])

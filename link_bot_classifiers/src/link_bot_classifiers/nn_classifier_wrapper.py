@@ -54,10 +54,7 @@ class NNClassifierWrapper(BaseConstraintChecker):
                                     batch_size: int,
                                     state_sequence_length: int):
         # construct network inputs
-        net_inputs = {
-            'batch_size': batch_size,
-            'time':       state_sequence_length,
-        }
+        net_inputs = {}
         if 'scene_msg' in environment:
             environment.pop('scene_msg')
         net_inputs.update(make_dict_tf_float32(environment))
@@ -73,6 +70,8 @@ class NNClassifierWrapper(BaseConstraintChecker):
             net_inputs[add_predicted('stdev')] = tf.cast(states['stdev'], tf.float32)
 
         net_inputs = make_dict_tf_float32(net_inputs)
+        net_inputs['batch_size'] = batch_size
+        net_inputs['time'] = state_sequence_length
         predictions = self.check_constraint_from_example(net_inputs, training=False)
         probability = predictions['probabilities']
         probability = tf.squeeze(probability, axis=2)
