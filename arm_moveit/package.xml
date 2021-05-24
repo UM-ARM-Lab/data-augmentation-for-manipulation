@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>arm_moveit</name>
+  <version>0.0.0</version>
+  <description>The arm_moveit package</description>
+
+  <maintainer email="peter@todo.todo">peter</maintainer>
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>moveit_commander</depend>
+  <depend>moveit_core</depend>
+  <depend>moveit_visual_tools</depend>
+  <depend>pybind11_catkin</depend>
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+</package>
