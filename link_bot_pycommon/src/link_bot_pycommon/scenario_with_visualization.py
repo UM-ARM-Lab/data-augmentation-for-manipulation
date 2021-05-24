@@ -96,7 +96,6 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         bbox_msg = extent_to_bbox(environment['extent'])
         bbox_msg.header.frame_id = 'world'
         self.env_bbox_pub.publish(bbox_msg)
-        rospy.logwarn_throttle(100, f"failed to plot environment: {list(environment.keys())}")
 
     def send_occupancy_tf(self, environment: Dict):
         grid_utils.send_voxelgrid_tf_origin_point_res(self.tf.tf_broadcaster,
