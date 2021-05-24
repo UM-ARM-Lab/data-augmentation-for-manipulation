@@ -54,8 +54,9 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
 
         self.noise_rng = RandomState(0)
 
-    def from_example(self, example: Dict):
-        return self.model(example)
+    def from_example(self, inputs: Dict):
+        inputs = self.model.preprocess_no_gradient(inputs, training=False)
+        return self.model(inputs)
 
     def __call__(self, environment: Dict, state: Dict):
         # sample a bunch of actions (batched?) and pick the best one
@@ -95,20 +96,21 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
         return best_action
 
     def compute_recovery_probability(self, environment, state, action):
-        recovery_model_input = {}
-        recovery_model_input.update(environment)
-        recovery_model_input.update(add_batch(state))  # add time dimension to state and action
-        recovery_model_input.update(add_batch(action))
-        recovery_model_input = add_batch(recovery_model_input)
+        recovery_model_inputs = {}
+        recovery_model_inputs.update(environment)
+        recovery_model_inputs.update(add_batch(state))  # add time dimension to state and action
+        recovery_model_inputs.update(add_batch(action))
+        recovery_model_inputs = add_batch(recovery_model_inputs)
         if 'scene_msg' in environment:
-            recovery_model_input.pop('scene_msg')
-        recovery_model_input = make_dict_tf_float32(recovery_model_input)
-        recovery_model_input.update({
+            recovery_model_inputs.pop('scene_msg')
+        recovery_model_inputs = make_dict_tf_float32(recovery_model_inputs)
+        recovery_model_inputs.update({
             'batch_size': 1,
             'time':       2,
         })
-        recovery_model_output = self.model(recovery_model_input, training=False)
-        recovery_probability = recovery_model_output['probabilities']
+        recovery_model_inputs = self.model.preprocess_no_gradient(recovery_model_inputs, training=False)
+        recovery_model_outputs = self.model(recovery_model_inputs, training=False)
+        recovery_probability = recovery_model_outputs['probabilities']
         return recovery_probability
 
     def debug_viz(self, info: RecoveryDebugVizInfo):
