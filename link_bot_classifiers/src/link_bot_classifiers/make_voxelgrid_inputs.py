@@ -23,7 +23,7 @@ def make_voxelgrid_inputs_t(
         info: MakeVoxelgridInfo,
         t,
         include_robot_voxels=False):
-    state_t = {k: inputs[add_predicted(k)][:, t] for k in info.state_keys}
+    state_t = {k: inputs[k][:, t] for k in info.state_keys}
     local_voxel_grid_t_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     # Insert the environment as channel 0
     local_voxel_grid_t_array = local_voxel_grid_t_array.write(0, local_env)

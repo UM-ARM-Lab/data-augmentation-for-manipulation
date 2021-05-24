@@ -275,7 +275,7 @@ class NNClassifier(MyKerasModel):
                                      h=self.local_env_h_rows,
                                      w=self.local_env_w_cols,
                                      c=self.local_env_c_channels,
-                                     state_keys=self.state_keys,
+                                     state_keys=[add_predicted(k) for k in self.state_keys],
                                      )
             local_voxel_grid_t = make_voxelgrid_inputs_t(input_dict, local_env, local_origin_point, info, t)
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
