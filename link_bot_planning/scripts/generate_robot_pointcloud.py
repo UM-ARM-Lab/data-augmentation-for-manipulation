@@ -17,13 +17,13 @@ def main():
     args = parser.parse_args()
 
     collision_sphere_link_name = 'collision_sphere'
-    robot_points_generator = pyjacobian_follower.RobotPointsGenerator()
+    res = 0.02
+    robot_points_generator = pyjacobian_follower.RobotPointsGenerator(res)
     links = robot_points_generator.get_link_names()
     points = {}
-    res = 0.02
     for link_to_check in links:
         # returns the points of the collision in link frame
-        points[link_to_check] = robot_points_generator.check_collision(link_to_check, res)
+        points[link_to_check] = robot_points_generator.check_collision(link_to_check)
 
     with args.outfilename.open("wb") as outfile:
         pickle.dump(points, outfile)

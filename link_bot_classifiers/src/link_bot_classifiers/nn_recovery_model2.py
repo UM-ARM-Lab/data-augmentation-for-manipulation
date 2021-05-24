@@ -77,7 +77,6 @@ class NNRecoveryModel(MyKerasModel):
 
     def preprocess_no_gradient(self, inputs, training: bool):
         batch_size = inputs['batch_size']
-        time = tf.cast(inputs['time'], tf.int32)
 
         inputs['origin_point'] = batch_extent_to_origin_point_tf(inputs['extent'], inputs['res'])
 
@@ -123,12 +122,12 @@ class NNRecoveryModel(MyKerasModel):
         # inputs['swept_state_and_robot_points'] = self.scenario.compute_swept_state_and_robot_points(inputs)
 
         if DEBUG_AUG:
-            self.debug_viz_local_env_pre_aug(inputs, time)
+            self.debug_viz_local_env_pre_aug(inputs)
 
         if training and self.aug.hparams is not None:
             # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
             # so modifying it internally won't change the value for the caller
-            inputs['voxel_grids'] = self.augmentation_optimization(inputs, batch_size, time)
+            inputs['voxel_grids'] = self.augmentation_optimization(inputs, batch_size)
 
         return inputs
 
@@ -165,9 +164,8 @@ class NNRecoveryModel(MyKerasModel):
         state_rf_list = list(state_in_robot_frame.values())
 
         batch_size = input_dict['batch_size']
-        time = tf.cast(input_dict['time'], tf.int32)
         voxel_grids = input_dict['voxel_grids']
-        conv_output = self.conv_encoder(voxel_grids, batch_size=batch_size, time=time)
+        conv_output = self.conv_encoder(voxel_grids, batch_size=batch_size)
 
         if 'with_robot_frame' not in self.hparams:
             print("no hparam 'with_robot_frame'. This must be an old model!")
@@ -198,20 +196,15 @@ class NNRecoveryModel(MyKerasModel):
         }
 
     # @tf.function
-    def conv_encoder(self, voxel_grids, batch_size, time):
-        conv_outputs_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        for t in range(time):
-            conv_z = voxel_grids[:, t]
-            for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
-                conv_h = conv_layer(conv_z)
-                conv_z = pool_layer(conv_h)
-            out_conv_z = conv_z
-            out_conv_z_dim = out_conv_z.shape[1] * out_conv_z.shape[2] * out_conv_z.shape[3] * out_conv_z.shape[4]
-            out_conv_z = tf.reshape(out_conv_z, [batch_size, out_conv_z_dim])
-            conv_outputs_array = conv_outputs_array.write(t, out_conv_z)
-        conv_outputs = conv_outputs_array.stack()
-        conv_outputs = tf.transpose(conv_outputs, [1, 0, 2])
-        return conv_outputs
+    def conv_encoder(self, voxel_grids, batch_size):
+        conv_z = voxel_grids
+        for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
+            conv_h = conv_layer(conv_z)
+            conv_z = pool_layer(conv_h)
+        out_conv_z = conv_z
+        out_conv_z_dim = out_conv_z.shape[1] * out_conv_z.shape[2] * out_conv_z.shape[3] * out_conv_z.shape[4]
+        out_conv_z = tf.reshape(out_conv_z, [batch_size, out_conv_z_dim])
+        return out_conv_z
 
     def create_env_indices(self, batch_size: int):
         return create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels, batch_size)
