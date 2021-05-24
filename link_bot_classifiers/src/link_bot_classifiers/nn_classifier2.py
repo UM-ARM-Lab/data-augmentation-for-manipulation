@@ -14,7 +14,7 @@ from link_bot_data.dataset_utils import add_predicted, add_new
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf, environment_to_vg_msg, \
-    send_voxelgrid_tf_origin_point_res_tf, occupied_voxels_to_points, binary_or, subtract, lookup_points_in_vg
+    send_voxelgrid_tf_origin_point_res, occupied_voxels_to_points, binary_or, subtract, lookup_points_in_vg
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
@@ -87,7 +87,7 @@ class NNClassifier(MyKerasModel):
 
     def preprocess_no_gradient(self, inputs, training: bool):
         batch_size = inputs['batch_size']
-        time = tf.cast(inputs['time'], tf.int32)
+        time = inputs['time']
 
         inputs['origin_point'] = batch_extent_to_origin_point_tf(inputs['extent'], inputs['res'])
 
@@ -281,7 +281,7 @@ class NNClassifier(MyKerasModel):
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
 
         local_voxel_grids = tf.transpose(local_voxel_grids_array.stack(), [1, 0, 2, 3, 4, 5])
-        local_voxel_grids.set_shape([None, 2, None, None, None, None])  # FIXME: 2 is hardcoded here
+        local_voxel_grids.set_shape([None, time, None, None, None, None])  # FIXME: 2 is hardcoded here
         return local_voxel_grids
 
     def get_local_env(self, input_dict):
@@ -383,10 +383,10 @@ class NNClassifier(MyKerasModel):
                 self.scenario.plot_points_rviz(points_debug_b.numpy(), label='attract', color='g')
                 # stepper.step()
 
-                send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
-                                                      origin_point=local_origin_point_aug[b],
-                                                      res=res[b],
-                                                      frame='local_env_aug_vg')
+                send_voxelgrid_tf_origin_point_res(self.broadcaster,
+                                                   origin_point=local_origin_point_aug[b],
+                                                   res=res[b],
+                                                   frame='local_env_aug_vg')
 
                 bbox_msg = grid_to_bbox(rows=self.local_env_h_rows,
                                         cols=self.local_env_w_cols,
@@ -428,10 +428,10 @@ class NNClassifier(MyKerasModel):
                 }
                 msg = environment_to_vg_msg(_aug_dict, frame='local_env_aug_vg', stamp=rospy.Time(0))
                 self.debug.env_aug_pub5.publish(msg)
-                send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
-                                                      local_origin_point_aug[b],
-                                                      res[b],
-                                                      frame='local_env_aug_vg')
+                send_voxelgrid_tf_origin_point_res(self.broadcaster,
+                                                   local_origin_point_aug[b],
+                                                   res[b],
+                                                   frame='local_env_aug_vg')
 
                 self.debug_viz_state_action(inputs, b, 'aug', color='blue')
                 # stepper.step()
@@ -469,10 +469,10 @@ class NNClassifier(MyKerasModel):
             for b in debug_viz_batch_indices(self.batch_size):
                 self.send_position_transform(local_env_new_center[b], 'local_env_new_center')
 
-                send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
-                                                      origin_point=local_env_new_origin_point[b],
-                                                      res=res[b],
-                                                      frame='local_env_new_vg')
+                send_voxelgrid_tf_origin_point_res(self.broadcaster,
+                                                   origin_point=local_env_new_origin_point[b],
+                                                   res=res[b],
+                                                   frame='local_env_new_vg')
 
                 bbox_msg = grid_to_bbox(rows=self.local_env_h_rows,
                                         cols=self.local_env_w_cols,
@@ -489,10 +489,10 @@ class NNClassifier(MyKerasModel):
                 msg = environment_to_vg_msg(env_new_dict, frame='new_env_aug_vg', stamp=rospy.Time(0))
                 self.debug.env_aug_pub1.publish(msg)
 
-                send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
-                                                      origin_point=new_env['origin_point'][b],
-                                                      res=res[b],
-                                                      frame='new_env_aug_vg')
+                send_voxelgrid_tf_origin_point_res(self.broadcaster,
+                                                   origin_point=new_env['origin_point'][b],
+                                                   res=res[b],
+                                                   frame='new_env_aug_vg')
 
                 # Show sample new local environment, in the frame of the original local env, the one we're augmenting
                 local_env_new_dict = {
@@ -502,10 +502,10 @@ class NNClassifier(MyKerasModel):
                 msg = environment_to_vg_msg(local_env_new_dict, frame='local_env_aug_vg', stamp=rospy.Time(0))
                 self.debug.env_aug_pub2.publish(msg)
 
-                send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
-                                                      origin_point=local_origin_point_aug[b],
-                                                      res=res[b],
-                                                      frame='local_env_aug_vg')
+                send_voxelgrid_tf_origin_point_res(self.broadcaster,
+                                                   origin_point=local_origin_point_aug[b],
+                                                   res=res[b],
+                                                   frame='local_env_aug_vg')
 
                 # stepper.step()
 
@@ -626,10 +626,10 @@ class NNClassifier(MyKerasModel):
     def debug_viz_local_env_pre_aug(self, example: Dict, time):
         local_origin_point = example['local_origin_point']
         for b in debug_viz_batch_indices(self.batch_size):
-            send_voxelgrid_tf_origin_point_res_tf(self.broadcaster,
-                                                  origin_point=local_origin_point[b],
-                                                  res=example['res'][b],
-                                                  frame='local_env_vg')
+            send_voxelgrid_tf_origin_point_res(self.broadcaster,
+                                               origin_point=local_origin_point[b],
+                                               res=example['res'][b],
+                                               frame='local_env_vg')
 
             bbox_msg = grid_to_bbox(rows=self.local_env_h_rows,
                                     cols=self.local_env_w_cols,

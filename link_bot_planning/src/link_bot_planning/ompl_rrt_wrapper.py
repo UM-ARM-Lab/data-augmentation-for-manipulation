@@ -448,7 +448,8 @@ class OmplRRTWrapper(MyPlanner):
             start_t = smoothing_rng.randint(0, plan_length - 3)
 
             # sample an end index
-            shortcut_max_t = plan_length - 1
+            max_shortcut_length = self.params.get('max_shortcut_length', 20)  # too long and we run out of GPU memory
+            shortcut_max_t = min(start_t + max_shortcut_length, plan_length - 1)
             shortcut_min_t = start_t + 2
             if shortcut_min_t >= shortcut_max_t:
                 rospy.logerr(f"smoothing sampling bug?! {start_t=}, {plan_length=}")

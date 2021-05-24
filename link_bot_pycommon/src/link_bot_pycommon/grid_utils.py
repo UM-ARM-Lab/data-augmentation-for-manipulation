@@ -6,7 +6,7 @@ import tensorflow as tf
 import ros_numpy
 import rospy
 from geometry_msgs.msg import TransformStamped
-from moonshine.moonshine_utils import swap_xy
+from moonshine.moonshine_utils import swap_xy, numpify
 from rviz_voxelgrid_visuals import conversions
 from sensor_msgs.msg import PointCloud2
 
@@ -289,45 +289,27 @@ def environment_to_vg_msg(environment: Dict, frame: str = 'vg', stamp=None, colo
 
 
 def send_voxelgrid_tf(broadcaster, environment: Dict, frame: str = 'vg'):
-    _send_voxelgrid_tf(broadcaster, environment['extent'], environment['res'], frame)
+    send_voxelgrid_tf_extent_res(broadcaster, environment['extent'], environment['res'], frame)
 
 
-def _send_voxelgrid_tf(broadcaster, extent, res, frame: str = 'vg'):
+def send_voxelgrid_tf_extent_res(broadcaster, extent, res, frame: str = 'vg'):
     origin_point = extent_res_to_origin_point(extent, res)
     send_voxelgrid_tf_origin_point_res(broadcaster, origin_point, res, frame)
 
 
-def send_voxelgrid_tf_origin_point_res_tf(broadcaster, origin_point, res, frame: str = 'vg'):
+def send_voxelgrid_tf_origin_point_res(broadcaster, origin_point, res, frame: str = 'vg'):
     transform = TransformStamped()
     transform.header.stamp = rospy.Time.now()
     transform.header.frame_id = "world"
     transform.child_frame_id = frame
 
-    origin_xyz = (origin_point - res / 2).numpy()
+    origin_xyz = origin_point - (res / 2)
+    origin_xyz = numpify(origin_xyz)
     # the rviz plugin displays the boxes with the corner at the given translation, not the center
     # but the origin_point is at the center, so this offsets things correctly
     transform.transform.translation.x = origin_xyz[0]
     transform.transform.translation.y = origin_xyz[1]
     transform.transform.translation.z = origin_xyz[2]
-    transform.transform.rotation.x = 0
-    transform.transform.rotation.y = 0
-    transform.transform.rotation.z = 0
-    transform.transform.rotation.w = 1
-    broadcaster.sendTransform(transform)
-
-
-def send_voxelgrid_tf_origin_point_res(broadcaster, origin_point, res, frame):
-    transform = TransformStamped()
-    transform.header.stamp = rospy.Time.now()
-    transform.header.frame_id = "world"
-    transform.child_frame_id = frame
-
-    origin_x, origin_y, origin_z = origin_point
-    # the rviz plugin displays the boxes with the corner at the given translation, not the center
-    # but the origin_point is at the center, so this offsets things correctly
-    transform.transform.translation.x = origin_x - res / 2
-    transform.transform.translation.y = origin_y - res / 2
-    transform.transform.translation.z = origin_z - res / 2
     transform.transform.rotation.x = 0
     transform.transform.rotation.y = 0
     transform.transform.rotation.z = 0

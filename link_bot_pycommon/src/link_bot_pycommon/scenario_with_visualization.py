@@ -88,22 +88,20 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.sample_idx = 0
 
     def plot_environment_rviz(self, environment: Dict, **kwargs):
-        try:
-            env_msg = environment_to_vg_msg(environment)
-            self.env_viz_pub.publish(env_msg)
+        env_msg = environment_to_vg_msg(environment)
+        self.env_viz_pub.publish(env_msg)
 
-            self.send_occupancy_tf(environment)
+        self.send_occupancy_tf(environment)
 
-            bbox_msg = extent_to_bbox(environment['extent'])
-            bbox_msg.header.frame_id = 'world'
-            self.env_bbox_pub.publish(bbox_msg)
-        except Exception:
-            rospy.logwarn_throttle(100, f"failed to plot environment: {list(environment.keys())}")
+        bbox_msg = extent_to_bbox(environment['extent'])
+        bbox_msg.header.frame_id = 'world'
+        self.env_bbox_pub.publish(bbox_msg)
+        rospy.logwarn_throttle(100, f"failed to plot environment: {list(environment.keys())}")
 
     def send_occupancy_tf(self, environment: Dict):
-        grid_utils.send_voxelgrid_tf_origin_point_res_tf(self.tf.tf_broadcaster,
-                                                         environment['origin_point'],
-                                                         environment['res'])
+        grid_utils.send_voxelgrid_tf_origin_point_res(self.tf.tf_broadcaster,
+                                                      environment['origin_point'],
+                                                      environment['res'])
 
     def plot_executed_action(self, state: Dict, action: Dict, **kwargs):
         self.plot_action_rviz(state, action, label='executed action', color="#3876EB", idx1=1, idx2=1, **kwargs)

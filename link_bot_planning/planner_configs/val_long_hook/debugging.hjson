@@ -6,11 +6,12 @@
   }
   termination_criteria: {
     attempted_extensions_threshold: 64
-    timeout: 30
+    timeout: 60
   }
-  n_shortcut_attempts: 0
+  n_shortcut_attempts: 25
   classifier_model_dir: [
-    results/iterative_fine_tuning/car_to_long_hook_5t_aug_no_recovery_1620928676_899b7a265e/pretraining_logdir/May_13_13-58-22_899b7a265e/best_checkpoint
+    results/iterative_fine_tuning/car_to_long_hook_5t_aug_opt_1621774538_1eb9354798/pretraining_logdir/May_23_09-22-26_5ff88a8985/best_checkpoint
+    # results/iterative_fine_tuning/car_to_long_hook_5t_aug_no_recovery_1620928676_899b7a265e/pretraining_logdir/May_13_13-58-22_899b7a265e/best_checkpoint
     # results/iterative_fine_tuning/car_to_long_hook_5t_aug_no_recovery_1620928676_899b7a265e/classifier_training_logdir/iteration_0000_classifier_training_logdir/May_13_16-26-49_899b7a265e/best_checkpoint
     # results/iterative_fine_tuning/car_to_long_hook_5t_aug_no_recovery_1620928676_899b7a265e/classifier_training_logdir/iteration_0001_classifier_training_logdir/May_13_16-57-16_899b7a265e/best_checkpoint/
     # cl_trials/val_car_feasible_1614981888/March_05_18-57-54_4b65490ac1/best_checkpoint
