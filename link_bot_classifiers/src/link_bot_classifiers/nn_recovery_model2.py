@@ -8,7 +8,6 @@ from tensorflow.python.keras.metrics import Metric
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.make_voxelgrid_inputs import MakeVoxelgridInfo, make_voxelgrid_inputs_t
-from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -218,7 +217,7 @@ class NNRecoveryModel(MyKerasModel):
         return create_env_indices(self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels, batch_size)
 
     def get_local_env(self, input_dict):
-        state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
+        state_0 = {k: input_dict[k][:, 0] for k in self.state_keys}
 
         # NOTE: to be more general, this should return a pose not just a point/position
         local_env_center = self.scenario.local_environment_center_differentiable(state_0)
