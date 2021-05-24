@@ -12,7 +12,7 @@ from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-from moonshine.get_local_environment import create_env_indices
+from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_point
 from moonshine.metrics import LossMetric
 from moonshine.my_keras_model import MyKerasModel
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
@@ -232,3 +232,12 @@ class NNRecoveryModel(MyKerasModel):
                 # stepper.step()
 
         return local_env, local_origin_point
+
+    def local_env_given_center(self, center_point, environment: Dict):
+        return get_local_env_and_origin_point(center_point=center_point,
+                                              environment=environment,
+                                              h=self.local_env_h_rows,
+                                              w=self.local_env_w_cols,
+                                              c=self.local_env_c_channels,
+                                              indices=self.indices,
+                                              batch_size=self.batch_size)
