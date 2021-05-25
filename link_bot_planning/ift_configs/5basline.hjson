@@ -1,5 +1,5 @@
 {
-  trials_per_iteration: 5
+  trials_per_iteration: 30
   trials_generator_type: random
   fine_tune_classifier: {
     fine_tune_conv: false
@@ -23,10 +23,12 @@
   results_to_classifier_dataset: {
     val_split: 0.5
     test_split: 0.0
+    max_trials: 5
   }
   results_to_recovery_dataset: {
     val_split: 0.5
     test_split: 0.0
+    max_trials: 5
   }
   labeling_params_update: {
     use_augmentation: false
