@@ -105,7 +105,7 @@ class IterativeFineTuning:
         self.outdir = logfile_name.parent
 
         self.job_chunker = JobChunker(logfile_name=logfile_name)
-        self.trials_directory = self.outdir / 'classifier_training_logdir'
+        self.trials_directory = self.outdir / 'training_logdir'
         self.planning_results_root_dir = self.outdir / 'planning_results'
 
         all_trial_indices = list(get_all_scene_indices(self.test_scenes_dir))
