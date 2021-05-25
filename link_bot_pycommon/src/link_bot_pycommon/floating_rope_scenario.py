@@ -20,6 +20,7 @@ from link_bot_pycommon.bbox_marker_utils import make_box_marker_from_extents
 from link_bot_pycommon.bbox_visualization import extent_array_to_bbox
 from link_bot_pycommon.collision_checking import inflate_tf_3d
 from link_bot_pycommon.constants import KINECT_MAX_DEPTH
+from link_bot_pycommon.get_cdcpd_state import GetCdcpdState
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.matplotlib_utils import adjust_lightness_msg
@@ -73,9 +74,10 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         self.get_rope_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_rope_state"), GetRopeState)
 
         self.pos3d = Position3D()
-        self.cdcpd_listener = Listener("cdcpd/output", PointCloud2)
         self.set_rope_state_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set_rope_state"), SetRopeState)
         self.reset_srv = rospy.ServiceProxy("/gazebo/reset_simulation", Empty)
+
+        self.get_cdcpd_state = GetCdcpdState(self.tf, rope_key_name)
 
         self.left_gripper_bbox_pub = rospy.Publisher('/left_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
         self.right_gripper_bbox_pub = rospy.Publisher('/right_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
@@ -407,15 +409,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         gripper_position2 = np.reshape(state['right_gripper'], [3])
         return gripper_position1, gripper_position2
 
-    def get_cdcpd_state(self):
-        cdcpd_msg: PointCloud2 = self.cdcpd_listener.get()
-
-        points = transform_points_to_robot_frame(self.tf, cdcpd_msg)
-
-        cdcpd_vector = points.flatten()
-        return cdcpd_vector
-
-    def get_rope_state(self):
+    def get_gazebo_rope_state(self):
         rope_res = self.get_rope_srv(GetRopeStateRequest())
         rope_state_vector = []
         for p in rope_res.positions:
@@ -427,6 +421,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             rope_velocity_vector.append(v.x)
             rope_velocity_vector.append(v.y)
             rope_velocity_vector.append(v.z)
+        rope_state_vector = np.array(rope_state_vector, np.float32)
         return rope_state_vector
 
     def is_rope_point_attached(self, gripper: str):
@@ -446,23 +441,24 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return self.get_rope_point_position('left'), self.get_rope_point_position('right')
 
     def get_state(self):
-        # color_depth_cropped = self.get_rgbd()
+        gt_rope_vector = self.get_gazebo_rope_state()
 
-        gt_rope_vector = self.get_rope_state()
         if self.DISABLE_CDCPD:
-            cdcpd_vector = gt_rope_vector
+            cdcpd_state = {
+                rope_key_name: np.array(gt_rope_vector, np.float32),
+            }
         else:
-            cdcpd_vector = self.get_cdcpd_state()
-        left_rope_point_position, right_rope_point_position = self.get_rope_point_positions()
+            cdcpd_state = self.get_cdcpd_state.get_state()
 
-        return {
+        left_rope_point_position, right_rope_point_position = self.get_rope_point_positions()
+        state = {
             'left_gripper':     np.array(left_rope_point_position, np.float32),
             'right_gripper':    np.array(right_rope_point_position, np.float32),
-            'gt_rope':          np.array(gt_rope_vector, np.float32),
-            rope_key_name:      np.array(cdcpd_vector, np.float32),
-            # 'rgbd':             color_depth_cropped,
             'is_overstretched': np.array([self.is_rope_overstretched()]),
+            'gt_rope':          np.array(gt_rope_vector, np.float32),
         }
+        state.update(cdcpd_state)
+        return state
 
     def get_rgbd(self):
         color_msg: Image = self.color_image_listener.get()

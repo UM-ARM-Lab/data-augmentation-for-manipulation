@@ -2,7 +2,6 @@ from colorama import Fore
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 
-
 # With this approach, we only ever import the scenario we want to use. Nice!
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 
@@ -15,6 +14,10 @@ def make_rope_dragging_scenario():
 def make_dual_arm_real_victor_rope_scenario():
     from link_bot_pycommon.dual_arm_real_victor_rope_scenario import DualArmRealVictorRopeScenario
     return DualArmRealVictorRopeScenario
+
+def make_dual_arm_real_val_rope_scenario():
+    from link_bot_pycommon.dual_arm_real_val_rope_scenario import DualArmRealValRopeScenario
+    return DualArmRealValRopeScenario
 
 
 def make_dual_arm_scenario():
@@ -50,6 +53,7 @@ scenario_map = {
     'dragging':                                              make_rope_dragging_scenario,
     'dual_arm':                                              make_dual_arm_sim_victor_scenario,
     'dual_arm_real_victor':                                  make_dual_arm_real_victor_rope_scenario,
+    'dual_arm_real_val':                                     make_dual_arm_real_val_rope_scenario,
     'dual_arm_rope_sim_victor':                              make_dual_arm_sim_victor_scenario,
     'dual_arm_rope_sim_val':                                 make_dual_arm_sim_val_scenario,
     'dual_arm_rope':                                         make_dual_arm_sim_victor_scenario,

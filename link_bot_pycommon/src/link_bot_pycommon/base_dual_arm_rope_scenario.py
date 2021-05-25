@@ -170,17 +170,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         return self.robot.get_joint_names()
 
     def get_state(self):
-        # TODO: this should be composed of function calls to get_state for arm_no_rope and get_state for rope?
         joint_state: JointState = self.robot._joint_state_listener.get()
 
-        # FIXME: "Joint values for monitored state are requested but the full state is not known"
-        # for _ in range(5):
-        #     left_gripper_position, right_gripper_position = self.robot.get_gripper_positions()
-        #     rospy.sleep(0.02)
-
-        # rgbd = self.get_rgbd()
-
-        gt_rope_state_vector = self.get_rope_state()
+        gt_rope_state_vector = self.get_gazebo_rope_state()
         gt_rope_state_vector = np.array(gt_rope_state_vector, np.float32)
 
         if self.DISABLE_CDCPD:
@@ -191,7 +183,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         state = {
             'joint_positions': np.array(joint_state.position, np.float32),
             'joint_names':     np.array(joint_state.name),
-            # 'rgbd':            rgbd,
             'gt_rope':         gt_rope_state_vector,
             'rope':            cdcpd_rope_state_vector,
         }
