@@ -20,11 +20,7 @@ def main():
     parser.add_argument('--full-tree', action=BooleanOptionalAction)
     parser.add_argument("--labeling-params", type=pathlib.Path, help='labeling params')
     parser.add_argument("--visualize", action='store_true', help='visualize')
-    parser.add_argument("--gui", action='store_true', help='show gzclient, the gazebo gui')
-    parser.add_argument("--launch", type=str, help='launch file name')
-    parser.add_argument("--world", type=str, help='world file name')
     parser.add_argument("--trial-indices", type=int_set_arg, help='which plan(s) to show')
-    parser.add_argument("--subsample-fraction", type=float, default=1.0, help='number between 0 and 1')
 
     args = parser.parse_args()
 
@@ -32,12 +28,8 @@ def main():
                                    args.outdir,
                                    args.labeling_params,
                                    args.trial_indices,
-                                   args.full_tree,
                                    args.visualize,
-                                   args.gui,
-                                   args.launch,
-                                   args.world,
-                                   args.subsample_fraction)
+                                   args.full_tree)
     r.run()
 
 
