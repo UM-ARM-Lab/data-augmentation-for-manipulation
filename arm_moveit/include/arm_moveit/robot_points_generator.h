@@ -20,6 +20,7 @@ class RobotPointsGenerator {
 
   std::vector<Eigen::Vector3d> pointsToCheck(robot_state::RobotState state, std::string link_name) const;
 
+  std::string getRobotName() const;
  private:
   robot_model_loader::RobotModelLoaderPtr model_loader_;
   robot_model::RobotModelPtr model_;

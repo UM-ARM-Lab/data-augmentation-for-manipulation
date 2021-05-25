@@ -13,6 +13,7 @@ PYBIND11_MODULE(pyrobot_points_generator, m) {
       .def(py::init<double>(), py::arg("res"))
       .def("get_link_names", &RobotPointsGenerator::getLinkModelNames)
       .def("check_collision", &RobotPointsGenerator::checkCollision)
+      .def("get_robot_name", &RobotPointsGenerator::getRobotName)
       //
       ;
 }

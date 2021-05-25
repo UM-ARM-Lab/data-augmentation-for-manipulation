@@ -34,11 +34,10 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::checkCollision(std::string li
   }
   // not explicitly set collision to be NOT allowed (not ignored) for the one link we're checking
   acm.setEntry(link_name, collision_sphere_name, false);
-  acm.print(std::cout);
 
   auto const state = scene_.getCurrentState();
 
-  auto const link_transform = state.getGlobalLinkTransform(link_name);
+  auto const &link_transform = state.getGlobalLinkTransform(link_name);
 
   visual_tools_.publishRobotState(state);
 
@@ -85,7 +84,7 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::checkCollision(std::string li
     viz_point_color.a = 1;
     if (result.collision) {
       debug_viz_points.push_back(point_robot_frame);
-      Eigen::Vector3d point_link_frame = link_transform * point_robot_frame;
+      Eigen::Vector3d point_link_frame = link_transform.inverse() * point_robot_frame;
       points_link_frame.push_back(point_link_frame);
       viz_point_color.r = 1;
     } else {
@@ -158,20 +157,5 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::pointsToCheck(robot_state::Ro
 
   return points_to_check;
 }
+std::string RobotPointsGenerator::getRobotName() const { return model_->getName(); }
 #pragma clang diagnostic pop
-
-int main(int argc, char **argv) {
-  ros::init(argc, argv, "robot_points_generator");
-  auto const res = 0.02;
-  RobotPointsGenerator robot_points_generator(res);
-  auto const links = robot_points_generator.getLinkModelNames();
-  std::map<std::string, std::vector<Eigen::Vector3d>> points;
-  for (auto const &link_to_check : links) {
-    auto const points_for_link = robot_points_generator.checkCollision(link_to_check);
-    points.emplace(link_to_check, points_for_link);
-  }
-
-  ros::Duration(1).sleep();
-
-  return EXIT_SUCCESS;
-}

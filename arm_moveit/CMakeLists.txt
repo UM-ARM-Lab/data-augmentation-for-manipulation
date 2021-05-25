@@ -20,7 +20,7 @@ catkin_package(
   CATKIN_DEPENDS ${CATKIN_DEPENDS}
 )
 
-set(FLAGS -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror=return-type -Werror=missing-field-initializers)
+set(FLAGS -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror=return-type -Werror=missing-field-initializers -Wno-unknown-pragmas)
 
 add_library(robot_points_generator src/robot_points_generator.cpp)
 target_include_directories(robot_points_generator PUBLIC include)
