@@ -95,6 +95,22 @@
   }
   {
     type: LinePlot
+    name: attempts_vs_iters
+    xlabel: Iterations
+    ylabel: Num Planning Attempts
+    reductions: {
+      num_planning_attempts: [
+        null
+        null
+        mean
+      ]
+    }
+    axes_names: [
+      y
+    ]
+  }
+  {
+    type: LinePlot
     name: task_error_vs_iters
     xlabel: Iterations
     ylabel: Task Error
@@ -128,6 +144,24 @@
     axes_names: [
       y
     ]
+  }
+  {
+    type: LinePlot
+    name: cumulative_task_error
+    xlabel: Num Steps
+    ylabel: Cumulative Task Error
+    reductions: {
+      num_steps:  [
+        null
+        shifted_cumsum
+        sum
+      ]
+      cumulative_task_error: [
+        null
+        null
+        mean
+      ]
+    }
   }
   {
     type: LinePlot

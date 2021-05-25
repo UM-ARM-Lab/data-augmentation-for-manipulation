@@ -8,6 +8,7 @@ from link_bot_planning.analysis.results_utils import get_paths
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from moonshine.filepath_tools import load_hjson
+from moonshine.moonshine_utils import numpify
 
 
 def num_recovery_actions(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
@@ -23,11 +24,19 @@ def num_steps(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: D
     return len(paths)
 
 
+def cumulative_task_error(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    goal = trial_datum['goal']
+    cumulative_error = 0
+    for _, _, actual_state_t, _, _ in get_paths(trial_datum):
+        cumulative_error += numpify(scenario.distance_to_goal(actual_state_t, goal))
+    return cumulative_error
+
+
 def task_error(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     goal = trial_datum['goal']
     final_actual_state = trial_datum['end_state']
     final_execution_to_goal_error = scenario.distance_to_goal(final_actual_state, goal)
-    return final_execution_to_goal_error.numpy()
+    return numpify(final_execution_to_goal_error)
 
 
 def success(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
@@ -38,6 +47,14 @@ def success(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dic
 def total_time(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     total_time = trial_datum['total_time']
     return total_time
+
+
+def num_planning_attempts(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    attempts = 0
+    for step in trial_datum['steps']:
+        if step['type'] == 'executed_plan':
+            attempts += 1
+    return attempts
 
 
 def any_solved(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
@@ -87,6 +104,8 @@ __all__ = [
     'total_time',
     'num_recovery_actions',
     'normalized_model_error',
+    'num_planning_attempts',
+    'cumulative_task_error',
 
     'load_analysis_params',
 ]
