@@ -131,38 +131,6 @@ def make_figures(figures: Iterable[MyFigure],
     for figure in figures:
         figure.enumerate_methods()
 
-    # Tables
-    # for figure in figures:
-    #     table_header, table_data = figure.make_table(table_format)
-    #     if table_data is None:
-    #         continue
-    #     print(Style.BRIGHT + figure.name + Style.NORMAL)
-    #     table = tabulate(table_data,
-    #                      headers=table_header,
-    #                      tablefmt=table_format,
-    #                      floatfmt='6.4f',
-    #                      numalign='center',
-    #                      stralign='left')
-    #     print(table)
-    #     print()
-    #
-    #     # For saving metrics since this script is kind of slow it's nice to save the output
-    #     with tables_filename.open("a") as tables_file:
-    #         tables_file.write(figure.name)
-    #         tables_file.write('\n')
-    #         tables_file.write(table)
-    #         tables_file.write('\n')
-    #
-    # for figure in figures:
-    #     pvalue_table_title = f"p-value matrix [{figure.name}]"
-    #     pvalue_table = dict_to_pvalue_table(figure.metric.values, table_format=table_format)
-    #     print(Style.BRIGHT + pvalue_table_title + Style.NORMAL)
-    #     print(pvalue_table)
-    #     with tables_filename.open("a") as tables_file:
-    #         tables_file.write(pvalue_table_title)
-    #         tables_file.write('\n')
-    #         tables_file.write(pvalue_table)
-    #         tables_file.write('\n')
 
     # Actual figures
     for figure in figures:

@@ -6,7 +6,7 @@ import colorama
 import matplotlib.pyplot as plt
 
 from arc_utilities import ros_init
-from link_bot_planning.analysis.analyze_results import load_figspecs, get_metrics2
+from link_bot_planning.analysis.analyze_results import load_fig_specs, get_metrics2
 from link_bot_planning.analysis.figspec import get_data_for_figure
 from link_bot_planning.analysis.results_metrics import load_analysis_params
 from moonshine.filepath_tools import load_hjson, load_json_or_hjson
@@ -37,7 +37,7 @@ def metrics_main(args):
     method_names, metrics = get_metrics2(args, out_dir, args.results_dirs, _get_method_name, _get_metadata)
 
     # Figures & Tables
-    figspecs = load_figspecs(analysis_params, args)
+    figspecs = load_fig_specs(analysis_params, args)
 
     for spec in figspecs:
         data_for_figure = get_data_for_figure(spec, metrics)

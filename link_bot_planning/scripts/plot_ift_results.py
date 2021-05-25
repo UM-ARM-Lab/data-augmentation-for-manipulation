@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--threshold", type=float)
     parser.add_argument("--full-plan", action='store_true')
     parser.add_argument("--only-timeouts", action='store_true')
+    parser.add_argument("--max-trials", "-t", type=int, default=None)
     parser.add_argument("--verbose", '-v', action="count", default=0)
 
     args = parser.parse_args()
@@ -39,6 +40,9 @@ def main():
             threshold = args.threshold
 
         for trial_idx, datum in results_utils.trials_generator(results_dir):
+            if args.max_trials is not None and trial_idx >= args.max_trials:
+                continue
+
             should_skip = args.only_timeouts and datum['trial_status'] != TrialStatus.Timeout
             if should_skip:
                 continue

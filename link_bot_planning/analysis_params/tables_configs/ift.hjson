@@ -1,0 +1,16 @@
+[
+  {
+    type: First
+    name: initial_and_final_success_rate
+    reductions: {
+      success: [
+        null
+        null
+        mean
+      ]
+    }
+    axes_names: [
+      y
+    ]
+  }
+]

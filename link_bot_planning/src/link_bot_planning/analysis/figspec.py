@@ -4,6 +4,7 @@ from typing import List, Dict
 import pandas as pd
 
 from link_bot_planning.analysis.results_figures import *
+from link_bot_planning.analysis.results_tables import MyTable
 
 DEFAULT_AXES_NAMES = ['x', 'y', 'z']
 
@@ -15,7 +16,18 @@ class FigSpec:
     axes_names: List[str]
 
 
+@dataclass
+class TableSpec:
+    table: MyTable
+    reductions: Dict[str, List]
+    axes_names: List[str]
+
+
 def get_data_for_figure(spec: FigSpec, metrics: pd.DataFrame):
+    return reduce_metrics(spec.reductions, spec.axes_names, metrics)
+
+
+def get_data_for_table(spec: TableSpec, metrics: pd.DataFrame):
     return reduce_metrics(spec.reductions, spec.axes_names, metrics)
 
 

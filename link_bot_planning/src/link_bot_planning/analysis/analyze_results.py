@@ -6,10 +6,11 @@ from colorama import Fore
 
 # noinspection PyUnresolvedReferences
 from link_bot_planning.analysis.results_figures import *
+from link_bot_planning.analysis.results_tables import *
 
 import rospy
 from arc_utilities.filesystem_utils import get_all_subdirs
-from link_bot_planning.analysis.figspec import DEFAULT_AXES_NAMES, FigSpec
+from link_bot_planning.analysis.figspec import DEFAULT_AXES_NAMES, FigSpec, TableSpec
 from link_bot_planning.analysis.results_metrics import num_trials, num_steps, task_error, any_solved, success, \
     normalized_model_error, num_recovery_actions
 from link_bot_planning.analysis.results_utils import load_order, add_number_to_method_name
@@ -81,6 +82,8 @@ def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable
         rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}" + Fore.RESET)
 
     return method_names, metrics
+
+
 def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable, get_metadata: Callable):
     metrics_funcs = [
         num_trials,
@@ -153,7 +156,7 @@ def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable,
     return method_names, metrics
 
 
-def load_figspecs(analysis_params, args):
+def load_fig_specs(analysis_params, args):
     figures_config = load_hjson(args.figures_config)
     figspecs = []
     for fig_config in figures_config:
@@ -169,3 +172,21 @@ def load_figspecs(analysis_params, args):
         figspec = FigSpec(fig=fig, reductions=reductions, axes_names=axes_names)
         figspecs.append(figspec)
     return figspecs
+
+
+def load_table_specs(analysis_params, args, table_format: str):
+    tables_conf = load_hjson(args.tables_config)
+    tablespecs = []
+    for table_conf in tables_conf:
+        table_type = eval(table_conf.pop('type'))
+        reductions = table_conf.pop('reductions')
+        if 'axes_names' in table_conf:
+            axes_names = table_conf.pop('axes_names')
+        else:
+            axes_names = DEFAULT_AXES_NAMES
+
+        table = table_type(table_format=table_format, **table_conf)
+
+        tablespec = TableSpec(table=table, reductions=reductions, axes_names=axes_names)
+        tablespecs.append(tablespec)
+    return tablespecs

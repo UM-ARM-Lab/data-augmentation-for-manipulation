@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import rospy
-from link_bot_planning.analysis.analyze_results import get_metrics, load_figspecs
-from link_bot_planning.analysis.figspec import get_data_for_figure
+from link_bot_planning.analysis.analyze_results import get_metrics, load_fig_specs, load_table_specs
+from link_bot_planning.analysis.figspec import get_data_for_figure, get_data_for_table
 # noinspection PyUnresolvedReferences
 from link_bot_planning.analysis.results_figures import *
 from link_bot_planning.analysis.results_metrics import *
@@ -46,18 +46,26 @@ def metrics_main(args):
     method_names, metrics = get_metrics(args, out_dir, planning_results_dirs, _get_method_name, _get_metadata)
 
     # Figures & Tables
-    figspecs = load_figspecs(analysis_params, args)
+    fig_specs = load_fig_specs(analysis_params, args)
+    table_specs = load_table_specs(analysis_params, args, table_format)
 
-    for spec in figspecs:
+    for spec in fig_specs:
         data_for_figure = get_data_for_figure(spec, metrics)
 
         spec.fig.make_figure(data_for_figure, method_names)
         spec.fig.save_figure(out_dir)
 
-    # make_tables(tables, analysis_params, sort_order_dict, table_format, tables_filename)
+    for spec in table_specs:
+        data_for_table = get_data_for_table(spec, metrics)
+
+        spec.table.make_table(data_for_table, method_names)
+        spec.table.save(out_dir)
 
     if not args.no_plot:
-        for spec in figspecs:
+        for spec in table_specs:
+            spec.table.print()
+
+        for spec in fig_specs:
             spec.fig.fig.set_tight_layout(True)
         plt.show()
 
@@ -72,6 +80,8 @@ def main():
     parser.add_argument('ift_dirs', help='results directory', type=pathlib.Path, nargs='+')
     parser.add_argument('--figures-config', type=pathlib.Path,
                         default=pathlib.Path("analysis_params/figures_configs/ift.hjson"))
+    parser.add_argument('--tables-config', type=pathlib.Path,
+                        default=pathlib.Path("analysis_params/tables_configs/ift.hjson"))
     parser.add_argument('--analysis-params', type=pathlib.Path,
                         default=pathlib.Path("analysis_params/env_across_methods.json"))
     parser.add_argument('--no-plot', action='store_true')
