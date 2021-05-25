@@ -3,8 +3,9 @@
 
     <param name="rope_num_points" value="25"/>
     <param name="rope_length" value="0.72"/>
-    <node pkg="cdcpd_ros" type="cdcpd_node" name="cdcpd_node" respawn="false">
+    <node pkg="cdcpd_ros" type="cdcpd_node" name="cdcpd_node" respawn="false" output="screen">
         <param name="kinect_channel" value="qhd"/>
+        <param name="kinect_name" value="kinect2_tripodA"/>
         <param name="left_tf_name" value="left_tool"/>
         <param name="right_tf_name" value="right_tool"/>
         <param name="obstacle_cost_weight" value="0.001"/>
