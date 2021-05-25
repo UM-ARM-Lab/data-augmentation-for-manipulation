@@ -35,6 +35,11 @@ def success(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dic
     return final_execution_to_goal_error < trial_metadata['planner_params']['goal_params']['threshold']
 
 
+def total_time(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    total_time = trial_datum['total_time']
+    return total_time
+
+
 def any_solved(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     solved = False
     for step in trial_datum['steps']:
@@ -79,6 +84,7 @@ __all__ = [
     'num_steps',
     'any_solved',
     'success',
+    'total_time',
     'num_recovery_actions',
     'normalized_model_error',
 

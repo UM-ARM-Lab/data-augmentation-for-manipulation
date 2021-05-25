@@ -36,7 +36,7 @@ def metrics_main(args):
             if used_recovery and step['type'] == 'executed_plan':
                 recovery_successful = True
 
-        solved = any_solved(datum)
+        solved = any_solved(scenario, metadata, datum)
         row = [trial_idx,
                status.name,
                f'{task_error:.3f}',

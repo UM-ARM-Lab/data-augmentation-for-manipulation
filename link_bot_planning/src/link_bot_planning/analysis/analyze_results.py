@@ -12,7 +12,7 @@ import rospy
 from arc_utilities.filesystem_utils import get_all_subdirs
 from link_bot_planning.analysis.figspec import DEFAULT_AXES_NAMES, FigSpec, TableSpec
 from link_bot_planning.analysis.results_metrics import num_trials, num_steps, task_error, any_solved, success, \
-    normalized_model_error, num_recovery_actions
+    normalized_model_error, num_recovery_actions, total_time
 from link_bot_planning.analysis.results_utils import load_order, add_number_to_method_name
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.serialization import load_gzipped_pickle
@@ -86,6 +86,7 @@ def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable
 
 def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable, get_metadata: Callable):
     metrics_funcs = [
+        total_time,
         num_trials,
         num_steps,
         task_error,
