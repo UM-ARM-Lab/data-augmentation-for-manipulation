@@ -77,8 +77,7 @@ def get_local_env_and_origin_point(center_point,
     batch_x_indices_in_full_env_frame = indices['x'] + _expand(local_to_full_offset[:, 1])
     batch_z_indices_in_full_env_frame = indices['z'] + _expand(local_to_full_offset[:, 2])
 
-    batch_int64 = tf.cast(batch_size, tf.int64)
-    batch_indices = tf.tile(tf.range(0, batch_int64, dtype=tf.int64)[:, None, None, None], tile_sizes)
+    batch_indices = tf.tile(tf.range(0, batch_size, dtype=tf.int64)[:, None, None, None], tile_sizes)
     gather_indices = tf.stack(
         [batch_indices, batch_y_indices_in_full_env_frame, batch_x_indices_in_full_env_frame,
          batch_z_indices_in_full_env_frame],

@@ -117,7 +117,7 @@ class NNClassifier(MyKerasModel):
                 # stepper.step()
 
         # Create voxel grids
-        local_env, local_origin_point = self.get_local_env(inputs)
+        local_env, local_origin_point = self.get_local_env(inputs, batch_size)
 
         voxel_grids = self.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
 
@@ -284,13 +284,13 @@ class NNClassifier(MyKerasModel):
         local_voxel_grids.set_shape([None, time, None, None, None, None])  # FIXME: 2 is hardcoded here
         return local_voxel_grids
 
-    def get_local_env(self, input_dict):
+    def get_local_env(self, input_dict, batch_size):
         state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
 
         # NOTE: to be more general, this should return a pose not just a point/position
         local_env_center = self.scenario.local_environment_center_differentiable(state_0)
         environment = {k: input_dict[k] for k in ['env', 'origin_point', 'res', 'extent']}
-        local_env, local_origin_point = self.local_env_given_center(local_env_center, environment)
+        local_env, local_origin_point = self.local_env_given_center(local_env_center, environment, batch_size)
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
@@ -322,24 +322,24 @@ class NNClassifier(MyKerasModel):
         }
         return new_env
 
-    def sample_local_env_position(self, example):
+    def sample_local_env_position(self, example, batch_size):
         # NOTE: for my specific implementation of state_to_local_env_pose,
         #  sampling random states and calling state_to_local_env_pose is equivalent to sampling a point in the extent
-        extent = tf.reshape(example['extent'], [self.batch_size, 3, 2])
+        extent = tf.reshape(example['extent'], [batch_size, 3, 2])
         extent_lower = tf.gather(extent, 0, axis=-1)
         extent_upper = tf.gather(extent, 1, axis=-1)
-        local_env_center = self.aug.gen.uniform([self.batch_size, 3], extent_lower, extent_upper)
+        local_env_center = self.aug.gen.uniform([batch_size, 3], extent_lower, extent_upper)
 
         return local_env_center
 
-    def local_env_given_center(self, center_point, environment: Dict):
+    def local_env_given_center(self, center_point, environment: Dict, batch_size):
         return get_local_env_and_origin_point(center_point=center_point,
                                               environment=environment,
                                               h=self.local_env_h_rows,
                                               w=self.local_env_w_cols,
                                               c=self.local_env_c_channels,
                                               indices=self.indices,
-                                              batch_size=self.batch_size)
+                                              batch_size=batch_size)
 
     def augmentation_optimization(self,
                                   inputs: Dict,
@@ -462,8 +462,8 @@ class NNClassifier(MyKerasModel):
         Returns: [b, h, w, c]
 
         """
-        local_env_new_center = self.sample_local_env_position(new_env)
-        local_env_new, local_env_new_origin_point = self.local_env_given_center(local_env_new_center, new_env)
+        local_env_new_center = self.sample_local_env_position(new_env, batch_size)
+        local_env_new, local_env_new_origin_point = self.local_env_given_center(local_env_new_center, new_env, batch_size)
         # viz new env
         if DEBUG_AUG:
             for b in debug_viz_batch_indices(self.batch_size):

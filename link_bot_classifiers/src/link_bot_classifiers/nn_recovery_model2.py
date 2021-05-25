@@ -8,6 +8,7 @@ from tensorflow.python.keras.metrics import Metric
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.make_voxelgrid_inputs import MakeVoxelgridInfo, make_voxelgrid_inputs_t
+from link_bot_classifiers.classifier_augmentation import ClassifierAugmentation
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -71,7 +72,7 @@ class NNRecoveryModel(MyKerasModel):
         self.sigmoid = layers.Activation("sigmoid")
 
         # self.debug = ClassifierDebugging()
-        # self.aug = ClassifierAugmentation(self.hparams)
+        self.aug = ClassifierAugmentation(self.hparams)
 
         self.indices = self.create_env_indices(batch_size)
 
@@ -124,10 +125,10 @@ class NNRecoveryModel(MyKerasModel):
         if DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(inputs)
 
-        if training and self.aug.hparams is not None:
+        #if training and self.aug.hparams is not None:
             # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
             # so modifying it internally won't change the value for the caller
-            inputs['voxel_grids'] = self.augmentation_optimization(inputs, batch_size)
+            #inputs['voxel_grids'] = self.augmentation_optimization(inputs, batch_size)
 
         return inputs
 
