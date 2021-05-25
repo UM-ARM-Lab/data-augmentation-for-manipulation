@@ -12,3 +12,6 @@ class ClassifierAugmentation:
         self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.grad_clip = 5.0  # max dist step the env aug update can take
+
+    def do_augmentation(self):
+        return self.hparams is not None

@@ -82,6 +82,10 @@ class NNClassifier(MyKerasModel):
 
         self.debug = ClassifierDebugging()
         self.aug = ClassifierAugmentation(self.hparams)
+        if self.aug.do_augmentation():
+            rospy.loginfo("Using augmentation during training")
+        else:
+            rospy.loginfo("Not using augmentation during training")
 
         self.indices = self.create_env_indices(batch_size)
 
@@ -129,7 +133,7 @@ class NNClassifier(MyKerasModel):
         if DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(inputs, time)
 
-        if training and self.aug.hparams is not None:
+        if training and self.aug.do_augmentation():
             # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
             # so modifying it internally won't change the value for the caller
             inputs['voxel_grids'] = self.augmentation_optimization(inputs, batch_size, time)
