@@ -1,13 +1,27 @@
 [
+#  {
+#    type: LineBoxPlot
+#    name: total_time
+#    xlabel: Num Steps
+#    ylabel: Total Time
+#    reductions: {
+#      num_steps: [
+#        null
+#        shifted_cumsum
+#        sum
+#      ]
+#      total_time: [
+#        null
+#        null
+#        null
+#      ]
+#    }
+#  }
   {
     type: LinePlot
     name: total_time
     xlabel: Num Steps
     ylabel: Total Time
-    ylim: [
-      -0.01
-      1.01
-    ]
     reductions: {
       num_steps: [
         null

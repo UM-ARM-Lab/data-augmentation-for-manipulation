@@ -116,8 +116,25 @@ class LinePlot(MyFigure):
         else:
             self.ax.plot(y, c=color, label=series_name)
 
-    def finish_figure(self):
-        super().finish_figure()
+
+class LineBoxPlot(LinePlot):
+
+    def add_to_figure(self, data: pd.DataFrame, series_name: str, color):
+        super().add_to_figure(data, series_name, color)
+        y = data['y'].values
+        if 'x' in data:
+            x = data['x'].values
+        else:
+            x = list(range(len(y)))
+        self.ax.boxplot(y,
+                        positions=x,
+                        widths=0.9,
+                        patch_artist=True,
+                        boxprops=dict(facecolor='#00000000', color=color),
+                        capprops=dict(color=color),
+                        whiskerprops=dict(color=color),
+                        medianprops=dict(color=color),
+                        showfliers=False)
 
 
 def make_figures(figures: Iterable[MyFigure],
@@ -130,7 +147,6 @@ def make_figures(figures: Iterable[MyFigure],
 
     for figure in figures:
         figure.enumerate_methods()
-
 
     # Actual figures
     for figure in figures:
@@ -151,4 +167,5 @@ __all__ = [
     'shifted_cumsum',
     'MyFigure',
     'LinePlot',
+    'LineBoxPlot',
 ]
