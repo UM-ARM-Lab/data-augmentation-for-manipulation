@@ -97,9 +97,10 @@ class NNClassifier(MyKerasModel):
         robot_points = data['points']
         self.link_names = list(robot_points.keys())
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
-        self.points_per_links, self.points_link_frame = setup_robot_points(self.batch_size,
-                                                                           self.scenario.robot.jacobian_follower,
-                                                                           robot_points)
+        print(Fore.LIGHTBLUE_EX + f"{self.include_robot_geometry:=}" + Fore.RESET)
+        self.points_per_links, self.points_link_frame = setup_robot_points(batch_size=self.batch_size,
+                                                                           points=robot_points,
+                                                                           link_names=self.link_names)
 
     def preprocess_no_gradient(self, inputs, training: bool):
         batch_size = inputs['batch_size']
@@ -295,7 +296,7 @@ class NNClassifier(MyKerasModel):
                                      state_keys=[add_predicted(k) for k in self.state_keys],
                                      jacobian_follower=self.scenario.robot.jacobian_follower,
                                      link_names=self.link_names,
-                                     points_link_frame=self.points_link_frame_homo_batch,
+                                     points_link_frame=self.points_link_frame,
                                      points_per_links=self.points_per_links,
                                      )
             local_voxel_grid_t = make_voxelgrid_inputs_t(input_dict, local_env, local_origin_point, info, t,
@@ -681,6 +682,8 @@ class NNClassifier(MyKerasModel):
                 self.debug.raster_debug_pubs[i].publish(raster_msg)
 
             state_t = numpify({k: inputs[add_predicted(k)][b, t] for k in self.state_keys})
+            state_t[add_predicted('joint_positions')] = inputs[add_predicted('joint_positions')][b, t]
+            state_t['joint_names'] = inputs['joint_names'][b, t]
             error_msg = Float32()
             error_t = inputs['error'][b, 1]
             error_msg.data = error_t

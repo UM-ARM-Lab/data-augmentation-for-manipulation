@@ -8,7 +8,7 @@ from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
 class ClassifierDebugging:
     def __init__(self):
-        self.raster_debug_pubs = [Publisher(f'cl_raster_debug_{i}', VoxelgridStamped, queue_size=10) for i in range(5)]
+        self.raster_debug_pubs = [Publisher(f'raster_debug_{i}', VoxelgridStamped, queue_size=10) for i in range(5)]
         self.local_env_bbox_pub = Publisher('local_env_bbox', BoundingBox, queue_size=10)
         self.local_env_new_bbox_pub = Publisher('local_env_new_bbox', BoundingBox, queue_size=10, latch=True)
         self.aug_bbox_pub = Publisher('local_env_bbox_aug', BoundingBox, queue_size=10)

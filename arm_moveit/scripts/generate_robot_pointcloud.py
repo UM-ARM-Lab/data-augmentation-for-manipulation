@@ -26,7 +26,7 @@ def main():
         if q == 'n':
             return
 
-    res = 0.02
+    res = 0.012
     robot_points_generator = pyrobot_points_generator.RobotPointsGenerator(res)
     links = robot_points_generator.get_link_names()
     points = {}
