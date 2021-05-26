@@ -1,7 +1,8 @@
 {
   method_name: car classifier
   classifier_model_dir: [
-    cl_trials/val_car_feasible_1614981888/March_05_18-57-54_4b65490ac1/best_checkpoint
+    cl_trials/val_car_feasible_5050/May_21_12-12-41_4d0110a07a/best_checkpoint/
+    # cl_trials/val_car_feasible_1614981888/March_05_18-57-54_4b65490ac1/best_checkpoint  # old car classifier
     cl_trials/new_feasibility_baseline/none
   ]
 }
