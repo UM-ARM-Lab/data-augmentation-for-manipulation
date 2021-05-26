@@ -19,13 +19,8 @@ def check_collision(scenario: ExperimentScenario,
         points = scenario.state_to_points_for_cc(state)
     else:
         points = scenario.state_to_gripper_position(state)
-    xs = points[:, 0]
-    ys = points[:, 1]
-    zs = points[:, 2]
     in_collision, _ = batch_in_collision_tf_3d(environment=environment,
-                                               xs=xs,
-                                               ys=ys,
-                                               zs=zs,
+                                               points=points,
                                                inflate_radius_m=DEFAULT_INFLATION_RADIUS)
     return in_collision
 

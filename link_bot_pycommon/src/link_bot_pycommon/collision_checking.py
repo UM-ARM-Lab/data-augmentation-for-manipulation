@@ -3,7 +3,7 @@ from typing import Dict
 import numpy as np
 import tensorflow as tf
 
-from link_bot_pycommon.grid_utils import OccupancyData, batch_point_to_idx_tf, batch_point_to_idx_tf_3d
+from link_bot_pycommon.grid_utils import OccupancyData, batch_point_to_idx_tf, batch_point_to_idx_tf_3d_in_batched_envs
 
 
 def batch_out_of_bounds_tf(environment: Dict,
@@ -22,21 +22,18 @@ def batch_out_of_bounds_tf(environment: Dict,
 
 
 def batch_in_collision_tf_3d(environment: Dict,
-                             xs,
-                             ys,
-                             zs,
+                             points,
                              inflate_radius_m: float,
                              occupied_threshold: float = 0.5):
-    origin = environment['origin']
+    indices = batch_point_to_idx_tf_3d_in_batched_envs(points, environment)
+
     res = environment['res']
     env = environment['env']
-    rows, cols, channels = batch_point_to_idx_tf_3d(xs, ys, zs, res, origin)
     # performance optimization: skip inflation
     if inflate_radius_m > 1e-9:
         inflated_env = inflate_tf_3d(env=env, res=res, radius_m=inflate_radius_m)
     else:
         inflated_env = env
-    indices = tf.stack([rows, cols, channels], axis=1)
     in_collision = tf.reduce_any(tf.gather_nd(inflated_env, indices) > occupied_threshold)
     return in_collision, inflated_env
 
