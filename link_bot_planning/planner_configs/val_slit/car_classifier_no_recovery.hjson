@@ -1,9 +1,0 @@
-{
-  method_name: car classifier, no recovery
-  recovery: {
-    use_recovery: false
-  }
-  termination_criteria: {
-    attempted_extensions_threshold: 500
-  }
-}
