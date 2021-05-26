@@ -85,9 +85,10 @@ def test_batched_perf():
     points_link_frame_homo_batch = repeat_tensor(link_points_link_frame_homo, batch_size, 0, True)
 
     positions = tf.random.normal([batch_size, 20])
+    names = [names] * batch_size
 
     def _transform_robot_points():
-        link_to_robot_transform = batch_robot_state_to_transforms(jacobian_follower, names, positions, batch_size)
+        link_to_robot_transform = batch_robot_state_to_transforms(jacobian_follower, names, positions)
         links_to_robot_transform_batch = tf.repeat(link_to_robot_transform, points_per_links, axis=1)
         points_robot_frame_homo_batch = tf.matmul(links_to_robot_transform_batch, points_link_frame_homo_batch)
         points_robot_frame_batch = points_robot_frame_homo_batch[:, :, :3, 0]
@@ -113,15 +114,12 @@ def get_points_link_frame(points):
     return points_link_frame
 
 
-def batch_robot_state_to_transforms(jacobian_follower: pyjacobian_follower.JacobianFollower, names, positions,
-                                    batch_size: int):
-    link_to_robot_transform = []
-    for b in range(batch_size):
-        positions_b = positions[b]
-        link_to_robot_transform_b = jacobian_follower.get_link_to_robot_transforms(names, positions_b)
-        link_to_robot_transform_b = tf.cast(link_to_robot_transform_b, tf.float32)
-        link_to_robot_transform.append(link_to_robot_transform_b)
-    link_to_robot_transform = tf.stack(link_to_robot_transform, axis=0)
+def batch_robot_state_to_transforms(jacobian_follower: pyjacobian_follower.JacobianFollower,
+                                    names,
+                                    positions,
+                                    ):
+    link_to_robot_transform = jacobian_follower.batch_get_link_to_robot_transforms(names, numpify(positions))
+    link_to_robot_transform = tf.cast(link_to_robot_transform, tf.float32)
     return link_to_robot_transform
 
 
