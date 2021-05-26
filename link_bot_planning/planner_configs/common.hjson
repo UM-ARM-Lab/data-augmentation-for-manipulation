@@ -29,6 +29,6 @@
   constraints_alpha: 0
   action_alpha: 1
   initial_learning_rate: 0.2
-  # shortcutting
   n_shortcut_attempts: 25
+  stop_on_error_above: 0.1
 }
