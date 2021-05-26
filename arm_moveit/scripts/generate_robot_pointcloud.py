@@ -15,6 +15,10 @@ def main():
     parser.add_argument('outdir', type=pathlib.Path)
     args = parser.parse_args()
 
+    exclude_links = [
+        'husky',
+    ]
+
     args.outdir.mkdir(exist_ok=True, parents=True)
     outfilename = args.outdir / 'robot_points.pkl'
     if outfilename.exists():
@@ -28,6 +32,9 @@ def main():
     points = {}
     for link_to_check in links:
         # returns the points of the collision in link frame
+        if link_to_check in exclude_links:
+            continue
+
         p = robot_points_generator.check_collision(link_to_check)
         if len(p) > 0:
             points[link_to_check] = p
