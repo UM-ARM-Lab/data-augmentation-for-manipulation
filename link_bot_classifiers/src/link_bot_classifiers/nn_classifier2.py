@@ -97,7 +97,7 @@ class NNClassifier(MyKerasModel):
         robot_points = data['points']
         self.link_names = list(robot_points.keys())
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
-        print(Fore.LIGHTBLUE_EX + f"{self.include_robot_geometry:=}" + Fore.RESET)
+        print(Fore.LIGHTBLUE_EX + f"{self.include_robot_geometry=}" + Fore.RESET)
         self.points_per_links, self.points_link_frame = setup_robot_points(batch_size=self.batch_size,
                                                                            points=robot_points,
                                                                            link_names=self.link_names)
