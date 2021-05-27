@@ -9,7 +9,7 @@ import rospy
 from control_msgs.msg import FollowJointTrajectoryResult as FJTR
 from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_gazebo.gazebo_services import GazeboServices, gz_scope
-from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
+from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario, robot_state_msg_from_state_dict
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
 from moveit_msgs.msg import DisplayRobotState
@@ -60,8 +60,11 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         # randomize the object configurations
         er_type = params['environment_randomization']['type']
         if er_type == 'random':
-            random_object_poses = self.random_new_object_poses(env_rng, params)
-            self.set_object_poses(random_object_poses)
+            valid = False
+            while not valid:
+                random_object_poses = self.random_new_object_poses(env_rng, params)
+                self.set_object_poses(random_object_poses)
+                valid = not self.is_object_robot_collision(params)
         elif er_type == 'jitter':
             random_object_poses = self.jitter_object_poses(env_rng, params)
             self.set_object_poses(random_object_poses)
@@ -72,6 +75,8 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
     def on_before_data_collection(self, params: Dict):
         super().on_before_data_collection(params)
+        self.move_objects_out_of_scene(params)
+        rospy.sleep(5.0)
         self.plan_to_reset_config(params)
         self.open_grippers_if_not_grasping()
         self.grasp_rope_endpoints()
@@ -134,9 +139,12 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
     def move_objects_out_of_scene(self, params: Dict):
         position = ros_numpy.msgify(Point, np.array([0, 10, 0]))
         orientation = ros_numpy.msgify(Quaternion, np.array([0, 0, 0, 1]))
-        objects = params['environment_randomization']['nominal_poses'].keys()
-        if objects is None:
+        if 'nominal_poses' in params['environment_randomization']:
+            objects = params['environment_randomization']['nominal_poses'].keys()
+        elif 'objects' in params['environment_randomization']:
             objects = params['environment_randomization'].get('objects', None)
+        else:
+            raise NotImplementedError()
         out_of_scene_pose = Pose(position=position, orientation=orientation)
         out_of_scene_object_poses = {k: out_of_scene_pose for k in objects}
         self.set_object_poses(out_of_scene_object_poses)
@@ -205,6 +213,22 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
     def __repr__(self):
         return "SimDualArmRopeScenario"
+
+    def is_object_robot_collision(self, params):
+        """
+
+        Returns: True if the robot and the environment are in collision
+
+        """
+        env = self.get_environment(params)
+        state = self.get_state()
+        # FIXME: this is super hacky, why does get state not include the attached collision objects? why do we pass in
+        # a planning scene without the right robot state?
+        start_state = robot_state_msg_from_state_dict(state)
+        scene = env['scene_msg']
+        start_state.attached_collision_objects = scene.robot_state.attached_collision_objects
+        in_collision = self.robot.jacobian_follower.check_collision(scene=scene, start_state=start_state)
+        return in_collision
 
 
 class SimVictorDualArmRopeScenario(SimDualArmRopeScenario):

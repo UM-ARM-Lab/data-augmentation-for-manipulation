@@ -10,8 +10,8 @@ import rospy
 from arm_robots.robot import RobotPlanningError
 from link_bot_data.dataset_utils import data_directory, tf_write_example
 from link_bot_data.files_dataset import FilesDataset
-from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.get_service_provider import get_service_provider
 from link_bot_pycommon.grid_utils import extent_to_env_shape
 from link_bot_pycommon.serialization import my_hdump
 
@@ -19,16 +19,14 @@ from link_bot_pycommon.serialization import my_hdump
 class BaseDataCollector:
 
     def __init__(self,
-                 scenario_name: str,
-                 service_provider: BaseServices,
                  params: Dict,
                  seed: Optional[int] = None,
                  verbose: int = 0):
-        self.service_provider = service_provider
         self.params = params
         self.verbose = verbose
-        self.scenario_name = scenario_name
-        self.scenario = get_scenario(scenario_name)
+        self.scenario_name = self.params['scenario']
+        self.scenario = get_scenario(self.scenario_name)
+        self.service_provider = get_service_provider(self.params['service_provider'])
 
         if seed is None:
             self.seed = np.random.randint(0, 100)
@@ -36,9 +34,9 @@ class BaseDataCollector:
             self.seed = seed
         print(Fore.CYAN + f"Using seed: {self.seed}" + Fore.RESET)
 
-        service_provider.setup_env(verbose=self.verbose,
-                                   real_time_rate=self.params['real_time_rate'],
-                                   max_step_size=self.params['max_step_size'])
+        self.service_provider.setup_env(verbose=self.verbose,
+                                        real_time_rate=self.params['real_time_rate'],
+                                        max_step_size=self.params['max_step_size'])
 
     def collect_trajectory(self,
                            traj_idx: int,
@@ -81,10 +79,10 @@ class BaseDataCollector:
 
             # TODO: sample the entire action sequence in advance?
             action, invalid = self.scenario.sample_action(action_rng=action_rng,
-                                                            environment=environment,
-                                                            state=state,
-                                                            action_params=self.params,
-                                                            validate=True)
+                                                          environment=environment,
+                                                          state=state,
+                                                          action_params=self.params,
+                                                          validate=True)
             if invalid:
                 rospy.logwarn("unable to sample valid action")
                 return {}, invalid
@@ -127,7 +125,6 @@ class BaseDataCollector:
     def collect_data(self,
                      n_trajs: int,
                      nickname: str,
-                     robot_namespace: str,
                      ):
         outdir = pathlib.Path('fwd_model_data') / nickname
         full_output_directory = data_directory(outdir, n_trajs)
@@ -140,7 +137,7 @@ class BaseDataCollector:
         self.scenario.randomization_initialization(self.params)
         self.scenario.on_before_data_collection(self.params)
 
-        self.save_hparams(full_output_directory, n_trajs, nickname, robot_namespace)
+        self.save_hparams(full_output_directory, n_trajs, nickname)
 
         trial_start = perf_counter()
 
@@ -184,7 +181,7 @@ class BaseDataCollector:
 
         return files_dataset
 
-    def save_hparams(self, full_output_directory, n_trajs, nickname, robot_namespace):
+    def save_hparams(self, full_output_directory, n_trajs, nickname):
         s_for_size = self.scenario.get_state()
         a_for_size, _ = self.scenario.sample_action(action_rng=np.random.RandomState(0),
                                                     environment={},
@@ -195,7 +192,7 @@ class BaseDataCollector:
         action_description = {k: v.shape[0] for k, v in a_for_size.items()}
         dataset_hparams = {
             'nickname':               nickname,
-            'robot_namespace':        robot_namespace,
+            'robot_namespace':        self.scenario.robot.robot_namespace,
             'seed':                   self.seed,
             'n_trajs':                n_trajs,
             'data_collection_params': self.params,
@@ -215,14 +212,10 @@ class BaseDataCollector:
 class TfDataCollector(BaseDataCollector):
 
     def __init__(self,
-                 scenario_name: str,
-                 service_provider: BaseServices,
                  params: Dict,
                  seed: Optional[int] = None,
                  verbose: int = 0):
-        super().__init__(scenario_name=scenario_name,
-                         service_provider=service_provider,
-                         params=params,
+        super().__init__(params=params,
                          seed=seed,
                          verbose=verbose)
 
@@ -233,14 +226,10 @@ class TfDataCollector(BaseDataCollector):
 class H5DataCollector(BaseDataCollector):
 
     def __init__(self,
-                 scenario_name: str,
-                 service_provider: BaseServices,
                  params: Dict,
                  seed: Optional[int] = None,
                  verbose: int = 0):
-        super().__init__(scenario_name=scenario_name,
-                         service_provider=service_provider,
-                         params=params,
+        super().__init__(params=params,
                          seed=seed,
                          verbose=verbose)
 

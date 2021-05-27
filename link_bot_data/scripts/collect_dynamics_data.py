@@ -3,13 +3,10 @@ import argparse
 import pathlib
 from typing import Type
 
-import colorama
 import hjson
-import numpy as np
 
 from arc_utilities import ros_init
 from link_bot_data.base_collect_dynamics_data import TfDataCollector, H5DataCollector
-from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_service_provider import get_service_provider
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -26,14 +23,7 @@ def get_data_collector_class(save_format: str) -> Type:
 
 
 def main():
-    colorama.init(autoreset=True)
-
-    np.set_printoptions(precision=4, suppress=True, linewidth=220, threshold=5000)
-
-    parser = argparse.ArgumentParser(formatter_class=my_formatter)
-    parser.add_argument("service_provider", choices=['victor', 'gazebo'], default='gazebo', help='victor or gazebo')
-    parser.add_argument("scenario", type=str, help='scenario')
-    parser.add_argument("robot_namespace", type=str, help='robot_namespace')
+    parser = argparse.ArgumentParser()
     parser.add_argument("collect_dynamics_params", type=pathlib.Path, help="json file with envrionment parameters")
     parser.add_argument("n_trajs", type=int, help='how many trajectories to collect')
     parser.add_argument("nickname")
@@ -49,16 +39,11 @@ def main():
     with args.collect_dynamics_params.open("r") as f:
         collect_dynamics_params = hjson.load(f)
 
-    service_provider = get_service_provider(args.service_provider)
-
     DataCollectorClass = get_data_collector_class(args.save_format)
-    data_collector = DataCollectorClass(scenario_name=args.scenario,
-                                        service_provider=service_provider,
-                                        params=collect_dynamics_params,
+    data_collector = DataCollectorClass(params=collect_dynamics_params,
                                         seed=args.seed,
                                         verbose=args.verbose)
-    files_dataset = data_collector.collect_data(n_trajs=args.n_trajs, nickname=args.nickname,
-                                                robot_namespace=args.robot_namespace)
+    files_dataset = data_collector.collect_data(n_trajs=args.n_trajs, nickname=args.nickname)
     files_dataset.split()
 
     ros_init.shutdown()

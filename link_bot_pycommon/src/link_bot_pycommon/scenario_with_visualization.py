@@ -88,19 +88,22 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.sample_idx = 0
 
     def plot_environment_rviz(self, environment: Dict, **kwargs):
-        env_msg = environment_to_vg_msg(environment)
+        frame = 'env_vg'
+
+        env_msg = environment_to_vg_msg(environment, frame=frame)
         self.env_viz_pub.publish(env_msg)
 
-        self.send_occupancy_tf(environment)
+        self.send_occupancy_tf(environment, frame)
 
         bbox_msg = extent_to_bbox(environment['extent'])
-        bbox_msg.header.frame_id = 'world'
+        bbox_msg.header.frame_id = 'env_vg'
         self.env_bbox_pub.publish(bbox_msg)
 
-    def send_occupancy_tf(self, environment: Dict):
+    def send_occupancy_tf(self, environment: Dict, frame):
         grid_utils.send_voxelgrid_tf_origin_point_res(self.tf.tf_broadcaster,
                                                       environment['origin_point'],
-                                                      environment['res'])
+                                                      environment['res'],
+                                                      frame=frame)
 
     def plot_executed_action(self, state: Dict, action: Dict, **kwargs):
         self.plot_action_rviz(state, action, label='executed action', color="#3876EB", idx1=1, idx2=1, **kwargs)
@@ -284,7 +287,6 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         extent = objects_params['environment_randomization']['extent']
         bbox_msg = extent_to_bbox(extent)
         bbox_msg.header.frame_id = 'world'
-        bbox_msg.label = 'randomize_objects_extent'
         self.obs_bbox_pub.publish(bbox_msg)
 
         return self.random_pose_in_extents(env_rng, extent)

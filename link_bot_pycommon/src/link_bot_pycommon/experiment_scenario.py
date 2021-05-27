@@ -15,6 +15,11 @@ from std_msgs.msg import Int64, Float32
 from visualization_msgs.msg import MarkerArray
 
 
+class MockRobot:
+    def __init__(self):
+        self.robot_namespace = 'mock_robot'
+
+
 class ExperimentScenario:
     def __init__(self):
         self.tf_features_converters = {}
@@ -28,6 +33,7 @@ class ExperimentScenario:
         self.h = HeartBeat()
 
         self.tf = TF2Wrapper()
+        self.robot = MockRobot()
 
     @staticmethod
     def simple_name():

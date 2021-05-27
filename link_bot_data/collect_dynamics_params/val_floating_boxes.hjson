@@ -1,5 +1,8 @@
 {
-  name: val_poles
+  name: val_car
+  service_provider: gazebo
+  scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
+  robot_namespace: val
   reset_joint_config: {
     joint1: 0.5903734250235528,
     joint2: -0.7214355209537864,
@@ -13,8 +16,8 @@
     joint46: -1.0740661355371026,
     joint47: -1.7605314838269148,
     joint5: -1.3501547155831561,
-    joint56: 0.0,
-    joint57: 0.0,
+    joint56: -0.00018261176063205653,
+    joint57: 0.0004871437759357278,
     joint6: 1.0175395063376493,
     joint7: 2.173908028268774,
   }
@@ -24,51 +27,58 @@
     0.15
     1.3
     -0.3
-    1.0
+    0.8
   ]
   left_gripper_action_sample_extent: [
     -0.6
     0.6
-    0.20
-    1.25
-    0.0
-    1.00
+    0.25
+    1.15
+    -0.3
+    0.6
   ]
   right_gripper_action_sample_extent: [
     -0.6
     0.6
-    0.20
-    1.25
-    0.0
-    1.00
+    0.25
+    1.15
+    -0.3
+    0.6
   ]
   environment_randomization: {
-      type: jitter
-      jitter_extent: [
-        -0.05
-        0.05
-        -0.05
-        0.05
-        -0.2
-        0.2
+      type: random
+      objects: [
+        box1
+        box2
+        box3
+        box4
+        box5
+        box6
+        box7
+        box8
+        box9
+        box10
+        box11
+        box12
+        box13
+        box14
+        box15
       ]
-      nominal_poses: {
-        pole1: {
-          position: [-0.25, 0.75, -0.7]
-          orientation: [0, 0, 0]
-        }
-        pole2: {
-          position: [0.25, 0.75, -0.7]
-          orientation: [0, 0, 0]
-        }
-      }
+      extent: [
+        -0.5
+        0.5
+        0.3
+        1.25
+        -0.35
+        0.35
+      ]
   }
   res: 0.02
   max_step_size: 0.01
   real_time_rate: 0.0
   steps_per_traj: 10
   no_objects: false
-  randomize_n: 16
+  randomize_n: 8
   repeat_delta_gripper_motion_probability: 0.7
   max_distance_gripper_can_move: 0.10
   max_distance_between_grippers: 0.80  # this need not exactly match the rope length
