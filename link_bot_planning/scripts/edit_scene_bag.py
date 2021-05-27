@@ -45,25 +45,18 @@ def change_joint_config(s: TestScene):
     return s
 
 
-def fix_hook3_links(s: TestScene):
-    idx1 = s.links_states.name.index("hook3::link_1")
-    idx2 = s.links_states.name.index("hook3::link_2")
-
-    ordered_indices = sorted([idx1, idx2], reverse=True)
-    for i in ordered_indices:
-        s.links_states.pose.pop(i)
-        s.links_states.twist.pop(i)
-
-    s.links_states.name.remove("hook3::link_1")
-    s.links_states.name.remove("hook3::link_2")
-
+def shift_hook(s: TestScene):
+    print(s.links_states.name)
+    idx = s.joint_state.name.index("long_hook1::link_1")
+    delta = np.random.randn(3) * 0.1
+    print(delta)
+    #s.joint_state.position[idx] += delta)
     return s
 
 
 def main():
-    scene_dir = "deadend"
-    # scene_indices = [3,]
-    scene_indices = range(4, 30)
+    scene_dir = "long_hook2"
+    scene_indices = range(0, 60)
 
     root_dir = pathlib.Path("/home/peter/catkin_ws/src/link_bot/link_bot_planning/test_scenes")
     scenes_fulldir = root_dir / scene_dir
@@ -71,7 +64,7 @@ def main():
     for scene_idx in scene_indices:
         s = TestScene(scenes_fulldir, scene_idx)
 
-        s = fix_hook3_links(s)
+        s = shift_hook(s)
         s.save(force=True)
 
 
