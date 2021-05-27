@@ -187,13 +187,13 @@ def get_scenario_and_metadata(results_dir: pathlib.Path):
     return scenario, metadata
 
 
-def trials_generator(results_dir: pathlib.Path, trial_indices: Optional[List[int]] = None):
-    if trial_indices is None:
+def trials_generator(results_dir: pathlib.Path, trials: Optional[List[int]] = None):
+    if trials is None:
         # assume we want all trials
         filenames = list_all_planning_results_trials(results_dir)
     else:
         filenames = []
-        for trial_idx in trial_indices:
+        for trial_idx in trials:
             filenames.append((trial_idx, results_dir / planning_trial_name(trial_idx)))
 
     sorted_filenames = sorted(filenames)
