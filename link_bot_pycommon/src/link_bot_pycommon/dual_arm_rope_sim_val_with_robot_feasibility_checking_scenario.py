@@ -9,6 +9,3 @@ class DualArmRopeSimValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobot
     def __init__(self):
         SimValDualArmRopeScenario.__init__(self)
         DualArmRopeWithRobotFeasibilityCheckingScenario.__init__(self, self.robot_namespace)
-
-        self.left_preferred_tool_orientation = quaternion_from_euler(3.054, -0.851, 0.98)
-        self.right_preferred_tool_orientation = quaternion_from_euler(1.635, 0.816, -0.8)

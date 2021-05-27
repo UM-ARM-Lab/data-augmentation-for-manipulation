@@ -6,6 +6,7 @@ from halo import Halo
 import ros_numpy
 import rosbag
 import rospy
+from arc_utilities.ros_helpers import get_connected_publisher
 from control_msgs.msg import FollowJointTrajectoryResult as FJTR
 from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_gazebo.gazebo_services import GazeboServices, gz_scope
@@ -14,9 +15,11 @@ from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
 from moveit_msgs.msg import DisplayRobotState
 from peter_msgs.srv import *
+from ros_numpy import msgify
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState
 from tf.transformations import quaternion_from_euler
+from visualization_msgs.msg import Marker
 
 
 class SimDualArmRopeScenario(BaseDualArmRopeScenario):
@@ -76,7 +79,6 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
     def on_before_data_collection(self, params: Dict):
         super().on_before_data_collection(params)
         self.move_objects_out_of_scene(params)
-        rospy.sleep(5.0)
         self.plan_to_reset_config(params)
         self.open_grippers_if_not_grasping()
         self.grasp_rope_endpoints()
@@ -254,8 +256,32 @@ class SimValDualArmRopeScenario(SimDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('hdt_michigan')
-        self.left_preferred_tool_orientation = quaternion_from_euler(3.054, -0.851, 0.98)
-        self.right_preferred_tool_orientation = quaternion_from_euler(2.254, -0.747, 3.000)
+        self.left_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, -np.pi / 4, 0)
+        self.right_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, np.pi / 4, 0)
+
+    def publish_preferred_tool_orientations(self):
+        self.pub = get_connected_publisher("preferred_tool_orientation", Marker, queue_size=10)
+        msg = Marker()
+        msg.action = Marker.ADD
+        msg.ns = 'left'
+        msg.pose.orientation = msgify(Quaternion, self.left_preferred_tool_orientation)
+        msg.type = Marker.ARROW
+        msg.scale.x = 0.1
+        msg.scale.y = 0.005
+        msg.scale.z = 0.005
+        msg.header.frame_id = 'robot_root'
+        msg.header.stamp = rospy.Time.now()
+        msg.color.r = 0
+        msg.color.g = 1
+        msg.color.b = 1
+        msg.color.a = 1
+        self.pub.publish(msg)
+        msg.ns = 'right'
+        msg.color.r = 1
+        msg.color.g = 1
+        msg.color.b = 0
+        msg.pose.orientation = msgify(Quaternion, self.right_preferred_tool_orientation)
+        self.pub.publish(msg)
 
     @staticmethod
     def simple_name():
