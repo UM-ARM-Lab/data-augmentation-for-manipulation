@@ -24,6 +24,10 @@ def train_main(args):
     train_test_classifier.train_main(trials_directory=trials_directory, **vars(args))
 
 
+def compare_main(args):
+    train_test_classifier.compare_main(**vars(args))
+
+
 def eval_main(args):
     train_test_classifier.eval_main(**vars(args))
 
@@ -67,7 +71,6 @@ def main():
     train_parser.add_argument('--validation-every', type=int,
                               help='report validation every this many epochs', default=1)
     train_parser.add_argument('--seed', type=int, default=None)
-    train_parser.add_argument('--use-gt-rope', action='store_true')
     train_parser.add_argument('--old-compat', action='store_true')
     train_parser.add_argument('--threshold', type=float, default=None)
     train_parser.set_defaults(func=train_main)
@@ -79,9 +82,19 @@ def main():
     eval_parser.add_argument('--batch-size', type=int, default=32)
     eval_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_parser.add_argument('--take', type=int)
-    eval_parser.add_argument('--use-gt-rope', action='store_true')
     eval_parser.add_argument('--threshold', type=float, default=None)
     eval_parser.set_defaults(func=eval_main)
+
+    compare_parser = subparsers.add_parser('compare')
+    compare_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
+    compare_parser.add_argument('checkpoint1', type=pathlib.Path)
+    compare_parser.add_argument('checkpoint2', type=pathlib.Path)
+    compare_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
+    compare_parser.add_argument('--batch-size', type=int, default=32)
+    compare_parser.add_argument('--verbose', '-v', action='count', default=0)
+    compare_parser.add_argument('--take', type=int)
+    compare_parser.add_argument('--threshold', type=float, default=None)
+    compare_parser.set_defaults(func=compare_main)
 
     viz_parser = subparsers.add_parser('viz')
     viz_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
@@ -96,7 +109,6 @@ def main():
     viz_parser.add_argument('--only-fn', action='store_true')
     viz_parser.add_argument('--only-tn', action='store_true')
     viz_parser.add_argument('--only-tp', action='store_true')
-    viz_parser.add_argument('--use-gt-rope', action='store_true')
     viz_parser.add_argument('--threshold', type=float, default=None)
     viz_parser.add_argument('--old-compat', action='store_true')
     viz_parser.add_argument('--start-at', type=int, default=0)
@@ -109,7 +121,6 @@ def main():
     eval_ensemble_parser.add_argument('--batch-size', type=int, default=64)
     eval_ensemble_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_ensemble_parser.add_argument('--take', type=int)
-    eval_ensemble_parser.add_argument('--use-gt-rope', action='store_true')
     eval_ensemble_parser.set_defaults(func=eval_ensemble_main)
 
     viz_ensemble_parser = subparsers.add_parser('viz_ensemble')
@@ -119,7 +130,6 @@ def main():
     viz_ensemble_parser.add_argument('--batch-size', type=int, default=64)
     viz_ensemble_parser.add_argument('--verbose', '-v', action='count', default=0)
     viz_ensemble_parser.add_argument('--take', type=int)
-    viz_ensemble_parser.add_argument('--use-gt-rope', action='store_true')
     viz_ensemble_parser.add_argument('--stdev', type=str)
     viz_ensemble_parser.set_defaults(func=viz_ensemble_main)
 

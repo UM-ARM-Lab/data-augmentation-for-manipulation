@@ -75,7 +75,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                batch_size: int,
                epochs: int,
                seed: int,
-               use_gt_rope: bool,
+               use_gt_rope: bool = True,
                checkpoint: Optional[pathlib.Path] = None,
                threshold: Optional[float] = None,
                ensemble_idx: Optional[int] = None,
@@ -143,7 +143,7 @@ def eval_generator(dataset_dirs: List[pathlib.Path],
                    checkpoint: pathlib.Path,
                    mode: str,
                    batch_size: int,
-                   use_gt_rope: bool,
+                   use_gt_rope: bool = True,
                    threshold: Optional[float] = None,
                    old_compat: bool = False,
                    take: Optional[int] = None,
@@ -170,7 +170,7 @@ def eval_main(dataset_dirs: List[pathlib.Path],
               checkpoint: pathlib.Path,
               mode: str,
               batch_size: int,
-              use_gt_rope: bool,
+              use_gt_rope: bool = True,
               threshold: Optional[float] = None,
               old_compat: bool = False,
               take: Optional[int] = None,
@@ -197,30 +197,13 @@ def eval_main(dataset_dirs: List[pathlib.Path],
 
 
 def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, take, threshold, use_gt_rope, scenario):
-    ###############
-    # Model
-    ###############
     trial_path = checkpoint.parent.absolute()
     _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
     model_class = link_bot_classifiers.get_model(params['model_class'])
-    ###############
-    # Dataset
-    ###############
-    dataset = ClassifierDatasetLoader(dataset_dirs,
-                                      load_true_states=True,
-                                      use_gt_rope=use_gt_rope,
-                                      old_compat=old_compat,
-                                      threshold=threshold,
-                                      scenario=scenario)
-    tf_dataset = dataset.get_datasets(mode=mode)
-    if balance:
-        rospy.loginfo(Fore.CYAN + "NOTE! These metrics are on the balanced dataset")
-        tf_dataset = tf_dataset.balance()
-    tf_dataset = tf_dataset.take(take)
-    ###############
-    # Evaluate
-    ###############
-    tf_dataset = batch_tf_dataset(tf_dataset, batch_size, drop_remainder=True)
+
+    dataset, tf_dataset = setup_eval_dataset(balance, dataset_dirs, mode, old_compat, scenario, take, threshold,
+                                             use_gt_rope, batch_size)
+
     model = model_class(hparams=params, batch_size=batch_size, scenario=dataset.scenario)
     # This call to model runner restores the model
     runner = ModelRunner(model=model,
@@ -233,13 +216,84 @@ def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, 
     return model, runner, tf_dataset
 
 
+def compare_main(dataset_dirs: List[pathlib.Path],
+                 checkpoint1: pathlib.Path,
+                 checkpoint2: pathlib.Path,
+                 mode: str,
+                 batch_size: int,
+                 use_gt_rope: bool = True,
+                 threshold: Optional[float] = None,
+                 old_compat: bool = False,
+                 take: Optional[int] = None,
+                 balance: bool = True,
+                 scenario: Optional[ScenarioWithVisualization] = None,
+                 **kwargs):
+    dataset, tf_dataset = setup_eval_dataset(balance,
+                                             dataset_dirs,
+                                             mode,
+                                             old_compat,
+                                             scenario,
+                                             take,
+                                             threshold,
+                                             use_gt_rope,
+                                             batch_size)
+
+    model1 = classifier_utils.load_generic_model(checkpoint1)
+    model2 = classifier_utils.load_generic_model(checkpoint2)
+
+    for inputs in tf_dataset:
+        inputs.update(dataset.batch_metadata)
+        predictions1 = model1.check_constraint_from_example(inputs, training=False)
+        predictions2 = model2.check_constraint_from_example(inputs, training=False)
+
+        inputs.pop("batch_size")
+        inputs.pop("time")
+        inputs.pop("kinect_params")
+
+        for b in range(batch_size):
+            p1 = remove_batch(predictions1['probabilities'][b])[0]
+            p2 = remove_batch(predictions2['probabilities'][b])[0]
+            p1_decision = p1 > 0.5
+            p2_decision = p2 > 0.5
+            if p1_decision != p2_decision:
+                # visualize!
+                anim = RvizAnimation(scenario=dataset.scenario,
+                                     n_time_steps=dataset.horizon,
+                                     init_funcs=[init_viz_env,
+                                                 dataset.init_viz_action(),
+                                                 ],
+                                     t_funcs=[init_viz_env,
+                                              dataset.classifier_transition_viz_t(),
+                                              ])
+
+                deserialize_scene_msg(inputs)
+                inputs_b = index_dict_of_batched_tensors_tf(inputs, b)
+                anim.play(inputs_b)
+
+
+def setup_eval_dataset(balance, dataset_dirs, mode, old_compat, scenario, take, threshold, use_gt_rope, batch_size):
+    dataset = ClassifierDatasetLoader(dataset_dirs,
+                                      load_true_states=True,
+                                      use_gt_rope=use_gt_rope,
+                                      old_compat=old_compat,
+                                      threshold=threshold,
+                                      scenario=scenario)
+    tf_dataset = dataset.get_datasets(mode=mode)
+    if balance:
+        rospy.loginfo(Fore.CYAN + "NOTE! These metrics are on the balanced dataset")
+        tf_dataset = tf_dataset.balance()
+    tf_dataset = tf_dataset.take(take)
+    tf_dataset = batch_tf_dataset(tf_dataset, batch_size, drop_remainder=True)
+    return dataset, tf_dataset
+
+
 class ClassifierEvaluation:
     def __init__(self, dataset_dirs: List[pathlib.Path],
                  checkpoint: pathlib.Path,
                  mode: str,
                  batch_size: int,
                  start_at: int,
-                 use_gt_rope: bool,
+                 use_gt_rope: bool = True,
                  take: int = None,
                  threshold: Optional[float] = None,
                  **kwargs):
@@ -324,7 +378,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              only_tn: bool,
              only_negative: bool,
              only_positive: bool,
-             use_gt_rope: bool,
+             use_gt_rope: bool = True,
              old_compat: bool = False,
              threshold: Optional[float] = None,
              **kwargs):
@@ -415,7 +469,7 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
                             ensemble_path: pathlib.Path,
                             mode: str,
                             batch_size: int,
-                            use_gt_rope: bool,
+                            use_gt_rope: bool = True,
                             take: Optional[int] = None,
                             balance: Optional[bool] = True,
                             **kwargs):
@@ -446,7 +500,7 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
                        ensemble_path: pathlib.Path,
                        mode: str,
                        batch_size: int,
-                       use_gt_rope: bool,
+                       use_gt_rope: bool = True,
                        take: Optional[int] = None,
                        balance: Optional[bool] = True,
                        no_plot: Optional[bool] = True,
@@ -533,7 +587,7 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
                       ensemble_path: pathlib.Path,
                       mode: str,
                       batch_size: int,
-                      use_gt_rope: bool,
+                      use_gt_rope: bool = True,
                       take: Optional[int] = None,
                       balance: Optional[bool] = True,
                       **kwargs):
