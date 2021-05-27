@@ -3,7 +3,7 @@ import argparse
 import logging
 import pathlib
 import pickle
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 import colorama
 import numpy as np
@@ -17,7 +17,7 @@ from arm_robots.robot import RobotPlanningError
 from geometry_msgs.msg import Point, Pose
 from link_bot_gazebo import gazebo_services
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene
-from link_bot_pycommon.args import my_formatter
+from link_bot_pycommon.args import my_formatter, int_set_arg
 from link_bot_pycommon.basic_3d_pose_marker import Basic3DPoseInteractiveMarker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
@@ -35,22 +35,19 @@ def main():
     parser.add_argument("scenario", type=str, help='scenario')
     parser.add_argument("scenes_dir", type=pathlib.Path)
     parser.add_argument("method", type=str, choices=['rejection_sample', 'rviz_marker'])
-    parser.add_argument("--n-trials", type=int, default=100)
-    parser.add_argument("--start-at", type=int, default=0)
+    parser.add_argument("--trials", type=int_set_arg, default=100)
 
     args = parser.parse_args()
 
     generate_saved_goals(method=args.method,
                          scenario=args.scenario,
-                         n_trials=args.n_trials,
-                         save_test_scenes_dir=args.scenes_dir,
-                         start_at=args.start_at)
+                         trials=args.trials,
+                         save_test_scenes_dir=args.scenes_dir)
 
 
 def generate_saved_goals(method: str,
                          scenario: str,
-                         n_trials: int,
-                         start_at: int,
+                         trials: List[int],
                          save_test_scenes_dir: Optional[pathlib.Path] = None
                          ):
     save_test_scenes_dir.mkdir(exist_ok=True, parents=True)
@@ -82,10 +79,7 @@ def generate_saved_goals(method: str,
 
     goal_im = Basic3DPoseInteractiveMarker(make_marker=make_marker)
 
-    for trial_idx in range(n_trials):
-        if trial_idx < start_at:
-            continue
-
+    for trial_idx in trials:
         # restore
         bagfile_name = save_test_scenes_dir / f'scene_{trial_idx:04d}.bag'
         if bagfile_name.exists():
