@@ -1,5 +1,6 @@
 import pathlib
 import pickle
+from copy import copy
 from typing import Dict
 
 import tensorflow as tf
@@ -57,6 +58,9 @@ class NNClassifier(MyKerasModel):
         self.local_env_c_channels = self.hparams['local_env_c_channels']
         self.rope_image_k = self.hparams['rope_image_k']
         self.state_keys = self.hparams['state_keys']
+        self.points_state_keys = copy(self.state_keys)
+        self.points_state_keys.remove("joint_positions")  # FIXME: feels hacky
+        self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.action_keys = self.hparams['action_keys']
         self.conv_layers = []
         self.pool_layers = []
@@ -293,7 +297,7 @@ class NNClassifier(MyKerasModel):
                                      h=self.local_env_h_rows,
                                      w=self.local_env_w_cols,
                                      c=self.local_env_c_channels,
-                                     state_keys=[add_predicted(k) for k in self.state_keys],
+                                     state_keys=[add_predicted(k) for k in self.points_state_keys],
                                      jacobian_follower=self.scenario.robot.jacobian_follower,
                                      link_names=self.link_names,
                                      points_link_frame=self.points_link_frame,
@@ -708,11 +712,10 @@ class NNClassifier(MyKerasModel):
         self.scenario.action_viz_pub.publish(action_delete_msg)
 
     def debug_viz_state_action(self, input_dict, b, label: str, color='red'):
-        state_keys = ['left_gripper', 'right_gripper', 'rope', 'joint_positions']
-        state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in state_keys})
+        state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in self.state_keys})
         state_0['joint_names'] = input_dict['joint_names'][b, 0]
         action_0 = numpify({k: input_dict[k][b, 0] for k in self.action_keys})
-        state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in state_keys})
+        state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in self.state_keys})
         state_1['joint_names'] = input_dict['joint_names'][b, 1]
         error_msg = Float32()
         error_t = input_dict['error'][b, 1]

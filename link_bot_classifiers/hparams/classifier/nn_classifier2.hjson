@@ -5,6 +5,7 @@
     rope
     left_gripper
     right_gripper
+    joint_positions
   ]
   action_keys: [
     left_gripper_position

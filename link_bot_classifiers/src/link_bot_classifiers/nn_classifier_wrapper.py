@@ -7,7 +7,6 @@ from colorama import Fore
 from link_bot_classifiers import nn_classifier, nn_classifier2
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import add_batch, sequence_of_dicts_to_dict_of_tensors, remove_batch
 
@@ -37,6 +36,7 @@ class NNClassifierWrapper(BaseConstraintChecker):
             raise RuntimeError(f"Failed to restore {manager.latest_checkpoint}!!!")
 
         self.state_keys = self.net.state_keys
+        self.state_metadata_keys = self.net.state_metadata_keys
         self.action_keys = self.net.action_keys
         self.true_state_keys = self.net.true_state_keys
         self.pred_state_keys = self.net.pred_state_keys
@@ -57,19 +57,21 @@ class NNClassifierWrapper(BaseConstraintChecker):
         net_inputs = {}
         if 'scene_msg' in environment:
             environment.pop('scene_msg')
-        net_inputs.update(make_dict_tf_float32(environment))
+        net_inputs.update(environment)
 
         for action_key in self.action_keys:
-            net_inputs[action_key] = tf.cast(actions[action_key], tf.float32)
+            net_inputs[action_key] = actions[action_key]
+
+        for state_metadata_key in self.state_metadata_keys:
+            net_inputs[state_metadata_key] = states[state_metadata_key]
 
         for state_key in self.state_keys:
             planned_state_key = add_predicted(state_key)
-            net_inputs[planned_state_key] = tf.cast(states[state_key], tf.float32)
+            net_inputs[planned_state_key] = states[state_key]
 
         if self.hparams['stdev']:
-            net_inputs[add_predicted('stdev')] = tf.cast(states['stdev'], tf.float32)
+            net_inputs[add_predicted('stdev')] = states['stdev']
 
-        net_inputs = make_dict_tf_float32(net_inputs)
         net_inputs['batch_size'] = batch_size
         net_inputs['time'] = state_sequence_length
         predictions = self.check_constraint_from_example(net_inputs, training=False)

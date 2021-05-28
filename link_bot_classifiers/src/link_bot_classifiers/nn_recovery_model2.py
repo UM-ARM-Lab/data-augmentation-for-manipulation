@@ -114,6 +114,10 @@ class NNRecoveryModel(MyKerasModel):
                                  w=self.local_env_w_cols,
                                  c=self.local_env_c_channels,
                                  state_keys=self.state_keys,
+                                 jacobian_follower=self.scenario.robot.jacobian_follower,
+                                 link_names=self.link_names,
+                                 points_link_frame=self.points_link_frame,
+                                 points_per_links=self.points_per_links,
                                  )
         local_voxel_grid_t = make_voxelgrid_inputs_t(inputs, local_env, local_origin_point, info, t=0)
 

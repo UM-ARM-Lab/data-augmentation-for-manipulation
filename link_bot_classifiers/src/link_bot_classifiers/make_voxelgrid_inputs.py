@@ -26,7 +26,7 @@ class MakeVoxelgridInfo:
 
 def make_robot_voxelgrid(inputs, local_origin_point, t, info: MakeVoxelgridInfo):
     names = inputs['joint_names'][:, t]
-    positions = inputs['joint_positions'][:, t]
+    positions = inputs[add_predicted('joint_positions')][:, t]
     robot_points = batch_transform_robot_points(info.jacobian_follower,
                                                 numpify(names),
                                                 positions.numpy(),
