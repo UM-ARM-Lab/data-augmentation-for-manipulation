@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Dict
 
 import tensorflow as tf
+from colorama import Fore
 from pyjacobian_follower import JacobianFollower
 
 from moonshine.moonshine_utils import numpify
@@ -21,11 +22,15 @@ class UDNNWithRobotKinematics:
         self.state_keys = net.state_keys + ['joint_positions']
         self.action_keys = net.action_keys
         self.scenario = net.scenario
+        self.collision_check = collision_check
+        # NOTE: we need collision checking to be on here, because the FastRobotFeasibilityChecker relies on
+        #  checking whether the tool positiosn match the actions.
+        print(Fore.LIGHTBLUE_EX + f"{self.collision_check=}" + Fore.RESET)
 
         self.j_no_viz = JacobianFollower(robot_namespace=self.scenario.robot_namespace,
                                          translation_step_size=0.005,
                                          minimize_rotation=True,
-                                         collision_check=collision_check,
+                                         collision_check=self.collision_check,
                                          visualize=False)
 
     def __call__(self, inputs: Dict, training: bool, **kwargs):

@@ -313,50 +313,52 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def follow_jacobian_from_example(self, example: Dict, j: Optional[pyjacobian_follower.JacobianFollower] = None):
         if j is None:
             j = self.robot.jacobian_follower
-        tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
-        preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
-        grippers = tf.stack([example['left_gripper_position'], example['right_gripper_position']], axis=1)
         batch_size = example["batch_size"]
         deserialize_scene_msg(example)
-        scenes = example['scene_msg']
-
-        robot_states = []
+        scene_msg = example['scene_msg']
+        tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
+        preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
+        target_reached_batched = []
+        pred_joint_positions_batched = []
+        joint_names_batched = []
         for b in range(batch_size):
-            joint_positions = example['joint_positions'][b, 0]
-            joint_names = example['joint_names'][b, 0]
-            joint_state_b = make_joint_state(joint_positions, to_list_of_strings(joint_names))
-            robot_state_b = RobotState(joint_state=joint_state_b)
-            robot_state_b.attached_collision_objects = scenes[b].robot_state.attached_collision_objects
-            robot_states.append(robot_state_b)
+            scene_msg_b: PlanningScene = scene_msg[b]
+            input_sequence_length = example['left_gripper_position'].shape[1]
+            target_reached = [True]
+            pred_joint_positions = [example['joint_positions'][b, 0]]
+            pred_joint_positions_t = example['joint_positions'][b, 0]
+            joint_names_t = example['joint_names'][b, 0]
+            joint_names = [joint_names_t]
+            for t in range(input_sequence_length):
+                left_gripper_points = [example['left_gripper_position'][b, t]]
+                right_gripper_points = [example['right_gripper_position'][b, t]]
+                grippers = [left_gripper_points, right_gripper_points]
 
-        plans: List[List[RobotTrajectory]]
-        plans, reached = j.plan_batch(group_name='both_arms',
-                                      tool_names=tool_names,  # [n_grippers]
-                                      preferred_tool_orientations=preferred_tool_orientations,  # [n_grippers]
-                                      start_states=robot_states,  # [b]
-                                      scenes=scenes,  # [b]
-                                      grippers=grippers,  # [b, n_grippers, t, 3]
-                                      max_velocity_scaling_factor=0.1,
-                                      max_acceleration_scaling_factor=0.1)
+                joint_state_b_t = make_joint_state(pred_joint_positions_t, to_list_of_strings(joint_names_t))
+                scene_msg_b, robot_state = merge_joint_state_and_scene_msg(scene_msg_b, joint_state_b_t)
+                plan: RobotTrajectory
+                reached_t: bool
+                plan, reached_t = j.plan(group_name='both_arms',
+                                         tool_names=tool_names,
+                                         preferred_tool_orientations=preferred_tool_orientations,
+                                         start_state=robot_state,
+                                         scene=scene_msg_b,
+                                         grippers=grippers,
+                                         max_velocity_scaling_factor=0.1,
+                                         max_acceleration_scaling_factor=0.1)
+                pred_joint_positions_t = get_joint_positions_given_state_and_plan(plan, robot_state)
 
-        # TODO: there should be a nicer "pattern", a way to generalize this type of code. generators?
-        joint_positions = []
-        joint_names = []
-        for b in range(batch_size):
-            plan_b = plans[b]
-            joint_names_b_0 = plan_b[0].joint_trajectory.joint_names
-            joint_positions_b_0 = example['joint_positions'][b, 0]
-            joint_names_b = [joint_names_b_0]
-            joint_positions_b = [joint_positions_b_0]
-            point_i: JointTrajectoryPoint
-            for plan_b_t in plan_b:
-                end_point: JointTrajectoryPoint = plan_b_t.joint_trajectory.points[-1]
-                joint_names_b.append(plan_b_t.joint_trajectory.joint_names)
-                joint_positions_b.append(end_point.positions)
-            joint_names.append(joint_names_b)
-            joint_positions.append(joint_positions_b)
+                target_reached.append(reached_t)
+                pred_joint_positions.append(pred_joint_positions_t)
+                joint_names.append(joint_names_t)
+            target_reached_batched.append(target_reached)
+            pred_joint_positions_batched.append(pred_joint_positions)
+            joint_names_batched.append(joint_names)
 
-        return reached, joint_positions, joint_names
+        pred_joint_positions_batched = np.array(pred_joint_positions_batched)
+        target_reached_batched = np.array(target_reached_batched)
+        joint_names_batched = np.array(joint_names_batched)
+        return target_reached_batched, pred_joint_positions_batched, joint_names_batched
 
     def sample_state_augmentation_variables(self,
                                             batch_size,
