@@ -7,11 +7,13 @@
     right_gripper
     joint_positions
   ]
+  state_metadata_keys: [
+    joint_names
+  ]
   action_keys: [
     left_gripper_position
     right_gripper_position
   ]
-  rope_image_k: 2000
   rnn_size: 128
   fc_layer_sizes: [ 128 ]
   pooling: [ 2, 2, 2 ]

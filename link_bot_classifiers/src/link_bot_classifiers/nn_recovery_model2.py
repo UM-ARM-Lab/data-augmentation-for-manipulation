@@ -38,6 +38,7 @@ class NNRecoveryModel(MyKerasModel):
         self.local_env_w_cols = self.hparams['local_env_w_cols']
         self.local_env_c_channels = self.hparams['local_env_c_channels']
         self.rope_image_k = self.hparams['rope_image_k']
+        self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
 
         self.state_keys = self.hparams['state_keys']
         self.action_keys = self.hparams['action_keys']
@@ -119,7 +120,8 @@ class NNRecoveryModel(MyKerasModel):
                                  points_link_frame=self.points_link_frame,
                                  points_per_links=self.points_per_links,
                                  )
-        local_voxel_grid_t = make_voxelgrid_inputs_t(inputs, local_env, local_origin_point, info, t=0)
+        local_voxel_grid_t = make_voxelgrid_inputs_t(inputs, local_env, local_origin_point, info, t=0,
+                                                     include_robot_geometry=self.include_robot_geometry)
 
         inputs['voxel_grids'] = local_voxel_grid_t
         inputs['local_origin_point'] = local_origin_point
@@ -129,10 +131,10 @@ class NNRecoveryModel(MyKerasModel):
         if DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(inputs)
 
-        #if training and self.aug.hparams is not None:
-            # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
-            # so modifying it internally won't change the value for the caller
-            #inputs['voxel_grids'] = self.augmentation_optimization(inputs, batch_size)
+        # if training and self.aug.hparams is not None:
+        # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
+        # so modifying it internally won't change the value for the caller
+        # inputs['voxel_grids'] = self.augmentation_optimization(inputs, batch_size)
 
         return inputs
 
