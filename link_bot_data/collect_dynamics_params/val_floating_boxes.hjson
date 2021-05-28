@@ -101,6 +101,7 @@
     env
     extent
     origin
+    origin_point
     res
     scene_msg
   ]
