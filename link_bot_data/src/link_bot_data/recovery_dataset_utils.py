@@ -266,6 +266,7 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
 
         # NOTE: perhaps write generic "collapse" functions to merging (unmerging?) dimensions?
         bs = batch_size * n_action_samples
+        # TODO: can we use the fact that all examples in the batch are the same environment?
         environment_tiled_batched = repeat(environment, n_action_samples, 0, False)
         start_states_tiled_t_batched = {k: tf.reshape(v, [bs, 1, -1]) for k, v in start_states_tiled_t.items()}
         random_actions_dict_batched = {k: tf.reshape(v, [bs, 1, -1]) for k, v in random_actions_dict.items()}

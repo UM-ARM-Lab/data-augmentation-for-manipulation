@@ -9,7 +9,7 @@ from link_bot_data.dataset_utils import use_gt_rope
 from link_bot_data.visualization import init_viz_env, dynamics_viz_t
 from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
-from moonshine.indexing import index_time_batched
+from moonshine.indexing import index_time_batched, slice_along_axis
 from moonshine.moonshine_utils import numpify, remove_batch
 
 
@@ -64,21 +64,19 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
 
         return features_description
 
-    def split_into_sequences(self, example, desired_sequence_length):
-        # return a dict where every element has different sequences split across the 0th dimension
+    def split_into_sequences(self, example, desired_sequence_length, time_dim: int):
+        # return a dict where every element has different sequences split across the time dimension
         for start_t in range(0, self.steps_per_traj - desired_sequence_length + 1, desired_sequence_length):
             out_example = {}
             for k in self.constant_feature_names:
                 out_example[k] = example[k]
 
-            for k in self.state_keys:
-                v = example[k][start_t:start_t + desired_sequence_length]
-                assert v.shape[0] == desired_sequence_length
+            for k in self.state_keys + self.state_metadata_keys:
+                v = slice_along_axis(example[k], start_t, start_t + desired_sequence_length, axis=time_dim)
                 out_example[k] = v
 
             for k in self.action_keys:
-                v = example[k][start_t:start_t + desired_sequence_length - 1]
-                assert v.shape[0] == (desired_sequence_length - 1)
+                v = slice_along_axis(example[k], start_t, start_t + desired_sequence_length - 1, axis=time_dim)
                 out_example[k] = v
 
             yield out_example

@@ -2,21 +2,15 @@
 import argparse
 import pathlib
 
-import hjson
-import numpy as np
+from progressbar import progressbar
 
 from arc_utilities import ros_init
-from link_bot_classifiers.classifier_analysis_utils import predict, execute
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
-from link_bot_gazebo.gazebo_services import GazeboServices
-from link_bot_pycommon.pycommon import make_dict_tf_float32
-from merrrt_visualization.rviz_animation_controller import RvizAnimationController
-from moonshine.moonshine_utils import numpify, repeat
+from link_bot_pycommon.get_scenario import get_scenario
 from state_space_dynamics import dynamics_utils
-import tensorflow as tf
 
 
-@ros_init.with_ros("test_dynamics")
+@ros_init.with_ros("profile_dynamics_ensemble")
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset_dir", help="dataset", type=pathlib.Path)
@@ -24,16 +18,18 @@ def main():
 
     args = parser.parse_args()
 
-    fwd_model, _ = dynamics_utils.load_generic_model(args.fwd_model_dir)
+    scenario = get_scenario('dual_arm_rope_sim_val_with_robot_feasibility_checking')
+    fwd_model, _ = dynamics_utils.load_generic_model(args.fwd_model_dir, scenario=scenario)
 
     dataset = DynamicsDatasetLoader([args.dataset_dir])
     tf_dataset = dataset.get_datasets(mode='train')
+    b = 64
+    tf_dataset = tf_dataset.batch(b)
     inputs = next(iter(tf_dataset))
 
-    for i in range(100):
-        fwd_model.propagate_tf_batched(environment=environment,
-                                       state=start_states,
-                                       actions=expanded_actions)
+    for i in progressbar(range(10)):
+        for short_inputs in dataset.split_into_sequences(inputs, 2, time_dim=1):
+            fwd_model.from_example(short_inputs)
 
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@ import os
 import pathlib
 import time
 from collections import OrderedDict
+from functools import lru_cache
 from io import BytesIO
 from typing import Optional, Dict, List
 
@@ -151,6 +152,7 @@ def dict_of_float_tensors_to_bytes_feature(d):
     return {k: float_tensor_to_bytes_feature(v) for k, v in d.items()}
 
 
+@lru_cache
 def bytes_to_ros_msg(bytes, msg_type: type):
     msg = msg_type()
     msg.deserialize(bytes)
@@ -419,6 +421,7 @@ def _deserialize_scene_msg(example):
     scene_msg = example['scene_msg']
     if isinstance(scene_msg, tf.Tensor):
         scene_msg = scene_msg.numpy()
+
     if isinstance(scene_msg, np.ndarray):
         assert scene_msg.ndim == 1
         if not isinstance(scene_msg[0], PlanningScene):
