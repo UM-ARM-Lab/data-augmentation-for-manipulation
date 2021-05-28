@@ -26,7 +26,7 @@ def main():
     parser.add_argument('out_dir', type=pathlib.Path, help='out dir')
     parser.add_argument('--start-at', type=str, help='string of the form mode,idx (ex: val:30)')
     parser.add_argument('--stop-at', type=str, help='string of the form mode,idx (ex: val:30)')
-    parser.add_argument('--batch-size', type=int, help="batch size", default=2)
+    parser.add_argument('--batch-size', type=int, help="batch size", default=4)
     parser.add_argument('--yes', action='store_true')
 
     args = parser.parse_args()

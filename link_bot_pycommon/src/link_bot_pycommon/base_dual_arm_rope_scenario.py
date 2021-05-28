@@ -1,8 +1,9 @@
 import warnings
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
+import pyjacobian_follower
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -309,8 +310,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 return False
         return True
 
-    def follow_jacobian_from_example(self, example: Dict):
-        j = self.robot.jacobian_follower
+    def follow_jacobian_from_example(self, example: Dict, j: Optional[pyjacobian_follower.JacobianFollower] = None):
+        if j is None:
+            j = self.robot.jacobian_follower
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
         grippers = tf.stack([example['left_gripper_position'], example['right_gripper_position']], axis=1)
@@ -343,7 +345,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         for b in range(batch_size):
             plan_b = plans[b]
             joint_names_b_0 = plan_b[0].joint_trajectory.joint_names
-            joint_positions_b_0 = plan_b[0].joint_trajectory.points[0].positions
+            joint_positions_b_0 = example['joint_positions'][b, 0]
             joint_names_b = [joint_names_b_0]
             joint_positions_b = [joint_positions_b_0]
             point_i: JointTrajectoryPoint

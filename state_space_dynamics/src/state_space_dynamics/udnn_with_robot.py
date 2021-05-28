@@ -13,7 +13,7 @@ from state_space_dynamics.unconstrained_dynamics_nn import UnconstrainedDynamics
 #  inheritance relationship is backwards?
 class UDNNWithRobotKinematics:
 
-    def __init__(self, net: UnconstrainedDynamicsNN):
+    def __init__(self, net: UnconstrainedDynamicsNN, collision_check: bool = True):
         self.net = net
         # copy things we need, the reason I'm not just doing net.__call__ = my_overload is that for some reason that
         # doesn't change net() from calling the TF __call__
@@ -22,25 +22,32 @@ class UDNNWithRobotKinematics:
         self.action_keys = net.action_keys
         self.scenario = net.scenario
 
-        self.jacobian_follower_no_cc = JacobianFollower(robot_namespace=self.scenario.robot_namespace,
-                                                        translation_step_size=0.005,
-                                                        minimize_rotation=True,
-                                                        collision_check=True,
-                                                        visualize=False)
+        self.j_no_viz = JacobianFollower(robot_namespace=self.scenario.robot_namespace,
+                                         translation_step_size=0.005,
+                                         minimize_rotation=True,
+                                         collision_check=collision_check,
+                                         visualize=False)
 
-    def __call__(self, example: Dict, training: bool, **kwargs):
+    def __call__(self, inputs: Dict, training: bool, **kwargs):
+        example_np, outputs = self.setup_inputs_for_jacobian_follower(inputs, kwargs, training)
+        reached, joint_positions, joint_names = self.scenario.follow_jacobian_from_example(example_np, j=self.j_no_viz)
+        self.add_robot_state_to_outputs(joint_names, joint_positions, outputs)
+        return outputs
+
+    def add_robot_state_to_outputs(self, joint_names, joint_positions, outputs):
+        outputs['joint_positions'] = tf.convert_to_tensor(joint_positions, dtype=tf.float32)
+        outputs['joint_names'] = joint_names
+
+    def setup_inputs_for_jacobian_follower(self, example, kwargs, training):
         scene_msg = example["scene_msg"]
         net_example = {}
         for k, v in example.items():
             if k != 'scene_msg':
                 net_example[k] = v
         out = self.net(net_example, training, **kwargs)
-        example_np = numpify(net_example)
+        example_np = numpify(net_example)  # this numpify is slow
         example_np['scene_msg'] = scene_msg
-        reached, predicted_joint_positions, joint_names = self.scenario.follow_jacobian_from_example(example_np)
-        out['joint_positions'] = tf.convert_to_tensor(predicted_joint_positions, dtype=tf.float32)
-        out['joint_names'] = joint_names
-        return out
+        return example_np, out
 
 
 class UDNNWithRobotKinematicsWrapper(BaseDynamicsFunction):
