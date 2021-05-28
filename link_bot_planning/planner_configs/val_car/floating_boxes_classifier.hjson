@@ -1,5 +1,5 @@
 {
-  method_name: deadend classifier
+  method_name: floating boxes classifier
   filter_model_dir: [
     filter_trials/none/none
   ]
@@ -10,11 +10,12 @@
     dy_trials/gt_rope_w_robot_3/best_checkpoint
   ]
   classifier_model_dir: [
-    cl_trials/val_deadend_1617235474/March_31_21-16-48_3e35903c2e/best_checkpoint
+    cl_trials/val_floating_boxes_1622170084/May_28_00-18-46_e6bb30ad8b/best_checkpoint/
     cl_trials/new_feasibility_baseline/none
   ]
   recovery: {
-    recovery_model_dir: recovery_trials/val_car_1611326554/January_22_10-55-03_9d54feec4e/best_checkpoint
+    # FIXME: using random recovery is just a placeholder!
+    recovery_model_dir: recovery_trials/random/none
     use_recovery: true
   }
 }

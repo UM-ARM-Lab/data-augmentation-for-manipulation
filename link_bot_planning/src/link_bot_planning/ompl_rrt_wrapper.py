@@ -489,7 +489,7 @@ class OmplRRTWrapper(MyPlanner):
                         self.tree.add(state, action, next_state)
 
                 # visualize & debug info
-                if self.verbose >= 2:
+                if self.verbose >= 3:
                     self.clear_smoothing_markers()
                     self.scenario.plot_state_rviz(start_state, idx=0, label='from', color='y')
                     self.scenario.plot_state_rviz(end_state, idx=1, label='to', color='m')
@@ -521,6 +521,6 @@ class OmplRRTWrapper(MyPlanner):
     def clear_smoothing_markers(self):
         # FIXME: temporary hack
         self.scenario.reset_planning_viz()
-        self.scenario.mm.delete(label='from')
-        self.scenario.mm.delete(label='to')
-        self.scenario.mm.delete(label='smoothed')
+        # self.scenario.mm.delete(label='from')
+        # self.scenario.mm.delete(label='to')
+        # self.scenario.mm.delete(label='smoothed')
