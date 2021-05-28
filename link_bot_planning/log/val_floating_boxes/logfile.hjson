@@ -1,0 +1,31 @@
+{
+  nickname: val_floating_boxes
+  filename: log/val_floating_boxes/logfile.hjson
+  collect_dynamics_data_1:
+  {
+    dynamics_dataset_dir: fwd_model_data/baseline_gt_rope_phase1_1606682161_1b3bea4d11_2048
+  }
+  collect_dynamics_data_2:
+  {
+    dynamics_dataset_dir: fwd_model_data/val_rope_floating_boxes
+  }
+  learn_dynamics:
+  {
+    model_dirs:
+    [
+      dy_trials/gt_rope_w_robot_0
+      dy_trials/gt_rope_w_robot_1
+      dy_trials/gt_rope_w_robot_2
+      dy_trials/gt_rope_w_robot_3
+    ]
+    classifier_threshold: 0.05
+  }
+  make_classifier_dataset:
+  {
+    classifier_dataset_dir: classifier_data/val_floating_boxes_1622170084
+  }
+  learn_classifier:
+  {
+    model_dir: cl_trials/val_floating_boxes_1622170084/May_28_00-18-46_e6bb30ad8b
+  }
+}
