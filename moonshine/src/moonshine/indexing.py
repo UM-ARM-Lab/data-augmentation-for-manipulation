@@ -162,3 +162,9 @@ def index_dict_of_batched_tensors_tf(in_dict: Dict, index: int, batch_axis: int 
                 except ValueError:
                     pass
     return out_dict
+
+
+def slice_along_axis(x, start, end, axis):
+    s = [slice(None)] * x.ndim
+    s[axis] = slice(start, end)
+    return x[s]
