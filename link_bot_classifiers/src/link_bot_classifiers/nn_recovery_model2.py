@@ -37,7 +37,6 @@ class NNRecoveryModel(MyKerasModel):
         self.local_env_h_rows = self.hparams['local_env_h_rows']
         self.local_env_w_cols = self.hparams['local_env_w_cols']
         self.local_env_c_channels = self.hparams['local_env_c_channels']
-        self.rope_image_k = self.hparams['rope_image_k']
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
 
         self.state_keys = self.hparams['state_keys']
