@@ -28,4 +28,12 @@
   {
     model_dir: cl_trials/val_floating_boxes_1622170084/May_28_00-18-46_e6bb30ad8b
   }
+  make_recovery_dataset:
+  {
+    recovery_dataset_dir: recovery_data/val_floating_boxes_no_ensemble/
+  }
+  learn_recovery:
+  {
+    model_dir: recovery_trials/val_floating_boxes_no_ensemble/May_29_16-56-48_1c7b303d87
+  }
 }
