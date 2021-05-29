@@ -44,6 +44,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                batch_size: int,
                epochs: int,
                seed: int,
+               no_validate: bool,
                checkpoint: Optional[pathlib.Path] = None,
                **kwargs,
                ):
@@ -95,13 +96,25 @@ def train_main(dataset_dirs: List[pathlib.Path],
                                                         trial_path=trial_path,
                                                         trials_directory=trials_directory,
                                                         write_summary=False)
+
+    if no_validate:
+        mid_epoch_val_batches = None
+        val_every_n_batches = None
+        save_every_n_minutes = None
+        validate_first = False
+    else:
+        mid_epoch_val_batches = 20
+        val_every_n_batches = 50
+        save_every_n_minutes = 20
+        validate_first = True
     runner = ModelRunner(model=model,
                          training=True,
                          params=model_hparams,
                          trial_path=trial_path,
-                         val_every_n_batches=1,
-                         mid_epoch_val_batches=100,
-                         validate_first=True,
+                         val_every_n_batches=val_every_n_batches,
+                         save_every_n_minutes=save_every_n_minutes,
+                         mid_epoch_val_batches=mid_epoch_val_batches,
+                         validate_first=validate_first,
                          checkpoint=checkpoint,
                          batch_metadata=train_dataset.batch_metadata)
 
