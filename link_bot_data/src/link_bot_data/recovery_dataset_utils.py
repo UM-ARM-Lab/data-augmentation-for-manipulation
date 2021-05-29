@@ -95,8 +95,9 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
     recovery_dataset_hparams['action_keys'] = fwd_model.action_keys
     recovery_dataset_hparams['state_metadata_keys'] = dataset.state_metadata_keys
     recovery_dataset_hparams['env_keys'] = dataset.env_keys
-    recovery_dataset_hparams['start-at'] = start_at
-    recovery_dataset_hparams['stop-at'] = stop_at
+    recovery_dataset_hparams['start_at'] = start_at
+    recovery_dataset_hparams['stop_at'] = stop_at
+    recovery_dataset_hparams['has_sampled_actions'] = True
     my_hdump(recovery_dataset_hparams, new_hparams_filename.open("w"), indent=2)
 
     outdir.mkdir(parents=True, exist_ok=True)
@@ -131,7 +132,6 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
                                                       batch_size=batch_size,
                                                       start_at=start_at,
                                                       stop_at=stop_at):
-            # FIXME: is there an extra time/batch dimension?
             for batch_idx in range(out_example['traj_idx'].shape[0]):
                 out_example_b = index_dict_of_batched_tensors_tf(out_example, batch_idx)
 
@@ -242,6 +242,7 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
     environment = {k: example[k] for k in env_keys}
 
     all_accept_probabilities = []
+    all_actions_dicts = []
     for ast in range(action_sequence_horizon):  # ast = action sequence time. Just using "t" was confusing
         # Sample actions
         n_action_samples = labeling_params['n_action_samples']
@@ -263,6 +264,7 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
                                                             n_actions=n_actions,
                                                             action_params=data_collection_params,
                                                             action_rng=action_rng)
+        all_actions_dicts.append(all_actions_dicts)
 
         # NOTE: perhaps write generic "collapse" functions to merging (unmerging?) dimensions?
         bs = batch_size * n_action_samples
@@ -302,12 +304,12 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
         'start_t':              tf.stack([start_t] * batch_size),
         'end_t':                tf.stack([end_t] * batch_size),
         'accept_probabilities': all_accept_probabilities,
+        'sampled_actions':      sequence_of_dicts_to_dict_of_tensors(all_actions_dicts, axis=1),
     }
     out_examples.update(environment)
     # add true start states
     out_examples.update(actual_states)
     out_examples.update(actual_actions)
-    out_examples = make_dict_tf_float32(out_examples)
 
     return out_examples
 
@@ -329,7 +331,8 @@ def predict_and_classify_for_recovery_dataset(fwd_model, classifier_model, envir
     return mean_dynamics_predictions, accept_probabilities
 
 
-def viz_generate_example_batch(accept_probabilities, actual_states_tiled, classifier_model, environment, n_action_samples,
+def viz_generate_example_batch(accept_probabilities, actual_states_tiled, classifier_model, environment,
+                               n_action_samples,
                                predictions, random_actions_dict, scenario, batch_size):
     stepper = RvizSimpleStepper()
     for b in debug_viz_batch_indices(batch_size):

@@ -38,6 +38,9 @@ class RecoveryDatasetLoader(BaseDatasetLoader):
             'accept_probabilities',
         ]
 
+        if self.hparams.get("has_sampled_actions", False):
+            self.feature_names.append("sampled_actions")
+
         for k in self.state_keys:
             self.feature_names.append(k)
 
