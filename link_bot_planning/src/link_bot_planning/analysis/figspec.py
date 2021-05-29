@@ -32,7 +32,7 @@ def get_data_for_table(spec: TableSpec, metrics: pd.DataFrame):
 
 
 def reduce_metrics(reductions: Dict[str, List], axis_names: List[str], metrics: pd.DataFrame):
-    data_for_figure = None
+    reduced_metrics = None
     for axis_name, reductions_for_axis in reductions.items():
         data_for_axis = metrics[axis_name]
         index_names = list(data_for_axis.index.names)
@@ -49,20 +49,17 @@ def reduce_metrics(reductions: Dict[str, List], axis_names: List[str], metrics: 
                     # NOTE: this handles the case where a function is specified in hjson, namely my_rolling
                 except AttributeError:
                     data_for_axis = eval(reduction)(data_for_axis_groupby)
-        if data_for_figure is None:
-            data_for_figure = data_for_axis
+        if reduced_metrics is None:
+            reduced_metrics = data_for_axis
         else:
-            data_for_figure = pd.merge(data_for_figure, data_for_axis, on=metrics.index.names[:-1])
+            reduced_metrics = pd.merge(reduced_metrics, data_for_axis, on=metrics.index.names[:-1])
 
     # why is setting columns names so hard?
     # why does my code sometimes output a Series and sometimes a DataFrame?
-    if isinstance(data_for_figure, pd.Series):
-        data_for_figure = data_for_figure.to_frame()
-        data_for_figure.columns = axis_names
-    elif isinstance(data_for_figure, pd.DataFrame):
-        columns = dict(zip(reductions.keys(), axis_names))
-        data_for_figure.rename(columns=columns, inplace=True)
-    else:
-        raise NotImplementedError()
+    if isinstance(reduced_metrics, pd.Series):
+        reduced_metrics = reduced_metrics.to_frame()
 
-    return data_for_figure
+    columns = dict(zip(reductions.keys(), axis_names))
+    reduced_metrics.rename(columns=columns, inplace=True)
+
+    return reduced_metrics

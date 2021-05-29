@@ -41,6 +41,8 @@ def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable
     sort_order_dict = {}
     for idx, results_dir in enumerate(results_dirs_ordered):
         method_name = get_method_name(results_dir)
+        while method_name in results_dirs_dict:
+            method_name = add_number_to_method_name(method_name)
         results_dirs_dict[method_name] = results_dir
         print(method_name, results_dir)
         sort_order_dict[method_name] = idx
@@ -166,10 +168,7 @@ def load_fig_specs(analysis_params, args):
     for fig_config in figures_config:
         figure_type = eval(fig_config.pop('type'))
         reductions = fig_config.pop('reductions')
-        if 'axes_names' in fig_config:
-            axes_names = fig_config.pop('axes_names')
-        else:
-            axes_names = DEFAULT_AXES_NAMES
+        axes_names = DEFAULT_AXES_NAMES
 
         fig = figure_type(analysis_params, **fig_config)
 
@@ -184,10 +183,7 @@ def load_table_specs(analysis_params, args, table_format: str):
     for table_conf in tables_conf:
         table_type = eval(table_conf.pop('type'))
         reductions = table_conf.pop('reductions')
-        if 'axes_names' in table_conf:
-            axes_names = table_conf.pop('axes_names')
-        else:
-            axes_names = DEFAULT_AXES_NAMES
+        axes_names = DEFAULT_AXES_NAMES
 
         table = table_type(table_format=table_format, **table_conf)
 

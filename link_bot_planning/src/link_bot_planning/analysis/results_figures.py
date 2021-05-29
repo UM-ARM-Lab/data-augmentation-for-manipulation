@@ -25,10 +25,10 @@ class MyFigure:
 
     def make_figure(self, data, series_names):
         # Methods need to have consistent colors across different plots
-        for series_name in series_names:
+        for series_idx, series_name in enumerate(series_names):
             color = self.get_color_for_method(series_name)
             data_for_series = data.loc[series_name]
-            self.add_to_figure(data_for_series, series_name=series_name, color=color)
+            self.add_to_figure(data_for_series, series_name=series_name, color=color, series_idx=series_idx)
         self.finish_figure()
 
     def get_color_for_method(self, method_name):
@@ -67,7 +67,7 @@ class MyFigure:
         colors_cache[method_name] = color
         return color
 
-    def add_to_figure(self, data: List, series_name: str, color):
+    def add_to_figure(self, data: List, series_name: str, color, series_idx: int):
         raise NotImplementedError()
 
     def finish_figure(self):
@@ -108,19 +108,65 @@ class LinePlot(MyFigure):
         if ylim is not None:
             self.ax.set_ylim(ylim)
 
-    def add_to_figure(self, data: pd.DataFrame, series_name: str, color):
-        y = data['y'].values
-        if 'x' in data:
+    def add_to_figure(self, data: pd.DataFrame, series_name: str, color, series_idx: int):
+        if 'y' in data:
+            y = data['y'].values
             x = data['x'].values
             self.ax.plot(x, y, c=color, label=series_name)
         else:
+            y = data['x'].values
             self.ax.plot(y, c=color, label=series_name)
+
+
+class BoxPlot(MyFigure):
+    def __init__(self, analysis_params: Dict, name: str, xlabel: str, ylabel: str, ylim=None):
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+        super().__init__(analysis_params, name)
+        self.ax.set_xlabel(self.xlabel)
+        self.ax.set_ylabel(self.ylabel)
+        if ylim is not None:
+            self.ax.set_ylim(ylim)
+
+    def add_to_figure(self, data: pd.DataFrame, series_name: str, color, series_idx: int):
+        assert 'y' not in data
+        y = data['x'].values
+        x = [series_idx]
+        self.ax.boxplot(y,
+                        positions=x,
+                        widths=0.9,
+                        patch_artist=True,
+                        boxprops=dict(facecolor='#00000000', color=color),
+                        capprops=dict(color=color),
+                        whiskerprops=dict(color=color),
+                        medianprops=dict(color=color),
+                        showfliers=False,
+                        )
+        x_repeated = [series_idx] * len(y) + np.random.randn(*y.shape) * 0.05
+        self.ax.scatter(x_repeated, y, edgecolor=color, facecolor='none', marker='o', label=series_name)
+
+
+class BarChart(MyFigure):
+    def __init__(self, analysis_params: Dict, name: str, xlabel: str, ylabel: str, ylim=None):
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+        super().__init__(analysis_params, name)
+        self.ax.set_xlabel(self.xlabel)
+        self.ax.set_ylabel(self.ylabel)
+        if ylim is not None:
+            self.ax.set_ylim(ylim)
+
+    def add_to_figure(self, data: pd.DataFrame, series_name: str, color, series_idx: int):
+        assert 'y' not in data
+        y = data['x']
+        x = [series_idx]
+        self.ax.bar(x, y, color=color, label=series_name)
 
 
 class LineBoxPlot(LinePlot):
 
-    def add_to_figure(self, data: pd.DataFrame, series_name: str, color):
-        super().add_to_figure(data, series_name, color)
+    def add_to_figure(self, data: pd.DataFrame, series_name: str, color, series_idx: int):
+        super().add_to_figure(data, series_name, color, series_idx)
         y = data['y'].values
         if 'x' in data:
             x = data['x'].values
@@ -137,23 +183,6 @@ class LineBoxPlot(LinePlot):
                         showfliers=False)
 
 
-def make_figures(figures: Iterable[MyFigure],
-                 analysis_params: Dict,
-                 sort_order_dict: Dict,
-                 out_dir: pathlib.Path):
-    for figure in figures:
-        figure.params = analysis_params
-        figure.sort_methods(sort_order_dict)
-
-    for figure in figures:
-        figure.enumerate_methods()
-
-    # Actual figures
-    for figure in figures:
-        figure.make_figure()
-        figure.save_figure(out_dir)
-
-
 def my_rolling(window: int = 10):
     return lambda x: x.rolling(window=window, min_periods=0).mean()
 
@@ -168,4 +197,6 @@ __all__ = [
     'MyFigure',
     'LinePlot',
     'LineBoxPlot',
+    'BoxPlot',
+    'BarChart',
 ]

@@ -9,8 +9,10 @@
         mean
       ]
     }
-    axes_names: [
-      y
+    header: [
+      'method_name'
+      'initial success rate'
+      'final success rate'
     ]
   }
 ]

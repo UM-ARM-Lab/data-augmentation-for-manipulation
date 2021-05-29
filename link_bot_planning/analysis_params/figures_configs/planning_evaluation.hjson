@@ -1,0 +1,24 @@
+[
+  {
+    type: BoxPlot
+    name: task_error
+    xlabel: method
+    ylabel: Task Error
+    reductions: {
+      task_error: [
+        null
+      ]
+    }
+  }
+  {
+    type: BarChart
+    name: success
+    xlabel: method
+    ylabel: Success
+    reductions: {
+      success: [
+        mean
+      ]
+    }
+  }
+]

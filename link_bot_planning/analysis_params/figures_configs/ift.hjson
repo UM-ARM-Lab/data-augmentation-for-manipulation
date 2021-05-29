@@ -105,9 +105,6 @@
         mean
       ]
     }
-    axes_names: [
-      y
-    ]
   }
   {
     type: LinePlot
@@ -121,9 +118,6 @@
         mean
       ]
     }
-    axes_names: [
-      y
-    ]
   }
   {
     type: LinePlot
@@ -141,9 +135,6 @@
         mean
       ]
     }
-    axes_names: [
-      y
-    ]
   }
   {
     type: LinePlot
@@ -211,9 +202,6 @@
         sum
       ]
     }
-    axes_names: [
-      y
-    ]
   }
   {
     type: LinePlot
@@ -227,9 +215,6 @@
         sum
       ]
     }
-    axes_names: [
-      y
-    ]
   }
   {
     type: LinePlot

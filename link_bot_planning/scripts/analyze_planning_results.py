@@ -6,8 +6,8 @@ import colorama
 import matplotlib.pyplot as plt
 
 from arc_utilities import ros_init
-from link_bot_planning.analysis.analyze_results import load_fig_specs, get_metrics2
-from link_bot_planning.analysis.figspec import get_data_for_figure
+from link_bot_planning.analysis.analyze_results import load_fig_specs, get_metrics2, load_table_specs
+from link_bot_planning.analysis.figspec import get_data_for_figure, get_data_for_table
 from link_bot_planning.analysis.results_metrics import load_analysis_params
 from moonshine.filepath_tools import load_hjson, load_json_or_hjson
 from moonshine.gpu_config import limit_gpu_mem
@@ -38,6 +38,7 @@ def metrics_main(args):
 
     # Figures & Tables
     figspecs = load_fig_specs(analysis_params, args)
+    table_specs = load_table_specs(analysis_params, args, table_format)
 
     for spec in figspecs:
         data_for_figure = get_data_for_figure(spec, metrics)
@@ -45,7 +46,14 @@ def metrics_main(args):
         spec.fig.make_figure(data_for_figure, method_names)
         spec.fig.save_figure(out_dir)
 
-    # make_tables(tables, analysis_params, sort_order_dict, table_format, tables_filename)
+    for spec in table_specs:
+        data_for_table = get_data_for_table(spec, metrics)
+
+        spec.table.make_table(data_for_table, method_names)
+        spec.table.save(out_dir)
+
+    for spec in table_specs:
+        spec.table.print()
 
     if not args.no_plot:
         for spec in figspecs:
@@ -58,7 +66,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('results_dirs', help='results directory', type=pathlib.Path, nargs='+')
     parser.add_argument('--figures-config', type=pathlib.Path,
-                        default=pathlib.Path("analysis_params/figures_configs/ift.hjson"))
+                        default=pathlib.Path("analysis_params/figures_configs/planning_evaluation.hjson"))
+    parser.add_argument('--tables-config', type=pathlib.Path,
+                        default=pathlib.Path("analysis_params/tables_configs/planning_evaluation.hjson"))
     parser.add_argument('--analysis-params', type=pathlib.Path,
                         default=pathlib.Path("analysis_params/env_across_methods.json"))
     parser.add_argument('--no-plot', action='store_true')

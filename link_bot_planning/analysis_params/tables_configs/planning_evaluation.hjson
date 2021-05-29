@@ -1,0 +1,15 @@
+[
+  {
+    type: MyTable
+    name: success
+    header: [
+      'Method Name'
+      'Success'
+    ]
+    reductions: {
+      success: [
+        mean
+      ]
+    }
+  }
+]
