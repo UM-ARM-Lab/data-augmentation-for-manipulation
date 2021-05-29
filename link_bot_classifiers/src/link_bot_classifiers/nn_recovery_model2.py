@@ -7,7 +7,7 @@ from tensorflow.python.keras.metrics import Metric
 
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
-from link_bot_classifiers.make_voxelgrid_inputs import MakeVoxelgridInfo, make_voxelgrid_inputs_t
+from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo, make_voxelgrid_inputs_t
 from link_bot_classifiers.classifier_augmentation import ClassifierAugmentation
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
@@ -76,6 +76,7 @@ class NNRecoveryModel(MyKerasModel):
 
         self.indices = self.create_env_indices(batch_size)
 
+
     def preprocess_no_gradient(self, inputs, training: bool):
         batch_size = inputs['batch_size']
 
@@ -109,16 +110,16 @@ class NNRecoveryModel(MyKerasModel):
         # Create voxel grids
         local_env, local_origin_point = self.get_local_env(inputs)
 
-        info = MakeVoxelgridInfo(batch_size=batch_size,
-                                 h=self.local_env_h_rows,
-                                 w=self.local_env_w_cols,
-                                 c=self.local_env_c_channels,
-                                 state_keys=self.state_keys,
-                                 jacobian_follower=self.scenario.robot.jacobian_follower,
-                                 link_names=self.link_names,
-                                 points_link_frame=self.points_link_frame,
-                                 points_per_links=self.points_per_links,
-                                 )
+        info = VoxelgridInfo(batch_size=batch_size,
+                             h=self.local_env_h_rows,
+                             w=self.local_env_w_cols,
+                             c=self.local_env_c_channels,
+                             state_keys=self.state_keys,
+                             jacobian_follower=self.scenario.robot.jacobian_follower,
+                             link_names=self.link_names,
+                             points_link_frame=self.points_link_frame,
+                             points_per_links=self.points_per_links,
+                             )
         local_voxel_grid_t = make_voxelgrid_inputs_t(inputs, local_env, local_origin_point, info, t=0,
                                                      include_robot_geometry=self.include_robot_geometry)
 

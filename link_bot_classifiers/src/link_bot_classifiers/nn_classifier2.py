@@ -1,5 +1,3 @@
-import pathlib
-import pickle
 from copy import copy
 from typing import Dict
 
@@ -12,8 +10,8 @@ from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 import rospy
 from link_bot_classifiers.classifier_augmentation import ClassifierAugmentation
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
-from link_bot_classifiers.make_voxelgrid_inputs import make_voxelgrid_inputs_t, MakeVoxelgridInfo
-from link_bot_classifiers.robot_points import setup_robot_points
+from link_bot_classifiers.make_voxelgrid_inputs import make_voxelgrid_inputs_t, VoxelgridInfo
+from link_bot_classifiers.robot_points import RobotVoxelgridInfo
 from link_bot_data.dataset_utils import add_predicted, add_new
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
@@ -94,16 +92,17 @@ class NNClassifier(MyKerasModel):
             rospy.loginfo("Not using augmentation during training")
 
         self.indices = self.create_env_indices(batch_size)
-        self.robot_points_filename = pathlib.Path("robot_points_data/val/robot_points.pkl")
-        with self.robot_points_filename.open("rb") as file:
-            data = pickle.load(file)
-        robot_points = data['points']
-        self.link_names = list(robot_points.keys())
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
         print(Fore.LIGHTBLUE_EX + f"{self.include_robot_geometry=}" + Fore.RESET)
-        self.points_per_links, self.points_link_frame = setup_robot_points(batch_size=self.batch_size,
-                                                                           points=robot_points,
-                                                                           link_names=self.link_names)
+        self.robot_info = RobotVoxelgridInfo()
+
+        self.vg_info = VoxelgridInfo(h=self.local_env_h_rows,
+                                     w=self.local_env_w_cols,
+                                     c=self.local_env_c_channels,
+                                     state_keys=[add_predicted(k) for k in self.points_state_keys],
+                                     jacobian_follower=self.scenario.robot.jacobian_follower,
+                                     robot_info=self.robot_info,
+                                     )
 
     def preprocess_no_gradient(self, inputs, training: bool):
         batch_size = inputs['batch_size']
@@ -291,19 +290,8 @@ class NNClassifier(MyKerasModel):
     def make_voxelgrid_inputs(self, input_dict: Dict, local_env, local_origin_point, batch_size, time):
         local_voxel_grids_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
         for t in tf.range(time):
-            # NOTE: all this is static/constant data, hmm...
-            info = MakeVoxelgridInfo(batch_size=batch_size,
-                                     h=self.local_env_h_rows,
-                                     w=self.local_env_w_cols,
-                                     c=self.local_env_c_channels,
-                                     state_keys=[add_predicted(k) for k in self.points_state_keys],
-                                     jacobian_follower=self.scenario.robot.jacobian_follower,
-                                     link_names=self.link_names,
-                                     points_link_frame=self.points_link_frame,
-                                     points_per_links=self.points_per_links,
-                                     )
-            local_voxel_grid_t = make_voxelgrid_inputs_t(input_dict, local_env, local_origin_point, info, t,
-                                                         include_robot_geometry=self.include_robot_geometry)
+            local_voxel_grid_t = make_voxelgrid_inputs_t(input_dict, local_env, local_origin_point, self.vg_info, t,
+                                                         batch_size, include_robot_geometry=self.include_robot_geometry)
 
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
 
