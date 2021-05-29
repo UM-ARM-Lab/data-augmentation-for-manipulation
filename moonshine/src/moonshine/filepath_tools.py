@@ -95,9 +95,9 @@ def create_trial(group_name, params, trials_directory=None):
     trial_path.mkdir(parents=True, exist_ok=False)
 
     # save params
-    params_filename = trial_path / 'params.json'
+    params_filename = trial_path / 'params.hjson'
     with params_filename.open("w") as params_file:
-        json.dump(params, params_file, indent=2)
+        hjson.dump(params, params_file, indent=2)
 
     return trial_path, params
 
