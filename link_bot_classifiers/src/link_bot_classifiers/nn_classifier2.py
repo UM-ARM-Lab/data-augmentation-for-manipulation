@@ -56,7 +56,6 @@ class NNClassifier(MyKerasModel):
         self.local_env_h_rows = self.hparams['local_env_h_rows']
         self.local_env_w_cols = self.hparams['local_env_w_cols']
         self.local_env_c_channels = self.hparams['local_env_c_channels']
-        self.rope_image_k = self.hparams['rope_image_k']
         self.state_keys = self.hparams['state_keys']
         self.points_state_keys = copy(self.state_keys)
         self.points_state_keys.remove("joint_positions")  # FIXME: feels hacky
