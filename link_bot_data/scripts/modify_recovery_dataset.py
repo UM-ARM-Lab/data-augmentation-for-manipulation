@@ -9,6 +9,7 @@ import rospy
 from link_bot_data.modify_dataset import modify_dataset
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
 from link_bot_pycommon.args import my_formatter
+from link_bot_pycommon.grid_utils import extent_res_to_origin_point
 
 
 def main():
@@ -24,15 +25,19 @@ def main():
 
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
-    def _process_example(dataset: RecoveryDatasetLoader, example: Dict):
-        example['left_gripper'] = example.pop('gripper1')
-        example['right_gripper'] = example.pop('gripper2')
-        example['left_gripper_position'] = example.pop('gripper1_position')
-        example['right_gripper_position'] = example.pop('gripper2_position')
-        example['rope'] = example.pop('link_bot')
+    def _process_example(dataset, example: Dict):
+        example['origin_point'] = extent_res_to_origin_point(example['extent'], example['res'])
         yield example
 
-    hparams_update = {}
+    hparams_update = {
+        'env_keys': [
+            'env',
+            'res',
+            'extent',
+            'origin',
+            'origin_point',
+        ]
+    }
 
     dataset = RecoveryDatasetLoader([args.dataset_dir])
     modify_dataset(dataset_dir=args.dataset_dir,

@@ -29,19 +29,19 @@ class RecoveryDatasetLoader(BaseDatasetLoader):
         self.state_keys = self.hparams['state_keys']
         self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.action_keys = self.hparams['action_keys']
+        self.env_keys = self.hparams['env_keys']
 
         self.feature_names = [
-            'env',
-            'origin',
-            'extent',
-            'res',
             'traj_idx',
             'start_t',
             'end_t',
             'accept_probabilities',
         ]
 
-        for k in self.hparams['state_keys']:
+        for k in self.state_keys:
+            self.feature_names.append(k)
+
+        for k in self.env_keys:
             self.feature_names.append(k)
 
         self.horizon = self.hparams["labeling_params"]["action_sequence_horizon"]
@@ -71,7 +71,7 @@ class RecoveryDatasetLoader(BaseDatasetLoader):
         dataset = super().post_process(dataset, n_parallel_calls)
 
         dataset = dataset.map(self.add_recovery_probabilities)
-        # dataset = dataset.filter(is_stuck)
+        dataset = dataset.filter(is_stuck)
         return dataset
 
     def add_recovery_probabilities(self, example):
@@ -92,7 +92,8 @@ class RecoveryDatasetLoader(BaseDatasetLoader):
         anim.play(example)
 
     def recovery_transition_viz_t(self):
-        return recovery_transition_viz_t(metadata=self.scenario_metadata, state_keys=self.state_keys)
+        return recovery_transition_viz_t(metadata=self.scenario_metadata,
+                                         state_keys=self.state_keys + self.state_metadata_keys)
 
     def init_viz_action(self):
-        return init_viz_action(self.scenario_metadata, self.action_keys, self.state_keys)
+        return init_viz_action(self.scenario_metadata, self.action_keys, self.state_keys + self.state_metadata_keys)
