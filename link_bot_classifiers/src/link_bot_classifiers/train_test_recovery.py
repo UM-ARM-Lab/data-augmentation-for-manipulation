@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 from progressbar import progressbar
 
-from link_bot_classifiers import recovery_policy_utils
+from link_bot_classifiers import recovery_policy_utils, get_model
 from link_bot_classifiers.nn_recovery_model import NNRecoveryModel
 from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import batch_tf_dataset
@@ -74,7 +74,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
     train_tf_dataset = train_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
     val_tf_dataset = val_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
-    model = NNRecoveryModel(hparams=model_hparams, scenario=scenario, batch_size=batch_size)
+    ModelClass = get_model(model_hparams['model_class'])
+    model = ModelClass(hparams=model_hparams, scenario=scenario, batch_size=batch_size)
 
     ############
     # Initialize weights from classifier model by "restoring" from checkpoint
