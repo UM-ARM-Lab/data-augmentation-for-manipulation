@@ -9,7 +9,7 @@ from moonshine.moonshine_utils import numpify, repeat_tensor
 
 class RobotVoxelgridInfo:
 
-    def __init__(self):
+    def __init__(self, joint_positions_key: str):
         self.robot_points_filename = pathlib.Path("robot_points_data/val/robot_points.pkl")
         with self.robot_points_filename.open("rb") as file:
             data = pickle.load(file)
@@ -17,6 +17,7 @@ class RobotVoxelgridInfo:
         self.link_names = list(robot_points.keys())
         self.points_per_links, self.points_link_frame = setup_robot_points(points=robot_points,
                                                                            link_names=self.link_names)
+        self.joint_positions_key = joint_positions_key
 
 
 def get_points_link_frame(points):

@@ -94,7 +94,7 @@ class NNClassifier(MyKerasModel):
         self.indices = self.create_env_indices(batch_size)
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
         print(Fore.LIGHTBLUE_EX + f"{self.include_robot_geometry=}" + Fore.RESET)
-        self.robot_info = RobotVoxelgridInfo()
+        self.robot_info = RobotVoxelgridInfo(joint_positions_key=add_predicted('joint_positions'))
 
         self.vg_info = VoxelgridInfo(h=self.local_env_h_rows,
                                      w=self.local_env_w_cols,

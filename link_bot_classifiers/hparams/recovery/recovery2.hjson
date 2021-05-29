@@ -30,5 +30,5 @@
   learning_rate: 0.001
   stdev: true
   with_robot_frame: true
-  include_robot_geometry: false
+  include_robot_geometry: true
 }

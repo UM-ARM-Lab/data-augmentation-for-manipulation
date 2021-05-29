@@ -1,6 +1,8 @@
+from copy import copy
 from typing import Dict
 
 import tensorflow as tf
+from colorama import Fore
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.python.keras.metrics import Metric
@@ -9,6 +11,7 @@ import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo, make_voxelgrid_inputs_t
 from link_bot_classifiers.classifier_augmentation import ClassifierAugmentation
+from link_bot_classifiers.robot_points import RobotVoxelgridInfo
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -40,6 +43,8 @@ class NNRecoveryModel(MyKerasModel):
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
 
         self.state_keys = self.hparams['state_keys']
+        self.points_state_keys = copy(self.state_keys)
+        self.points_state_keys.remove("joint_positions")  # FIXME: feels hacky
         self.action_keys = self.hparams['action_keys']
 
         self.conv_layers = []
@@ -76,6 +81,18 @@ class NNRecoveryModel(MyKerasModel):
 
         self.indices = self.create_env_indices(batch_size)
 
+        self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
+        print(Fore.LIGHTBLUE_EX + f"{self.include_robot_geometry=}" + Fore.RESET)
+
+        self.robot_info = RobotVoxelgridInfo(joint_positions_key='joint_positions')
+
+        self.vg_info = VoxelgridInfo(h=self.local_env_h_rows,
+                                     w=self.local_env_w_cols,
+                                     c=self.local_env_c_channels,
+                                     state_keys=[k for k in self.points_state_keys],
+                                     jacobian_follower=self.scenario.robot.jacobian_follower,
+                                     robot_info=self.robot_info,
+                                     )
 
     def preprocess_no_gradient(self, inputs, training: bool):
         batch_size = inputs['batch_size']
@@ -110,17 +127,7 @@ class NNRecoveryModel(MyKerasModel):
         # Create voxel grids
         local_env, local_origin_point = self.get_local_env(inputs)
 
-        info = VoxelgridInfo(batch_size=batch_size,
-                             h=self.local_env_h_rows,
-                             w=self.local_env_w_cols,
-                             c=self.local_env_c_channels,
-                             state_keys=self.state_keys,
-                             jacobian_follower=self.scenario.robot.jacobian_follower,
-                             link_names=self.link_names,
-                             points_link_frame=self.points_link_frame,
-                             points_per_links=self.points_per_links,
-                             )
-        local_voxel_grid_t = make_voxelgrid_inputs_t(inputs, local_env, local_origin_point, info, t=0,
+        local_voxel_grid_t = make_voxelgrid_inputs_t(inputs, local_env, local_origin_point, self.vg_info, 0, batch_size,
                                                      include_robot_geometry=self.include_robot_geometry)
 
         inputs['voxel_grids'] = local_voxel_grid_t

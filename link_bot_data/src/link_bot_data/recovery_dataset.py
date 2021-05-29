@@ -27,6 +27,7 @@ class RecoveryDatasetLoader(BaseDatasetLoader):
         self.scenario = get_scenario(self.hparams['scenario'])
 
         self.state_keys = self.hparams['state_keys']
+        self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.action_keys = self.hparams['action_keys']
 
         self.feature_names = [
@@ -47,6 +48,9 @@ class RecoveryDatasetLoader(BaseDatasetLoader):
         self.n_action_samples = self.hparams["labeling_params"]["n_action_samples"]
 
         for k in self.state_keys:
+            self.feature_names.append(k)
+
+        for k in self.state_metadata_keys:
             self.feature_names.append(k)
 
         for k in self.action_keys:
