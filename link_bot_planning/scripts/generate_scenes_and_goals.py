@@ -5,7 +5,6 @@ import pathlib
 import pickle
 from typing import Optional, Dict, List
 
-import colorama
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
@@ -16,8 +15,8 @@ from arc_utilities import ros_init
 from arm_robots.robot import RobotPlanningError
 from geometry_msgs.msg import Point, Pose
 from link_bot_gazebo import gazebo_services
-from link_bot_planning.test_scenes import get_states_to_save, save_test_scene
-from link_bot_pycommon.args import my_formatter, int_set_arg
+from link_bot_planning.test_scenes import get_states_to_save, save_test_scene, get_all_scene_indices
+from link_bot_pycommon.args import int_set_arg
 from link_bot_pycommon.basic_3d_pose_marker import Basic3DPoseInteractiveMarker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
@@ -28,29 +27,26 @@ from visualization_msgs.msg import Marker
 
 @ros_init.with_ros("generate_saved_goals")
 def main():
-    colorama.init(autoreset=True)
-    tf.get_logger().setLevel(logging.ERROR)
-
-    parser = argparse.ArgumentParser(formatter_class=my_formatter)
+    parser = argparse.ArgumentParser()
     parser.add_argument("scenario", type=str, help='scenario')
     parser.add_argument("scenes_dir", type=pathlib.Path)
     parser.add_argument("method", type=str, choices=['rejection_sample', 'rviz_marker'])
-    parser.add_argument("--trials", type=int_set_arg, default=100)
+    parser.add_argument("--trials", type=int_set_arg, default=None)
 
     args = parser.parse_args()
 
     generate_saved_goals(method=args.method,
                          scenario=args.scenario,
                          trials=args.trials,
-                         save_test_scenes_dir=args.scenes_dir)
+                         scenes_dir=args.scenes_dir)
 
 
 def generate_saved_goals(method: str,
                          scenario: str,
-                         trials: List[int],
-                         save_test_scenes_dir: Optional[pathlib.Path] = None
+                         trials: Optional[List[int]],
+                         scenes_dir: Optional[pathlib.Path] = None
                          ):
-    save_test_scenes_dir.mkdir(exist_ok=True, parents=True)
+    scenes_dir.mkdir(exist_ok=True, parents=True)
 
     service_provider = gazebo_services.GazeboServices()
     scenario = get_scenario(scenario)
@@ -79,11 +75,14 @@ def generate_saved_goals(method: str,
 
     goal_im = Basic3DPoseInteractiveMarker(make_marker=make_marker)
 
+    if trials is None:
+        trials = get_all_scene_indices(scenes_dir)
+
     for trial_idx in trials:
         # restore
-        bagfile_name = save_test_scenes_dir / f'scene_{trial_idx:04d}.bag'
+        bagfile_name = scenes_dir / f'scene_{trial_idx:04d}.bag'
         if bagfile_name.exists():
-            rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}")
+            rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}" + Fore.RESET)
 
             def _restore():
                 scenario.restore_from_bag(service_provider, params, bagfile_name)
@@ -99,7 +98,7 @@ def generate_saved_goals(method: str,
         environment = scenario.get_environment(params)
         scenario.plot_environment_rviz(environment)
 
-        current_goal = load(save_test_scenes_dir, trial_idx)
+        current_goal = load(scenes_dir, trial_idx)
         if current_goal is not None:
             scenario.plot_goal_rviz(current_goal, goal_threshold=goal_radius)
 
@@ -117,9 +116,9 @@ def generate_saved_goals(method: str,
         rospy.loginfo(f"Saving {trial_idx}")
         joint_state, links_states = get_states_to_save()
 
-        save_test_scene(joint_state, links_states, save_test_scenes_dir, trial_idx, force=True)
+        save_test_scene(joint_state, links_states, scenes_dir, trial_idx, force=True)
 
-        save(save_test_scenes_dir, trial_idx, goal)
+        save(scenes_dir, trial_idx, goal)
 
 
 def get_params():

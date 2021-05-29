@@ -122,13 +122,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                  self.robot.get_right_gripper_links() + ['end_effector_right', 'right_tool'])
 
     def robust_add_to_scene(self, link: str, new_object_name: str, touch_links: List[str]):
-        box_pose = PoseStamped()
-        box_pose.header.frame_id = link
-        box_pose.pose.orientation.w = 1.0
-        box_size = self.size_of_box_around_tool_for_planning
+        pose = PoseStamped()
+        pose.header.frame_id = link
+        pose.pose.orientation.w = 1.0
+        radius = self.size_of_box_around_tool_for_planning
         while True:
-            # self.moveit_scene.add_box(new_object_name, box_pose, size=(box_size, box_size, box_size))
-            self.moveit_scene.add_sphere(new_object_name, box_pose, radius=box_size)
+            self.moveit_scene.add_sphere(new_object_name, pose, radius=radius)
             self.moveit_scene.attach_box(link, new_object_name, touch_links=touch_links)
 
             rospy.sleep(0.1)
