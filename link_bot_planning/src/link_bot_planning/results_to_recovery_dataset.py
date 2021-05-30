@@ -207,9 +207,9 @@ class ResultsToRecoveryDataset:
                                                             action_rng=self.action_rng)
         random_actions_dict = remove_batch(random_actions_dict)
         bs = batch_size * n_action_samples
-        environment = environment.copy()
-        scene_msg = environment.pop("scene_msg")
-        environment_batched = repeat(environment, n_action_samples, 0, True)
+        environment_ = environment.copy()
+        scene_msg = environment_.pop("scene_msg")
+        environment_batched = repeat(environment_, n_action_samples, 0, True)
         environment_batched['scene_msg'] = [scene_msg] * n_action_samples
 
         predictions, after_accept_probabilities = predict_and_classify_for_recovery_dataset(
