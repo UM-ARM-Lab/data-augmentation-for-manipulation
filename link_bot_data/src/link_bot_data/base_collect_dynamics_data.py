@@ -8,11 +8,10 @@ from colorama import Fore
 
 import rospy
 from arm_robots.robot import RobotPlanningError
-from link_bot_data.dataset_utils import data_directory, tf_write_example
+from link_bot_data.dataset_utils import data_directory, tf_write_example, pkl_write_example
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.get_service_provider import get_service_provider
-from link_bot_pycommon.grid_utils import extent_to_env_shape
 from link_bot_pycommon.serialization import my_hdump
 
 
@@ -38,20 +37,8 @@ class BaseDataCollector:
                                         real_time_rate=self.params['real_time_rate'],
                                         max_step_size=self.params['max_step_size'])
 
-    def collect_trajectory(self,
-                           traj_idx: int,
-                           verbose: int,
-                           action_rng: np.random.RandomState,
-                           ):
-        if self.params['no_objects']:
-            rospy.logwarn("Not collecting the environment", logger_name='base_collect_dynamics_data')
-            rows, cols, channels = extent_to_env_shape(self.params['extent'], self.params['res'])
-            origin = np.array([rows // 2, cols // 2, channels // 2], dtype=np.int32)
-            env = np.zeros([rows, cols, channels], dtype=np.float32)
-            environment = {'env': env, 'res': self.params['res'], 'origin': origin, 'extent': self.params['extent']}
-        else:
-            # we assume environment does not change during an individual trajectory
-            environment = self.scenario.get_environment(self.params)
+    def collect_trajectory(self, traj_idx: int, verbose: int, action_rng: np.random.RandomState):
+        environment = self.scenario.get_environment(self.params)
 
         example = {}
         example.update(environment)
@@ -153,7 +140,7 @@ class BaseDataCollector:
                 randomize = self.params["randomize_n"] and traj_idx % self.params["randomize_n"] == 0
                 state = self.scenario.get_state()
                 needs_reset = self.scenario.needs_reset(state, self.params)
-                if (not self.params['no_objects'] and randomize) or needs_reset:
+                if randomize or needs_reset:
                     if needs_reset:
                         rospy.logwarn("Reset required!")
                     self.scenario.randomize_environment(env_rng, self.params)
@@ -188,8 +175,6 @@ class BaseDataCollector:
                                                     state=s_for_size,
                                                     action_params=self.params,
                                                     validate=False)
-        state_description = {k: v.shape[0] for k, v in s_for_size.items()}
-        action_description = {k: v.shape[0] for k, v in a_for_size.items()}
         dataset_hparams = {
             'nickname':               nickname,
             'robot_namespace':        self.scenario.robot.robot_namespace,
@@ -199,8 +184,6 @@ class BaseDataCollector:
             'scenario':               self.scenario_name,
             # FIXME: rename this key?
             'scenario_metadata':      self.scenario.dynamics_dataset_metadata(),
-            'state_description':      state_description,
-            'action_description':     action_description,
         }
         with (full_output_directory / 'hparams.hjson').open('w') as dataset_hparams_file:
             my_hdump(dataset_hparams, dataset_hparams_file, indent=2)
@@ -236,3 +219,17 @@ class H5DataCollector(BaseDataCollector):
     def write_example(self, full_output_directory, example, traj_idx):
         # implement this --> h5_write_example(full_output_directory, example, traj_idx)
         pass
+
+
+class PklDataCollector(BaseDataCollector):
+
+    def __init__(self,
+                 params: Dict,
+                 seed: Optional[int] = None,
+                 verbose: int = 0):
+        super().__init__(params=params,
+                         seed=seed,
+                         verbose=verbose)
+
+    def write_example(self, full_output_directory, example, traj_idx):
+        pkl_write_example(full_output_directory, example, traj_idx)

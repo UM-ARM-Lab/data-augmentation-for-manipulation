@@ -34,7 +34,6 @@
             <pose>0 0 -0.415 0 0 0</pose>
         </include>
 
-
         <include>
             <uri>model://sun</uri>
         </include>

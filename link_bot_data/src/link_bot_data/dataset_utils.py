@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import pathlib
+import pickle
 import time
 from collections import OrderedDict
 from functools import lru_cache
@@ -9,6 +10,7 @@ from typing import Optional, Dict, List
 
 import genpy
 import git
+import hjson
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
@@ -378,6 +380,22 @@ def use_gt_rope(example: Dict):
 def add_label(example: Dict, threshold: float):
     is_close = example['error'] < threshold
     example['is_close'] = tf.cast(is_close, dtype=tf.float32)
+
+
+def pkl_write_example(full_output_directory, example, traj_idx):
+    if 'metadata' in example:
+        metadata = example.pop('metadata')
+    else:
+        metadata = {}
+    metadata_filename = index_to_filename('.hjson', traj_idx)
+    full_metadata_filename = full_output_directory / metadata_filename
+    with full_metadata_filename.open("w") as metadata_file:
+        hjson.dump(metadata, metadata_file)
+
+    example_filename = index_to_filename('.pkl', traj_idx)
+    full_example_filename = full_output_directory / example_filename
+    with full_example_filename.open("wb") as example_file:
+        pickle.dump(example, example_file)
 
 
 def tf_write_example(full_output_directory: pathlib.Path,

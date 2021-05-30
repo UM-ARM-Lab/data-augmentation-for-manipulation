@@ -6,7 +6,7 @@ from typing import Type
 import hjson
 
 from arc_utilities import ros_init
-from link_bot_data.base_collect_dynamics_data import TfDataCollector, H5DataCollector
+from link_bot_data.base_collect_dynamics_data import TfDataCollector, H5DataCollector, PklDataCollector
 from link_bot_pycommon.get_service_provider import get_service_provider
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -18,6 +18,8 @@ def get_data_collector_class(save_format: str) -> Type:
         return H5DataCollector
     elif save_format == 'tfrecord':
         return TfDataCollector
+    elif save_format == 'pkl':
+        return PklDataCollector
     else:
         raise NotImplementedError(f"unsupported save_format {save_format}")
 
@@ -30,7 +32,7 @@ def main():
     parser.add_argument("--seed", '-s', type=int, help='seed')
     parser.add_argument("--real-time-rate", type=float, default=0, help='number of times real time')
     parser.add_argument('--verbose', '-v', action='count', default=0)
-    parser.add_argument('--save-format', choices=['h5', 'tfrecord'], default='tfrecord')
+    parser.add_argument('--save-format', choices=['pkl', 'h5', 'tfrecord'], default='pkl')
 
     args = parser.parse_args()
 

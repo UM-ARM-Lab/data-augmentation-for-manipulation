@@ -19,21 +19,21 @@ from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_marker_utils import make_box_marker_from_extents
 from link_bot_pycommon.bbox_visualization import extent_array_to_bbox
 from link_bot_pycommon.collision_checking import inflate_tf_3d
-from link_bot_pycommon.constants import KINECT_MAX_DEPTH
 from link_bot_pycommon.get_cdcpd_state import GetCdcpdState
+from link_bot_pycommon.get_link_states import GetLinkStates
+from link_bot_pycommon.grid_utils import extent_to_env_shape, extent_res_to_origin_point
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.matplotlib_utils import adjust_lightness_msg
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.pycommon import default_if_none
-from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params, \
-    transform_points_to_robot_frame
+from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
 from moonshine.moonshine_utils import numpify
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
-from sensor_msgs.msg import Image, PointCloud2, CameraInfo
+from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import Float32, ColorRGBA
 from std_srvs.srv import Empty, EmptyRequest
 from tf import transformations
@@ -78,6 +78,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         self.reset_srv = rospy.ServiceProxy("/gazebo/reset_simulation", Empty)
 
         self.get_cdcpd_state = GetCdcpdState(self.tf, rope_key_name)
+        self.get_links_states = GetLinkStates()
 
         self.left_gripper_bbox_pub = rospy.Publisher('/left_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
         self.right_gripper_bbox_pub = rospy.Publisher('/right_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
@@ -105,8 +106,16 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return tf.math.reduce_sum(tf.math.square(z1 - z2), axis=-1, keepdims=True)
 
     def get_environment(self, params: Dict, **kwargs):
-        env = {}
-        env.update(MoveitPlanningSceneScenarioMixin.get_environment(self))
+        extent = params['extent']
+        res = params['res']
+        shape = extent_to_env_shape(extent, res)
+        origin_point = extent_res_to_origin_point(extent, res)
+        env = {
+            'res':          res,
+            'origin_point': origin_point,
+            'extent':       extent,
+            'env':          np.zeros(shape, dtype=np.float32),
+        }
         return env
 
     def hard_reset(self):
@@ -118,8 +127,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     def on_before_data_collection(self, params: Dict):
         self.on_before_action()
 
-        left_gripper_position = np.array([1.0, 0.2, 1.0])
-        right_gripper_position = np.array([1.0, -0.2, 1.0])
+        left_gripper_position = np.array([-0.25, 0.2, 1.0])
+        right_gripper_position = np.array([0.25, 0.2, 1.0])
         init_action = {
             'left_gripper_position':  left_gripper_position,
             'right_gripper_position': right_gripper_position,
@@ -454,72 +463,11 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         state = {
             'left_gripper':     np.array(left_rope_point_position, np.float32),
             'right_gripper':    np.array(right_rope_point_position, np.float32),
-            'is_overstretched': np.array([self.is_rope_overstretched()]),
             'gt_rope':          np.array(gt_rope_vector, np.float32),
         }
         state.update(cdcpd_state)
+        state.update(self.get_links_states.get_state())
         return state
-
-    def get_rgbd(self):
-        color_msg: Image = self.color_image_listener.get()
-        depth_msg = self.depth_image_listener.get()
-
-        depth = np.expand_dims(ros_numpy.numpify(depth_msg), axis=-1)
-        bgr = ros_numpy.numpify(color_msg)
-        rgb = np.flip(bgr, axis=2)
-
-        # NaN Depths means out of range, so clip to the max range
-        depth = np.clip(np.nan_to_num(depth, nan=KINECT_MAX_DEPTH), 0, KINECT_MAX_DEPTH)
-        rgbd = np.concatenate([rgb, depth], axis=2)
-
-        # box = tf.convert_to_tensor([self.crop_region['min_y'] / rgb.shape[0],
-        #                             self.crop_region['min_x'] / rgb.shape[1],
-        #                             self.crop_region['max_y'] / rgb.shape[0],
-        #                             self.crop_region['max_x'] / rgb.shape[1]], dtype=tf.float32)
-        # this operates on a batch
-        # rgbd_cropped = tf.image.crop_and_resize(image=tf.expand_dims(rgbd, axis=0),
-        #                                         boxes=tf.expand_dims(box, axis=0),
-        #                                         box_indices=[0],
-        #                                         crop_size=[self.IMAGE_H, self.IMAGE_W])
-        # rgbd_cropped = remove_batch(rgbd_cropped)
-
-        def _debug_show_image(_rgb_depth_cropped):
-            import matplotlib.pyplot as plt
-            plt.imshow(tf.cast(_rgb_depth_cropped[:, :, :3], tf.int32))
-            plt.show()
-
-        # BEGIN DEBUG
-        # _debug_show_image(rgbd_cropped)
-        # END DEBUG
-        # return rgbd_cropped.numpy()
-        return rgbd
-
-    def observations_description(self) -> Dict:
-        return {
-            'left_gripper':  3,
-            'right_gripper': 3,
-            'rgbd':          [self.IMAGE_H, self.IMAGE_W, 4],
-        }
-
-    @staticmethod
-    def states_description() -> Dict:
-        return {
-        }
-
-    @staticmethod
-    def observation_features_description() -> Dict:
-        return {
-            rope_key_name: FloatingRopeScenario.n_links * 3,
-            'cdcpd':       FloatingRopeScenario.n_links * 3,
-        }
-
-    @staticmethod
-    def actions_description() -> Dict:
-        # should match the keys of the dict return from action_to_dataset_action
-        return {
-            'left_gripper_position':  3,
-            'right_gripper_position': 3,
-        }
 
     @staticmethod
     def state_to_points_for_cc(state: Dict):
