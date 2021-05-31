@@ -29,9 +29,10 @@ class GazeboServices(BaseServices):
     def restore_from_bag(self, bagfile_name: pathlib.Path, excluded_models: Optional[List[str]] = None):
         with rosbag.Bag(bagfile_name) as bag:
             saved_links_states: gz_msg.LinkStates = next(iter(bag.read_messages()))[1]
+        self.restore_from_link_states_msg(saved_links_states, excluded_models)
 
+    def restore_from_link_states_msg(self, saved_links_states, excluded_models=[]):
         set_states_req = SetLinkStatesRequest()
-
         for name, pose, twist in zip(saved_links_states.name, saved_links_states.pose, saved_links_states.twist):
             model_name, link_name = name.split('::')
             if excluded_models is not None and model_name not in excluded_models:
@@ -41,7 +42,6 @@ class GazeboServices(BaseServices):
                 link_state.pose = pose
                 link_state.twist = twist
                 set_states_req.link_states.append(link_state)
-
         res = self.set_link_states(set_states_req)
         if not res.success:
             raise RuntimeError(f"Failed to restore state! {res}")

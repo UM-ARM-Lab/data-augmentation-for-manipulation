@@ -18,6 +18,7 @@ from colorama import Fore
 from arc_utilities.filesystem_utils import mkdir_and_ask
 from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
+from moonshine.filepath_tools import load_params
 from moonshine.moonshine_utils import remove_batch, add_batch, numpify
 from moveit_msgs.msg import PlanningScene
 
@@ -383,19 +384,23 @@ def add_label(example: Dict, threshold: float):
 
 
 def pkl_write_example(full_output_directory, example, traj_idx):
+    example_filename = index_to_filename('.pkl', traj_idx)
+
     if 'metadata' in example:
         metadata = example.pop('metadata')
     else:
         metadata = {}
+    metadata['data'] = example_filename
     metadata_filename = index_to_filename('.hjson', traj_idx)
     full_metadata_filename = full_output_directory / metadata_filename
     with full_metadata_filename.open("w") as metadata_file:
         hjson.dump(metadata, metadata_file)
 
-    example_filename = index_to_filename('.pkl', traj_idx)
     full_example_filename = full_output_directory / example_filename
     with full_example_filename.open("wb") as example_file:
         pickle.dump(example, example_file)
+
+    return full_example_filename, full_metadata_filename
 
 
 def tf_write_example(full_output_directory: pathlib.Path,
@@ -539,3 +544,18 @@ def compute_batch_size(dataset_dirs: List[pathlib.Path], max_batch_size: int):
             n_examples = len(list(d.glob("*.tfrecords")))
             total_examples += n_examples
     return compute_batch_size_for_n_examples(total_examples, max_batch_size)
+
+
+def merge_hparams_dicts(dataset_dirs, verbose: int = 0):
+    out_hparams = {}
+    for dataset_dir in dataset_dirs:
+        hparams = load_params(dataset_dir)
+        for k, v in hparams.items():
+            if k not in hparams:
+                out_hparams[k] = v
+            elif hparams[k] == v:
+                pass
+            elif verbose >= 0:
+                msg = "Datasets have differing values for the hparam {}, using value {}".format(k, hparams[k])
+                print(Fore.RED + msg + Fore.RESET)
+    return out_hparams

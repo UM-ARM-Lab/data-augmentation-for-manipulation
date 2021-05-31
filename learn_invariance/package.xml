@@ -8,5 +8,8 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>rospy</depend>
+  <depend>link_bot_data</depend>
+  <depend>link_bot_gazebo</depend>
+  <depend>link_bot_pycommon</depend>
 
 </package>

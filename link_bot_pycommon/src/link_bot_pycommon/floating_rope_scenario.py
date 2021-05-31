@@ -121,6 +121,9 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     def hard_reset(self):
         self.reset_srv(EmptyRequest())
 
+    def on_before_get_state_or_execute_action(self):
+        self.on_before_action()
+
     def on_before_action(self):
         self.register_fake_grasping()
 
@@ -135,7 +138,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         }
         self.execute_action(None, None, init_action)
 
-    def execute_action(self, environment, state, action: Dict):
+    def execute_action(self, environment, state, action: Dict, **kwargs):
         speed_mps = action.get('speed', 0.1)
         left_req = Position3DActionRequest(speed_mps=speed_mps,
                                            scoped_link_name=gz_scope(self.ROPE_NAMESPACE, 'left_gripper'),
@@ -146,14 +149,15 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         self.pos3d.set(left_req)
         self.pos3d.set(right_req)
 
-        wait_req = Position3DWaitRequest()
-        wait_req.timeout_s = 10.0
-        wait_req.scoped_link_names.append(gz_scope(self.ROPE_NAMESPACE, 'left_gripper'))
-        wait_req.scoped_link_names.append(gz_scope(self.ROPE_NAMESPACE, 'right_gripper'))
-        self.pos3d.wait(wait_req)
+        if kwargs.get("wait", True):
+            wait_req = Position3DWaitRequest()
+            wait_req.timeout_s = 10.0
+            wait_req.scoped_link_names.append(gz_scope(self.ROPE_NAMESPACE, 'left_gripper'))
+            wait_req.scoped_link_names.append(gz_scope(self.ROPE_NAMESPACE, 'right_gripper'))
+            self.pos3d.wait(wait_req)
 
-        rope_settling_time = action.get('settling_time', 1.0)
-        rospy.sleep(rope_settling_time)
+            rope_settling_time = action.get('settling_time', 1.0)
+            rospy.sleep(rope_settling_time)
 
     def reset_rope(self, action_params: Dict):
         reset = SetRopeStateRequest()

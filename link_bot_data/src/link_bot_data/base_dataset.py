@@ -8,10 +8,9 @@ from typing import List, Optional, Dict, Callable, Any
 import numpy as np
 import progressbar
 import tensorflow as tf
-from colorama import Fore
 
-from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func, parse_and_slow_deserialize, multigen
-from moonshine.filepath_tools import load_params
+from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func, parse_and_slow_deserialize, \
+    multigen, merge_hparams_dicts
 
 SORT_FILE_NAME = 'sort_order.csv'
 
@@ -120,17 +119,7 @@ class BaseDatasetLoader:
         self.verbose = verbose
         self.name = '-'.join([d.name for d in dataset_dirs])
         self.dataset_dirs = dataset_dirs
-        self.hparams = {}
-        for dataset_dir in dataset_dirs:
-            hparams = load_params(dataset_dir)
-            for k, v in hparams.items():
-                if k not in self.hparams:
-                    self.hparams[k] = v
-                elif self.hparams[k] == v:
-                    pass
-                elif self.verbose >= 0:
-                    msg = "Datasets have differing values for the hparam {}, using value {}".format(k, self.hparams[k])
-                    print(Fore.RED + msg + Fore.RESET)
+        self.hparams = merge_hparams_dicts(dataset_dirs, self.verbose)
 
         self.scenario_metadata = dict(self.hparams.get('scenario_metadata', {}))
 

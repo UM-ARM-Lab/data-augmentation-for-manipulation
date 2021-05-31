@@ -19,3 +19,4 @@ CATKIN_IGNORE
 **/recovery_models/*
 **/*trials/*
 **/classifier_data/*
+**/invariance_data/*

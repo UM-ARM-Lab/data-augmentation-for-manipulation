@@ -31,7 +31,7 @@
 
         <include>
             <uri>model://my_ground_plane</uri>
-            <pose>0 0 -0.415 0 0 0</pose>
+            <pose>0 0 -2 0 0 0</pose>
         </include>
 
         <include>
@@ -42,11 +42,6 @@
         <include>
             <pose>0.8 -0.6 1.0 0 0 1.5707</pose>
             <uri>model://rope_3d</uri>
-        </include>
-
-        <include>
-            <uri>model://arm_kinect</uri>
-            <pose>0.77 -0.16 0.7 0 0.45 2.21</pose>
         </include>
     </world>
 </sdf>
