@@ -5,11 +5,11 @@ from typing import Optional, List, Dict
 
 import hjson
 import numpy as np
-import rospy
 import tensorflow as tf
 from colorama import Fore
 from matplotlib import cm
 
+import rospy
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.nn_classifier_wrapper import NNClassifierWrapper
 from link_bot_data.dataset_utils import add_predicted
@@ -20,7 +20,6 @@ from link_bot_data.visualization import init_viz_env, recovery_transition_viz_t,
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
-from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.serialization import my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimation, RvizSimpleStepper
 from moonshine.indexing import index_dict_of_batched_tensors_tf, index_batch_time_with_metadata
@@ -29,7 +28,6 @@ from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 DEBUG = False
-SHOW_ALL = True
 
 
 def make_recovery_dataset(dataset_dir: pathlib.Path,
