@@ -1,6 +1,6 @@
 {
   "threshold": 0.05,
   "action_sequence_horizon": 2,
-  "n_action_samples": 64,
+  "n_action_samples": 32,
   "start_step": 5
 }
