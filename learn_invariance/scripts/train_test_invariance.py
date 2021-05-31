@@ -34,7 +34,6 @@ def main():
     train_parser.add_argument('--batch-size', type=int, default=32)
     train_parser.add_argument('--take', type=int)
     train_parser.add_argument('--epochs', type=int, default=500)
-    train_parser.add_argument('--ensemble-idx', type=int)
     train_parser.add_argument('--log', '-l')
     train_parser.add_argument('--verbose', '-v', action='count', default=0)
     train_parser.add_argument('--log-scalars-every', type=int, help='loss/accuracy every this many steps/batches',

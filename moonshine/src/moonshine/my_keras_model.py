@@ -90,7 +90,7 @@ class MyKerasModel(tf.keras.Model):
         val_element = self.preprocess_no_gradient(val_element, training=False)
         return self._val_step(val_element, metrics)
 
-    @tf.function
+    # @tf.function
     def _val_step(self, val_element, metrics: Dict[str, Metric]):
         val_outputs = self.call(val_element, training=False)
         val_losses = self.compute_loss(val_element, val_outputs)

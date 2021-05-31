@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 import os
 import pathlib
-import pickle
 import time
 from collections import OrderedDict
 from functools import lru_cache
 from io import BytesIO
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Sequence
 
 import genpy
 import git
@@ -385,7 +384,7 @@ def add_label(example: Dict, threshold: float):
 
 
 def pkl_write_example(full_output_directory, example, traj_idx):
-    example_filename = index_to_filename('.pkl', traj_idx)
+    example_filename = index_to_filename('.pkl.gz', traj_idx)
 
     if 'metadata' in example:
         metadata = example.pop('metadata')
@@ -559,3 +558,9 @@ def merge_hparams_dicts(dataset_dirs, verbose: int = 0):
                 msg = "Datasets have differing values for the hparam {}, using value {}".format(k, hparams[k])
                 print(Fore.RED + msg + Fore.RESET)
     return out_hparams
+
+
+def batch_sequence(s: Sequence, n):
+    l = len(s)
+    for ndx in range(0, l, n):
+        yield s[ndx:min(ndx + n, l)]

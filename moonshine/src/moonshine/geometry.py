@@ -112,5 +112,5 @@ def transform_dict_of_points_vectors(m: np.ndarray, d, keys):
         points = np.reshape(d[k], [-1, 3, 1])
         points_homo = np.concatenate([points, np.ones([points.shape[0], 1, 1])], axis=1)
         points_aug = np.matmul(m[None], points_homo)[:, :3, 0]
-        d_out[k] = np.reshape(points_aug, -1)
+        d_out[k] = np.reshape(points_aug, -1).astype(np.float32)
     return d_out

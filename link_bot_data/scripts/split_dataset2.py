@@ -31,7 +31,7 @@ def main():
     def _write_mode(_filenames, mode):
         with (args.dataset_dir / f"{mode}.txt").open("w") as f:
             for _filename in _filenames:
-                f.write(_filename.as_posix() + '\n')
+                f.write(_filename.name + '\n')
 
     _write_mode(train_files, 'train')
     _write_mode(test_files, 'test')

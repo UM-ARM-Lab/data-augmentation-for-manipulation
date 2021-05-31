@@ -182,8 +182,6 @@ class BaseDataCollector:
             'n_trajs':                n_trajs,
             'data_collection_params': self.params,
             'scenario':               self.scenario_name,
-            # FIXME: rename this key?
-            'scenario_metadata':      self.scenario.dynamics_dataset_metadata(),
         }
         with (full_output_directory / 'hparams.hjson').open('w') as dataset_hparams_file:
             my_hdump(dataset_hparams, dataset_hparams_file, indent=2)

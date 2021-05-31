@@ -17,6 +17,7 @@ from link_bot_gazebo.gazebo_services import GazeboServices, restore
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson
 from moonshine.geometry import transform_dict_of_points_vectors
+from moonshine.moonshine_utils import remove_batch
 from std_msgs.msg import Float32
 
 DEBUG_VIZ = True
@@ -45,21 +46,23 @@ def main():
 
     args = parser.parse_args()
 
-    dataset = NewDynamicsDatasetLoader([args.dataset], 'all')
+    dataset = NewDynamicsDatasetLoader([args.dataset], 'all', batch_size=1)
 
     full_output_directory = data_directory(args.outdir)
 
     full_output_directory.mkdir(exist_ok=True)
     print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)
 
+    scenario_name = "floating_rope"
     hparams = {
         'made_from': args.dataset.as_posix(),
+        'scenario':  scenario_name,
     }
     save_hparams(hparams, full_output_directory)
 
     gz = GazeboServices()
     gz.setup_env(verbose=0, real_time_rate=0, max_step_size=0.01)
-    s = get_scenario("floating_rope")
+    s = get_scenario(scenario_name)
     params = load_hjson(pathlib.Path("../link_bot_data/collect_dynamics_params/floating_rope.hjson"))
     s.on_before_get_state_or_execute_action()
     rng = np.random.RandomState(0)
@@ -78,7 +81,7 @@ def main():
             if scaling >= 1:
                 return
 
-        example = next(infinite_dataset)
+        example = remove_batch(next(infinite_dataset))
         link_states_before = example['link_states'][0]  # t=0 arbitrarily
         restore(gz, link_states_before, s)
 
