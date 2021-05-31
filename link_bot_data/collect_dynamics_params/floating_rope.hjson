@@ -29,7 +29,7 @@
   res: 0.02
   max_step_size: 0.01
   real_time_rate: 0.0
-  steps_per_traj: 10
+  steps_per_traj: 2
   randomize_n: null
   repeat_delta_gripper_motion_probability: 0.8
   max_distance_gripper_can_move: 0.10

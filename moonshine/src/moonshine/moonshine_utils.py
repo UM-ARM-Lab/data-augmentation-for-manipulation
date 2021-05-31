@@ -33,57 +33,12 @@ def batch_examples_dicts(examples: List):
             if isinstance(v_check0, genpy.Message):
                 examples_batch[k] = v_check
             else:
-                examples_batch[k] = tf.constant(v_check)
+                examples_batch[k] = tf.convert_to_tensor(np.array(v_check))
         elif isinstance(v_check, genpy.Message):
             examples_batch[k] = values
         else:
-            examples_batch[k] = tf.constant(values)
+            examples_batch[k] = tf.convert_to_tensor(np.array(values))
     return examples_batch
-
-
-def tensify(x, dtype=tf.float32):
-    if isinstance(x, tf.Tensor):
-        return x
-    elif isinstance(x, list):
-        if len(x) == 0:
-            return tf.constant([], dtype=dtype)
-        else:
-            l = [tensify(xi) for xi in x]
-            try:
-                l = tf.convert_to_tensor(l)
-            except ValueError:
-                pass
-            return l
-    elif isinstance(x, tf.Variable):
-        return x
-    elif isinstance(x, dict):
-        return {k: tensify(v) for k, v in x.items()}
-    elif isinstance(x, tuple):
-        return tuple(tensify(x_i) for x_i in x)
-    elif isinstance(x, int):
-        return tf.convert_to_tensor(x)
-    elif isinstance(x, str):
-        return tf.convert_to_tensor(x)
-    elif isinstance(x, float):
-        return tf.convert_to_tensor(x)
-    elif isinstance(x, np.ndarray):
-        return tf.convert_to_tensor(x)
-    elif isinstance(x, np.float32):
-        return tf.convert_to_tensor(x)
-    elif isinstance(x, np.int64):
-        return tf.convert_to_tensor(x)
-    elif isinstance(x, np.int32):
-        return tf.convert_to_tensor(x)
-    elif isinstance(x, np.bool_):
-        return tf.convert_to_tensor(x)
-    elif isinstance(x, np.bytes_):
-        return tf.convert_to_tensor(x)
-    elif x is None:
-        return None
-    elif isinstance(x, genpy.Message):
-        return x
-    else:
-        raise NotImplementedError(type(x))
 
 
 def numpify(x, dtype=np.float32):
@@ -463,5 +418,3 @@ def debuggable_tf_function(func: Callable, debug: bool):
         return _debug_func
     else:
         return _non_debug_func
-
-

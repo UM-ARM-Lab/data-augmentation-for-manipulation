@@ -562,5 +562,6 @@ def merge_hparams_dicts(dataset_dirs, verbose: int = 0):
 
 def batch_sequence(s: Sequence, n):
     l = len(s)
-    for ndx in range(0, l, n):
-        yield s[ndx:min(ndx + n, l)]
+    l_even_batches = int(l / n) * n
+    for ndx in range(0, l_even_batches, n):
+        yield s[ndx:ndx + n]

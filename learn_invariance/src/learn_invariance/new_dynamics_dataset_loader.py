@@ -1,6 +1,6 @@
 import pathlib
 import random
-from typing import List
+from typing import List, Union
 
 from link_bot_data.dataset_utils import merge_hparams_dicts, batch_sequence
 from link_bot_pycommon.get_scenario import get_scenario
@@ -29,23 +29,36 @@ def get_filenames(dataset_dirs, mode: str):
     return all_filenames
 
 
+def load_single(metadata_filename: pathlib.Path):
+    metadata = load_hjson(metadata_filename)
+    data_filename = metadata.pop("data")
+    full_data_filename = metadata_filename.parent / data_filename
+    example = load_gzipped_pickle(full_data_filename)
+    example.update(metadata)
+    return example
+
+
+def load(filenames: Union[pathlib.Path, List[pathlib.Path]]):
+    if isinstance(filenames, list):
+        examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
+        example = batch_examples_dicts(examples_i)
+    else:
+        metadata = load_hjson(filenames)
+        data_filename = metadata.pop("data")
+        full_data_filename = filenames.parent / data_filename
+        example = load_gzipped_pickle(full_data_filename)
+        example.update(metadata)
+    return example
+
+
 class NewDynamicsDataset:
 
-    def __init__(self, filenames: List[pathlib.Path]):
+    def __init__(self, filenames: List):
         self.filenames = filenames
 
     def __iter__(self):
-        examples = []
-        for metadata_filename in self.filenames:
-            metadata = load_hjson(metadata_filename)
-            data_filename = metadata.pop("data")
-            full_data_filename = metadata_filename.parent / data_filename
-            example = load_gzipped_pickle(full_data_filename)
-            example.update(metadata)
-            examples.append(example)
-
-        example_batch = batch_examples_dicts(examples)
-        yield example_batch
+        for filenames in self.filenames:
+            yield load(filenames)
 
     def __len__(self):
         return len(self.filenames)
@@ -68,7 +81,13 @@ class NewDynamicsDatasetLoader:
     def __init__(self, dataset_dirs):
         self.dataset_dirs = dataset_dirs
         self.hparams = merge_hparams_dicts(dataset_dirs)
-        self.scenario = get_scenario(self.hparams['scenario'])
+        self.scenario = None  # loaded lazily
+
+    def get_scenario(self):
+        if self.scenario is None:
+            self.scenario = get_scenario(self.hparams['scenario'])
+
+        return self.scenario
 
     def get_dataset(self, mode: str):
         filenames = get_filenames(self.dataset_dirs, mode)

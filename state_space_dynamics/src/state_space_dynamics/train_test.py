@@ -75,9 +75,10 @@ def setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensem
 
 
 def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
-    hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope)
+    hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset)
     hparams.update({
         'dynamics_dataset_hparams': train_dataset.params,
+        'use_gt_rope':              use_gt_rope,
     })
     return hparams
 

@@ -14,15 +14,6 @@ from moonshine.filepath_tools import load_hjson
 from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import remove_batch
 from state_space_dynamics.train_test import setup_training_paths
-from std_msgs.msg import Float32
-
-
-def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
-    hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope)
-    hparams.update({
-        'classifier_dataset_hparams': train_dataset.hparams,
-    })
-    return hparams
 
 
 def train_main(dataset_dirs: List[pathlib.Path],
@@ -43,8 +34,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
     val_dataset_loader = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs)
     val_dataset = val_dataset_loader.get_dataset(mode='val').batch(batch_size)
 
-    model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))
-    model = InvarianceModel(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)
+    model_hparams.update(common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset_loader))
+    model = InvarianceModel(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.get_scenario())
 
     checkpoint_name, trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory)
 
@@ -80,9 +71,10 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              mode: str,
              **kwargs,
              ):
-    dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode=mode, batch_size=1, shuffle=True)
+    dataset_loader = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs)
+    dataset = dataset_loader.get_dataset(mode=mode).batch(batch_size=1).shuffle()
 
-    s = dataset.scenario
+    s = dataset_loader.get_scenario()
     m = InvarianceModelWrapper(checkpoint, batch_size=1, scenario=s)
 
     stepper = RvizSimpleStepper()
