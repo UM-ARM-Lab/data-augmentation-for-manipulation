@@ -44,6 +44,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', type=pathlib.Path)
     parser.add_argument('outdir', type=pathlib.Path)
+    parser.add_argument('--n-output-examples', type=int, default=1000)
 
     args = parser.parse_args()
 
@@ -73,12 +74,11 @@ def main():
 
     stepper = RvizSimpleStepper()
 
-    n_output_examples = 1000
     infinite_dataset = cycle(dataset)
     scaling = 1e-6
-    for example_idx in progressbar(range(n_output_examples), widgets=base_dataset.widgets):
+    for example_idx in progressbar(range(args.n_output_examples), widgets=base_dataset.widgets):
         if scaling_type == 'linear':
-            scaling = example_idx / n_output_examples
+            scaling = example_idx / args.n_output_examples
         else:
             scaling = scaling * 1.01
             if scaling >= 1:
