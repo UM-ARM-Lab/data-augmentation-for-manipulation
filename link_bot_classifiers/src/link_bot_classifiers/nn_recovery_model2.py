@@ -77,7 +77,7 @@ class NNRecoveryModel(MyKerasModel):
         self.sigmoid = layers.Activation("sigmoid")
 
         # self.debug = ClassifierDebugging()
-        self.aug = ClassifierAugmentation(self.hparams)
+        self.aug = ClassifierAugmentation(self.hparams, batch_size=batch_size, scenario=scenario)
 
         self.indices = self.create_env_indices(batch_size)
 

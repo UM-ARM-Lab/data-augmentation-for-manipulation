@@ -6,6 +6,7 @@ import colorama
 import matplotlib.pyplot as plt
 
 from arc_utilities import ros_init
+from arc_utilities.filesystem_utils import get_all_subdirs
 from link_bot_planning.analysis.analyze_results import load_fig_specs, get_metrics2, load_table_specs
 from link_bot_planning.analysis.figspec import get_data_for_figure, get_data_for_table
 from link_bot_planning.analysis.results_metrics import load_analysis_params
@@ -20,6 +21,7 @@ def metrics_main(args):
 
     # The default for where we write results
     out_dir = args.results_dirs[0]
+
     print(f"Writing analysis to {out_dir}")
 
     if args.latex:
@@ -34,7 +36,8 @@ def metrics_main(args):
         metadata = load_hjson(results_dir / 'metadata.hjson')
         return metadata['planner_params']['method_name']
 
-    method_names, metrics = get_metrics2(args, out_dir, args.results_dirs, _get_method_name, _get_metadata)
+    results_dirs = get_all_subdirs(args.results_dirs)
+    method_names, metrics = get_metrics2(args, out_dir, results_dirs, _get_method_name, _get_metadata)
 
     # Figures & Tables
     figspecs = load_fig_specs(analysis_params, args)
