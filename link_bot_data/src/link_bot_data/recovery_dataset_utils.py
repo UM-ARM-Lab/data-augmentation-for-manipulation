@@ -20,6 +20,7 @@ from link_bot_data.visualization import init_viz_env, recovery_transition_viz_t,
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
 from link_bot_pycommon.serialization import my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimation, RvizSimpleStepper
 from moonshine.indexing import index_dict_of_batched_tensors_tf, index_batch_time_with_metadata
@@ -238,6 +239,8 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
     scenario = fwd_model.scenario
 
     environment = {k: example[k] for k in env_keys}
+    if 'origin_point' not in environment:
+        environment['origin_point'] = batch_extent_to_origin_point_tf(example['extent'], example['res'])
 
     all_accept_probabilities = []
     all_actions_dicts = []
@@ -262,7 +265,7 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
                                                             n_actions=n_actions,
                                                             action_params=data_collection_params,
                                                             action_rng=action_rng)
-        all_actions_dicts.append(all_actions_dicts)
+        all_actions_dicts.append(random_actions_dict)
 
         # NOTE: perhaps write generic "collapse" functions to merging (unmerging?) dimensions?
         bs = batch_size * n_action_samples
