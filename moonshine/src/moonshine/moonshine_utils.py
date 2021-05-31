@@ -33,11 +33,11 @@ def batch_examples_dicts(examples: List):
             if isinstance(v_check0, genpy.Message):
                 examples_batch[k] = v_check
             else:
-                examples_batch[k] = tf.constant(v_check)  # TODO: should we call tf.constant here? could be slow...
+                examples_batch[k] = tf.constant(v_check)
         elif isinstance(v_check, genpy.Message):
             examples_batch[k] = values
         else:
-            examples_batch[k] = tf.constant(values)  # TODO: here also
+            examples_batch[k] = tf.constant(values)
     return examples_batch
 
 

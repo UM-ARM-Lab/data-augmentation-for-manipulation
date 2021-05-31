@@ -1,5 +1,6 @@
 import pathlib
 import random
+from typing import List
 
 from link_bot_data.dataset_utils import merge_hparams_dicts, batch_sequence
 from link_bot_pycommon.get_scenario import get_scenario
@@ -28,34 +29,48 @@ def get_filenames(dataset_dirs, mode: str):
     return all_filenames
 
 
-class NewDynamicsDatasetLoader:
+class NewDynamicsDataset:
 
-    def __init__(self, dataset_dirs, mode: str, batch_size: int, shuffle: bool = False):
-        self.dataset_dirs = dataset_dirs
-        self.hparams = merge_hparams_dicts(dataset_dirs)
-        self.mode = mode
-        self.shuffle = shuffle
-        self.filenames = get_filenames(self.dataset_dirs, self.mode)
-        if self.shuffle:
-            random.shuffle(self.filenames)
-        self.scenario = get_scenario(self.hparams['scenario'])
-        self.batch_size = batch_size
-        self.filenames_batched = list(batch_sequence(self.filenames, batch_size))
-        assert len(self.filenames_batched) > 0
+    def __init__(self, filenames: List[pathlib.Path]):
+        self.filenames = filenames
 
     def __iter__(self):
-        for metadata_filename_batch in self.filenames_batched:
-            examples = []
-            for metadata_filename in metadata_filename_batch:
-                metadata = load_hjson(metadata_filename)
-                data_filename = metadata.pop("data")
-                full_data_filename = metadata_filename.parent / data_filename
-                example = load_gzipped_pickle(full_data_filename)
-                example.update(metadata)
-                examples.append(example)
+        examples = []
+        for metadata_filename in self.filenames:
+            metadata = load_hjson(metadata_filename)
+            data_filename = metadata.pop("data")
+            full_data_filename = metadata_filename.parent / data_filename
+            example = load_gzipped_pickle(full_data_filename)
+            example.update(metadata)
+            examples.append(example)
 
-            example_batch = batch_examples_dicts(examples)
-            yield example_batch
+        example_batch = batch_examples_dicts(examples)
+        yield example_batch
 
     def __len__(self):
-        return len(self.filenames_batched)
+        return len(self.filenames)
+
+    def batch(self, batch_size: int):
+        filenames_batched = list(batch_sequence(self.filenames, batch_size))
+        return NewDynamicsDataset(filenames_batched)
+
+    def shuffle(self):
+        shuffled_filenames = self.filenames.copy()
+        random.shuffle(shuffled_filenames)
+        return NewDynamicsDataset(shuffled_filenames)
+
+    def take(self, take):
+        return NewDynamicsDataset(self.filenames[:take])
+
+
+class NewDynamicsDatasetLoader:
+
+    def __init__(self, dataset_dirs):
+        self.dataset_dirs = dataset_dirs
+        self.hparams = merge_hparams_dicts(dataset_dirs)
+        self.scenario = get_scenario(self.hparams['scenario'])
+
+    def get_dataset(self, mode: str):
+        filenames = get_filenames(self.dataset_dirs, mode)
+        assert len(filenames) > 0
+        return NewDynamicsDataset(filenames)

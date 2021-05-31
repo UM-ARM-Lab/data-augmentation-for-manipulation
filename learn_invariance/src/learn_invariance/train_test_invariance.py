@@ -38,9 +38,10 @@ def train_main(dataset_dirs: List[pathlib.Path],
                **kwargs):
     model_hparams = load_hjson(model_hparams)
 
-    train_dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode='train', batch_size=batch_size,
-                                             shuffle=True)
-    val_dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode='val', batch_size=batch_size)
+    train_dataset_loader = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs)
+    train_dataset = train_dataset_loader.get_dataset(mode='train').batch(batch_size).shuffle()
+    val_dataset_loader = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs)
+    val_dataset = val_dataset_loader.get_dataset(mode='val').batch(batch_size)
 
     model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))
     model = InvarianceModel(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)

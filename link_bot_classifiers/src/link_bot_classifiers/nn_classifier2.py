@@ -34,8 +34,8 @@ from std_msgs.msg import Float32
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_INPUT = True
-DEBUG_AUG = True
+DEBUG_INPUT = False
+DEBUG_AUG = False
 DEBUG_AUG_SGD = False
 
 
@@ -709,15 +709,19 @@ class NNClassifier(MyKerasModel):
         action_0 = numpify({k: input_dict[k][b, 0] for k in self.action_keys})
         state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in self.state_keys})
         state_1['joint_names'] = input_dict['joint_names'][b, 1]
-        error_t = input_dict['error'][b, 1]
         self.scenario.plot_state_rviz(state_0, idx=0, label=label, color=color)
         self.scenario.plot_state_rviz(state_1, idx=1, label=label, color=color)
         robot_state = {k: input_dict[k][b] for k in ['joint_names', add_predicted('joint_positions')]}
         display_traj_msg = self.make_robot_trajectory(robot_state)
         self.scenario.robot.display_robot_traj(display_traj_msg, label=label, color=color)
         self.scenario.plot_action_rviz(state_0, action_0, idx=1, label=label, color=color)
-        self.scenario.plot_is_close(input_dict['is_close'][b, 1])
-        self.scenario.plot_error_rviz(error_t)
+
+        if 'is_close' in input_dict:
+            self.scenario.plot_is_close(input_dict['is_close'][b, 1])
+
+        if 'error' in input_dict:
+            error_t = input_dict['error'][b, 1]
+            self.scenario.plot_error_rviz(error_t)
 
     def make_robot_trajectory(self, robot_state: Dict):
         msg = RobotTrajectory()

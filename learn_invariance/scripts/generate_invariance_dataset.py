@@ -48,7 +48,8 @@ def main():
 
     args = parser.parse_args()
 
-    dataset = NewDynamicsDatasetLoader([args.dataset], 'all', batch_size=1)
+    dataset_loader = NewDynamicsDatasetLoader([args.dataset])
+    dataset = dataset_loader.get_dataset(mode='all').batch(batch_size=1)
 
     full_output_directory = data_directory(args.outdir)
 
