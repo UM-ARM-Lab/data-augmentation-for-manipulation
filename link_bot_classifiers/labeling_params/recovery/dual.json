@@ -2,5 +2,5 @@
   "threshold": 0.05,
   "action_sequence_horizon": 2,
   "n_action_samples": 64,
-  "start_step": 1
+  "start_step": 5
 }
