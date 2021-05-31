@@ -10,6 +10,7 @@ from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine import common_train_hparams
 from moonshine.filepath_tools import load_hjson
 from moonshine.model_runner import ModelRunner
+from moonshine.moonshine_utils import remove_batch
 from state_space_dynamics.train_test import setup_training_paths
 from std_msgs.msg import Float32
 
@@ -85,7 +86,9 @@ def viz_main(dataset_dirs: List[pathlib.Path],
     for i, inputs in enumerate(dataset):
         transformation = inputs['transformation']
         predicted_error = m.evaluate(transformation)
-        transform_matrix = transformations.compose_matrix(translate=transformations[:3], angles=transformations[3:])
-        s.tf.send_transform_matrix(transform_matrix, parent='', child='')
+        predicted_error = predicted_error.numpy().squeeze()
+        transformation = remove_batch(transformation)
+        transform_matrix = transformations.compose_matrix(translate=transformation[:3], angles=transformation[3:])
+        s.tf.send_transform_matrix(transform_matrix, parent='world', child='viz_transform')
         s.error_pub.publish(Float32(data=predicted_error))
         stepper.step()
