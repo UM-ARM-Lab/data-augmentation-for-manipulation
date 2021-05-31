@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 import pathlib
 from itertools import cycle
