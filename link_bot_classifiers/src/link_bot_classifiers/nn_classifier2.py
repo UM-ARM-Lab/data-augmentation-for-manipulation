@@ -682,12 +682,10 @@ class NNClassifier(MyKerasModel):
             state_t = numpify({k: inputs[add_predicted(k)][b, t] for k in self.state_keys})
             state_t[add_predicted('joint_positions')] = inputs[add_predicted('joint_positions')][b, t]
             state_t['joint_names'] = inputs['joint_names'][b, t]
-            error_msg = Float32()
             error_t = inputs['error'][b, 1]
-            error_msg.data = error_t
             self.scenario.plot_state_rviz(state_t)
             self.scenario.plot_is_close(inputs['is_close'][b, 1])
-            self.scenario.error_pub.publish(error_msg)
+            self.scenario.plot_error_rviz(error_t)
 
             anim.step()
 
@@ -711,9 +709,7 @@ class NNClassifier(MyKerasModel):
         action_0 = numpify({k: input_dict[k][b, 0] for k in self.action_keys})
         state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in self.state_keys})
         state_1['joint_names'] = input_dict['joint_names'][b, 1]
-        error_msg = Float32()
         error_t = input_dict['error'][b, 1]
-        error_msg.data = error_t
         self.scenario.plot_state_rviz(state_0, idx=0, label=label, color=color)
         self.scenario.plot_state_rviz(state_1, idx=1, label=label, color=color)
         robot_state = {k: input_dict[k][b] for k in ['joint_names', add_predicted('joint_positions')]}
@@ -721,7 +717,7 @@ class NNClassifier(MyKerasModel):
         self.scenario.robot.display_robot_traj(display_traj_msg, label=label, color=color)
         self.scenario.plot_action_rviz(state_0, action_0, idx=1, label=label, color=color)
         self.scenario.plot_is_close(input_dict['is_close'][b, 1])
-        self.scenario.error_pub.publish(error_msg)
+        self.scenario.plot_error_rviz(error_t)
 
     def make_robot_trajectory(self, robot_state: Dict):
         msg = RobotTrajectory()

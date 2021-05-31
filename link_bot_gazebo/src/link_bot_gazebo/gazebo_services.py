@@ -127,7 +127,7 @@ def get_gazebo_processes():
     return processes
 
 
-def restore(gz, link_states, s):
+def restore_gazebo(gz, link_states, s):
     restore_action = {
         'left_gripper_position':  ros_numpy.numpify(
             link_states.pose[link_states.name.index('rope_3d::left_gripper')].position),

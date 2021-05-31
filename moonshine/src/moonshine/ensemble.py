@@ -31,7 +31,7 @@ class Ensemble:
             net, ckpt = self.make_net_and_checkpoint(batch_size, scenario)
             manager = tf.train.CheckpointManager(ckpt, model_dir, max_to_keep=1)
 
-            status = link_bot_gazebo.gazebo_services.restore(manager.latest_checkpoint).expect_partial()
+            status = ckpt.restore(manager.latest_checkpoint).expect_partial()
             if manager.latest_checkpoint:
                 print(Fore.CYAN + "Restored from {}".format(manager.latest_checkpoint) + Fore.RESET)
                 status.assert_existing_objects_matched()

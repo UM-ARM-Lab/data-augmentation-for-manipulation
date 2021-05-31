@@ -552,14 +552,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in state_keys})
         action_0 = numpify({k: input_dict[k][b, 0] for k in action_keys})
         state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in state_keys})
-        error_msg = Float32()
         error_t = input_dict['error'][b, 1]
-        error_msg.data = error_t
         self.plot_state_rviz(state_0, idx=0, label=label, color=color)
         self.plot_state_rviz(state_1, idx=1, label=label, color=color)
         self.plot_action_rviz(state_0, action_0, idx=1, label=label, color=color)
         self.plot_is_close(input_dict['is_close'][b, 1])
-        self.error_pub.publish(error_msg)
+        self.plot_error_rviz(error_t)
 
 
 def densify_points(batch_size, points, num_densify=5):

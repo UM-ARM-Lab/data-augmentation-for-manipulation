@@ -880,10 +880,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             self.plot_stdev(stdev_t)
 
         if 'error' in state:
-            error_msg = Float32()
             error_t = state['error']
-            error_msg.data = error_t
-            self.error_pub.publish(error_msg)
+            self.plot_error_rviz(error_t)
 
     def plot_action_rviz(self, state: Dict, action: Dict, label: str = 'action', **kwargs):
         state_action = {}

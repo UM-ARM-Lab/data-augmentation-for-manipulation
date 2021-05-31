@@ -209,7 +209,7 @@ def list_numbered_files(results_dir, pattern, extension):
         m = re.fullmatch(pattern + extension, filename.as_posix())
         trial_idx = int(m.group(1))
         filenames.append((trial_idx, filename))
-    return filenames
+    return sorted(filenames)
 
 
 def list_all_planning_results_trials(results_dir):
@@ -340,8 +340,11 @@ def plot_steps(scenario: ScenarioWithVisualization,
             scenario.plot_state_rviz(s_t_pred, label='predicted', color=c)
             is_close = scenario.compute_label(s_t, s_t_pred, labeling_params)
             scenario.plot_is_close(is_close)
+            model_error = scenario.classifier_distance(s_t, s_t_pred)
+            scenario.plot_error_rviz(model_error)
         else:
             scenario.plot_is_close(None)
+            scenario.plot_error_rviz(-1)
 
         dist_to_goal = scenario.distance_to_goal(s_t, goal)
         actually_at_goal = dist_to_goal < goal_threshold

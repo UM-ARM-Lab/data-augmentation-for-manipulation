@@ -18,19 +18,27 @@ from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson, load_json_or_hjson
 
+# Edit this to add a new metric
+metrics_funcs = [
+    num_planning_attempts,
+    recovery_success,
+    total_time,
+    num_trials,
+    num_steps,
+    task_error,
+    cumulative_task_error,
+    any_solved,
+    success,
+    normalized_model_error,
+    num_recovery_actions,
+]
+metrics_names = [func.__name__ for func in metrics_funcs]
+
 
 def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable, get_metadata: Callable):
-    metrics_funcs = [
-        num_trials,
-        num_steps,
-        task_error,
-        any_solved,
-        success,
-        normalized_model_error,
-        num_recovery_actions,
-    ]
-    metrics_names = [func.__name__ for func in metrics_funcs]
-    column_names = metrics_names
+    global metrics_funcs
+    global metrics_names
+
     results_dirs_ordered = load_order(prompt_order=args.order, directories=planning_results_dirs, out_dir=out_dir)
 
     with (out_dir / 'info.txt').open('w') as info_file:
@@ -77,7 +85,7 @@ def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable
                 data.append([metric_func(scenario, metadata, datum) for metric_func in metrics_funcs])
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["method_name", "file_idx"])
-        metrics = pd.DataFrame(data=data, index=index, columns=column_names)
+        metrics = pd.DataFrame(data=data, index=index, columns=metrics_names)
 
         with pickle_filename.open("wb") as pickle_file:
             pickle.dump(metrics, pickle_file)
@@ -87,21 +95,9 @@ def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable
 
 
 def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable, get_metadata: Callable):
-    # Edit this to add a new metric
-    metrics_funcs = [
-        num_planning_attempts,
-        total_time,
-        num_trials,
-        num_steps,
-        task_error,
-        cumulative_task_error,
-        any_solved,
-        success,
-        normalized_model_error,
-        num_recovery_actions,
-    ]
-    metrics_names = [func.__name__ for func in metrics_funcs]
-    column_names = metrics_names
+    global metrics_funcs
+    global metrics_names
+
     results_dirs_ordered = load_order(prompt_order=args.order, directories=planning_results_dirs, out_dir=out_dir)
 
     with (out_dir / 'info.txt').open('w') as info_file:
@@ -153,7 +149,7 @@ def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable,
                     data.append([metric_func(scenario, metadata, datum) for metric_func in metrics_funcs])
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["method_name", "iteration_idx", "file_idx"])
-        metrics = pd.DataFrame(data=data, index=index, columns=column_names)
+        metrics = pd.DataFrame(data=data, index=index, columns=metrics_names)
 
         with pickle_filename.open("wb") as pickle_file:
             pickle.dump(metrics, pickle_file)

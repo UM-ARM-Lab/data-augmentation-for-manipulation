@@ -44,6 +44,17 @@ def success(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dic
     return final_execution_to_goal_error < trial_metadata['planner_params']['goal_params']['threshold']
 
 
+def recovery_success(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    used_recovery = False
+    _recovery_success = False
+    for step in trial_datum['steps']:
+        if step['type'] == 'executed_recovery':
+            used_recovery = True
+        if used_recovery and step['type'] != 'executed_recovery':
+            _recovery_success = True
+    return _recovery_success
+
+
 def total_time(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     total_time = trial_datum['total_time']
     return total_time
@@ -106,6 +117,7 @@ __all__ = [
     'normalized_model_error',
     'num_planning_attempts',
     'cumulative_task_error',
+    'recovery_success',
 
     'load_analysis_params',
 ]

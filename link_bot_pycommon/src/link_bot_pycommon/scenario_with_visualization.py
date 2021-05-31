@@ -415,3 +415,6 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
     def delete_lines_rviz(self, label: str, id: int = 0):
         self.point_pub.publish(make_delete_marker(id, label))
+
+    def plot_error_rviz(self, error):
+        self.error_pub.publish(Float32(data=error))

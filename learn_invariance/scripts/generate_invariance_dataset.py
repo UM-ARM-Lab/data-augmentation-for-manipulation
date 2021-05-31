@@ -14,7 +14,7 @@ from learn_invariance.new_dynamics_dataset_loader import NewDynamicsDatasetLoade
 from learn_invariance.transform_link_states import transform_link_states
 from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import pkl_write_example, data_directory
-from link_bot_gazebo.gazebo_services import GazeboServices, restore
+from link_bot_gazebo.gazebo_services import GazeboServices, restore_gazebo
 from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.filepath_tools import load_hjson
@@ -86,7 +86,7 @@ def main():
 
         example = next(infinite_dataset)
         link_states_before = example['link_states'][0]  # t=0 arbitrarily
-        restore(gz, link_states_before, s)
+        restore_gazebo(gz, link_states_before, s)
 
         environment = s.get_environment(params)
 
@@ -118,7 +118,7 @@ def main():
         action_aug = transform_dict_of_points_vectors(m, action, action_points_keys)
 
         # set the simulator state to make the augmented state
-        restore(gz, link_states_before_aug, s)
+        restore_gazebo(gz, link_states_before_aug, s)
 
         # execute the action and record the aug after state
         s.execute_action(environment, state_before_aug, action_aug)
@@ -133,7 +133,7 @@ def main():
             s.plot_state_rviz(state_after_aug, label='state_after_aug', color='#00aa00')
             s.plot_state_rviz(state_after_aug_expected, label='state_after_aug_expected', color='#ffffff')
             error_viz = s.classifier_distance(state_after_aug, state_after_aug_expected)
-            s.error_pub.publish(Float32(data=error_viz))
+            s.plot_error_rviz(error_viz)
             # stepper.step()
 
         out_example = {

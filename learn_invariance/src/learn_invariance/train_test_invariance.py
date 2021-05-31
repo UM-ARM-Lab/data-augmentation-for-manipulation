@@ -92,7 +92,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
         transformation = remove_batch(transformation)
         transform_matrix = transformations.compose_matrix(translate=transformation[:3], angles=transformation[3:])
         s.tf.send_transform_matrix(transform_matrix, parent='world', child='viz_transform')
-        s.error_pub.publish(Float32(data=predicted_error))
+        s.plot_error_rviz(predicted_error)
         stepper.step()
 
 
