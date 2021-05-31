@@ -305,12 +305,14 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
         'start_t':              tf.stack([start_t] * batch_size),
         'end_t':                tf.stack([end_t] * batch_size),
         'accept_probabilities': all_accept_probabilities,
-        'sampled_actions':      sequence_of_dicts_to_dict_of_tensors(all_actions_dicts, axis=1),
     }
     out_examples.update(environment)
     # add true start states
     out_examples.update(actual_states)
     out_examples.update(actual_actions)
+    all_sampled_actions_dict = sequence_of_dicts_to_dict_of_tensors(all_actions_dicts, axis=1)
+    all_sampled_actions_dict = {"sampled_actions_" + k: v for k, v in all_sampled_actions_dict.items()}
+    out_examples.update(all_sampled_actions_dict)
 
     return out_examples
 
