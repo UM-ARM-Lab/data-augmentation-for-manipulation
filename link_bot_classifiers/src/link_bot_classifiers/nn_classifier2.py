@@ -34,8 +34,8 @@ from std_msgs.msg import Float32
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_INPUT = False
-DEBUG_AUG = False
+DEBUG_INPUT = True
+DEBUG_AUG = True
 DEBUG_AUG_SGD = False
 
 
@@ -365,15 +365,8 @@ class NNClassifier(MyKerasModel):
         points = inputs['swept_state_and_robot_points']
         res = inputs['res']
 
-        # sample a translation and rotation for the object state
-        transformation_params = self.scenario.sample_state_augmentation_variables(10 * batch_size, self.aug.seed)
-        # pick the most valid transforms, via the learned object state augmentation validity model
-        predicted_errors = self.aug.invariance_model_wrapper.evaluate(transformation_params)
-        best_transform_params, _ = tf.math.top_k(predicted_errors, batch_size, sorted=False)
-        transformation_matrices = transformations.compose_matrix(translate=transformation_params[:3],
-                                                                 angles=transformation_params[3:])
-
-        valid, local_origin_point_aug = self.scenario.apply_state_augmentation(transformation_params,
+        transformation_matrices = self.sample_transformations(batch_size)
+        valid, local_origin_point_aug = self.scenario.apply_state_augmentation(transformation_matrices,
                                                                                inputs,
                                                                                batch_size,
                                                                                time,
@@ -414,7 +407,7 @@ class NNClassifier(MyKerasModel):
 
                 self.debug.aug_bbox_pub.publish(bbox_msg)
 
-        points_aug = transform_points_3d(transformation_matrices, points)
+        points_aug = transform_points_3d(transformation_matrices[:, None], points)
         valid_expanded = valid[:, None, None]
         points_aug = valid_expanded * points_aug + (1 - valid_expanded) * points
 
@@ -458,6 +451,17 @@ class NNClassifier(MyKerasModel):
                                                                inputs['voxel_grids'],
                                                                time)
         return voxel_grids_aug
+
+    def sample_transformations(self, batch_size):
+        # sample a translation and rotation for the object state
+        transformation_params = self.scenario.sample_state_augmentation_variables(10 * batch_size, self.aug.seed)
+        # pick the most valid transforms, via the learned object state augmentation validity model
+        predicted_errors = self.aug.invariance_model_wrapper.evaluate(transformation_params)
+        _, best_transform_params_indices = tf.math.top_k(-predicted_errors, tf.cast(batch_size, tf.int32), sorted=False)
+        best_transformation_params = tf.gather(transformation_params, best_transform_params_indices, axis=0)
+        transformation_matrices = [transformations.compose_matrix(translate=p[:3], angles=p[3:]) for p in
+                                   best_transformation_params]
+        return tf.cast(transformation_matrices, tf.float32)
 
     def opt_new_env_augmentation(self,
                                  new_env: Dict,

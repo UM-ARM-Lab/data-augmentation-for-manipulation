@@ -1,10 +1,8 @@
 {
-  # augmentation: null
   augmentation: {
-  type: optimization
-  swept: false
-  state_type: "uniform"
+    type: optimization
+    swept: false
+    state_type: "uniform"
+    invariance_model: invariance_trials/tmp/May_31_10-47-32_ef6d19c9b8
   }
-  include_robot_geometry: true
-  invariance_model:
 }

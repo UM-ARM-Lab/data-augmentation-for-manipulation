@@ -1,4 +1,5 @@
 import pathlib
+import random
 
 from link_bot_data.dataset_utils import merge_hparams_dicts, batch_sequence
 from link_bot_pycommon.get_scenario import get_scenario

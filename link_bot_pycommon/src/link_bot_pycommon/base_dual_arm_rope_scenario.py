@@ -16,7 +16,7 @@ from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-from moonshine.geometry import rotate_points_3d
+from moonshine.geometry import rotate_points_3d, transform_points_3d
 from moonshine.moonshine_utils import numpify, to_list_of_strings
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
 from std_msgs.msg import Float32
@@ -363,21 +363,16 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                             batch_size,
                                             seed: tfp.util.SeedStream):
         # NOTE: lots of hidden hyper-parameters here :(
-        zeros = tf.zeros([batch_size, 3], dtype=tf.float32)
-        delta_distribution = tfp.distributions.TruncatedNormal(zeros, 0.15, -0.5, 0.5)
-        delta_position = delta_distribution.sample(seed=seed())
+        zeros = tf.zeros([batch_size, 6], dtype=tf.float32)
+        scale = tf.constant([0.25, 0.25, 0.25, 0.15, 0.15, 0.15], dtype=tf.float32)
+        lim = tf.constant([0.5, 0.5, 0.5, np.pi, np.pi, np.pi], dtype=tf.float32)
+        distribution = tfp.distributions.TruncatedNormal(zeros, scale=scale, low=-lim, high=lim)
+        transformation_params = distribution.sample(seed=seed())
 
-        # theta_low = repeat_tensor(-np.pi, batch_size, 0, True)
-        # theta_high = repeat_tensor(np.pi, batch_size, 0, True)
-        # theta_distribution = tfp.distributions.Uniform(theta_low, theta_high)
-        theta_distribution = tfp.distributions.TruncatedNormal(tf.zeros([batch_size]), 0.8, -np.pi, np.pi)
-        theta = theta_distribution.sample(seed=seed())
-
-        return delta_position, theta
+        return transformation_params
 
     def apply_state_augmentation(self,
-                                 delta_position,
-                                 rotation_matrix,
+                                 m,
                                  inputs: Dict,
                                  batch_size,
                                  time,
@@ -385,11 +380,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                  w: int,
                                  c: int,
                                  ):
-        # rotates about the world origin, which isn't great because it's less likely to produce a feasible augmentation
-        def _rot(points, n):
-            rotation_matrix_tiled = tf.tile(rotation_matrix[:, tf.newaxis, tf.newaxis], [1, 2, n, 1, 1])
-            points_rotated = rotate_points_3d(rotation_matrix_tiled, points)
-            return points_rotated
 
         # apply those to the rope and grippers
         rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
@@ -398,23 +388,17 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
         right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
-        rope_points_rotated = _rot(rope_points, 25)
-        left_gripper_points_rotated = _rot(left_gripper_points, 1)
-        right_gripper_points_rotated = _rot(right_gripper_points, 1)
-
-        delta_position = tf.tile(delta_position[:, tf.newaxis, tf.newaxis], [1, 2, 1, 1])
-
-        left_gripper_points_aug = left_gripper_points_rotated + delta_position
-        right_gripper_points_aug = right_gripper_points_rotated + delta_position
-        rope_points_aug = rope_points_rotated + delta_position
+        # m is expanded to broadcast across batch & num_points dimensions
+        rope_points_aug = transform_points_3d(m[:, None, None], rope_points)
+        left_gripper_points_aug = transform_points_3d(m[:, None, None], left_gripper_points)
+        right_gripper_points_aug = transform_points_3d(m[:, None, None], right_gripper_points)
 
         # compute the new action
         left_gripper_position = inputs['left_gripper_position']
         right_gripper_position = inputs['right_gripper_position']
-        left_gripper_position_rotated = rotate_points_3d(rotation_matrix[:, tf.newaxis], left_gripper_position)
-        right_gripper_position_rotated = rotate_points_3d(rotation_matrix[:, tf.newaxis], right_gripper_position)
-        left_gripper_position_aug = left_gripper_position_rotated + delta_position[:, 0]
-        right_gripper_position_aug = right_gripper_position_rotated + delta_position[:, 0]
+        # m is expanded to broadcast across batch dimensions
+        left_gripper_position_aug = transform_points_3d(m[:, None], left_gripper_position)
+        right_gripper_position_aug = transform_points_3d(m[:, None], right_gripper_position)
 
         joint_positions_aug, reached = self.apply_augmentation_to_robot_state(batch_size,
                                                                               inputs,

@@ -1,3 +1,4 @@
+import pathlib
 from typing import Optional
 
 import tensorflow as tf
@@ -22,7 +23,7 @@ class ClassifierAugmentation:
         self.grad_clip = 5.0  # max dist step the env aug update can take
 
         if self.hparams is not None:
-            invariance_model_path = self.hparams['invariance_model']
+            invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
             self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
                                                                    self.scenario)
 

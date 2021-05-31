@@ -1,13 +1,17 @@
 import pathlib
 from typing import List, Optional
 
+import transformations
+
 from learn_invariance.invariance_model import InvarianceModel
+from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from learn_invariance.new_dynamics_dataset_loader import NewDynamicsDatasetLoader
+from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine import common_train_hparams
 from moonshine.filepath_tools import load_hjson
-from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
 from state_space_dynamics.train_test import setup_training_paths
+from std_msgs.msg import Float32
 
 
 def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
@@ -31,7 +35,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
                **kwargs):
     model_hparams = load_hjson(model_hparams)
 
-    train_dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode='train', batch_size=batch_size, shuffle=True)
+    train_dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode='train', batch_size=batch_size,
+                                             shuffle=True)
     val_dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode='val', batch_size=batch_size)
 
     model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))
@@ -64,3 +69,23 @@ def train_main(dataset_dirs: List[pathlib.Path],
     final_val_metrics = runner.train(train_dataset, val_dataset, num_epochs=epochs)
 
     return trial_path, final_val_metrics
+
+
+def viz_main(dataset_dirs: List[pathlib.Path],
+                checkpoint: pathlib.Path,
+                mode: str,
+                **kwargs,
+                ):
+    dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode=mode, batch_size=1, shuffle=True)
+
+    s = dataset.scenario
+    m = InvarianceModelWrapper(checkpoint, batch_size=1, scenario=s)
+
+    stepper = RvizSimpleStepper()
+    for i, inputs in enumerate(dataset):
+        transformation = inputs['transformation']
+        predicted_error = m.evaluate(transformation)
+        transform_matrix = transformations.compose_matrix(translate=transformations[:3], angles=transformations[3:])
+        s.tf.send_transform_matrix(transform_matrix, parent='', child='')
+        s.error_pub.publish(Float32(data=predicted_error))
+        stepper.step()

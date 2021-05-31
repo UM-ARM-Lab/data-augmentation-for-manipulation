@@ -12,7 +12,7 @@ def transform_points_3d(transform_matrix, points):
     Returns:
 
     """
-    points_homo = tf.concat([points, tf.ones_like(points[..., 0])], axis=-1)
+    points_homo = tf.concat([points, tf.ones_like(points[..., 0:1])], axis=-1)
     points_homo = tf.expand_dims(points_homo, axis=-1)
     transformed_points = tf.matmul(transform_matrix, points_homo)
     return tf.squeeze(transformed_points, axis=-1)[..., :3]
