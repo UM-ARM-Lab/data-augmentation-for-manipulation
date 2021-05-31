@@ -81,7 +81,7 @@ def main():
             if scaling >= 1:
                 return
 
-        example = remove_batch(next(infinite_dataset))
+        example = next(infinite_dataset)
         link_states_before = example['link_states'][0]  # t=0 arbitrarily
         restore(gz, link_states_before, s)
 

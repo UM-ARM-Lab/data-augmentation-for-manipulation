@@ -2,6 +2,7 @@ from copy import copy
 from typing import Dict
 
 import tensorflow as tf
+import transformations
 from colorama import Fore
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -20,12 +21,11 @@ from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf, enviro
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
-from moonshine.geometry import make_rotation_matrix_like, rotate_points_3d, pairwise_squared_distances
+from moonshine.geometry import pairwise_squared_distances, transform_points_3d
 from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_point
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
-from moonshine.moonshine_utils import numpify, \
-    to_list_of_strings
+from moonshine.moonshine_utils import numpify, to_list_of_strings
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.optimization import log_barrier
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
@@ -85,7 +85,7 @@ class NNClassifier(MyKerasModel):
         self.certs_k = 100
 
         self.debug = ClassifierDebugging()
-        self.aug = ClassifierAugmentation(self.hparams)
+        self.aug = ClassifierAugmentation(self.hparams, self.batch_size, self.scenario)
         if self.aug.do_augmentation():
             rospy.loginfo("Using augmentation during training")
         else:
@@ -366,11 +366,14 @@ class NNClassifier(MyKerasModel):
         res = inputs['res']
 
         # sample a translation and rotation for the object state
-        translation, theta = self.scenario.sample_state_augmentation_variables(batch_size, self.aug.seed)
-        rotation = make_rotation_matrix_like(translation, theta)
+        transformation_params = self.scenario.sample_state_augmentation_variables(10 * batch_size, self.aug.seed)
+        # pick the most valid transforms, via the learned object state augmentation validity model
+        predicted_errors = self.aug.invariance_model_wrapper.evaluate(transformation_params)
+        best_transform_params, _ = tf.math.top_k(predicted_errors, batch_size, sorted=False)
+        transformation_matrices = transformations.compose_matrix(translate=transformation_params[:3],
+                                                                 angles=transformation_params[3:])
 
-        valid, local_origin_point_aug = self.scenario.apply_state_augmentation(translation,
-                                                                               rotation,
+        valid, local_origin_point_aug = self.scenario.apply_state_augmentation(transformation_params,
                                                                                inputs,
                                                                                batch_size,
                                                                                time,
@@ -411,7 +414,7 @@ class NNClassifier(MyKerasModel):
 
                 self.debug.aug_bbox_pub.publish(bbox_msg)
 
-        points_aug = rotate_points_3d(rotation[:, None], points) + translation[:, None]
+        points_aug = transform_points_3d(transformation_matrices, points)
         valid_expanded = valid[:, None, None]
         points_aug = valid_expanded * points_aug + (1 - valid_expanded) * points
 

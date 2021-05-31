@@ -6,4 +6,5 @@
   state_type: "uniform"
   }
   include_robot_geometry: true
+  invariance_model:
 }

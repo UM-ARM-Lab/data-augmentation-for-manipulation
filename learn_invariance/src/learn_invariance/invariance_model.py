@@ -20,12 +20,19 @@ class InvarianceModel(MyKerasModel):
                                           kernel_regularizer=tf.keras.regularizers.l2(self.hparams['reg']),
                                           bias_regularizer=tf.keras.regularizers.l2(self.hparams['reg'])))
             fc_layers.append(layers.ReLU())
+        fc_layers.append(layers.Dense(1,
+                                      kernel_regularizer=tf.keras.regularizers.l2(self.hparams['reg']),
+                                      bias_regularizer=tf.keras.regularizers.l2(self.hparams['reg'])))
         self.sequential = tf.keras.Sequential(fc_layers)
 
         self.inputs_keys = ['transformation']
 
-    def compute_loss(self, dataset_element, outputs):
-        loss = tf.losses.MSE(outputs['true_error'], outputs['predicted_error'])
+    def compute_loss(self, inputs, outputs):
+        state_after_aug = inputs['state_after_aug']
+        state_after_aug_expected = inputs['state_after_aug_expected']
+        true_error = self.scenario.classifier_distance(state_after_aug_expected, state_after_aug)
+        true_error = tf.expand_dims(true_error, axis=-1)
+        loss = tf.losses.MSE(true_error, outputs['predicted_error'])
         return {
             'loss': loss,
         }
@@ -39,12 +46,6 @@ class InvarianceModel(MyKerasModel):
     # @tf.function
     def call(self, inputs: Dict, training, **kwargs):
         predicted_error = self.sequential(inputs['transformation'])
-
-        state_after_aug = inputs['state_after_aug']
-        state_after_aug_expected = inputs['state_after_aug_expected']
-        true_error = self.scenario.classifier_distance(state_after_aug_expected, state_after_aug)
-
         return {
-            'true_error':      true_error,
             'predicted_error': predicted_error,
         }

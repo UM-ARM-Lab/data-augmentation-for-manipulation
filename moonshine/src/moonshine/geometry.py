@@ -2,14 +2,20 @@ import numpy as np
 import tensorflow as tf
 
 
-def make_rotation_matrix_like(x, theta):
-    # https://en.wikipedia.org/wiki/Rotation_matrix
-    z = tf.zeros_like(theta)
-    one = tf.ones_like(theta)
-    rotation_matrix = tf.stack([tf.stack([tf.cos(theta), -tf.sin(theta), z], axis=-1),
-                                tf.stack([tf.sin(theta), tf.cos(theta), z], axis=-1),
-                                tf.stack([z, z, one], axis=-1)], axis=-2)
-    return rotation_matrix
+def transform_points_3d(transform_matrix, points):
+    """
+
+    Args:
+        transform_matrix: [b1, b2, ..., b2, 4, 4]
+        points: [b1, b2, ..., b2, 3]
+
+    Returns:
+
+    """
+    points_homo = tf.concat([points, tf.ones_like(points[..., 0])], axis=-1)
+    points_homo = tf.expand_dims(points_homo, axis=-1)
+    transformed_points = tf.matmul(transform_matrix, points_homo)
+    return tf.squeeze(transformed_points, axis=-1)[..., :3]
 
 
 def rotate_points_3d(rotation_matrix, points):

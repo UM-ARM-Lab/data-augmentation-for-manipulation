@@ -31,7 +31,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                **kwargs):
     model_hparams = load_hjson(model_hparams)
 
-    train_dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode='train', batch_size=batch_size)
+    train_dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode='train', batch_size=batch_size, shuffle=True)
     val_dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode='val', batch_size=batch_size)
 
     model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))

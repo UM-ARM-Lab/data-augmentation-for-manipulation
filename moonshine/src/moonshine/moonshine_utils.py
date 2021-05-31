@@ -20,18 +20,24 @@ def check_numerics(x, msg: Optional[str] = "found infs or nans!"):
         tf.debugging.check_numerics(x, msg)
 
 
-def batch_examples(examples: List):
+def batch_examples_dicts(examples: List):
     e_check = examples[0]
     examples_batch = {}
     for k in e_check.keys():
         v_check = e_check[k]
         values = [example[k] for example in examples]
         if isinstance(v_check, dict):
-            examples_batch[k] = batch_examples(values)
+            examples_batch[k] = batch_examples_dicts(values)
+        elif isinstance(v_check, list):
+            v_check0 = v_check[0]
+            if isinstance(v_check0, genpy.Message):
+                examples_batch[k] = v_check
+            else:
+                examples_batch[k] = tf.constant(v_check)  # TODO: should we call tf.constant here? could be slow...
         elif isinstance(v_check, genpy.Message):
             examples_batch[k] = values
         else:
-            examples_batch[k] = tf.convert_to_tensor(values)
+            examples_batch[k] = tf.constant(values)  # TODO: here also
     return examples_batch
 
 
