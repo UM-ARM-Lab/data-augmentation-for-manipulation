@@ -19,7 +19,6 @@ from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.filepath_tools import load_hjson
 from moonshine.geometry import transform_dict_of_points_vectors
-from moonshine.moonshine_utils import remove_batch
 from std_msgs.msg import Float32
 
 DEBUG_VIZ = True
