@@ -1,6 +1,8 @@
 import pathlib
 from typing import List, Optional
 
+import matplotlib.pyplot as plt
+import numpy as np
 import transformations
 
 from learn_invariance.invariance_model import InvarianceModel
@@ -73,10 +75,10 @@ def train_main(dataset_dirs: List[pathlib.Path],
 
 
 def viz_main(dataset_dirs: List[pathlib.Path],
-                checkpoint: pathlib.Path,
-                mode: str,
-                **kwargs,
-                ):
+             checkpoint: pathlib.Path,
+             mode: str,
+             **kwargs,
+             ):
     dataset = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs, mode=mode, batch_size=1, shuffle=True)
 
     s = dataset.scenario
@@ -92,3 +94,86 @@ def viz_main(dataset_dirs: List[pathlib.Path],
         s.tf.send_transform_matrix(transform_matrix, parent='world', child='viz_transform')
         s.error_pub.publish(Float32(data=predicted_error))
         stepper.step()
+
+
+def viz_eval(m, transformation):
+    predicted_error = m.evaluate(transformation)
+    predicted_error = predicted_error.numpy().squeeze()
+    return predicted_error
+
+
+def dim_viz_main(checkpoint: pathlib.Path, **kwargs):
+    plt.style.use("slides")
+
+    m = InvarianceModelWrapper(checkpoint, batch_size=1)
+
+    n = 100
+
+    plot_angle_invariance(m, n)
+
+    plot_position_invariance(m, n)
+
+    plt.show()
+
+
+def plot_angle_invariance(m, n):
+    plt.figure()
+    axes = plt.gca()
+    plt.title("Predicted Augmentation Error")
+    plt.xlabel(f"rotation (deg)")
+    plt.ylabel("error")
+
+    angles = np.linspace(-np.pi / 2, np.pi / 2, n, dtype=np.float32)
+
+    def _plot_by_axis(axis: str):
+        if axis == 'roll':
+            param_idx = 3
+        elif axis == 'pitch':
+            param_idx = 4
+        elif axis == 'yaw':
+            param_idx = 5
+        else:
+            raise NotImplementedError(axis)
+
+        transformation_params = np.zeros([n, 6], dtype=np.float32)
+        transformation_params[:, param_idx] = angles
+        errors = viz_eval(m, transformation_params)
+        angles_deg = np.rad2deg(angles)
+
+        axes.scatter(angles_deg, errors, label=axis)
+
+    _plot_by_axis("roll")
+    _plot_by_axis("pitch")
+    _plot_by_axis("yaw")
+    plt.legend()
+
+
+def plot_position_invariance(m, n):
+    plt.figure()
+    axes = plt.gca()
+    plt.title("Predicted Augmentation Error")
+    plt.xlabel(f"translation (m)")
+    plt.ylabel("error")
+
+    positions = np.linspace(-0.5, 0.5, n, dtype=np.float32)
+
+    def _plot_by_axis(axis: str):
+        if axis == 'x':
+            param_idx = 0
+        elif axis == 'y':
+            param_idx = 1
+        elif axis == 'z':
+            param_idx = 2
+        else:
+            raise NotImplementedError(axis)
+
+        transformation_params = np.zeros([n, 6], dtype=np.float32)
+        transformation_params[:, param_idx] = positions
+        errors = viz_eval(m, transformation_params)
+
+        axes.scatter(positions, errors, label=axis)
+
+    _plot_by_axis("x")
+    _plot_by_axis("y")
+    _plot_by_axis("z")
+    plt.legend()

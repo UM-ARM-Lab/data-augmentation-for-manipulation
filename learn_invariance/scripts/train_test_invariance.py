@@ -21,6 +21,10 @@ def viz_main(args):
     train_test_invariance.viz_main(**vars(args))
 
 
+def dim_viz_main(args):
+    train_test_invariance.dim_viz_main(**vars(args))
+
+
 @ros_init.with_ros("train_test_invariance")
 def main():
     parser = argparse.ArgumentParser()
@@ -60,9 +64,15 @@ def main():
     viz_parser.add_argument('--seed', type=int, default=None)
     viz_parser.set_defaults(func=viz_main)
 
+    dim_viz_parser = subparsers.add_parser('dim_viz')
+    dim_viz_parser.add_argument('checkpoint', type=pathlib.Path)
+    dim_viz_parser.set_defaults(func=dim_viz_main)
+
     args = parser.parse_args()
 
-    if args.seed is None:
+    if not hasattr(args, 'seed'):
+        seed = None
+    elif args.seed is None:
         seed = np.random.randint(0, 10000)
     else:
         seed = args.seed

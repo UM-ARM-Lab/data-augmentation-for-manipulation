@@ -15,6 +15,7 @@ from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import pkl_write_example, data_directory
 from link_bot_gazebo.gazebo_services import GazeboServices, restore
 from link_bot_pycommon.get_scenario import get_scenario
+from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.filepath_tools import load_hjson
 from moonshine.geometry import transform_dict_of_points_vectors
 from moonshine.moonshine_utils import remove_batch
@@ -69,6 +70,8 @@ def main():
     action_rng = np.random.RandomState(0)
 
     scaling_type = 'linear'
+
+    stepper = RvizSimpleStepper()
 
     n_output_examples = 1000
     infinite_dataset = cycle(dataset)
@@ -131,6 +134,7 @@ def main():
             s.plot_state_rviz(state_after_aug_expected, label='state_after_aug_expected', color='#ffffff')
             error_viz = s.classifier_distance(state_after_aug, state_after_aug_expected)
             s.error_pub.publish(Float32(data=error_viz))
+            # stepper.step()
 
         out_example = {
             'state_before':             state_before,

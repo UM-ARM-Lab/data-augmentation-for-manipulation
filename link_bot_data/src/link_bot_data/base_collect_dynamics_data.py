@@ -9,7 +9,6 @@ from colorama import Fore
 import rospy
 from arm_robots.robot import RobotPlanningError
 from link_bot_data.dataset_utils import data_directory, tf_write_example, pkl_write_example
-from link_bot_data.files_dataset import FilesDataset
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.get_service_provider import get_service_provider
 from link_bot_pycommon.serialization import my_hdump
@@ -116,8 +115,6 @@ class BaseDataCollector:
         outdir = pathlib.Path('fwd_model_data') / nickname
         full_output_directory = data_directory(outdir, n_trajs)
 
-        files_dataset = FilesDataset(full_output_directory)
-
         full_output_directory.mkdir(exist_ok=True)
         print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)
 
@@ -157,8 +154,7 @@ class BaseDataCollector:
             print(f'traj {traj_idx}/{n_trajs} ({seed}), {perf_counter() - trial_start:.4f}s')
 
             # Save the data
-            full_filename = self.write_example(full_output_directory, example, traj_idx)
-            files_dataset.add(full_filename)
+            self.write_example(full_output_directory, example, traj_idx)
 
         self.scenario.on_after_data_collection(self.params)
 
@@ -166,7 +162,7 @@ class BaseDataCollector:
 
         self.service_provider.pause()
 
-        return files_dataset
+        return full_output_directory
 
     def save_hparams(self, full_output_directory, n_trajs, nickname):
         s_for_size = self.scenario.get_state()
