@@ -24,14 +24,13 @@ from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
-from moonshine import filepath_tools
+from moonshine import filepath_tools, common_train_hparams
 from moonshine.filepath_tools import load_hjson
 from moonshine.image_augmentation import voxel_grid_augmentation
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import remove_batch
-from state_space_dynamics import common_train_hparams
 from state_space_dynamics.train_test import setup_training_paths
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
@@ -106,7 +105,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
         model_hparams['labeling_params']['threshold'] = threshold
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)
 
-    checkpoint_name, trial_path = setup_training_paths(checkpoint, ensemble_idx, log, model_hparams, trials_directory)
+    checkpoint_name, trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)
 
     if no_validate:
         mid_epoch_val_batches = None

@@ -1,0 +1,5 @@
+{
+  model_class: invariance_mlp
+  fc_layer_sizes: [512, 512, 512]
+  reg: 0.001
+}

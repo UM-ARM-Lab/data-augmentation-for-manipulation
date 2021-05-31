@@ -12,10 +12,10 @@ import state_space_dynamics
 from link_bot_data.dataset_utils import batch_tf_dataset
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
-from moonshine import filepath_tools
+from moonshine import filepath_tools, common_train_hparams
 from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import remove_batch
-from state_space_dynamics import dynamics_utils, common_train_hparams
+from state_space_dynamics import dynamics_utils
 
 
 def train_main(dataset_dirs: List[pathlib.Path],
@@ -41,7 +41,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)
 
-    checkpoint_name, trial_path = setup_training_paths(checkpoint, ensemble_idx, log, model_hparams, trials_directory)
+    checkpoint_name, trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)
 
     runner = ModelRunner(model=model,
                          training=True,
@@ -57,7 +57,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
     return trial_path
 
 
-def setup_training_paths(checkpoint, ensemble_idx, log, model_hparams, trials_directory):
+def setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx=None):
     trial_path = None
     checkpoint_name = None
     if checkpoint:

@@ -4,6 +4,7 @@ from typing import Optional, List
 import psutil
 import rospkg
 
+import ros_numpy
 import rosbag
 import roslaunch
 import rospy
@@ -124,3 +125,16 @@ def get_gazebo_processes():
             p = psutil.Process(pid=proc.info['pid'])
             processes.append(p)
     return processes
+
+
+def restore(gz, link_states, s):
+    restore_action = {
+        'left_gripper_position':  ros_numpy.numpify(
+            link_states.pose[link_states.name.index('rope_3d::left_gripper')].position),
+        'right_gripper_position': ros_numpy.numpify(
+            link_states.pose[link_states.name.index('rope_3d::right_gripper')].position),
+    }
+    s.execute_action(None, None, restore_action, wait=False)
+    gz.pause()
+    gz.restore_from_link_states_msg(link_states, excluded_models=['kinect2', 'collision_sphere', 'my_ground_plane'])
+    gz.play()

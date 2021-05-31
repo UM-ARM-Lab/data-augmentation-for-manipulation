@@ -4,6 +4,7 @@ from typing import Dict, List, Callable
 import tensorflow as tf
 from colorama import Fore
 
+import link_bot_gazebo.gazebo_services
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from moonshine.filepath_tools import load_trial
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, flatten_after
@@ -30,7 +31,7 @@ class Ensemble:
             net, ckpt = self.make_net_and_checkpoint(batch_size, scenario)
             manager = tf.train.CheckpointManager(ckpt, model_dir, max_to_keep=1)
 
-            status = ckpt.restore(manager.latest_checkpoint).expect_partial()
+            status = link_bot_gazebo.gazebo_services.restore(manager.latest_checkpoint).expect_partial()
             if manager.latest_checkpoint:
                 print(Fore.CYAN + "Restored from {}".format(manager.latest_checkpoint) + Fore.RESET)
                 status.assert_existing_objects_matched()

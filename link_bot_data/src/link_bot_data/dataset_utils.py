@@ -18,6 +18,7 @@ from colorama import Fore
 from arc_utilities.filesystem_utils import mkdir_and_ask
 from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
+from link_bot_pycommon.serialization import dump_gzipped_pickle
 from moonshine.filepath_tools import load_params
 from moonshine.moonshine_utils import remove_batch, add_batch, numpify
 from moveit_msgs.msg import PlanningScene
@@ -397,8 +398,7 @@ def pkl_write_example(full_output_directory, example, traj_idx):
         hjson.dump(metadata, metadata_file)
 
     full_example_filename = full_output_directory / example_filename
-    with full_example_filename.open("wb") as example_file:
-        pickle.dump(example, example_file)
+    dump_gzipped_pickle(example, full_example_filename)
 
     return full_example_filename, full_metadata_filename
 
@@ -551,7 +551,7 @@ def merge_hparams_dicts(dataset_dirs, verbose: int = 0):
     for dataset_dir in dataset_dirs:
         hparams = load_params(dataset_dir)
         for k, v in hparams.items():
-            if k not in hparams:
+            if k not in out_hparams:
                 out_hparams[k] = v
             elif hparams[k] == v:
                 pass

@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 
@@ -103,3 +104,13 @@ def best_fit_translation(a, b):
     """
     translation = tf.reduce_mean(b - a, axis=-2)
     return translation
+
+
+def transform_dict_of_points_vectors(m: np.ndarray, d, keys):
+    d_out = {}
+    for k in keys:
+        points = np.reshape(d[k], [-1, 3, 1])
+        points_homo = np.concatenate([points, np.ones([points.shape[0], 1, 1])], axis=1)
+        points_aug = np.matmul(m[None], points_homo)[:, :3, 0]
+        d_out[k] = np.reshape(points_aug, -1)
+    return d_out
