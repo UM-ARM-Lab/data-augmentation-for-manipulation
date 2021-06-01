@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Union
 
 import numpy as np
 import tensorflow as tf
+from colorama import Fore
 from matplotlib import cm
 
 import rospy
@@ -160,6 +161,7 @@ class ResultsToRecoveryDataset:
             job_chunker.store_result(trial_idx, {'trial':              trial_idx,
                                                  'examples for trial': example_idx_for_trial})
 
+        print(Fore.LIGHTMAGENTA_EX + f"Wrote {total_examples} recovery examples" + Fore.RESET)
         self.files.split()
 
     def result_datum_to_recovery_dataset(self, datum: Dict, trial_idx: int):

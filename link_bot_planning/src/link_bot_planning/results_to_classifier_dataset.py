@@ -4,6 +4,7 @@ from time import perf_counter
 from typing import Optional, List, Dict, Union
 
 import numpy as np
+from colorama import Fore
 
 import rospy
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
@@ -135,6 +136,7 @@ class ResultsToClassifierDataset:
             job_chunker.store_result(trial_idx, {'trial':              trial_idx,
                                                  'examples for trial': example_idx_for_trial})
 
+        print(Fore.LIGHTMAGENTA_EX + f"Wrote {total_examples} classifier examples" + Fore.RESET)
         self.files.split()
 
     def full_results_to_classifier_dataset(self):
