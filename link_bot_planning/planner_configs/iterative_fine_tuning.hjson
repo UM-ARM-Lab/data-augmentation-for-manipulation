@@ -1,9 +1,3 @@
 {
   method_name: iterative fine tuning
-  stop_on_error_above: 0.1
-  recovery: {
-    use_recovery: true
-  }
-  termination_criteria: {
-  }
 }

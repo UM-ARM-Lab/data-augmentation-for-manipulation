@@ -1,5 +1,5 @@
 {
-  trials_per_iteration: 5
+  trials_per_iteration: 1
   trials_generator_type: random
   fine_tune_classifier: {
     fine_tune_conv: false
@@ -30,7 +30,6 @@
   }
   labeling_params_update: {
     use_augmentation: true
-    augmentation_type: env_augmentation_2
   }
   pretraining: {
     use_pretraining: true

@@ -6,7 +6,7 @@
   termination_criteria: {
     total_timeout: 600
     timeout: 600
-    attempted_extensions_threshold: 64
+    attempted_extensions_threshold: 32
   }
   action_params: {
     max_distance_between_grippers: 1.0
