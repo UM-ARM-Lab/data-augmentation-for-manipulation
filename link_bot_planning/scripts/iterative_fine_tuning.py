@@ -473,7 +473,6 @@ class IterativeFineTuning:
 
             adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_classifier_dataset_dirs,
                                                      max_batch_size=16)
-            augmentation_3d = self.get_classifier_augmentation_func()
             new_latest_checkpoint_dir = fine_tune_classifier(
                 dataset_dirs=iteration_data.fine_tuning_classifier_dataset_dirs,
                 checkpoint=latest_checkpoint,
@@ -483,7 +482,6 @@ class IterativeFineTuning:
                 verbose=self.verbose,
                 validate_first=True,
                 early_stopping=True,
-                augmentation_3d=augmentation_3d,
                 **self.ift_config['fine_tune_classifier'])
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         return new_latest_checkpoint_dir
@@ -509,14 +507,6 @@ class IterativeFineTuning:
                 **self.ift_config['fine_tune_recovery'])
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         return new_latest_checkpoint_dir
-
-    def get_classifier_augmentation_func(self):
-        augmentation_type = self.classifier_labeling_params.get('augmentation_type', None)
-        if augmentation_type is not None:
-            print(f"Augmentation: {augmentation_type}")
-        if augmentation_type == 'env_augmentation_1':
-            return NNClassifier.additive_env_resample_augmentation
-
 
 def setup_ift(args):
     from_env = input("from: ")
