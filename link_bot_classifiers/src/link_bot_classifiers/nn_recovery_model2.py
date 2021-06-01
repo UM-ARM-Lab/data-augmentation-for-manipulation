@@ -138,6 +138,7 @@ class NNRecoveryModel(MyKerasModel):
         if DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(inputs)
 
+        # FIXME: include this!
         # if training and self.aug.hparams is not None:
         # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
         # so modifying it internally won't change the value for the caller
