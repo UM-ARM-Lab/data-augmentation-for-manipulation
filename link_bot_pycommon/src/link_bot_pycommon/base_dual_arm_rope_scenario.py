@@ -16,10 +16,9 @@ from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-from moonshine.geometry import rotate_points_3d, transform_points_3d
+from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import numpify, to_list_of_strings
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
-from std_msgs.msg import Float32
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():
@@ -187,24 +186,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             'rope':            cdcpd_rope_state_vector,
         }
         state.update(self.get_gripper_positions.get_state())
+
+        if np.linalg.norm(state['left_gripper'] - gt_rope_state_vector[0:3]) > 0.1:
+            raise ValueError("broken!!!")
+
         return state
-
-    def states_description(self) -> Dict:
-        n_joints = self.robot.get_num_joints()
-        return {
-            'left_gripper':    3,
-            'right_gripper':   3,
-            'rope':            FloatingRopeScenario.n_links * 3,
-            'joint_positions': n_joints,
-            'rgbd':            self.IMAGE_H * self.IMAGE_W * 4,
-        }
-
-    def observations_description(self) -> Dict:
-        return {
-            'left_gripper':  3,
-            'right_gripper': 3,
-            'rgbd':          self.IMAGE_H * self.IMAGE_W * 4,
-        }
 
     def plot_state_rviz(self, state: Dict, **kwargs):
         FloatingRopeScenario.plot_state_rviz(self, state, **kwargs)
