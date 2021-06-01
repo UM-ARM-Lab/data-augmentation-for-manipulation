@@ -1,4 +1,5 @@
 import pathlib
+import socket
 import tempfile
 import uuid
 import warnings
@@ -65,6 +66,7 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             "commit":          git_sha(),
             "scene_name":      self.test_scenes_dir.name.replace("_", " "),
             "test_scenes_dir": self.test_scenes_dir.as_posix(),
+            'hostname':        socket.gethostname(),
         }
         metadata.update(self.planner.get_metadata())
         with (self.outdir / 'metadata.hjson').open("w") as metadata_file:
