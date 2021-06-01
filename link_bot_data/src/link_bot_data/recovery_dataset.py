@@ -32,14 +32,15 @@ class RecoveryDatasetLoader(BaseDatasetLoader):
         self.env_keys = self.hparams['env_keys']
 
         self.feature_names = [
-            'traj_idx',
-            'start_t',
-            'end_t',
+            # 'traj_idx',
+            # 'start_t',
+            # 'end_t',
             'accept_probabilities',
         ]
 
         if self.hparams.get("has_sampled_actions", False):
-            self.feature_names.append("sampled_actions")
+            for action_key in self.action_keys:
+                self.feature_names.append("sampled_actions_" + action_key)
 
         for k in self.state_keys:
             self.feature_names.append(k)
