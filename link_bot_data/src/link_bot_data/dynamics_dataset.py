@@ -85,8 +85,9 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
         dataset = super().post_process(dataset, n_parallel_calls)
 
         if self.use_gt_rope:
-            print(Fore.GREEN + "Using ground-truth rope state")
             dataset = dataset.map(use_gt_rope)
+        else:
+            print(Fore.GREEN + "NOT Using ground-truth rope state")
 
         return dataset
 

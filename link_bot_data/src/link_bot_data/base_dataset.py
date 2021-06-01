@@ -190,7 +190,6 @@ class BaseDatasetLoader:
                                   **kwargs,
                                   ):
         if shuffle_files:
-            print("Shuffling records")
             shuffle_rng = np.random.RandomState(0)
             shuffle_rng.shuffle(records)
 
