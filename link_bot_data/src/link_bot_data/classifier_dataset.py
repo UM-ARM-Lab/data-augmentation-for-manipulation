@@ -32,9 +32,9 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         self.labeling_params = self.hparams['labeling_params']
         self.threshold = threshold if threshold is not None else self.labeling_params['threshold']
         self.use_gt_rope = use_gt_rope if use_gt_rope is not None else self.hparams['use_gt_rope']
-        if self.use_gt_rope:
-            rospy.loginfo(Fore.GREEN + f"Using groud-truth rope" + Fore.RESET)
-        rospy.loginfo(f"classifier using threshold {self.threshold}")
+        if not self.use_gt_rope:
+            print(Fore.GREEN + f"NOT Using ground-truth rope" + Fore.RESET)
+        print(f"classifier using threshold {self.threshold}")
         self.horizon = self.hparams['labeling_params']['classifier_horizon']
         if scenario is None:
             self.scenario = get_scenario(self.hparams['scenario'])
