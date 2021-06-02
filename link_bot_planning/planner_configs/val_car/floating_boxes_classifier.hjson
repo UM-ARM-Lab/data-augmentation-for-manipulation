@@ -1,16 +1,7 @@
 {
   method_name: floating boxes classifier
-  filter_model_dir: [
-    filter_trials/none/none
-  ]
-  fwd_model_dir: [
-    dy_trials/gt_rope_w_robot_0/best_checkpoint
-    dy_trials/gt_rope_w_robot_1/best_checkpoint
-    dy_trials/gt_rope_w_robot_2/best_checkpoint
-    dy_trials/gt_rope_w_robot_3/best_checkpoint
-  ]
   classifier_model_dir: [
-    cl_trials/val_floating_boxes2/May_28_16-33-58_d27b7428f9/best_checkpoint
+    cl_trials/val_floating_boxes6/June_02_11-00-14_fd216aa755/best_checkpoint/
     cl_trials/new_feasibility_baseline/none
   ]
   recovery: {
