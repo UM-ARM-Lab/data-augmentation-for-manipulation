@@ -11,7 +11,7 @@ import rosnode
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, _deserialize_scene_msg
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.dual_arm_get_gripper_positions import DualArmGetGripperPositions
+from link_bot_pycommon.get_dual_arm_robot_state import GetDualArmRobotState
 from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
@@ -110,7 +110,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         # FIXME: this blocks until the robot is available, we need lazy construction
         self.robot = get_moveit_robot(self.robot_namespace, raise_on_failure=True)
 
-        self.get_gripper_positions = DualArmGetGripperPositions(self.robot)
+        self.get_robot_state = GetDualArmRobotState(self.robot)
 
     def add_boxes_around_tools(self):
         # add attached collision object to prevent moveit from smooshing the rope and ends of grippers into obstacles
@@ -169,8 +169,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         return self.robot.get_joint_names()
 
     def get_state(self):
-        joint_state: JointState = self.robot._joint_state_listener.get()
-
         gt_rope_state_vector = self.get_gazebo_rope_state()
         gt_rope_state_vector = np.array(gt_rope_state_vector, np.float32)
 
@@ -180,12 +178,19 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             cdcpd_rope_state_vector = self.get_cdcpd_state()
 
         state = {
-            'joint_positions': np.array(joint_state.position, np.float32),
-            'joint_names':     np.array(joint_state.name),
-            'gt_rope':         gt_rope_state_vector,
-            'rope':            cdcpd_rope_state_vector,
+            'gt_rope': gt_rope_state_vector,
+            'rope':    cdcpd_rope_state_vector,
         }
-        state.update(self.get_gripper_positions.get_state())
+        state.update(self.get_robot_state.get_state())
+
+        if (np.linalg.norm(state['left_gripper'] - state['rope'][0:3]) > 0.018) or (
+                np.linalg.norm(state['right_gripper'] - state['rope'][-3:]) > 0.018):
+            rospy.logerr("state is inconsistent!")
+            self.plot_state_rviz(state, label='debugging1')
+            breakpoint()
+            rospy.logerr("state is inconsistent!")
+            self.plot_state_rviz(state, label='debugging1')
+            breakpoint()
 
         return state
 
