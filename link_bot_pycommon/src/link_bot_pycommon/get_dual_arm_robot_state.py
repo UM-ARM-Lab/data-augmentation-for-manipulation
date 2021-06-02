@@ -26,5 +26,5 @@ class GetDualArmRobotState:
             'joint_positions': np.array(joint_state.position, np.float32),
             'joint_names':     np.array(joint_state.name),
             'left_gripper':    ros_numpy.numpify(left_gripper.position).astype(np.float32),
-            'right_gripper':    ros_numpy.numpify(right_gripper.position).astype(np.float32),
+            'right_gripper':   ros_numpy.numpify(right_gripper.position).astype(np.float32),
         }
