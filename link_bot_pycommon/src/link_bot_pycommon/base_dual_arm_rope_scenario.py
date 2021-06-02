@@ -187,9 +187,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         }
         state.update(self.get_gripper_positions.get_state())
 
-        if np.linalg.norm(state['left_gripper'] - gt_rope_state_vector[0:3]) > 0.1:
-            raise ValueError("broken!!!")
-
         return state
 
     def plot_state_rviz(self, state: Dict, **kwargs):
