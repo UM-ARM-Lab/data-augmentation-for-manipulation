@@ -65,3 +65,32 @@ class NExtensions(ob.PlannerTerminationCondition):
 
     def interpret_planner_status(self, _: ob.PlannerStatus):
         return MyPlannerStatus.Timeout
+
+
+class EvalRecoveryPTC(ob.PlannerTerminationCondition):
+    def __init__(self, planning_query: PlanningQuery, params: Dict, verbose: int):
+        super().__init__(ob.PlannerTerminationConditionFn(self.condition))
+        self.params = params
+        self.verbose = verbose
+        self.threshold = self.params['attempted_extensions_threshold']
+        self.planning_query = planning_query
+        self.start_time = planning_query.trial_start_time_seconds
+
+        self.all_rejected = True
+        self.not_progressing = None
+        self.attempted_extensions = 0
+        self.debugging_terminate = False
+
+        self.t0 = perf_counter()
+
+    def condition(self):
+        self.not_progressing = self.attempted_extensions >= self.threshold and self.all_rejected
+        should_terminate = self.not_progressing or not self.all_rejected
+
+        return should_terminate
+
+    def interpret_planner_status(self, planner_status: ob.PlannerStatus):
+        if self.not_progressing:
+            return MyPlannerStatus.NotProgressing
+        else:
+            return MyPlannerStatus.Solved

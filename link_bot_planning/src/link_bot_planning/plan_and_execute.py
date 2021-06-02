@@ -117,6 +117,7 @@ class PlanAndExecute:
                  use_gt_rope: bool = True,
                  trials: Optional[List[int]] = None,
                  test_scenes_dir: Optional[pathlib.Path] = None,
+                 extra_end_conditions: Optional[List[Callable]] = None,
                  seed: int = 0):
         self.use_gt_rope = use_gt_rope
         self.planner = planner
@@ -131,6 +132,7 @@ class PlanAndExecute:
         self.recovery_rng = np.random.RandomState(0)
         self.seed = seed
         self.test_scenes_dir = test_scenes_dir
+        self.extra_end_conditions = extra_end_conditions
         if self.planner_params['recovery']['use_recovery']:
             recovery_model_dir = pathlib.Path(self.planner_params['recovery']['recovery_model_dir'])
             self.recovery_policy = recovery_policy_utils.load_generic_model(path=recovery_model_dir,
@@ -336,6 +338,11 @@ class PlanAndExecute:
                 execution_result.end_trial,
                 attempt_idx >= max_attempts,
             ]
+            if self.extra_end_conditions is not None:
+                for end_cond_fun in self.extra_end_conditions:
+                    end_conditions.append(end_cond_fun(planning_result, execution_result))
+
+
             end_trial = any(end_conditions)
             if end_trial:
                 if reached_goal:
@@ -440,6 +447,8 @@ class PlanAndExecute:
             before_state = self.scenario.get_state()
             if self.use_gt_rope:
                 before_state = dataset_utils.use_gt_rope(before_state)
+            if self.verbose >= 0:
+                self.scenario.plot_action_rviz(before_state, action, label='recovery', color='pink')
             end_trial = self.scenario.execute_action(environment, before_state, action)
             after_state = self.scenario.get_state()
             if self.use_gt_rope:

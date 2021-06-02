@@ -54,7 +54,7 @@ class GeneratePretransferDataset:
         def set_ptc(*args, **kwargs):
             return NExtensions(max_n_extensions=self.batch_size)
 
-        self.planner.set_ptc = set_ptc
+        self.planner.make_ptc = set_ptc
         # we are not running the planner to reach a goal, so goal bias should be zero
         self.planner.rrt.setGoalBias(0)
         self.planner.goal_region = NoGoal(self.planner.si)

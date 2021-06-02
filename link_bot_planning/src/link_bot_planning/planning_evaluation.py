@@ -4,7 +4,7 @@ import tempfile
 import uuid
 import warnings
 from time import time, sleep
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Callable
 
 import numpy as np
 from colorama import Fore
@@ -47,11 +47,12 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
                  record: Optional[bool] = False,
                  no_execution: Optional[bool] = False,
                  test_scenes_dir: Optional[pathlib.Path] = None,
+                 extra_end_conditions: Optional[List[Callable]] = None,
                  seed: int = 0,
                  ):
         super().__init__(planner, trials=trials, verbose=verbose, planner_params=planner_params,
                          service_provider=service_provider, no_execution=no_execution, use_gt_rope=use_gt_rope,
-                         test_scenes_dir=test_scenes_dir, seed=seed)
+                         test_scenes_dir=test_scenes_dir, seed=seed, extra_end_conditions=extra_end_conditions)
         self.record = record
         self.outdir = outdir
         self.job_chunker = job_chunker
