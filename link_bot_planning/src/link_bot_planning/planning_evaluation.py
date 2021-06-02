@@ -70,7 +70,7 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             "scenario":        self.planner.scenario.simple_name(),
             "commit":          git_sha(),
             "scene_name":      scene_name,
-            "test_scenes_dir": self.test_scenes_dir.as_posix(),
+            "test_scenes_dir": self.test_scenes_dir.as_posix() if self.test_scenes_dir is not None else None,
             'hostname':        socket.gethostname(),
         }
         metadata.update(self.planner.get_metadata())

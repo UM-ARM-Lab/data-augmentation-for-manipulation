@@ -1,0 +1,12 @@
+{
+  scenario: real_val_with_robot_feasibility_checking
+  method_name: new car classifier
+  classifier_model_dir: [
+    cl_trials/val_car_feasible_new2/May_26_10-37-42_787000411c/best_checkpoint
+    cl_trials/new_feasibility_baseline/none
+  ]
+  recovery: {
+    recovery_model_dir: recovery_trials/val_car_feasible2/May_22_22-47-32_442a2de391/best_checkpoint
+    use_recovery: true
+  }
+}

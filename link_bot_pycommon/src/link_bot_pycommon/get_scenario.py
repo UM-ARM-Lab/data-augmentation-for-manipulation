@@ -15,6 +15,7 @@ def make_dual_arm_real_victor_rope_scenario():
     from link_bot_pycommon.dual_arm_real_victor_rope_scenario import DualArmRealVictorRopeScenario
     return DualArmRealVictorRopeScenario
 
+
 def make_dual_arm_real_val_rope_scenario():
     from link_bot_pycommon.dual_arm_real_val_rope_scenario import DualArmRealValRopeScenario
     return DualArmRealValRopeScenario
@@ -41,9 +42,15 @@ def make_floating_rope_scenario():
 
 
 def make_dual_arm_rope_sim_val_with_robot_feasibility_checking():
-    from link_bot_pycommon.dual_arm_rope_sim_val_with_robot_feasibility_checking_scenario import \
+    from link_bot_pycommon.with_robot_feasibility_checking_scenario import \
         DualArmRopeSimValWithRobotFeasibilityCheckingScenario
     return DualArmRopeSimValWithRobotFeasibilityCheckingScenario
+
+
+def make_real_val_with_robot_feasibility_checking():
+    from link_bot_pycommon.with_robot_feasibility_checking_scenario import \
+        DualArmRopeRealValWithRobotFeasibilityCheckingScenario
+    return DualArmRopeRealValWithRobotFeasibilityCheckingScenario
 
 
 scenario_map = {
@@ -62,6 +69,7 @@ scenario_map = {
     'floating_rope':                                         make_floating_rope_scenario,
     'dual_arm_no_rope':                                      make_dual_arm_scenario,
     'dual_arm_rope_sim_val_with_robot_feasibility_checking': make_dual_arm_rope_sim_val_with_robot_feasibility_checking,
+    'real_val_with_robot_feasibility_checking':              make_real_val_with_robot_feasibility_checking,
 }
 
 

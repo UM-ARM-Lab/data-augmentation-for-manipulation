@@ -13,7 +13,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
     DEPTH_IMAGE_TOPIC = "/kinect2_tripodA/qhd/image_depth_rect"
 
     def __init__(self):
-        super().__init__('val')
+        super().__init__('hdt_michigan')
         self.val = Val()
         self.get_joint_state = GetJointState(self.robot)
         self.get_cdcpd_state = GetCdcpdState(self.tf)
@@ -35,9 +35,15 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         self.robot.speak("press enter to begin")
         input("press enter to begin")
 
+    def on_before_get_state_or_execute_action(self):
+        self.robot.connect()
+        self.add_boxes_around_tools()
+
     def get_state(self):
         state = {}
-        state.update(self.get_joint_state.get_state())
+        state.update(self.get_robot_state.get_state())
         state.update(self.get_cdcpd_state.get_state())
-        state.update(self.get_gripper_positions.get_state())
         return state
+
+    def get_excluded_models_for_env(self):
+        return []
