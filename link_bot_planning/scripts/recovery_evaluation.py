@@ -6,7 +6,7 @@ import warnings
 
 import tensorflow as tf
 
-from link_bot_planning.analysis.results_metrics import recovery_success
+from link_bot_planning.analysis import results_metrics
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus, PlanningQuery
 from link_bot_planning.plan_and_execute import ExecutionResult
 from link_bot_planning.timeout_or_not_progressing import EvalRecoveryPTC
@@ -96,14 +96,16 @@ def evaluate_recovery(recovery_model_dir: pathlib.Path, planner_params_filename:
     n_trials = len(trials)
     metrics_filenames = list(outdir.glob("*_metrics.pkl.gz"))
     n_success = 0
+    num_recovery_actions = 0
     for file_idx, metrics_filename in enumerate(metrics_filenames):
         trial_datum = load_gzipped_pickle(metrics_filename)
-        if recovery_success(planner.scenario, {}, trial_datum):
+        if results_metrics.recovery_success(planner.scenario, {}, trial_datum):
             n_success += 1
+        num_recovery_actions += results_metrics.num_recovery_actions(planner.scenario, {}, trial_datum)
 
     print(classifier_model_checkpoint.parent)
     print(recovery_model_dir)
-    print(n_success, n_trials)
+    print(num_recovery_actions, n_success, n_trials)
 
 
 @ros_init.with_ros("recovery_evaluation")

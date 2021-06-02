@@ -310,6 +310,8 @@ def deal_with_exceptions(how_to_handle: str,
             except exceptions:
                 if exception_callback is not None:
                     exception_callback()
+                if i == 9:
+                    traceback.print_exc()
                 if how_to_handle == 'retry':
                     _print_exception()
                 elif how_to_handle == 'catch':

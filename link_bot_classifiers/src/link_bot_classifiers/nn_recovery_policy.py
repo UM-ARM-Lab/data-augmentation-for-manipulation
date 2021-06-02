@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import pathlib
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Dict, List
 
@@ -63,6 +64,11 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
         max_unstuck_probability = -1
         best_action = None
 
+        action_params = deepcopy(self.data_collection_params)
+        action_params['extent'] = environment['extent']
+        action_params['left_gripper_action_sample_extent'] = environment['extent']
+        action_params['right_gripper_action_sample_extent'] = environment['extent']
+
         info = RecoveryDebugVizInfo(actions=[],
                                     states=[],
                                     recovery_probabilities=[],
@@ -73,10 +79,10 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
             action, _ = self.scenario.sample_action(action_rng=self.action_rng,
                                                     environment=environment,
                                                     state=state,
-                                                    action_params=self.data_collection_params,
+                                                    action_params=action_params,
                                                     validate=False)  # not checking here since we check after adding noise
             action = self.scenario.add_action_noise(action, self.noise_rng)
-            valid = self.scenario.is_action_valid(environment, state, action, self.data_collection_params)
+            valid = self.scenario.is_action_valid(environment, state, action, action_params)
             if not valid:
                 continue
 
