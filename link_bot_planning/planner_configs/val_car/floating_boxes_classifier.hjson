@@ -10,13 +10,11 @@
     dy_trials/gt_rope_w_robot_3/best_checkpoint
   ]
   classifier_model_dir: [
-    # cl_trials/val_floating_boxes_1622170084/May_28_00-18-46_e6bb30ad8b/best_checkpoint/
     cl_trials/val_floating_boxes2/May_28_16-33-58_d27b7428f9/best_checkpoint
     cl_trials/new_feasibility_baseline/none
   ]
   recovery: {
-    # FIXME: using random recovery is just a placeholder!
-    recovery_model_dir: recovery_trials/random/none
+    recovery_model_dir: recovery_trials/val_floating_boxes2/May_31_22-15-29_345ca5f528/best_checkpoint
     use_recovery: true
   }
 }
