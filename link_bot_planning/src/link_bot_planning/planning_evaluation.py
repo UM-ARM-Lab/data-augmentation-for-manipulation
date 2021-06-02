@@ -60,12 +60,16 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
         self.outdir.mkdir(parents=True, exist_ok=True)
         rospy.loginfo(Fore.BLUE + f"Output directory: {self.outdir.as_posix()}")
 
+        if self.test_scenes_dir is None:
+            scene_name = None
+        else:
+            scene_name = self.test_scenes_dir.name.replace("_", " ")
         metadata = {
             "trials":          self.trials,
             "planner_params":  self.planner_params,
             "scenario":        self.planner.scenario.simple_name(),
             "commit":          git_sha(),
-            "scene_name":      self.test_scenes_dir.name.replace("_", " "),
+            "scene_name":      scene_name,
             "test_scenes_dir": self.test_scenes_dir.as_posix(),
             'hostname':        socket.gethostname(),
         }
@@ -183,8 +187,6 @@ def evaluate_planning(planner_params: Dict,
                                max_step_size=planner.fwd_model.max_step_size,
                                play=True)
 
-    # FIXME: RAII -- you should not be able to call get_state on a scenario until this method has been called
-    #  which could be done by making a type, something like "EmbodiedScenario" which has get_state and execute_action,
     planner.scenario.on_before_get_state_or_execute_action()
 
     runner = EvaluatePlanning(planner=planner,

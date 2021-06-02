@@ -85,7 +85,7 @@ class EvalRecoveryPTC(ob.PlannerTerminationCondition):
 
     def condition(self):
         self.not_progressing = self.attempted_extensions >= self.threshold and self.all_rejected
-        should_terminate = self.not_progressing or not self.all_rejected
+        should_terminate = self.not_progressing or (not self.all_rejected and self.attempted_extensions > 10)  # huh?!
 
         return should_terminate
 
