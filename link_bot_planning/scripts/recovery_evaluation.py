@@ -40,7 +40,7 @@ def evaluate_recovery(recovery_model_dir: pathlib.Path, planner_params_filename:
 
     planner_params = load_planner_params(planner_params_filename)
     recovery_model_hparams = load_params(recovery_model_dir)
-    classifier_model_checkpoint = recovery_model_hparams['recovery_dataset_hparams']['classifier_model']
+    classifier_model_checkpoint = pathlib.Path(recovery_model_hparams['recovery_dataset_hparams']['classifier_model'])
     params_update = {
         'recovery':             {
             'recovery_model_dir': recovery_model_dir / 'best_checkpoint',
