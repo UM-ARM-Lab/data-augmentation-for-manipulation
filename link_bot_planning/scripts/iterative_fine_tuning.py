@@ -537,7 +537,7 @@ def setup_ift(args):
     print(logfile_name.as_posix())
 
 
-# @notifyme.notify()
+@notifyme.notify()
 def ift_main(args):
     log = load_hjson(args.logfile)
     ift = IterativeFineTuning(log=log,
