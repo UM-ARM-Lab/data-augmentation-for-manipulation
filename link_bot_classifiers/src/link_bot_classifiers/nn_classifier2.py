@@ -211,16 +211,15 @@ class NNClassifier(MyKerasModel):
         super().create_metrics()
         return {
             'accuracy':              BinaryAccuracy(),
-            'accuracy on negatives': BinaryAccuracyOnNegatives(),
-            'accuracy on positives': BinaryAccuracyOnPositives(),
             'precision':             Precision(),
             'recall':                Recall(),
+            'accuracy on positives': BinaryAccuracyOnPositives(),
+            'accuracy on negatives': BinaryAccuracyOnNegatives(),
+            'loss':                  LossMetric(),
             'fp/mistakes':           FalsePositiveMistakeRate(),
             'fn/mistakes':           FalseNegativeMistakeRate(),
             'fp/total':              FalsePositiveOverallRate(),
             'fn/total':              FalseNegativeOverallRate(),
-            # don't forget to include metrics for loss
-            'loss':                  LossMetric(),
         }
 
     def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
