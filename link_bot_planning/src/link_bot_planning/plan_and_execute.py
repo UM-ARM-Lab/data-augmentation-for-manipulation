@@ -67,6 +67,7 @@ def execute_actions(
     after_state = None
     stopped = False
 
+    t = 0
     for t, action in enumerate(actions):
         spinner.update()
         scenario.heartbeat()
