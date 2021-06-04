@@ -9,8 +9,9 @@ from tensorflow.python.keras.metrics import Metric
 
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
+from link_bot_classifiers.augmentation_optimization import AugmentationOptimization
+from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo, make_voxelgrid_inputs_t
-from link_bot_classifiers.classifier_augmentation import ClassifierAugmentation
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
@@ -76,8 +77,8 @@ class NNRecoveryModel(MyKerasModel):
         self.output_layer2 = layers.Dense(1, activation=None, trainable=True)
         self.sigmoid = layers.Activation("sigmoid")
 
-        # self.debug = ClassifierDebugging()
-        self.aug = ClassifierAugmentation(self.hparams, batch_size=batch_size, scenario=scenario)
+        self.debug = ClassifierDebugging(self.scenario)
+        self.aug = AugmentationOptimization(self.scenario, self.debug, self.hparams, batch_size)
 
         self.indices = self.create_env_indices(batch_size)
 
