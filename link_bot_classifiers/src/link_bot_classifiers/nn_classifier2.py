@@ -151,7 +151,7 @@ class NNClassifier(MyKerasModel):
         if training and self.aug.do_augmentation():
             # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
             # so modifying it internally won't change the value for the caller
-            inputs['voxel_grids'] = self.augmentation_optimization(inputs, batch_size, time)
+            self.augmentation_optimization(inputs, batch_size, time)
 
         return inputs
 
@@ -375,11 +375,7 @@ class NNClassifier(MyKerasModel):
 
         local_origin_point = inputs['local_origin_point']
         local_env = inputs['voxel_grids'][:, 0, :, :, :, 0]  # just use 0 because it's the same at all time steps
-        local_env_occupancy = lookup_points_in_vg(points,
-                                                  local_env,
-                                                  res,
-                                                  local_origin_point,
-                                                  batch_size)
+        local_env_occupancy = lookup_points_in_vg(points, local_env, res, local_origin_point, batch_size)
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
@@ -446,10 +442,8 @@ class NNClassifier(MyKerasModel):
                 self.debug_viz_state_action(inputs, b, 'aug', color='blue')
                 # stepper.step()
 
-        voxel_grids_aug = self.merge_aug_and_local_voxel_grids(local_env_aug,
-                                                               inputs['voxel_grids'],
-                                                               time)
-        return voxel_grids_aug
+        voxel_grids_aug = self.merge_aug_and_local_voxel_grids(local_env_aug, inputs['voxel_grids'], time)
+        inputs['voxel_grids'] = voxel_grids_aug
 
     def sample_transformations(self, batch_size):
         # sample a translation and rotation for the object state
