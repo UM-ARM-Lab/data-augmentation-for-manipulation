@@ -45,7 +45,7 @@ def viz_ensemble_main(args):
     train_test_classifier.viz_ensemble_main(**vars(args))
 
 
-node_name = f"train_test_classifier_{time()}"
+node_name = f"train_test_classifier_{int(time())}"
 
 
 @ros_init.with_ros(node_name)
