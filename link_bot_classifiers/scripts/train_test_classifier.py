@@ -2,6 +2,7 @@
 import argparse
 import logging
 import pathlib
+from time import time
 
 import colorama
 import numpy as np
@@ -44,7 +45,10 @@ def viz_ensemble_main(args):
     train_test_classifier.viz_ensemble_main(**vars(args))
 
 
-@ros_init.with_ros("train_test_classifier")
+node_name = f"train_test_classifier_{time()}"
+
+
+@ros_init.with_ros(node_name)
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)

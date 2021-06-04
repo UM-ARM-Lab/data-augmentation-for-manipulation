@@ -102,19 +102,18 @@ def dim_viz_main(checkpoint: pathlib.Path, **kwargs):
 
     n = 100
 
-    plot_angle_invariance(m, n)
+    fig, axes = plt.subplots(1, 2, sharey=True)
+    fig.suptitle("Predicted Error of Augmentation")
 
-    plot_position_invariance(m, n)
+    plot_angle_invariance(axes[0], m, n)
+    plot_position_invariance(axes[1], m, n)
 
     plt.show()
 
 
-def plot_angle_invariance(m, n):
-    plt.figure()
-    axes = plt.gca()
-    plt.title("Predicted Augmentation Error")
-    plt.xlabel(f"rotation (deg)")
-    plt.ylabel("error")
+def plot_angle_invariance(ax, m, n):
+    ax.set_xlabel(f"rotation (deg)")
+    ax.set_ylabel("error")
 
     angles = np.linspace(-np.pi / 2, np.pi / 2, n, dtype=np.float32)
 
@@ -133,20 +132,17 @@ def plot_angle_invariance(m, n):
         errors = viz_eval(m, transformation_params)
         angles_deg = np.rad2deg(angles)
 
-        axes.scatter(angles_deg, errors, label=axis)
+        ax.scatter(angles_deg, errors, label=axis)
 
     _plot_by_axis("roll")
     _plot_by_axis("pitch")
     _plot_by_axis("yaw")
-    plt.legend()
+    ax.legend()
 
 
-def plot_position_invariance(m, n):
-    plt.figure()
-    axes = plt.gca()
-    plt.title("Predicted Augmentation Error")
-    plt.xlabel(f"translation (m)")
-    plt.ylabel("error")
+def plot_position_invariance(ax, m, n):
+    ax.set_xlabel(f"translation (m)")
+    ax.set_ylabel("error")
 
     positions = np.linspace(-0.5, 0.5, n, dtype=np.float32)
 
@@ -164,9 +160,9 @@ def plot_position_invariance(m, n):
         transformation_params[:, param_idx] = positions
         errors = viz_eval(m, transformation_params)
 
-        axes.scatter(positions, errors, label=axis)
+        ax.scatter(positions, errors, label=axis)
 
     _plot_by_axis("x")
     _plot_by_axis("y")
     _plot_by_axis("z")
-    plt.legend()
+    ax.legend()
