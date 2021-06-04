@@ -16,6 +16,7 @@ from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers import recovery_policy_utils
 from link_bot_data import dataset_utils
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
+from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, SetupInfo
 from link_bot_planning.test_scenes import get_all_scenes
 from link_bot_pycommon.base_services import BaseServices
@@ -205,6 +206,8 @@ class PlanAndExecute:
         else:
             raise NotImplementedError(f"invalid goal param type {goal_params['type']}")
 
+        self.gazebo_processes = get_gazebo_processes()
+
     def run(self):
         self.scenario.randomization_initialization(params=self.planner_params)
         for trial_idx in self.trials:
@@ -385,7 +388,12 @@ class PlanAndExecute:
         ############
         if self.verbose >= 1:
             (Fore.MAGENTA + "Planning to {}".format(planning_query.goal) + Fore.RESET)
+
+        # this speeds everything up a bit
+        [p.suspend() for p in self.gazebo_processes]
         planning_result = self.planner.plan(planning_query=planning_query)
+        [p.resume() for p in self.gazebo_processes]
+
         rospy.loginfo(f"Planning time: {planning_result.time:5.3f}s, Status: {planning_result.status}")
 
         self.on_plan_complete(planning_query, planning_result)
