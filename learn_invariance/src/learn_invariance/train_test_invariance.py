@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import transformations
 
-from learn_invariance.invariance_model import InvarianceModel
+from learn_invariance.invariance_model import InvarianceModel, compute_transformation_invariance_error
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from learn_invariance.new_dynamics_dataset_loader import NewDynamicsDatasetLoader
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
@@ -80,13 +80,17 @@ def viz_main(dataset_dirs: List[pathlib.Path],
     stepper = RvizSimpleStepper()
     for i, inputs in enumerate(dataset):
         transformation = inputs['transformation']
+        true_error = compute_transformation_invariance_error(inputs, s)
         predicted_error = m.evaluate(transformation)
         predicted_error = predicted_error.numpy().squeeze()
         transformation = remove_batch(transformation)
+
+        print(transformation, true_error, predicted_error)
+
         transform_matrix = transformations.compose_matrix(translate=transformation[:3], angles=transformation[3:])
         s.tf.send_transform_matrix(transform_matrix, parent='world', child='viz_transform')
         s.plot_error_rviz(predicted_error)
-        stepper.step()
+        # stepper.step()
 
 
 def viz_eval(m, transformation):

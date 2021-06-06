@@ -8,6 +8,13 @@ from moonshine.metrics import LossMetric
 from moonshine.my_keras_model import MyKerasModel
 
 
+def compute_transformation_invariance_error(inputs, scenario):
+    state_after_aug = inputs['state_after_aug']
+    state_after_aug_expected = inputs['state_after_aug_expected']
+    true_error = scenario.classifier_distance(state_after_aug_expected, state_after_aug)
+    return true_error
+
+
 class InvarianceModel(MyKerasModel):
 
     def __init__(self, hparams: Dict, batch_size: int, scenario: ScenarioWithVisualization):
@@ -28,9 +35,7 @@ class InvarianceModel(MyKerasModel):
         self.inputs_keys = ['transformation']
 
     def compute_loss(self, inputs, outputs):
-        state_after_aug = inputs['state_after_aug']
-        state_after_aug_expected = inputs['state_after_aug_expected']
-        true_error = self.scenario.classifier_distance(state_after_aug_expected, state_after_aug)
+        true_error = compute_transformation_invariance_error(inputs, self.scenario)
         true_error = tf.expand_dims(true_error, axis=-1)
         loss = tf.losses.MSE(true_error, outputs['predicted_error'])
         return {

@@ -11,6 +11,7 @@ import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.augmentation_optimization import AugmentationOptimization
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
+from link_bot_classifiers.local_env_helper import LocalEnvHelper
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo, make_voxelgrid_inputs_t
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
@@ -77,8 +78,17 @@ class NNRecoveryModel(MyKerasModel):
         self.output_layer2 = layers.Dense(1, activation=None, trainable=True)
         self.sigmoid = layers.Activation("sigmoid")
 
-        self.debug = ClassifierDebugging(self.scenario)
-        self.aug = AugmentationOptimization(self.scenario, self.debug, self.hparams, batch_size)
+        self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows,
+                                               w=self.local_env_w_cols,
+                                               c=self.local_env_c_channels,
+                                               batch_size=batch_size)
+        self.debug = ClassifierDebugging(self.scenario, self.state_keys, self.action_keys)
+        self.aug = AugmentationOptimization(self.scenario, self.debug, self.local_env_helper, self.hparams,
+                                            self.batch_size)
+        if self.aug.do_augmentation():
+            rospy.loginfo("Using augmentation during training")
+        else:
+            rospy.loginfo("Not using augmentation during training")
 
         self.indices = self.create_env_indices(batch_size)
 
@@ -134,16 +144,13 @@ class NNRecoveryModel(MyKerasModel):
         inputs['voxel_grids'] = local_voxel_grid_t
         inputs['local_origin_point'] = local_origin_point
 
-        # inputs['swept_state_and_robot_points'] = self.scenario.compute_swept_state_and_robot_points(inputs)
+        inputs['swept_state_and_robot_points'] = self.scenario.compute_swept_state_and_robot_points(inputs)
 
         if DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(inputs)
 
-        # FIXME: include this!
-        # if training and self.aug.hparams is not None:
-        # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
-        # so modifying it internally won't change the value for the caller
-        # inputs['voxel_grids'] = self.augmentation_optimization(inputs, batch_size)
+        if training and self.aug.do_augmentation():
+            self.aug.augmentation_optimization(inputs, batch_size, time=2)
 
         return inputs
 

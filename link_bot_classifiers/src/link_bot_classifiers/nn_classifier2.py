@@ -145,8 +145,6 @@ class NNClassifier(MyKerasModel):
             self.debug_viz_local_env_pre_aug(inputs, time)
 
         if training and self.aug.do_augmentation():
-            # input_dict is also modified, but in place because it's a dict, where as voxel_grids is a tensor and
-            # so modifying it internally won't change the value for the caller
             self.aug.augmentation_optimization(inputs, batch_size, time)
 
         return inputs
