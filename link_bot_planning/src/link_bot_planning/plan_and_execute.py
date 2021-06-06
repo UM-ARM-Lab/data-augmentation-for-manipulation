@@ -11,6 +11,7 @@ from colorama import Fore
 
 import rospy
 from arc_utilities.listener import Listener
+from arm_robots.robot import RobotPlanningError
 from gazebo_msgs.msg import LinkStates
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers import recovery_policy_utils
@@ -78,7 +79,10 @@ def execute_actions(
             scenario.plot_state_rviz(before_state, label='actual')
             scenario.plot_executed_action(before_state, action)
 
-        end_trial = scenario.execute_action(environment, before_state, action)
+        try:
+            end_trial = scenario.execute_action(environment, before_state, action)
+        except RobotPlanningError:
+            pass
         after_state = scenario.get_state()
         if use_gt_rope:
             after_state = dataset_utils.use_gt_rope(after_state)
@@ -345,7 +349,6 @@ class PlanAndExecute:
             if self.extra_end_conditions is not None:
                 for end_cond_fun in self.extra_end_conditions:
                     end_conditions.append(end_cond_fun(planning_result, execution_result))
-
 
             end_trial = any(end_conditions)
             if end_trial:

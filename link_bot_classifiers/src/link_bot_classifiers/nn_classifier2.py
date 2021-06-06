@@ -15,6 +15,7 @@ from link_bot_classifiers.local_env_helper import LocalEnvHelper
 from link_bot_classifiers.make_voxelgrid_inputs import make_voxelgrid_inputs_t, VoxelgridInfo
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo
 from link_bot_data.dataset_utils import add_predicted
+from link_bot_pycommon.base_dual_arm_rope_scenario import densify_points
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf, environment_to_vg_msg, \
@@ -275,7 +276,26 @@ class NNClassifier(MyKerasModel):
 
     def compute_swept_state_and_robot_points(self, inputs):
         points_state_keys = [add_predicted(k) for k in self.points_state_keys]
-        return self.scenario.compute_swept_state_and_robot_points(inputs, points_state_keys)
+        batch_size = inputs['batch_size']
+
+        def _make_points(k, t):
+            v = inputs[k][:, t]
+            points = tf.reshape(v, [batch_size, -1, 3])
+            points = densify_points(batch_size, points)
+            return points
+
+        state_points_0 = {k: _make_points(k, 0) for k in points_state_keys}
+        state_points_1 = {k: _make_points(k, 1) for k in points_state_keys}
+
+        num_interp = 5
+
+        def _linspace(k):
+            return tf.linspace(state_points_0[k], state_points_1[k], num_interp, axis=1)
+
+        swept_state_points = tf.concat([_linspace(k) for k in points_state_keys], axis=2)
+        swept_state_points = tf.reshape(swept_state_points, [batch_size, -1, 3])
+
+        return swept_state_points
 
     def make_voxelgrid_inputs(self, input_dict: Dict, local_env, local_origin_point, batch_size, time):
         local_voxel_grids_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
