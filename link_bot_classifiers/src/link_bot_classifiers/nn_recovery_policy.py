@@ -71,9 +71,7 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
         best_action = None
 
         action_params = deepcopy(self.data_collection_params)
-        print(environment['extent'])
         action_params['extent'] = shrink_extent(environment['extent'], 0.05).numpy()
-        print(action_params['extent'])
         action_params['left_gripper_action_sample_extent'] = shrink_extent(environment['extent'], 0.05).numpy()
         action_params['right_gripper_action_sample_extent'] = shrink_extent(environment['extent'], 0.05).numpy()
 
