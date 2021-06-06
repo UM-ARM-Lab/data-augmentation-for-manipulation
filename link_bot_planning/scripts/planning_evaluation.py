@@ -18,12 +18,11 @@ def main():
     tf.get_logger().setLevel(logging.ERROR)
     tf.autograph.set_verbosity(0)
 
-    parser = argparse.ArgumentParser(formatter_class=my_formatter)
-    parser.add_argument('planners_params', type=pathlib.Path, nargs='+',
-                        help='json file(s) describing what should be compared')
-    parser.add_argument("trials", type=int_set_arg, default="0-50")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('planner_param', type=pathlib.Path, help='planner params hjson file')
+    parser.add_argument("trials", type=int_set_arg)
+    parser.add_argument("test_scenes_dir", type=pathlib.Path)
     parser.add_argument("nickname", type=str, help='used in making the output directory')
-    parser.add_argument("--test-scenes-dir", type=pathlib.Path)
     parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
     parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
     parser.add_argument("--no-execution", action="store_true", help='no execution')
@@ -31,18 +30,22 @@ def main():
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
     parser.add_argument('--record', action='store_true', help='record')
     parser.add_argument('--no-use-gt-rope', action='store_true', help='use ground truth rope state')
+    parser.add_argument('--classifier', type=pathlib.Path)
+    parser.add_argument('--recovery', type=pathlib.Path)
 
     args = parser.parse_args()
 
     root = data_directory(pathlib.Path('results') / f"{args.nickname}-planning-evaluation")
 
-    planners_params = []
-    for planner_params_filename in args.planners_params:
-        planner_params = load_planner_params(planner_params_filename)
-        planners_params.append((planner_params_filename.stem, planner_params))
+    planner_params = load_planner_params(args.planner_params)
+    if args.classifiers:
+        planner_params["classifier_model_dir"] = [args.classifier,
+                                                  pathlib.Path("cl_trials/new_feasibility_baseline/none")]
+    if args.recovery:
+        planner_params["recovery"]["recovery_model_dir"] = args.recovery
 
     evaluate_multiple_planning(outdir=root,
-                               planners_params=planners_params,
+                               planners_params=[(args.planner_params.stem, planner_params)],
                                trials=args.trials,
                                how_to_handle=args.on_exception,
                                use_gt_rope=not args.no_use_gt_rope,
