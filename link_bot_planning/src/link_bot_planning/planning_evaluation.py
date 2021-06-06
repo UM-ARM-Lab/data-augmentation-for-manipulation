@@ -9,6 +9,8 @@ from typing import Optional, Dict, List, Tuple, Callable
 import numpy as np
 from colorama import Fore
 
+from link_bot_gazebo.gazebo_services import get_gazebo_processes
+
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
     from ompl import util as ou
@@ -176,6 +178,10 @@ def evaluate_planning(planner_params: Dict,
         planner_params["termination_criteria"]['timeout'] = timeout
         planner_params["termination_criteria"]['total_timeout'] = timeout
     planner_params["log_full_tree"] = log_full_tree
+
+    # ensure gazebo processes are not suspended
+    gazebo_processes = get_gazebo_processes()
+    [p.resume() for p in gazebo_processes]
 
     # Start Services
     service_provider = gazebo_services.GazeboServices()

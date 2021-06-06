@@ -286,7 +286,7 @@ class NNClassifier(MyKerasModel):
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
 
         local_voxel_grids = tf.transpose(local_voxel_grids_array.stack(), [1, 0, 2, 3, 4, 5])
-        local_voxel_grids.set_shape([None, time, None, None, None, None])  # FIXME: 2 is hardcoded here
+        local_voxel_grids.set_shape([None, time, None, None, None, None])
         return local_voxel_grids
 
     def get_local_env(self, input_dict, batch_size):
