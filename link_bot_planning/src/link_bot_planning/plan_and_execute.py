@@ -438,7 +438,10 @@ class PlanAndExecute:
             # backup if the stop condition was triggered
             if execution_result.stopped:
                 undo_action = planning_result.actions[max(execution_result.end_t - 1, 0)]
-                self.scenario.execute_action(planning_query.environment, execution_result.path[-1], undo_action)
+                try:
+                    self.scenario.execute_action(planning_query.environment, execution_result.path[-1], undo_action)
+                except RobotPlanningError:
+                    pass
 
         return execution_result
 
@@ -461,7 +464,10 @@ class PlanAndExecute:
                 before_state = dataset_utils.use_gt_rope(before_state)
             if self.verbose >= 0:
                 self.scenario.plot_action_rviz(before_state, action, label='recovery', color='pink')
-            end_trial = self.scenario.execute_action(environment, before_state, action)
+            try:
+                end_trial = self.scenario.execute_action(environment, before_state, action)
+            except RobotPlanningError:
+                pass
             after_state = self.scenario.get_state()
             if self.use_gt_rope:
                 after_state = dataset_utils.use_gt_rope(after_state)
