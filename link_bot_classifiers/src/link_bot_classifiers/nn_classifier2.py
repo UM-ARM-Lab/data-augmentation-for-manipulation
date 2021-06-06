@@ -139,7 +139,8 @@ class NNClassifier(MyKerasModel):
         inputs['voxel_grids'] = voxel_grids
         inputs['local_origin_point'] = local_origin_point
 
-        inputs['swept_state_and_robot_points'] = self.scenario.compute_swept_state_and_robot_points(inputs)
+        inputs['swept_state_and_robot_points'] = self.scenario.compute_swept_state_and_robot_points(inputs,
+                                                                                                    self.points_state_keys)
 
         if augmentation_optimization.DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(inputs, time)
@@ -229,7 +230,6 @@ class NNClassifier(MyKerasModel):
         metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
 
-    # @tf.function
     def conv_encoder(self, voxel_grids, batch_size, time):
         conv_outputs_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
         for t in range(time):
@@ -245,7 +245,6 @@ class NNClassifier(MyKerasModel):
         conv_outputs = tf.transpose(conv_outputs, [1, 0, 2])
         return conv_outputs
 
-    # @tf.function
     def fc(self, input_dict, conv_output, training):
         states = {k: input_dict[add_predicted(k)] for k in self.state_keys}
         states_in_local_frame = self.scenario.put_state_local_frame(states)
@@ -275,7 +274,9 @@ class NNClassifier(MyKerasModel):
         out_h = self.lstm(out_d)
         return out_h
 
-    # @tf.function
+    def compute_swept_state_and_robot_points(self, inputs):
+        return self.scenario.compute_swept_state_and_robot_points(inputs, self.points_state_keys)
+
     def make_voxelgrid_inputs(self, input_dict: Dict, local_env, local_origin_point, batch_size, time):
         local_voxel_grids_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
         for t in tf.range(time):

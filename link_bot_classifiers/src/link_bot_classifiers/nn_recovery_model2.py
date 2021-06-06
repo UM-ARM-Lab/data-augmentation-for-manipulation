@@ -154,9 +154,6 @@ class NNRecoveryModel(MyKerasModel):
 
         return inputs
 
-    def compute_swept_state_and_robot_points(self, inputs):
-        return self.scenario.compute_swept_state_and_robot_points(inputs, self.points_state_keys)
-
     def compute_loss(self, dataset_element, outputs):
         y_true = dataset_element['recovery_probability'][:, 1:2]  # 1:2 instead of just 1 to preserve the shape
         y_pred = outputs['logits']
@@ -178,7 +175,6 @@ class NNRecoveryModel(MyKerasModel):
     def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
         pass
 
-    @tf.function
     def call(self, input_dict: Dict, training, **kwargs):
         state = {k: input_dict[k][:, 0] for k in self.state_keys}
         state_in_local_frame = self.scenario.put_state_local_frame(state)
@@ -221,7 +217,9 @@ class NNRecoveryModel(MyKerasModel):
             'probabilities': probabilities,
         }
 
-    # @tf.function
+    def compute_swept_state_and_robot_points(self, inputs):
+        return self.scenario.compute_swept_state_and_robot_points(inputs, self.points_state_keys)
+
     def conv_encoder(self, voxel_grids, batch_size):
         conv_z = voxel_grids
         for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
