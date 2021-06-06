@@ -139,8 +139,7 @@ class NNClassifier(MyKerasModel):
         inputs['voxel_grids'] = voxel_grids
         inputs['local_origin_point'] = local_origin_point
 
-        inputs['swept_state_and_robot_points'] = self.scenario.compute_swept_state_and_robot_points(inputs,
-                                                                                                    self.points_state_keys)
+        inputs['swept_state_and_robot_points'] = self.compute_swept_state_and_robot_points(inputs)
 
         if augmentation_optimization.DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(inputs, time)
@@ -275,7 +274,8 @@ class NNClassifier(MyKerasModel):
         return out_h
 
     def compute_swept_state_and_robot_points(self, inputs):
-        return self.scenario.compute_swept_state_and_robot_points(inputs, self.points_state_keys)
+        points_state_keys = [add_predicted(k) for k in self.points_state_keys]
+        return self.scenario.compute_swept_state_and_robot_points(inputs, points_state_keys)
 
     def make_voxelgrid_inputs(self, input_dict: Dict, local_env, local_origin_point, batch_size, time):
         local_voxel_grids_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
