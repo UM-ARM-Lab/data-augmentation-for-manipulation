@@ -38,7 +38,7 @@ def main():
     root = data_directory(pathlib.Path('results') / f"{args.nickname}-planning-evaluation")
 
     planner_params = load_planner_params(args.planner_params)
-    planner_params['method_name'] = args.nicknamet
+    planner_params['method_name'] = args.nickname
     if args.classifiers:
         planner_params["classifier_model_dir"] = [args.classifier,
                                                   pathlib.Path("cl_trials/new_feasibility_baseline/none")]
