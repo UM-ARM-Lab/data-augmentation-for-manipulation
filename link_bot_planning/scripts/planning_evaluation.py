@@ -19,7 +19,7 @@ def main():
     tf.autograph.set_verbosity(0)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('planner_param', type=pathlib.Path, help='planner params hjson file')
+    parser.add_argument('planner_params', type=pathlib.Path, help='planner params hjson file')
     parser.add_argument("trials", type=int_set_arg)
     parser.add_argument("test_scenes_dir", type=pathlib.Path)
     parser.add_argument("nickname", type=str, help='used in making the output directory')
@@ -38,7 +38,7 @@ def main():
     root = data_directory(pathlib.Path('results') / f"{args.nickname}-planning-evaluation")
 
     planner_params = load_planner_params(args.planner_params)
-    planner_params['method_name'] = args.nicknamet 
+    planner_params['method_name'] = args.nicknamet
     if args.classifiers:
         planner_params["classifier_model_dir"] = [args.classifier,
                                                   pathlib.Path("cl_trials/new_feasibility_baseline/none")]
