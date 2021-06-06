@@ -2,21 +2,16 @@
 import argparse
 import pathlib
 
-import colorama
-import numpy as np
-
 from arc_utilities import ros_init
 from link_bot_planning.analysis import results_utils
 from link_bot_planning.analysis.results_utils import classifier_params_from_planner_params, plot_steps
 from link_bot_planning.plan_and_execute import TrialStatus
-from link_bot_pycommon.args import my_formatter, int_set_arg
+from link_bot_pycommon.args import int_set_arg
 
 
 @ros_init.with_ros("plot_results")
 def main():
-    colorama.init(autoreset=True)
-    np.set_printoptions(linewidth=250, precision=3, suppress=True)
-    parser = argparse.ArgumentParser(formatter_class=my_formatter)
+    parser = argparse.ArgumentParser()
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
     parser.add_argument("--trials", type=int_set_arg, help='which plan(s) to show')
     parser.add_argument("--threshold", type=float)
@@ -27,7 +22,12 @@ def main():
 
     args = parser.parse_args()
 
-    scenario, metadata = results_utils.get_scenario_and_metadata(args.results_dir)
+    try:
+        scenario, metadata = results_utils.get_scenario_and_metadata(args.results_dir)
+    except RuntimeError:
+        args.results_dir = next(args.results_dir.iterdir())
+        scenario, metadata = results_utils.get_scenario_and_metadata(args.results_dir)
+
     classifier_params = classifier_params_from_planner_params(metadata['planner_params'])
     if args.threshold is None:
         threshold = classifier_params['classifier_dataset_hparams']['labeling_params']['threshold']

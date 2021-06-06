@@ -33,6 +33,12 @@ class RecoveryDebugVizInfo:
         return len(self.states)
 
 
+def shrink_extent(extent, d):
+    extent = tf.reshape(extent, [3, 2])
+    new_extent = tf.stack([extent[:, 0] + (extent[:, 0] * 0 + d), extent[:, 1] - (extent[:, 1] * 0 + d)], axis=1)
+    return tf.reshape(new_extent, [-1])
+
+
 class NNRecoveryPolicy(BaseRecoveryPolicy):
 
     def __init__(self, path: pathlib.Path, scenario: ExperimentScenario, rng: RandomState, u: Dict):
@@ -65,9 +71,11 @@ class NNRecoveryPolicy(BaseRecoveryPolicy):
         best_action = None
 
         action_params = deepcopy(self.data_collection_params)
-        action_params['extent'] = environment['extent']
-        action_params['left_gripper_action_sample_extent'] = environment['extent']
-        action_params['right_gripper_action_sample_extent'] = environment['extent']
+        print(environment['extent'])
+        action_params['extent'] = shrink_extent(environment['extent'], 0.05).numpy()
+        print(action_params['extent'])
+        action_params['left_gripper_action_sample_extent'] = shrink_extent(environment['extent'], 0.05).numpy()
+        action_params['right_gripper_action_sample_extent'] = shrink_extent(environment['extent'], 0.05).numpy()
 
         info = RecoveryDebugVizInfo(actions=[],
                                     states=[],
