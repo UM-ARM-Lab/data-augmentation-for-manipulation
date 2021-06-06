@@ -39,7 +39,7 @@ def main():
 
     planner_params = load_planner_params(args.planner_params)
     planner_params['method_name'] = args.nickname
-    if args.classifiers:
+    if args.classifier:
         planner_params["classifier_model_dir"] = [args.classifier,
                                                   pathlib.Path("cl_trials/new_feasibility_baseline/none")]
     if args.recovery:
