@@ -3,6 +3,12 @@
   filter_model_dir: [
     filter_trials/none/none
   ]
+  fwd_model_dir: [
+    /media/shared/dy_trials/gt_rope_w_robot_0/best_checkpoint
+    /media/shared/dy_trials/gt_rope_w_robot_1/best_checkpoint
+    /media/shared/dy_trials/gt_rope_w_robot_2/best_checkpoint
+    /media/shared/dy_trials/gt_rope_w_robot_3/best_checkpoint
+  ]
   termination_criteria: {
     total_timeout: 600
     timeout: 600
