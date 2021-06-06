@@ -144,7 +144,7 @@ class NNRecoveryModel(MyKerasModel):
         inputs['voxel_grids'] = local_voxel_grid_t
         inputs['local_origin_point'] = local_origin_point
 
-        inputs['swept_state_and_robot_points'] = self.scenario.compute_swept_state_and_robot_points(inputs)
+        inputs['swept_state_and_robot_points'] = self.compute_swept_state_and_robot_points(inputs)
 
         if DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(inputs)
@@ -153,6 +153,9 @@ class NNRecoveryModel(MyKerasModel):
             self.aug.augmentation_optimization(inputs, batch_size, time=2)
 
         return inputs
+
+    def compute_swept_state_and_robot_points(self, inputs):
+        return self.scenario.compute_swept_state_and_robot_points(inputs, self.points_state_keys)
 
     def compute_loss(self, dataset_element, outputs):
         y_true = dataset_element['recovery_probability'][:, 1:2]  # 1:2 instead of just 1 to preserve the shape

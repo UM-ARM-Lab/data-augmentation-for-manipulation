@@ -186,7 +186,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_to_rope = np.linalg.norm(state['left_gripper'] - state['rope'][0:3])
         right_gripper_to_rope = np.linalg.norm(state['right_gripper'] - state['rope'][-3:])
         if (right_gripper_to_rope > 0.021) or (left_gripper_to_rope > 0.021):
-            rospy.logerr(f"state is inconsistent! {left_gripper_to_rope} {left_gripper_to_rope}" )
+            rospy.logerr(f"state is inconsistent! {left_gripper_to_rope} {left_gripper_to_rope}")
             self.plot_state_rviz(state, label='debugging1')
 
         return state
@@ -508,25 +508,24 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                         tf.constant(out_joint_positions_end, tf.float32)), axis=1)
         return joint_positions_aug, reached
 
-    def compute_swept_state_and_robot_points(self, inputs: Dict):
-        state_keys = ['left_gripper', 'right_gripper', 'rope']
+    def compute_swept_state_and_robot_points(self, inputs: Dict, points_state_keys: List[str]):
         batch_size = inputs['batch_size']
 
         def _make_points(k, t):
-            v = inputs[add_predicted(k)][:, t]
+            v = inputs[k][:, t]
             points = tf.reshape(v, [batch_size, -1, 3])
             points = densify_points(batch_size, points)
             return points
 
-        state_points_0 = {k: _make_points(k, 0) for k in state_keys}
-        state_points_1 = {k: _make_points(k, 1) for k in state_keys}
+        state_points_0 = {k: _make_points(k, 0) for k in points_state_keys}
+        state_points_1 = {k: _make_points(k, 1) for k in points_state_keys}
 
         num_interp = 5
 
         def _linspace(k):
             return tf.linspace(state_points_0[k], state_points_1[k], num_interp, axis=1)
 
-        swept_state_points = tf.concat([_linspace(k) for k in state_keys], axis=2)
+        swept_state_points = tf.concat([_linspace(k) for k in points_state_keys], axis=2)
         swept_state_points = tf.reshape(swept_state_points, [batch_size, -1, 3])
 
         return swept_state_points
