@@ -5,9 +5,11 @@ from typing import Dict, Optional
 
 import numpy as np
 from colorama import Fore
+from progressbar import progressbar
 
 import rospy
 from arm_robots.robot import RobotPlanningError
+from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import data_directory, tf_write_example, pkl_write_example
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.get_service_provider import get_service_provider
@@ -123,10 +125,8 @@ class BaseDataCollector:
 
         self.save_hparams(full_output_directory, n_trajs, nickname)
 
-        trial_start = perf_counter()
-
         combined_seeds = [traj_idx + 100000 * self.seed for traj_idx in range(n_trajs)]
-        for traj_idx, seed in enumerate(combined_seeds):
+        for traj_idx, seed in progressbar(enumerate(combined_seeds), base_dataset.widgets):
             invalid = False
             for retry_idx in range(10):
                 # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
@@ -150,8 +150,6 @@ class BaseDataCollector:
 
             if invalid:
                 raise RuntimeError(f"Could not execute trajectory {traj_idx}")
-
-            print(f'traj {traj_idx}/{n_trajs} ({seed}), {perf_counter() - trial_start:.4f}s')
 
             # Save the data
             self.write_example(full_output_directory, example, traj_idx)
