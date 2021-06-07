@@ -17,14 +17,14 @@ from state_space_dynamics import dynamics_utils
 
 
 def test_classifier(classifier_model_dir: pathlib.Path,
-                    fwd_model_dir: List[pathlib.Path],
+                    fwd_model_dir: pathlib.Path,
                     n_actions: int,
                     saved_state: Optional[pathlib.Path],
                     generate_actions: Callable):
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
     scenario.on_before_get_state_or_execute_action()
 
-    fwd_model, _ = dynamics_utils.load_generic_model([pathlib.Path(p) for p in fwd_model_dir], scenario)
+    fwd_model = dynamics_utils.load_generic_model(pathlib.Path(fwd_model_dir), scenario)
     classifier = classifier_utils.load_generic_model(classifier_model_dir, scenario)
 
     service_provider = GazeboServices()

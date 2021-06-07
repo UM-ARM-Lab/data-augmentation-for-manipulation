@@ -60,7 +60,7 @@ def make_classifier_dataset(dataset_dir: pathlib.Path,
 
 
 def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
-                                             fwd_model_dir: List[pathlib.Path],
+                                             fwd_model_dir: pathlib.Path,
                                              labeling_params: Dict,
                                              outdir: pathlib.Path,
                                              use_gt_rope: bool,
@@ -74,15 +74,13 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
         rospy.logwarn('including examples where the start actual vs predicted are far')
 
     # append "best_checkpoint" before loading
-    if not isinstance(fwd_model_dir, List):
-        fwd_model_dir = [fwd_model_dir]
-    fwd_model_dir = [p / 'best_checkpoint' for p in fwd_model_dir]
+    fwd_model_dir = fwd_model_dir / 'best_checkpoint'
 
     dynamics_hparams = hjson.load((dataset_dir / 'hparams.hjson').open('r'))
 
     dataset = DynamicsDatasetLoader([dataset_dir], use_gt_rope=use_gt_rope)
 
-    fwd_models, _ = dynamics_utils.load_generic_model(fwd_model_dir, dataset.scenario)
+    fwd_models = dynamics_utils.load_generic_model(fwd_model_dir, dataset.scenario)
 
     new_hparams_filename = outdir / 'hparams.hjson'
     classifier_dataset_hparams = dynamics_hparams
@@ -222,7 +220,8 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
                                    out_example=out_example)
 
         # compute label
-        valid_out_examples = add_model_error_and_filter(scenario, sliced_actual, sliced_predictions, out_example, labeling_params,
+        valid_out_examples = add_model_error_and_filter(scenario, sliced_actual, sliced_predictions, out_example,
+                                                        labeling_params,
                                                         prediction_actual.batch_size)
         valid_out_example_batches.append(valid_out_examples)
 

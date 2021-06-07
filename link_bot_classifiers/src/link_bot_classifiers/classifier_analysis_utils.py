@@ -11,7 +11,6 @@ from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.pycommon import make_dict_tf_float32
 from link_bot_pycommon.ros_pycommon import (make_movable_object_services)
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.ensemble import Ensemble
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
@@ -55,7 +54,7 @@ def predict(fwd_model: BaseDynamicsFunction,
     return predictions_list
 
 
-def predict_and_classify(fwd_model: Ensemble,
+def predict_and_classify(fwd_model: BaseDynamicsFunction,
                          classifier: NNClassifierWrapper,
                          environment: Dict,
                          start_states: List[Dict],
@@ -85,8 +84,9 @@ def predict_and_classify(fwd_model: Ensemble,
     start_states_tiled = {k: tf.concat([v] * n_actions_sampled, axis=0) for k, v in start_states.items()}
 
     # Actually do the predictions
-    predictions_dict = fwd_model.propagate_differentiable_batched(start_states=start_states_tiled,
-                                                                  actions=actions_batched)
+    predictions_dict = fwd_model.propagate_tf_batched(environment=environment,
+                                                      state=start_states_tiled,
+                                                      actions=actions_batched)
 
     # Run classifier
     accept_probabilities = classifier.check_constraint_tf_batched(environment=environment_batched,
@@ -146,7 +146,7 @@ def execute(scenario: ScenarioWithVisualization,
     return actual_state_sequences
 
 
-def setup(service_provider: BaseServices, fwd_model: Ensemble, test_params: Dict,
+def setup(service_provider: BaseServices, fwd_model: BaseDynamicsFunction, test_params: Dict,
           real_time_rate: float = 0):
     max_step_size = fwd_model.data_collection_params['max_step_size']
     service_provider.setup_env(verbose=0, real_time_rate=real_time_rate, max_step_size=max_step_size)
@@ -159,7 +159,7 @@ def setup(service_provider: BaseServices, fwd_model: Ensemble, test_params: Dict
 
 
 def predict_and_execute(service_provider,
-                        fwd_model: Ensemble,
+                        fwd_model: BaseDynamicsFunction,
                         environment: Dict,
                         start_states: List[Dict],
                         actions: List[List[List[Dict]]],

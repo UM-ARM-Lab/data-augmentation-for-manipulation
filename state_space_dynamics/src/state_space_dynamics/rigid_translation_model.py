@@ -12,9 +12,9 @@ from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 class RigidTranslationModel(BaseDynamicsFunction):
 
-    def __init__(self, model_dirs: List[pathlib.Path], batch_size: int, scenario: ExperimentScenario):
-        super().__init__(model_dirs, batch_size, scenario)
-        assert len(model_dirs) == 1
+    def __init__(self, path: List[pathlib.Path], batch_size: int, scenario: ExperimentScenario):
+        super().__init__(path, batch_size, scenario)
+        assert len(path) == 1
         self.batch_size = batch_size
         b = self.hparams['B']
         self.B = tf.constant(np.array(b), dtype=tf.float32)

@@ -9,12 +9,13 @@ from colorama import Fore
 
 import rospy
 import state_space_dynamics
-from link_bot_data.dataset_utils import batch_tf_dataset
+from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine import filepath_tools, common_train_hparams
+from moonshine.indexing import index_time_batched
 from moonshine.model_runner import ModelRunner
-from moonshine.moonshine_utils import remove_batch
+from moonshine.moonshine_utils import remove_batch, numpify
 from state_space_dynamics import dynamics_utils
 
 
@@ -195,33 +196,34 @@ def viz_dataset(dataset_dirs: List[pathlib.Path],
                 checkpoint: pathlib.Path,
                 mode: str,
                 viz_func: Callable,
-                use_gt_rope: bool,
                 **kwargs,
                 ):
-    test_dataset = DynamicsDatasetLoader(dataset_dirs, use_gt_rope=use_gt_rope)
+    test_dataset = DynamicsDatasetLoader(dataset_dirs)
 
     test_tf_dataset = test_dataset.get_datasets(mode=mode)
     test_tf_dataset = batch_tf_dataset(test_tf_dataset, 1, drop_remainder=True)
 
-    model, _ = dynamics_utils.load_generic_model([checkpoint])
+    model = dynamics_utils.load_generic_model(checkpoint)
 
     for i, batch in enumerate(test_tf_dataset):
         batch.update(test_dataset.batch_metadata)
-        outputs, _ = model.from_example(batch, training=False)
+        outputs, _ = model.propagate_from_example(batch, training=False)
 
         viz_func(batch, outputs, test_dataset, model)
 
 
-def viz_example(batch, outputs, test_dataset: DynamicsDatasetLoader, model):
-    test_dataset.scenario.plot_environment_rviz(remove_batch(batch))
+def viz_example(example, outputs, test_dataset: DynamicsDatasetLoader, model):
+    deserialize_scene_msg(example)
+    test_dataset.scenario.plot_environment_rviz(remove_batch(example))
     anim = RvizAnimationController(np.arange(test_dataset.steps_per_traj))
     while not anim.done:
         t = anim.t()
-        actual_t = test_dataset.index_time_batched(batch, t)
+        actual_t = test_dataset.index_time_batched(example, t)
         test_dataset.scenario.plot_state_rviz(actual_t, label='actual', color='red')
         test_dataset.scenario.plot_action_rviz(actual_t, actual_t, color='gray')
 
-        prediction_t = test_dataset.index_time_batched(outputs, t)
+        model_state_keys = model.state_keys + model.state_metadata_keys
+        prediction_t = numpify(remove_batch(index_time_batched(outputs, model_state_keys, t, False)))
         test_dataset.scenario.plot_state_rviz(prediction_t, label='predicted', color='blue')
 
         anim.step()

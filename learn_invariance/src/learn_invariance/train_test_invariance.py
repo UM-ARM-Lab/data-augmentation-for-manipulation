@@ -13,7 +13,7 @@ from moonshine import common_train_hparams
 from moonshine.filepath_tools import load_hjson
 from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import remove_batch
-from state_space_dynamics.train_test import setup_training_paths
+from state_space_dynamics.train_test_dynamics import setup_training_paths
 
 
 def train_main(dataset_dirs: List[pathlib.Path],

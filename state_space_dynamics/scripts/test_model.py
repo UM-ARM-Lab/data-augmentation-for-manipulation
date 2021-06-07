@@ -26,7 +26,7 @@ def main():
     np.set_printoptions(precision=3, suppress=True, linewidth=200)
 
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
-    parser.add_argument("fwd_model_dir", help="load this saved forward model file", type=pathlib.Path, nargs='+')
+    parser.add_argument("fwd_model_dir", help="load this saved forward model file", type=pathlib.Path)
     parser.add_argument("test_config", help="json file describing the test", type=pathlib.Path)
     parser.add_argument("labeling_params", help='labeling params', type=pathlib.Path)
 
@@ -43,7 +43,7 @@ def main():
     n_actions = len(actions)
     time_steps = np.arange(n_actions + 1)
 
-    fwd_model, _ = dynamics_utils.load_generic_model(args.fwd_model_dir)
+    fwd_model = dynamics_utils.load_generic_model(args.fwd_model_dir)
 
     service_provider = GazeboServices()
     service_provider.setup_env(verbose=0, real_time_rate=0,

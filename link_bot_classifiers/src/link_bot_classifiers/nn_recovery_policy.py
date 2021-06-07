@@ -165,7 +165,7 @@ class NNRecoveryEnsemble(BaseRecoveryPolicy):
         super().__init__(path, m0.scenario, rng, u)
 
     def from_example(self, example: Dict):
-        mean, stdev = self.ensemble(self.element_class.from_example, example)
+        mean, stdev = self.ensemble(self.element_class.propagate_from_example, example)
         return mean, stdev
 
     def __call__(self, environment: Dict, state: Dict):

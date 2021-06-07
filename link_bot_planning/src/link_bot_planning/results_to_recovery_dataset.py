@@ -68,11 +68,11 @@ class ResultsToRecoveryDataset:
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
 
         self.planner_params_for_results = self.metadata['planner_params']
-        fwd_model_dirs = pathify(self.planner_params_for_results['fwd_model_dir'])
+        fwd_model_dir = pathify(self.planner_params_for_results['fwd_model_dir'])
         classifier_model_dir = pathify(self.planner_params_for_results['classifier_model_dir'])[0]
         # we assume index [0] is the learned classifier, this assert tries to catch this
         print(f"Using classifier model {classifier_model_dir.as_posix()}")
-        self.fwd_model, _ = dynamics_utils.load_generic_model(fwd_model_dirs, self.scenario)
+        self.fwd_model = dynamics_utils.load_generic_model(fwd_model_dir, self.scenario)
         self.classifier = classifier_utils.load_generic_model(classifier_model_dir, self.scenario)
 
         self.action_rng = np.random.RandomState(0)

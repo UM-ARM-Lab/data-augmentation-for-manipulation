@@ -14,12 +14,12 @@ from state_space_dynamics import dynamics_utils
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset_dir", help="dataset", type=pathlib.Path)
-    parser.add_argument("fwd_model_dir", help="load this saved forward model file", type=pathlib.Path, nargs='+')
+    parser.add_argument("fwd_model_dir", help="load this saved forward model file", type=pathlib.Path)
 
     args = parser.parse_args()
 
     scenario = get_scenario('dual_arm_rope_sim_val_with_robot_feasibility_checking')
-    fwd_model, _ = dynamics_utils.load_generic_model(args.fwd_model_dir, scenario=scenario)
+    fwd_model = dynamics_utils.load_generic_model(args.fwd_model_dir, scenario=scenario)
 
     dataset = DynamicsDatasetLoader([args.dataset_dir])
     tf_dataset = dataset.get_datasets(mode='train')
@@ -29,7 +29,7 @@ def main():
 
     for i in progressbar(range(10)):
         for short_inputs in dataset.split_into_sequences(inputs, 2, time_dim=1):
-            fwd_model.from_example(short_inputs)
+            fwd_model.propagate_from_example(short_inputs)
 
 
 if __name__ == '__main__':

@@ -31,7 +31,7 @@ def load_dataset_and_models(args):
     models = {}
     for name, model_info in comparison_info.items():
         model_dir = paths_from_json(model_info['model_dir'])
-        model, _ = dynamics_utils.load_generic_model(model_dir)
+        model = dynamics_utils.load_generic_model(model_dir)
         models[name] = model
 
     dataset = DynamicsDatasetLoader(args.dataset_dirs)

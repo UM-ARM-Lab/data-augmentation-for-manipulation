@@ -33,8 +33,8 @@ def main():
         metadata = json.loads(metadata_str)
 
     planner_params = metadata['planner_params']
-    fwd_model_dirs = [pathlib.Path(p) for p in planner_params['fwd_model_dir']]
-    fwd_model, _ = dynamics_utils.load_generic_model(fwd_model_dirs)
+    fwd_model_dirs = pathlib.Path(planner_params['fwd_model_dir'])
+    fwd_model = dynamics_utils.load_generic_model(fwd_model_dirs)
     scenario = fwd_model.scenario
 
     classifier_model_dir = pathlib.Path(planner_params['classifier_model_dir'])

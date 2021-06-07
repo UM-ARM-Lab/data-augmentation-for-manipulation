@@ -64,9 +64,7 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
                                            stop_at: Optional = None):
     # append "best_checkpoint" before loading
     classifier_model_dir = classifier_model_dir / 'best_checkpoint'
-    if not isinstance(fwd_model_dir, List):
-        fwd_model_dir = [fwd_model_dir]
-    fwd_model_dir = [p / 'best_checkpoint' for p in fwd_model_dir]
+    fwd_model_dir = pathlib.Path(fwd_model_dir) / 'best_checkpoint'
 
     np.random.seed(0)
     tf.random.set_seed(0)
@@ -76,7 +74,7 @@ def make_recovery_dataset_from_params_dict(dataset_dir: pathlib.Path,
     classifier_model = classifier_utils.load_generic_model(classifier_model_dir, scenario)
 
     dynamics_hparams = hjson.load((dataset_dir / 'hparams.hjson').open('r'))
-    fwd_model, _ = dynamics_utils.load_generic_model(fwd_model_dir, scenario)
+    fwd_model = dynamics_utils.load_generic_model(fwd_model_dir, scenario)
 
     dataset = DynamicsDatasetLoader([dataset_dir], use_gt_rope=use_gt_rope)
 

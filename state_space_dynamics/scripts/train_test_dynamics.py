@@ -1,45 +1,44 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+from time import time
 
-import colorama
 import numpy as np
 import tensorflow as tf
 
-import rospy
-from state_space_dynamics import train_test
-
-
-# limit_gpu_mem(10)
+from arc_utilities import ros_init
+from state_space_dynamics import train_test_dynamics
 
 
 def train_main(args, seed: int):
-    train_test.train_main(dataset_dirs=args.dataset_dirs,
-                          model_hparams=args.model_hparams,
-                          checkpoint=args.checkpoint,
-                          log=args.log,
-                          batch_size=args.batch_size,
-                          epochs=args.epochs,
-                          seed=seed,
-                          ensemble_idx=args.ensemble_idx,
-                          trials_directory=pathlib.Path('trials'),
-                          use_gt_rope=args.use_gt_rope,
-                          take=args.take,
-                          )
+    train_test_dynamics.train_main(dataset_dirs=args.dataset_dirs,
+                                   model_hparams=args.model_hparams,
+                                   checkpoint=args.checkpoint,
+                                   log=args.log,
+                                   batch_size=args.batch_size,
+                                   epochs=args.epochs,
+                                   seed=seed,
+                                   ensemble_idx=args.ensemble_idx,
+                                   trials_directory=pathlib.Path('trials'),
+                                   use_gt_rope=args.use_gt_rope,
+                                   take=args.take,
+                                   )
 
 
 def eval_main(args, seed: int):
-    train_test.eval_main(args.dataset_dirs, args.checkpoint, args.mode, args.batch_size, args.use_gt_rope)
+    train_test_dynamics.eval_main(args.dataset_dirs, args.checkpoint, args.mode, args.batch_size, args.use_gt_rope)
 
 
 def viz_main(args, seed: int):
-    train_test.viz_main(**vars(args))
+    train_test_dynamics.viz_main(**vars(args))
 
 
+now = str(int(time()))
+node_name = f"train_test_{now}"
+
+
+@ros_init.with_ros(node_name)
 def main():
-    colorama.init(autoreset=True)
-
-    np.set_printoptions(linewidth=250, precision=4, suppress=True, threshold=10000)
     parser = argparse.ArgumentParser()
 
     subparsers = parser.add_subparsers()
@@ -83,18 +82,11 @@ def main():
 
     args = parser.parse_args()
 
-    from time import time
-    now = str(int(time()))
-    name = f"train_test_{now}"
-    rospy.init_node(name)
-
     if args.seed is None:
         seed = np.random.randint(0, 10000)
     else:
         seed = args.seed
     print("Using seed {}".format(seed))
-    np.random.seed(seed)
-    tf.random.set_seed(seed)
 
     if args == argparse.Namespace():
         parser.print_usage()

@@ -24,7 +24,7 @@ def main():
     np.set_printoptions(precision=3, suppress=True, linewidth=200)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("fwd_model_dir", help="fwd model dirs", type=pathlib.Path, nargs="+")
+    parser.add_argument("fwd_model_dir", help="fwd model dirs", type=pathlib.Path)
     parser.add_argument("labeling_params", type=pathlib.Path)
     parser.add_argument("data_collection_params", type=pathlib.Path, help='use one of the hjson files for phase2')
     parser.add_argument("outdir", help="output directory", type=pathlib.Path)
@@ -33,7 +33,7 @@ def main():
 
     scenario = get_scenario("dual_arm_rope_sim_val")
 
-    fwd_model, _ = dynamics_utils.load_generic_model(args.fwd_model_dir, scenario)
+    fwd_model = dynamics_utils.load_generic_model(args.fwd_model_dir, scenario)
 
     files = FilesDataset(args.outdir)
     labeling_params = load_hjson(args.labeling_params)

@@ -9,7 +9,7 @@ import rospy
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.moonshine_utils import remove_batch, numpify
-from state_space_dynamics.train_test import viz_dataset
+from state_space_dynamics.train_test_dynamics import viz_dataset
 from visualization_msgs.msg import Marker
 
 

@@ -42,7 +42,7 @@ def main():
     test_tf_dataset = test_dataset.get_datasets(mode=args.mode)
 
     filter_model = filter_utils.load_filter([args.checkpoint])
-    latent_dynamics_model, _ = dynamics_utils.load_generic_model([args.checkpoint])
+    latent_dynamics_model = dynamics_utils.load_generic_model(args.checkpoint)
 
     test_as_inverse_model(filter_model, latent_dynamics_model, test_dataset, test_tf_dataset)
 

@@ -14,7 +14,7 @@ from moonshine.moonshine_utils import numpify, remove_batch
 
 
 class DynamicsDatasetLoader(BaseDatasetLoader):
-    def __init__(self, dataset_dirs: List[pathlib.Path], step_size: int = 1, use_gt_rope: Optional[bool] = False):
+    def __init__(self, dataset_dirs: List[pathlib.Path], step_size: int = 1, use_gt_rope: Optional[bool] = True):
         """
         :param dataset_dirs: dataset directories
         :param step_size: the number of time steps to skip when slicing the full trajectories for training

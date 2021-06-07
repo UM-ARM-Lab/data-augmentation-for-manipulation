@@ -1,11 +1,14 @@
+import pathlib
 from typing import Dict, List
 
 import tensorflow as tf
 import tensorflow.keras.layers as layers
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
 from moonshine.my_keras_model import MyKerasModel
+from moonshine.restore_model import restore_model
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 
@@ -71,9 +74,10 @@ class UnconstrainedDynamicsNN(MyKerasModel):
 
 class UDNNWrapper(BaseDynamicsFunction):
 
-    def make_net_and_checkpoint(self, batch_size, scenario):
-        net = UnconstrainedDynamicsNN(hparams=self.hparams, batch_size=batch_size, scenario=scenario)
-        ckpt = tf.train.Checkpoint(model=net)
-        return net, ckpt
+    def __init__(self, path: pathlib.Path, batch_size: int, scenario: ScenarioWithVisualization):
+        super().__init__(path, batch_size, scenario)
+        self.net = UnconstrainedDynamicsNN(hparams=self.hparams, batch_size=batch_size, scenario=scenario)
+        restore_model(self.net, path)
 
-
+    def propagate_from_example(self, inputs: Dict, training: bool):
+        return self.net(self.net.preprocess_no_gradient(inputs, training), training)

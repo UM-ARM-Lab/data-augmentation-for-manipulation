@@ -183,7 +183,7 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
     for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
         batch.update(dataset.batch_metadata)
 
-        mean_predictions, stdev_predictions = ensemble.from_example(batch)
+        mean_predictions, stdev_predictions = ensemble.propagate_from_example(batch)
 
         yield dataset, batch_idx, batch, mean_predictions, stdev_predictions
 
