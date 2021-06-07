@@ -30,9 +30,8 @@ class MyTable:
                               numalign='center',
                               stralign='left')
 
-    def add_to_table(self, data: pd.DataFrame, series_name: str):
-        x = data['x']
-        self.table_data.append([series_name, x])
+    def add_to_table(self, data: pd.Series, series_name: str):
+        self.table_data.append([series_name] + data.to_list())
 
     def save(self, outdir: pathlib.Path):
         filename = outdir / (self.name + ".txt")
