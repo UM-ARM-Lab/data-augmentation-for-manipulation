@@ -20,4 +20,21 @@
       ]
     }
   }
+  {
+    type: MyTable
+    name: success_ratio
+    header: [
+      'Method Name'
+      '# Success'
+      '# Trials'
+    ]
+    reductions: {
+      success: [
+        sum
+      ]
+      num_trials: [
+        sum
+      ]
+    }
+  }
 ]
