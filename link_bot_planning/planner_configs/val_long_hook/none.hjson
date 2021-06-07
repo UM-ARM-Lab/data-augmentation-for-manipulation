@@ -1,0 +1,6 @@
+{
+  method_name: none
+  classifier_model_dir: [
+    cl_trials/new_feasibility_baseline/none
+  ]
+}

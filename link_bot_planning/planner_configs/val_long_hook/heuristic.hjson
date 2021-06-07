@@ -1,5 +1,5 @@
 {
-  method_name: cc, os, feasibility
+  method_name: heuristic
   classifier_model_dir: [
     cl_trials/cc_baseline/none
     cl_trials/gd_baseline/none
