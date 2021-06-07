@@ -112,6 +112,27 @@ def execute_actions(
     return execution_result
 
 
+def has_keys(d: Dict, keys: List[str]):
+    """
+    For when you want to write something like `if d['a']['b']['z']`
+    and you want it to return false if the keys don't exist
+
+    Args:
+        d: dict
+        keys: keys
+
+    Returns: the result of the indexing, or false if the keys don't exist
+
+    """
+    if keys[0] not in d:
+        return False
+
+    if len(keys) == 1:
+        return d[keys[0]]
+    else:
+        return has_keys(d, keys[1:])
+
+
 class PlanAndExecute:
 
     def __init__(self,
@@ -139,7 +160,7 @@ class PlanAndExecute:
         self.seed = seed
         self.test_scenes_dir = test_scenes_dir
         self.extra_end_conditions = extra_end_conditions
-        if self.planner_params['recovery']['use_recovery']:
+        if has_keys(self.planner_params, ['recovery', 'use_recovery']):
             recovery_model_dir = pathlib.Path(self.planner_params['recovery']['recovery_model_dir'])
             self.recovery_policy = recovery_policy_utils.load_generic_model(path=recovery_model_dir,
                                                                             scenario=self.scenario,

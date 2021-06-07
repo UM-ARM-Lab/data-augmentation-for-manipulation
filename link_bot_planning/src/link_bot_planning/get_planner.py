@@ -1,3 +1,4 @@
+import pathlib
 from typing import Dict, Optional
 
 from link_bot_classifiers import classifier_utils
@@ -86,6 +87,6 @@ def load_filter(planner_params: Dict, scenario: ExperimentScenario):
 
 
 def load_fwd_model(planner_params: Dict, scenario: ExperimentScenario):
-    fwd_model_dirs = paths_from_json(planner_params['fwd_model_dir'])
+    fwd_model_dirs = pathlib.Path(planner_params['fwd_model_dir'])
     fwd_model = dynamics_utils.load_generic_model(fwd_model_dirs, scenario)
     return fwd_model

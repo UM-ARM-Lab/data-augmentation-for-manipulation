@@ -193,9 +193,9 @@ def sequence_of_dicts_to_dict_of_sequences(seq_of_dicts):
     return dict_of_seqs
 
 
-def sequence_of_dicts_to_dict_of_np_arrays(seq_of_dicts, dtype=np.float32):
+def sequence_of_dicts_to_dict_of_np_arrays(seq_of_dicts, axis):
     dict_of_seqs = sequence_of_dicts_to_dict_of_sequences(seq_of_dicts)
-    return {k: np.array(v, dtype=dtype) for k, v in dict_of_seqs.items()}
+    return {k: np.stack(v, axis) for k, v in dict_of_seqs.items()}
 
 
 def sequence_of_dicts_to_dict_of_tensors(seq_of_dicts, axis=0):
@@ -281,7 +281,6 @@ def remove_batch_single(x):
     elif isinstance(x, float):
         return x
     elif isinstance(x, tf.Tensor):
-        x.is_batched = False
         if len(x.shape) == 0:
             return x
         elif x.shape[0] == 0:
@@ -299,7 +298,9 @@ def add_batch_single(x, batch_axis=0):
         return [(add_batch_single(v)) for v in x]
     elif isinstance(x, tf.Tensor):
         x = tf.expand_dims(x, axis=batch_axis)
-        x.is_batched = True
+        return x
+    elif isinstance(x, tf.Variable):
+        x = tf.expand_dims(x, axis=batch_axis)
         return x
     elif isinstance(x, dict):
         return {k: add_batch_single(v, batch_axis) for k, v in x.items()}

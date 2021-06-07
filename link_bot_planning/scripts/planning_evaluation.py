@@ -26,7 +26,7 @@ def main():
     parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
     parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
     parser.add_argument("--no-execution", action="store_true", help='no execution')
-    parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
+    parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='raise')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
     parser.add_argument('--record', action='store_true', help='record')
     parser.add_argument('--no-use-gt-rope', action='store_true', help='use ground truth rope state')

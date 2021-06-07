@@ -182,7 +182,9 @@ class OmplRRTWrapper(MyPlanner):
         last_previous_state = previous_states[-1]
         mean_predicted_states, stdev_predicted_states = self.fwd_model.propagate(environment=self.sps.environment,
                                                                                  start_state=last_previous_state,
-                                                                                 action_sequence=new_actions)
+                                                                                 actions=new_actions)
+        for t, dict_of_stdevs in enumerate(stdev_predicted_states):
+            mean_predicted_states[t]['stdev'] = np.sum(np.concatenate(list(dict_of_stdevs.values())), keepdims=True)
         # get only the final state predicted, since *_predicted_states includes the start state
         final_predicted_state = mean_predicted_states[-1]
 
