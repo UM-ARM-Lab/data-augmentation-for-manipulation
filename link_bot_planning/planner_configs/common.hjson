@@ -3,9 +3,7 @@
   filter_model_dir: [
     filter_trials/none/none
   ]
-  fwd_model_dir: [
-    /media/shared/dy_trials/gt_rope_w_robot_ensemble/none
-  ]
+  fwd_model_dir: /media/shared/dy_trials/gt_rope_w_robot_ensemble/none
   termination_criteria: {
     total_timeout: 600
     timeout: 600

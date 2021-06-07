@@ -1,10 +1,4 @@
 {
-  fwd_model_dir: [
-    dy_trials/gt_rope_w_robot_0/best_checkpoint
-    dy_trials/gt_rope_w_robot_1/best_checkpoint
-    dy_trials/gt_rope_w_robot_2/best_checkpoint
-    dy_trials/gt_rope_w_robot_3/best_checkpoint
-  ]
   recovery: {
     recovery_model_dir: recovery_trials/val_ring_1618962283/April_21_03-20-55_b97f7f037c/best_checkpoint
     use_recovery: true

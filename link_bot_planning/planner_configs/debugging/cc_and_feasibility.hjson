@@ -3,12 +3,6 @@
   filter_model_dir: [
     filter_trials/none/none
   ]
-  fwd_model_dir: [
-    dy_trials/gt_rope_w_robot_0/best_checkpoint
-    dy_trials/gt_rope_w_robot_1/best_checkpoint
-    dy_trials/gt_rope_w_robot_2/best_checkpoint
-    dy_trials/gt_rope_w_robot_3/best_checkpoint
-  ]
   classifier_model_dir: [
     cl_trials/cc_baseline/none
     cl_trials/gd_baseline/none
