@@ -1,5 +1,5 @@
 {
-  name: val_car
+  name: val_floating_boxes
   service_provider: gazebo
   scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
   robot_namespace: val
@@ -46,32 +46,45 @@
     0.6
   ]
   environment_randomization: {
-      type: random
-      objects: [
-        box1
-        box2
-        box3
-        box4
-        box5
-        box6
-        box7
-        box8
-        box9
-        box10
-        box11
-        box12
-        box13
-        box14
-        box15
-      ]
-      extent: [
-        -0.5
-        0.5
-        0.3
-        1.25
-        -0.35
-        0.35
-      ]
+    type: jitter
+    jitter_extent: [
+      -0.05
+      0.05
+      -0.05
+      0.05
+      -0.05
+      0.05
+    ]
+    nominal_poses: {
+      car_platform: {
+        position: [0, 0.95, -0.528]
+        orientation: [0, 0, 1.5707]
+      }
+      car_front: {
+        position: [0, 0.35, -0.41]
+        orientation: [0, 0, 3.14159]
+      }
+      car_hood: {
+        position: [0, 1.3, 0.2]
+        orientation: [-0.6, 0, 0]
+      }
+      car_engine2: {
+        position: [0, 0.8, -0.25]
+        orientation: [0, 0, 0.2]
+      }
+      car_tube_and_tank: {
+        position: [0.35, 1.25, -0.35]
+        orientation: [0, 0, 0]
+      }
+      car_alternator: {
+        position: [0.57, 0.707, -0.255]
+        orientation: [0, 0, 0]
+      }
+      car_pulley: {
+        position: [0.641, 0.93, -0.25]
+        orientation: [0, 0, 0]
+      }
+    }
   }
   res: 0.02
   max_step_size: 0.01
@@ -83,7 +96,6 @@
   max_distance_gripper_can_move: 0.10
   max_distance_between_grippers: 0.80  # this need not exactly match the rope length
   state_keys: [
-    # rgbd
     gt_rope
     left_gripper
     right_gripper

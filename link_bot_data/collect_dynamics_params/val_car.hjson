@@ -1,5 +1,8 @@
 {
   name: val_car
+  service_provider: gazebo
+  scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
+  robot_namespace: val
   reset_joint_config: {
     joint1: 0.5903734250235528,
     joint2: -0.7214355209537864,
@@ -19,27 +22,27 @@
     joint7: 2.173908028268774,
   }
   extent: [
-    -0.8
-    0.8
-    0.15
-    1.3
+    -0.6
+    0.6
+    0.25
+    1.15
     -0.3
-    1.0
+    0.6
   ]
   left_gripper_action_sample_extent: [
-    -0.8
-    0.8
-    0.3
-    1.4
-    0.1
+    -0.6
+    0.6
+    0.25
+    1.15
+    -0.3
     0.6
   ]
   right_gripper_action_sample_extent: [
-    -0.8
-    0.8
-    0.3
-    1.4
-    0.1
+    -0.6
+    0.6
+    0.25
+    1.15
+    -0.3
     0.6
   ]
   environment_randomization: {
@@ -111,6 +114,7 @@
     env
     extent
     origin
+    origin_point
     res
     scene_msg
   ]
