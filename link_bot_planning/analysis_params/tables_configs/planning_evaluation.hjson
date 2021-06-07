@@ -12,4 +12,12 @@
       ]
     }
   }
+  {
+    type: PValuesTable
+    name: task_error
+    reductions: {
+      task_error: [
+      ]
+    }
+  }
 ]

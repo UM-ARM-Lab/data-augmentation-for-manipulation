@@ -2,7 +2,6 @@
 import argparse
 import pathlib
 
-import colorama
 import matplotlib.pyplot as plt
 
 from arc_utilities import ros_init

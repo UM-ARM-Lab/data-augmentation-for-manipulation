@@ -5,9 +5,11 @@ import pandas as pd
 from colorama import Fore
 from tabulate import tabulate
 
+from link_bot_pycommon.metric_utils import dict_to_pvalue_table
+
 
 class MyTable:
-    def __init__(self, name: str, table_format: str, header: List[str]):
+    def __init__(self, name: str, table_format: str, header):
         super().__init__()
         self.table_data = []
         self.table_format = table_format
@@ -47,9 +49,6 @@ class MyTable:
         print(self.table)
 
 
-#     pvalue_table = dict_to_pvalue_table(figure.metric.values, table_format=table_format)
-#     print(Style.BRIGHT + pvalue_table_title + Style.NORMAL)
-
 class First(MyTable):
 
     def add_to_table(self, data: pd.DataFrame, series_name: str):
@@ -59,7 +58,27 @@ class First(MyTable):
         self.table_data.append([series_name, success_start, success_end])
 
 
+class PValuesTable(MyTable):
+
+    def __init__(self, name: str, table_format: str):
+        super().__init__(name, table_format, None)
+        self.table_data = []
+        self.table_format = table_format
+        self.name = name
+        self.table = None
+
+    def make_table(self, data, series_names):
+        arrays_per_method = {}
+        for series_name in series_names:
+            data_for_series = data.loc[series_name]
+            x = data_for_series['x']
+            arrays_per_method[series_name] = x
+
+        self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format)
+
+
 __all__ = [
     'MyTable',
     'First',
+    'PValuesTable',
 ]

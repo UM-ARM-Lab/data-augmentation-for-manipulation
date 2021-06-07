@@ -244,7 +244,7 @@ class ModelRunner:
                 self.best_ckpt.best_key_metric_value.assign(key_metric_value)
                 self.latest_ckpt.best_key_metric_value.assign(key_metric_value)
                 save_path = self.best_checkpoint_manager.save()
-                print(Fore.CYAN + f"New best checkpoint {save_path}l" + Fore.RESET)
+                print(Fore.CYAN + f"New best checkpoint {save_path}" + Fore.RESET)
 
             while self.latest_ckpt.epoch < last_epoch:
                 # Training
@@ -266,7 +266,7 @@ class ModelRunner:
                     self.best_ckpt.best_key_metric_value.assign(key_metric_value)
                     self.latest_ckpt.best_key_metric_value.assign(key_metric_value)
                     save_path = self.best_checkpoint_manager.save()
-                    print(Fore.CYAN + f"New best checkpoint {save_path}l" + Fore.RESET)
+                    print(Fore.CYAN + f"New best checkpoint {save_path}" + Fore.RESET)
                 elif self.early_stopping:
                     print(Fore.YELLOW + f"No new best checkpoint, triggering early stopping." + Fore.RESET)
                     break
