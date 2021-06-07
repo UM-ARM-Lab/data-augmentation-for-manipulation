@@ -2,7 +2,6 @@ import pathlib
 from typing import Dict, List
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.pycommon import make_dict_tf_float32
 from moonshine.ensemble import Ensemble
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch, \
     dict_of_sequences_to_sequence_of_dicts_tf, numpify
@@ -60,12 +59,3 @@ class BaseDynamicsFunction(Ensemble):
 
     def make_net_and_checkpoint(self, batch_size, scenario):
         raise NotImplementedError()
-
-
-class EnsembleOfDynamicsFunctions(BaseDynamicsFunction, Ensemble):
-    pass
-    # for model in self.dynamics_models:
-    #     output_i = model(environment, state, action)
-    #     {output_i[k] for k in state_keys}
-    #     {output_i[k] for k in action}
-    #     output_i['reached']
