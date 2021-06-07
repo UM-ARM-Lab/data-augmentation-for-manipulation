@@ -55,6 +55,13 @@ def recovery_success(scenario: ExperimentScenario, trial_metadata: Dict, trial_d
     return _recovery_success
 
 
+def planning_time(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    planning_time = 0
+    for step in trial_datum['steps']:
+        planning_time += step['planning_result'].time
+    return planning_time
+
+
 def total_time(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     total_time = trial_datum['total_time']
     return total_time
@@ -91,7 +98,6 @@ def normalized_model_error(scenario: ExperimentScenario, trial_metadata: Dict, t
             total_model_error += model_error
             n_total_actions += 1
     if n_total_actions == 0:
-        print(Fore.YELLOW + "no actions!?!")
         return 0
     return total_model_error / n_total_actions
 
@@ -118,6 +124,7 @@ __all__ = [
     'num_planning_attempts',
     'cumulative_task_error',
     'recovery_success',
+    'planning_time',
 
     'load_analysis_params',
 ]

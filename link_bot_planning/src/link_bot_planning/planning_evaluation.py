@@ -32,7 +32,7 @@ from moonshine.moonshine_utils import numpify
 
 
 def planning_trial_name(trial_idx: int):
-    return f'{trial_idx:03d}_metrics.pkl.gz'
+    return f'{trial_idx}_metrics.pkl.gz'
 
 
 class EvaluatePlanning(plan_and_execute.PlanAndExecute):

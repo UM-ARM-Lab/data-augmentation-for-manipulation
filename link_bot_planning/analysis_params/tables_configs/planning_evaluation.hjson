@@ -3,11 +3,28 @@
     type: MyTable
     name: success
     header: [
-      'Method Name'
-      'Success'
+      Method Name
+      Success
+      Planning_Time
     ]
     reductions: {
       success: [
+        mean
+      ]
+      planning_time: [
+        mean
+      ]
+    }
+  }
+  {
+    type: MyTable
+    name: task_error
+    header: [
+      Method Name
+      Task Error
+    ]
+    reductions: {
+      task_error: [
         mean
       ]
     }
@@ -24,7 +41,7 @@
     type: MyTable
     name: success_ratio
     header: [
-      'Method Name'
+      Method Name
       '# Success'
       '# Trials'
     ]

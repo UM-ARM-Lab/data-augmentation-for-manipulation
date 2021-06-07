@@ -23,6 +23,7 @@ metrics_funcs = [
     num_planning_attempts,
     recovery_success,
     total_time,
+    planning_time,
     num_trials,
     num_steps,
     task_error,
