@@ -8,4 +8,7 @@
   recovery: {
     recovery_model_dir: /media/shared/recovery_trials/random/none
   }
+  termination_criteria: {
+    max_planning_attempts: 5
+  }
 }

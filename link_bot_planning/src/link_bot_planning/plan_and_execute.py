@@ -235,9 +235,11 @@ class PlanAndExecute:
         goal = self.get_goal(trial_idx, environment)
 
         attempt_idx = 0
+        planning_attempt_idx = 0
         steps_data = []
         planning_queries = []
         max_attempts = self.planner_params['termination_criteria'].get('max_attempts', 20)
+        max_planning_attempts = self.planner_params['termination_criteria'].get('max_planning_attempts', 20)
         while True:
             # get start states
             self.service_provider.play()
@@ -317,6 +319,8 @@ class PlanAndExecute:
                         'time_since_start': time_since_start,
                     })
             else:
+                planning_attempt_idx += 1
+
                 self.service_provider.play()
                 execution_result = self.execute(planning_query, planning_result)
                 self.service_provider.pause()
@@ -345,6 +349,7 @@ class PlanAndExecute:
                 self.no_execution,
                 execution_result.end_trial,
                 attempt_idx >= max_attempts,
+                planning_attempt_idx >= max_planning_attempts,
             ]
             if self.extra_end_conditions is not None:
                 for end_cond_fun in self.extra_end_conditions:
