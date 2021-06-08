@@ -298,7 +298,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         if j is None:
             j = self.robot.jacobian_follower
         batch_size = example["batch_size"]
-        deserialize_scene_msg(example)
         scene_msg = example['scene_msg']
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)

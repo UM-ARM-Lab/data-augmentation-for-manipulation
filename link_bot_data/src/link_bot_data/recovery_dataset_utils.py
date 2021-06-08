@@ -269,7 +269,7 @@ def generate_recovery_actions_examples(fwd_model: BaseDynamicsFunction,
         bs = batch_size * n_action_samples
         # TODO: can we use the fact that all examples in the batch are the same environment?
         environment_tiled_batched = repeat(environment, n_action_samples, 0, False)
-        start_states_tiled_t_batched = {k: tf.reshape(v, [bs, 1, -1]) for k, v in start_states_tiled_t.items()}
+        start_states_tiled_t_batched = {k: tf.reshape(v, [bs, -1]) for k, v in start_states_tiled_t.items()}
         random_actions_dict_batched = {k: tf.reshape(v, [bs, 1, -1]) for k, v in random_actions_dict.items()}
 
         predictions, accept_probabilities = predict_and_classify_for_recovery_dataset(
@@ -319,7 +319,7 @@ def predict_and_classify_for_recovery_dataset(fwd_model, classifier_model, envir
                                               random_actions_dict, batch_size, state_sequence_length):
     # Predict
     mean_dynamics_predictions, _ = fwd_model.propagate_tf_batched(environment=environment,
-                                                                  state=actual_states,
+                                                                  start_state=actual_states,
                                                                   actions=random_actions_dict)
 
     # Check classifier
@@ -354,42 +354,6 @@ def viz_generate_example_batch(accept_probabilities, actual_states_tiled, classi
 
         viz_generate_example_single(n_action_samples, scenario, viz_example_b, recovery_probability)
         stepper.step()
-
-
-def viz_generate_example_single(n_action_samples, scenario, viz_example_b, recovery_probability):
-    def _init_viz_true_action(scenario, example):
-        pred_0 = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0, t=ast)
-        action = {k: actual_actions[k][0, 0] for k in fwd_model.action_keys}
-        scenario.plot_action_rviz(pred_0, action, label='true action')
-
-    def _init_viz_start_state(scenario, example):
-        start_state = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=0,
-                                                     t=ast)
-        scenario.plot_state_rviz(start_state, label='pred', color='#ff3333aa')
-
-    def _viz_action_i(scenario: ExperimentScenario, example: Dict, i: int):
-        action = {k: example[k][i, 0] for k in fwd_model.action_keys}
-        pred_t = index_batch_time_with_metadata(scenario_metadata, example, fwd_model.state_keys, b=i, t=ast)
-        scenario.plot_action_rviz(pred_t, action, color=cm.Blues(accept_probabilities_b[i]))
-
-    def _recovery_transition_viz_i(scenario: ExperimentScenario, example: Dict, i: int):
-        e_t_next = index_batch_time_with_metadata(scenario_metadata, example, pred_state_keys, b=i, t=1)
-        scenario.plot_state_rviz(e_t_next, label='pred', color='#ff3333aa')
-
-    anim = RvizAnimation(scenario=scenario,
-                         n_time_steps=n_action_samples,
-                         init_funcs=[init_viz_env,
-                                     lambda s, e: scenario.plot_recovery_probability(recovery_probability),
-                                     _init_viz_start_state,
-                                     _init_viz_true_action,
-                                     ],
-                         t_funcs=[init_viz_env,
-                                  _recovery_transition_viz_i,
-                                  _viz_action_i,
-                                  lambda s, e, i: scenario.plot_accept_probability(
-                                      e['accept_probabilities'][i]),
-                                  ])
-    anim.play(viz_example_b)
 
 
 def batch_stateless_sample_action(scenario: ExperimentScenario,

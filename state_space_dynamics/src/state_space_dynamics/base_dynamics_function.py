@@ -26,23 +26,22 @@ class BaseDynamicsFunction:
         return numpify(self.propagate_tf(environment, start_state, actions))
 
     def propagate_tf(self, environment: Dict, start_state: Dict, actions: List[Dict]):
-        predictions_dict = remove_batch(self.propagate_tf_batched(*add_batch(environment, start_state, actions)))
+        actions_dict = sequence_of_dicts_to_dict_of_tensors(actions, axis=1)
+        predictions_dict = remove_batch(self.propagate_tf_batched(*add_batch(environment, start_state, actions_dict)))
         predictions_list = dict_of_sequences_to_sequence_of_dicts_tf(predictions_dict)
         return predictions_list
 
-    def propagate_tf_batched(self, environment: Dict, start_state: Dict, actions: List[Dict]):
-        net_inputs = self.batched_args_to_dict(actions, environment, start_state)
+    def propagate_tf_batched(self, environment: Dict, start_state: Dict, actions: Dict):
+        net_inputs = self.batched_args_to_dict(environment, start_state, actions)
         predictions = self.propagate_from_example(net_inputs, training=False)
         return predictions
 
-    def batched_args_to_dict(self, actions, environment, start_state):
+    def batched_args_to_dict(self, environment, start_state, actions):
         net_inputs = {}
-        start_state_with_time = add_batch(start_state, batch_axis=0)  # add time dimension of size 1
+        start_state_with_time = add_batch(start_state, batch_axis=1)  # add time dimension of size 1
         net_inputs.update(start_state_with_time)
         net_inputs.update(environment)
-        net_inputs.update(sequence_of_dicts_to_dict_of_tensors(actions, axis=1))
-        # net_inputs = add_batch(net_inputs)  # having this this seems wrong...
-
+        net_inputs.update(actions)
         return net_inputs
 
     def propagate_from_example(self, inputs: Dict, training: bool):

@@ -21,7 +21,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=my_formatter)
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('labeling_params', type=pathlib.Path)
-    parser.add_argument('fwd_model_dir', type=pathlib.Path, help='forward model', nargs="+")
+    parser.add_argument('fwd_model_dir', type=pathlib.Path, help='forward model')
     parser.add_argument('classifier_model_dir', type=pathlib.Path)
     parser.add_argument('out_dir', type=pathlib.Path, help='out dir')
     parser.add_argument('--start-at', type=str, help='string of the form mode,idx (ex: val:30)')
