@@ -403,8 +403,8 @@ def batch_stateless_sample_action(scenario: ScenarioWithVisualization,
                                                               action_params=action_params,
                                                               n_action_sequences=n_action_samples,
                                                               action_sequence_length=n_actions,
-                                                              # validate=True,
-                                                              validate=False,
+                                                              validate=True,
+                                                              # validate=False,
                                                               action_rng=action_rng)
         action_sequences_b = [sequence_of_dicts_to_dict_of_tensors(a) for a in action_sequences_b]
         action_sequences_b = sequence_of_dicts_to_dict_of_tensors(action_sequences_b)

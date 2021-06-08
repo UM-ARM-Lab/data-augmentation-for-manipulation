@@ -20,7 +20,7 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
                  dataset_dirs: List[pathlib.Path],
                  load_true_states=False,
                  no_balance=True,
-                 use_gt_rope: Optional[bool] = None,
+                 use_gt_rope: Optional[bool] = True,
                  threshold: Optional[float] = None,
                  old_compat: Optional[bool] = False,
                  verbose: int = 0,

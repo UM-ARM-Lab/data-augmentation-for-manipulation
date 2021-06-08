@@ -11,5 +11,4 @@
     max_planning_attempts: 5
   }
   n_shortcut_attempts: 0
-  stop_on_error_above: 999
 }

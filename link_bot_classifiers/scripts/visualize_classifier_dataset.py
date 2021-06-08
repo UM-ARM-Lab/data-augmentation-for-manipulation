@@ -5,9 +5,8 @@ import pathlib
 import colorama
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
 
-import rospy
+from arc_utilities import ros_init
 from link_bot_classifiers.visualize_classifier_dataset import visualize_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from moonshine.gpu_config import limit_gpu_mem
@@ -15,6 +14,7 @@ from moonshine.gpu_config import limit_gpu_mem
 limit_gpu_mem(1)
 
 
+@ros_init.with_ros("visualize_classifier_dataset")
 def main():
     colorama.init(autoreset=True)
 
@@ -29,8 +29,6 @@ def main():
     parser.add_argument('--threshold', type=float, default=None)
     parser.add_argument('--start-at', type=int, default=0)
     parser.add_argument('--take', type=int)
-    parser.add_argument('--use-gt-rope', action='store_true')
-    parser.add_argument('--old-compat', action='store_true')
     parser.add_argument('--only-negative', action='store_true')
     parser.add_argument('--only-positive', action='store_true')
     parser.add_argument('--only-infeasible', action='store_true')
@@ -43,14 +41,7 @@ def main():
     args = parser.parse_args()
     args.batch_size = 1
 
-    rospy.init_node("visualize_classifier_data")
-
-    classifier_dataset = ClassifierDatasetLoader(args.dataset_dirs,
-                                                 load_true_states=True,
-                                                 threshold=args.threshold,
-                                                 use_gt_rope=args.use_gt_rope,
-                                                 old_compat=args.old_compat,
-                                                 )
+    classifier_dataset = ClassifierDatasetLoader(args.dataset_dirs, load_true_states=True, threshold=args.threshold)
 
     visualize_dataset(args, classifier_dataset)
 
