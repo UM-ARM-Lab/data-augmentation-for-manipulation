@@ -28,7 +28,7 @@ from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, repe
 from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
-DEBUG = True
+DEBUG = False
 
 
 def make_recovery_dataset(dataset_dir: pathlib.Path,
@@ -403,7 +403,8 @@ def batch_stateless_sample_action(scenario: ScenarioWithVisualization,
                                                               action_params=action_params,
                                                               n_action_sequences=n_action_samples,
                                                               action_sequence_length=n_actions,
-                                                              validate=True,
+                                                              # validate=True,
+                                                              validate=False,
                                                               action_rng=action_rng)
         action_sequences_b = [sequence_of_dicts_to_dict_of_tensors(a) for a in action_sequences_b]
         action_sequences_b = sequence_of_dicts_to_dict_of_tensors(action_sequences_b)

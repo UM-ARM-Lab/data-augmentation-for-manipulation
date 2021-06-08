@@ -334,23 +334,29 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
     @staticmethod
     def put_state_robot_frame(state: Dict):
-        rope = state[rope_key_name]
-        rope_points_shape = rope.shape[:-1].as_list() + [-1, 3]
-        rope_points = tf.reshape(rope, rope_points_shape)
-
-        # This assumes robot is at 0 0 0
-        robot_position = tf.constant([[0, 0, 0]], tf.float32)
-        left_gripper_robot = state['left_gripper']
-        right_gripper_robot = state['right_gripper']
-
-        rope_points_robot = rope_points - tf.expand_dims(robot_position, axis=-2)
-        rope_robot = tf.reshape(rope_points_robot, rope.shape)
-
+        # Assumes everything is in robot frame already
         return {
-            'left_gripper':  left_gripper_robot,
-            'right_gripper': right_gripper_robot,
-            rope_key_name:   rope_robot,
+            'left_gripper':  state['left_gripper'],
+            'right_gripper': state['right_gripper'],
+            rope_key_name:   state[rope_key_name],
         }
+        # rope = state[rope_key_name]
+        # rope_points_shape = rope.shape[:-1].as_list() + [-1, 3]
+        # rope_points = tf.reshape(rope, rope_points_shape)
+        #
+        # # This assumes robot is at 0 0 0
+        # robot_position = tf.constant([[0, 0, 0]], tf.float32)
+        # left_gripper_robot = state['left_gripper']
+        # right_gripper_robot = state['right_gripper']
+        #
+        # rope_points_robot = rope_points - tf.expand_dims(robot_position, axis=-2)
+        # rope_robot = tf.reshape(rope_points_robot, rope.shape)
+        #
+        # return {
+        #     'left_gripper':  left_gripper_robot,
+        #     'right_gripper': right_gripper_robot,
+        #     rope_key_name:   rope_robot,
+        # }
 
     @staticmethod
     def put_state_local_frame(state: Dict):
@@ -465,9 +471,9 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         left_rope_point_position, right_rope_point_position = self.get_rope_point_positions()
         state = {
-            'left_gripper':     np.array(left_rope_point_position, np.float32),
-            'right_gripper':    np.array(right_rope_point_position, np.float32),
-            'gt_rope':          np.array(gt_rope_vector, np.float32),
+            'left_gripper':  np.array(left_rope_point_position, np.float32),
+            'right_gripper': np.array(right_rope_point_position, np.float32),
+            'gt_rope':       np.array(gt_rope_vector, np.float32),
         }
         state.update(cdcpd_state)
         state.update(self.get_links_states.get_state())

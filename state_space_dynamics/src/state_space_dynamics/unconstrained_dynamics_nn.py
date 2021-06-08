@@ -33,7 +33,7 @@ class UnconstrainedDynamicsNN(MyKerasModel):
 
         self.dense_layers.append(layers.Dense(self.total_state_dimensions, activation=None))
 
-    # @tf.function
+    @tf.function
     def call(self, example, training, mask=None):
         actions = {k: example[k] for k in self.action_keys}
         input_sequence_length = actions[self.action_keys[0]].shape[1]
