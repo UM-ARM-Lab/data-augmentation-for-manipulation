@@ -219,7 +219,11 @@ def list_all_planning_results_trials(results_dir):
 def save_classifier_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.Path, metadata: Dict):
     planner_params = metadata['planner_params']
     classifier_params = classifier_params_from_planner_params(planner_params)
-    phase2_dataset_params = dynamics_dataset_params_from_classifier_params(classifier_params)
+    try:
+        phase2_dataset_params = dynamics_dataset_params_from_classifier_params(classifier_params)
+    except KeyError:
+        phase2_dataset_params = {}
+
     dataset_hparams = phase2_dataset_params
     dataset_hparams_update = {
         'from_results':           results_dir,
