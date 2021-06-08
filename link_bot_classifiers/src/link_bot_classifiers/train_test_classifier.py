@@ -174,10 +174,10 @@ def eval_main(dataset_dirs: List[pathlib.Path],
               threshold: Optional[float] = None,
               old_compat: bool = False,
               take: Optional[int] = None,
-              balance: bool = True,
+              no_balance: bool = True,
               scenario: Optional[ScenarioWithVisualization] = None,
               **kwargs):
-    model, runner, tf_dataset = eval_setup(balance,
+    model, runner, tf_dataset = eval_setup((not no_balance),
                                            batch_size,
                                            checkpoint,
                                            dataset_dirs,
@@ -190,8 +190,11 @@ def eval_main(dataset_dirs: List[pathlib.Path],
 
     val_metrics = model.create_metrics()
     runner.val_epoch(tf_dataset, val_metrics)
-    for metric_name, metric_value in val_metrics.items():
-        print(f"{metric_name:30s}: {metric_value.result().numpy().squeeze():.4f}")
+    # for metric_name, metric_value in val_metrics.items():
+    #     print(f"{metric_name:30s}: {metric_value.result().numpy().squeeze():.4f}")
+    metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives', 'loss']
+    metrics_to_print = [f"{val_metrics[k].result().numpy().squeeze():.4f}" for k in metric_keys_to_print]
+    print("\t".join(metrics_to_print))
 
     return val_metrics
 
