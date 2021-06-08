@@ -63,7 +63,7 @@ class ClassifierDebugging:
             self.scenario.plot_error_rviz(error_t)
 
     def send_position_transform(self, p, child: str):
-        self.scenario.tf.send_transform(p, [0, 0, 0, 1], 'world', child=child, is_static=True)
+        self.scenario.tf.send_transform(p, [0, 0, 0, 1], 'world', child=child, is_static=False)
 
 
 def make_robot_trajectory(robot_state: Dict):

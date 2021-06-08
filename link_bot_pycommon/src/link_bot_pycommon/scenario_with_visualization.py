@@ -95,8 +95,9 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         vg_points = occupied_voxels_to_points(environment['env'], environment['res'], environment['origin_point'])
 
         self.send_occupancy_tf(environment, frame)
+        self.tf.send_transform(environment['origin_point'], [0, 0, 0, 1], 'world', child='origin_point')
 
-        self.plot_points_rviz(vg_points, label="debugging_vg", frame_id='world', scale=0.002)
+        self.plot_points_rviz(vg_points, label="debugging_vg", frame_id='world', scale=0.002, color='white')
 
         bbox_msg = extent_to_bbox(environment['extent'])
         bbox_msg.header.frame_id = frame

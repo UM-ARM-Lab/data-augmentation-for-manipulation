@@ -7,3 +7,4 @@ int64 c_channels
 float32 resolution
 ---
 float32[] grid
+geometry_msgs/Point origin_point

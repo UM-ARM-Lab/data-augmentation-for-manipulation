@@ -38,6 +38,7 @@ def main():
             'res',
             'extent',
             'origin',
+            'scene_msg',
             'origin_point',
         ]
     }

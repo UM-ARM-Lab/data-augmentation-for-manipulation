@@ -34,6 +34,7 @@ def main():
             'env',
             'res',
             'extent',
+            'scene_msg',
             'origin',
             'origin_point',
         ]

@@ -1,4 +1,4 @@
-#include <math.h>
+#include <geometry_msgs/Point.h>
 #include <peter_msgs/ComputeOccupancy.h>
 #include <ros/callback_queue.h>
 #include <ros/ros.h>
@@ -60,13 +60,14 @@ class CollisionMapPlugin : public WorldPlugin {
 
   void SetRadius(physics::ModelPtr m);
 
-  void compute_occupancy_grid(int64_t h_rows, int64_t w_cols, int64_t c_channels, geometry_msgs::Point center,
-                              float resolution, const std::vector<std::string>& excluded_models);
+  geometry_msgs::Point compute_occupancy_grid(int64_t h_rows, int64_t w_cols, int64_t c_channels,
+                                              geometry_msgs::Point center, float resolution,
+                                              const std::vector<std::string>& excluded_models);
 };
 
 }  // namespace gazebo
 
-void nearCallback(void *_data, dGeomID _o1, dGeomID _o2);
+void nearCallback(void* _data, dGeomID _o1, dGeomID _o2);
 
 struct MyIntersection {
   std::string name;
