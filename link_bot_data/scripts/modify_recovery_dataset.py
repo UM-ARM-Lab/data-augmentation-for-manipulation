@@ -3,19 +3,16 @@ import argparse
 import pathlib
 from typing import Dict
 
-import colorama
+import numpy as np
 
 import rospy
 from link_bot_data.modify_dataset import modify_dataset
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
-from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.grid_utils import extent_res_to_origin_point
 
 
 def main():
-    colorama.init(autoreset=True)
-
-    parser = argparse.ArgumentParser(formatter_class=my_formatter)
+    parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('suffix', type=str, help='string added to the new dataset name')
 
@@ -26,7 +23,8 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset, example: Dict):
-        example['origin_point'] = extent_res_to_origin_point(example['extent'], example['res'])
+        example['origin_point'] = extent_res_to_origin_point(example['extent'], example['res']) + np.array([0, 0, 0.0],
+                                                                                                           dtype=np.float32)
         yield example
 
     hparams_update = {
