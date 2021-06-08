@@ -20,8 +20,8 @@ from moonshine.geometry import transform_points_3d, pairwise_squared_distances
 from moonshine.optimization import log_barrier
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
-DEBUG_AUG = False
-DEBUG_AUG_SGD = False
+DEBUG_AUG = True
+DEBUG_AUG_SGD = True
 
 
 class AugmentationOptimization:
@@ -39,7 +39,7 @@ class AugmentationOptimization:
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
         self.opt = tf.keras.optimizers.SGD(0.1)
-        self.grad_norm_threshold = 0.01  # stopping criteria for the eng aug optimization
+        self.grad_norm_threshold = 999 # 0.01 # stopping criteria for the eng aug optimization
         self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.grad_clip = 5.0  # max dist step the env aug update can take
@@ -59,6 +59,7 @@ class AugmentationOptimization:
         res = inputs['res']
 
         transformation_matrices = self.sample_transformations(batch_size)
+        # Updates "inputs" in-place
         valid, local_origin_point_aug = self.scenario.apply_state_augmentation(transformation_matrices,
                                                                                inputs,
                                                                                batch_size,
@@ -81,7 +82,6 @@ class AugmentationOptimization:
                 debug_i = tf.squeeze(tf.where(local_env_occupancy[b]), -1)
                 points_debug_b = tf.gather(points[b], debug_i)
                 self.scenario.plot_points_rviz(points_debug_b.numpy(), label='attract', color='g')
-                # stepper.step()
 
                 send_voxelgrid_tf_origin_point_res(self.broadcaster,
                                                    origin_point=local_origin_point_aug[b],
@@ -95,6 +95,7 @@ class AugmentationOptimization:
                 bbox_msg.header.frame_id = 'local_env_aug_vg'
 
                 self.debug.aug_bbox_pub.publish(bbox_msg)
+                # stepper.step()
 
         points_aug = transform_points_3d(transformation_matrices[:, None], points)
         valid_expanded = valid[:, None, None]
@@ -109,6 +110,7 @@ class AugmentationOptimization:
                 debug_i = tf.squeeze(tf.where(1 - local_env_occupancy[b]), -1)
                 points_debug_b = tf.gather(points_aug[b], debug_i)
                 self.scenario.plot_points_rviz(points_debug_b.numpy(), label='repel_aug', color='r', scale=0.005)
+                # stepper.step()
 
         new_env = self.get_new_env(inputs)
         local_env_aug = self.opt_new_env_augmentation(new_env,
@@ -118,6 +120,7 @@ class AugmentationOptimization:
                                                       local_origin_point_aug,
                                                       batch_size)
 
+        # Show the final output
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
@@ -222,7 +225,7 @@ class AugmentationOptimization:
         if DEBUG_AUG_SGD:
             stepper = RvizSimpleStepper()
 
-        nearest_attract_points = None
+        nearest_attract_env_points = None
         nearest_repel_points = None
         attract_points_b = None
         repel_points_b = None
@@ -250,15 +253,15 @@ class AugmentationOptimization:
                     env_points_b = env_points_b_initial + translation_b
                     is_attract_indices = tf.squeeze(tf.where(local_env_occupancy_b > 0.5), 1)
                     attract_points_b = tf.gather(state_points_b, is_attract_indices)
-                    if tf.size(is_attract_indices) == 0:
+                    if tf.size(is_attract_indices) == 0 or tf.size(env_points_b) == 0:
                         attract_loss = 0
                         min_attract_dist_b = 0.0
                     else:
                         # NOTE: these are SQUARED distances!
                         attract_dists_b = pairwise_squared_distances(env_points_b, attract_points_b)
-                        min_attract_dist_indices_b = tf.argmin(attract_dists_b, axis=1)
-                        min_attract_dist_b = tf.reduce_min(attract_dists_b, axis=1)
-                        nearest_attract_points = tf.gather(attract_points_b, min_attract_dist_indices_b)
+                        min_attract_dist_indices_b = tf.argmin(attract_dists_b, axis=0)
+                        min_attract_dist_b = tf.reduce_min(attract_dists_b, axis=0)
+                        nearest_attract_env_points = tf.gather(env_points_b, min_attract_dist_indices_b)
                         attract_loss = tf.reduce_mean(min_attract_dist_b)
 
                     is_repel_indices = tf.squeeze(tf.where(local_env_occupancy_b < 0.5), 1)
@@ -281,7 +284,7 @@ class AugmentationOptimization:
                     env_points_b_where_close = tf.gather(env_points_b, repel_close_indices)
                     if b in debug_viz_batch_indices(batch_size):
                         self.scenario.plot_points_rviz(env_points_b, label='icp', color='grey', scale=0.005)
-                        self.scenario.plot_lines_rviz(nearest_attract_points, env_points_b,
+                        self.scenario.plot_lines_rviz(nearest_attract_env_points, attract_points_b,
                                                       label='attract_correspondence', color='g')
                         self.scenario.plot_lines_rviz(nearest_repel_points_where_close,
                                                       env_points_b_where_close,
@@ -298,6 +301,9 @@ class AugmentationOptimization:
                 hard_constraints_satisfied = tf.logical_and(hard_repel_constraint_satisfied,
                                                             hard_attract_constraint_satisfied)
                 grad_norm = tf.linalg.norm(gradients)
+                if DEBUG_AUG_SGD:
+                    if b in debug_viz_batch_indices(batch_size):
+                        print(grad_norm, self.grad_norm_threshold, hard_constraints_satisfied)
                 if grad_norm < self.grad_norm_threshold or hard_constraints_satisfied:
                     break
             local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b, r_b, o_b)

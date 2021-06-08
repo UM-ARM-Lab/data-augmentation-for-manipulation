@@ -109,7 +109,8 @@ class NNRecoveryModel(MyKerasModel):
     def preprocess_no_gradient(self, inputs, training: bool):
         batch_size = inputs['batch_size']
 
-        inputs['origin_point'] = batch_extent_to_origin_point_tf(inputs['extent'], inputs['res'])
+        # this should already be in the input, I'm worried it's giving the wrong values sometimes though
+        # inputs['origin_point'] = batch_extent_to_origin_point_tf(inputs['extent'], inputs['res'])
 
         if DEBUG_INPUT:
             # clear the other voxel grids from previous calls

@@ -18,7 +18,7 @@ from link_bot_data.visualization import make_delete_marker
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.grid_utils import environment_to_vg_msg
+from link_bot_pycommon.grid_utils import environment_to_vg_msg, occupied_voxels_to_points
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.rviz_marker_manager import RVizMarkerManager
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -92,11 +92,14 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
         env_msg = environment_to_vg_msg(environment, frame=frame)
         self.env_viz_pub.publish(env_msg)
+        vg_points = occupied_voxels_to_points(environment['env'], environment['res'], environment['origin_point'])
 
         self.send_occupancy_tf(environment, frame)
 
+        self.plot_points_rviz(vg_points, label="debugging_vg", frame_id='world', scale=0.002)
+
         bbox_msg = extent_to_bbox(environment['extent'])
-        bbox_msg.header.frame_id = 'env_vg'
+        bbox_msg.header.frame_id = frame
         self.env_bbox_pub.publish(bbox_msg)
 
     def send_occupancy_tf(self, environment: Dict, frame):

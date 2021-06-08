@@ -98,6 +98,12 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
             return example
 
         # dataset = dataset.map(_add_time)
+        # import numpy as np
+        # def _debugging(example:Dict):
+        #     example['origin_point'] = example['origin_point'] + np.array([0.01, 0.01, 0.01])
+        #     return example
+        #
+        # dataset = dataset.map(_debugging)
 
         threshold = self.threshold
 

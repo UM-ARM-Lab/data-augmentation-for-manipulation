@@ -4,15 +4,11 @@ import pathlib
 from typing import Dict
 
 import colorama
+import tensorflow as tf
 
 import rospy
-from link_bot_classifiers.classifier_utils import load_generic_model
-from link_bot_classifiers.fine_tune_classifier import load_augmentation_configs
-from link_bot_classifiers.nn_classifier import NNClassifier
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.modify_dataset import modify_dataset
-from link_bot_pycommon.get_scenario import get_scenario
-from link_bot_pycommon.grid_utils import extent_res_to_origin_point
 
 
 def main():
@@ -29,7 +25,8 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset: ClassifierDatasetLoader, example: Dict):
-        example['origin_point'] = extent_res_to_origin_point(example['extent'], example['res'])
+        # example['origin_point'] = extent_res_to_origin_point(example['extent'], )
+        example['origin_point'] = example['origin_point'] + example['res'] / 2
         yield example
 
     hparams_update = {

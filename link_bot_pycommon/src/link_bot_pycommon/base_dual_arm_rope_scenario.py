@@ -435,7 +435,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def apply_augmentation_to_robot_state(self, batch_size, inputs, left_gripper_points_aug, right_gripper_points_aug):
         # use IK to get a new starting joint configuration
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
-        # NOTE: we can't do this inside tf.function, that's really annoying
         empty_scene_msgs = _deserialize_scene_msg(inputs)
         for s in empty_scene_msgs:
             s.world.collision_objects = []
@@ -443,7 +442,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         out_joint_positions_end = []
         reached = []
         for b in range(batch_size):
-            # use the joint config pre-augmentation to see IK for the augmented joint config
+            # use the joint config pre-augmentation to seed IK for the augmented joint config
             seed_joint_position_b = inputs[add_predicted('joint_positions')][b, 0].numpy().tolist()
             joint_names = inputs['joint_names'][b, 0].numpy().tolist()
             preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)

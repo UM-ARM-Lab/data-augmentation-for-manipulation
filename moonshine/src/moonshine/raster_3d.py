@@ -72,7 +72,7 @@ def points_to_voxel_grid(batch_indices, points, res, origin, h, w, c, batch_size
     return voxel_grid
 
 
-def batch_points_to_voxel_grid_res_origin_point(batch_indices, points, res, origin_point, h, w, c, batch_size):
+def points_to_voxel_grid_res_origin_point_batched(batch_indices, points, res, origin_point, h, w, c, batch_size):
     """
     Args:
         batch_indices: [n], batch_indices[i] is the batch indices for point points[i]. Must be int64 type

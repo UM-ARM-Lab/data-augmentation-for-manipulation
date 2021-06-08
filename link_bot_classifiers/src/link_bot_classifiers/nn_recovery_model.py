@@ -14,7 +14,7 @@ from link_bot_pycommon.pycommon import dgather
 from moonshine.get_local_environment import get_local_env_and_origin_point, create_env_indices
 from moonshine.metrics import LossMetric
 from moonshine.my_keras_model import MyKerasModel
-from moonshine.raster_3d import batch_points_to_voxel_grid_res_origin_point
+from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
 DEBUG_VIZ = False
@@ -174,14 +174,14 @@ class NNRecoveryModel(MyKerasModel):
             flat_points.set_shape([n_points_in_component * self.batch_size, 3])
             flat_res = tf.repeat(input_dict['res'], n_points_in_component, axis=0)
             flat_origin_point = tf.repeat(local_origin_point, n_points_in_component, axis=0)
-            state_component_voxel_grid = batch_points_to_voxel_grid_res_origin_point(flat_batch_indices,
-                                                                                     flat_points,
-                                                                                     flat_res,
-                                                                                     flat_origin_point,
-                                                                                     self.local_env_h_rows,
-                                                                                     self.local_env_w_cols,
-                                                                                     self.local_env_c_channels,
-                                                                                     batch_size)
+            state_component_voxel_grid = points_to_voxel_grid_res_origin_point_batched(flat_batch_indices,
+                                                                                       flat_points,
+                                                                                       flat_res,
+                                                                                       flat_origin_point,
+                                                                                       self.local_env_h_rows,
+                                                                                       self.local_env_w_cols,
+                                                                                       self.local_env_c_channels,
+                                                                                       batch_size)
 
             local_voxel_grid_array = local_voxel_grid_array.write(i + 1, state_component_voxel_grid)
         local_voxel_grid = tf.transpose(local_voxel_grid_array.stack(), [1, 2, 3, 4, 0])
