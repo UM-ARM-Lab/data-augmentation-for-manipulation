@@ -164,6 +164,10 @@ def index_dict_of_batched_tensors_tf(in_dict: Dict, index: int, batch_axis: int 
     return out_dict
 
 
+def index_batched_dict(d: Dict, index: int):
+    return {k: v[index] for k, v in d.items()}
+
+
 def slice_along_axis(x, start, end, axis):
     s = [slice(None)] * x.ndim
     s[axis] = slice(start, end)

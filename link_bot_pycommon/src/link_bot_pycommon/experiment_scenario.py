@@ -88,7 +88,7 @@ class ExperimentScenario:
         for i in range(batch_size):
             action, invalid = self.sample_action(action_rng=action_rng,
                                                  environment=environment,
-                                                 state=index_dict_of_batched_tensors_tf(state, i),
+                                                 state=state,
                                                  action_params=action_params,
                                                  validate=validate,
                                                  stateless=True)

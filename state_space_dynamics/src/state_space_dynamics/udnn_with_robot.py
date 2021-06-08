@@ -48,7 +48,7 @@ class UDNNEnsembleWithRobot(DynamicsEnsemble):
         inputs = numpify(inputs)
         reached, joint_positions, joint_names = self.scenario.follow_jacobian_from_example(inputs, j=self.j)
 
-        stdev_t = tf.reduce_sum(tf.concat(list(mean.values()), axis=-1), keepdims=True, axis=-1)
+        stdev_t = tf.reduce_sum(tf.concat(list(stdev.values()), axis=-1), keepdims=True, axis=-1)
         mean['stdev'] = stdev_t
 
         joint_positions = tf.convert_to_tensor(joint_positions, dtype=tf.float32)
