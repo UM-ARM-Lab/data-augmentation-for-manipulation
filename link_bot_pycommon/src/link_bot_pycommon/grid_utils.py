@@ -2,6 +2,7 @@ from typing import Dict, Optional
 
 import numpy as np
 import tensorflow as tf
+from deprecated import deprecated
 
 import ros_numpy
 import rospy
@@ -221,17 +222,19 @@ def extent_to_center(extent_3d):
     return cx, cy, cz
 
 
+@deprecated
 def batch_center_res_shape_to_origin_point(center, res, h, w, c):
     shape_xyz = tf.stack([w, h, c], axis=-1)
     return center - (tf.cast(shape_xyz, tf.float32) * tf.expand_dims(res, axis=-1) / 2)
 
 
+@deprecated
 def batch_extent_to_origin_point_tf(extent, res):
     center_xyz = batch_extent_to_center_tf(extent_3d=extent)
     shape_xyz = batch_extent_to_env_shape_xyz_tf(extent=extent, res=res)
     return center_xyz - (tf.cast(shape_xyz, tf.float32) * tf.expand_dims(res, axis=-1) / 2)
 
-
+@deprecated
 def extent_res_to_origin_point(extent, res):
     """
 

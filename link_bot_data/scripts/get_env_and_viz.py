@@ -2,6 +2,7 @@
 from link_bot_pycommon.get_scenario import get_scenario
 import rospy
 from arc_utilities import ros_init
+from link_bot_pycommon.grid_utils import extent_res_to_origin_point
 
 
 @ros_init.with_ros("get_env_and_viz")
