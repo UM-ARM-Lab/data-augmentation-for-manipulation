@@ -308,8 +308,7 @@ class AugmentationOptimization:
                     nearest_robot_repel_points = tf.gather(robot_points_b, min_robot_repel_dist_indices_b)
                     robot_repel_loss = tf.reduce_mean(self.barrier_func(min_robot_repel_dist_b))
 
-                    # loss = attract_loss * 0.1 + repel_loss + robot_repel_loss
-                    loss = robot_repel_loss
+                    loss = attract_loss * 0.1 + repel_loss + robot_repel_loss
 
                 if DEBUG_AUG_SGD:
                     repel_close_indices = tf.squeeze(tf.where(min_repel_dist_b < self.barrier_upper_lim), axis=-1)
