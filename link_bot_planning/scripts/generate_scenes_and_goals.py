@@ -48,14 +48,11 @@ def generate_saved_goals(method: str,
                          ):
     scenes_dir.mkdir(exist_ok=True, parents=True)
 
-    service_provider = gazebo_services.GazeboServices()
     scenario = get_scenario(scenario)
-    service_provider.setup_env(verbose=0,
-                               real_time_rate=0.0,
-                               max_step_size=0.01,
-                               play=True)
+    service_provider = gazebo_services.GazeboServices()
+    service_provider.setup_env()
 
-    params = get_params()
+    params = sketchy_default_params()
 
     scenario.move_objects_out_of_scene(params)
     scenario.on_before_data_collection(params)
@@ -121,13 +118,11 @@ def generate_saved_goals(method: str,
         save(scenes_dir, trial_idx, goal)
 
 
-def get_params():
+def sketchy_default_params():
     params = {
         'environment_randomization': {
             'type':          'jitter',
             'nominal_poses': {
-                'long_hook1': None,
-                'wall2':      None,
             },
         },
         'reset_joint_config':        {

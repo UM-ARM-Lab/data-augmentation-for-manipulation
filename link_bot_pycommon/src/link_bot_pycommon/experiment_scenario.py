@@ -333,3 +333,6 @@ class ExperimentScenario:
 
     def heartbeat(self):
         self.h.update()
+
+    def move_objects_out_of_scene(self, params: Dict):
+        pass

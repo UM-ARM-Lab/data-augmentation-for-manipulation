@@ -81,7 +81,7 @@ class GazeboServices(BaseServices):
     def kill(self):
         self.gazebo_process.shutdown()
 
-    def setup_env(self, verbose: int, real_time_rate: float, max_step_size: float, play: bool = True):
+    def setup_env(self, verbose: int = 0, real_time_rate: float = 0, max_step_size: float = 0.01, play: bool = True):
         # set up physics
         get_physics_msg = GetPhysicsPropertiesRequest()
         current_physics = self.get_physics.call(get_physics_msg)

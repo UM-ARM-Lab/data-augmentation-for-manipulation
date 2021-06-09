@@ -53,6 +53,10 @@ class TestScene:
         with goal_filename.open("rb") as goal_file:
             self.goal = pickle.load(goal_file)
 
+    def get_scene_filename(self):
+        scene_filename = make_scene_filename(self.root, self.idx)
+        return scene_filename
+
     def save(self, force: Optional[bool] = False):
         goal_filename = make_goal_filename(self.root, self.idx)
         scene_filename = make_scene_filename(self.root, self.idx)
