@@ -28,7 +28,9 @@ class UDNNEnsembleWithRobot(DynamicsEnsemble):
         return numpify(self.propagate_tf(environment, start_state, actions))
 
     def propagate_tf(self, environment: Dict, start_state: Dict, actions: List[Dict]):
-        print("CHECK THAT AXIS IS CORRECT???")
+        # NOTE: Check that axis=0 is correct, it used to be 1,
+        #  as if somewhere else in the code I was passing actions is already batched
+        #  (in recovery dataset generation probably?)
         actions_dict = sequence_of_dicts_to_dict_of_tensors(actions, axis=0)
         mean_dict, stdev_dict = remove_batch(
             *self.propagate_tf_batched(*add_batch(environment, start_state, actions_dict)))
