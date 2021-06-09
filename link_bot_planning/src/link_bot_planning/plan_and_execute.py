@@ -130,7 +130,7 @@ def has_keys(d: Dict, keys: List[str]):
     if len(keys) == 1:
         return d[keys[0]]
     else:
-        return has_keys(d, keys[1:])
+        return has_keys(d[keys[0]], keys[1:])
 
 
 class PlanAndExecute:

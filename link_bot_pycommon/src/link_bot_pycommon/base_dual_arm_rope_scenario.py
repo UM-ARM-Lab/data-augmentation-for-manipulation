@@ -345,8 +345,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         return target_reached_batched, pred_joint_positions_batched, joint_names_batched
 
     def sample_object_augmentation_variables(self,
-                                            batch_size,
-                                            seed: tfp.util.SeedStream):
+                                             batch_size,
+                                             seed: tfp.util.SeedStream):
         # NOTE: lots of hidden hyper-parameters here :(
         zeros = tf.zeros([batch_size, 6], dtype=tf.float32)
         scale = tf.constant([0.25, 0.25, 0.25, 0.15, 0.15, 0.15], dtype=tf.float32)
@@ -357,15 +357,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         return transformation_params
 
     def apply_object_augmentation(self,
-                                 m,
-                                 inputs: Dict,
-                                 batch_size,
-                                 time,
-                                 h: int,
-                                 w: int,
-                                 c: int,
-                                 ):
-
+                                  m,
+                                  inputs: Dict,
+                                  batch_size,
+                                  time,
+                                  h: int,
+                                  w: int,
+                                  c: int,
+                                  ):
         # apply those to the rope and grippers
         rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
         left_gripper_point = inputs[add_predicted('left_gripper')]
@@ -395,9 +394,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
 
         reached = tf.cast(reached, tf.float32)
-        aug_valid = reached  # NOTE: there could be other constraints we need to check?
-        aug_valid_2d = aug_valid[:, tf.newaxis]
-        aug_valid_3d = aug_valid[:, tf.newaxis, tf.newaxis]
+        object_aug_valid = reached  # NOTE: there could be other constraints we need to check?
 
         # Now that we've updated the state/action in inputs, compute the local origin point
         state_aug_0 = {
@@ -408,14 +405,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         local_center_aug = self.local_environment_center_differentiable(state_aug_0)
         res = inputs['res']
         local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
-
-        update_if_valid(inputs, aug_valid_3d, add_predicted('joint_positions'), joint_positions_aug)
-        update_if_valid(inputs, aug_valid_3d, add_predicted('rope'), rope_aug)
-        update_if_valid(inputs, aug_valid_3d, add_predicted('left_gripper'), left_gripper_aug)
-        update_if_valid(inputs, aug_valid_3d, add_predicted('right_gripper'), right_gripper_aug)
-        update_if_valid(inputs, aug_valid_3d, 'left_gripper_position', left_gripper_position_aug)
-        update_if_valid(inputs, aug_valid_3d, 'right_gripper_position', right_gripper_position_aug)
-        update_if_valid(inputs, aug_valid_2d, 'local_origin_point', local_origin_point_aug)
 
         if DEBUG_VIZ_STATE_AUG:
             stepper = RvizSimpleStepper()
@@ -431,7 +420,16 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 self.debug_viz_state_action(inputs, b, 'aug', color='white')
                 # stepper.step()
 
-        return aug_valid
+        object_aug_update = {
+            'joint_positions':        joint_positions_aug,
+            'rope':                   rope_aug,
+            'left_gripper':           left_gripper_aug,
+            'right_gripper':          right_gripper_aug,
+            'left_gripper_position':  left_gripper_position_aug,
+            'right_gripper_position': right_gripper_position_aug,
+            'local_origin_point':     local_origin_point_aug,
+        }
+        return object_aug_valid, object_aug_update
 
     def apply_augmentation_to_robot_state(self, batch_size, inputs, left_gripper_points_aug, right_gripper_points_aug):
         # use IK to get a new starting joint configuration

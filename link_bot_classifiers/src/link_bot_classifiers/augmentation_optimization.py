@@ -1,4 +1,5 @@
 import pathlib
+from copy import deepcopy
 from typing import Dict, List
 
 import tensorflow as tf
@@ -22,7 +23,7 @@ from moonshine.geometry import transform_points_3d, pairwise_squared_distances
 from moonshine.optimization import log_barrier
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
-DEBUG_AUG = False
+DEBUG_AUG = True
 DEBUG_AUG_SGD = True
 
 
@@ -81,6 +82,8 @@ class AugmentationOptimization:
         # TODO: rewrite this so that we do a out-of-place update, i.e returning copied dicts from the "apply" and "opt" functions, and then check both object_aug_valid and env_aug_valid together
         #  visualize everything to make sure that when either is invalid, we "abort" the augmentation, and the return dict (which is actually what's used) is correct
         #  also check the "animate voxel grids" that the state components of the voxel_grids is correct. I think right now it isn't?
+        inputs_aug = deepcopy(inputs)
+
         object_points = inputs['swept_object_points']
         res = inputs['res']
         local_origin_point = inputs['local_origin_point']
@@ -90,13 +93,15 @@ class AugmentationOptimization:
         object_points_occupancy = lookup_points_in_vg(object_points, local_env, res, local_origin_point, batch_size)
 
         transformation_matrices = self.sample_object_transformations(batch_size)
-        object_aug_valid, inputs_aug = self.scenario.apply_object_augmentation(transformation_matrices,
-                                                                               inputs,
-                                                                               batch_size,
-                                                                               time,
-                                                                               self.local_env_helper.h,
-                                                                               self.local_env_helper.w,
-                                                                               self.local_env_helper.c)
+        object_aug_valid, object_aug_update = self.scenario.apply_object_augmentation(transformation_matrices,
+                                                                                      inputs_aug,
+                                                                                      batch_size,
+                                                                                      time,
+                                                                                      self.local_env_helper.h,
+                                                                                      self.local_env_helper.w,
+                                                                                      self.local_env_helper.c)
+        inputs_aug.update(object_aug_update)
+        local_origin_point_aug = inputs_aug['local_origin_point']
 
         # this was just updated by apply_state_augmentation
         if DEBUG_AUG:
@@ -144,37 +149,51 @@ class AugmentationOptimization:
 
         # robot_points_occupancy = lookup_points_in_vg(robot_points_aug, local_env, res, local_origin_point_aug, batch_size)
         new_env = self.get_new_env(inputs)
-        eng_aug_valid, inputs_aug = self.opt_new_env_augmentation(inputs,
-                                                                  new_env,
-                                                                  object_points_aug,
-                                                                  robot_points_aug,
-                                                                  object_points_occupancy,
-                                                                  None,  # robot_points_occupancy,
-                                                                  res,
-                                                                  local_origin_point_aug,
-                                                                  batch_size)
+        env_aug_valid, local_env_aug = self.opt_new_env_augmentation(inputs_aug,
+                                                                     new_env,
+                                                                     object_points_aug,
+                                                                     robot_points_aug,
+                                                                     object_points_occupancy,
+                                                                     None,  # robot_points_occupancy,
+                                                                     res,
+                                                                     local_origin_point_aug,
+                                                                     batch_size)
+        voxel_grids_aug = self.merge_aug_and_local_voxel_grids(local_env_aug, inputs_aug['voxel_grids'], time)
+        is_valid = env_aug_valid * object_aug_valid
 
-        voxel_grids_aug = self.merge_aug_and_local_voxel_grids(local_env_aug, inputs['voxel_grids'], time)
+        update_if_valid(inputs_aug, is_valid, k, v_aug)
+        update_if_valid(inputs_aug, is_valid, k, v_aug)
+        update_if_valid(inputs_aug, is_valid, k, v_aug)
+        update_if_valid(inputs_aug, is_valid, k, v_aug)
+        update_if_valid(inputs_aug, is_valid, k, v_aug)
+        update_if_valid(inputs_aug, is_valid, k, v_aug)
+        update_if_valid(inputs_aug, is_valid, k, v_aug)
+        update_if_valid(inputs_aug, is_valid, k, v_aug)
+        update_if_valid(inputs_aug, is_valid, k, v_aug)
+        update_if_valid(inputs_aug, is_valid, k, v_aug)
         update_if_valid(inputs, eng_aug_valid, 'voxel_grids', voxel_grids_aug)
+        # NOTE: we now need to re-compute the voxel_grids, at least for the state
 
         # Show the final output
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 _aug_dict = {
-                    'env':          inputs['voxel_grids'][b, 0, :, :, :, 0].numpy(),
-                    # 'origin_point': local_origin_point_aug[b].numpy(), ???
-                # 'res': res[b].numpy(),
+                    'env':          inputs_aug['voxel_grids'][b, 0, :, :, :, 0].numpy(),
+                    'origin_point': local_origin_point_aug[b].numpy(),
+                    'res':          res[b].numpy(),
                 }
                 msg = environment_to_vg_msg(_aug_dict, frame='local_env_aug_vg', stamp=rospy.Time(0))
                 self.debug.env_aug_pub5.publish(msg)
-                # send_voxelgrid_tf_origin_point_res(self.broadcaster,
-                #                                    local_origin_point[b], ???
-                # res[b],
-                # frame = 'local_env_aug_vg')
+                send_voxelgrid_tf_origin_point_res(self.broadcaster,
+                                                   local_origin_point_aug[b],
+                                                   res[b],
+                                                   frame='local_env_aug_vg')
 
                 self.debug.plot_state_action_rviz(inputs, b, 'aug', color='blue')
                 stepper.step()  # FINAL
+
+        return inputs_aug
 
     def sample_object_transformations(self, batch_size):
         # sample a translation and rotation for the object state
@@ -269,7 +288,7 @@ class AugmentationOptimization:
         attract_points_b = None
         repel_points_b = None
         local_env_aug = []
-        is_valid = []
+        env_aug_valid = []
         for b in range(batch_size):
             r_b = res[b]
             o_b = local_origin_point_aug[b]
@@ -384,13 +403,12 @@ class AugmentationOptimization:
             local_env_aug_b = subtract(binary_or(local_env_aug_b, attract_vg_b), repel_vg_b)
 
             local_env_aug.append(local_env_aug_b)
-            is_valid.append(hard_constraints_satisfied_b)
+            env_aug_valid.append(hard_constraints_satisfied_b)
 
         local_env_aug = tf.stack(local_env_aug)
-        is_valid = tf.stack(is_valid)
-        is_valid = tf.cast(is_valid, tf.float32)[:, None, None, None, None, None]
+        env_aug_valid = tf.stack(env_aug_valid)
 
-        return local_env_aug, is_valid
+        return env_aug_valid, local_env_aug
 
     def clip_env_aug_grad(self, gradients, variables):
         def _clip(g):
