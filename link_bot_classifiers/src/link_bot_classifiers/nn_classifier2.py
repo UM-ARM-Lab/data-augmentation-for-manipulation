@@ -132,7 +132,7 @@ class NNClassifier(MyKerasModel):
                 self.debug.plot_state_action_rviz(inputs, b, 'input')
                 origin_point_b = inputs['origin_point'][b].numpy().tolist()
                 self.debug.send_position_transform(origin_point_b, 'env_origin_point')
-                # stepper.step()
+                stepper.step()
 
         # Create voxel grids
         local_env, local_origin_point = self.get_local_env(inputs, batch_size)

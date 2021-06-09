@@ -99,9 +99,7 @@ def add_augmentation_configs_to_dataset(augmentation_config_dir, tf_dataset, bat
         example[add_new('extent')] = new_example['extent']
         example[add_new('res')] = new_example['res']
         example[add_new('origin')] = new_example['origin']
-        new_origin_point = remove_batch(batch_extent_to_origin_point_tf(*add_batch(new_example['extent'],
-                                                                                   new_example['res'])))
-        example[add_new('origin_point')] = new_origin_point
+        example[add_new('origin_point')] = new_example['origin_point']
 
         return example
 

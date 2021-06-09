@@ -19,7 +19,7 @@ from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
 from link_bot_pycommon.serialization import dump_gzipped_pickle
 from moonshine.filepath_tools import load_params
-from moonshine.moonshine_utils import remove_batch, add_batch, numpify
+from moonshine.moonshine_utils import remove_batch, add_batch, numpify, to_list_of_strings
 from moveit_msgs.msg import PlanningScene
 
 NULL_PAD_VALUE = -10000
@@ -450,6 +450,8 @@ def _deserialize_scene_msg(example):
             scene_msg = np.array([bytes_to_ros_msg(m_i, PlanningScene) for m_i in scene_msg])
     elif isinstance(scene_msg, bytes):
         scene_msg = bytes_to_ros_msg(scene_msg, PlanningScene)
+        # FIXME: why when I deserialize is it sometimes a list of bytes and sometimes a list of strings?
+        scene_msg.robot_state.joint_state.name = to_list_of_strings(scene_msg.robot_state.joint_state.name)
     return scene_msg
 
 

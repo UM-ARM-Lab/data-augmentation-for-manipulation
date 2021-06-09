@@ -39,7 +39,7 @@ class AugmentationOptimization:
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
         self.opt = tf.keras.optimizers.SGD(0.1)
-        self.grad_norm_threshold = 999 # 0.01 # stopping criteria for the eng aug optimization
+        self.grad_norm_threshold = 999  # 0.01 # stopping criteria for the eng aug optimization
         self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.grad_clip = 5.0  # max dist step the env aug update can take
@@ -137,7 +137,7 @@ class AugmentationOptimization:
                                                    frame='local_env_aug_vg')
 
                 self.debug.plot_state_action_rviz(inputs, b, 'aug', color='blue')
-                # stepper.step()
+                stepper.step()  # FINAL
 
         voxel_grids_aug = self.merge_aug_and_local_voxel_grids(local_env_aug, inputs['voxel_grids'], time)
         inputs['voxel_grids'] = voxel_grids_aug
