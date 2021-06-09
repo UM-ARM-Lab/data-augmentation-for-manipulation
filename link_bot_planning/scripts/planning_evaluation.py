@@ -47,7 +47,7 @@ def main():
         planner_params["recovery"]["recovery_model_dir"] = args.recovery
 
     if args.trials is None:
-        args.trials = get_all_scene_indices(args.test_scenes_dir)
+        args.trials = list(get_all_scene_indices(args.test_scenes_dir))
         print(args.trials)
 
     evaluate_multiple_planning(outdir=root,
