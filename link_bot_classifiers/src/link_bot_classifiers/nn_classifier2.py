@@ -29,7 +29,7 @@ from moonshine.moonshine_utils import numpify
 from moonshine.my_keras_model import MyKerasModel
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_INPUT = True
+DEBUG_INPUT = False
 
 
 class NNClassifier(MyKerasModel):

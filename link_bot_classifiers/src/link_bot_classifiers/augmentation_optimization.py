@@ -23,8 +23,8 @@ from moonshine.geometry import transform_points_3d, pairwise_squared_distances
 from moonshine.optimization import log_barrier
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
-DEBUG_AUG = True
-DEBUG_AUG_SGD = True
+DEBUG_AUG = False
+DEBUG_AUG_SGD = False
 
 
 def subsample_points(points, fraction):
