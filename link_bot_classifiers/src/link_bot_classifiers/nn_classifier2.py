@@ -12,13 +12,13 @@ from link_bot_classifiers import augmentation_optimization
 from link_bot_classifiers.augmentation_optimization import AugmentationOptimization
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
-from link_bot_classifiers.make_voxelgrid_inputs import make_voxelgrid_inputs_t, VoxelgridInfo
+# noinspection PyUnresolvedReferences
+from link_bot_classifiers.make_voxelgrid_inputs import make_voxelgrid_inputs_t, VoxelgridInfo, make_robot_points_batched
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
-from link_bot_pycommon.base_dual_arm_rope_scenario import densify_points
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf, environment_to_vg_msg, \
+from link_bot_pycommon.grid_utils import environment_to_vg_msg, \
     send_voxelgrid_tf_origin_point_res
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
@@ -82,12 +82,6 @@ class NNClassifier(MyKerasModel):
                                                c=self.local_env_c_channels,
                                                batch_size=batch_size)
         self.debug = ClassifierDebugging(self.scenario, self.state_keys, self.action_keys)
-        self.aug = AugmentationOptimization(self.scenario, self.debug, self.local_env_helper, self.hparams,
-                                            self.batch_size)
-        if self.aug.do_augmentation():
-            rospy.loginfo("Using augmentation during training")
-        else:
-            rospy.loginfo("Not using augmentation during training")
 
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
         print(Fore.LIGHTBLUE_EX + f"{self.include_robot_geometry=}" + Fore.RESET)
@@ -101,13 +95,21 @@ class NNClassifier(MyKerasModel):
                                      robot_info=self.robot_info,
                                      )
 
+        self.aug = AugmentationOptimization(scenario=self.scenario,
+                                            debug=self.debug,
+                                            local_env_helper=self.local_env_helper,
+                                            vg_info=self.vg_info,
+                                            hparams=self.hparams,
+                                            points_state_keys=self.points_state_keys,
+                                            batch_size=self.batch_size)
+        if self.aug.do_augmentation():
+            rospy.loginfo("Using augmentation during training")
+        else:
+            rospy.loginfo("Not using augmentation during training")
+
     def preprocess_no_gradient(self, inputs, training: bool):
         batch_size = inputs['batch_size']
         time = inputs['time']
-
-        # NOTE: this was giving "incorrect" values for the floating boxes env. By incorrect, I mean that the centers
-        #  of the voxels didn't line up with the scene_msg
-        # inputs['origin_point'] = batch_extent_to_origin_point_tf(inputs['extent'], inputs['res'])
 
         if DEBUG_INPUT:
             # clear the other voxel grids from previous calls
@@ -132,7 +134,7 @@ class NNClassifier(MyKerasModel):
                 self.debug.plot_state_action_rviz(inputs, b, 'input')
                 origin_point_b = inputs['origin_point'][b].numpy().tolist()
                 self.debug.send_position_transform(origin_point_b, 'env_origin_point')
-                stepper.step()
+                # stepper.step()
 
         # Create voxel grids
         local_env, local_origin_point = self.get_local_env(inputs, batch_size)
@@ -142,7 +144,7 @@ class NNClassifier(MyKerasModel):
         inputs['voxel_grids'] = voxel_grids
         inputs['local_origin_point'] = local_origin_point
 
-        inputs['swept_state_and_robot_points'] = self.compute_swept_state_and_robot_points(inputs)
+        inputs['swept_object_points'] = self.aug.compute_swept_object_points(inputs)
 
         if augmentation_optimization.DEBUG_AUG:
             self.debug_viz_local_env_pre_aug(inputs, time)
@@ -275,38 +277,6 @@ class NNClassifier(MyKerasModel):
         out_d = z
         out_h = self.lstm(out_d)
         return out_h
-
-    def compute_swept_state_and_robot_points(self, inputs):
-        points_state_keys = [add_predicted(k) for k in self.points_state_keys]
-        batch_size = inputs['batch_size']
-
-        # FIXME: doesn't actually include robot points?
-        # robot_points_0 = make_robot_points_batched(batch_size, self.vg_info, inputs, 0)
-        # robot_points_1 = make_robot_points_batched(batch_size, self.vg_info, inputs, 1)
-
-        def _make_points(k, t):
-            v = inputs[k][:, t]
-            points = tf.reshape(v, [batch_size, -1, 3])
-            points = densify_points(batch_size, points)
-            return points
-
-        state_points_0 = {k: _make_points(k, 0) for k in points_state_keys}
-        state_points_1 = {k: _make_points(k, 1) for k in points_state_keys}
-
-        num_interp = 5
-
-        def _linspace(k):
-            return tf.linspace(state_points_0[k], state_points_1[k], num_interp, axis=1)
-
-        swept_state_points = tf.concat([_linspace(k) for k in points_state_keys], axis=2)
-        swept_state_points = tf.reshape(swept_state_points, [batch_size, -1, 3])
-
-        # swept_robot_points = tf.linspace(robot_points_0, robot_points_1, num_interp, axis=1)
-        # swept_robot_points = tf.reshape(swept_robot_points, [batch_size, -1, 3])
-        # swept_state_and_robot_points = tf.concat([swept_state_points, swept_robot_points], axis=1)
-        swept_state_and_robot_points = swept_state_points
-
-        return swept_state_and_robot_points
 
     def make_voxelgrid_inputs(self, input_dict: Dict, local_env, local_origin_point, batch_size, time):
         local_voxel_grids_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
