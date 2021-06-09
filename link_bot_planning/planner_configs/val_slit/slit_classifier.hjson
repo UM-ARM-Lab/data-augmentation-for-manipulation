@@ -1,13 +1,12 @@
 {
-  method_name: slit classifier*
+  method_name: slit classifier
   classifier_model_dir: [
-    cl_trials/val_slit_1617224535/April_01_04-38-27_82dae37730/best_checkpoint
-    cl_trials/new_feasibility_baseline/none
+    /media/shared/cl_trials/val_slit_1617224535/April_01_04-38-27_82dae37730/best_checkpoint
+    /media/shared/cl_trials/new_feasibility_baseline/none
   ]
   recovery: {
-    use_recovery: false
+    recovery_model_dir: /media/shared/recovery_trials/random/none
+    use_recovery: true
   }
-  termination_criteria: {
-    attempted_extensions_threshold: 500
-  }
+
 }
