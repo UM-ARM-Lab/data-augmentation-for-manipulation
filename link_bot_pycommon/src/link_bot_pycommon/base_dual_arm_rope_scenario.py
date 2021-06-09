@@ -406,6 +406,17 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         res = inputs['res']
         local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
 
+        object_aug_update = {
+            add_predicted('joint_positions'): joint_positions_aug,
+            'joint_names':                    inputs['joint_names'],
+            add_predicted('rope'):            rope_aug,
+            add_predicted('left_gripper'):    left_gripper_aug,
+            add_predicted('right_gripper'):   right_gripper_aug,
+            'left_gripper_position':          left_gripper_position_aug,
+            'right_gripper_position':         right_gripper_position_aug,
+            'local_origin_point':             local_origin_point_aug,
+        }
+
         if DEBUG_VIZ_STATE_AUG:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
@@ -417,19 +428,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 }
 
                 self.plot_environment_rviz(env_b)
-                self.debug_viz_state_action(inputs, b, 'aug', color='white')
-                # stepper.step()
-
-        object_aug_update = {
-            add_predicted('joint_positions'): joint_positions_aug,
-            'joint_names':                    inputs['joint_names'],
-            add_predicted('rope'):            rope_aug,
-            add_predicted('left_gripper'):    left_gripper_aug,
-            add_predicted('right_gripper'):   right_gripper_aug,
-            'left_gripper_position':          left_gripper_position_aug,
-            'right_gripper_position':         right_gripper_position_aug,
-            'local_origin_point':             local_origin_point_aug,
-        }
+                self.debug_viz_state_action(object_aug_update, b, 'aug', color='white')
+                stepper.step()
         return object_aug_valid, object_aug_update
 
     def apply_augmentation_to_robot_state(self, batch_size, inputs, left_gripper_points_aug, right_gripper_points_aug):
@@ -506,15 +506,19 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                         tf.constant(out_joint_positions_end, tf.float32)), axis=1)
         return joint_positions_aug, reached
 
-    def debug_viz_state_action(self, input_dict, b, label: str, color='red'):
-        state_keys = ['left_gripper', 'right_gripper', 'rope']
+    def debug_viz_state_action(self, inputs, b, label: str, color='red'):
+        state_keys = ['left_gripper', 'right_gripper', 'rope', 'joint_positions']
         action_keys = ['left_gripper_position', 'right_gripper_position']
-        state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in state_keys})
-        action_0 = numpify({k: input_dict[k][b, 0] for k in action_keys})
-        state_1 = numpify({k: input_dict[add_predicted(k)][b, 1] for k in state_keys})
-        error_t = input_dict['error'][b, 1]
+        state_0 = numpify({k: inputs[add_predicted(k)][b, 0] for k in state_keys})
+        state_0['joint_names'] = inputs['joint_names'][b, 0]
+        action_0 = numpify({k: inputs[k][b, 0] for k in action_keys})
+        state_1 = numpify({k: inputs[add_predicted(k)][b, 1] for k in state_keys})
+        state_1['joint_names'] = inputs['joint_names'][b, 1]
         self.plot_state_rviz(state_0, idx=0, label=label, color=color)
         self.plot_state_rviz(state_1, idx=1, label=label, color=color)
         self.plot_action_rviz(state_0, action_0, idx=1, label=label, color=color)
-        self.plot_is_close(input_dict['is_close'][b, 1])
-        self.plot_error_rviz(error_t)
+        if 'is_close' in inputs:
+            self.plot_is_close(inputs['is_close'][b, 1])
+        if 'error' in inputs:
+            error_t = inputs['error'][b, 1]
+            self.plot_error_rviz(error_t)

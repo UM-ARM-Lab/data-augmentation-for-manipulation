@@ -15,15 +15,15 @@ from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg, \
     occupied_voxels_to_points, subtract, binary_or
-from link_bot_pycommon.pycommon import densify_points, update_if_valid
+from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, pairwise_squared_distances
 from moonshine.optimization import log_barrier
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
-DEBUG_AUG = True
-DEBUG_AUG_SGD = True
+DEBUG_AUG = False
+DEBUG_AUG_SGD = False
 
 
 def subsample_points(points, fraction):
@@ -194,14 +194,13 @@ class AugmentationOptimization:
 
         is_valid = env_aug_valid * object_aug_valid
         # FIXME: this is so hacky
-        keys_aug = ['voxel_grids', 'local_origin_point']
+        keys_aug = ['voxel_grids', 'local_origin_point', add_predicted('joint_positions')]
         keys_aug += self.action_keys
         keys_aug += [add_predicted(psk) for psk in self.points_state_keys]
         for k in keys_aug:
             v = inputs_aug[k]
             is_valid_expanded = tf.reshape(is_valid, [batch_size] + [1] * (v.ndim - 1))
             inputs_aug[k] = is_valid_expanded * inputs_aug[k] + (1 - is_valid_expanded) * inputs[k]
-
         return inputs_aug
 
     def sample_object_transformations(self, batch_size):

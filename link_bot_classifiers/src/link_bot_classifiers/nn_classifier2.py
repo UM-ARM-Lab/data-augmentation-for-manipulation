@@ -29,7 +29,7 @@ from moonshine.moonshine_utils import numpify
 from moonshine.my_keras_model import MyKerasModel
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_INPUT = True
+DEBUG_INPUT = False
 
 
 class NNClassifier(MyKerasModel):
@@ -152,7 +152,7 @@ class NNClassifier(MyKerasModel):
             # returns a copy, does NOT modify inputs in-place
             inputs = self.aug.augmentation_optimization(inputs, batch_size, time)
 
-        if augmentation_optimization.DEBUG_AUG:
+        if DEBUG_INPUT:
             self.debug_viz_voxelgrid_inputs(inputs, time)
 
         return inputs
@@ -339,10 +339,11 @@ class NNClassifier(MyKerasModel):
             state_t = numpify({k: inputs[add_predicted(k)][b, t] for k in self.state_keys})
             state_t[add_predicted('joint_positions')] = inputs[add_predicted('joint_positions')][b, t]
             state_t['joint_names'] = inputs['joint_names'][b, t]
-            error_t = inputs['error'][b, 1]
             self.scenario.plot_state_rviz(state_t)
             self.scenario.plot_is_close(inputs['is_close'][b, 1])
-            self.scenario.plot_error_rviz(error_t)
+            if 'error' in inputs:
+                error_t = inputs['error'][b, 1]
+                self.scenario.plot_error_rviz(error_t)
 
             anim.step()
 

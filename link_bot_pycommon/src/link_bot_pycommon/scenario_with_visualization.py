@@ -100,7 +100,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         # self.plot_points_rviz(vg_points, label="debugging_vg", frame_id='world', scale=0.002, color='white')
 
         bbox_msg = extent_to_bbox(environment['extent'])
-        bbox_msg.header.frame_id = frame
+        bbox_msg.header.frame_id = 'world'
         self.env_bbox_pub.publish(bbox_msg)
 
     def send_occupancy_tf(self, environment: Dict, frame):
