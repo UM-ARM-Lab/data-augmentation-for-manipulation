@@ -6,7 +6,7 @@ import tensorflow as tf
 
 from link_bot_classifiers.robot_points import batch_transform_robot_points, RobotVoxelgridInfo
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_pycommon.base_dual_arm_rope_scenario import densify_points
+from link_bot_pycommon.pycommon import densify_points
 from moonshine.moonshine_utils import numpify
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
 

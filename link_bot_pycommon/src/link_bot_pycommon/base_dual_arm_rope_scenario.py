@@ -9,12 +9,13 @@ import tensorflow_probability as tfp
 
 import rosnode
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
-from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, _deserialize_scene_msg
+from link_bot_data.dataset_utils import add_predicted, _deserialize_scene_msg
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.get_dual_arm_robot_state import GetDualArmRobotState
 from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
+from link_bot_pycommon.pycommon import update_if_valid
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import numpify, to_list_of_strings
@@ -343,7 +344,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         joint_names_batched = np.array(joint_names_batched)
         return target_reached_batched, pred_joint_positions_batched, joint_names_batched
 
-    def sample_state_augmentation_variables(self,
+    def sample_object_augmentation_variables(self,
                                             batch_size,
                                             seed: tfp.util.SeedStream):
         # NOTE: lots of hidden hyper-parameters here :(
@@ -355,7 +356,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         return transformation_params
 
-    def apply_state_augmentation(self,
+    def apply_object_augmentation(self,
                                  m,
                                  inputs: Dict,
                                  batch_size,
@@ -395,42 +396,42 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         reached = tf.cast(reached, tf.float32)
         aug_valid = reached  # NOTE: there could be other constraints we need to check?
-        aug_valid_expanded = aug_valid[:, tf.newaxis, tf.newaxis]
+        aug_valid_2d = aug_valid[:, tf.newaxis]
+        aug_valid_3d = aug_valid[:, tf.newaxis, tf.newaxis]
 
-        update_if_valid(inputs, aug_valid_expanded, add_predicted('joint_positions'), joint_positions_aug)
-        update_if_valid(inputs, aug_valid_expanded, add_predicted('rope'), rope_aug)
-        update_if_valid(inputs, aug_valid_expanded, add_predicted('left_gripper'), left_gripper_aug)
-        update_if_valid(inputs, aug_valid_expanded, add_predicted('right_gripper'), right_gripper_aug)
-        update_if_valid(inputs, aug_valid_expanded, 'left_gripper_position', left_gripper_position_aug)
-        update_if_valid(inputs, aug_valid_expanded, 'right_gripper_position', right_gripper_position_aug)
+        # Now that we've updated the state/action in inputs, compute the local origin point
+        state_aug_0 = {
+            'left_gripper':  left_gripper_aug[:, 0],
+            'right_gripper': right_gripper_aug[:, 0],
+            'rope':          rope_aug[:, 0]
+        }
+        local_center_aug = self.local_environment_center_differentiable(state_aug_0)
+        res = inputs['res']
+        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
+
+        update_if_valid(inputs, aug_valid_3d, add_predicted('joint_positions'), joint_positions_aug)
+        update_if_valid(inputs, aug_valid_3d, add_predicted('rope'), rope_aug)
+        update_if_valid(inputs, aug_valid_3d, add_predicted('left_gripper'), left_gripper_aug)
+        update_if_valid(inputs, aug_valid_3d, add_predicted('right_gripper'), right_gripper_aug)
+        update_if_valid(inputs, aug_valid_3d, 'left_gripper_position', left_gripper_position_aug)
+        update_if_valid(inputs, aug_valid_3d, 'right_gripper_position', right_gripper_position_aug)
+        update_if_valid(inputs, aug_valid_2d, 'local_origin_point', local_origin_point_aug)
 
         if DEBUG_VIZ_STATE_AUG:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 env_b = {
                     'env':          inputs['env'][b],
-                    'res':          inputs['res'][b],
+                    'res':          res[b],
                     'extent':       inputs['extent'][b],
                     'origin_point': inputs['origin_point'][b],
                 }
 
                 self.plot_environment_rviz(env_b)
                 self.debug_viz_state_action(inputs, b, 'aug', color='white')
-
                 # stepper.step()
 
-        # return new local env?
-        state_keys = ['left_gripper', 'right_gripper', 'rope']
-        # t=0, matching what we do in the network
-        state_aug_0 = {k: inputs[add_predicted(k)][:, 0] for k in state_keys}
-        local_center_aug = self.local_environment_center_differentiable(state_aug_0)
-        res = inputs['res']
-        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
-        aug_valid_expanded = aug_valid[:, tf.newaxis]
-        local_origin_point_aug = aug_valid_expanded * local_origin_point_aug + \
-                                 (1 - aug_valid_expanded) * inputs['local_origin_point']
-
-        return aug_valid, local_origin_point_aug
+        return aug_valid
 
     def apply_augmentation_to_robot_state(self, batch_size, inputs, left_gripper_points_aug, right_gripper_points_aug):
         # use IK to get a new starting joint configuration
@@ -518,23 +519,3 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         self.plot_action_rviz(state_0, action_0, idx=1, label=label, color=color)
         self.plot_is_close(input_dict['is_close'][b, 1])
         self.plot_error_rviz(error_t)
-
-
-def densify_points(batch_size, points, num_densify=5):
-    """
-    Args:
-        points: [b, n, 3]
-    Returns: [b, n * num_density, 3]
-    """
-    if points.shape[1] <= 1:
-        return points
-
-    starts = points[:, :-1]
-    ends = points[:, 1:]
-    linspaced = tf.linspace(starts, ends, num_densify, axis=2)  # [b, n, num_density, 3]
-    densitifed_points = tf.reshape(linspaced, [batch_size, -1, 3])
-    return densitifed_points
-
-
-def update_if_valid(d: Dict, is_valid, k: str, v_aug):
-    d[k] = is_valid * v_aug + (1 - is_valid) * d[k]

@@ -28,7 +28,8 @@ class UDNNEnsembleWithRobot(DynamicsEnsemble):
         return numpify(self.propagate_tf(environment, start_state, actions))
 
     def propagate_tf(self, environment: Dict, start_state: Dict, actions: List[Dict]):
-        actions_dict = sequence_of_dicts_to_dict_of_tensors(actions, axis=1)
+        print("CHECK THAT AXIS IS CORRECT???")
+        actions_dict = sequence_of_dicts_to_dict_of_tensors(actions, axis=0)
         mean_dict, stdev_dict = remove_batch(
             *self.propagate_tf_batched(*add_batch(environment, start_state, actions_dict)))
         mean_list = dict_of_sequences_to_sequence_of_dicts_tf(mean_dict)

@@ -1,6 +1,7 @@
 import pathlib
 from typing import Optional, List
 
+import halo
 import psutil
 import rospkg
 
@@ -115,6 +116,7 @@ def gz_scope(*args):
     return "::".join(args)
 
 
+@halo.Halo("Getting gazebo processes")
 def get_gazebo_processes():
     processes = []
     for proc in psutil.process_iter(['pid', 'name']):

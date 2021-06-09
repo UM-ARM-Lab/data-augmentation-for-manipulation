@@ -29,7 +29,7 @@ from moonshine.moonshine_utils import numpify
 from moonshine.my_keras_model import MyKerasModel
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_INPUT = True
+DEBUG_INPUT = False
 
 
 class NNClassifier(MyKerasModel):
@@ -134,11 +134,12 @@ class NNClassifier(MyKerasModel):
                 self.debug.plot_state_action_rviz(inputs, b, 'input')
                 origin_point_b = inputs['origin_point'][b].numpy().tolist()
                 self.debug.send_position_transform(origin_point_b, 'env_origin_point')
-                # stepper.step()
+                # stepper.step()  # INPUT
 
         # Create voxel grids
         local_env, local_origin_point = self.get_local_env(inputs, batch_size)
 
+        # shouldn't this happen after augmentation? or maybe it needs to happen twice?
         voxel_grids = self.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
 
         inputs['voxel_grids'] = voxel_grids
@@ -146,11 +147,15 @@ class NNClassifier(MyKerasModel):
 
         inputs['swept_object_points'] = self.aug.compute_swept_object_points(inputs)
 
-        if augmentation_optimization.DEBUG_AUG:
+        if DEBUG_INPUT:
             self.debug_viz_local_env_pre_aug(inputs, time)
 
         if training and self.aug.do_augmentation():
-            self.aug.augmentation_optimization(inputs, batch_size, time)
+            # returns a copy, does NOT modify inputs in-place
+            inputs = self.aug.augmentation_optimization(inputs, batch_size, time)
+
+        if augmentation_optimization.DEBUG_AUG:
+            self.debug_viz_local_env_pre_aug(inputs, time)
 
         return inputs
 
@@ -318,7 +323,7 @@ class NNClassifier(MyKerasModel):
             bbox_msg = grid_to_bbox(rows=self.local_env_h_rows,
                                     cols=self.local_env_w_cols,
                                     channels=self.local_env_c_channels,
-                                    resolution=example['res'][b].numpy())
+                                    resolution=numpify(example['res'][b]))
             bbox_msg.header.frame_id = 'local_env_vg'
 
             self.debug.local_env_bbox_pub.publish(bbox_msg)
