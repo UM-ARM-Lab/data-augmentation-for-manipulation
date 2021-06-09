@@ -12,11 +12,10 @@ from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.augmentation_optimization import AugmentationOptimization
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
-from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo, make_voxelgrid_inputs_t
+from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo
-from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
+from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_point
@@ -84,12 +83,6 @@ class NNRecoveryModel(MyKerasModel):
                                                c=self.local_env_c_channels,
                                                batch_size=batch_size)
         self.debug = ClassifierDebugging(self.scenario, self.state_keys, self.action_keys)
-        self.aug = AugmentationOptimization(self.scenario, self.debug, self.local_env_helper, self.hparams,
-                                            self.batch_size)
-        if self.aug.do_augmentation():
-            rospy.loginfo("Using augmentation during training")
-        else:
-            rospy.loginfo("Not using augmentation during training")
 
         self.indices = self.create_env_indices(batch_size)
 
@@ -104,7 +97,16 @@ class NNRecoveryModel(MyKerasModel):
                                      state_keys=[k for k in self.points_state_keys],
                                      jacobian_follower=self.scenario.robot.jacobian_follower,
                                      robot_info=self.robot_info,
+                                     include_robot_geometry=self.include_robot_geometry,
                                      )
+        self.aug = AugmentationOptimization(scenario=self.scenario, debug=self.debug,
+                                            local_env_helper=self.local_env_helper, vg_info=self.vg_info,
+                                            points_state_keys=self.points_state_keys, hparams=self.hparams,
+                                            batch_size=self.batch_size, action_keys=action_keys)
+        if self.aug.do_augmentation():
+            rospy.loginfo("Using augmentation during training")
+        else:
+            rospy.loginfo("Not using augmentation during training")
 
     def preprocess_no_gradient(self, inputs, training: bool):
         batch_size = inputs['batch_size']
@@ -140,8 +142,7 @@ class NNRecoveryModel(MyKerasModel):
         # Create voxel grids
         local_env, local_origin_point = self.get_local_env(inputs)
 
-        local_voxel_grid_t = make_voxelgrid_inputs_t(inputs, local_env, local_origin_point, self.vg_info, 0, batch_size,
-                                                     include_robot_geometry=self.include_robot_geometry)
+        local_voxel_grid_t = self.vg_info.make_voxelgrid_inputs_t(inputs, local_env, local_origin_point, 0, batch_size)
 
         inputs['voxel_grids'] = local_voxel_grid_t
         inputs['local_origin_point'] = local_origin_point

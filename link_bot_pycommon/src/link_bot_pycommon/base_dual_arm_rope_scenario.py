@@ -421,13 +421,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 # stepper.step()
 
         object_aug_update = {
-            'joint_positions':        joint_positions_aug,
-            'rope':                   rope_aug,
-            'left_gripper':           left_gripper_aug,
-            'right_gripper':          right_gripper_aug,
-            'left_gripper_position':  left_gripper_position_aug,
-            'right_gripper_position': right_gripper_position_aug,
-            'local_origin_point':     local_origin_point_aug,
+            add_predicted('joint_positions'): joint_positions_aug,
+            'joint_names':                    inputs['joint_names'],
+            add_predicted('rope'):            rope_aug,
+            add_predicted('left_gripper'):    left_gripper_aug,
+            add_predicted('right_gripper'):   right_gripper_aug,
+            'left_gripper_position':          left_gripper_position_aug,
+            'right_gripper_position':         right_gripper_position_aug,
+            'local_origin_point':             local_origin_point_aug,
         }
         return object_aug_valid, object_aug_update
 

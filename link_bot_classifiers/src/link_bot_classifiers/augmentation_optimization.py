@@ -1,5 +1,4 @@
 import pathlib
-from copy import deepcopy
 from typing import Dict, List
 
 import tensorflow as tf
@@ -10,21 +9,21 @@ import rospy
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
-from link_bot_classifiers.make_voxelgrid_inputs import make_robot_points_batched, VoxelgridInfo
+from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
 from link_bot_data.dataset_utils import add_new, add_predicted
-from link_bot_pycommon.pycommon import densify_points, update_if_valid
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg, \
     occupied_voxels_to_points, subtract, binary_or
+from link_bot_pycommon.pycommon import densify_points, update_if_valid
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, pairwise_squared_distances
 from moonshine.optimization import log_barrier
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
-DEBUG_AUG = False
-DEBUG_AUG_SGD = False
+DEBUG_AUG = True
+DEBUG_AUG_SGD = True
 
 
 def subsample_points(points, fraction):
@@ -49,7 +48,10 @@ class AugmentationOptimization:
                  local_env_helper: LocalEnvHelper,
                  vg_info: VoxelgridInfo,
                  points_state_keys: List[str],
-                 hparams, batch_size: int):
+                 hparams: Dict,
+                 batch_size: int,
+                 action_keys: List[str]):
+        self.action_keys = action_keys
         self.hparams = hparams.get('augmentation', None)
         self.points_state_keys = points_state_keys
         self.batch_size = batch_size
@@ -82,7 +84,16 @@ class AugmentationOptimization:
         # TODO: rewrite this so that we do a out-of-place update, i.e returning copied dicts from the "apply" and "opt" functions, and then check both object_aug_valid and env_aug_valid together
         #  visualize everything to make sure that when either is invalid, we "abort" the augmentation, and the return dict (which is actually what's used) is correct
         #  also check the "animate voxel grids" that the state components of the voxel_grids is correct. I think right now it isn't?
-        inputs_aug = deepcopy(inputs)
+        inputs_aug = {
+            'res':                  inputs['res'],
+            'extent':               inputs['extent'],
+            'origin_point':         inputs['origin_point'],
+            'env':                  inputs['env'],
+            'is_close':             inputs['is_close'],
+            'batch_size':           inputs['batch_size'],
+            'time':                 inputs['time'],
+            add_predicted('stdev'): inputs[add_predicted('stdev')],
+        }
 
         object_points = inputs['swept_object_points']
         res = inputs['res']
@@ -94,7 +105,7 @@ class AugmentationOptimization:
 
         transformation_matrices = self.sample_object_transformations(batch_size)
         object_aug_valid, object_aug_update = self.scenario.apply_object_augmentation(transformation_matrices,
-                                                                                      inputs_aug,
+                                                                                      inputs,
                                                                                       batch_size,
                                                                                       time,
                                                                                       self.local_env_helper.h,
@@ -131,7 +142,7 @@ class AugmentationOptimization:
                 # stepper.step()
 
         object_points_aug = transform_points_3d(transformation_matrices[:, None], object_points)
-        robot_points_aug = self.compute_swept_robot_points(inputs, batch_size)
+        robot_points_aug = self.compute_swept_robot_points(inputs_aug, batch_size)
 
         if DEBUG_AUG:
             for b in debug_viz_batch_indices(batch_size):
@@ -158,23 +169,11 @@ class AugmentationOptimization:
                                                                      res,
                                                                      local_origin_point_aug,
                                                                      batch_size)
-        voxel_grids_aug = self.merge_aug_and_local_voxel_grids(local_env_aug, inputs_aug['voxel_grids'], time)
-        is_valid = env_aug_valid * object_aug_valid
+        # NOTE: now we to re-compute the voxel_grids, since the object state, robot state, and local_env have changed
+        voxel_grids_aug = self.vg_info.make_voxelgrid_inputs(inputs_aug, local_env_aug, local_origin_point_aug,
+                                                             batch_size, time)
+        inputs_aug['voxel_grids'] = voxel_grids_aug
 
-        update_if_valid(inputs_aug, is_valid, k, v_aug)
-        update_if_valid(inputs_aug, is_valid, k, v_aug)
-        update_if_valid(inputs_aug, is_valid, k, v_aug)
-        update_if_valid(inputs_aug, is_valid, k, v_aug)
-        update_if_valid(inputs_aug, is_valid, k, v_aug)
-        update_if_valid(inputs_aug, is_valid, k, v_aug)
-        update_if_valid(inputs_aug, is_valid, k, v_aug)
-        update_if_valid(inputs_aug, is_valid, k, v_aug)
-        update_if_valid(inputs_aug, is_valid, k, v_aug)
-        update_if_valid(inputs_aug, is_valid, k, v_aug)
-        update_if_valid(inputs, eng_aug_valid, 'voxel_grids', voxel_grids_aug)
-        # NOTE: we now need to re-compute the voxel_grids, at least for the state
-
-        # Show the final output
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
@@ -190,8 +189,18 @@ class AugmentationOptimization:
                                                    res[b],
                                                    frame='local_env_aug_vg')
 
-                self.debug.plot_state_action_rviz(inputs, b, 'aug', color='blue')
-                stepper.step()  # FINAL
+                self.debug.plot_state_action_rviz(inputs_aug, b, 'aug', color='blue')
+                # stepper.step()  # FINAL AUG (not necessarily what the network sees, only if valid)
+
+        is_valid = env_aug_valid * object_aug_valid
+        # FIXME: this is so hacky
+        keys_aug = ['voxel_grids', 'local_origin_point']
+        keys_aug += self.action_keys
+        keys_aug += [add_predicted(psk) for psk in self.points_state_keys]
+        for k in keys_aug:
+            v = inputs_aug[k]
+            is_valid_expanded = tf.reshape(is_valid, [batch_size] + [1] * (v.ndim - 1))
+            inputs_aug[k] = is_valid_expanded * inputs_aug[k] + (1 - is_valid_expanded) * inputs[k]
 
         return inputs_aug
 
@@ -207,7 +216,7 @@ class AugmentationOptimization:
         return tf.cast(transformation_matrices, tf.float32)
 
     def opt_new_env_augmentation(self,
-                                 inputs: Dict,
+                                 inputs_aug: Dict,
                                  new_env: Dict,
                                  object_points_aug,
                                  robot_points_aug,
@@ -360,8 +369,8 @@ class AugmentationOptimization:
                     if b in debug_viz_batch_indices(batch_size):
                         t_for_robot_viz = 0
                         state_b_i = {
-                            'joint_names':     inputs['joint_names'][b, t_for_robot_viz],
-                            'joint_positions': inputs[add_predicted('joint_positions')][b, t_for_robot_viz],
+                            'joint_names':     inputs_aug['joint_names'][b, t_for_robot_viz],
+                            'joint_positions': inputs_aug[add_predicted('joint_positions')][b, t_for_robot_viz],
                         }
                         self.scenario.plot_state_rviz(state_b_i, label='aug_opt')
                         self.scenario.plot_points_rviz(env_points_b_sparse, label='icp', color='grey', scale=0.005)
@@ -387,10 +396,11 @@ class AugmentationOptimization:
                                                               hard_robot_repel_constraint_satisfied_b,
                                                               hard_attract_constraint_satisfied_b])
                 grad_norm = tf.linalg.norm(gradients)
+                step_size_b_i = grad_norm * self.step_size
                 if DEBUG_AUG_SGD:
                     if b in debug_viz_batch_indices(batch_size):
-                        print(grad_norm, self.step_size_threshold, hard_constraints_satisfied_b)
-                if grad_norm * self.step_size < self.step_size_threshold or hard_constraints_satisfied_b:
+                        print(step_size_b_i, self.step_size_threshold, hard_constraints_satisfied_b)
+                if step_size_b_i < self.step_size_threshold or hard_constraints_satisfied_b:
                     break
             local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b, r_b, o_b)
 
@@ -406,7 +416,7 @@ class AugmentationOptimization:
             env_aug_valid.append(hard_constraints_satisfied_b)
 
         local_env_aug = tf.stack(local_env_aug)
-        env_aug_valid = tf.stack(env_aug_valid)
+        env_aug_valid = tf.cast(tf.stack(env_aug_valid), tf.float32)
 
         return env_aug_valid, local_env_aug
 
@@ -428,13 +438,6 @@ class AugmentationOptimization:
                                                      self.local_env_helper.h,
                                                      self.local_env_helper.w,
                                                      self.local_env_helper.c)
-
-    def merge_aug_and_local_voxel_grids(self, env, voxel_grids, time):
-        env_with_time = tf.tile(env[:, None, :, :, :, None], [1, time, 1, 1, 1, 1])
-        voxel_grids_without_env = voxel_grids[:, :, :, :, :, 1:]
-        voxel_grids = tf.concat([env_with_time, voxel_grids_without_env], axis=-1)
-        voxel_grids = tf.clip_by_value(voxel_grids, 0.0, 1.0)
-        return voxel_grids
 
     def get_new_env(self, example):
         if add_new('env') not in example:
@@ -464,8 +467,8 @@ class AugmentationOptimization:
         return self.hparams is not None
 
     def compute_swept_robot_points(self, inputs, batch_size):
-        robot_points_0 = make_robot_points_batched(batch_size, self.vg_info, inputs, 0)
-        robot_points_1 = make_robot_points_batched(batch_size, self.vg_info, inputs, 1)
+        robot_points_0 = self.vg_info.make_robot_points_batched(batch_size, inputs, 0)
+        robot_points_1 = self.vg_info.make_robot_points_batched(batch_size, inputs, 1)
         robot_points = tf.linspace(robot_points_0, robot_points_1, self.num_interp, axis=1)
         robot_points = tf.reshape(robot_points, [batch_size, -1, 3])
         return robot_points

@@ -13,7 +13,7 @@ from link_bot_classifiers.augmentation_optimization import AugmentationOptimizat
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
 # noinspection PyUnresolvedReferences
-from link_bot_classifiers.make_voxelgrid_inputs import make_voxelgrid_inputs_t, VoxelgridInfo, make_robot_points_batched
+from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
@@ -29,7 +29,7 @@ from moonshine.moonshine_utils import numpify
 from moonshine.my_keras_model import MyKerasModel
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_INPUT = False
+DEBUG_INPUT = True
 
 
 class NNClassifier(MyKerasModel):
@@ -93,15 +93,13 @@ class NNClassifier(MyKerasModel):
                                      state_keys=[add_predicted(k) for k in self.points_state_keys],
                                      jacobian_follower=self.scenario.robot.jacobian_follower,
                                      robot_info=self.robot_info,
+                                     include_robot_geometry=self.include_robot_geometry
                                      )
 
-        self.aug = AugmentationOptimization(scenario=self.scenario,
-                                            debug=self.debug,
-                                            local_env_helper=self.local_env_helper,
-                                            vg_info=self.vg_info,
-                                            hparams=self.hparams,
-                                            points_state_keys=self.points_state_keys,
-                                            batch_size=self.batch_size)
+        self.aug = AugmentationOptimization(scenario=self.scenario, debug=self.debug,
+                                            local_env_helper=self.local_env_helper, vg_info=self.vg_info,
+                                            points_state_keys=self.points_state_keys, hparams=self.hparams,
+                                            batch_size=self.batch_size, action_keys=self.action_keys)
         if self.aug.do_augmentation():
             rospy.loginfo("Using augmentation during training")
         else:
@@ -140,7 +138,7 @@ class NNClassifier(MyKerasModel):
         local_env, local_origin_point = self.get_local_env(inputs, batch_size)
 
         # shouldn't this happen after augmentation? or maybe it needs to happen twice?
-        voxel_grids = self.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
+        voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
 
         inputs['voxel_grids'] = voxel_grids
         inputs['local_origin_point'] = local_origin_point
@@ -148,14 +146,14 @@ class NNClassifier(MyKerasModel):
         inputs['swept_object_points'] = self.aug.compute_swept_object_points(inputs)
 
         if DEBUG_INPUT:
-            self.debug_viz_local_env_pre_aug(inputs, time)
+            self.debug_viz_voxelgrid_inputs(inputs, time)
 
         if training and self.aug.do_augmentation():
             # returns a copy, does NOT modify inputs in-place
             inputs = self.aug.augmentation_optimization(inputs, batch_size, time)
 
         if augmentation_optimization.DEBUG_AUG:
-            self.debug_viz_local_env_pre_aug(inputs, time)
+            self.debug_viz_voxelgrid_inputs(inputs, time)
 
         return inputs
 
@@ -283,18 +281,6 @@ class NNClassifier(MyKerasModel):
         out_h = self.lstm(out_d)
         return out_h
 
-    def make_voxelgrid_inputs(self, input_dict: Dict, local_env, local_origin_point, batch_size, time):
-        local_voxel_grids_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False)
-        for t in tf.range(time):
-            local_voxel_grid_t = make_voxelgrid_inputs_t(input_dict, local_env, local_origin_point, self.vg_info, t,
-                                                         batch_size, include_robot_geometry=self.include_robot_geometry)
-
-            local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
-
-        local_voxel_grids = tf.transpose(local_voxel_grids_array.stack(), [1, 0, 2, 3, 4, 5])
-        local_voxel_grids.set_shape([None, time, None, None, None, None])
-        return local_voxel_grids
-
     def get_local_env(self, input_dict, batch_size):
         state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
 
@@ -312,26 +298,28 @@ class NNClassifier(MyKerasModel):
 
         return local_env, local_origin_point
 
-    def debug_viz_local_env_pre_aug(self, example: Dict, time):
-        local_origin_point = example['local_origin_point']
+    def debug_viz_voxelgrid_inputs(self, inputs: Dict, time):
+        local_origin_point = inputs['local_origin_point']
         for b in debug_viz_batch_indices(self.batch_size):
             send_voxelgrid_tf_origin_point_res(self.broadcaster,
                                                origin_point=local_origin_point[b],
-                                               res=example['res'][b],
+                                               res=inputs['res'][b],
                                                frame='local_env_vg')
 
             bbox_msg = grid_to_bbox(rows=self.local_env_h_rows,
                                     cols=self.local_env_w_cols,
                                     channels=self.local_env_c_channels,
-                                    resolution=numpify(example['res'][b]))
+                                    resolution=numpify(inputs['res'][b]))
             bbox_msg.header.frame_id = 'local_env_vg'
 
             self.debug.local_env_bbox_pub.publish(bbox_msg)
-            env_b = {k: example[k][b] for k in ['env', 'scene_msg', 'extent', 'res', 'origin_point']}
+            env_b = {k: inputs[k][b] for k in ['env', 'extent', 'res', 'origin_point']}
+            if 'scene_msg' in inputs:
+                env_b['scene_msg'] = inputs['scene_msg'][b]
             deserialize_scene_msg(env_b)
             self.scenario.plot_environment_rviz(env_b)
 
-            self.animate_voxel_grid_states(b, example, time)
+            self.animate_voxel_grid_states(b, inputs, time)
 
     def animate_voxel_grid_states(self, b, inputs, time):
         anim = RvizAnimationController(n_time_steps=time)
