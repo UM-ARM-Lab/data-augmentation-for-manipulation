@@ -562,8 +562,20 @@ def merge_hparams_dicts(dataset_dirs, verbose: int = 0):
     return out_hparams
 
 
-def batch_sequence(s: Sequence, n):
-    l = len(s)
-    l_even_batches = int(l / n) * n
-    for ndx in range(0, l_even_batches, n):
+def batch_sequence(s: Sequence, n, drop_remainder: bool):
+    original_length = len(s)
+    if drop_remainder:
+        l = int(original_length / n) * n
+    else:
+        l = original_length
+    for ndx in range(0, l, n):
         yield s[ndx:ndx + n]
+
+
+def write_example(full_output_directory: pathlib.Path, example: Dict, example_idx: int, save_format: str):
+    if save_format == 'tfrecord':
+        tf_write_example(full_output_directory, example, example_idx)
+    if save_format == 'pkl':
+        pkl_write_example(full_output_directory, example, example_idx)
+    else:
+        raise NotImplementedError()

@@ -10,7 +10,7 @@ from colorama import Fore
 from progressbar import progressbar
 
 from arc_utilities import ros_init
-from learn_invariance.new_dynamics_dataset_loader import NewDynamicsDatasetLoader
+from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from learn_invariance.transform_link_states import transform_link_states
 from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import pkl_write_example, data_directory
@@ -48,7 +48,7 @@ def main():
     args = parser.parse_args()
 
     dataset_loader = NewDynamicsDatasetLoader([args.dataset])
-    dataset = dataset_loader.get_dataset(mode='all').batch(batch_size=1)
+    dataset = dataset_loader.get_datasets(mode='all').batch(batch_size=1)
 
     full_output_directory = data_directory(args.outdir)
 

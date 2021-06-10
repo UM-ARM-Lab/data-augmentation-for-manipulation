@@ -2,27 +2,19 @@
 import argparse
 import pathlib
 
-import colorama
-import matplotlib.pyplot as plt
-import numpy as np
 import tensorflow as tf
 from progressbar import progressbar
 
 from arc_utilities import ros_init
 from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import deserialize_scene_msg, pprint_example
-from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
-from link_bot_pycommon.args import my_formatter
+from link_bot_data.load_dynamics_dataset import load_dynamics_dataset
 from moonshine.moonshine_utils import numpify
 
 
 @ros_init.with_ros("visualize_dynamics_dataset")
 def main():
-    colorama.init(autoreset=True)
-    plt.style.use("slides")
-    np.set_printoptions(suppress=True, linewidth=250, precision=5)
-
-    parser = argparse.ArgumentParser(formatter_class=my_formatter)
+    parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory', nargs='+')
     parser.add_argument('--plot-type', choices=['3d', 'sanity_check', 'just_count'], default='3d')
     parser.add_argument('--take', type=int)
@@ -33,28 +25,25 @@ def main():
     args = parser.parse_args()
 
     # load the dataset
-    dynamics_dataset = DynamicsDatasetLoader(args.dataset_dir)
-    tf_dataset = dynamics_dataset.get_datasets(mode=args.mode, take=args.take)
-
-    if args.shuffle:
-        tf_dataset = tf_dataset.shuffle(1024, seed=1)
+    dataset_loader = load_dynamics_dataset(args.dataset_dir)
+    dataset = dataset_loader.get_datasets(mode=args.mode, take=args.take, shuffle_files=args.shuffle)
 
     # print info about shapes
-    example = next(iter(tf_dataset))
+    example = next(iter(dataset))
     print("Example:")
     pprint_example(example)
 
-    for i, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+    for i, example in enumerate(progressbar(dataset, widgets=base_dataset.widgets)):
         if args.start_at is not None and i < args.start_at:
             continue
 
         traj_idx = example['traj_idx']
-        dynamics_dataset.scenario.plot_traj_idx_rviz(traj_idx)
+        dataset_loader.get_scenario().plot_traj_idx_rviz(traj_idx)
 
         if args.plot_type == '3d':
             deserialize_scene_msg(example)
             example = numpify(example)
-            dynamics_dataset.anim_rviz(example)
+            dataset_loader.anim_rviz(example)
         elif args.plot_type == 'sanity_check':
             min_x = 100
             max_x = -100

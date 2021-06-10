@@ -5,17 +5,18 @@ from typing import Dict, List, Optional
 
 import hjson
 import tensorflow as tf
+from progressbar import progressbar
 
 import rospy
+from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import add_predicted, batch_tf_dataset, add_label, tf_write_example, \
-    deserialize_scene_msg
-from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
+from link_bot_data.dataset_utils import add_predicted, add_label, deserialize_scene_msg, write_example
+from link_bot_data.load_dynamics_dataset import load_dynamics_dataset
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_dict_of_batched_tensors_tf
-from moonshine.moonshine_utils import gather_dict
+from moonshine.moonshine_utils import gather_dict, numpify
 from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
@@ -34,11 +35,12 @@ class PredictionActualExample:
 
 
 def make_classifier_dataset(dataset_dir: pathlib.Path,
-                            fwd_model_dir: List[pathlib.Path],
+                            fwd_model_dir: pathlib.Path,
                             labeling_params: pathlib.Path,
                             outdir: pathlib.Path,
                             use_gt_rope: bool,
                             visualize: bool,
+                            save_format: str,
                             batch_size,
                             start_at: Optional[int] = None,
                             stop_at: Optional[int] = None,
@@ -51,6 +53,7 @@ def make_classifier_dataset(dataset_dir: pathlib.Path,
                                              outdir=outdir,
                                              use_gt_rope=use_gt_rope,
                                              visualize=visualize,
+                                             save_format=save_format,
                                              custom_threshold=custom_threshold,
                                              take=None,
                                              batch_size=batch_size,
@@ -65,6 +68,7 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
                                              outdir: pathlib.Path,
                                              use_gt_rope: bool,
                                              visualize: bool,
+                                             save_format: str,
                                              custom_threshold: Optional[float] = None,
                                              take: Optional[int] = None,
                                              batch_size: Optional[int] = None,
@@ -78,9 +82,9 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
 
     dynamics_hparams = hjson.load((dataset_dir / 'hparams.hjson').open('r'))
 
-    dataset = DynamicsDatasetLoader([dataset_dir], use_gt_rope=use_gt_rope)
+    dataset_loader = load_dynamics_dataset([dataset_dir])
 
-    fwd_models = dynamics_utils.load_generic_model(fwd_model_dir, dataset.scenario)
+    fwd_models = dynamics_utils.load_generic_model(fwd_model_dir, dataset_loader.scenario)
 
     new_hparams_filename = outdir / 'hparams.hjson'
     classifier_dataset_hparams = dynamics_hparams
@@ -88,15 +92,13 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
     classifier_dataset_hparams['dataset_dir'] = dataset_dir.as_posix()
     classifier_dataset_hparams['fwd_model_hparams'] = fwd_models.hparams
     classifier_dataset_hparams['labeling_params'] = labeling_params
-    classifier_dataset_hparams['env_keys'] = dataset.env_keys
-    classifier_dataset_hparams['true_state_keys'] = dataset.state_keys
-    classifier_dataset_hparams['state_metadata_keys'] = dataset.state_metadata_keys
+    classifier_dataset_hparams['env_keys'] = dataset_loader.env_keys
+    classifier_dataset_hparams['true_state_keys'] = dataset_loader.state_keys
+    classifier_dataset_hparams['state_metadata_keys'] = dataset_loader.state_metadata_keys
     classifier_dataset_hparams['predicted_state_keys'] = fwd_models.state_keys
-    classifier_dataset_hparams['action_keys'] = dataset.action_keys
-    classifier_dataset_hparams['scenario_metadata'] = dataset.hparams['scenario_metadata']
+    classifier_dataset_hparams['action_keys'] = dataset_loader.action_keys
     classifier_dataset_hparams['start-at'] = start_at
     classifier_dataset_hparams['stop-at'] = stop_at
-    classifier_dataset_hparams['use_gt_rope'] = fwd_models.hparams['use_gt_rope']
     my_hdump(classifier_dataset_hparams, new_hparams_filename.open("w"), indent=2)
 
     # because we're currently making this dataset, we can't call "get_dataset" but we can still use it to visualize
@@ -109,12 +111,13 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
     t0 = perf_counter()
     total_example_idx = 0
     for mode in ['train', 'val', 'test']:
-        tf_dataset = dataset.get_datasets(mode=mode, take=take)
+        dataset = dataset_loader.get_datasets(mode=mode, take=take)
 
         full_output_directory = outdir / mode
         full_output_directory.mkdir(parents=True, exist_ok=True)
 
-        out_examples_gen = generate_classifier_examples(fwd_models, tf_dataset, dataset, labeling_params, batch_size)
+        out_examples_gen = generate_classifier_examples(fwd_models, dataset, dataset_loader, labeling_params,
+                                                        batch_size)
         for out_examples in out_examples_gen:
             for out_examples_for_start_t in out_examples:
                 actual_batch_size = out_examples_for_start_t['traj_idx'].shape[0]
@@ -128,54 +131,55 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
                         add_label(out_example_b, labeling_params['threshold'])
                         classifier_dataset_for_viz.anim_transition_rviz(out_example_b)
 
-                    tf_write_example(full_output_directory, out_example_b, total_example_idx)
-                    rospy.loginfo_throttle(10, f"Examples: {total_example_idx:10d}, Time: {perf_counter() - t0:.3f}")
+                    write_example(full_output_directory, out_example_b, total_example_idx, save_format)
+                    # rospy.loginfo_throttle(10, f"Examples: {total_example_idx:10d}, Time: {perf_counter() - t0:.3f}")
                     total_example_idx += 1
 
     return outdir
 
 
 def generate_classifier_examples(fwd_model: BaseDynamicsFunction,
-                                 tf_dataset: tf.data.Dataset,
-                                 dataset: DynamicsDatasetLoader,
+                                 dataset,
+                                 dataset_loader,
                                  labeling_params: Dict,
                                  batch_size: int):
     classifier_horizon = labeling_params['classifier_horizon']
     assert classifier_horizon >= 2
-    tf_dataset = batch_tf_dataset(tf_dataset, batch_size, drop_remainder=False)
-    sc = dataset.scenario
+    # dataset = batch_tf_dataset(dataset, batch_size, drop_remainder=False)
+    dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
+    sc = dataset_loader.get_scenario()
 
-    for idx, _ in enumerate(tf_dataset):
+    for idx, _ in enumerate(dataset):
         pass
     n_total_batches = idx
 
     t0 = perf_counter()
-    for idx, example in enumerate(tf_dataset):
+    for idx, example in enumerate(progressbar(dataset, widgts=base_dataset.widgets)):
         deserialize_scene_msg(example)
 
         dt = perf_counter() - t0
-        print(f"{idx} / {n_total_batches} batches in {dt:.3f} seconds")
         actual_batch_size = int(example['traj_idx'].shape[0])
 
         valid_out_examples = []
-        for start_t in range(0, dataset.steps_per_traj - classifier_horizon + 1, labeling_params['start_step']):
-            prediction_end_t = dataset.steps_per_traj
+        for start_t in range(0, dataset_loader.steps_per_traj - classifier_horizon + 1, labeling_params['start_step']):
+            prediction_end_t = dataset_loader.steps_per_traj
             actual_prediction_horizon = prediction_end_t - start_t
-            dataset.state_metadata_keys = ['joint_names']  # NOTE: perhaps ACOs should be state metadata?
-            state_keys = dataset.state_keys + dataset.state_metadata_keys
+            dataset_loader.state_metadata_keys = ['joint_names']  # NOTE: perhaps ACOs should be state metadata?
+            state_keys = dataset_loader.state_keys + dataset_loader.state_metadata_keys
             actual_states_from_start_t = {k: example[k][:, start_t:prediction_end_t] for k in state_keys}
-            actions_from_start_t = {k: example[k][:, start_t:prediction_end_t - 1] for k in dataset.action_keys}
-            environment = {k: example[k] for k in dataset.env_keys}
+            actual_start_states = {k: example[k][:, start_t] for k in state_keys}
+            actions_from_start_t = {k: example[k][:, start_t:prediction_end_t - 1] for k in dataset_loader.action_keys}
+            environment = {k: example[k] for k in dataset_loader.env_keys}
 
             predictions_from_start_t, _ = fwd_model.propagate_tf_batched(environment=environment,
-                                                                         state=actual_states_from_start_t,
+                                                                         start_state=actual_start_states,
                                                                          actions=actions_from_start_t)
             prediction_actual = PredictionActualExample(example=example,
                                                         actions=actions_from_start_t,
                                                         actual_states=actual_states_from_start_t,
                                                         predictions=predictions_from_start_t,
                                                         start_t=start_t,
-                                                        env_keys=dataset.env_keys,
+                                                        env_keys=dataset_loader.env_keys,
                                                         labeling_params=labeling_params,
                                                         actual_prediction_horizon=actual_prediction_horizon,
                                                         batch_size=actual_batch_size)
@@ -223,7 +227,8 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
         valid_out_examples = add_model_error_and_filter(scenario, sliced_actual, sliced_predictions, out_example,
                                                         labeling_params,
                                                         prediction_actual.batch_size)
-        valid_out_example_batches.append(valid_out_examples)
+        valid_out_examples_np = numpify(valid_out_examples)
+        valid_out_example_batches.append(valid_out_examples_np)
 
     return valid_out_example_batches
 

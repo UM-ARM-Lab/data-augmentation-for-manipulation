@@ -7,7 +7,7 @@ import transformations
 
 from learn_invariance.invariance_model import InvarianceModel, compute_transformation_invariance_error
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
-from learn_invariance.new_dynamics_dataset_loader import NewDynamicsDatasetLoader
+from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine import common_train_hparams
 from moonshine.filepath_tools import load_hjson
@@ -30,9 +30,9 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model_hparams = load_hjson(model_hparams)
 
     train_dataset_loader = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs)
-    train_dataset = train_dataset_loader.get_dataset(mode='train').batch(batch_size).shuffle()
+    train_dataset = train_dataset_loader.get_datasets(mode='train').batch(batch_size).shuffle()
     val_dataset_loader = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs)
-    val_dataset = val_dataset_loader.get_dataset(mode='val').batch(batch_size)
+    val_dataset = val_dataset_loader.get_datasets(mode='val').batch(batch_size)
 
     model_hparams.update(common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset_loader))
     model = InvarianceModel(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.get_scenario())
@@ -72,7 +72,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              **kwargs,
              ):
     dataset_loader = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs)
-    dataset = dataset_loader.get_dataset(mode=mode).batch(batch_size=1).shuffle()
+    dataset = dataset_loader.get_datasets(mode=mode).batch(batch_size=1).shuffle()
 
     s = dataset_loader.get_scenario()
     m = InvarianceModelWrapper(checkpoint, batch_size=1, scenario=s)

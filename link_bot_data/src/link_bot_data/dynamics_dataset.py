@@ -50,6 +50,12 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
             'sequence_length': self.steps_per_traj
         }
 
+    def get_scenario(self):
+        if self.scenario is None:
+            self.scenario = get_scenario(self.hparams['scenario'])
+
+        return self.scenario
+
     def make_features_description(self):
         features_description = super().make_features_description()
         for feature_name in self.constant_feature_names:
