@@ -1,14 +1,7 @@
 import tensorflow as tf
 
 from link_bot_data.base_dataset import SizedTFDataset
-
-
-def label_is(label_is, key='is_close'):
-    def __filter(example):
-        result = tf.squeeze(tf.equal(example[key][1], label_is))
-        return result
-
-    return __filter
+from link_bot_data.dataset_utils import label_is
 
 
 def flatten_concat_pairs(ex_pos, ex_neg):

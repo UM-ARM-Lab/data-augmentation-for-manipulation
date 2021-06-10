@@ -23,11 +23,11 @@ class NewDynamicsDatasetLoader(NewBaseDatasetLoader):
 
     def get_datasets(self,
                      mode: str,
-                     shuffle_files: bool = False,
+                     shuffle: bool = False,
                      take: int = None,
                      do_not_process: bool = UNUSED_COMPAT,
                      slow: bool = UNUSED_COMPAT):
-        return super().get_datasets(mode, shuffle_files, take)
+        return super().get_datasets(mode, shuffle, take)
 
     def dynamics_viz_t(self):
         return dynamics_viz_t(metadata={},

@@ -1,8 +1,11 @@
 import random
+from itertools import repeat
 from typing import List
 
-from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example
-from link_bot_data.new_dataset_utils import load, get_filenames
+from more_itertools import interleave
+
+from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example, label_is
+from link_bot_data.new_dataset_utils import load, get_filenames, UNUSED_COMPAT
 from link_bot_pycommon.get_scenario import get_scenario
 
 
@@ -25,13 +28,27 @@ class NewBaseDataset:
         filenames_batched = list(batch_sequence(self.filenames, batch_size, drop_remainder))
         return NewBaseDataset(self.loader, filenames_batched)
 
-    def shuffle(self):
+    def shuffle(self, buffer_size=UNUSED_COMPAT, reshuffle_each_iteration=UNUSED_COMPAT):
+        # FIXME: actually implementing this would be nice
         shuffled_filenames = self.filenames.copy()
         random.shuffle(shuffled_filenames)
         return NewBaseDataset(self.loader, shuffled_filenames)
 
     def take(self, take):
         return NewBaseDataset(self.loader, self.filenames[:take])
+
+    def balance(self):
+        positive_dataset = self.pyfilter(label_is(1))
+        negative_dataset = self.filter(label_is(0))
+        negative_dataset = negative_dataset.repeat()
+        positive_dataset = positive_dataset.repeat()
+        positive_filenames = None
+        negative_filenames = None
+        if len(positive_filenames) < len(negative_filenames):
+            balanced_filenames = interleave(repeat(positive_filenames), negative_filenames)
+        else:
+            balanced_filenames = interleave(positive_filenames, repeat(negative_filenames))
+        return NewBaseDataset(self.loader, balanced_filenames)
 
 
 class NewBaseDatasetLoader:
@@ -40,6 +57,7 @@ class NewBaseDatasetLoader:
         self.dataset_dirs = dataset_dirs
         self.hparams = merge_hparams_dicts(dataset_dirs)
         self.scenario = None  # loaded lazily
+        self.batch_metadata = {}
 
     def post_process(self, e):
         return e

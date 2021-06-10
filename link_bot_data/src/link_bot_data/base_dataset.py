@@ -10,7 +10,7 @@ import progressbar
 import tensorflow as tf
 
 from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func, parse_and_slow_deserialize, \
-    multigen, merge_hparams_dicts
+    multigen, merge_hparams_dicts, label_is
 
 SORT_FILE_NAME = 'sort_order.csv'
 
@@ -20,14 +20,6 @@ widgets = [
     progressbar.Bar(),
     ' (', progressbar.AdaptiveETA(), ') ',
 ]
-
-
-def label_is(label_is, key='is_close'):
-    def __filter(example):
-        result = tf.squeeze(tf.equal(example[key][1], label_is))
-        return result
-
-    return __filter
 
 
 class SizedTFDataset:

@@ -26,7 +26,7 @@ def main():
 
     # load the dataset
     dataset_loader = load_dynamics_dataset(args.dataset_dir)
-    dataset = dataset_loader.get_datasets(mode=args.mode, take=args.take, shuffle_files=args.shuffle)
+    dataset = dataset_loader.get_datasets(mode=args.mode, take=args.take, shuffle=args.shuffle)
 
     # print info about shapes
     example = next(iter(dataset))

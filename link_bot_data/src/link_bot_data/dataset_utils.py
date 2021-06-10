@@ -383,7 +383,7 @@ def add_label(example: Dict, threshold: float):
     example['is_close'] = tf.cast(is_close, dtype=tf.float32)
 
 
-def pkl_write_example(full_output_directory, example, traj_idx):
+def pkl_write_example(full_output_directory, example, traj_idx, extra_metadata_keys: Optional[List[str]] = None):
     example_filename = index_to_filename('.pkl.gz', traj_idx)
 
     if 'metadata' in example:
@@ -391,6 +391,9 @@ def pkl_write_example(full_output_directory, example, traj_idx):
     else:
         metadata = {}
     metadata['data'] = example_filename
+    if extra_metadata_keys is not None:
+        for k in extra_metadata_keys:
+            metadata[k] = example.pop(k)
     metadata_filename = index_to_filename('.hjson', traj_idx)
     full_metadata_filename = full_output_directory / metadata_filename
     with full_metadata_filename.open("w") as metadata_file:
@@ -572,10 +575,22 @@ def batch_sequence(s: Sequence, n, drop_remainder: bool):
         yield s[ndx:ndx + n]
 
 
-def write_example(full_output_directory: pathlib.Path, example: Dict, example_idx: int, save_format: str):
+def write_example(full_output_directory: pathlib.Path,
+                  example: Dict,
+                  example_idx: int,
+                  save_format: str,
+                  extra_metadata_keys: Optional[List[str]] = None):
     if save_format == 'tfrecord':
         tf_write_example(full_output_directory, example, example_idx)
     if save_format == 'pkl':
-        pkl_write_example(full_output_directory, example, example_idx)
+        pkl_write_example(full_output_directory, example, example_idx, extra_metadata_keys)
     else:
         raise NotImplementedError()
+
+
+def label_is(label_is, key='is_close'):
+    def __filter(example):
+        result = tf.squeeze(tf.equal(example[key][1], label_is))
+        return result
+
+    return __filter

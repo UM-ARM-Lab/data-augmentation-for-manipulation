@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 from scipy import stats
@@ -19,7 +19,10 @@ def brief_row_stats(metric_data):
     return [np.mean(metric_data), np.median(metric_data), np.std(metric_data)]
 
 
-def dict_to_pvalue_table(data_dict: Dict, table_format: str = 'fancy_grid', fmt: str = '{:5.3f}'):
+def dict_to_pvalue_table(data_dict: Dict,
+                         table_format: str = 'fancy_grid',
+                         fmt: str = '{:5.3f}',
+                         title: Optional[str] = ''):
     """
     uses a one-sided T-test
     :param data_dict: A dictionary of method_name(str): values(list/array)
@@ -42,6 +45,6 @@ def dict_to_pvalue_table(data_dict: Dict, table_format: str = 'fancy_grid', fmt:
                 pvalues[i, j + 1] = prefix + fmt.format(pvalue)
             else:
                 pvalues[i, j + 1] = '-'
-    headers = [''] + list(data_dict.keys())
+    headers = [title] + list(data_dict.keys())
     table = tabulate(pvalues, headers=headers, tablefmt=table_format)
     return table

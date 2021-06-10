@@ -20,6 +20,7 @@ from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg, get_filter
+from link_bot_data.load_dataset import load_classifier_dataset
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -47,8 +48,8 @@ def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
 
 def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: Optional[int] = None):
     # Dataset preprocessing
-    train_tf_dataset = train_dataset.get_datasets(mode='train', shuffle_files=True)
-    val_tf_dataset = val_dataset.get_datasets(mode='val', shuffle_files=True)
+    train_tf_dataset = train_dataset.get_datasets(mode='train', shuffle=True)
+    val_tf_dataset = val_dataset.get_datasets(mode='val', shuffle=True)
 
     if 'shuffle_buffer_size' in model_hparams:
         train_tf_dataset = train_tf_dataset.shuffle(model_hparams['shuffle_buffer_size'], reshuffle_each_iteration=True)
@@ -88,13 +89,13 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model_class = link_bot_classifiers.get_model(model_hparams['model_class'])
 
     # set load_true_states=True when debugging
-    train_dataset = ClassifierDatasetLoader(dataset_dirs=dataset_dirs,
+    train_dataset = load_classifier_dataset(dataset_dirs=dataset_dirs,
                                             load_true_states=True,
                                             use_gt_rope=use_gt_rope,
                                             threshold=threshold,
                                             old_compat=old_compat,
                                             )
-    val_dataset = ClassifierDatasetLoader(dataset_dirs=dataset_dirs,
+    val_dataset = load_classifier_dataset(dataset_dirs=dataset_dirs,
                                           load_true_states=True,
                                           use_gt_rope=use_gt_rope,
                                           threshold=threshold,
@@ -104,7 +105,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))
     if threshold is not None:
         model_hparams['labeling_params']['threshold'] = threshold
-    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)
+    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.get_scenario())
 
     checkpoint_name, trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)
 
@@ -207,7 +208,7 @@ def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, 
     dataset, tf_dataset = setup_eval_dataset(balance, dataset_dirs, mode, old_compat, scenario, take, threshold,
                                              use_gt_rope, batch_size)
 
-    model = model_class(hparams=params, batch_size=batch_size, scenario=dataset.scenario)
+    model = model_class(hparams=params, batch_size=batch_size, scenario=dataset.get_scenario())
     # This call to model runner restores the model
     runner = ModelRunner(model=model,
                          training=False,
@@ -260,7 +261,7 @@ def compare_main(dataset_dirs: List[pathlib.Path],
             p2_decision = p2 > 0.5
             if p1_decision != p2_decision:
                 # visualize!
-                anim = RvizAnimation(scenario=dataset.scenario,
+                anim = RvizAnimation(scenario=dataset.get_scenario(),
                                      n_time_steps=dataset.horizon,
                                      init_funcs=[init_viz_env,
                                                  dataset.init_viz_action(),
@@ -319,7 +320,7 @@ class ClassifierEvaluation:
             self.tf_dataset = self.tf_dataset.take(take)
 
         self.model = classifier_utils.load_generic_model(checkpoint)
-        self.scenario = self.dataset.scenario
+        self.scenario = self.dataset.get_scenario()
 
     def __iter__(self):
         for batch_idx, example in enumerate(progressbar(self.tf_dataset, widgets=base_dataset.widgets)):
@@ -449,7 +450,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 scenario.plot_accept_probability(accept_probability_t)
                 scenario.plot_traj_idx_rviz(batch_idx * batch_size + b)
 
-            anim = RvizAnimation(scenario=view.dataset.scenario,
+            anim = RvizAnimation(scenario=view.dataset.get_scenario(),
                                  n_time_steps=view.dataset.horizon,
                                  init_funcs=[init_viz_env,
                                              view.dataset.init_viz_action(),
@@ -675,7 +676,7 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
             def _custom_viz_t(scenario: ScenarioWithVisualization, e: Dict, t: int):
                 pass
 
-            anim = RvizAnimation(scenario=dataset.scenario,
+            anim = RvizAnimation(scenario=dataset.get_scenario(),
                                  n_time_steps=dataset.horizon,
                                  init_funcs=[init_viz_env,
                                              dataset.init_viz_action(),

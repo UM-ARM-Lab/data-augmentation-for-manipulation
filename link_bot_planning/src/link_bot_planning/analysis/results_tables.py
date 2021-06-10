@@ -1,5 +1,4 @@
 import pathlib
-from typing import List
 
 import pandas as pd
 from colorama import Fore
@@ -48,15 +47,6 @@ class MyTable:
         print(self.table)
 
 
-class First(MyTable):
-
-    def add_to_table(self, data: pd.DataFrame, series_name: str):
-        x = data['x']
-        success_start = x[x.first_valid_index()]
-        success_end = x[x.last_valid_index()]
-        self.table_data.append([series_name, success_start, success_end])
-
-
 class PValuesTable(MyTable):
 
     def __init__(self, name: str, table_format: str):
@@ -73,11 +63,10 @@ class PValuesTable(MyTable):
             x = data_for_series['x']
             arrays_per_method[series_name] = x
 
-        self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format)
+        self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format, title=self.name)
 
 
 __all__ = [
     'MyTable',
-    'First',
     'PValuesTable',
 ]

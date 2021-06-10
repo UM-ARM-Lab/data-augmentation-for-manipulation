@@ -23,7 +23,9 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset, example: Dict):
-        example = numpify(example)
+        example['metadata'] = {
+            'error': example.pop("error").tolist(),
+        }
         yield example
 
     hparams_update = {}

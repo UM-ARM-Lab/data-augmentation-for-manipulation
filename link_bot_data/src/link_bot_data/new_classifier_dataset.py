@@ -10,7 +10,9 @@ from moonshine.indexing import index_time
 
 class NewClassifierDatasetLoader(NewBaseDatasetLoader):
 
-    def __init__(self, dataset_dirs, threshold: Optional[float] = None, load_true_states: bool = UNUSED_COMPAT):
+    def __init__(self, dataset_dirs, threshold: Optional[float] = None, load_true_states=UNUSED_COMPAT,
+                 old_compat=UNUSED_COMPAT,
+                 use_gt_rope=UNUSED_COMPAT):
         super().__init__(dataset_dirs)
 
         self.labeling_params = self.hparams['labeling_params']
@@ -31,8 +33,8 @@ class NewClassifierDatasetLoader(NewBaseDatasetLoader):
                      mode: str,
                      shuffle: bool = False,
                      take: int = None,
-                     do_not_process: bool = UNUSED_COMPAT,
-                     slow: bool = UNUSED_COMPAT):
+                     do_not_process=UNUSED_COMPAT,
+                     slow=UNUSED_COMPAT):
         return super().get_datasets(mode, shuffle, take)
 
     def anim_transition_rviz(self, example: Dict):
