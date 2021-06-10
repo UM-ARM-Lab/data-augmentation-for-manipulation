@@ -18,7 +18,7 @@ from visualization_msgs.msg import Marker
 def visualize_dataset(args, classifier_dataset):
     grippers_viz_pub = rospy.Publisher("grippers_viz_pub", Marker, queue_size=10)
 
-    tf_dataset = classifier_dataset.get_datasets(mode=args.mode, shuffle=args.shuffle, shuffle_files=args.shuffle)
+    tf_dataset = classifier_dataset.get_datasets(mode=args.mode, shuffle=args.shuffle)
 
     tf_dataset = tf_dataset.batch(1)
     tf_dataset = tf_dataset.take(args.take)
@@ -33,10 +33,10 @@ def visualize_dataset(args, classifier_dataset):
 
     def _make_stats_dict():
         return {
-            'count':            count,
-            'negative_count':   negative_count,
-            'positive_count':   positive_count,
-            'starts_far_count': starts_far_count,
+            'count':             count,
+            'negative_count':    negative_count,
+            'positive_count':    positive_count,
+            'starts_far_count':  starts_far_count,
             'incomplete_motion': incomplete_motion,
         }
 
@@ -101,9 +101,9 @@ def visualize_dataset(args, classifier_dataset):
         if args.display_type == 'just_count':
             continue
         elif args.display_type == '3d':
-            msg = classifier_dataset.scenario.make_simple_grippers_marker(example, count)
+            msg = classifier_dataset.get_scenario().make_simple_grippers_marker(example, count)
             grippers_viz_pub.publish(msg)
-            classifier_dataset.scenario.plot_traj_idx_rviz(i)
+            classifier_dataset.get_scenario().plot_traj_idx_rviz(i)
             classifier_dataset.anim_transition_rviz(example)
 
         elif args.display_type == 'stdev':

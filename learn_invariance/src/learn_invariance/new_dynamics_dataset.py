@@ -1,19 +1,17 @@
 from typing import Dict
 
 from link_bot_data.dataset_utils import merge_hparams_dicts
-from link_bot_data.new_base_dataset import NewBaseDataset
+from link_bot_data.new_base_dataset import NewBaseDataset, NewBaseDatasetLoader
 from link_bot_data.new_dataset_utils import get_filenames, UNUSED_COMPAT
 from link_bot_data.visualization import dynamics_viz_t, init_viz_env
 from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 
 
-class NewDynamicsDatasetLoader:
+class NewDynamicsDatasetLoader(NewBaseDatasetLoader):
 
     def __init__(self, dataset_dirs):
-        self.dataset_dirs = dataset_dirs
-        self.hparams = merge_hparams_dicts(dataset_dirs)
-        self.scenario = None  # loaded lazily
+        super().__init__(dataset_dirs)
 
         self.data_collection_params = self.hparams['data_collection_params']
         self.steps_per_traj = self.data_collection_params['steps_per_traj']
@@ -23,26 +21,13 @@ class NewDynamicsDatasetLoader:
         self.env_keys = self.data_collection_params['env_keys']
         self.action_keys = self.data_collection_params['action_keys']
 
-    def get_scenario(self):
-        if self.scenario is None:
-            self.scenario = get_scenario(self.hparams['scenario'])
-
-        return self.scenario
-
     def get_datasets(self,
                      mode: str,
                      shuffle_files: bool = False,
                      take: int = None,
                      do_not_process: bool = UNUSED_COMPAT,
                      slow: bool = UNUSED_COMPAT):
-        filenames = get_filenames(self.dataset_dirs, mode)
-        assert len(filenames) > 0
-        dataset = NewBaseDataset(filenames)
-        if shuffle_files:
-            dataset = dataset.shuffle()
-        if take:
-            dataset = dataset.take(take)
-        return dataset
+        return super().get_datasets(mode, shuffle_files, take)
 
     def dynamics_viz_t(self):
         return dynamics_viz_t(metadata={},

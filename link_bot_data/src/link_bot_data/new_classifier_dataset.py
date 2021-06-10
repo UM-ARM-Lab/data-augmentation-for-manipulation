@@ -1,50 +1,39 @@
-from typing import Dict
+from typing import Dict, Optional
 
-from link_bot_data.dataset_utils import merge_hparams_dicts, pprint_example, add_predicted
-from link_bot_data.new_base_dataset import NewBaseDataset
-from link_bot_data.new_dataset_utils import UNUSED_COMPAT, get_filenames
+from link_bot_data.dataset_utils import add_predicted, add_label
+from link_bot_data.new_base_dataset import NewBaseDatasetLoader
+from link_bot_data.new_dataset_utils import UNUSED_COMPAT
 from link_bot_data.visualization import init_viz_env, init_viz_action, classifier_transition_viz_t
-from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_time
 
 
-class NewClassifierDatasetLoader:
+class NewClassifierDatasetLoader(NewBaseDatasetLoader):
 
-    def __init__(self, dataset_dirs):
-        self.dataset_dirs = dataset_dirs
-        self.hparams = merge_hparams_dicts(dataset_dirs)
-        self.scenario = None  # loaded lazily
+    def __init__(self, dataset_dirs, threshold: Optional[float] = None, load_true_states: bool = UNUSED_COMPAT):
+        super().__init__(dataset_dirs)
 
         self.labeling_params = self.hparams['labeling_params']
         self.horizon = self.hparams['labeling_params']['classifier_horizon']
         self.true_state_keys = self.hparams['true_state_keys']
         self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.predicted_state_keys = [add_predicted(k) for k in self.hparams['predicted_state_keys']]
+        self.threshold = threshold if threshold is not None else self.labeling_params['threshold']
         self.predicted_state_keys.append(add_predicted('stdev'))
         self.env_keys = self.hparams['env_keys']
         self.action_keys = self.hparams['action_keys']
 
-    def get_scenario(self):
-        if self.scenario is None:
-            self.scenario = get_scenario(self.hparams['scenario'])
-
-        return self.scenario
+    def post_process(self, e):
+        add_label(e, self.threshold)
+        return e
 
     def get_datasets(self,
                      mode: str,
-                     shuffle_files: bool = False,
+                     shuffle: bool = False,
                      take: int = None,
                      do_not_process: bool = UNUSED_COMPAT,
                      slow: bool = UNUSED_COMPAT):
-        filenames = get_filenames(self.dataset_dirs, mode)
-        assert len(filenames) > 0
-        dataset = NewBaseDataset(filenames)
-        if shuffle_files:
-            dataset = dataset.shuffle()
-        if take:
-            dataset = dataset.take(take)
-        return dataset
+        return super().get_datasets(mode, shuffle, take)
 
     def anim_transition_rviz(self, example: Dict):
         anim = RvizAnimation(scenario=self.scenario,
@@ -67,8 +56,3 @@ class NewClassifierDatasetLoader:
 
     def init_viz_action(self):
         return init_viz_action({}, self.action_keys, self.predicted_state_keys)
-
-    def pprint_example(self):
-        dataset = self.get_datasets(mode='val', take=1)
-        example = next(iter(dataset))
-        pprint_example(example)

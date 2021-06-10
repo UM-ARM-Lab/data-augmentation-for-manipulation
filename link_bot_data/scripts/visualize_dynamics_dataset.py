@@ -8,7 +8,7 @@ from progressbar import progressbar
 from arc_utilities import ros_init
 from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import deserialize_scene_msg, pprint_example
-from link_bot_data.load_dynamics_dataset import load_dynamics_dataset
+from link_bot_data.load_dataset import load_dynamics_dataset
 from moonshine.moonshine_utils import numpify
 
 

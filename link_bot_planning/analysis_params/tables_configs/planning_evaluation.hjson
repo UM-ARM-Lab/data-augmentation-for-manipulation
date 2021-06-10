@@ -12,6 +12,8 @@
       Num (re)plans
       Planning_Time
       Num Recovery Actions
+      Mean NME
+      Median NME
     ]
     reductions: [
       ["success", ["sum"]]
@@ -21,7 +23,9 @@
       ["task_error", ["median"]]
       ["num_planning_attempts", ["mean"]]
       ["planning_time", ["mean"]]
-      ["num_recovery_actions", ["sum"]]
+      ["num_recovery_actions", ["mean"]]
+      ["normalized_model_error", ["mean"]]
+      ["normalized_model_error", ["median"]]
     ]
   }
   {

@@ -129,7 +129,7 @@ class BaseDatasetLoader:
                      do_not_process: bool = False,
                      shard: Optional[int] = None,
                      take: Optional[int] = None,
-                     shuffle_files: Optional[bool] = False,
+                     shuffle: Optional[bool] = False,
                      sort: Optional[bool] = False,
                      **kwargs):
         all_filenames = self.get_record_filenames(mode, sort=sort)
@@ -137,7 +137,7 @@ class BaseDatasetLoader:
                                               n_parallel_calls=n_parallel_calls,
                                               do_not_process=do_not_process,
                                               shard=shard,
-                                              shuffle_files=shuffle_files,
+                                              shuffle=shuffle,
                                               take=take,
                                               **kwargs)
 
@@ -186,10 +186,10 @@ class BaseDatasetLoader:
                                   do_not_process: Optional[bool] = False,
                                   shard: Optional[int] = None,
                                   take: Optional[int] = None,
-                                  shuffle_files: Optional[bool] = False,
+                                  shuffle: Optional[bool] = False,
                                   **kwargs,
                                   ):
-        if shuffle_files:
+        if shuffle:
             shuffle_rng = np.random.RandomState(0)
             shuffle_rng.shuffle(records)
 

@@ -89,7 +89,7 @@ def dataset_generator_all_modes(dataset_dir: pathlib.Path,
     modify_hparams(dataset_dir, outdir, hparams_update)
 
     for mode in ['train', 'test', 'val']:
-        tf_dataset = dataset.get_datasets(mode=mode, shuffle_files=False, do_not_process=do_not_process, slow=slow)
+        tf_dataset = dataset.get_datasets(mode=mode, shuffle=False, do_not_process=do_not_process, slow=slow)
         full_output_directory = outdir / mode
         full_output_directory.mkdir(parents=True, exist_ok=True)
 
@@ -107,6 +107,6 @@ def dataset_generator_all_modes2(dataset_dir: pathlib.Path,
     modify_hparams(dataset_dir, outdir, hparams_update)
 
     for mode in ['train', 'test', 'val']:
-        tf_dataset = dataset.get_datasets(mode=mode, shuffle_files=False)
+        tf_dataset = dataset.get_datasets(mode=mode, shuffle=False)
         for i, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
             yield i, example

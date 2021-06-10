@@ -11,7 +11,7 @@ import rospy
 from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, add_label, deserialize_scene_msg, write_example
-from link_bot_data.load_dynamics_dataset import load_dynamics_dataset
+from link_bot_data.load_dataset import load_dynamics_dataset
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
