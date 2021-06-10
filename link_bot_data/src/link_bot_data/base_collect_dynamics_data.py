@@ -126,7 +126,7 @@ class BaseDataCollector:
         self.save_hparams(full_output_directory, n_trajs, nickname)
 
         combined_seeds = [traj_idx + 100000 * self.seed for traj_idx in range(n_trajs)]
-        for traj_idx, seed in progressbar(enumerate(combined_seeds), base_dataset.widgets):
+        for traj_idx, seed in progressbar(enumerate(combined_seeds), wdigets=base_dataset.widgets):
             invalid = False
             for retry_idx in range(10):
                 # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair

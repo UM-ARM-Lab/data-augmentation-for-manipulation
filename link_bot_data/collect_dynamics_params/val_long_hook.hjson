@@ -1,5 +1,8 @@
 {
-  name: val_car
+  name: val_long_hook
+  service_provider: gazebo
+  scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
+  robot_namespace: val
   reset_joint_config: {
     joint1: 0.5903734250235528,
     joint2: -0.7214355209537864,
@@ -69,7 +72,6 @@
   max_distance_gripper_can_move: 0.10
   max_distance_between_grippers: 0.80  # this need not exactly match the rope length
   state_keys: [
-    # rgbd
     gt_rope
     left_gripper
     right_gripper
@@ -87,6 +89,7 @@
     env
     extent
     origin
+    origin_point
     res
     scene_msg
   ]
