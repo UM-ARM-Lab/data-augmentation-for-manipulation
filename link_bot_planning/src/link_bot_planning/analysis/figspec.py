@@ -12,14 +12,14 @@ DEFAULT_AXES_NAMES = ['x', 'y', 'z']
 @dataclass
 class FigSpec:
     fig: MyFigure
-    reductions: Dict[str, List]
+    reductions: List[List]
     axes_names: List[str]
 
 
 @dataclass
 class TableSpec:
     table: MyTable
-    reductions: Dict[str, List]
+    reductions: List[List]
     axes_names: List[str]
 
 
@@ -31,10 +31,11 @@ def get_data_for_table(spec: TableSpec, metrics: pd.DataFrame):
     return reduce_metrics(spec.reductions, spec.axes_names, metrics)
 
 
-def reduce_metrics(reductions: Dict[str, List], axis_names: List[str], metrics: pd.DataFrame):
+def reduce_metrics(reductions: List[List], axis_names: List[str], metrics: pd.DataFrame):
     reduced_metrics = None
-    for axis_name, reductions_for_axis in reductions.items():
-        data_for_axis = metrics[axis_name]
+    for reduction in reductions:
+        metric_name, reductions_for_axis = reduction
+        data_for_axis = metrics[metric_name]
         index_names = list(data_for_axis.index.names)
         for reduction in reversed(reductions_for_axis):
             if isinstance(reduction, tuple):
@@ -59,7 +60,7 @@ def reduce_metrics(reductions: Dict[str, List], axis_names: List[str], metrics: 
     if isinstance(reduced_metrics, pd.Series):
         reduced_metrics = reduced_metrics.to_frame()
 
-    columns = dict(zip(reductions.keys(), axis_names))
+    columns = dict(zip([r[0] for r in reductions], axis_names))
     reduced_metrics.rename(columns=columns, inplace=True)
 
     return reduced_metrics

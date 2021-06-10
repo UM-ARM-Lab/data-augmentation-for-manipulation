@@ -1,5 +1,8 @@
 {
   name: val_slit
+  service_provider: gazebo
+  scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
+  robot_namespace: val
   reset_joint_config: {
     'joint1': 1.533314719049737,
     'joint2': -0.2545097505642371,
@@ -68,7 +71,7 @@
   real_time_rate: 0.0
   steps_per_traj: 10
   no_objects: false
-  randomize_n: 32
+  randomize_n: 1  # DEBUGGING! should be higher
   repeat_delta_gripper_motion_probability: 0.7
   max_distance_gripper_can_move: 0.10
   max_distance_between_grippers: 0.80  # this need not exactly match the rope length
@@ -90,6 +93,7 @@
     env
     extent
     origin
+    origin_point
     res
     scene_msg
   ]

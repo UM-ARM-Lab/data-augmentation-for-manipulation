@@ -4,17 +4,25 @@
     name: success
     header: [
       Method Name
-      Success
+      Num Success
+      Num Trials
+      Success %
+      Mean Task Error
+      Median Task Error
+      Num (re)plans
       Planning_Time
+      Num Recovery Actions
     ]
-    reductions: {
-      success: [
-        mean
-      ]
-      planning_time: [
-        mean
-      ]
-    }
+    reductions: [
+      ["success", ["sum"]]
+      ["num_trials", ["sum"]]
+      ["success", ["mean"]]
+      ["task_error", ["mean"]]
+      ["task_error", ["median"]]
+      ["num_planning_attempts", ["mean"]]
+      ["planning_time", ["mean"]]
+      ["num_recovery_actions", ["sum"]]
+    ]
   }
   {
     type: MyTable
@@ -23,19 +31,16 @@
       Method Name
       Task Error
     ]
-    reductions: {
-      task_error: [
-        mean
-      ]
-    }
+    reductions: [
+      ["task_error", ["mean"]]
+    ]
   }
   {
     type: PValuesTable
     name: task_error
-    reductions: {
-      task_error: [
-      ]
-    }
+    reductions: [
+      ["task_error", [null]]
+    ]
   }
   {
     type: MyTable
@@ -45,13 +50,9 @@
       '# Success'
       '# Trials'
     ]
-    reductions: {
-      success: [
-        sum
-      ]
-      num_trials: [
-        sum
-      ]
-    }
+    reductions: [
+      ["success", ["sum"]]
+      ["num_trials", ["sum"]]
+    ]
   }
 ]

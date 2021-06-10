@@ -4,32 +4,26 @@
     name: task_error
     xlabel: method
     ylabel: Task Error
-    reductions: {
-      task_error: [
-        null
-      ]
-    }
+    reductions: [
+      ["task_error", [null]]
+    ]
   }
   {
     type: BoxPlot
     name: planning_time
     xlabel: method
     ylabel: Planning Time
-    reductions: {
-      planning_time: [
-        null
-      ]
-    }
+    reductions: [
+      ["planning_time", [null]]
+    ]
   }
   {
     type: BarChart
     name: success
     xlabel: method
     ylabel: Success
-    reductions: {
-      success: [
-        mean
-      ]
-    }
+    reductions: [
+      ["success", ["mean"]]
+    ]
   }
 ]
