@@ -8,11 +8,11 @@ from colorama import Fore
 from progressbar import progressbar
 
 import rospy
-from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import tf_write_features, float_tensor_to_bytes_feature, bytes_feature
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.modify_dataset import modify_hparams
+from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
 from link_bot_pycommon.args import my_formatter
 
@@ -49,7 +49,7 @@ def main():
         full_output_directory = outdir / mode
         full_output_directory.mkdir(parents=True, exist_ok=True)
 
-        for example, tfrecord_path in zip(progressbar(tf_dataset, widgets=base_dataset.widgets), tf_dataset.records):
+        for example, tfrecord_path in zip(progressbar(tf_dataset, widgets=mywidgets), tf_dataset.records):
             features = {k: float_tensor_to_bytes_feature(v) for k, v in example.items()}
             features['tfrecord_path'] = bytes_feature(
                 tf.io.serialize_tensor(tf.convert_to_tensor(tfrecord_path, dtype=tf.string)).numpy())

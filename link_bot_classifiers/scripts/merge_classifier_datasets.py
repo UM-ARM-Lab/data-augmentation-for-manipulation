@@ -8,9 +8,9 @@ import tensorflow as tf
 from progressbar import progressbar
 
 from arc_utilities import ros_init
-from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import train_test_split_counts, modify_pad_env, tf_write_example
+from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_pycommon.pycommon import approx_range_split_counts
 
 
@@ -75,7 +75,7 @@ def main():
         counts_for_each_dataset = approx_range_split_counts(mode_count, n_datasets)
         for d, count_for_dataset in zip(datasets, counts_for_each_dataset):
             mode_dataset = d.get_datasets(mode=mode, take=count_for_dataset, do_not_process=True)
-            for e in progressbar(mode_dataset, widgets=base_dataset.widgets):
+            for e in progressbar(mode_dataset, widgets=mywidgets):
                 # deserialize_scene_msg(e)
                 # for i in range(10):
                 #     d.scenario.plot_environment_rviz(e)

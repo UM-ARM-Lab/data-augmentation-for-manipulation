@@ -17,10 +17,10 @@ from geometry_msgs.msg import Point
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
 from link_bot_classifiers.uncertainty import make_max_class_prob
-from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg, get_filter
 from link_bot_data.load_dataset import load_classifier_dataset
+from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -322,7 +322,7 @@ class ClassifierEvaluation:
         self.scenario = self.dataset.get_scenario()
 
     def __iter__(self):
-        for batch_idx, example in enumerate(progressbar(self.tf_dataset, widgets=base_dataset.widgets)):
+        for batch_idx, example in enumerate(progressbar(self.tf_dataset, widgets=mywidgets)):
             if batch_idx < self.start_at:
                 continue
 
@@ -491,7 +491,7 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
     tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
 
     # Evaluate
-    for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+    for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=mywidgets)):
         batch.update(dataset.batch_metadata)
 
         mean_predictions, stdev_predictions = ensemble.check_constraint_from_example(batch)

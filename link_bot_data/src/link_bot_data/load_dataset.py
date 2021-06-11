@@ -41,3 +41,12 @@ def load_classifier_dataset(dataset_dirs: List[pathlib.Path], **kwargs):
                     elif 'pkl' in sub_e.as_posix():
                         return NewClassifierDatasetLoader(dataset_dirs, **kwargs)
     raise NotImplementedError()
+
+
+def guess_load_dataset(dataset_dir: pathlib.Path):
+    for p in dataset_dir.parts:
+        if 'classifier' in p:
+            return load_classifier_dataset([dataset_dir])
+        if 'fwd_model_data' in p:
+            return load_dynamics_dataset([dataset_dir])
+    raise NotImplementedError()

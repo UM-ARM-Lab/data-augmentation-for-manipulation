@@ -1,16 +1,15 @@
 #!/usr/bin/env python
-import numpy as np
 import argparse
 import pathlib
 
 import colorama
-import tensorflow as tf
+import numpy as np
 from progressbar import progressbar
 
 from arc_utilities import ros_init
-from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import pprint_example, deserialize_scene_msg
-from link_bot_data.recovery_dataset import RecoveryDatasetLoader, is_stuck
+from link_bot_data.progressbar_widgets import mywidgets
+from link_bot_data.recovery_dataset import RecoveryDatasetLoader
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(1)
@@ -40,7 +39,7 @@ def main():
         print("Example:")
         pprint_example(example)
 
-        for example in progressbar(tf_dataset, widgets=base_dataset.widgets):
+        for example in progressbar(tf_dataset, widgets=mywidgets):
             # if not is_stuck(example):
             #     print("found a not-stuck example")
             #     dataset.anim_rviz(example)

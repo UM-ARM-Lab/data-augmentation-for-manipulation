@@ -9,8 +9,8 @@ from progressbar import progressbar
 
 from link_bot_classifiers import recovery_policy_utils, get_model
 from link_bot_classifiers.nn_recovery_model import NNRecoveryModel
-from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import batch_tf_dataset
+from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import paths_to_json
@@ -180,7 +180,7 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
     tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
 
     # Evaluate
-    for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+    for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=mywidgets)):
         batch.update(dataset.batch_metadata)
 
         mean_predictions, stdev_predictions = ensemble.propagate_from_example(batch)

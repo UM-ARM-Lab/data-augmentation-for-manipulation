@@ -6,9 +6,9 @@ import tensorflow as tf
 from progressbar import progressbar
 
 from arc_utilities import ros_init
-from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import deserialize_scene_msg, pprint_example
 from link_bot_data.load_dataset import load_dynamics_dataset
+from link_bot_data.progressbar_widgets import mywidgets
 from moonshine.moonshine_utils import numpify
 
 
@@ -33,7 +33,7 @@ def main():
     print("Example:")
     pprint_example(example)
 
-    for i, example in enumerate(progressbar(dataset, widgets=base_dataset.widgets)):
+    for i, example in enumerate(progressbar(dataset, widgets=mywidgets)):
         if args.start_at is not None and i < args.start_at:
             continue
 

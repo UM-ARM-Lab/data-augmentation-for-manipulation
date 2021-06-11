@@ -8,10 +8,10 @@ import tensorflow as tf
 from progressbar import progressbar
 
 import rospy
-from link_bot_data import base_dataset
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, add_label, deserialize_scene_msg, write_example
 from link_bot_data.load_dataset import load_dynamics_dataset
+from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
@@ -154,7 +154,7 @@ def generate_classifier_examples(fwd_model: BaseDynamicsFunction,
     n_total_batches = idx
 
     t0 = perf_counter()
-    for idx, example in enumerate(progressbar(dataset, widgts=base_dataset.widgets)):
+    for idx, example in enumerate(progressbar(dataset, widgts=mywidgets)):
         deserialize_scene_msg(example)
 
         dt = perf_counter() - t0

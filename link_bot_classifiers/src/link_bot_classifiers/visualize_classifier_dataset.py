@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from progressbar import progressbar
 from scipy import stats
 
+import link_bot_data.progressbar_widgets
 import rospy
 from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
@@ -47,7 +48,7 @@ def visualize_dataset(args, classifier_dataset):
 
     print_dict(next(iter(tf_dataset)))
 
-    for i, example in enumerate(progressbar(tf_dataset, widgets=base_dataset.widgets)):
+    for i, example in enumerate(progressbar(tf_dataset, widgets=link_bot_data.progressbar_widgets.mywidgets)):
         if i < args.start_at:
             continue
 
@@ -153,7 +154,7 @@ def compare_examples_from_datasets(args, classifier_dataset1, classifier_dataset
     tf_dataset2 = tf_dataset2.batch(1)
 
     datasets = tf_dataset1.zip(tf_dataset2)
-    for i, (example1, example2) in enumerate(progressbar(datasets, widgets=base_dataset.widgets)):
+    for i, (example1, example2) in enumerate(progressbar(datasets, widgets=link_bot_data.progressbar_widgets.mywidgets)):
         print(i, args.example_indices)
 
         example1 = remove_batch(example1)

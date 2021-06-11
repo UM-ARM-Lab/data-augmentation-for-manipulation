@@ -6,20 +6,12 @@ import pathlib
 from typing import List, Optional, Dict, Callable, Any
 
 import numpy as np
-import progressbar
 import tensorflow as tf
 
 from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func, parse_and_slow_deserialize, \
     multigen, merge_hparams_dicts, label_is
 
 SORT_FILE_NAME = 'sort_order.csv'
-
-widgets = [
-    progressbar.Percentage(), ' ',
-    progressbar.Counter(), ' ',
-    progressbar.Bar(),
-    ' (', progressbar.AdaptiveETA(), ') ',
-]
 
 
 class SizedTFDataset:

@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import pathlib
-from time import perf_counter
 from typing import Dict, Optional
 
 import numpy as np
@@ -9,8 +8,8 @@ from progressbar import progressbar
 
 import rospy
 from arm_robots.robot import RobotPlanningError
-from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import data_directory, tf_write_example, pkl_write_example
+from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.get_service_provider import get_service_provider
 from link_bot_pycommon.serialization import my_hdump
@@ -126,7 +125,7 @@ class BaseDataCollector:
         self.save_hparams(full_output_directory, n_trajs, nickname)
 
         combined_seeds = [traj_idx + 100000 * self.seed for traj_idx in range(n_trajs)]
-        for traj_idx, seed in progressbar(enumerate(combined_seeds), wdigets=base_dataset.widgets):
+        for traj_idx, seed in progressbar(enumerate(combined_seeds), wdigets=mywidgets):
             invalid = False
             for retry_idx in range(10):
                 # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair

@@ -3,8 +3,8 @@ from typing import Callable
 
 from progressbar import progressbar
 
-from link_bot_data import base_dataset
 from link_bot_data.base_dataset import BaseDatasetLoader, SORT_FILE_NAME
+from link_bot_data.progressbar_widgets import mywidgets
 
 
 def sort_dataset_mode(mode: str, dataset: BaseDatasetLoader, get_value: Callable, reverse: bool):
@@ -12,7 +12,7 @@ def sort_dataset_mode(mode: str, dataset: BaseDatasetLoader, get_value: Callable
     tf_dataset = dataset.get_datasets(mode=mode, shuffle_files=False, do_not_process=True)
 
     values_and_record_filenames = []
-    for example, record_filename in progressbar(zip(tf_dataset, all_filenames), widgets=base_dataset.widgets):
+    for example, record_filename in progressbar(zip(tf_dataset, all_filenames), widgets=mywidgets):
         value = get_value(dataset, example)
         values_and_record_filenames.append((value, record_filename))
 

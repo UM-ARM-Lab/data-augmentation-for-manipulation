@@ -12,8 +12,8 @@ from progressbar import progressbar
 from arc_utilities import ros_init
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from learn_invariance.transform_link_states import transform_link_states
-from link_bot_data import base_dataset
 from link_bot_data.dataset_utils import pkl_write_example, data_directory
+from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_gazebo.gazebo_services import GazeboServices, restore_gazebo
 from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
@@ -76,7 +76,7 @@ def main():
 
     infinite_dataset = cycle(dataset)
     scaling = 1e-6
-    for example_idx in progressbar(range(args.n_output_examples), widgets=base_dataset.widgets):
+    for example_idx in progressbar(range(args.n_output_examples), widgets=mywidgets):
         if scaling_type == 'linear':
             scaling = example_idx / args.n_output_examples
         else:
