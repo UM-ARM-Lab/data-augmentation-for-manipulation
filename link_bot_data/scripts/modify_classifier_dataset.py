@@ -24,7 +24,7 @@ def main():
 
     def _process_example(dataset, example: Dict):
         example['metadata'] = {
-            'error': example.pop("error").tolist(),
+            'error': example["error"].tolist(),
         }
         yield example
 

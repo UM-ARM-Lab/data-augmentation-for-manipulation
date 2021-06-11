@@ -1,24 +1,24 @@
 import random
-from itertools import repeat
-from typing import List
+from typing import List, Dict, Optional, Callable
 
-from more_itertools import interleave
-
-from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example, label_is
+from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example, multigen
 from link_bot_data.new_dataset_utils import load, get_filenames, UNUSED_COMPAT
 from link_bot_pycommon.get_scenario import get_scenario
 
 
 class NewBaseDataset:
 
-    def __init__(self, loader, filenames: List):
+    def __init__(self, loader, filenames: List, post_process: Optional[List[Callable]] = None):
         self.loader = loader
         self.filenames = filenames
+        self._post_process = post_process
 
     def __iter__(self):
         for filenames in self.filenames:
             e = load(filenames)
             e = self.loader.post_process(e)
+            for p in self._post_process:
+                e = p(e)
             yield e
 
     def __len__(self):
@@ -26,29 +26,25 @@ class NewBaseDataset:
 
     def batch(self, batch_size: int, drop_remainder: bool = False):
         filenames_batched = list(batch_sequence(self.filenames, batch_size, drop_remainder))
-        return NewBaseDataset(self.loader, filenames_batched)
+
+        def _add_batch(example: Dict):
+            example['batch_size'] = batch_size
+            return example
+
+        # use self.__class__ here so that derived dataset classes return instances of themselves not the base class
+        return self.__class__(self.loader, filenames_batched, [_add_batch])
 
     def shuffle(self, buffer_size=UNUSED_COMPAT, reshuffle_each_iteration=UNUSED_COMPAT):
         # FIXME: actually implementing this would be nice
         shuffled_filenames = self.filenames.copy()
         random.shuffle(shuffled_filenames)
-        return NewBaseDataset(self.loader, shuffled_filenames)
+        return self.__class__(self.loader, shuffled_filenames, self._post_process)
 
     def take(self, take):
-        return NewBaseDataset(self.loader, self.filenames[:take])
+        return self.__class__(self.loader, self.filenames[:take], self._post_process)
 
-    def balance(self):
-        positive_dataset = self.pyfilter(label_is(1))
-        negative_dataset = self.filter(label_is(0))
-        negative_dataset = negative_dataset.repeat()
-        positive_dataset = positive_dataset.repeat()
-        positive_filenames = None
-        negative_filenames = None
-        if len(positive_filenames) < len(negative_filenames):
-            balanced_filenames = interleave(repeat(positive_filenames), negative_filenames)
-        else:
-            balanced_filenames = interleave(positive_filenames, repeat(negative_filenames))
-        return NewBaseDataset(self.loader, balanced_filenames)
+    def prefetch(self, *args, **kwargs):
+        return self
 
 
 class NewBaseDatasetLoader:

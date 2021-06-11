@@ -26,7 +26,7 @@ def metrics_main(args):
     if args.latex:
         table_format = 'latex_raw'
     else:
-        table_format = 'fancy_grid'
+        table_format = 'simple'
 
     def _get_metadata(results_dir: pathlib.Path):
         return load_json_or_hjson(results_dir, 'metadata')

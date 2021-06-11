@@ -31,9 +31,9 @@ def batch_examples_dicts(examples: List):
         elif isinstance(v_check, list):
             v_check0 = v_check[0]
             if isinstance(v_check0, genpy.Message):
-                examples_batch[k] = v_check
+                examples_batch[k] = values
             else:
-                examples_batch[k] = tf.convert_to_tensor(np.array(v_check))
+                examples_batch[k] = tf.convert_to_tensor(np.array(values))
         elif isinstance(v_check, genpy.Message):
             examples_batch[k] = values
         else:
