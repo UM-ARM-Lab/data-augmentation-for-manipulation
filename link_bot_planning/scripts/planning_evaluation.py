@@ -46,6 +46,10 @@ def main():
     if args.recovery:
         planner_params["recovery"]["recovery_model_dir"] = args.recovery
 
+    if not args.test_scenes_dir.exists():
+        print(f"Test scenes dir {args.test_scenes_dir} does not exist")
+        return
+
     if args.trials is None:
         args.trials = list(get_all_scene_indices(args.test_scenes_dir))
         print(args.trials)
