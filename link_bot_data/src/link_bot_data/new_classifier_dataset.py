@@ -48,7 +48,7 @@ class NewClassifierDataset(NewBaseDataset):
 class NewClassifierDatasetLoader(NewBaseDatasetLoader):
 
     def __init__(self, dataset_dirs,
-                 n_parallel,
+                 n_parallel=None,
                  threshold: Optional[float] = None,
                  load_true_states=UNUSED_COMPAT,
                  old_compat=UNUSED_COMPAT,

@@ -10,7 +10,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimation
 
 class NewDynamicsDatasetLoader(NewBaseDatasetLoader):
 
-    def __init__(self, dataset_dirs, n_parallel):
+    def __init__(self, dataset_dirs, n_parallel=None):
         super().__init__(dataset_dirs, n_parallel)
 
         self.data_collection_params = self.hparams['data_collection_params']
