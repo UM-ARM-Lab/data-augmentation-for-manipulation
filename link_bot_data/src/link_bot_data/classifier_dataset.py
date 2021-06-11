@@ -82,6 +82,9 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         for k in self.action_keys:
             self.feature_names.append(k)
 
+    def get_scenario(self):
+        return self.scenario
+
     def make_features_description(self):
         features_description = super().make_features_description()
         for feature_name in self.feature_names:
