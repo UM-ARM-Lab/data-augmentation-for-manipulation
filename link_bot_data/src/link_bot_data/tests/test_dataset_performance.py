@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+from time import perf_counter
 
 from progressbar import progressbar
 
+from arc_utilities import ros_init
 from link_bot_data.load_dataset import guess_load_dataset
 from link_bot_data.progressbar_widgets import mywidgets
 from moonshine.simple_profiler import SimpleProfiler
 
 
+@ros_init.with_ros("test_dataset_perf")
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
@@ -18,18 +21,22 @@ def main():
 
     args = parser.parse_args()
 
-    dataset_loader = guess_load_dataset(args.dataset_dir)
+    dataset_loader = guess_load_dataset(args.dataset_dir, n_parallel=0)
 
     dataset = dataset_loader.get_datasets(mode=args.mode)
     dataset = dataset.batch(args.batch_size)
 
     p = SimpleProfiler()
 
-    def iterate():
+    p.start()
+    t0 = perf_counter()
+    for i in range(args.n_repetitions):
         for _ in progressbar(dataset, widgets=mywidgets):
-            pass
-
-    p.profile(args.n_repetitions, iterate)
+            p.lap()
+            dt = perf_counter() - t0
+            if dt > 30:
+                break
+    print(p)
 
 
 if __name__ == '__main__':

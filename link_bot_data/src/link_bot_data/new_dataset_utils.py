@@ -1,13 +1,13 @@
 import pathlib
-from typing import Union, List
+from multiprocessing import Pool
+from typing import Union, List, Optional
 
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import batch_examples_dicts
 
-
-
 UNUSED_COMPAT = None
+
 
 def load_mode_filenames(d: pathlib.Path, filenames_filename: pathlib.Path):
     with filenames_filename.open("r") as filenames_file:
@@ -38,9 +38,12 @@ def load_single(metadata_filename: pathlib.Path):
     return example
 
 
-def load(filenames: Union[pathlib.Path, List[pathlib.Path]]):
+def load_possibly_batched(filenames: Union[pathlib.Path, List[pathlib.Path]], pool: Optional[Pool] = None):
     if isinstance(filenames, list):
-        examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
+        if pool is None:
+            examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
+        else:
+            examples_i = list(pool.imap_unordered(load_single, filenames))
         example = batch_examples_dicts(examples_i)
     else:
         metadata = load_hjson(filenames)

@@ -1,8 +1,9 @@
 import random
+from multiprocessing import Pool
 from typing import List, Dict, Optional, Callable
 
-from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example, multigen
-from link_bot_data.new_dataset_utils import load, get_filenames, UNUSED_COMPAT
+from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example
+from link_bot_data.new_dataset_utils import load_possibly_batched, get_filenames, UNUSED_COMPAT
 from link_bot_pycommon.get_scenario import get_scenario
 
 
@@ -12,10 +13,14 @@ class NewBaseDataset:
         self.loader = loader
         self.filenames = filenames
         self._post_process = post_process
+        if self.loader.n_parallel == 0:
+            self.loading_threadpool = None
+        else:
+            self.loading_threadpool = Pool(processes=self.loader.n_parallel)
 
     def __iter__(self):
         for filenames in self.filenames:
-            e = load(filenames)
+            e = load_possibly_batched(filenames, self.loading_threadpool)
             e = self.loader.post_process(e)
             for p in self._post_process:
                 e = p(e)
@@ -49,9 +54,10 @@ class NewBaseDataset:
 
 class NewBaseDatasetLoader:
 
-    def __init__(self, dataset_dirs):
+    def __init__(self, dataset_dirs, n_parallel=None):
         self.dataset_dirs = dataset_dirs
         self.hparams = merge_hparams_dicts(dataset_dirs)
+        self.n_parallel = n_parallel
         self.scenario = None  # loaded lazily
         self.batch_metadata = {}
 

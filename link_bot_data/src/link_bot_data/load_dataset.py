@@ -43,10 +43,10 @@ def load_classifier_dataset(dataset_dirs: List[pathlib.Path], **kwargs):
     raise NotImplementedError()
 
 
-def guess_load_dataset(dataset_dir: pathlib.Path):
+def guess_load_dataset(dataset_dir: pathlib.Path, **kwargs):
     for p in dataset_dir.parts:
         if 'classifier' in p:
-            return load_classifier_dataset([dataset_dir])
+            return load_classifier_dataset([dataset_dir], **kwargs)
         if 'fwd_model_data' in p:
-            return load_dynamics_dataset([dataset_dir])
+            return load_dynamics_dataset([dataset_dir], **kwargs)
     raise NotImplementedError()

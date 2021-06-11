@@ -48,11 +48,12 @@ class NewClassifierDataset(NewBaseDataset):
 class NewClassifierDatasetLoader(NewBaseDatasetLoader):
 
     def __init__(self, dataset_dirs,
+                 n_parallel,
                  threshold: Optional[float] = None,
                  load_true_states=UNUSED_COMPAT,
                  old_compat=UNUSED_COMPAT,
                  use_gt_rope=UNUSED_COMPAT):
-        super().__init__(dataset_dirs)
+        super().__init__(dataset_dirs, n_parallel)
 
         self.labeling_params = self.hparams['labeling_params']
         self.horizon = self.hparams['labeling_params']['classifier_horizon']
