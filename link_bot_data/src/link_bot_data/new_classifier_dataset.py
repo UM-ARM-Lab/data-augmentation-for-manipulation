@@ -2,6 +2,7 @@ from itertools import cycle
 from typing import Dict, Optional, List, Callable
 
 import numpy as np
+from halo import halo
 from more_itertools import interleave
 
 from link_bot_data.dataset_utils import add_predicted, add_label
@@ -30,7 +31,10 @@ class NewClassifierDataset(NewBaseDataset):
             post_process.append(self.add_time())
         super().__init__(loader, filenames, post_process)
 
+    @halo.Halo("balancing")
     def balance(self):
+        # TODO: implement caching for balancing at given thresholds
+
         # get a list of all the examples where error is above threshold
         metadata = [load_hjson(f) for f in self.filenames]
         is_close = np.array([m['error'][1] < self.loader.threshold for m in metadata])

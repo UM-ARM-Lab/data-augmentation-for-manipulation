@@ -18,11 +18,14 @@ def train_main(args):
         args.seed = np.random.randint(0, 10000)
 
     print("Using seed {}".format(args.seed))
-    np.random.seed(args.seed)
-    tf.random.set_seed(args.seed)
+    train_test_classifier.train_main(**vars(args))
 
-    trials_directory = pathlib.Path("./trials").absolute()
-    train_test_classifier.train_main(trials_directory=trials_directory, **vars(args))
+
+def train_n_main(args):
+    for i in range(args.n):
+        args.log = f"{args.log}{i}"
+        args.seed = i
+        train_test_classifier.train_main(**vars(args))
 
 
 def compare_main(args):
@@ -78,6 +81,16 @@ def main():
     train_parser.add_argument('--old-compat', action='store_true')
     train_parser.add_argument('--threshold', type=float, default=None)
     train_parser.set_defaults(func=train_main)
+
+    train_n_parser = subparsers.add_parser('train_n')
+    train_n_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
+    train_n_parser.add_argument('model_hparams', type=pathlib.Path)
+    train_n_parser.add_argument('n', type=int, help='number of models to train')
+    train_n_parser.add_argument('log', help='used in naming the model')
+    train_n_parser.add_argument('--batch-size', type=int, default=24)
+    train_n_parser.add_argument('--epochs', type=int, default=10)
+    train_n_parser.add_argument('--verbose', '-v', action='count', default=0)
+    train_n_parser.set_defaults(func=train_n_main)
 
     eval_parser = subparsers.add_parser('eval')
     eval_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')

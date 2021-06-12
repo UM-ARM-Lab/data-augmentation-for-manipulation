@@ -84,7 +84,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                old_compat: bool = False,
                take: Optional[int] = None,
                no_validate: bool = False,
-               trials_directory: Optional[pathlib.Path] = None,
+               trials_directory: Optional[pathlib.Path] = pathlib.Path("./trials").absolute(),
                **kwargs):
     model_hparams = load_hjson(model_hparams)
     model_class = link_bot_classifiers.get_model(model_hparams['model_class'])
