@@ -33,8 +33,7 @@ class NewClassifierDataset(NewBaseDataset):
 
     @halo.Halo("balancing")
     def balance(self):
-        # TODO: implement caching for balancing at given thresholds
-
+        # TODO: consider implementing caching for balancing at given thresholds
         # get a list of all the examples where error is above threshold
         metadata = [load_hjson(f) for f in self.filenames]
         is_close = np.array([m['error'][1] < self.loader.threshold for m in metadata])
