@@ -113,16 +113,22 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
     for mode in ['train', 'val', 'test']:
         dataset = dataset_loader.get_datasets(mode=mode, take=take)
 
-        full_output_directory = outdir / mode
-        full_output_directory.mkdir(parents=True, exist_ok=True)
+        if save_format == 'tfrecords':
+            full_output_directory = outdir / mode
+            full_output_directory.mkdir(parents=True, exist_ok=True)
+        elif save_format == 'pkl':
+            full_output_directory = outdir
+        else:
+            raise NotImplementedError()
 
         out_examples_gen = generate_classifier_examples(fwd_models, dataset, dataset_loader, labeling_params,
                                                         batch_size)
         for out_examples in out_examples_gen:
-            for out_examples_for_start_t in out_examples:
-                actual_batch_size = out_examples_for_start_t['traj_idx'].shape[0]
+            for out_examples_start_t in out_examples:
+                actual_batch_size = out_examples_start_t['traj_idx'].shape[0]
                 for batch_idx in range(actual_batch_size):
-                    out_example_b = index_dict_of_batched_tensors_tf(out_examples_for_start_t, batch_idx)
+                    out_example_b = index_dict_of_batched_tensors_tf(out_examples_start_t, batch_idx)
+                    out_example_b['metadata'] = {k: v[batch_idx] for k, v in out_examples_start_t['metadata'].items()}
 
                     if out_example_b['time_idx'].ndim == 0:
                         continue
@@ -228,6 +234,9 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
                                                         labeling_params,
                                                         prediction_actual.batch_size)
         valid_out_examples_np = numpify(valid_out_examples)
+        valid_out_examples_np['metadata'] = {
+            'error': out_example['error'].numpy().tolist(),
+        }
         valid_out_example_batches.append(valid_out_examples_np)
 
     return valid_out_example_batches
