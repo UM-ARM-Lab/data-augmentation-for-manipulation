@@ -33,6 +33,8 @@
     ".*_aug_opt.*": "#337700",
 
     "car_no_recovery_baseline.*": "#AA1155",
-    ".*floating_boxes.*": "#337700"
+    ".*floating_boxes.*": "#337700",
+    "car classifiers": "#AA1155",
+    "floating boxes classifiers": "#337700"
   }
 }

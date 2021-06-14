@@ -35,18 +35,6 @@ class MyFigure:
         colors = self.params["colors"]
         method_name_for_color = method_name.replace("*", "")
 
-        if method_name[-3:] == " ft":
-            base_method_name = method_name[:-3]
-            color = self.get_color_for_method(base_method_name)
-            color = adjust_lightness(color, 0.8)
-            return color
-
-        if method_name.split(" ")[-1] == "classifier":
-            base_method_name = " ".join(method_name.split(" ")[:-1])
-            color = self.get_color_for_method(base_method_name)
-            color = adjust_lightness(color, 1.2)
-            return color
-
         for color_pattern, color in colors.items():
             if re.fullmatch(color_pattern, method_name_for_color):
                 return color

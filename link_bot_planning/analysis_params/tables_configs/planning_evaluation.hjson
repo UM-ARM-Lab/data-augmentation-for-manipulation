@@ -43,6 +43,13 @@
   }
   {
     type: PValuesTable
+    name: num_steps
+    reductions: [
+      ["num_steps", [null]]
+    ]
+  }
+  {
+    type: PValuesTable
     name: task_error
     reductions: [
       ["task_error", [null]]
