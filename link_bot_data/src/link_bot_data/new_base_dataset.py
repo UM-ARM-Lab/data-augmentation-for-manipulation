@@ -6,6 +6,7 @@ from typing import List, Dict, Optional, Callable
 from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example
 from link_bot_data.new_dataset_utils import load_possibly_batched, get_filenames, UNUSED_COMPAT
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 
 
 class NewBaseDataset:
@@ -45,18 +46,23 @@ class NewBaseDataset:
     def take(self, take):
         return self.__class__(self.loader, self.filenames[:take], self._post_process)
 
+    def map(self, _post_process: Callable):
+        return self.__class__(self.loader, self.filenames, self._post_process + [_post_process])
+
     def prefetch(self, *args, **kwargs):
         return self
 
 
 class NewBaseDatasetLoader:
 
-    def __init__(self, dataset_dirs: List[pathlib.Path], n_parallel=None):
+    def __init__(self, dataset_dirs: List[pathlib.Path],
+                 n_parallel=None,
+                 scenario: Optional[ScenarioWithVisualization] = None):
         assert len(dataset_dirs) == 1
         self.dataset_dirs = dataset_dirs
         self.hparams = merge_hparams_dicts(dataset_dirs)
         self.n_parallel = n_parallel
-        self.scenario = None  # loaded lazily
+        self.scenario = scenario
         self.batch_metadata = {}
 
         if self.n_parallel == 0:
@@ -64,6 +70,10 @@ class NewBaseDatasetLoader:
         else:
             self.loading_threadpool = Pool(processes=self.n_parallel)
             print(f"created threadpool with {self.loading_threadpool._processes} processes")
+
+    def __del__(self):
+        self.loading_threadpool.terminate()
+        self.loading_threadpool.join()
 
     def post_process(self, e):
         return e

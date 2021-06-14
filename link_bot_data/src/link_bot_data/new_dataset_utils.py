@@ -31,9 +31,14 @@ def get_filenames(dataset_dirs, mode: str):
 
 
 def load_single(metadata_filename: pathlib.Path):
-    # metadata = load_hjson(metadata_filename)
-    with metadata_filename.open("rb") as f:
-        metadata = pickle.load(f)
+    if 'hjson' in metadata_filename.name:
+        metadata = load_hjson(metadata_filename)
+    elif 'pkl' in metadata_filename.name:
+        with metadata_filename.open("rb") as f:
+            metadata = pickle.load(f)
+    else:
+        raise NotImplementedError()
+
     data_filename = metadata.pop("data")
     full_data_filename = metadata_filename.parent / data_filename
     example = load_gzipped_pickle(full_data_filename)

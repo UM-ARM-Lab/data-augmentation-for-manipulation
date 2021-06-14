@@ -204,10 +204,10 @@ def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, 
     _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
     model_class = link_bot_classifiers.get_model(params['model_class'])
 
-    dataset, tf_dataset = setup_eval_dataset(balance, dataset_dirs, mode, old_compat, scenario, take, threshold,
-                                             use_gt_rope, batch_size)
+    dataset_loader, dataset = setup_eval_dataset(balance, dataset_dirs, mode, old_compat, scenario, take, threshold,
+                                                 use_gt_rope, batch_size)
 
-    model = model_class(hparams=params, batch_size=batch_size, scenario=dataset.get_scenario())
+    model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario())
     # This call to model runner restores the model
     runner = ModelRunner(model=model,
                          training=False,
@@ -215,8 +215,8 @@ def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, 
                          checkpoint=checkpoint,
                          trial_path=trial_path,
                          key_metric=AccuracyCheckpointMetric,
-                         batch_metadata=dataset.batch_metadata)
-    return model, runner, tf_dataset
+                         batch_metadata=dataset_loader.batch_metadata)
+    return model, runner, dataset
 
 
 def compare_main(dataset_dirs: List[pathlib.Path],
@@ -275,19 +275,19 @@ def compare_main(dataset_dirs: List[pathlib.Path],
 
 
 def setup_eval_dataset(balance, dataset_dirs, mode, old_compat, scenario, take, threshold, use_gt_rope, batch_size):
-    dataset = ClassifierDatasetLoader(dataset_dirs,
-                                      load_true_states=True,
-                                      use_gt_rope=use_gt_rope,
-                                      old_compat=old_compat,
-                                      threshold=threshold,
-                                      scenario=scenario)
-    tf_dataset = dataset.get_datasets(mode=mode)
+    dataset_loader = load_classifier_dataset(dataset_dirs,
+                                             load_true_states=True,
+                                             use_gt_rope=use_gt_rope,
+                                             old_compat=old_compat,
+                                             threshold=threshold,
+                                             scenario=scenario)
+    dataset = dataset_loader.get_datasets(mode=mode)
     if balance:
         rospy.loginfo(Fore.CYAN + "NOTE! These metrics are on the balanced dataset")
-        tf_dataset = tf_dataset.balance()
-    tf_dataset = tf_dataset.take(take)
-    tf_dataset = batch_tf_dataset(tf_dataset, batch_size, drop_remainder=True)
-    return dataset, tf_dataset
+        dataset = dataset.balance()
+    dataset = dataset.take(take)
+    dataset = batch_tf_dataset(dataset, batch_size, drop_remainder=True)
+    return dataset_loader, dataset
 
 
 class ClassifierEvaluation:

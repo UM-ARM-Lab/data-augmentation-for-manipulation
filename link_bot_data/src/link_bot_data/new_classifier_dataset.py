@@ -11,6 +11,7 @@ from link_bot_data.dataset_utils import add_predicted, add_label
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader, NewBaseDataset
 from link_bot_data.new_dataset_utils import UNUSED_COMPAT, get_filenames
 from link_bot_data.visualization import init_viz_env, init_viz_action, classifier_transition_viz_t
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.filepath_tools import load_pkl, load_hjson
 from moonshine.indexing import index_time
@@ -72,10 +73,11 @@ class NewClassifierDatasetLoader(NewBaseDatasetLoader):
     def __init__(self, dataset_dirs,
                  n_parallel=None,
                  threshold: Optional[float] = None,
+                 scenario: Optional[ScenarioWithVisualization] = None,
                  load_true_states=UNUSED_COMPAT,
                  old_compat=UNUSED_COMPAT,
                  use_gt_rope=UNUSED_COMPAT):
-        super().__init__(dataset_dirs, n_parallel)
+        super().__init__(dataset_dirs, n_parallel, scenario)
 
         self.labeling_params = self.hparams['labeling_params']
         self.horizon = self.hparams['labeling_params']['classifier_horizon']
