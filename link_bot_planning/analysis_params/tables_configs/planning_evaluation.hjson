@@ -1,7 +1,7 @@
 [
   {
     type: MyTable
-    name: success
+    name: table1
     header: [
       Method Name
       Num Success
@@ -9,10 +9,6 @@
       Success %
       Mean Task Error
       Median Task Error
-      Mean Num Actions
-      Num (re)plans
-      Planning_Time
-      Num Recovery Actions
       Mean NME
       Median NME
     ]
@@ -22,35 +18,53 @@
       ["success", ["mean"]]
       ["task_error", ["mean"]]
       ["task_error", ["median"]]
-      ["num_steps", ["mean"]]
-      ["num_planning_attempts", ["mean"]]
-      ["planning_time", ["mean"]]
-      ["num_recovery_actions", ["mean"]]
       ["normalized_model_error", ["mean"]]
       ["normalized_model_error", ["median"]]
     ]
   }
   {
     type: MyTable
-    name: task_error
+    name: table2
     header: [
       Method Name
-      Task Error
+      Num (re)plans
+      Mean Num Actions
+      Mean Planning Time
+      Mean Total Time
+      Num Recovery Actions
     ]
     reductions: [
-      ["task_error", ["mean"]]
+      ["num_planning_attempts", ["mean"]]
+      ["num_steps", ["mean"]]
+      ["planning_time", ["mean"]]
+      ["total_time", ["mean"]]
+      ["num_recovery_actions", ["mean"]]
     ]
   }
   {
     type: PValuesTable
-    name: num_steps
+    name: Normalized Model Error
+    reductions: [
+      ["normalized_model_error", [null]]
+    ]
+  }
+  {
+    type: PValuesTable
+    name: Num Actions
     reductions: [
       ["num_steps", [null]]
     ]
   }
   {
     type: PValuesTable
-    name: task_error
+    name: Total Time
+    reductions: [
+      ["total_time", [null]]
+    ]
+  }
+  {
+    type: PValuesTable
+    name: Task Error
     reductions: [
       ["task_error", [null]]
     ]
