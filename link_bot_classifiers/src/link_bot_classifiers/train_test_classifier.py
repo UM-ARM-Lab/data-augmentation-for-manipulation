@@ -116,8 +116,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
         save_every_n_minutes = None
         validate_first = False
     else:
-        mid_epoch_val_batches = 20
-        val_every_n_batches = 50
+        mid_epoch_val_batches = 50
+        val_every_n_batches = 500
         save_every_n_minutes = 20
         validate_first = True
 
