@@ -25,9 +25,6 @@ def main():
 
     def _process_example(dataset, example: Dict):
         example = numpify(example)
-        # example['metadata'] = {
-        #     'error': example["error"].tolist(),
-        # }
         yield example
 
     hparams_update = {}

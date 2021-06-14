@@ -235,7 +235,7 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
                                                         prediction_actual.batch_size)
         valid_out_examples_np = numpify(valid_out_examples)
         valid_out_examples_np['metadata'] = {
-            'error': out_example['error'].numpy().tolist(),
+            'error': out_example['error'],
         }
         valid_out_example_batches.append(valid_out_examples_np)
 

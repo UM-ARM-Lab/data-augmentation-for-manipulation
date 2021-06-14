@@ -2,6 +2,7 @@
 import argparse
 import logging
 import pathlib
+import time
 
 import tensorflow as tf
 from colorama import Fore
@@ -33,13 +34,13 @@ def main():
 
     args = parser.parse_args()
 
-    outdir = args.out_dir
+    outdir = args.out_dir.parent / (args.out_dir.name + f'_{int(time.time())}')
     success = mkdir_and_ask(outdir, parents=True, yes=args.yes)
     if not success:
         print(Fore.RED + "Aborting" + Fore.RESET)
         return
 
-    rospy.loginfo(Fore.GREEN + f"Writing classifier dataset to {args.out_dir}")
+    rospy.loginfo(Fore.GREEN + f"Writing classifier dataset to {outdir}")
     make_classifier_dataset(dataset_dir=args.dataset_dir,
                             fwd_model_dir=args.fwd_model_dir,
                             labeling_params=args.labeling_params,

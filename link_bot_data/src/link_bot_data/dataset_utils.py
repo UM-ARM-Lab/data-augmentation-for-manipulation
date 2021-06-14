@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import pathlib
+import pickle
 import time
 from collections import OrderedDict
 from functools import lru_cache
@@ -9,7 +10,6 @@ from typing import Optional, Dict, List, Sequence
 
 import genpy
 import git
-import hjson
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
@@ -383,6 +383,54 @@ def add_label(example: Dict, threshold: float):
     example['is_close'] = tf.cast(is_close, dtype=tf.float32)
 
 
+def coerce_types(d: Dict):
+    """
+    Converts the types of things in the dict to whatever we want for saving it
+    Args:
+        d:
+
+    Returns:
+
+    """
+    out_d = {}
+    for k, v in d.items():
+        if isinstance(v, tf.Tensor):
+            out_d[k] = v
+        elif isinstance(v, genpy.Message):
+            out_d[k] = v
+        elif isinstance(v, str):
+            out_d[k] = v
+        elif isinstance(v, int):
+            out_d[k] = v
+        elif isinstance(v, float):
+            out_d[k] = v
+        elif isinstance(v, list):
+            v0 = v[0]
+            if isinstance(v0, int):
+                out_d[k] = tf.convert_to_tensor(v)
+            elif isinstance(v0, float):
+                out_d[k] = tf.convert_to_tensor(v, dtype=tf.float32)
+            elif isinstance(v0, genpy.Message):
+                out_d[k] = np.array(v, dtype=object)
+            elif isinstance(v0, str):
+                out_d[k] = v
+            elif isinstance(v0, list):
+                v00 = v0[0]
+                if isinstance(v00, int):
+                    out_d[k] = tf.convert_to_tensor(v)
+                elif isinstance(v00, float):
+                    out_d[k] = tf.convert_to_tensor(v, dtype=tf.float32)
+                elif isinstance(v00, str):
+                    out_d[k] = v
+                elif isinstance(v00, genpy.Message):
+                    out_d[k] = np.array(v, dtype=object)
+                else:
+                    raise NotImplementedError()
+        elif isinstance(v, dict):
+            out_d[k] = coerce_types(v)
+    return out_d
+
+
 def pkl_write_example(full_output_directory, example, traj_idx, extra_metadata_keys: Optional[List[str]] = None):
     example_filename = index_to_filename('.pkl.gz', traj_idx)
 
@@ -394,12 +442,15 @@ def pkl_write_example(full_output_directory, example, traj_idx, extra_metadata_k
     if extra_metadata_keys is not None:
         for k in extra_metadata_keys:
             metadata[k] = example.pop(k)
-    metadata_filename = index_to_filename('.hjson', traj_idx)
+    metadata_filename = index_to_filename('.pkl', traj_idx)
     full_metadata_filename = full_output_directory / metadata_filename
-    with full_metadata_filename.open("w") as metadata_file:
-        hjson.dump(metadata, metadata_file)
+
+    metadata = coerce_types(metadata)
+    with full_metadata_filename.open("wb") as metadata_file:
+        pickle.dump(metadata, metadata_file)
 
     full_example_filename = full_output_directory / example_filename
+    example = coerce_types(example)
     dump_gzipped_pickle(example, full_example_filename)
 
     return full_example_filename, full_metadata_filename
