@@ -30,6 +30,9 @@
     ".*_\\d+t\\d*": "#FFBB22",
     ".*_\\d+t_aug\\d*": "#0022FF",
     ".*_aug_pretrain.*": "#AA1155",
-    ".*_aug_opt.*": "#337700"
+    ".*_aug_opt.*": "#337700",
+
+    "car_no_recovery_baseline.*": "#AA1155",
+    ".*floating_boxes.*": "#337700"
   }
 }

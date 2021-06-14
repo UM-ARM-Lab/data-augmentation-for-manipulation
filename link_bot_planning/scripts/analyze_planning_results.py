@@ -32,7 +32,10 @@ def metrics_main(args):
         return load_json_or_hjson(results_dir, 'metadata')
 
     def _get_method_name(results_dir: pathlib.Path):
-        metadata = load_hjson(results_dir / 'metadata.hjson')
+        metadata_filename = results_dir / 'metadata.hjson'
+        if not metadata_filename.exists():
+            metadata_filename = list(results_dir.iterdir())[0] / 'metadata.hjson'
+        metadata = load_hjson(metadata_filename)
         return metadata['planner_params']['method_name']
 
     results_dirs = get_all_subdirs(args.results_dirs)
@@ -55,7 +58,9 @@ def metrics_main(args):
         spec.table.save(out_dir)
 
     for spec in table_specs:
+        print()
         spec.table.print()
+        print()
 
     if not args.no_plot:
         for spec in figspecs:

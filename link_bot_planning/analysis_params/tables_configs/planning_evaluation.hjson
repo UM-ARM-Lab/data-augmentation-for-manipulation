@@ -9,6 +9,7 @@
       Success %
       Mean Task Error
       Median Task Error
+      Mean Num Actions
       Num (re)plans
       Planning_Time
       Num Recovery Actions
@@ -21,6 +22,7 @@
       ["success", ["mean"]]
       ["task_error", ["mean"]]
       ["task_error", ["median"]]
+      ["num_steps", ["mean"]]
       ["num_planning_attempts", ["mean"]]
       ["planning_time", ["mean"]]
       ["num_recovery_actions", ["mean"]]

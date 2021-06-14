@@ -73,17 +73,21 @@ def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable
         data = []
         index_tuples = []
         for method_name, results_dir in results_dirs_dict.items():
-            metadata = get_metadata(results_dir)
-            scenario = get_scenario(metadata['planner_params']['scenario'])
+            if (results_dir / 'metadata.hjson').exists():
+                results_dir_list = [results_dir]
+            else:
+                results_dir_list = list(results_dir.iterdir())
 
-            metadata = load_json_or_hjson(results_dir, 'metadata')
+            for results_dir_i in results_dir_list:
+                metadata = get_metadata(results_dir_i)
+                scenario = get_scenario(metadata['planner_params']['scenario'])
 
-            # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
-            metrics_filenames = list(results_dir.glob("*_metrics.pkl.gz"))
-            for file_idx, metrics_filename in enumerate(metrics_filenames):
-                datum = load_gzipped_pickle(metrics_filename)
-                index_tuples.append([method_name, file_idx])
-                data.append([metric_func(scenario, metadata, datum) for metric_func in metrics_funcs])
+                # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
+                metrics_filenames = list(results_dir_i.glob("*_metrics.pkl.gz"))
+                for file_idx, metrics_filename in enumerate(metrics_filenames):
+                    datum = load_gzipped_pickle(metrics_filename)
+                    index_tuples.append([method_name, file_idx])
+                    data.append([metric_func(scenario, metadata, datum) for metric_func in metrics_funcs])
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["method_name", "file_idx"])
         metrics = pd.DataFrame(data=data, index=index, columns=metrics_names)
