@@ -32,6 +32,10 @@ def metrics_main(args):
         return load_json_or_hjson(results_dir, 'metadata')
 
     def _get_method_name(results_dir: pathlib.Path):
+        method_name_filename = results_dir / 'method_name'
+        if method_name_filename.exists():
+            with method_name_filename.open("r") as mnf:
+                return mnf.readline().strip("\n")
         metadata_filename = results_dir / 'metadata.hjson'
         if not metadata_filename.exists():
             metadata_filename = list(results_dir.iterdir())[0] / 'metadata.hjson'

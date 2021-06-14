@@ -76,7 +76,10 @@ def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable
             if (results_dir / 'metadata.hjson').exists():
                 results_dir_list = [results_dir]
             else:
-                results_dir_list = list(results_dir.iterdir())
+                results_dir_list = []
+                for d in results_dir.iterdir():
+                    if (d / 'metadata.hjson').exists():
+                        results_dir_list.append(d)
 
             for results_dir_i in results_dir_list:
                 metadata = get_metadata(results_dir_i)
