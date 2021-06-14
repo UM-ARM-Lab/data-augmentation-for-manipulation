@@ -1,5 +1,6 @@
 import json
 import pathlib
+import pickle
 import subprocess
 from datetime import datetime
 from typing import Optional, Dict
@@ -74,6 +75,12 @@ def load_hjson(path: pathlib.Path):
     with path.open("r") as file:
         data = hjson.load(file)
     return data
+
+
+def load_pkl(metadata_filename: pathlib.Path):
+    with metadata_filename.open("rb") as f:
+        metadata = pickle.load(f)
+    return metadata
 
 
 def get_trial_path(group_name, trials_directory=None):

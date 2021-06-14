@@ -1,10 +1,10 @@
 import pathlib
-import pickle
 from itertools import cycle
 from typing import Dict, Optional, List, Callable
 
+import halo
+import hjson
 import numpy as np
-from halo import halo
 from more_itertools import interleave
 
 from link_bot_data.dataset_utils import add_predicted, add_label
@@ -12,7 +12,7 @@ from link_bot_data.new_base_dataset import NewBaseDatasetLoader, NewBaseDataset
 from link_bot_data.new_dataset_utils import UNUSED_COMPAT, get_filenames
 from link_bot_data.visualization import init_viz_env, init_viz_action, classifier_transition_viz_t
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
-from moonshine.filepath_tools import load_hjson
+from moonshine.filepath_tools import load_pkl, load_hjson
 from moonshine.indexing import index_time
 
 
@@ -33,25 +33,38 @@ class NewClassifierDataset(NewBaseDataset):
             post_process.append(self.add_time())
         super().__init__(loader, filenames, post_process)
 
-    @halo.Halo("balancing")
     def balance(self):
-        metadata = [self.load_metadata(f) for f in self.filenames]
-        is_close = np.array([m['error'][1] < self.loader.threshold for m in metadata])
-        is_close_indices, = np.where(is_close)  # returns a tuple of length 1
-        is_far_indices, = np.where(np.logical_not(is_close))  # returns a tuple of length 1
-        positive_filenames = np.take(self.filenames, is_close_indices).tolist()
-        negative_filenames = np.take(self.filenames, is_far_indices).tolist()
-        if len(positive_filenames) < len(negative_filenames):
-            balanced_filenames = list(interleave(cycle(positive_filenames), negative_filenames))
+        root = self.loader.dataset_dirs[0]
+        balance_filename = root / 'balanced.hjson'
+        if balance_filename.exists():
+            balance_info = load_hjson(balance_filename)
+            if str(self.loader.threshold) in balance_info:
+                balanced_filenames = [pathlib.Path(f) for f in balance_info[str(self.loader.threshold)]]
+                return NewClassifierDataset(self.loader, balanced_filenames, self._post_process)
         else:
-            balanced_filenames = list(interleave(positive_filenames, cycle(negative_filenames)))
-        return NewClassifierDataset(self.loader, balanced_filenames, self._post_process)
+            balance_info = {}
 
-    def load_metadata(self, metadata_filename: pathlib.Path):
-        # return load_hjson(metadata_filename)
-        with metadata_filename.open("rb") as f:
-            metadata = pickle.load(f)
-        return metadata
+        @halo.Halo("balancing")
+        def _balance():
+            metadata = [load_pkl(f) for f in self.filenames]
+            is_close = np.array([m['error'][1] < self.loader.threshold for m in metadata])
+            is_close_indices, = np.where(is_close)  # returns a tuple of length 1
+            is_far_indices, = np.where(np.logical_not(is_close))  # returns a tuple of length 1
+            positive_filenames = np.take(self.filenames, is_close_indices).tolist()
+            negative_filenames = np.take(self.filenames, is_far_indices).tolist()
+            if len(positive_filenames) < len(negative_filenames):
+                balanced_filenames = list(interleave(cycle(positive_filenames), negative_filenames))
+            else:
+                balanced_filenames = list(interleave(positive_filenames, cycle(negative_filenames)))
+            return balanced_filenames
+
+        balanced_filenames = _balance()
+
+        balance_info[str(self.loader.threshold)] = [f.as_posix() for f in balanced_filenames]
+        with balance_filename.open("w") as bf:
+            hjson.dump(balance_info, bf)
+
+        return NewClassifierDataset(self.loader, balanced_filenames, self._post_process)
 
 
 class NewClassifierDatasetLoader(NewBaseDatasetLoader):

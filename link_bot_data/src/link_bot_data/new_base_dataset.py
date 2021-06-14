@@ -1,3 +1,4 @@
+import pathlib
 import random
 from multiprocessing import Pool
 from typing import List, Dict, Optional, Callable
@@ -13,14 +14,10 @@ class NewBaseDataset:
         self.loader = loader
         self.filenames = filenames
         self._post_process = post_process
-        if self.loader.n_parallel == 0:
-            self.loading_threadpool = None
-        else:
-            self.loading_threadpool = Pool(processes=self.loader.n_parallel)
 
     def __iter__(self):
         for filenames in self.filenames:
-            e = load_possibly_batched(filenames, self.loading_threadpool)
+            e = load_possibly_batched(filenames, self.loader.loading_threadpool)
             e = self.loader.post_process(e)
             for p in self._post_process:
                 e = p(e)
@@ -54,12 +51,19 @@ class NewBaseDataset:
 
 class NewBaseDatasetLoader:
 
-    def __init__(self, dataset_dirs, n_parallel=None):
+    def __init__(self, dataset_dirs: List[pathlib.Path], n_parallel=None):
+        assert len(dataset_dirs) == 1
         self.dataset_dirs = dataset_dirs
         self.hparams = merge_hparams_dicts(dataset_dirs)
         self.n_parallel = n_parallel
         self.scenario = None  # loaded lazily
         self.batch_metadata = {}
+
+        if self.n_parallel == 0:
+            self.loading_threadpool = None
+        else:
+            self.loading_threadpool = Pool(processes=self.n_parallel)
+            print(f"created threadpool with {self.loading_threadpool._processes} processes")
 
     def post_process(self, e):
         return e
