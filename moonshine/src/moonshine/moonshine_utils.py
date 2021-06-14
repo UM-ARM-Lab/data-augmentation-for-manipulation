@@ -36,6 +36,8 @@ def batch_examples_dicts(examples: List):
                 examples_batch[k] = tf.convert_to_tensor(np.array(values))
         elif isinstance(v_check, genpy.Message):
             examples_batch[k] = values
+        elif isinstance(v_check, tf.Tensor):
+            examples_batch[k] = tf.stack(values, axis=0)
         else:
             examples_batch[k] = tf.convert_to_tensor(np.array(values))
     return examples_batch

@@ -50,3 +50,20 @@ def guess_load_dataset(dataset_dir: pathlib.Path, **kwargs):
         if 'fwd_model_data' in p:
             return load_dynamics_dataset([dataset_dir], **kwargs)
     raise NotImplementedError()
+
+
+def guess_dataset_format(dataset_dir: pathlib.Path):
+    for e in dataset_dir.iterdir():
+        if e.is_file():
+            if 'tfrecord' in e.as_posix():
+                return 'tfrecord'
+            elif 'pkl' in e.as_posix():
+                return 'pkl'
+        elif e.is_dir():
+            for sub_e in e.iterdir():
+                if sub_e.is_file():
+                    if 'tfrecord' in sub_e.as_posix():
+                        return 'tfrecord'
+                    elif 'pkl' in sub_e.as_posix():
+                        return 'pkl'
+    raise NotImplementedError()

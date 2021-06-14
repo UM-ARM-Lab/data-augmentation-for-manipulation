@@ -5,6 +5,7 @@ from typing import Dict
 
 from arc_utilities import ros_init
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
+from link_bot_data.load_dataset import guess_dataset_format
 from link_bot_data.modify_dataset import modify_dataset, modify_dataset2
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.split_dataset import split_dataset
@@ -23,20 +24,25 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset, example: Dict):
-        example['metadata'] = {
-            'error': example["error"].tolist(),
-        }
+        example = numpify(example)
+        # example['metadata'] = {
+        #     'error': example["error"].tolist(),
+        # }
         yield example
 
     hparams_update = {}
 
-    if args.save_format == 'tfrecord':
+    dataset_format = guess_dataset_format(args.dataset_dir)
+    if args.save_format is None:
+        args.save_format = dataset_format
+
+    if dataset_format == 'tfrecord':
         dataset = ClassifierDatasetLoader([args.dataset_dir], use_gt_rope=False, load_true_states=True)
         modify_dataset(dataset_dir=args.dataset_dir,
                        dataset=dataset,
                        outdir=outdir,
                        process_example=_process_example,
-                       save_format='tfrecord',
+                       save_format=args.save_format,
                        hparams_update=hparams_update,
                        slow=False)
     else:
