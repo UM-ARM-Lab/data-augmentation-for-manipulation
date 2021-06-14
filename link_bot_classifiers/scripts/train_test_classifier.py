@@ -11,6 +11,9 @@ import tensorflow as tf
 from arc_utilities import ros_init
 from link_bot_classifiers import train_test_classifier
 from link_bot_pycommon.args import run_subparsers
+from moonshine.gpu_config import limit_gpu_mem
+
+limit_gpu_mem(5.0)
 
 
 def train_main(args):

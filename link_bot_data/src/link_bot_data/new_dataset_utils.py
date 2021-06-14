@@ -46,7 +46,6 @@ def load_possibly_batched(filenames: Union[pathlib.Path, List[pathlib.Path]], po
         if pool is None:
             examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
         else:
-            # NOTE: loading on other threads doesn't work if the thing in the pkl is a tf.Tensor
             examples_i = list(pool.imap_unordered(load_single, filenames))
             # examples_i = [load_single(f) for f in filenames]
         example = batch_examples_dicts(examples_i)

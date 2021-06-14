@@ -27,7 +27,6 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine import filepath_tools, common_train_hparams
 from moonshine.filepath_tools import load_hjson
-from moonshine.gpu_config import limit_gpu_mem
 from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
@@ -36,7 +35,6 @@ from state_space_dynamics.train_test_dynamics import setup_training_paths
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 
-limit_gpu_mem(5.0)
 
 def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
     hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset)
