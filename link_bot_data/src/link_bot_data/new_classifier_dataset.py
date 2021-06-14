@@ -1,3 +1,5 @@
+import pathlib
+import pickle
 from itertools import cycle
 from typing import Dict, Optional, List, Callable
 
@@ -33,9 +35,7 @@ class NewClassifierDataset(NewBaseDataset):
 
     @halo.Halo("balancing")
     def balance(self):
-        # TODO: consider implementing caching for balancing at given thresholds
-        # get a list of all the examples where error is above threshold
-        metadata = [load_hjson(f) for f in self.filenames]
+        metadata = [self.load_metadata(f) for f in self.filenames]
         is_close = np.array([m['error'][1] < self.loader.threshold for m in metadata])
         is_close_indices, = np.where(is_close)  # returns a tuple of length 1
         is_far_indices, = np.where(np.logical_not(is_close))  # returns a tuple of length 1
@@ -46,6 +46,12 @@ class NewClassifierDataset(NewBaseDataset):
         else:
             balanced_filenames = list(interleave(positive_filenames, cycle(negative_filenames)))
         return NewClassifierDataset(self.loader, balanced_filenames, self._post_process)
+
+    def load_metadata(self, metadata_filename: pathlib.Path):
+        # return load_hjson(metadata_filename)
+        with metadata_filename.open("rb") as f:
+            metadata = pickle.load(f)
+        return metadata
 
 
 class NewClassifierDatasetLoader(NewBaseDatasetLoader):
