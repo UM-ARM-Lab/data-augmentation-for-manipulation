@@ -1,4 +1,5 @@
 import pathlib
+import pickle
 from multiprocessing import Pool
 from typing import Union, List, Optional
 
@@ -30,7 +31,9 @@ def get_filenames(dataset_dirs, mode: str):
 
 
 def load_single(metadata_filename: pathlib.Path):
-    metadata = load_hjson(metadata_filename)
+    # metadata = load_hjson(metadata_filename)
+    with metadata_filename.open("rb") as f:
+        metadata = pickle.load(f)
     data_filename = metadata.pop("data")
     full_data_filename = metadata_filename.parent / data_filename
     example = load_gzipped_pickle(full_data_filename)
