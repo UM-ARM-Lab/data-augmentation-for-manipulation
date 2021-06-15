@@ -65,9 +65,6 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: 
     train_tf_dataset = train_tf_dataset.take(take)
     val_tf_dataset = val_tf_dataset.take(take)
 
-    train_tf_dataset = train_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    val_tf_dataset = val_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-
     return train_tf_dataset, val_tf_dataset
 
 
