@@ -71,13 +71,12 @@ class NewClassifierDataset(NewBaseDataset):
 class NewClassifierDatasetLoader(NewBaseDatasetLoader):
 
     def __init__(self, dataset_dirs,
-                 n_parallel=None,
                  threshold: Optional[float] = None,
                  scenario: Optional[ScenarioWithVisualization] = None,
                  load_true_states=UNUSED_COMPAT,
                  old_compat=UNUSED_COMPAT,
                  use_gt_rope=UNUSED_COMPAT):
-        super().__init__(dataset_dirs, n_parallel, scenario)
+        super().__init__(dataset_dirs, scenario)
 
         self.labeling_params = self.hparams['labeling_params']
         self.horizon = self.hparams['labeling_params']['classifier_horizon']

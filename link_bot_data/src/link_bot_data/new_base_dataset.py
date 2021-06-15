@@ -1,4 +1,6 @@
+import multiprocessing
 import pathlib
+import sys
 from multiprocessing import Pool, Process, Queue
 from typing import List, Dict, Optional, Callable
 
@@ -14,7 +16,8 @@ from moonshine.moonshine_utils import batch_examples_dicts
 
 def prefetch(queue: Queue, filenames: List, n_prefetch: int):
     assert n_prefetch > 0
-    loading_threadpool = Pool()
+    pool = Pool()
+    print(f"Created pool with {pool._processes} workers")
     with tf.device('/CPU:0'):
         for filenames_i in filenames:
             # possibly wait here, because we only want to prefetch one batch
@@ -22,10 +25,10 @@ def prefetch(queue: Queue, filenames: List, n_prefetch: int):
                 pass
 
             if isinstance(filenames_i, list):
-                if loading_threadpool is None:
+                if pool is None:
                     examples_i = [load_single(metadata_filename_j) for metadata_filename_j in filenames_i]
                 else:
-                    examples_i = list(loading_threadpool.imap_unordered(load_single, filenames_i))
+                    examples_i = list(pool.imap_unordered(load_single, filenames_i))
                 example = batch_examples_dicts(examples_i)
             else:
                 example = load_single(filenames_i)
@@ -35,21 +38,19 @@ def prefetch(queue: Queue, filenames: List, n_prefetch: int):
 
 class NewBaseDataset:
 
-    def __init__(self, loader, filenames: List, post_process: Optional[List[Callable]] = None):
+    def __init__(self, loader, filenames: List, post_process: Optional[List[Callable]] = None, n_prefetch=2):
         self.loader = loader
         self.filenames = filenames
         self._post_process = post_process
-        self.n_prefetch = 2
+        self.n_prefetch = n_prefetch
 
     def __iter__(self):
-        # start some background processes, tell the pool to start a constant background thread that loads items
-        prefetch_queue = Queue()
-        prefetch_process = Process(target=prefetch, args=(prefetch_queue, self.filenames, self.n_prefetch))
-        prefetch_process.start()
+        if self.n_prefetch is None or self.n_prefetch == 0:
+            generator = self.iter_serial()
+        else:
+            generator = self.iter_multiprocessing()
 
-        while prefetch_process.is_alive():
-            example = prefetch_queue.get()
-
+        for example in generator:
             # NOTE: I don't like this, it's inconsistent about calling post_process with batched/non-batched inputs
             example = self.loader.post_process(example)
             for p in self._post_process:
@@ -57,14 +58,30 @@ class NewBaseDataset:
 
             yield example
 
+    def iter_serial(self):
+        for filenames in self.filenames:
+            if isinstance(filenames, list):
+                example = self.load_batched(filenames)
+            else:
+                example = load_single(filenames)
+
+            yield example
+
+    def iter_multiprocessing(self):
+        # start some background processes, tell the pool to start a constant background thread that loads items
+        prefetch_queue = Queue()
+        prefetch_process = Process(target=prefetch, args=(prefetch_queue, self.filenames, self.n_prefetch))
+        prefetch_process.start()
+
+        while prefetch_process.is_alive():
+            example = prefetch_queue.get()
+            yield example
+
         prefetch_process.terminate()
         prefetch_process.join()
 
     def load_batched(self, filenames):
-        if self.loader.loading_threadpool is None:
-            examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
-        else:
-            examples_i = list(self.loader.loading_threadpool.imap_unordered(load_single, filenames))
+        examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
         example = batch_examples_dicts(examples_i)
         return example
 
@@ -105,24 +122,12 @@ class NewBaseDataset:
 class NewBaseDatasetLoader:
 
     def __init__(self, dataset_dirs: List[pathlib.Path],
-                 n_parallel=None,
                  scenario: Optional[ScenarioWithVisualization] = None):
         assert len(dataset_dirs) == 1
         self.dataset_dirs = dataset_dirs
         self.hparams = merge_hparams_dicts(dataset_dirs)
-        self.n_parallel = n_parallel
         self.scenario = scenario
         self.batch_metadata = {}
-
-        if self.n_parallel == 0:
-            self.loading_threadpool = None
-        else:
-            self.loading_threadpool = Pool(processes=self.n_parallel)
-            print(f"created threadpool with {self.loading_threadpool._processes} processes")
-
-    def __del__(self):
-        self.loading_threadpool.terminate()
-        self.loading_threadpool.join()
 
     def post_process(self, e):
         return e
