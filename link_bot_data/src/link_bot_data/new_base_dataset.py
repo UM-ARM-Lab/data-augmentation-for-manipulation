@@ -1,6 +1,7 @@
 import pathlib
 from multiprocessing import Pool
 from typing import List, Dict, Optional, Callable
+from time import perf_counter
 
 import numpy as np
 
@@ -29,13 +30,18 @@ class NewBaseDataset:
             example = self.loader.post_process(example)
             for p in self._post_process:
                 example = p(example)
+
             yield example
 
     def load_batched(self, filenames):
         if self.loader.loading_threadpool is None:
             examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
         else:
+            print("starting loading")
+            t0 = perf_counter()
             examples_i = list(self.loader.loading_threadpool.imap_unordered(load_single, filenames))
+            dt_load = perf_counter() - t0
+            print("done loading", dt_load)
         example = batch_examples_dicts(examples_i)
         return example
 
