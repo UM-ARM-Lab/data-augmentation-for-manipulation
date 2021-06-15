@@ -4,7 +4,6 @@ import logging
 import pathlib
 from time import time
 
-import colorama
 import numpy as np
 import tensorflow as tf
 
@@ -60,9 +59,7 @@ node_name = f"train_test_classifier_{int(time())}"
 
 @ros_init.with_ros(node_name)
 def main():
-    colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
-
     np.set_printoptions(linewidth=250, precision=4, suppress=True)
     parser = argparse.ArgumentParser()
 

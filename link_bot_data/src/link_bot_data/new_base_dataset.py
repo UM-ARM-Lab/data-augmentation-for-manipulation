@@ -1,9 +1,9 @@
 import pathlib
-from multiprocessing import Pool
+from multiprocessing import Pool, Process, Queue
 from typing import List, Dict, Optional, Callable
-from time import perf_counter
 
 import numpy as np
+import tensorflow as tf
 
 from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example
 from link_bot_data.new_dataset_utils import get_filenames, UNUSED_COMPAT, load_single
@@ -12,19 +12,43 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from moonshine.moonshine_utils import batch_examples_dicts
 
 
+def prefetch(queue: Queue, filenames: List, n_prefetch: int):
+    assert n_prefetch > 0
+    loading_threadpool = Pool()
+    with tf.device('/CPU:0'):
+        for filenames_i in filenames:
+            # possibly wait here, because we only want to prefetch one batch
+            while queue.qsize() > n_prefetch:
+                pass
+
+            if isinstance(filenames_i, list):
+                if loading_threadpool is None:
+                    examples_i = [load_single(metadata_filename_j) for metadata_filename_j in filenames_i]
+                else:
+                    examples_i = list(loading_threadpool.imap_unordered(load_single, filenames_i))
+                example = batch_examples_dicts(examples_i)
+            else:
+                example = load_single(filenames_i)
+
+            queue.put(example)
+
+
 class NewBaseDataset:
 
     def __init__(self, loader, filenames: List, post_process: Optional[List[Callable]] = None):
         self.loader = loader
         self.filenames = filenames
         self._post_process = post_process
+        self.n_prefetch = 2
 
     def __iter__(self):
-        for filenames in self.filenames:
-            if isinstance(filenames, list):
-                example = self.load_batched(filenames)
-            else:
-                example = load_single(filenames)
+        # start some background processes, tell the pool to start a constant background thread that loads items
+        prefetch_queue = Queue()
+        prefetch_process = Process(target=prefetch, args=(prefetch_queue, self.filenames, self.n_prefetch))
+        prefetch_process.start()
+
+        while prefetch_process.is_alive():
+            example = prefetch_queue.get()
 
             # NOTE: I don't like this, it's inconsistent about calling post_process with batched/non-batched inputs
             example = self.loader.post_process(example)
@@ -33,15 +57,14 @@ class NewBaseDataset:
 
             yield example
 
+        prefetch_process.terminate()
+        prefetch_process.join()
+
     def load_batched(self, filenames):
         if self.loader.loading_threadpool is None:
             examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
         else:
-            print("starting loading")
-            t0 = perf_counter()
             examples_i = list(self.loader.loading_threadpool.imap_unordered(load_single, filenames))
-            dt_load = perf_counter() - t0
-            print("done loading", dt_load)
         example = batch_examples_dicts(examples_i)
         return example
 
@@ -72,7 +95,10 @@ class NewBaseDataset:
     def map(self, _post_process: Callable):
         return self.__class__(self.loader, self.filenames, self._post_process + [_post_process])
 
-    def prefetch(self, *args, **kwargs):
+    def prefetch(self, n_prefetch: int):
+        if n_prefetch == tf.data.experimental.AUTOTUNE:
+            n_prefetch = 2
+        self.n_prefetch = n_prefetch
         return self
 
 

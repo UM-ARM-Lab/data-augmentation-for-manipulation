@@ -157,10 +157,6 @@ class NNClassifier(MyKerasModel):
         return inputs
 
     def call(self, inputs: Dict, training, **kwargs):
-        from time import perf_counter
-        t0 = perf_counter()
-        print("calling")
-
         batch_size = inputs['batch_size']
         time = tf.cast(inputs['time'], tf.int32)
         voxel_grids = inputs['voxel_grids']
@@ -180,7 +176,6 @@ class NNClassifier(MyKerasModel):
             'out_h':         out_h,
         }
 
-        print("dt call", perf_counter() - t0)
         return outputs
 
     def compute_loss(self, dataset_element, outputs):

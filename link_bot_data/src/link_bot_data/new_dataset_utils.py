@@ -49,20 +49,3 @@ def load_metadata(metadata_filename):
     else:
         raise NotImplementedError()
     return metadata
-
-
-def load_possibly_batched(filenames: Union[pathlib.Path, List[pathlib.Path]], pool: Optional[Pool] = None):
-    if isinstance(filenames, list):
-        if pool is None:
-            examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
-        else:
-            examples_i = list(pool.imap_unordered(load_single, filenames))
-            # examples_i = [load_single(f) for f in filenames]
-        example = batch_examples_dicts(examples_i)
-    else:
-        metadata = load_hjson(filenames)
-        data_filename = metadata.pop("data")
-        full_data_filename = filenames.parent / data_filename
-        example = load_gzipped_pickle(full_data_filename)
-        example.update(metadata)
-    return example

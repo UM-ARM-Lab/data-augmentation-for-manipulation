@@ -33,13 +33,13 @@ def batch_examples_dicts(examples: List):
             if isinstance(v_check0, genpy.Message):
                 examples_batch[k] = values
             else:
-                examples_batch[k] = tf.convert_to_tensor(np.array(values))
+                examples_batch[k] = tf.convert_to_tensor(np.array(values), name='convert_batched')
         elif isinstance(v_check, genpy.Message):
             examples_batch[k] = values
         elif isinstance(v_check, tf.Tensor):
-            examples_batch[k] = tf.stack(values, axis=0)
+            examples_batch[k] = tf.stack(values, axis=0, name='convert_batched')
         else:
-            examples_batch[k] = tf.convert_to_tensor(np.array(values))
+            examples_batch[k] = tf.convert_to_tensor(np.array(values), name='convert_batched')
     return examples_batch
 
 
