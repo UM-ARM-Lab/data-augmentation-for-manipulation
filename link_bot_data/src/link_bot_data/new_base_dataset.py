@@ -59,6 +59,7 @@ class NewBaseDataset:
             yield example
 
     def iter_serial(self):
+        print("Using slow, serial iteration")
         for filenames in self.filenames:
             if isinstance(filenames, list):
                 example = self.load_batched(filenames)
