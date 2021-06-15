@@ -26,13 +26,13 @@ class NewClassifierDataset(NewBaseDataset):
 
         return _add_time
 
-    def __init__(self, loader: "NewClassifierDatasetLoader", filenames: List,
-                 post_process: Optional[List[Callable]] = None):
+    def __init__(self, loader: "NewClassifierDatasetLoader", filenames: List, mode: str,
+                 post_process: Optional[List[Callable]] = None, n_prefetch=2):
         if post_process is None:
             post_process = [self.add_time()]
         else:
             post_process.append(self.add_time())
-        super().__init__(loader, filenames, post_process)
+        super().__init__(loader, filenames, mode, post_process, n_prefetch)
 
     def balance(self):
         root = self.loader.dataset_dirs[0]
@@ -40,8 +40,8 @@ class NewClassifierDataset(NewBaseDataset):
         if balance_filename.exists():
             balance_info = load_hjson(balance_filename)
             if str(self.loader.threshold) in balance_info:
-                balanced_filenames = [pathlib.Path(f) for f in balance_info[str(self.loader.threshold)]]
-                return NewClassifierDataset(self.loader, balanced_filenames, self._post_process)
+                balanced_filenames = [pathlib.Path(f) for f in balance_info[self.mode][str(self.loader.threshold)]]
+                return NewClassifierDataset(self.loader, balanced_filenames, self.mode, self._post_process)
         else:
             balance_info = {}
 
@@ -61,11 +61,12 @@ class NewClassifierDataset(NewBaseDataset):
 
         balanced_filenames = _balance()
 
-        balance_info[str(self.loader.threshold)] = [f.as_posix() for f in balanced_filenames]
+        balance_info[self.mode] = {}
+        balance_info[self.mode][str(self.loader.threshold)] = [f.as_posix() for f in balanced_filenames]
         with balance_filename.open("w") as bf:
             hjson.dump(balance_info, bf)
 
-        return NewClassifierDataset(self.loader, balanced_filenames, self._post_process)
+        return NewClassifierDataset(self.loader, balanced_filenames, self.mode, self._post_process, self.n_prefetch)
 
 
 class NewClassifierDatasetLoader(NewBaseDatasetLoader):
@@ -100,7 +101,7 @@ class NewClassifierDatasetLoader(NewBaseDatasetLoader):
                      slow=UNUSED_COMPAT):
         filenames = get_filenames(self.dataset_dirs, mode)
         assert len(filenames) > 0
-        dataset = NewClassifierDataset(self, filenames)
+        dataset = NewClassifierDataset(self, filenames, mode)
         if shuffle:
             dataset = dataset.shuffle()
         if take:

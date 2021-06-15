@@ -18,28 +18,28 @@ def prefetch(queue: Queue, filenames: List, n_prefetch: int):
     assert n_prefetch > 0
     pool = Pool()
     print(f"Created pool with {pool._processes} workers")
-    with tf.device('/CPU:0'):
-        for filenames_i in filenames:
-            # possibly wait here, because we only want to prefetch one batch
-            while queue.qsize() > n_prefetch:
-                pass
+    for filenames_i in filenames:
+        # possibly wait here, because we only want to prefetch one batch
+        while queue.qsize() > n_prefetch:
+            pass
 
-            if isinstance(filenames_i, list):
-                if pool is None:
-                    examples_i = [load_single(metadata_filename_j) for metadata_filename_j in filenames_i]
-                else:
-                    examples_i = list(pool.imap_unordered(load_single, filenames_i))
-                example = batch_examples_dicts(examples_i)
-            else:
-                example = load_single(filenames_i)
+        if isinstance(filenames_i, list):
+            examples_i = list(pool.imap_unordered(load_single, filenames_i))
+            # with tf.device('/CPU:0'):
+            print(2)
+            example = batch_examples_dicts(examples_i)
+            print(3)
+        else:
+            example = load_single(filenames_i)
 
-            queue.put(example)
+        queue.put(example)
 
 
 class NewBaseDataset:
 
-    def __init__(self, loader, filenames: List, post_process: Optional[List[Callable]] = None, n_prefetch=2):
+    def __init__(self, loader, filenames: List, mode, post_process: Optional[List[Callable]] = None, n_prefetch=2):
         self.loader = loader
+        self.mode = mode
         self.filenames = filenames
         self._post_process = post_process
         self.n_prefetch = n_prefetch
@@ -62,7 +62,8 @@ class NewBaseDataset:
         print("Using slow, serial iteration")
         for filenames in self.filenames:
             if isinstance(filenames, list):
-                example = self.load_batched(filenames)
+                examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
+                example = batch_examples_dicts(examples_i)
             else:
                 example = load_single(filenames)
 
@@ -81,37 +82,34 @@ class NewBaseDataset:
         prefetch_process.terminate()
         prefetch_process.join()
 
-    def load_batched(self, filenames):
-        examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
-        example = batch_examples_dicts(examples_i)
-        return example
-
     def __len__(self):
         return len(self.filenames)
 
     def batch(self, batch_size: int, drop_remainder: bool = False):
         filenames_batched = list(batch_sequence(self.filenames, batch_size, drop_remainder))
 
-        def _add_batch(example: Dict):
+        def _include_batch_size(example: Dict):
             actual_batch_size = len(list(example.values())[0])
             example['batch_size'] = actual_batch_size
             return example
 
         # use self.__class__ here so that derived dataset classes return instances of themselves not the base class
-        return self.__class__(self.loader, filenames_batched, [_add_batch])
+        batched = self.__class__(self.loader, filenames_batched, self.mode, self._post_process, self.n_prefetch)
+        return batched.map(_include_batch_size)
 
     def shuffle(self, buffer_size=UNUSED_COMPAT, reshuffle_each_iteration=UNUSED_COMPAT):
         # FIXME: actually implementing this would be nice
         shuffled_filenames = self.filenames.copy()
         rng = np.random.RandomState(0)
         rng.shuffle(shuffled_filenames)
-        return self.__class__(self.loader, shuffled_filenames, self._post_process)
+        return self.__class__(self.loader, shuffled_filenames, self.mode, self._post_process, self.n_prefetch)
 
     def take(self, take):
-        return self.__class__(self.loader, self.filenames[:take], self._post_process)
+        return self.__class__(self.loader, self.filenames[:take], self.mode, self._post_process, self.n_prefetch)
 
     def map(self, _post_process: Callable):
-        return self.__class__(self.loader, self.filenames, self._post_process + [_post_process])
+        return self.__class__(self.loader, self.filenames, self.mode, self._post_process + [_post_process],
+                              self.n_prefetch)
 
     def prefetch(self, n_prefetch: int):
         if n_prefetch == tf.data.experimental.AUTOTUNE:
