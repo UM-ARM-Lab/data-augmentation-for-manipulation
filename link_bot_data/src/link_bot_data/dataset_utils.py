@@ -634,7 +634,7 @@ def write_example(full_output_directory: pathlib.Path,
                   extra_metadata_keys: Optional[List[str]] = None):
     if save_format == 'tfrecord':
         tf_write_example(full_output_directory, example, example_idx)
-    if save_format == 'pkl':
+    elif save_format == 'pkl':
         pkl_write_example(full_output_directory, example, example_idx, extra_metadata_keys)
     else:
         raise NotImplementedError()
