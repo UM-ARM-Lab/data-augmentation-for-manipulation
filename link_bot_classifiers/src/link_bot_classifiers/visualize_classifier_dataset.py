@@ -104,9 +104,6 @@ def visualize_dataset(args, classifier_dataset):
             msg = classifier_dataset.get_scenario().make_simple_grippers_marker(example, count)
             grippers_viz_pub.publish(msg)
             classifier_dataset.get_scenario().plot_traj_idx_rviz(i)
-            print()
-            print(np.linalg.norm(example['predicted/rope'][1] - example['rope']), example['error'][1])
-            print()
             classifier_dataset.anim_transition_rviz(example)
 
         elif args.display_type == 'stdev':
