@@ -108,6 +108,10 @@ class NewBaseDataset:
         return self.__class__(self.loader, self.filenames, self.mode, self._post_process + [_post_process],
                               self.n_prefetch)
 
+    def serial(self):
+        self.n_prefetch = 0
+        return self
+
     def prefetch(self, n_prefetch: int):
         if n_prefetch == tf.data.experimental.AUTOTUNE:
             n_prefetch = 2

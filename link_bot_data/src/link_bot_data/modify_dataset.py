@@ -9,6 +9,7 @@ from progressbar import progressbar
 from arc_utilities import algorithms
 from link_bot_data.base_dataset import BaseDatasetLoader
 from link_bot_data.dataset_utils import write_example
+from link_bot_data.new_base_dataset import NewBaseDatasetLoader
 from link_bot_data.progressbar_widgets import mywidgets
 
 
@@ -98,7 +99,7 @@ def dataset_generator_all_modes(dataset_dir: pathlib.Path,
 
 
 def dataset_generator_all_modes2(dataset_dir: pathlib.Path,
-                                 dataset,
+                                 dataset: NewBaseDatasetLoader,
                                  outdir: pathlib.Path,
                                  hparams_update: Optional[Dict] = None):
     if hparams_update is None:
@@ -107,6 +108,6 @@ def dataset_generator_all_modes2(dataset_dir: pathlib.Path,
     modify_hparams(dataset_dir, outdir, hparams_update)
 
     for mode in ['train', 'test', 'val']:
-        tf_dataset = dataset.get_datasets(mode=mode, shuffle=False)
+        tf_dataset = dataset.get_datasets(mode=mode, shuffle=False).serial()
         for i, example in enumerate(progressbar(tf_dataset, widgets=mywidgets)):
             yield i, example
