@@ -233,11 +233,10 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
         valid_out_examples = add_model_error_and_filter(scenario, sliced_actual, sliced_predictions, out_example,
                                                         labeling_params,
                                                         prediction_actual.batch_size)
-        valid_out_examples_np = numpify(valid_out_examples)
-        valid_out_examples_np['metadata'] = {
+        valid_out_examples['metadata'] = {
             'error': out_example['error'],
         }
-        valid_out_example_batches.append(valid_out_examples_np)
+        valid_out_example_batches.append(valid_out_examples)
 
     return valid_out_example_batches
 

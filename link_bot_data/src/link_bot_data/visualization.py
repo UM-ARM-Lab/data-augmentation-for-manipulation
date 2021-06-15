@@ -165,7 +165,7 @@ def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_s
             scenario.plot_state_rviz(true_t, label='actual', color='#ff0000ff', scale=1.1)
 
         if 'error' in example:
-            scenario.plot_error_rviz(example['error'][1])
+            scenario.plot_error_rviz(example['error'][t])
 
     return _classifier_transition_viz_t
 
