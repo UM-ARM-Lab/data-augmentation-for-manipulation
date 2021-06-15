@@ -1,7 +1,7 @@
 from typing import Dict, Tuple
 
 import rospy
-from link_bot_data.visualization import make_delete_markerarray
+from link_bot_data.visualization_common import make_delete_markerarray
 
 
 class RVizMarkerManager:

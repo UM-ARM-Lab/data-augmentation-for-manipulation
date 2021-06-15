@@ -6,12 +6,12 @@ from matplotlib import colors
 import rospy
 from geometry_msgs.msg import Point
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import vector_to_points_2d
-from moonshine.indexing import index_time_with_metadata, index_time, index_state_action_with_metadata
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from moonshine.indexing import index_time_with_metadata, index_state_action_with_metadata
 from std_msgs.msg import Float32, ColorRGBA
-from visualization_msgs.msg import Marker, MarkerArray
+from visualization_msgs.msg import Marker
 
 
 def plot_rope_configuration(ax, rope_configuration, linewidth=None, linestyle=None, s=1, label=None, scatt=True,
@@ -127,7 +127,7 @@ def rviz_arrow(position: np.ndarray,
 
 
 def dynamics_viz_t(metadata: Dict, state_metadata_keys, state_keys, action_keys):
-    def _dynamics_transition_viz_t(scenario: ExperimentScenario, example: Dict, t: int):
+    def _dynamics_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int):
         s_t = index_time_with_metadata(metadata, example, state_metadata_keys + state_keys, t=t)
         try_adding_aco(state=s_t, example=example)
         scenario.plot_state_rviz(s_t, label='actual', color='#ff0000ff')
@@ -143,7 +143,7 @@ def dynamics_viz_t(metadata: Dict, state_metadata_keys, state_keys, action_keys)
 
 
 def recovery_transition_viz_t(metadata: Dict, state_keys: List[str]):
-    def _recovery_transition_viz_t(scenario: ExperimentScenario, example: Dict, t: int):
+    def _recovery_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int):
         e_t = index_time_with_metadata(metadata, example, state_keys, t=t)
         scenario.plot_state_rviz(e_t, label='', color='#ff0000ff', scale=1.1)
 
@@ -151,7 +151,7 @@ def recovery_transition_viz_t(metadata: Dict, state_keys: List[str]):
 
 
 def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_state_keys, true_state_keys: Optional):
-    def _classifier_transition_viz_t(scenario: ExperimentScenario, example: Dict, t: int):
+    def _classifier_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int):
         pred_t = index_time_with_metadata(metadata, example, state_metadata_keys + predicted_state_keys, t=t)
         try_adding_aco(state=pred_t, example=example)
         scenario.plot_state_rviz(pred_t, label='predicted', color='#0000ffff')
@@ -164,11 +164,14 @@ def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_s
             try_adding_aco(state=true_t, example=example)
             scenario.plot_state_rviz(true_t, label='actual', color='#ff0000ff', scale=1.1)
 
+        if 'error' in example:
+            scenario.plot_error_rviz(example['error'][1])
+
     return _classifier_transition_viz_t
 
 
 def init_viz_action(metadata: Dict, action_keys, state_keys):
-    def _init_viz_action(scenario: ExperimentScenario, example: Dict):
+    def _init_viz_action(scenario: ScenarioWithVisualization, example: Dict):
         action = {k: example[k][0] for k in action_keys}
         pred_0 = index_time_with_metadata(metadata, example, state_keys, t=0)
         scenario.plot_action_rviz(pred_0, action)
@@ -176,7 +179,7 @@ def init_viz_action(metadata: Dict, action_keys, state_keys):
     return _init_viz_action
 
 
-def init_viz_env(scenario: ExperimentScenario, example: Dict, t: Optional[int] = None):
+def init_viz_env(scenario: ScenarioWithVisualization, example: Dict, t: Optional[int] = None):
     # the unused t arg makes it so we can pass this as either a t_func or a init_func
     scenario.plot_environment_rviz(example)
 
@@ -190,7 +193,7 @@ def recovery_probability_viz(pub: rospy.Publisher):
 
 
 def float32_viz(pub: rospy.Publisher, key: str):
-    def _data_viz(scenario: ExperimentScenario, example: Dict):
+    def _data_viz(scenario: ScenarioWithVisualization, example: Dict):
         data_msg = Float32()
         data_msg.data = example[key][0]
         pub.publish(data_msg)
@@ -199,24 +202,13 @@ def float32_viz(pub: rospy.Publisher, key: str):
 
 
 def float32_viz_t(pub: rospy.Publisher, key: str):
-    def _data_viz_t(scenario: ExperimentScenario, example: Dict, t: int):
+    def _data_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int):
         data_t = example[key][t, 0]
         data_msg = Float32()
         data_msg.data = data_t
         pub.publish(data_msg)
 
     return _data_viz_t
-
-
-def make_delete_marker(marker_id: int, ns: str):
-    m = Marker(action=Marker.DELETEALL, ns=ns, id=marker_id)
-    return m
-
-
-def make_delete_markerarray(marker_id: int, ns: str):
-    m = Marker(action=Marker.DELETEALL, ns=ns, id=marker_id)
-    msg = MarkerArray(markers=[m])
-    return msg
 
 
 def color_violinplot(parts, color):

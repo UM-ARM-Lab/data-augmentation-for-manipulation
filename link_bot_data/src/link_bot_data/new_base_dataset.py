@@ -1,7 +1,8 @@
 import pathlib
-import random
 from multiprocessing import Pool
 from typing import List, Dict, Optional, Callable
+
+import numpy as np
 
 from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example
 from link_bot_data.new_dataset_utils import load_possibly_batched, get_filenames, UNUSED_COMPAT
@@ -41,7 +42,8 @@ class NewBaseDataset:
     def shuffle(self, buffer_size=UNUSED_COMPAT, reshuffle_each_iteration=UNUSED_COMPAT):
         # FIXME: actually implementing this would be nice
         shuffled_filenames = self.filenames.copy()
-        random.shuffle(shuffled_filenames)
+        rng = np.random.RandomState(0)
+        rng.shuffle(shuffled_filenames)
         return self.__class__(self.loader, shuffled_filenames, self._post_process)
 
     def take(self, take):
