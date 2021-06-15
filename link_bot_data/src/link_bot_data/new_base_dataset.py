@@ -5,9 +5,10 @@ from typing import List, Dict, Optional, Callable
 import numpy as np
 
 from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example
-from link_bot_data.new_dataset_utils import load_possibly_batched, get_filenames, UNUSED_COMPAT
+from link_bot_data.new_dataset_utils import get_filenames, UNUSED_COMPAT, load_single
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from moonshine.moonshine_utils import batch_examples_dicts
 
 
 class NewBaseDataset:
@@ -19,11 +20,24 @@ class NewBaseDataset:
 
     def __iter__(self):
         for filenames in self.filenames:
-            e = load_possibly_batched(filenames, self.loader.loading_threadpool)
-            e = self.loader.post_process(e)
+            if isinstance(filenames, list):
+                example = self.load_batched(filenames)
+            else:
+                example = load_single(filenames)
+
+            # NOTE: I don't like this, it's inconsistent about calling post_process with batched/non-batched inputs
+            example = self.loader.post_process(example)
             for p in self._post_process:
-                e = p(e)
-            yield e
+                example = p(example)
+            yield example
+
+    def load_batched(self, filenames):
+        if self.loader.loading_threadpool is None:
+            examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
+        else:
+            examples_i = list(self.loader.loading_threadpool.imap_unordered(load_single, filenames))
+        example = batch_examples_dicts(examples_i)
+        return example
 
     def __len__(self):
         return len(self.filenames)
