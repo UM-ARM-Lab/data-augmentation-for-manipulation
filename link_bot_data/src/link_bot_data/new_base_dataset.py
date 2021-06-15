@@ -25,10 +25,7 @@ def prefetch(queue: Queue, filenames: List, n_prefetch: int):
 
         if isinstance(filenames_i, list):
             examples_i = list(pool.imap_unordered(load_single, filenames_i))
-            # with tf.device('/CPU:0'):
-            print(2)
             example = batch_examples_dicts(examples_i)
-            print(3)
         else:
             example = load_single(filenames_i)
 
