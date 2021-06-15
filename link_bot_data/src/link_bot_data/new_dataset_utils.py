@@ -31,6 +31,16 @@ def get_filenames(dataset_dirs, mode: str):
 
 
 def load_single(metadata_filename: pathlib.Path):
+    metadata = load_metadata(metadata_filename)
+
+    data_filename = metadata.pop("data")
+    full_data_filename = metadata_filename.parent / data_filename
+    example = load_gzipped_pickle(full_data_filename)
+    example.update(metadata)
+    return example
+
+
+def load_metadata(metadata_filename):
     if 'hjson' in metadata_filename.name:
         metadata = load_hjson(metadata_filename)
     elif 'pkl' in metadata_filename.name:
@@ -38,12 +48,7 @@ def load_single(metadata_filename: pathlib.Path):
             metadata = pickle.load(f)
     else:
         raise NotImplementedError()
-
-    data_filename = metadata.pop("data")
-    full_data_filename = metadata_filename.parent / data_filename
-    example = load_gzipped_pickle(full_data_filename)
-    example.update(metadata)
-    return example
+    return metadata
 
 
 def load_possibly_batched(filenames: Union[pathlib.Path, List[pathlib.Path]], pool: Optional[Pool] = None):

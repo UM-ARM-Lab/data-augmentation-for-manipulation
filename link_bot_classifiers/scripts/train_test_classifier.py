@@ -39,6 +39,10 @@ def eval_main(args):
     train_test_classifier.eval_main(**vars(args))
 
 
+def eval_n_main(args):
+    train_test_classifier.eval_n_main(**vars(args))
+
+
 def viz_main(args):
     train_test_classifier.viz_main(**vars(args))
 
@@ -105,6 +109,17 @@ def main():
     eval_parser.add_argument('--take', type=int)
     eval_parser.add_argument('--threshold', type=float, default=None)
     eval_parser.set_defaults(func=eval_main)
+
+    eval_n_parser = subparsers.add_parser('eval_n')
+    eval_n_parser.add_argument('dataset_dir', type=pathlib.Path)
+    eval_n_parser.add_argument('checkpoints', type=pathlib.Path, nargs='+')
+    eval_n_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
+    eval_n_parser.add_argument('--no-balance', action='store_true')
+    eval_n_parser.add_argument('--batch-size', type=int, default=32)
+    eval_n_parser.add_argument('--verbose', '-v', action='count', default=0)
+    eval_n_parser.add_argument('--take', type=int)
+    eval_n_parser.add_argument('--threshold', type=float, default=None)
+    eval_n_parser.set_defaults(func=eval_n_main)
 
     compare_parser = subparsers.add_parser('compare')
     compare_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')

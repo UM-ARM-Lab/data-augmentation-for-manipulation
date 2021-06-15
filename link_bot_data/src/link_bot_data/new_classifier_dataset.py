@@ -9,11 +9,11 @@ from more_itertools import interleave
 
 from link_bot_data.dataset_utils import add_predicted, add_label
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader, NewBaseDataset
-from link_bot_data.new_dataset_utils import UNUSED_COMPAT, get_filenames
+from link_bot_data.new_dataset_utils import UNUSED_COMPAT, get_filenames, load_metadata
 from link_bot_data.visualization import init_viz_env, init_viz_action, classifier_transition_viz_t
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
-from moonshine.filepath_tools import load_pkl, load_hjson
+from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_time
 
 
@@ -47,7 +47,7 @@ class NewClassifierDataset(NewBaseDataset):
 
         @halo.Halo("balancing")
         def _balance():
-            metadata = [load_pkl(f) for f in self.filenames]
+            metadata = [load_metadata(f) for f in self.filenames]
             is_close = np.array([m['error'][1] < self.loader.threshold for m in metadata])
             is_close_indices, = np.where(is_close)  # returns a tuple of length 1
             is_far_indices, = np.where(np.logical_not(is_close))  # returns a tuple of length 1

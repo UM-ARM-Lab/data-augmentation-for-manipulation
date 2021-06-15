@@ -166,7 +166,7 @@ def eval_generator(dataset_dirs: List[pathlib.Path],
         yield example, outputs
 
 
-def eval_main(dataset_dirs: List[pathlib.Path],
+def eval_main(dataset_dirs: pathlib.Path,
               checkpoint: pathlib.Path,
               mode: str,
               batch_size: int,
@@ -197,6 +197,42 @@ def eval_main(dataset_dirs: List[pathlib.Path],
     print("\t".join(metrics_to_print))
 
     return val_metrics
+
+
+def eval_n_main(dataset_dir: pathlib.Path,
+                checkpoints: List[pathlib.Path],
+                mode: str,
+                batch_size: int,
+                use_gt_rope: bool = True,
+                threshold: Optional[float] = None,
+                old_compat: bool = False,
+                take: Optional[int] = None,
+                no_balance: bool = True,
+                scenario: Optional[ScenarioWithVisualization] = None,
+                **kwargs):
+    dataset_loader, dataset = setup_eval_dataset((not no_balance), [dataset_dir], mode, old_compat, scenario, take,
+                                                 threshold, use_gt_rope, batch_size)
+
+    for checkpoint in checkpoints:
+        trial_path = checkpoint.parent.absolute()
+        _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
+        model_class = link_bot_classifiers.get_model(params['model_class'])
+
+        model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario())
+        # This call to model runner restores the model
+        runner = ModelRunner(model=model,
+                             training=False,
+                             params=params,
+                             checkpoint=checkpoint,
+                             trial_path=trial_path,
+                             key_metric=AccuracyCheckpointMetric,
+                             batch_metadata=dataset_loader.batch_metadata)
+
+        val_metrics = model.create_metrics()
+        runner.val_epoch(dataset, val_metrics)
+        metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives', 'loss']
+        metrics_to_print = [f"{val_metrics[k].result().numpy().squeeze():.4f}" for k in metric_keys_to_print]
+        print("\t".join(metrics_to_print))
 
 
 def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, take, threshold, use_gt_rope, scenario):

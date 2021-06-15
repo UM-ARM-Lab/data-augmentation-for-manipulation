@@ -1,12 +1,12 @@
-import datetime
 import pathlib
 import time
 from typing import Optional
 
-import progressbar
 import tensorflow as tf
 from colorama import Fore, Style
+from progressbar import progressbar
 
+from link_bot_data.progressbar_widgets import mywidgets
 from moonshine.metrics import LossCheckpointMetric
 from moonshine.my_keras_model import MyKerasModel
 
@@ -50,9 +50,6 @@ class ModelRunner:
 
         self.val_summary_writer = tf.summary.create_file_writer((self.trial_path / "logs/1_val").as_posix())
         self.train_summary_writer = tf.summary.create_file_writer((self.trial_path / "logs/2_train").as_posix())
-
-        self.num_train_batches = None
-        self.num_val_batches = None
 
         self.latest_ckpt = tf.train.Checkpoint(step=tf.Variable(1),
                                                epoch=tf.Variable(0),
@@ -130,60 +127,40 @@ class ModelRunner:
         self.write_summary(self.val_summary_writer, summary_dict)
 
     def train_epoch(self, train_dataset, val_dataset, train_metrics, val_metrics):
-        if self.num_train_batches is not None:
-            max_size = str(self.num_train_batches)
-        else:
-            max_size = '???'
+        t0 = time.time()
 
-        widgets = [
-            ' TRAIN ',
-            progressbar.Counter(), '/', max_size,
-            ' ', progressbar.Variable("Loss"), ' ',
-            progressbar.Bar(),
-            ' [', progressbar.Variable("TrainTime"), '] ',
-            ' (', progressbar.ETA(), ') ',
-        ]
+        for batch_idx, train_batch in enumerate(progressbar(train_dataset, widgets=mywidgets)):
+            self.model.scenario.heartbeat()
+            train_batch.update(self.batch_metadata)
+            self.latest_ckpt.step.assign_add(1)
 
-        with progressbar.ProgressBar(widgets=widgets, max_value=self.num_train_batches) as bar:
-            self.num_train_batches = 0
-            t0 = time.time()
+            for v in train_metrics.values():
+                v.reset_states()
+            self.model.train_step(train_batch, train_metrics)
 
-            for batch_idx, train_batch in enumerate(train_dataset):
-                self.model.scenario.heartbeat()
-                train_batch.update(self.batch_metadata)
-                self.num_train_batches += 1
-                self.latest_ckpt.step.assign_add(1)
+            self.write_train_summary({k: m.result() for k, m in train_metrics.items()})
 
-                for v in train_metrics.values():
-                    v.reset_states()
-                self.model.train_step(train_batch, train_metrics)
+            # Measure training time
+            now = time.time()
+            train_time = now - t0
+            t0 = now
+            self.latest_ckpt.train_time.assign_add(train_time)
 
-                time_str = str(datetime.timedelta(seconds=int(self.latest_ckpt.train_time.numpy())))
-                train_batch_loss = train_metrics['loss'].result().numpy().squeeze()
-                bar.update(self.num_train_batches, Loss=train_batch_loss, TrainTime=time_str)
-                self.write_train_summary({k: m.result() for k, m in train_metrics.items()})
+            # Mid-epoch validation
+            if self.val_every_n_batches is not None \
+                    and batch_idx % self.val_every_n_batches == 0 \
+                    and batch_idx > 0:
+                self.mid_epoch_validation(val_dataset, val_metrics)
 
-                # Measure training time
-                now = time.time()
-                train_time = now - t0
-                t0 = now
-                self.latest_ckpt.train_time.assign_add(train_time)
-
-                # Mid-epoch validation
-                if self.val_every_n_batches is not None \
-                        and batch_idx % self.val_every_n_batches == 0 \
-                        and batch_idx > 0:
-                    self.mid_epoch_validation(val_dataset, val_metrics)
-
-                # Mid-epoch checkpointing
-                overall_job_dt = now - self.overall_job_start_time
-                current_minute = int(overall_job_dt // 60)
-                if self.save_every_n_minutes \
-                        and current_minute > self.latest_minute \
-                        and current_minute % self.save_every_n_minutes == 0:
-                    self.latest_minute = current_minute
-                    save_path = self.latest_checkpoint_manager.save()
-                    print("Saving " + save_path)
+            # Mid-epoch checkpointing
+            overall_job_dt = now - self.overall_job_start_time
+            current_minute = int(overall_job_dt // 60)
+            if self.save_every_n_minutes \
+                    and current_minute > self.latest_minute \
+                    and current_minute % self.save_every_n_minutes == 0:
+                self.latest_minute = current_minute
+                save_path = self.latest_checkpoint_manager.save()
+                print("Saving " + save_path)
 
     def mid_epoch_validation(self, val_dataset, val_metrics):
         for v in val_metrics.values():
@@ -206,28 +183,13 @@ class ModelRunner:
             yield val_batch, self.model.val_step(val_batch, val_metrics)
 
     def val_epoch(self, val_dataset, val_metrics):
-        if self.num_val_batches is not None:
-            max_size = str(self.num_val_batches)
-        else:
-            max_size = '???'
-
-        widgets = [
-            ' VAL   ', progressbar.Counter(), '/', max_size,
-            progressbar.Bar(),
-            ' (', progressbar.AdaptiveETA(), ') ',
-        ]
-
         for v in val_metrics.values():
             v.reset_states()
 
-        with progressbar.ProgressBar(widgets=widgets, max_value=self.num_val_batches) as bar:
-            self.num_val_batches = 0
-            for val_batch in val_dataset:
-                self.model.scenario.heartbeat()
-                val_batch.update(self.batch_metadata)
-                self.num_val_batches += 1
-                self.model.val_step(val_batch, val_metrics)
-                bar.update(self.num_val_batches)
+        for val_batch in progressbar(val_dataset, widgets=mywidgets):
+            self.model.scenario.heartbeat()
+            val_batch.update(self.batch_metadata)
+            self.model.val_step(val_batch, val_metrics)
 
     def train(self, train_dataset, val_dataset, num_epochs):
         val_metrics = self.model.create_metrics()
