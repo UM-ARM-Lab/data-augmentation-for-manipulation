@@ -396,7 +396,7 @@ def coerce_types(d: Dict):
     out_d = {}
     for k, v in d.items():
         if isinstance(v, tf.Tensor):
-            out_d[k] = v
+            out_d[k] = v.numpy()
         elif isinstance(v, genpy.Message):
             out_d[k] = v
         elif isinstance(v, str):
@@ -408,9 +408,9 @@ def coerce_types(d: Dict):
         elif isinstance(v, list):
             v0 = v[0]
             if isinstance(v0, int):
-                out_d[k] = tf.convert_to_tensor(v)
+                out_d[k] = np.array(v)
             elif isinstance(v0, float):
-                out_d[k] = tf.convert_to_tensor(v, dtype=tf.float32)
+                out_d[k] = np.array(v, dtype=np.float32)
             elif isinstance(v0, genpy.Message):
                 out_d[k] = np.array(v, dtype=object)
             elif isinstance(v0, str):
@@ -418,9 +418,9 @@ def coerce_types(d: Dict):
             elif isinstance(v0, list):
                 v00 = v0[0]
                 if isinstance(v00, int):
-                    out_d[k] = tf.convert_to_tensor(v)
+                    out_d[k] = np.array(v)
                 elif isinstance(v00, float):
-                    out_d[k] = tf.convert_to_tensor(v, dtype=tf.float32)
+                    out_d[k] = np.array(v, dtype=np.float32)
                 elif isinstance(v00, str):
                     out_d[k] = v
                 elif isinstance(v00, genpy.Message):
