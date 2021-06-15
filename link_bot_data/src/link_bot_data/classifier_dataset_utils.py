@@ -11,12 +11,13 @@ import rospy
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, add_label, deserialize_scene_msg, write_example
 from link_bot_data.load_dataset import load_dynamics_dataset
+from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_dict_of_batched_tensors_tf
-from moonshine.moonshine_utils import gather_dict, numpify
+from moonshine.moonshine_utils import gather_dict
 from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
@@ -103,12 +104,14 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
 
     # because we're currently making this dataset, we can't call "get_dataset" but we can still use it to visualize
     # a bit hacky...
-    classifier_dataset_for_viz = ClassifierDatasetLoader([outdir], use_gt_rope=use_gt_rope)
+    if save_format == 'tfrecord':
+        classifier_dataset_for_viz = ClassifierDatasetLoader([outdir], use_gt_rope=use_gt_rope)
+    else:
+        classifier_dataset_for_viz = NewClassifierDatasetLoader([outdir], use_gt_rope=use_gt_rope)
 
     if custom_threshold is not None:
         labeling_params['threshold'] = custom_threshold
 
-    t0 = perf_counter()
     total_example_idx = 0
     for mode in ['train', 'val', 'test']:
         dataset = dataset_loader.get_datasets(mode=mode, take=take)
@@ -138,7 +141,6 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
                         classifier_dataset_for_viz.anim_transition_rviz(out_example_b)
 
                     write_example(full_output_directory, out_example_b, total_example_idx, save_format)
-                    # rospy.loginfo_throttle(10, f"Examples: {total_example_idx:10d}, Time: {perf_counter() - t0:.3f}")
                     total_example_idx += 1
 
     return outdir
@@ -151,20 +153,11 @@ def generate_classifier_examples(fwd_model: BaseDynamicsFunction,
                                  batch_size: int):
     classifier_horizon = labeling_params['classifier_horizon']
     assert classifier_horizon >= 2
-    # dataset = batch_tf_dataset(dataset, batch_size, drop_remainder=False)
     dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
     sc = dataset_loader.get_scenario()
 
-    for idx, _ in enumerate(dataset):
-        pass
-    n_total_batches = idx
-
-    t0 = perf_counter()
     for idx, example in enumerate(progressbar(dataset, widgts=mywidgets)):
         deserialize_scene_msg(example)
-
-        dt = perf_counter() - t0
-        actual_batch_size = int(example['traj_idx'].shape[0])
 
         valid_out_examples = []
         for start_t in range(0, dataset_loader.steps_per_traj - classifier_horizon + 1, labeling_params['start_step']):
@@ -188,7 +181,7 @@ def generate_classifier_examples(fwd_model: BaseDynamicsFunction,
                                                         env_keys=dataset_loader.env_keys,
                                                         labeling_params=labeling_params,
                                                         actual_prediction_horizon=actual_prediction_horizon,
-                                                        batch_size=actual_batch_size)
+                                                        batch_size=example['batch_size'])
             valid_out_examples_for_start_t = generate_classifier_examples_from_batch(sc, prediction_actual)
             valid_out_examples.extend(valid_out_examples_for_start_t)
 
@@ -234,7 +227,7 @@ def generate_classifier_examples_from_batch(scenario: ExperimentScenario, predic
                                                         labeling_params,
                                                         prediction_actual.batch_size)
         valid_out_examples['metadata'] = {
-            'error': out_example['error'],
+            'error': valid_out_examples['error'],
         }
         valid_out_example_batches.append(valid_out_examples)
 

@@ -109,7 +109,7 @@ class NewClassifierDatasetLoader(NewBaseDatasetLoader):
         return dataset
 
     def anim_transition_rviz(self, example: Dict):
-        anim = RvizAnimation(scenario=self.scenario,
+        anim = RvizAnimation(scenario=self.get_scenario(),
                              n_time_steps=self.horizon,
                              init_funcs=[init_viz_env, self.init_viz_action()],
                              t_funcs=[init_viz_env, self.classifier_transition_viz_t()])
