@@ -39,7 +39,7 @@ def batch_examples_dicts(examples: List):
             examples_batch[k] = values
         elif isinstance(v_check, tf.Tensor):
             with tf.device('/CPU:0'):
-                examples_batch[k] = tf.stack(values, axis=1, name='convert_batched')
+                examples_batch[k] = tf.stack(values, axis=0, name='convert_batched')
         else:
             with tf.device('/CPU:0'):
                 examples_batch[k] = tf.convert_to_tensor(np.array(values), name='convert_batched')

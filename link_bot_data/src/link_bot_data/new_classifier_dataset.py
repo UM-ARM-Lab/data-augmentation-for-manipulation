@@ -39,12 +39,13 @@ class NewClassifierDataset(NewBaseDataset):
         balance_filename = root / 'balanced.hjson'
         if balance_filename.exists():
             balance_info = load_hjson(balance_filename)
-            if self.mode in balance_info:
-                if str(self.loader.threshold) in balance_info[self.mode]:
-                    balanced_filenames = [pathlib.Path(f) for f in balance_info[self.mode][str(self.loader.threshold)]]
-                    return NewClassifierDataset(self.loader, balanced_filenames, self.mode, self._post_process)
         else:
             balance_info = {}
+
+        if self.mode in balance_info:
+            if str(self.loader.threshold) in balance_info[self.mode]:
+                balanced_filenames = [pathlib.Path(f) for f in balance_info[self.mode][str(self.loader.threshold)]]
+                return NewClassifierDataset(self.loader, balanced_filenames, self.mode, self._post_process)
 
         @halo.Halo("balancing")
         def _balance():
