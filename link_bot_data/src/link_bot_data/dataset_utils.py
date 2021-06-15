@@ -205,7 +205,7 @@ def make_add_batch_func(batch_size: int):
     return _add_batch
 
 
-def batch_tf_dataset(dataset: tf.data.Dataset, batch_size: int, drop_remainder: bool = True):
+def batch_tf_dataset(dataset, batch_size: int, drop_remainder: bool = True):
     dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
     if isinstance(dataset, tf.data.Dataset):
         dataset = dataset.map(make_add_batch_func(batch_size))

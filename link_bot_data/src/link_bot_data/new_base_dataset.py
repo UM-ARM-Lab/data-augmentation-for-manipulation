@@ -31,7 +31,8 @@ class NewBaseDataset:
         filenames_batched = list(batch_sequence(self.filenames, batch_size, drop_remainder))
 
         def _add_batch(example: Dict):
-            example['batch_size'] = batch_size
+            actual_batch_size = len(list(example.values())[0])
+            example['batch_size'] = actual_batch_size
             return example
 
         # use self.__class__ here so that derived dataset classes return instances of themselves not the base class
