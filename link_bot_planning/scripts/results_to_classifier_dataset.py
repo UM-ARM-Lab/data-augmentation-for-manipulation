@@ -30,7 +30,7 @@ def main():
                                    args.labeling_params,
                                    args.trial_indices,
                                    args.visualize,
-                                   args.save_format
+                                   args.save_format,
                                    args.full_tree)
     r.run()
 
