@@ -98,10 +98,10 @@ class NewBaseDataset:
         batched = self.__class__(self.loader, filenames_batched, self.mode, self._post_process, self.n_prefetch)
         return batched.map(_include_batch_size)
 
-    def shuffle(self, buffer_size=UNUSED_COMPAT, reshuffle_each_iteration=UNUSED_COMPAT):
+    def shuffle(self, buffer_size=UNUSED_COMPAT, seed: Optional[int] = 0, reshuffle_each_iteration=UNUSED_COMPAT):
         # FIXME: actually implementing this would be nice
         shuffled_filenames = self.filenames.copy()
-        rng = np.random.RandomState(0)
+        rng = np.random.RandomState(seed)
         rng.shuffle(shuffled_filenames)
         return self.__class__(self.loader, shuffled_filenames, self.mode, self._post_process, self.n_prefetch)
 

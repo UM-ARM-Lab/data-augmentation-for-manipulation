@@ -45,20 +45,18 @@ def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
     return hparams
 
 
-def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: Optional[int] = None):
-    # Dataset preprocessing
+def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, take: Optional[int] = None):
     train_tf_dataset = train_dataset.get_datasets(mode='train', shuffle=True)
     val_tf_dataset = val_dataset.get_datasets(mode='val', shuffle=True)
 
     if 'shuffle_buffer_size' in model_hparams:
-        train_tf_dataset = train_tf_dataset.shuffle(model_hparams['shuffle_buffer_size'], reshuffle_each_iteration=True)
+        train_tf_dataset = train_tf_dataset.shuffle(model_hparams['shuffle_buffer_size'],
+                                                    reshuffle_each_iteration=True,
+                                                    seed=seed)
 
-    # rospy.logerr_once("NOT BALANCING!")
     train_tf_dataset = train_tf_dataset.balance()
     val_tf_dataset = val_tf_dataset.balance()
 
-    # train_tf_dataset = batch_tf_dataset(train_tf_dataset, batch_size, drop_remainder=True)
-    # val_tf_dataset = batch_tf_dataset(val_tf_dataset, batch_size, drop_remainder=True)
     train_tf_dataset = train_tf_dataset.batch(batch_size, drop_remainder=True)
     val_tf_dataset = val_tf_dataset.batch(batch_size, drop_remainder=True)
 
@@ -129,7 +127,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          save_every_n_minutes=save_every_n_minutes,
                          validate_first=validate_first,
                          batch_metadata=train_dataset.batch_metadata)
-    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take)
+    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, take)
 
     final_val_metrics = runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
 
@@ -509,10 +507,6 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
                             take: Optional[int] = None,
                             balance: Optional[bool] = True,
                             **kwargs):
-    # Model
-    # models = [load_generic_model(checkpoint) for checkpoint in checkpoints]
-    # const_keys_for_classifier = []
-    # ensemble = Ensemble2(models, const_keys_for_classifier)
     ensemble = classifier_utils.load_generic_model(ensemble_path)
 
     # Dataset
