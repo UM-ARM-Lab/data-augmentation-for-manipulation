@@ -5,11 +5,13 @@ from typing import Optional, List, Dict, Union
 
 import numpy as np
 from colorama import Fore
+from progressbar import progressbar
 
 import rospy
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
 from link_bot_data.dataset_utils import tf_write_example, add_predicted
 from link_bot_data.files_dataset import FilesDataset
+from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.analysis import results_utils
 from link_bot_planning.analysis.results_utils import NoTransitionsError, get_transitions
@@ -86,8 +88,6 @@ class ResultsToClassifierDataset:
         logfilename = self.outdir / 'logfile.hjson'
         job_chunker = JobChunker(logfilename)
 
-        t0 = perf_counter()
-        last_t = t0
         total_examples = 0
         for trial_idx, datum in results_utils.trials_generator(self.results_dir, self.trial_indices):
             self.scenario.heartbeat()
@@ -107,21 +107,10 @@ class ResultsToClassifierDataset:
 
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
             try:
-                for example in self.result_datum_to_dynamics_dataset(datum, trial_idx, self.subsample_fraction):
-                    now = perf_counter()
-                    dt = now - last_t
-                    total_dt = now - t0
-                    last_t = now
-
+                examples_gen = self.result_datum_to_dynamics_dataset(datum, trial_idx, self.subsample_fraction)
+                for example in progressbar(examples_gen, widgets=mywidgets):
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
-                    if self.verbose >= 0:
-                        msg = ' '.join([f'Trial {trial_idx}',
-                                        f'Example {self.example_idx}',
-                                        f'dt={dt:.3f},',
-                                        f'total time={total_dt:.3f},',
-                                        f'{total_examples=}'])
-                        print(msg)
                     example = try_make_dict_tf_float32(example)
                     full_filename = tf_write_example(self.outdir, example, self.example_idx)
                     self.files.add(full_filename)
@@ -164,8 +153,6 @@ class ResultsToClassifierDataset:
 
                 self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                 total_examples += 1
-                print(
-                    f'Trial {trial_idx} Example {self.example_idx} dt={dt:.3f}, total time={total_dt:.3f}, {total_examples=}')
                 example = try_make_dict_tf_float32(example)
                 tf_write_example(self.outdir, example, self.example_idx)
                 example_idx_for_trial += 1
