@@ -9,7 +9,7 @@ from progressbar import progressbar
 
 import rospy
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
-from link_bot_data.dataset_utils import tf_write_example, add_predicted
+from link_bot_data.dataset_utils import tf_write_example, add_predicted, write_example
 from link_bot_data.files_dataset import FilesDataset
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_gazebo.gazebo_services import GazeboServices
@@ -153,7 +153,7 @@ class ResultsToClassifierDataset:
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
                     example = try_make_dict_tf_float32(example)
-                    full_filename = tf_write_example(self.outdir, example, self.example_idx)
+                    full_filename = write_example(self.outdir, example, self.example_idx, save_format='pkl')
                     self.files.add(full_filename)
                     example_idx_for_trial += 1
 
