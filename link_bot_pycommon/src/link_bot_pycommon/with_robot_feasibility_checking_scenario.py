@@ -10,9 +10,15 @@ class DualArmRopeSimValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobot
         SimValDualArmRopeScenario.__init__(self)
         DualArmRopeWithRobotFeasibilityCheckingScenario.__init__(self, self.robot_namespace)
 
+    def simple_name(self):
+        return "dual_arm_rope_sim_val_with_robot_feasibility_checking"
+
 
 class DualArmRopeRealValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobotFeasibilityCheckingScenario,
                                                              DualArmRealValRopeScenario):
     def __init__(self):
         DualArmRealValRopeScenario.__init__(self)
         DualArmRopeWithRobotFeasibilityCheckingScenario.__init__(self, self.robot_namespace)
+
+    def simple_name(self):
+        return "real_val_with_robot_feasibility_checking"

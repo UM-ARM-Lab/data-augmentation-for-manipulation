@@ -1,7 +1,5 @@
 from colorama import Fore
 
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
-
 # With this approach, we only ever import the scenario we want to use. Nice!
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 

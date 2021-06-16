@@ -229,6 +229,7 @@ def save_classifier_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.P
     dataset_hparams_update = {
         'from_results':           results_dir,
         'seed':                   None,
+        'scenario':               planner_params['scenario'],
         'labeling_params':        labeling_params,
         'data_collection_params': {
             'steps_per_traj': 2,
