@@ -5,7 +5,6 @@ import pickle
 import uuid
 from enum import Enum
 
-import bsdf
 import hjson
 import numpy as np
 import tensorflow as tf
@@ -97,30 +96,3 @@ class MyHJsonSerializer:
     @staticmethod
     def dump(data, fp):
         hjson.dump(data, fp, cls=MyHjsonEncoder)
-
-
-class TfBsdfExtension(bsdf.Extension):
-    name = 'tf'
-    cls = (tf.Tensor, tf.Variable)
-
-    def __init__(self):
-        self.ndext = bsdf.NDArrayExtension()
-
-    def encode(self, s, v):
-        return self.ndext.encode(s, v.numpy())
-
-    def decode(self, s, v):
-        return tf.convert_to_tensor(self.ndext.decode(s, v))
-
-
-my_bsdf_extensions = bsdf.standard_extensions + [TfBsdfExtension]
-
-
-def load_bsdf(filename: pathlib.Path):
-    with filename.open('rb') as f:
-        return bsdf.load(f, extensions=my_bsdf_extensions)
-
-
-def save_bsdf(data, filename: pathlib.Path):
-    with filename.open('wb') as f:
-        bsdf.save(f, data, extensions=my_bsdf_extensions)
