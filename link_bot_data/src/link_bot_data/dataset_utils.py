@@ -375,7 +375,8 @@ def in_maybe_predicted(k: str, e: Dict):
 
 
 def use_gt_rope(example: Dict):
-    example['rope'] = example['gt_rope']
+    if 'gt_rope' in example:
+        example['rope'] = example['gt_rope']
     return example
 
 
