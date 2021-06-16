@@ -10,8 +10,6 @@ from progressbar import progressbar
 import rospy
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
 from link_bot_data.dataset_utils import tf_write_example, add_predicted, write_example
-from link_bot_data.files_dataset import FilesDataset
-from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.analysis import results_utils
 from link_bot_planning.analysis.results_utils import NoTransitionsError, get_transitions, \
@@ -70,7 +68,6 @@ class ResultsToClassifierDataset:
         self.scenario, self.metadata = results_utils.get_scenario_and_metadata(results_dir)
 
         self.example_idx = None
-        self.files = FilesDataset(outdir, val_split, test_split)
 
         if self.full_tree:
             self.scenario.on_before_get_state_or_execute_action()
@@ -154,7 +151,6 @@ class ResultsToClassifierDataset:
                     total_examples += 1
                     example = try_make_dict_tf_float32(example)
                     full_filename = write_example(self.outdir, example, self.example_idx, save_format='pkl')
-                    self.files.add(full_filename)
                     example_idx_for_trial += 1
 
                     job_chunker.store_result(trial_idx, {'trial':              trial_idx,
@@ -167,7 +163,6 @@ class ResultsToClassifierDataset:
                                                  'examples for trial': example_idx_for_trial})
 
         print(Fore.LIGHTMAGENTA_EX + f"Wrote {total_examples} classifier examples" + Fore.RESET)
-        self.files.split()
 
     def full_results_to_classifier_dataset(self):
         logfilename = self.outdir / 'logfile.hjson'
