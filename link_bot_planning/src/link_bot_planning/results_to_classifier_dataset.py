@@ -14,12 +14,15 @@ from link_bot_data.files_dataset import FilesDataset
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.analysis import results_utils
-from link_bot_planning.analysis.results_utils import NoTransitionsError, get_transitions
+from link_bot_planning.analysis.results_utils import NoTransitionsError, get_transitions, \
+    dynamics_dataset_params_from_classifier_params, classifier_params_from_planner_params, \
+    fwd_model_params_from_planner_params
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions, try_make_dict_tf_float32
+from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch_single, add_batch, remove_batch
 from std_msgs.msg import Empty
@@ -86,10 +89,32 @@ class ResultsToClassifierDataset:
             self.results_to_classifier_dataset()
 
     def save_hparams(self):
-        results_utils.save_classifier_dataset_hparams(self.results_dir,
-                                                      self.outdir,
-                                                      self.metadata,
-                                                      self.labeling_params)
+        planner_params = self.metadata['planner_params']
+        classifier_params = classifier_params_from_planner_params(planner_params)
+        try:
+            phase2_dataset_params = dynamics_dataset_params_from_classifier_params(classifier_params)
+        except KeyError:
+            phase2_dataset_params = {}
+
+        fwd_model_hparams = fwd_model_params_from_planner_params(planner_params)
+        dataset_hparams = phase2_dataset_params
+        dataset_hparams_update = {
+            'from_results':           self.results_dir,
+            'seed':                   None,
+            'scenario':               planner_params['scenario'],
+            'env_keys':               fwd_model_hparams['env_keys'],
+            'true_state_keys':        fwd_model_hparams['state_keys'],
+            'predicted_state_keys':   fwd_model_hparams['state_keys'],
+            'state_metadata_keys':    fwd_model_hparams['state_metadata_keys'],
+            'action_keys':            fwd_model_hparams['action_keys'],
+            'labeling_params':        self.labeling_params,
+            'data_collection_params': {
+                'steps_per_traj': 2,
+            },
+        }
+        dataset_hparams.update(dataset_hparams_update)
+        with (self.outdir / 'hparams.hjson').open('w') as dataset_hparams_file:
+            my_hdump(dataset_hparams, dataset_hparams_file, indent=2)
 
     def results_to_classifier_dataset(self):
         logfilename = self.outdir / 'logfile.hjson'

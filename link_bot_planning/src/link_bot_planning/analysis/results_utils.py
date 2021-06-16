@@ -216,30 +216,6 @@ def list_all_planning_results_trials(results_dir):
     return list_numbered_files(results_dir, extension='pkl.gz', pattern=r'.*?([0-9]+)_metrics.')
 
 
-def save_classifier_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.Path, metadata: Dict,
-                                    labeling_params: Optional[Dict] = None):
-    planner_params = metadata['planner_params']
-    classifier_params = classifier_params_from_planner_params(planner_params)
-    try:
-        phase2_dataset_params = dynamics_dataset_params_from_classifier_params(classifier_params)
-    except KeyError:
-        phase2_dataset_params = {}
-
-    dataset_hparams = phase2_dataset_params
-    dataset_hparams_update = {
-        'from_results':           results_dir,
-        'seed':                   None,
-        'scenario':               planner_params['scenario'],
-        'labeling_params':        labeling_params,
-        'data_collection_params': {
-            'steps_per_traj': 2,
-        },
-    }
-    dataset_hparams.update(dataset_hparams_update)
-    with (outdir / 'hparams.hjson').open('w') as dataset_hparams_file:
-        my_hdump(dataset_hparams, dataset_hparams_file, indent=2)
-
-
 def print_percentage(description: str, numerator: int, denominator: int):
     if denominator == 0:
         print(f'{description:80s} {numerator}/0 (division by zero)')
