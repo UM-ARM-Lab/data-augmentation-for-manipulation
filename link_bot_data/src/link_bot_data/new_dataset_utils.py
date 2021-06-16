@@ -37,6 +37,7 @@ def load_single(metadata_filename: pathlib.Path):
     full_data_filename = metadata_filename.parent / data_filename
     example = load_gzipped_pickle(full_data_filename)
     example.update(metadata)
+    example['metadata'] = metadata
     return example
 
 

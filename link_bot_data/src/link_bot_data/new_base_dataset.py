@@ -1,5 +1,6 @@
 import multiprocessing
 import pathlib
+import queue
 import sys
 from multiprocessing import Pool, Process, Queue
 from typing import List, Dict, Optional, Callable
@@ -73,8 +74,11 @@ class NewBaseDataset:
         prefetch_process.start()
 
         while prefetch_process.is_alive():
-            example = prefetch_queue.get()
-            yield example
+            try:
+                example = prefetch_queue.get(timeout=5)
+                yield example
+            except queue.Empty:
+                break
 
         prefetch_process.terminate()
         prefetch_process.join()
