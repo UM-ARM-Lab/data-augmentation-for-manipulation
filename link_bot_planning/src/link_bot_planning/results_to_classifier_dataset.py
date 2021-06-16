@@ -38,6 +38,7 @@ class ResultsToClassifierDataset:
                  labeling_params: Optional[Union[pathlib.Path, Dict]] = None,
                  trial_indices: Optional[List[int]] = None,
                  visualize: bool = False,
+                 save_format: str = 'pkl',
                  full_tree: bool = False,
                  test_split: Optional[float] = None,
                  val_split: Optional[float] = None,
@@ -45,6 +46,7 @@ class ResultsToClassifierDataset:
                  subsample_fraction: Optional[float] = None,
                  **kwargs):
         self.restart = False
+        self.save_format = save_format
         self.rng = np.random.RandomState(0)
         self.service_provider = GazeboServices()
         self.full_tree = full_tree
@@ -150,7 +152,7 @@ class ResultsToClassifierDataset:
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
                     example = try_make_dict_tf_float32(example)
-                    full_filename = write_example(self.outdir, example, self.example_idx, save_format='pkl')
+                    full_filename = write_example(self.outdir, example, self.example_idx, self.save_format)
                     example_idx_for_trial += 1
 
                     job_chunker.store_result(trial_idx, {'trial':              trial_idx,

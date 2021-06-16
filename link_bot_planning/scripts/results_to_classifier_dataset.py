@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--labeling-params", type=pathlib.Path, help='labeling params')
     parser.add_argument("--visualize", action='store_true', help='visualize')
     parser.add_argument("--trial-indices", type=int_set_arg, help='which plan(s) to show')
+    parser.add_argument("--save-format", type=str, choices=['pkl', 'tfrecord'], default='pkl')
 
     args = parser.parse_args()
 
@@ -29,6 +30,7 @@ def main():
                                    args.labeling_params,
                                    args.trial_indices,
                                    args.visualize,
+                                   args.save_format
                                    args.full_tree)
     r.run()
 
