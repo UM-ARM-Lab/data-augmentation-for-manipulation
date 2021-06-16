@@ -78,11 +78,18 @@ class ResultsToClassifierDataset:
         self.gazebo_restarting_sub = rospy.Subscriber("gazebo_restarting", Empty, self.on_gazebo_restarting)
 
     def run(self):
-        results_utils.save_classifier_dataset_hparams(self.results_dir, self.outdir, self.metadata)
+        self.save_hparams()
+
         if self.full_tree:
             self.full_results_to_classifier_dataset()
         else:
             self.results_to_classifier_dataset()
+
+    def save_hparams(self):
+        results_utils.save_classifier_dataset_hparams(self.results_dir,
+                                                      self.outdir,
+                                                      self.metadata,
+                                                      self.labeling_params)
 
     def results_to_classifier_dataset(self):
         logfilename = self.outdir / 'logfile.hjson'

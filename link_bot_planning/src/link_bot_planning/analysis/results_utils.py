@@ -216,7 +216,8 @@ def list_all_planning_results_trials(results_dir):
     return list_numbered_files(results_dir, extension='pkl.gz', pattern=r'.*?([0-9]+)_metrics.')
 
 
-def save_classifier_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.Path, metadata: Dict):
+def save_classifier_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.Path, metadata: Dict,
+                                    labeling_params: Optional[Dict] = None):
     planner_params = metadata['planner_params']
     classifier_params = classifier_params_from_planner_params(planner_params)
     try:
@@ -228,6 +229,7 @@ def save_classifier_dataset_hparams(results_dir: pathlib.Path, outdir: pathlib.P
     dataset_hparams_update = {
         'from_results':           results_dir,
         'seed':                   None,
+        'labeling_params':        labeling_params,
         'data_collection_params': {
             'steps_per_traj': 2,
         },
