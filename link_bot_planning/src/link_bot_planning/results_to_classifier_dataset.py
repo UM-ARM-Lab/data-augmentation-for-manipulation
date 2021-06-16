@@ -149,7 +149,7 @@ class ResultsToClassifierDataset:
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
             try:
                 examples_gen = self.result_datum_to_dynamics_dataset(datum, trial_idx, self.subsample_fraction)
-                for example in progressbar(examples_gen, widgets=mywidgets):
+                for example in progressbar(examples_gen):
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
                     example = try_make_dict_tf_float32(example)
