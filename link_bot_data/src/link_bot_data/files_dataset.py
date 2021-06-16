@@ -7,7 +7,7 @@ import numpy as np
 from link_bot_data.dataset_utils import DEFAULT_VAL_SPLIT, DEFAULT_TEST_SPLIT
 
 
-class FilesDataset:
+class OldDatasetSplitter:
 
     def __init__(self, root_dir: pathlib.Path, val_split: Optional[float] = DEFAULT_VAL_SPLIT,
                  test_split: Optional[float] = DEFAULT_TEST_SPLIT):

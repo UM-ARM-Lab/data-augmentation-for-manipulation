@@ -9,6 +9,8 @@
       Success %
       Mean Task Error
       Median Task Error
+      Mean Cumulative Task Error
+      Mean Cumulative Planning Error
       Mean NME
       Median NME
     ]
@@ -18,6 +20,8 @@
       ["success", ["mean"]]
       ["task_error", ["mean"]]
       ["task_error", ["median"]]
+      ["cumulative_task_error", ["mean"]]
+      ["cumulative_planning_error", ["mean"]]
       ["normalized_model_error", ["mean"]]
       ["normalized_model_error", ["median"]]
     ]

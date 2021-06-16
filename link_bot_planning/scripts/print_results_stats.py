@@ -8,7 +8,7 @@ import numpy as np
 import tabulate
 
 import rospy
-from link_bot_planning.analysis import results_utils
+from link_bot_planning.analysis import results_utils, results_metrics
 from link_bot_planning.analysis.results_metrics import any_solved
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
@@ -19,38 +19,23 @@ def metrics_main(args):
     metadata = load_json_or_hjson(args.results_dir, 'metadata')
     scenario = get_scenario(metadata['scenario'])
 
+    metrics_funcs = [
+        results_metrics.task_error,
+        results_metrics.num_recovery_actions,
+        results_metrics.recovery_success,
+        results_metrics.total_time,
+        results_metrics.planning_time,
+    ]
+
     rows = []
     for trial_idx, datum in results_utils.trials_generator(args.results_dir):
-        status = datum['trial_status']
-        end_state = datum['end_state']
-        goal = datum['goal']
-        task_error = scenario.distance_to_goal(end_state, goal).numpy()
-        used_recovery = False
-        recovery_successful = False
-        num_recoveries = 0
-        steps = datum['steps']
-        for step in steps:
-            if step['type'] == 'executed_recovery':
-                num_recoveries += 1
-                used_recovery = True
-            if used_recovery and step['type'] == 'executed_plan':
-                recovery_successful = True
-
-        solved = any_solved(scenario, metadata, datum)
-        row = [trial_idx,
-               status.name,
-               f'{task_error:.3f}',
-               int(used_recovery),
-               int(recovery_successful),
-               int(solved),
-               num_recoveries]
+        row = [trial_idx] + [f(scenario, metadata, datum) for f in metrics_funcs]
         rows.append(row)
 
     rows = sorted(rows)
 
-    headers = ['trial idx', 'success?', 'final error', 'used recovery?', 'recovery succeeded?', 'solved?',
-               '# recoveries']
-    print(tabulate.tabulate(rows, headers=headers, tablefmt=tabulate.simple_separated_format("\t")))
+    headers = ['trial idx'] + [f.__name__ for f in metrics_funcs]
+    print(tabulate.tabulate(rows, headers=headers, tablefmt=tabulate.simple_separated_format("\t"), numalign='left'))
 
     with open(args.results_dir / 'results_stats.txt', 'w') as outfile:
         writer = csv.writer(outfile)

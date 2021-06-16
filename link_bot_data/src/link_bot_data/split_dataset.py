@@ -1,7 +1,23 @@
+import pathlib
+
 from link_bot_data.dataset_utils import DEFAULT_VAL_SPLIT, DEFAULT_TEST_SPLIT
+from link_bot_data.files_dataset import OldDatasetSplitter
+from link_bot_data.load_dataset import guess_dataset_format
 
 
-def split_dataset(dataset_dir, extension):
+def split_dataset(dataset_dir: pathlib.Path):
+    dataset_format = guess_dataset_format(dataset_dir)
+    if dataset_format == 'tfrecord':
+        files_dataset = OldDatasetSplitter(root_dir=dataset_dir)
+        sorted_records = sorted(list(dataset_dir.glob(f"example_*.tfrecords")))
+        for file in sorted_records:
+            files_dataset.add(file)
+        files_dataset.split()
+    elif dataset_format == 'pkl':
+        split_dataset_via_files(dataset_dir, 'pkl')
+
+
+def split_dataset_via_files(dataset_dir: pathlib.Path, extension: str):
     paths = sorted(list(dataset_dir.glob(f"example_*.{extension}")))
     n_files = len(paths)
     n_validation = int(DEFAULT_VAL_SPLIT * n_files)

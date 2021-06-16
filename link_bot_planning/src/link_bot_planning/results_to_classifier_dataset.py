@@ -10,6 +10,7 @@ from progressbar import progressbar
 import rospy
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
 from link_bot_data.dataset_utils import tf_write_example, add_predicted, write_example
+from link_bot_data.split_dataset import split_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.analysis import results_utils
 from link_bot_planning.analysis.results_utils import NoTransitionsError, get_transitions, \
@@ -86,6 +87,8 @@ class ResultsToClassifierDataset:
             self.full_results_to_classifier_dataset()
         else:
             self.results_to_classifier_dataset()
+
+        split_dataset(self.outdir)
 
     def save_hparams(self):
         planner_params = self.metadata['planner_params']

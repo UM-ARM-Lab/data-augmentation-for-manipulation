@@ -19,7 +19,7 @@ from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_classifiers.fine_tune_recovery import fine_tune_recovery
 from link_bot_classifiers.nn_classifier import NNClassifier
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
-from link_bot_data.files_dataset import FilesDataset
+from link_bot_data.files_dataset import OldDatasetSplitter
 from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
 from link_bot_planning.analysis.results_utils import list_all_planning_results_trials
@@ -277,7 +277,7 @@ class IterativeFineTuning:
         with new_hparams_filename.open('w') as new_hparams_file:
             hjson.dump(new_dataset_hparams, new_hparams_file)
 
-        files_dataset = FilesDataset(root_dir=dataset_dir)
+        files_dataset = OldDatasetSplitter(root_dir=dataset_dir)
 
         def configs_generator():
             rng = random.Random(self.log.get('seed', 0))

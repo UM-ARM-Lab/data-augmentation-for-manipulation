@@ -28,6 +28,7 @@ metrics_funcs = [
     num_steps,
     task_error,
     cumulative_task_error,
+    cumulative_planning_error,
     any_solved,
     success,
     normalized_model_error,

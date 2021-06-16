@@ -11,7 +11,7 @@ import rospy
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers import classifier_utils
 from link_bot_data.dataset_utils import tf_write_example
-from link_bot_data.files_dataset import FilesDataset
+from link_bot_data.files_dataset import OldDatasetSplitter
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader, compute_recovery_probabilities
 from link_bot_data.recovery_dataset_utils import batch_stateless_sample_action, \
     predict_and_classify_for_recovery_dataset
@@ -81,7 +81,7 @@ class ResultsToRecoveryDataset:
         self.action_params.update(self.planner_params_for_results['action_params'])
 
         self.example_idx = None
-        self.files = FilesDataset(outdir, val_split, test_split)
+        self.files = OldDatasetSplitter(outdir, val_split, test_split)
 
         outdir.mkdir(exist_ok=True, parents=True)
 

@@ -7,7 +7,7 @@ import hjson
 
 from arc_utilities import ros_init
 from link_bot_data.base_collect_dynamics_data import TfDataCollector, H5DataCollector, PklDataCollector
-from link_bot_data.split_dataset import split_dataset
+from link_bot_data.split_dataset import split_dataset_via_files
 from link_bot_pycommon.get_service_provider import get_service_provider
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -46,7 +46,7 @@ def main():
                                         seed=args.seed,
                                         verbose=args.verbose)
     dataset_dir = data_collector.collect_data(n_trajs=args.n_trajs, nickname=args.nickname)
-    split_dataset(dataset_dir, extension)
+    split_dataset_via_files(dataset_dir, extension)
 
 
 if __name__ == '__main__':

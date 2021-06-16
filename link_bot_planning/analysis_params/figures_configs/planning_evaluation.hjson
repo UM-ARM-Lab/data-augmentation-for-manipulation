@@ -10,6 +10,15 @@
   }
   {
     type: BoxPlot
+    name: total_time
+    xlabel: method
+    ylabel: Total Time
+    reductions: [
+      ["total_time", [null]]
+    ]
+  }
+  {
+    type: BoxPlot
     name: planning_time
     xlabel: method
     ylabel: Planning Time

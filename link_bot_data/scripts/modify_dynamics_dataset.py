@@ -9,7 +9,7 @@ from arc_utilities import ros_init
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.modify_dataset import modify_dataset, modify_dataset2
-from link_bot_data.split_dataset import split_dataset
+from link_bot_data.split_dataset import split_dataset_via_files
 
 
 @ros_init.with_ros("modify_dynamics_dataset")
@@ -51,7 +51,7 @@ def main():
                         process_example=_process_example,
                         hparams_update=hparams_update,
                         save_format=args.save_format)
-        split_dataset(args.dataset_dir, 'hjson')
+        split_dataset_via_files(args.dataset_dir, 'hjson')
 
 
 if __name__ == '__main__':

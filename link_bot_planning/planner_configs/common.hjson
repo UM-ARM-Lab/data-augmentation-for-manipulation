@@ -5,8 +5,8 @@
   ]
   fwd_model_dir: /media/shared/dy_trials/gt_rope_w_robot_ensemble/none
   termination_criteria: {
-    total_timeout: 1200
-    timeout: 1200
+    total_timeout: 900
+    timeout: 900
     attempted_extensions_threshold: 32
   }
   action_params: {

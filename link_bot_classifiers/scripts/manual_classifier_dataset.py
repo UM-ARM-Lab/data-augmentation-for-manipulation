@@ -9,7 +9,7 @@ import rospy
 from arc_utilities import ros_init
 from link_bot_data.classifier_dataset_utils import add_model_error
 from link_bot_data.dataset_utils import tf_write_example, add_predicted, use_gt_rope
-from link_bot_data.files_dataset import FilesDataset
+from link_bot_data.files_dataset import OldDatasetSplitter
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import try_make_dict_tf_float32
 from link_bot_pycommon.serialization import my_hdump
@@ -35,7 +35,7 @@ def main():
 
     fwd_model = dynamics_utils.load_generic_model(args.fwd_model_dir, scenario)
 
-    files = FilesDataset(args.outdir)
+    files = OldDatasetSplitter(args.outdir)
     labeling_params = load_hjson(args.labeling_params)
     params = load_hjson(args.data_collection_params)
     example_idx = 0

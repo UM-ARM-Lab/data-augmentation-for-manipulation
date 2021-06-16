@@ -8,7 +8,7 @@ from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.load_dataset import guess_dataset_format
 from link_bot_data.modify_dataset import modify_dataset, modify_dataset2
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
-from link_bot_data.split_dataset import split_dataset
+from link_bot_data.split_dataset import split_dataset_via_files
 from link_bot_pycommon.grid_utils import extent_res_to_origin_point
 
 
@@ -50,7 +50,7 @@ def main():
                         process_example=_process_example,
                         hparams_update=hparams_update,
                         save_format=args.save_format)
-        split_dataset(args.dataset_dir, 'pkl')
+        split_dataset_via_files(args.dataset_dir, 'pkl')
 
 
 if __name__ == '__main__':
