@@ -94,20 +94,29 @@ class ResultsToClassifierDataset:
         try:
             phase2_dataset_params = dynamics_dataset_params_from_classifier_params(classifier_params)
         except KeyError:
-            phase2_dataset_params = {}
+            # this happens when you run the planner without any of the learned classifiers
+            fwd_model_hparams = fwd_model_params_from_planner_params(planner_params)
+            phase2_dataset_params = {
+                'scenario':             planner_params['scenario'],
+                'env_keys':             [
+                    'env',
+                    'origin',
+                    'origin_point',
+                    'res',
+                    'extent',
+                    'scene_msg',
+                ],
+                'true_state_keys':      fwd_model_hparams['state_keys'],
+                'predicted_state_keys': fwd_model_hparams['state_keys'],
+                'state_metadata_keys':  fwd_model_hparams['state_metadata_keys'],
+                'action_keys':          fwd_model_hparams['action_keys'],
+                'labeling_params':      self.labeling_params,
+            }
 
-        fwd_model_hparams = fwd_model_params_from_planner_params(planner_params)
         dataset_hparams = phase2_dataset_params
         dataset_hparams_update = {
             'from_results':           self.results_dir,
             'seed':                   None,
-            'scenario':               planner_params['scenario'],
-            'env_keys':               fwd_model_hparams['env_keys'],
-            'true_state_keys':        fwd_model_hparams['state_keys'],
-            'predicted_state_keys':   fwd_model_hparams['state_keys'],
-            'state_metadata_keys':    fwd_model_hparams['state_metadata_keys'],
-            'action_keys':            fwd_model_hparams['action_keys'],
-            'labeling_params':        self.labeling_params,
             'data_collection_params': {
                 'steps_per_traj': 2,
             },
