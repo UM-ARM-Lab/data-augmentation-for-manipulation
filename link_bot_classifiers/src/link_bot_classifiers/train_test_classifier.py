@@ -189,7 +189,7 @@ def eval_main(dataset_dirs: pathlib.Path,
     runner.val_epoch(tf_dataset, val_metrics)
     # for metric_name, metric_value in val_metrics.items():
     #     print(f"{metric_name:30s}: {metric_value.result().numpy().squeeze():.4f}")
-    metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives', 'loss']
+    metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives']
     metrics_to_print = [f"{val_metrics[k].result().numpy().squeeze():.4f}" for k in metric_keys_to_print]
     print("\t".join(metrics_to_print))
 
@@ -227,7 +227,7 @@ def eval_n_main(dataset_dir: pathlib.Path,
 
         val_metrics = model.create_metrics()
         runner.val_epoch(dataset, val_metrics)
-        metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives', 'loss']
+        metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives']
         metrics_to_print = [f"{val_metrics[k].result().numpy().squeeze():.4f}" for k in metric_keys_to_print]
         print("\t".join(metrics_to_print))
 

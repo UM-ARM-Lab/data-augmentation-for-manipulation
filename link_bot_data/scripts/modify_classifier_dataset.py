@@ -9,6 +9,7 @@ from link_bot_data.load_dataset import guess_dataset_format
 from link_bot_data.modify_dataset import modify_dataset, modify_dataset2
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.split_dataset import split_dataset
+from link_bot_pycommon.grid_utils import extent_res_to_origin_point
 
 
 @ros_init.with_ros("modify_classifier_dataset")
@@ -23,7 +24,7 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset, example: Dict):
-        # example['origin_point'] = extent_res_to_origin_point(example['extent'], example['res'])
+        example['origin_point'] = extent_res_to_origin_point(example['extent'], example['res'])
         yield example
 
     hparams_update = {}
