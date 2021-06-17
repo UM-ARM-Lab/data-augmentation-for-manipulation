@@ -83,7 +83,8 @@ class NNClassifier(MyKerasModel):
         self.debug = ClassifierDebugging(self.scenario, self.state_keys, self.action_keys)
 
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
-        print(Fore.LIGHTBLUE_EX + f"{self.include_robot_geometry=}" + Fore.RESET)
+        if not self.include_robot_geometry:
+            print(Fore.RED + f"Old model! {self.include_robot_geometry=}" + Fore.RESET)
         self.robot_info = RobotVoxelgridInfo(joint_positions_key=add_predicted('joint_positions'))
 
         self.vg_info = VoxelgridInfo(h=self.local_env_h_rows,
