@@ -109,6 +109,7 @@ class PlanningResult:
     status: MyPlannerStatus
     tree: LoggingTree
     time: float
+    mean_propagate_time: float = None
 
 
 @dataclass

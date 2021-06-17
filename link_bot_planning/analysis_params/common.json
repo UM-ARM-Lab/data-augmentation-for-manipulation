@@ -35,7 +35,10 @@
     "car_no_recovery_baseline.*": "#AA1155",
     ".*floating_boxes.*": "#337700",
     "car classifiers": "#AA1155",
+    "car_to_.*": "#AA1155",
     "floating boxes classifiers": "#337700",
-    "long hook classifiers": "#0022FF"
+    "long hook classifiers": "#0022FF",
+    "long_hook_baseline": "#0022FF",
+    "slit_classifier.*": "#FFBB22"
   }
 }

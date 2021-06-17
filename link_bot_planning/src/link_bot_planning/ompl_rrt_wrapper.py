@@ -355,14 +355,15 @@ class OmplRRTWrapper(MyPlanner):
         # START TIMING
         t0 = time.time()
 
-        # acutally run the planner
+        # actually run the planner
         ob_planner_status = self.ss.solve(self.ptc)
 
         # END TIMING
         planning_time = time.time() - t0
 
+        mean_propagate_time = float(np.mean(self.progagate_dts))
         if self.verbose >= 0:
-            print(f"\nMean Propagate Time = {np.mean(self.progagate_dts):.4f}s")
+            print(f"\nMean Propagate Time = {mean_propagate_time:.4f}s")
 
         # handle results and cleanup
         planner_status = self.ptc.interpret_planner_status(ob_planner_status)
@@ -407,6 +408,7 @@ class OmplRRTWrapper(MyPlanner):
                               path=planned_path,
                               actions=actions,
                               time=planning_time,
+                              mean_propagate_time=mean_propagate_time,
                               tree=self.tree)
 
     def convert_path(self, ompl_path: oc.PathControl) -> Tuple[List[Dict], List[Dict]]:

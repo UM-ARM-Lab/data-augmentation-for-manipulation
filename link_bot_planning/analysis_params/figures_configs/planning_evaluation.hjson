@@ -1,15 +1,6 @@
 [
   {
     type: BoxPlot
-    name: task_error
-    xlabel: method
-    ylabel: Task Error
-    reductions: [
-      ["task_error", [null]]
-    ]
-  }
-  {
-    type: BoxPlot
     name: total_time
     xlabel: method
     ylabel: Total Time
@@ -33,6 +24,24 @@
     ylabel: Success
     reductions: [
       ["success", ["mean"]]
+    ]
+  }
+  {
+    type: ViolinPlot
+    name: task_error
+    xlabel: method
+    ylabel: Task Error
+    reductions: [
+      ["task_error", [null]]
+    ]
+  }
+  {
+    type: ViolinPlot
+    name: cumulative_planning_error
+    xlabel: method
+    ylabel: Cumulative Planning Error
+    reductions: [
+      ["cumulative_planning_error", [null]]
     ]
   }
 ]

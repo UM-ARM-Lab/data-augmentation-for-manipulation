@@ -1,7 +1,8 @@
 import pathlib
 import re
-from typing import Dict, List, Iterable
+from typing import Dict, List
 
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -106,6 +107,53 @@ class LinePlot(MyFigure):
             self.ax.plot(y, c=color, label=series_name)
 
 
+def try_set_violinplot_color(parts, key, color):
+    if key in parts:
+        parts[key].set_edgecolor(color)
+
+
+class ViolinPlot(MyFigure):
+    def __init__(self, analysis_params: Dict, name: str, xlabel: str, ylabel: str, ylim=None):
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+        super().__init__(analysis_params, name)
+        self.ax.set_xlabel(self.xlabel)
+        self.ax.set_ylabel(self.ylabel)
+        if ylim is not None:
+            self.ax.set_ylim(ylim)
+        self.handles = []
+        self.series_names = []
+
+    def add_to_figure(self, data: pd.DataFrame, series_name: str, color, series_idx: int):
+        assert 'y' not in data
+        y = data['x'].values
+        x = [series_idx]
+        parts = self.ax.violinplot(y,
+                                   positions=x,
+                                   showmeans=True,
+                                   showextrema=False,
+                                   showmedians=True,
+                                   widths=0.9)
+
+        try_set_violinplot_color(parts, 'cmeans', adjust_lightness(color, 0.8))
+        try_set_violinplot_color(parts, 'cmedians', adjust_lightness(color, 1.2))
+        try_set_violinplot_color(parts, 'cmaxes', 'k')
+        try_set_violinplot_color(parts, 'cmins', 'k')
+        try_set_violinplot_color(parts, 'cbars', 'k')
+        if 'bodies' in parts:
+            for pc in parts['bodies']:
+                pc.set_facecolor(color)
+                pc.set_edgecolor(color)
+
+        handle = mpatches.Patch(color=color)
+        self.handles.append(handle)
+        self.series_names.append(series_name)
+
+    def finish_figure(self):
+        super().finish_figure()
+        self.ax.legend(self.handles, self.series_names)
+
+
 class BoxPlot(MyFigure):
     def __init__(self, analysis_params: Dict, name: str, xlabel: str, ylabel: str, ylim=None):
         self.xlabel = xlabel
@@ -180,11 +228,12 @@ def shifted_cumsum(x):
 
 
 __all__ = [
+    'BarChart',
+    'BoxPlot',
+    'LineBoxPlot',
+    'LinePlot',
+    'MyFigure',
+    'ViolinPlot',
     'my_rolling',
     'shifted_cumsum',
-    'MyFigure',
-    'LinePlot',
-    'LineBoxPlot',
-    'BoxPlot',
-    'BarChart',
 ]

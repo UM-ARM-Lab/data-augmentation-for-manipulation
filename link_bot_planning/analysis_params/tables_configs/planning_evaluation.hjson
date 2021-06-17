@@ -46,34 +46,6 @@
     ]
   }
   {
-    type: PValuesTable
-    name: Normalized Model Error
-    reductions: [
-      ["normalized_model_error", [null]]
-    ]
-  }
-  {
-    type: PValuesTable
-    name: Num Actions
-    reductions: [
-      ["num_steps", [null]]
-    ]
-  }
-  {
-    type: PValuesTable
-    name: Total Time
-    reductions: [
-      ["total_time", [null]]
-    ]
-  }
-  {
-    type: PValuesTable
-    name: Task Error
-    reductions: [
-      ["task_error", [null]]
-    ]
-  }
-  {
     type: MyTable
     name: success_ratio
     header: [
@@ -84,6 +56,34 @@
     reductions: [
       ["success", ["sum"]]
       ["num_trials", ["sum"]]
+    ]
+  }
+  {
+    type: PValuesTable
+    name: Success
+    reductions: [
+      ["success", [null]]
+    ]
+  }
+  {
+    type: PValuesTable
+    name: Task Error
+    reductions: [
+      ["task_error", [null]]
+    ]
+  }
+  {
+    type: PValuesTable
+    name: Normalized Model Error
+    reductions: [
+      ["normalized_model_error", [null]]
+    ]
+  }
+  {
+    type: PValuesTable
+    name: Cumulative Planning Error
+    reductions: [
+      ["cumulative_planning_error", [null]]
     ]
   }
 ]
