@@ -2,6 +2,8 @@ import time
 import warnings
 from typing import Dict, List, Tuple
 
+import halo
+
 from arc_utilities.algorithms import zip_repeat_shorter
 from link_bot_pycommon.spinners import SynchronousSpinner
 
@@ -237,10 +239,7 @@ class OmplRRTWrapper(MyPlanner):
         self.progagate_dts.append(dt)
         self.last_propagate_time = now
 
-        if self.verbose >= 0:
-            print(".", end='', flush=True)
-        else:
-            self.spinner.update()
+        self.spinner.update()
 
         # Convert from OMPL -> Numpy
         previous_states, previous_actions = self.motions_to_numpy(motions)
@@ -395,10 +394,6 @@ class OmplRRTWrapper(MyPlanner):
             planned_path = [start_state]
         else:
             raise ValueError(f"invalid planner status {planner_status}")
-
-        if self.verbose >= 0:
-            # new line so that the above print(".", end="") doesn't cause issues
-            print()
 
         if self.verbose >= 0:
             self.plot_path(state_sequence=planned_path, action_sequence=actions)
