@@ -20,6 +20,7 @@ class GazeboServices(BaseServices):
 
     def __init__(self):
         super().__init__()
+        self.is_playing = None
         self.max_step_size = None
         self.gazebo_process = None
 
@@ -81,6 +82,7 @@ class GazeboServices(BaseServices):
 
     def kill(self):
         self.gazebo_process.shutdown()
+        self.is_playing = False
 
     def setup_env(self, verbose: int = 0, real_time_rate: float = 0, max_step_size: float = 0.01, play: bool = True):
         # set up physics
@@ -100,14 +102,20 @@ class GazeboServices(BaseServices):
             self.play()
 
     def play(self):
+        if self.is_playing is not None and self.is_playing:
+            return
         try:
             self.play_srv(EmptyRequest())
+            self.is_playing = True
         except rospy.ServiceException:
             pass
 
     def pause(self):
+        if self.is_playing is not None and not self.is_playing:
+            return
         try:
             self.pause_srv(EmptyRequest())
+            self.is_playing = False
         except rospy.ServiceException:
             pass
 
