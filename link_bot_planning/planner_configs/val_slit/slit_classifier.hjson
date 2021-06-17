@@ -1,7 +1,7 @@
 {
   method_name: slit classifier
   classifier_model_dir: [
-    /media/shared/cl_trials/val_slit_1617224535/April_01_04-38-27_82dae37730/best_checkpoint
+    /media/shared/cl_trials/val_slit_fixed_labels1/June_15_18-16-45_834c81608c/best_checkpoint/
     /media/shared/cl_trials/new_feasibility_baseline/none
   ]
   recovery: {

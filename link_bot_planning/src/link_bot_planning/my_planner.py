@@ -44,15 +44,16 @@ class LoggingTree:
     This duplicates what OMPL does already, but the OMPL implementation is not python friendly
     """
 
-    def __init__(self, state=None, action=None):
+    def __init__(self, state=None, action=None, accept_probabilities=None):
         self.state = state
         self.action = action
         self.children: List[LoggingTree] = []
+        self.accept_probabilities = accept_probabilities
         self.size = 0
 
         self.cached = self
 
-    def add(self, before_state: Dict, action: Dict, after_state: Dict):
+    def add(self, before_state: Dict, action: Dict, after_state: Dict, accept_probabilities):
         self.size += 1
         if len(self.children) == 0:
             self.state = before_state
@@ -63,9 +64,8 @@ class LoggingTree:
                 t = self.cached
             else:
                 t = self.find(before_state)
-            # t = self.find(before_state)
 
-        new_child = LoggingTree(state=after_state, action=action)
+        new_child = LoggingTree(state=after_state, action=action, accept_probabilities=accept_probabilities)
         t.children.append(new_child)
         self.cached = new_child
 

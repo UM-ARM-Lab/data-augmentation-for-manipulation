@@ -10,6 +10,7 @@ import rospy
 from arm_robots.robot import RobotPlanningError
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
 from link_bot_data.dataset_utils import add_predicted, write_example
+from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.split_dataset import split_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.analysis import results_utils
@@ -58,6 +59,9 @@ class ResultsToClassifierDataset:
         self.regenerate = regenerate
         self.only_rejected_transitions = only_rejected_transitions
         self.max_examples_per_trial = max_examples_per_trial
+
+        if self.max_examples_per_trial is not None:
+            print(Fore.LIGHTMAGENTA_EX + f"{self.max_examples_per_trial=}" + Fore.RESET)
 
         if labeling_params is None:
             labeling_params = pathlib.Path('labeling_params/classifier/dual.hjson')
@@ -125,9 +129,12 @@ class ResultsToClassifierDataset:
 
         dataset_hparams = phase2_dataset_params
         dataset_hparams_update = {
-            'from_results':           self.results_dir,
-            'seed':                   None,
-            'data_collection_params': {
+            'from_results':              self.results_dir,
+            'max_examples_per_trial':    self.max_examples_per_trial,
+            'only_rejected_transitions': self.only_rejected_transitions,
+            'full_tree':                 self.full_tree,
+            'seed':                      None,
+            'data_collection_params':    {
                 'steps_per_traj': 2,
             },
         }
@@ -153,7 +160,7 @@ class ResultsToClassifierDataset:
 
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
             try:
-                examples_gen = self.result_datum_to_dynamics_dataset(datum, trial_idx)
+                examples_gen = self.result_datum_to_dynamics_dataset(datum)
                 for example in progressbar(examples_gen):
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
@@ -195,7 +202,9 @@ class ResultsToClassifierDataset:
             self.reset_visualization()
 
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-            for example in self.full_result_datum_to_dynamics_dataset(datum, trial_idx):
+            examples_gen = self.full_result_datum_to_dynamics_dataset(datum)
+            max_value = self.precompute_full_tree_size(datum)
+            for example in progressbar(examples_gen, widgets=mywidgets, max_value=max_value):
                 self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                 total_examples += 1
                 write_example(self.outdir, example, self.example_idx, self.save_format)
@@ -211,7 +220,7 @@ class ResultsToClassifierDataset:
             job_chunker.store_result(trial_idx, {'trial':              trial_idx,
                                                  'examples for trial': example_idx_for_trial})
 
-    def result_datum_to_dynamics_dataset(self, datum: Dict, trial_idx: int):
+    def result_datum_to_dynamics_dataset(self, datum: Dict):
         for t, transition in enumerate(get_transitions(datum)):
             environment, (before_state_pred, before_state), action, (after_state_pred, after_state), _ = transition
             if self.visualize:
@@ -233,7 +242,17 @@ class ResultsToClassifierDataset:
                 classifier_start_t=t,
             )
 
-    def full_result_datum_to_dynamics_dataset(self, datum: Dict, trial_idx: int):
+    @staticmethod
+    def precompute_full_tree_size(datum: Dict):
+        steps = datum['steps']
+        size = 0
+        for step in steps:
+            if step['type'] == 'executed_plan':
+                planning_result = step['planning_result']
+                size += planning_result.tree.size
+        return size
+
+    def full_result_datum_to_dynamics_dataset(self, datum: Dict):
         steps = datum['steps']
         setup_info = datum['setup_info']
         planner_params = datum['planner_params']
@@ -273,14 +292,6 @@ class ResultsToClassifierDataset:
             if error:
                 continue
 
-            if self.visualize:
-                self.visualize_example(action=child.action,
-                                       after_state=after_state,
-                                       before_state=before_state,
-                                       before_state_predicted=tree.state,
-                                       after_state_predicted=child.state,
-                                       environment=planning_query.environment)
-
             # only include this example and continue the DFS if we were able to successfully execute the action
             yield from self.generate_example(
                 environment=planning_query.environment,
@@ -304,6 +315,14 @@ class ResultsToClassifierDataset:
                          classifier_start_t: int):
         if self.only_rejected_transitions and after_state_pred['num_diverged'].squeeze() != 1:
             return
+
+        if self.visualize:
+            self.visualize_example(action=action,
+                                   after_state=after_state,
+                                   before_state=before_state,
+                                   before_state_predicted=before_state_pred,
+                                   after_state_predicted=after_state_pred,
+                                   environment=environment)
 
         classifier_horizon = 2  # this script only handles this case
         example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
@@ -385,7 +404,7 @@ class ResultsToClassifierDataset:
     def clear_markers(self):
         self.scenario.reset_planning_viz()
 
-    def on_gazebo_restarting(self, msg: Empty):
+    def on_gazebo_restarting(self, _: Empty):
         self.restart = True
 
 

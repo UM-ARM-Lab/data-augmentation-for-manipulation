@@ -255,7 +255,10 @@ class OmplRRTWrapper(MyPlanner):
 
         # log the data
         if self.log_full_tree:
-            self.tree.add(before_state=previous_state, action=new_action, after_state=np_final_state)
+            self.tree.add(before_state=previous_state,
+                          action=new_action,
+                          after_state=np_final_state,
+                          accept_probabilities=accept_probabilities)
 
         self.scenario.heartbeat()
 
@@ -485,7 +488,10 @@ class OmplRRTWrapper(MyPlanner):
                 # take the current planned path and add it to the logging tree
                 for state, action, next_state in zip(state_sequence[:-1], action_sequence, state_sequence[1:]):
                     if self.log_full_tree:
-                        self.tree.add(state, action, next_state)
+                        self.tree.add(before_state=state,
+                                      action=action,
+                                      after_state=next_state,
+                                      accept_probabilities=accept_probabilities)
 
                 # visualize & debug info
                 if self.verbose >= 3:
