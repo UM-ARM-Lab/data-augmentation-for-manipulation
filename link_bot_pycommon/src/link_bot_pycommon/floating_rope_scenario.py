@@ -31,6 +31,7 @@ from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_im
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
 from moonshine.moonshine_utils import numpify
+from moonshine.simple_profiler import SimpleProfiler
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import Image, CameraInfo
@@ -40,6 +41,8 @@ from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
 rope_key_name = 'rope'
+
+# p_get_rope_state = SimpleProfiler()
 
 
 class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenarioMixin):
@@ -71,7 +74,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         self.last_action = None
         self.get_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_dual_gripper_points"),
                                                           GetDualGripperPoints)
-        self.get_rope_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_rope_state"), GetRopeState)
+        self.get_rope_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_rope_state"), GetRopeState, persistent=True)
 
         self.pos3d = Position3D()
         self.set_rope_state_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set_rope_state"), SetRopeState)
@@ -429,7 +432,12 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return gripper_position1, gripper_position2
 
     def get_gazebo_rope_state(self):
+        # global p_get_rope_state
+        # p_get_rope_state.start()
         rope_res = self.get_rope_srv(GetRopeStateRequest())
+        # p_get_rope_state.stop()
+        # print('get_rope_state', p_get_rope_state)
+
         rope_state_vector = []
         for p in rope_res.positions:
             rope_state_vector.append(p.x)

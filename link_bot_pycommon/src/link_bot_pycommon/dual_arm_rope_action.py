@@ -13,16 +13,27 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
     from arm_robots.robot import MoveitEnabledRobot
 
+# from moonshine.simple_profiler import SimpleProfiler
+#
+# p = SimpleProfiler()
+
+overstretching_srv = rospy.ServiceProxy(ns_join("rope_3d", "rope_overstretched"), GetOverstretching, persistent=True)
+
 
 def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, environment: Dict, state: Dict, action: Dict):
+    global overstretching_srv
+
     start_left_gripper_pos, start_right_gripper_pos = robot.get_gripper_positions()
     left_gripper_points = [action['left_gripper_position']]
     right_gripper_points = [action['right_gripper_position']]
     tool_names = [robot.left_tool_name, robot.right_tool_name]
     grippers = [left_gripper_points, right_gripper_points]
 
-    overstretching_srv = rospy.ServiceProxy(ns_join("rope_3d", "rope_overstretched"), GetOverstretching)
+    # global p
+    # p.start()
     res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
+    # p.stop()
+    # print('os', p)
 
     if res.magnitude > 1.06:
         # just do nothing...
@@ -58,6 +69,8 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, environment: Dict, s
 
 
 def overstretching_stop_condition():
-    overstretching_srv = rospy.ServiceProxy(ns_join("rope_3d", "rope_overstretched"), GetOverstretching)
+    # this gets called on another thread, so not sure if it's a good idea to use the global instance?
+    # overstretching_srv = rospy.ServiceProxy(ns_join("rope_3d", "rope_overstretched"), GetOverstretching)
+    global overstretching_srv
     res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
     return res.overstretched

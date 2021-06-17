@@ -26,8 +26,8 @@ class GazeboServices(BaseServices):
 
         # Yes, absolute paths here are what I want. I don't want these namespaced by the robot
         self.set_link_states = self.add_required_service('arm_gazebo/set_link_states', SetLinkStates)
-        self.pause_srv = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
-        self.play_srv = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
+        self.pause_srv = rospy.ServiceProxy('/gazebo/pause_physics', Empty, persistent=True)
+        self.play_srv = rospy.ServiceProxy('/gazebo/unpause_physics', Empty, persistent=True)
 
     def restore_from_bag(self, bagfile_name: pathlib.Path, excluded_models: Optional[List[str]] = None):
         with rosbag.Bag(bagfile_name) as bag:
