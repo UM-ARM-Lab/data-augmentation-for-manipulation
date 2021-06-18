@@ -18,7 +18,7 @@ def main():
     parser.add_argument("--regenerate", action='store_true', help='regenerate')
     parser.add_argument("--only-rejected-transitions", action='store_true',
                         help='only keep transitions the planner rejected')
-    parser.add_argument("--trial-indices", type=int_set_arg, help='which plan(s) to show')
+    parser.add_argument("--trials", type=int_set_arg, help='which plan(s) to show')
     parser.add_argument("--save-format", type=str, choices=['pkl', 'tfrecord'], default='pkl')
 
     args = parser.parse_args()
@@ -26,7 +26,7 @@ def main():
     r = ResultsToClassifierDataset(results_dir=args.results_dir,
                                    outdir=args.outdir,
                                    labeling_params=args.labeling_params,
-                                   trial_indices=args.trial_indices,
+                                   trial_indices=args.trials,
                                    visualize=args.visualize,
                                    save_format=args.save_format,
                                    full_tree=args.full_tree,

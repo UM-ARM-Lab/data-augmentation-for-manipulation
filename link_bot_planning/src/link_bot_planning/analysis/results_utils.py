@@ -312,6 +312,8 @@ def plot_steps(scenario: ScenarioWithVisualization,
     while not anim.done:
         t = anim.t()
         e_t, a_t, s_t, s_t_pred, type_t = paths[t]
+        if 'scene_msg' in e_t and 'attached_collision_objects' not in s_t:
+            s_t['attached_collision_objects'] = e_t['scene_msg'].robot_state.attached_collision_objects
         scenario.plot_environment_rviz(e_t)
         scenario.plot_state_rviz(s_t, label='actual', color='#ff0000aa')
         c = '#0000ffaa'
@@ -320,6 +322,8 @@ def plot_steps(scenario: ScenarioWithVisualization,
             scenario.plot_action_rviz(s_t, a_t, color=action_color)
 
         if s_t_pred is not None:
+            if 'scene_msg' in e_t and 'attached_collision_objects' not in s_t_pred:
+                s_t_pred['attached_collision_objects'] = e_t['scene_msg'].robot_state.attached_collision_objects
             scenario.plot_state_rviz(s_t_pred, label='predicted', color=c)
             is_close = scenario.compute_label(s_t, s_t_pred, labeling_params)
             scenario.plot_is_close(is_close)
