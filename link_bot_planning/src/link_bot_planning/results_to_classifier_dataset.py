@@ -8,6 +8,7 @@ from progressbar import progressbar
 
 import rospy
 from arm_robots.robot import RobotPlanningError
+from gazebo_msgs.msg import LinkStates
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
 from link_bot_data.dataset_utils import add_predicted, write_example
 from link_bot_data.progressbar_widgets import mywidgets
@@ -277,7 +278,7 @@ class ResultsToClassifierDataset:
             raise RuntimeError()
 
         if bagfile_name is None:
-            bagfile_name = store_bagfile()
+            bagfile_name = self.store_bagfile()
 
         for child in tree.children:
             # if we only have one child we can skip the restore, this speeds things up a lot
@@ -301,6 +302,7 @@ class ResultsToClassifierDataset:
                 after_state=after_state,
                 after_state_pred=child.state,
                 classifier_start_t=depth,
+                accept_probabilities=child.accept_probabilities,
             )
             # recursion
             yield from self.dfs(planner_params, planning_query, child, depth=depth + 1)
@@ -312,7 +314,16 @@ class ResultsToClassifierDataset:
                          before_state_pred: Dict,
                          after_state: Dict,
                          after_state_pred: Dict,
-                         classifier_start_t: int):
+                         classifier_start_t: int,
+                         accept_probabilities: Dict):
+        if 'num_diverged' not in after_state_pred:
+            return
+        # this will be False if and only if the planner actually checked it, and it was infeasible. So if
+        # a different classifier gets run first and rejects it, and thus feasibility isn't ever checked,
+        # we assume it was feasible. Doesn't matter though because the check right after will handle this case.
+        feasible = (accept_probabilities.get('FastRobotFeasibilityChecker', np.ones(1)).squeeze() == 1.0)
+        if not feasible:
+            return
         if self.only_rejected_transitions and after_state_pred['num_diverged'].squeeze() != 1:
             return
 
@@ -407,8 +418,21 @@ class ResultsToClassifierDataset:
     def on_gazebo_restarting(self, _: Empty):
         self.restart = True
 
+    def store_bagfile(self):
+        rospy.sleep(5)  # FIXME: janky
+        # FIXME: janky
+        for i in range(4):
+            joint_state, links_states = get_states_to_save()
+        make_links_states_quasistatic(links_states)
+        bagfile_name = pathlib.Path(tempfile.NamedTemporaryFile().name)
+        return save_test_scene_given_name(joint_state, links_states, bagfile_name, force=True)
 
-def store_bagfile():
-    joint_state, links_states = get_states_to_save()
-    bagfile_name = pathlib.Path(tempfile.NamedTemporaryFile().name)
-    return save_test_scene_given_name(joint_state, links_states, bagfile_name, force=True)
+
+def make_links_states_quasistatic(links_states: LinkStates):
+    for twist in links_states.twist:
+        twist.linear.x = 0
+        twist.linear.y = 0
+        twist.linear.z = 0
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z = 0
