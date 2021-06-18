@@ -52,6 +52,7 @@ class ResultsToClassifierDataset:
         self.save_format = save_format
         self.rng = np.random.RandomState(0)
         self.service_provider = GazeboServices()
+        self.service_provider.play()
         self.full_tree = full_tree
         self.results_dir = results_dir
         self.outdir = outdir
