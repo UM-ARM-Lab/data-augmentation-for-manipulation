@@ -27,7 +27,6 @@ def visualize_dataset(args, classifier_dataset):
 
     positive_count = 0
     negative_count = 0
-    incomplete_motion = 0
     starts_far_count = 0
     count = 0
 
@@ -37,7 +36,6 @@ def visualize_dataset(args, classifier_dataset):
             'negative_count':    negative_count,
             'positive_count':    positive_count,
             'starts_far_count':  starts_far_count,
-            'incomplete_motion': incomplete_motion,
         }
 
     stdevs = []
@@ -55,8 +53,6 @@ def visualize_dataset(args, classifier_dataset):
         example = remove_batch(example)
 
         is_close = example['is_close'].numpy().squeeze()
-        joint_pos_dist = np.linalg.norm(example['joint_positions'] - example['predicted/joint_positions'])
-        infeasible = joint_pos_dist > 0.075
 
         starts_far = is_close[0] == 0
         positive = bool(is_close[1])
@@ -71,15 +67,9 @@ def visualize_dataset(args, classifier_dataset):
         if args.only_starts_far and not starts_far:
             continue
 
-        if args.only_infeasible and not infeasible:
-            continue
-
         # print(f"Example {i}, Trajectory #{int(example['traj_idx'])}")
 
         count += 1
-
-        if infeasible:
-            incomplete_motion += 1
 
         if positive:
             positive_count += 1
