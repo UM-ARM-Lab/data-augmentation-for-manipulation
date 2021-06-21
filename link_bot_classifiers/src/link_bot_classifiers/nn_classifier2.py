@@ -32,8 +32,8 @@ DEBUG_INPUT = False
 
 
 class NNClassifier(MyKerasModel):
-    def __init__(self, hparams: Dict, batch_size: int, scenario: ScenarioWithVisualization):
-        super().__init__(hparams, batch_size)
+    def __init__(self, hparams: Dict, batch_size: int, scenario: ScenarioWithVisualization, verbose: int = 0):
+        super().__init__(hparams, batch_size, verbose)
         self.scenario = scenario
         self.broadcaster = self.scenario.tf.tf_broadcaster
 

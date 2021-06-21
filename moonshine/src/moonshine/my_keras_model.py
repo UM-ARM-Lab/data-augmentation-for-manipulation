@@ -16,9 +16,10 @@ class MyKerasModel(tf.keras.Model):
         })
         return super_config
 
-    def __init__(self, hparams, batch_size, *args, **kwargs):
+    def __init__(self, hparams, batch_size, verbose: int = 0, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.batch_size = batch_size
+        self.verbose = verbose
         self.hparams = deepcopy(hparams)
         learning_rate = hparams.get('learning_rate', 1e-3)
         self.optimizer = tf.keras.optimizers.Adam(learning_rate)
@@ -102,7 +103,8 @@ class MyKerasModel(tf.keras.Model):
         return val_outputs
 
     def create_metrics(self):
-        print(Fore.YELLOW + "Creating Metrics")
+        if self.verbose > -1:
+            print(Fore.YELLOW + "Creating Metrics")
         return {}
 
     def on_end_epoch(self):

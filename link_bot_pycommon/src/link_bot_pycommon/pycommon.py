@@ -10,6 +10,8 @@ from typing import Union, List, Callable, Optional, Tuple, Iterable, Dict
 import numpy as np
 import tensorflow as tf
 
+import genpy
+
 
 def directions_3d(pitch, yaw):
     """
@@ -147,11 +149,17 @@ def print_dict(example):
         if hasattr(v, 'dtype'):
             dtype = v.dtype
         else:
-            dtype = type(v)
+            if isinstance(v, genpy.Message):
+                dtype = v.__class__.__name__ + ' msg'
+            else:
+                dtype = type(v)
         if hasattr(v, 'shape'):
             shape = v.shape
         else:
-            shape = '?'
+            if isinstance(v, list):
+                shape = f'[{len(v)}, ?]'
+            else:
+                shape = '?'
         print(f"{k:30s} {str(dtype):20s} {str(shape)}")
 
 

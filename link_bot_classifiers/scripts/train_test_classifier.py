@@ -112,7 +112,7 @@ def main():
     eval_n_parser.add_argument('checkpoints', type=pathlib.Path, nargs='+')
     eval_n_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     eval_n_parser.add_argument('--no-balance', action='store_true')
-    eval_n_parser.add_argument('--batch-size', type=int, default=32)
+    eval_n_parser.add_argument('--batch-size', type=int, default=128)
     eval_n_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_n_parser.add_argument('--take', type=int)
     eval_n_parser.add_argument('--threshold', type=float, default=None)

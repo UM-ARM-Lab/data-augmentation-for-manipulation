@@ -3,6 +3,7 @@ import pathlib
 import queue
 import sys
 from multiprocessing import Pool, Process, Queue
+from time import sleep
 from typing import List, Dict, Optional, Callable
 
 import numpy as np
@@ -17,20 +18,20 @@ from moonshine.moonshine_utils import batch_examples_dicts
 
 def prefetch(queue: Queue, filenames: List, n_prefetch: int):
     assert n_prefetch > 0
-    pool = Pool()
-    print(f"Created pool with {pool._processes} workers")
-    for filenames_i in filenames:
-        # possibly wait here, because we only want to prefetch one batch
-        while queue.qsize() > n_prefetch:
-            pass
+    with Pool() as pool:
+        print(f"Created pool with {pool._processes} workers")
+        for filenames_i in filenames:
+            # possibly wait here, because we only want to prefetch one batch
+            while queue.qsize() > n_prefetch:
+                pass
 
-        if isinstance(filenames_i, list):
-            examples_i = list(pool.imap_unordered(load_single, filenames_i))
-            example = batch_examples_dicts(examples_i)
-        else:
-            example = load_single(filenames_i)
+            if isinstance(filenames_i, list):
+                examples_i = list(pool.imap_unordered(load_single, filenames_i))
+                example = batch_examples_dicts(examples_i)
+            else:
+                example = load_single(filenames_i)
 
-        queue.put(example)
+            queue.put(example)
 
 
 class NewBaseDataset:
@@ -82,6 +83,10 @@ class NewBaseDataset:
 
         prefetch_process.terminate()
         prefetch_process.join()
+
+    def get_example(self, idx: int):
+        filename = self.filenames[idx]
+        return load_single(filename)
 
     def __len__(self):
         return len(self.filenames)

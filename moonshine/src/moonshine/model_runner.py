@@ -22,6 +22,7 @@ class ModelRunner:
                  val_every_n_batches=None,
                  mid_epoch_val_batches=None,
                  save_every_n_minutes: int = 60,
+                 verbose: int = 0,
                  validate_first=False,
                  batch_metadata=None,
                  early_stopping=False,
@@ -40,6 +41,7 @@ class ModelRunner:
         self.save_every_n_minutes = save_every_n_minutes
         self.overall_job_start_time = time.time()
         self.latest_minute = 0
+        self.verbose = verbose
         self.validate_first = validate_first
         if batch_metadata is None:
             self.batch_metadata = {}
@@ -186,7 +188,11 @@ class ModelRunner:
         for v in val_metrics.values():
             v.reset_states()
 
-        for val_batch in progressbar(val_dataset, widgets=mywidgets):
+        if self.verbose >= -1:
+            val_gen = progressbar(val_dataset, widgets=mywidgets)
+        else:
+            val_gen = val_dataset
+        for val_batch in val_gen:
             self.model.scenario.heartbeat()
             val_batch.update(self.batch_metadata)
             self.model.val_step(val_batch, val_metrics)

@@ -208,12 +208,13 @@ def eval_n_main(dataset_dir: pathlib.Path,
     dataset_loader, dataset = setup_eval_dataset((not no_balance), [dataset_dir], mode, old_compat, scenario, take,
                                                  threshold, use_gt_rope, batch_size)
 
+    all_metrics_to_print = []
     for checkpoint in checkpoints:
         trial_path = checkpoint.parent.absolute()
         _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
         model_class = link_bot_classifiers.get_model(params['model_class'])
 
-        model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario())
+        model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario(), verbose=-1)
         # This call to model runner restores the model
         runner = ModelRunner(model=model,
                              training=False,
@@ -221,12 +222,16 @@ def eval_n_main(dataset_dir: pathlib.Path,
                              checkpoint=checkpoint,
                              trial_path=trial_path,
                              key_metric=AccuracyCheckpointMetric,
-                             batch_metadata=dataset_loader.batch_metadata)
+                             batch_metadata=dataset_loader.batch_metadata,
+                             verbose=-1)
 
         val_metrics = model.create_metrics()
         runner.val_epoch(dataset, val_metrics)
         metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives']
         metrics_to_print = [f"{val_metrics[k].result().numpy().squeeze():.4f}" for k in metric_keys_to_print]
+        all_metrics_to_print.append(metrics_to_print)
+
+    for metrics_to_print in all_metrics_to_print:
         print("\t".join(metrics_to_print))
 
 

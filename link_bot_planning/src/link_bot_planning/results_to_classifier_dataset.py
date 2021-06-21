@@ -367,6 +367,9 @@ class ResultsToClassifierDataset:
                                                                 out_example=example_batched,
                                                                 labeling_params=self.labeling_params,
                                                                 batch_size=1)
+        valid_out_examples_batched['metadata'] = {
+            'error': valid_out_examples_batched['error'],
+        }
         test_shape = valid_out_examples_batched['time_idx'].shape[0]
         if test_shape == 1:
             valid_out_example = remove_batch(valid_out_examples_batched)

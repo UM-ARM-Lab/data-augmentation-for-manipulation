@@ -15,13 +15,16 @@ from moonshine.moonshine_utils import remove_batch
 from visualization_msgs.msg import Marker
 
 
-def visualize_dataset(args, classifier_dataset):
+def visualize_dataset(args, dataset_loader):
     grippers_viz_pub = rospy.Publisher("grippers_viz_pub", Marker, queue_size=10)
 
-    tf_dataset = classifier_dataset.get_datasets(mode=args.mode, shuffle=args.shuffle)
+    dataset = dataset_loader.get_datasets(mode=args.mode, shuffle=args.shuffle)
 
-    tf_dataset = tf_dataset.batch(1)
-    tf_dataset = tf_dataset.take(args.take)
+    print_dict(dataset.get_example(0))
+    print('*' * 100)
+
+    dataset = dataset.batch(1)
+    dataset = dataset.take(args.take)
 
     t0 = perf_counter()
 
@@ -32,10 +35,10 @@ def visualize_dataset(args, classifier_dataset):
 
     def _make_stats_dict():
         return {
-            'count':             count,
-            'negative_count':    negative_count,
-            'positive_count':    positive_count,
-            'starts_far_count':  starts_far_count,
+            'count':            count,
+            'negative_count':   negative_count,
+            'positive_count':   positive_count,
+            'starts_far_count': starts_far_count,
         }
 
     stdevs = []
@@ -43,9 +46,7 @@ def visualize_dataset(args, classifier_dataset):
     stdevs_for_negative = []
     stdevs_for_positive = []
 
-    print_dict(next(iter(tf_dataset)))
-
-    for i, example in enumerate(progressbar(tf_dataset, widgets=mywidgets)):
+    for i, example in enumerate(progressbar(dataset, widgets=mywidgets)):
         if i < args.start_at:
             continue
 
@@ -91,16 +92,16 @@ def visualize_dataset(args, classifier_dataset):
         if args.display_type == 'just_count':
             continue
         elif args.display_type == '3d':
-            msg = classifier_dataset.get_scenario().make_simple_grippers_marker(example, count)
+            msg = dataset_loader.get_scenario().make_simple_grippers_marker(example, count)
             grippers_viz_pub.publish(msg)
-            classifier_dataset.get_scenario().plot_traj_idx_rviz(i)
+            dataset_loader.get_scenario().plot_traj_idx_rviz(i)
             # print()
             # print(np.linalg.norm(example['predicted/rope'][1] - example['rope'][1]), example['error'][1])
             # print()
-            classifier_dataset.anim_transition_rviz(example)
+            dataset_loader.anim_transition_rviz(example)
 
         elif args.display_type == 'stdev':
-            for t in range(1, classifier_dataset.horizon):
+            for t in range(1, dataset_loader.horizon):
                 stdev_t = example[add_predicted('stdev')][t, 0].numpy()
                 label_t = example['is_close'][t]
                 stdevs.append(stdev_t)
