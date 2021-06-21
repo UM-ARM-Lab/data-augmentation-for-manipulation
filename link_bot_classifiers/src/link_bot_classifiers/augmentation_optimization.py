@@ -61,7 +61,7 @@ class AugmentationOptimization:
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
 
-        self.max_steps = 25
+        self.max_steps = 18
         self.num_interp = 5
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
@@ -297,6 +297,7 @@ class AugmentationOptimization:
         repel_points_b = None
         local_env_aug = []
         env_aug_valid = []
+
         for b in range(batch_size):
             r_b = res[b]
             o_b = local_origin_point_aug[b]
@@ -317,44 +318,43 @@ class AugmentationOptimization:
                 initial_translation_b = initial_attract_points_b_mean - env_points_b_initial_mean
             translation_b = tf.Variable(initial_translation_b, dtype=tf.float32)
             variables = [translation_b]
-            hard_constraints_satisfied_b = False
+            hard_constraints_satisfied_b = 0
             for i in range(self.max_steps):
-                with tf.GradientTape() as tape:
+                with tf.GradientTape(watch_accessed_variables=False) as tape:
+                    tape.watch(translation_b)
                     env_points_b = env_points_b_initial + translation_b
                     env_points_b_sparse = subsample_points(env_points_b, 0.5)
 
                     is_attract_indices = tf.squeeze(tf.where(object_occupancy_b > 0.5), 1)
                     attract_points_b = tf.gather(object_points_b, is_attract_indices)
-                    def _attract_cond():
-                        return tf.size(is_attract_indices) == 0 or tf.size(env_points_b) == 0
-                    if _attract_cond():
+
+                    if tf.logical_or(tf.size(is_attract_indices) == 0, tf.size(env_points_b) == 0):
                         attract_loss = 0
                         min_attract_dist_b = 0.0
                     else:
                         # NOTE: these are SQUARED distances!
                         attract_dists_b = pairwise_squared_distances(env_points_b_sparse, attract_points_b)
-                        min_attract_dist_indices_b = tf.argmin(attract_dists_b, axis=0)
+                        min_attract_dist_indices_b = tf.argmin(attract_dists_b, axis=0, name='attract_argmin')
                         min_attract_dist_b = tf.reduce_min(attract_dists_b, axis=0)
                         nearest_attract_env_points = tf.gather(env_points_b_sparse, min_attract_dist_indices_b)
                         attract_loss = tf.reduce_mean(min_attract_dist_b)
 
                     is_repel_indices = tf.squeeze(tf.where(object_occupancy_b < 0.5), 1)
                     repel_points_b = tf.gather(object_points_b, is_repel_indices)
-                    def _repel_cond():
-                        return tf.size(is_repel_indices) == 0
-                    if _repel_cond():
+
+                    if tf.size(is_repel_indices) == 0:
                         repel_loss = 0
                         min_repel_dist_b = 0.0
                     else:
                         repel_dists_b = pairwise_squared_distances(env_points_b_sparse, repel_points_b)
-                        min_repel_dist_indices_b = tf.argmin(repel_dists_b, axis=1)
+                        min_repel_dist_indices_b = tf.argmin(repel_dists_b, axis=1, name='repel_argmin')
                         min_repel_dist_b = tf.reduce_min(repel_dists_b, axis=1)
                         nearest_repel_points = tf.gather(repel_points_b, min_repel_dist_indices_b)
                         repel_loss = tf.reduce_mean(self.barrier_func(min_repel_dist_b))
 
                     robot_repel_dists_b = pairwise_squared_distances(env_points_b_sparse, robot_points_b)
                     min_robot_repel_dist_b = tf.reduce_min(robot_repel_dists_b, axis=1)
-                    min_robot_repel_dist_indices_b = tf.argmin(robot_repel_dists_b, axis=1)
+                    min_robot_repel_dist_indices_b = tf.argmin(robot_repel_dists_b, axis=1, name='robot_repel_argmin')
                     nearest_robot_repel_points = tf.gather(robot_points_b, min_robot_repel_dist_indices_b)
                     robot_repel_loss = tf.reduce_mean(self.barrier_func(min_robot_repel_dist_b))
 
@@ -395,6 +395,7 @@ class AugmentationOptimization:
                 hard_repel_constraint_satisfied_b = tf.reduce_min(min_repel_dist_b) > tf.square(res[b])
                 hard_robot_repel_constraint_satisfied_b = tf.reduce_min(min_robot_repel_dist_b) > tf.square(res[b])
                 hard_attract_constraint_satisfied_b = tf.reduce_max(min_attract_dist_b) < tf.square(res[b])
+
                 hard_constraints_satisfied_b = tf.reduce_all([hard_repel_constraint_satisfied_b,
                                                               hard_robot_repel_constraint_satisfied_b,
                                                               hard_attract_constraint_satisfied_b])
@@ -403,7 +404,8 @@ class AugmentationOptimization:
                 if DEBUG_AUG_SGD:
                     if b in debug_viz_batch_indices(batch_size):
                         print(step_size_b_i, self.step_size_threshold, hard_constraints_satisfied_b)
-                if self.can_terminate(step_size_b_i, hard_constraints_satisfied_b):
+
+                if tf.logical_or(step_size_b_i < self.step_size_threshold, hard_constraints_satisfied_b):
                     break
             local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b, r_b, o_b)
 
@@ -424,7 +426,8 @@ class AugmentationOptimization:
         return env_aug_valid, local_env_aug
 
     def can_terminate(self, step_size_b_i, hard_constraints_satisfied_b):
-        return step_size_b_i < self.step_size_threshold or hard_constraints_satisfied_b
+        n = tf.logical_or(step_size_b_i < self.step_size_threshold, hard_constraints_satisfied_b).numpy()
+        return bool(n)
 
     def clip_env_aug_grad(self, gradients, variables):
         def _clip(g):

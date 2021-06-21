@@ -3,19 +3,16 @@ import argparse
 import logging
 import pathlib
 
-import colorama
 import numpy as np
 import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
-from link_bot_classifiers.nn_classifier import NNClassifier
 from moonshine.filepath_tools import load_hjson
 
 
 @ros_init.with_ros("fine_tune_classifier")
 def main():
-    colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
 
     np.set_printoptions(linewidth=250, precision=4, suppress=True)

@@ -3,6 +3,7 @@ import time
 from typing import Optional
 
 import tensorflow as tf
+from tensorflow.python.profiler import trace
 from colorama import Fore, Style
 from progressbar import progressbar
 
@@ -51,7 +52,8 @@ class ModelRunner:
         self.group_name = self.trial_path.parts[-2]
 
         self.val_summary_writer = tf.summary.create_file_writer((self.trial_path / "logs/1_val").as_posix())
-        self.train_summary_writer = tf.summary.create_file_writer((self.trial_path / "logs/2_train").as_posix())
+        self.train_logdir = (self.trial_path / "logs/2_train").as_posix()
+        self.train_summary_writer = tf.summary.create_file_writer(self.train_logdir)
 
         self.latest_ckpt = tf.train.Checkpoint(step=tf.Variable(1),
                                                epoch=tf.Variable(0),
@@ -131,6 +133,7 @@ class ModelRunner:
     def train_epoch(self, train_dataset, val_dataset, train_metrics, val_metrics):
         t0 = time.time()
 
+        profiling_started = False
         for batch_idx, train_batch in enumerate(progressbar(train_dataset, widgets=mywidgets)):
             self.model.scenario.heartbeat()
             train_batch.update(self.batch_metadata)
@@ -138,7 +141,12 @@ class ModelRunner:
 
             for v in train_metrics.values():
                 v.reset_states()
-            self.model.train_step(train_batch, train_metrics)
+
+            with trace.Trace('TraceContext', graph_type='train', step_num=batch_idx, epoch=self.latest_ckpt.epoch):
+                if not profiling_started:
+                    profiling_started = True
+                    tf.profiler.experimental.start(self.train_logdir)
+                self.model.train_step(train_batch, train_metrics)
 
             self.write_train_summary({k: m.result() for k, m in train_metrics.items()})
 
@@ -241,6 +249,8 @@ class ModelRunner:
 
         except KeyboardInterrupt:
             print(Fore.YELLOW + "Interrupted." + Fore.RESET)
+
+        tf.profiler.experimental.stop()
 
         return val_metrics
 
