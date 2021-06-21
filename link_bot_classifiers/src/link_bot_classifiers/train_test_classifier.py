@@ -208,6 +208,7 @@ def eval_n_main(dataset_dir: pathlib.Path,
     dataset_loader, dataset = setup_eval_dataset((not no_balance), [dataset_dir], mode, old_compat, scenario, take,
                                                  threshold, use_gt_rope, batch_size)
 
+    metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives']
     all_metrics_to_print = []
     for checkpoint in checkpoints:
         trial_path = checkpoint.parent.absolute()
@@ -227,7 +228,6 @@ def eval_n_main(dataset_dir: pathlib.Path,
 
         val_metrics = model.create_metrics()
         runner.val_epoch(dataset, val_metrics)
-        metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives']
         metrics_to_print = [f"{val_metrics[k].result().numpy().squeeze():.4f}" for k in metric_keys_to_print]
         all_metrics_to_print.append(metrics_to_print)
 
@@ -322,7 +322,7 @@ def setup_eval_dataset(balance, dataset_dirs, mode, old_compat, scenario, take, 
         rospy.loginfo(Fore.CYAN + "NOTE! These metrics are on the balanced dataset")
         dataset = dataset.balance()
     dataset = dataset.take(take)
-    dataset = batch_tf_dataset(dataset, batch_size, drop_remainder=True)
+    dataset = batch_tf_dataset(dataset, batch_size, drop_remainder=False)
     return dataset_loader, dataset
 
 
@@ -343,26 +343,26 @@ class ClassifierEvaluation:
                                                         trials_directory=trials_directory)
 
         # Dataset
-        self.dataset = ClassifierDatasetLoader(dataset_dirs,
-                                               load_true_states=True,
-                                               use_gt_rope=use_gt_rope,
-                                               threshold=threshold)
-        self.tf_dataset = self.dataset.get_datasets(mode=mode)
+        self.dataset_loader = load_classifier_dataset(dataset_dirs,
+                                                      load_true_states=True,
+                                                      use_gt_rope=use_gt_rope,
+                                                      threshold=threshold)
+        self.dataset = self.dataset_loader.get_datasets(mode=mode)
 
         # Iterate
-        self.tf_dataset = self.tf_dataset.batch(batch_size, drop_remainder=True)
+        self.dataset = self.dataset.batch(batch_size, drop_remainder=False)
         if take is not None:
-            self.tf_dataset = self.tf_dataset.take(take)
+            self.dataset = self.dataset.take(take)
 
         self.model = classifier_utils.load_generic_model(checkpoint)
-        self.scenario = self.dataset.get_scenario()
+        self.scenario = self.dataset_loader.get_scenario()
 
     def __iter__(self):
-        for batch_idx, example in enumerate(progressbar(self.tf_dataset, widgets=mywidgets)):
+        for batch_idx, example in enumerate(progressbar(self.dataset, widgets=mywidgets)):
             if batch_idx < self.start_at:
                 continue
 
-            example.update(self.dataset.batch_metadata)
+            example.update(self.dataset_loader.batch_metadata)
             predictions = self.model.check_constraint_from_example(example, training=False)
 
             yield batch_idx, example, predictions
@@ -391,7 +391,7 @@ class ClassifierEvaluationFilter:
         self.take_after_filter = take_after_filter
         self.should_keep_example = should_keep_example
         self.scenario = self.view.scenario
-        self.dataset = self.view.dataset
+        self.dataset = self.view.dataset_loader
         self.model = self.view.model
 
     def __iter__(self):
@@ -485,14 +485,14 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 scenario.plot_accept_probability(accept_probability_t)
                 scenario.plot_traj_idx_rviz(batch_idx * batch_size + b)
 
-            anim = RvizAnimation(scenario=view.dataset.get_scenario(),
-                                 n_time_steps=view.dataset.horizon,
+            anim = RvizAnimation(scenario=view.dataset_loader.get_scenario(),
+                                 n_time_steps=view.dataset_loader.horizon,
                                  init_funcs=[init_viz_env,
-                                             view.dataset.init_viz_action(),
+                                             view.dataset_loader.init_viz_action(),
                                              ],
                                  t_funcs=[_custom_viz_t,
                                           init_viz_env,
-                                          view.dataset.classifier_transition_viz_t(),
+                                          view.dataset_loader.classifier_transition_viz_t(),
                                           ExperimentScenario.plot_dynamics_stdev_t,
                                           ])
 
@@ -520,7 +520,7 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
     if balance:
         tf_dataset = tf_dataset.balance()
     tf_dataset = tf_dataset.take(take)
-    tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
+    tf_dataset = tf_dataset.batch(batch_size, drop_remainder=False)
 
     # Evaluate
     for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=mywidgets)):

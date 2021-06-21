@@ -78,10 +78,8 @@ class NNRecoveryModel(MyKerasModel):
         self.output_layer2 = layers.Dense(1, activation=None, trainable=True)
         self.sigmoid = layers.Activation("sigmoid")
 
-        self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows,
-                                               w=self.local_env_w_cols,
-                                               c=self.local_env_c_channels,
-                                               batch_size=batch_size)
+        self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
+                                               c=self.local_env_c_channels)
         self.debug = ClassifierDebugging(self.scenario, self.state_keys, self.action_keys)
 
         self.indices = self.create_env_indices(batch_size)

@@ -5,7 +5,7 @@ import tensorflow as tf
 from colorama import Fore
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
+from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric, SpecificityAtSensitivity
 
 import rospy
 from link_bot_classifiers.augmentation_optimization import AugmentationOptimization
@@ -76,10 +76,8 @@ class NNClassifier(MyKerasModel):
         self.sigmoid = layers.Activation("sigmoid")
         self.certs_k = 100
 
-        self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows,
-                                               w=self.local_env_w_cols,
-                                               c=self.local_env_c_channels,
-                                               batch_size=batch_size)
+        self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
+                                               c=self.local_env_c_channels)
         self.debug = ClassifierDebugging(self.scenario, self.state_keys, self.action_keys)
 
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
