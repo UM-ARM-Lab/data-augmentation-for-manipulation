@@ -325,7 +325,9 @@ class AugmentationOptimization:
 
                     is_attract_indices = tf.squeeze(tf.where(object_occupancy_b > 0.5), 1)
                     attract_points_b = tf.gather(object_points_b, is_attract_indices)
-                    if tf.size(is_attract_indices) == 0 or tf.size(env_points_b) == 0:
+                    def _attract_cond():
+                        return tf.size(is_attract_indices) == 0 or tf.size(env_points_b) == 0
+                    if _attract_cond():
                         attract_loss = 0
                         min_attract_dist_b = 0.0
                     else:
@@ -338,7 +340,9 @@ class AugmentationOptimization:
 
                     is_repel_indices = tf.squeeze(tf.where(object_occupancy_b < 0.5), 1)
                     repel_points_b = tf.gather(object_points_b, is_repel_indices)
-                    if tf.size(is_repel_indices) == 0:
+                    def _repel_cond():
+                        return tf.size(is_repel_indices) == 0
+                    if _repel_cond():
                         repel_loss = 0
                         min_repel_dist_b = 0.0
                     else:
@@ -399,7 +403,7 @@ class AugmentationOptimization:
                 if DEBUG_AUG_SGD:
                     if b in debug_viz_batch_indices(batch_size):
                         print(step_size_b_i, self.step_size_threshold, hard_constraints_satisfied_b)
-                if step_size_b_i < self.step_size_threshold or hard_constraints_satisfied_b:
+                if self.can_terminate(step_size_b_i, hard_constraints_satisfied_b):
                     break
             local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b, r_b, o_b)
 
@@ -418,6 +422,9 @@ class AugmentationOptimization:
         env_aug_valid = tf.cast(tf.stack(env_aug_valid), tf.float32)
 
         return env_aug_valid, local_env_aug
+
+    def can_terminate(self, step_size_b_i, hard_constraints_satisfied_b):
+        return step_size_b_i < self.step_size_threshold or hard_constraints_satisfied_b
 
     def clip_env_aug_grad(self, gradients, variables):
         def _clip(g):

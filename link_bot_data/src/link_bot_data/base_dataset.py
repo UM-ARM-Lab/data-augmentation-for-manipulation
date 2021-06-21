@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 
 from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func, parse_and_slow_deserialize, \
-    multigen, merge_hparams_dicts, label_is
+    merge_hparams_dicts, label_is
 
 SORT_FILE_NAME = 'sort_order.csv'
 
@@ -37,39 +37,35 @@ class SizedTFDataset:
             dir = "??"
         return f"Dataset: {dir}, size={self.size}"
 
+    def get_example(self, idx: int):
+        for i, e in enumerate(self.dataset):
+            if i == idx:
+                return e
+
     def batch(self, batch_size: int, *args, **kwargs):
         dataset_batched = self.dataset.batch(*args, batch_size=batch_size, **kwargs)
         dataset_batched = dataset_batched.map(make_add_batch_func(batch_size))
         return SizedTFDataset(dataset_batched, self.records, size=int(self.size / batch_size))
 
-    def mymap(self, function: Callable, *args, **kwargs):
-        @multigen
-        def _mymap():
-            for e in self.dataset:
-                yield function(e, *args, **kwargs)
-
-        mapped_generator = _mymap()
-        return SizedTFDataset(mapped_generator, self.records)
-
     def map(self, function: Callable):
         dataset_mapped = self.dataset.map(function)
-        return SizedTFDataset(dataset_mapped, self.records)
+        return SizedTFDataset(dataset_mapped, self.records, size=self.size)
 
     def filter(self, function: Callable):
         dataset_filter = self.dataset.filter(function)
-        return SizedTFDataset(dataset_filter, self.records, size=None)
+        return SizedTFDataset(dataset_filter, self.records, size=self.size)
 
     def repeat(self, count: Optional[int] = None):
         dataset = self.dataset.repeat(count)
-        return SizedTFDataset(dataset, self.records, size=None)
+        return SizedTFDataset(dataset, self.records, size=self.size)
 
     def shuffle(self, buffer_size: int, seed: Optional[int] = None, reshuffle_each_iteration: bool = False):
         dataset = self.dataset.shuffle(buffer_size, seed, reshuffle_each_iteration)
-        return SizedTFDataset(dataset, self.records)
+        return SizedTFDataset(dataset, self.records, size=self.size)
 
     def prefetch(self, buffer_size: Any = tf.data.experimental.AUTOTUNE):
         dataset = self.dataset.prefetch(buffer_size)
-        return SizedTFDataset(dataset, self.records)
+        return SizedTFDataset(dataset, self.records, size=self.size)
 
     def take(self, count: int):
         if count is not None:

@@ -6,13 +6,12 @@ from typing import List, Optional, Dict
 import link_bot_classifiers
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.train_test_classifier import setup_datasets
-from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_new
-from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
+from link_bot_data.load_dataset import load_classifier_dataset
 from link_bot_pycommon.pycommon import paths_to_json
 from moonshine.filepath_tools import load_trial, create_trial
 from moonshine.model_runner import ModelRunner
-from moonshine.moonshine_utils import repeat, remove_batch, add_batch
+from moonshine.moonshine_utils import repeat
 
 
 def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
@@ -39,12 +38,13 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
 
     model_class = link_bot_classifiers.get_model(model_hparams['model_class'])
 
-    train_dataset = ClassifierDatasetLoader(dataset_dirs, use_gt_rope=True, load_true_states=True, verbose=verbose)
-    val_dataset = ClassifierDatasetLoader(dataset_dirs, use_gt_rope=True, load_true_states=True, verbose=verbose)
+    train_dataset_loader = load_classifier_dataset(dataset_dirs, use_gt_rope=True, load_true_states=True,
+                                                   verbose=verbose)
+    val_dataset_loader = load_classifier_dataset(dataset_dirs, use_gt_rope=True, load_true_states=True, verbose=verbose)
 
     # decrease the learning rate, this is often done in fine-tuning
     model_hparams['learning_rate'] = 1e-4  # normally 1e-3
-    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)
+    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.scenario)
 
     # override arbitrary parts of the model
     for k, v in kwargs.items():
@@ -56,16 +56,21 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          training=True,
                          params=model_hparams,
                          checkpoint=checkpoint,
-                         batch_metadata=train_dataset.batch_metadata,
+                         batch_metadata=train_dataset_loader.batch_metadata,
                          early_stopping=early_stopping,
                          trial_path=trial_path,
                          **kwargs)
 
-    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take)
+    train_dataset, val_dataset = setup_datasets(model_hparams,
+                                                batch_size=batch_size,
+                                                train_dataset_loader=train_dataset_loader,
+                                                val_dataset_loader=val_dataset_loader,
+                                                seed=0,
+                                                take=take)
 
     if augmentation_config_dir is not None:
-        train_tf_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_tf_dataset, batch_size)
-        val_tf_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, val_tf_dataset, batch_size)
+        train_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_dataset, batch_size)
+        val_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, val_dataset, batch_size)
     else:
         print("Warning, augmentation_config_dir is None")
 
@@ -78,12 +83,12 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
     model.output_layer.trainable = fine_tune_output
 
     runner.reset_best_ket_metric_value()
-    runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
+    runner.train(train_dataset, val_dataset, num_epochs=epochs)
 
     return trial_path
 
 
-def add_augmentation_configs_to_dataset(augmentation_config_dir, tf_dataset, batch_size):
+def add_augmentation_configs_to_dataset(augmentation_config_dir, dataset, batch_size):
     augmentation_config_gen = load_augmentation_configs(augmentation_config_dir)
 
     def _add_augmentation_env(example: Dict):
@@ -103,7 +108,7 @@ def add_augmentation_configs_to_dataset(augmentation_config_dir, tf_dataset, bat
 
         return example
 
-    return tf_dataset.map(_add_augmentation_env)
+    return dataset.map(_add_augmentation_env)
 
 
 def load_augmentation_configs(augmentation_config_dir: pathlib.Path):

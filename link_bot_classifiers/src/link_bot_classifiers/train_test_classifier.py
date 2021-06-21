@@ -45,25 +45,25 @@ def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
     return hparams
 
 
-def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, take: Optional[int] = None):
-    train_tf_dataset = train_dataset.get_datasets(mode='train', shuffle=True)
-    val_tf_dataset = val_dataset.get_datasets(mode='val', shuffle=True)
+def setup_datasets(model_hparams, batch_size, train_dataset_loader, val_dataset_loader, seed, take: Optional[int] = None):
+    train_dataset = train_dataset_loader.get_datasets(mode='train', shuffle=True)
+    val_dataset = val_dataset_loader.get_datasets(mode='val', shuffle=True)
 
     if 'shuffle_buffer_size' in model_hparams:
-        train_tf_dataset = train_tf_dataset.shuffle(model_hparams['shuffle_buffer_size'],
+        train_dataset = train_dataset.shuffle(model_hparams['shuffle_buffer_size'],
                                                     reshuffle_each_iteration=True,
                                                     seed=seed)
 
-    train_tf_dataset = train_tf_dataset.balance()
-    val_tf_dataset = val_tf_dataset.balance()
+    train_dataset = train_dataset.balance()
+    val_dataset = val_dataset.balance()
 
-    train_tf_dataset = train_tf_dataset.batch(batch_size, drop_remainder=True)
-    val_tf_dataset = val_tf_dataset.batch(batch_size, drop_remainder=True)
+    train_dataset = train_dataset.batch(batch_size, drop_remainder=True)
+    val_dataset = val_dataset.batch(batch_size, drop_remainder=True)
 
-    train_tf_dataset = train_tf_dataset.take(take)
-    val_tf_dataset = val_tf_dataset.take(take)
+    train_dataset = train_dataset.take(take)
+    val_dataset = val_dataset.take(take)
 
-    return train_tf_dataset, val_tf_dataset
+    return train_dataset, val_dataset
 
 
 def train_main(dataset_dirs: List[pathlib.Path],
