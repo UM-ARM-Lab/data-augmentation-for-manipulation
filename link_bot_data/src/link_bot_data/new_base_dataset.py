@@ -159,5 +159,5 @@ class NewBaseDatasetLoader:
 
     def pprint_example(self):
         dataset = self.get_datasets(mode='val', take=1)
-        example = next(iter(dataset))
+        example = dataset.get_example(0)
         pprint_example(example)

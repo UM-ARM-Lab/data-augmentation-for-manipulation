@@ -35,7 +35,7 @@ def main():
         else:
             tf_dataset = dataset.get_datasets(mode=args.mode)
 
-        example = next(iter(tf_dataset))
+        example = tf_dataset.get_element(0)
         print("Example:")
         pprint_example(example)
 

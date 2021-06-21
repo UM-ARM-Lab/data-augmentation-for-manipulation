@@ -43,7 +43,7 @@ def main():
     # find out the common env size
     max_env_shape = None
     for d in datasets:
-        e = next(iter(d.get_datasets(mode='all', take=1)))
+        e = d.get_datasets(mode='all', take=1).get_element(0)
         env_shape_i = list(e['env'].shape)
         print(env_shape_i)
         if max_env_shape is None:

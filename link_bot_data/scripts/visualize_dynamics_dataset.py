@@ -29,9 +29,7 @@ def main():
     dataset = dataset_loader.get_datasets(mode=args.mode, take=args.take, shuffle=args.shuffle)
 
     # print info about shapes
-    example = next(iter(dataset))
-    print("Example:")
-    pprint_example(example)
+    dataset.pprint_example()
 
     for i, example in enumerate(progressbar(dataset, widgets=mywidgets)):
         if args.start_at is not None and i < args.start_at:

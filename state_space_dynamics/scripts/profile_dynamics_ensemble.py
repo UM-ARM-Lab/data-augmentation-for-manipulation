@@ -25,7 +25,7 @@ def main():
     tf_dataset = dataset.get_datasets(mode='train')
     b = 64
     tf_dataset = tf_dataset.batch(b)
-    inputs = next(iter(tf_dataset))
+    inputs = tf_dataset.get_element(0)
 
     for i in progressbar(range(10)):
         for short_inputs in dataset.split_into_sequences(inputs, 2, time_dim=1):
