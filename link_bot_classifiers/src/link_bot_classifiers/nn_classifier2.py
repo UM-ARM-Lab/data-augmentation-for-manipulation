@@ -5,7 +5,7 @@ import tensorflow as tf
 from colorama import Fore
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric, SpecificityAtSensitivity
+from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 import rospy
 from link_bot_classifiers.augmentation_optimization import AugmentationOptimization
@@ -28,7 +28,7 @@ from moonshine.moonshine_utils import numpify
 from moonshine.my_keras_model import MyKerasModel
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_INPUT_OUTPUT = False
+DEBUG_INPUT = True
 
 
 class NNClassifier(MyKerasModel):
@@ -97,7 +97,8 @@ class NNClassifier(MyKerasModel):
         self.aug = AugmentationOptimization(scenario=self.scenario, debug=self.debug,
                                             local_env_helper=self.local_env_helper, vg_info=self.vg_info,
                                             points_state_keys=self.points_state_keys, hparams=self.hparams,
-                                            batch_size=self.batch_size, action_keys=self.action_keys)
+                                            batch_size=self.batch_size, state_keys=self.state_keys,
+                                            action_keys=self.action_keys)
         if self.aug.do_augmentation():
             rospy.loginfo("Using augmentation during training")
         else:
@@ -107,7 +108,7 @@ class NNClassifier(MyKerasModel):
         batch_size = inputs['batch_size']
         time = inputs['time']
 
-        if DEBUG_INPUT_OUTPUT:
+        if DEBUG_INPUT:
             # clear the other voxel grids from previous calls
             self.debug.clear()
             self.scenario.delete_points_rviz(label='attract')
@@ -127,31 +128,24 @@ class NNClassifier(MyKerasModel):
                 }
                 self.scenario.plot_environment_rviz(env_b)
                 self.delete_state_action_markers('aug')
-                self.debug.plot_state_action_rviz(inputs, b, 'input')
                 origin_point_b = inputs['origin_point'][b].numpy().tolist()
-                self.debug.send_position_transform(origin_point_b, 'env_origin_point')
+                self.debug.send_position_transform(origin_point_b, 'origin_point')
                 # stepper.step()  # INPUT
 
-        # Create voxel grids
-        local_env, local_origin_point = self.get_local_env(inputs, batch_size)
-
-        # shouldn't this happen after augmentation? or maybe it needs to happen twice?
-        voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
-
-        inputs['voxel_grids'] = voxel_grids
-        inputs['local_origin_point'] = local_origin_point
-
-        inputs['swept_object_points'] = self.aug.compute_swept_object_points(inputs)
-
-        if DEBUG_INPUT_OUTPUT:
-            self.debug_viz_voxelgrid_inputs(inputs, time)
+            self.debug_viz_inputs(inputs, None, time)
 
         if training and self.aug.do_augmentation():
             # returns a copy, does NOT modify inputs in-place
-            inputs = self.aug.augmentation_optimization(inputs, batch_size, time)
+            inputs, local_env, local_origin_point = self.aug.augmentation_optimization(inputs, batch_size, time)
+        else:
+            local_env, local_origin_point = self.aug.get_local_env(inputs, batch_size)
 
-        if DEBUG_INPUT_OUTPUT:  # Actually output
-            self.debug_viz_voxelgrid_inputs(inputs, time)
+        voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
+        inputs['voxel_grids'] = voxel_grids
+
+        if DEBUG_INPUT:
+            assert not rospy.get_param("use_sim_time", False)
+            self.debug_viz_inputs(inputs, local_origin_point, time)
 
         return inputs
 
@@ -279,30 +273,15 @@ class NNClassifier(MyKerasModel):
         out_h = self.lstm(out_d)
         return out_h
 
-    def get_local_env(self, input_dict, batch_size):
-        state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
+    def debug_viz_inputs(self, inputs: Dict, local_origin_point, time):
 
-        # NOTE: to be more general, this should return a pose not just a point/position
-        local_env_center = self.scenario.local_environment_center_differentiable(state_0)
-        environment = {k: input_dict[k] for k in ['env', 'origin_point', 'res', 'extent']}
-        local_env, local_origin_point = self.local_env_helper.get(local_env_center, environment, batch_size)
-
-        if DEBUG_INPUT_OUTPUT:
-            stepper = RvizSimpleStepper()
-            for b in debug_viz_batch_indices(self.batch_size):
-                self.debug.send_position_transform(local_env_center[b], 'local_env_center')
-                self.debug.send_position_transform(local_origin_point[b], 'local_origin_point')
-                # stepper.step()
-
-        return local_env, local_origin_point
-
-    def debug_viz_voxelgrid_inputs(self, inputs: Dict, time):
-        local_origin_point = inputs['local_origin_point']
         for b in debug_viz_batch_indices(self.batch_size):
-            send_voxelgrid_tf_origin_point_res(self.broadcaster,
-                                               origin_point=local_origin_point[b],
-                                               res=inputs['res'][b],
-                                               frame='local_env_vg')
+            if local_origin_point is not None:
+                self.debug.send_position_transform(local_origin_point[b], 'local_origin_point')
+                send_voxelgrid_tf_origin_point_res(self.broadcaster,
+                                                   origin_point=local_origin_point[b],
+                                                   res=inputs['res'][b],
+                                                   frame='local_env_vg')
 
             bbox_msg = grid_to_bbox(rows=self.local_env_h_rows,
                                     cols=self.local_env_w_cols,
@@ -317,31 +296,26 @@ class NNClassifier(MyKerasModel):
             deserialize_scene_msg(env_b)
             self.scenario.plot_environment_rviz(env_b)
 
-            self.animate_voxel_grid_states(b, inputs, time)
+            self.animate_inputs(b, inputs, time)
 
-    def animate_voxel_grid_states(self, b, inputs, time):
+    def animate_inputs(self, b, inputs, time):
         anim = RvizAnimationController(n_time_steps=time)
+        self.debug.plot_action_rviz(inputs, b, 'inputs')
         while not anim.done:
             t = anim.t()
 
-            local_voxel_grid_t = inputs['voxel_grids'][:, t]
+            if 'voxel_grids' in inputs:
+                local_voxel_grid_t = inputs['voxel_grids'][:, t]
 
-            for i, state_component_k_voxel_grid in enumerate(tf.transpose(local_voxel_grid_t, [4, 0, 1, 2, 3])):
-                raster_dict = {
-                    'env': tf.clip_by_value(state_component_k_voxel_grid[b], 0, 1),
-                    'res': inputs['res'][b].numpy(),
-                }
-                raster_msg = environment_to_vg_msg(raster_dict, frame='local_env_vg', stamp=rospy.Time(0))
-                self.debug.raster_debug_pubs[i].publish(raster_msg)
+                for i, state_component_k_voxel_grid in enumerate(tf.transpose(local_voxel_grid_t, [4, 0, 1, 2, 3])):
+                    raster_dict = {
+                        'env': tf.clip_by_value(state_component_k_voxel_grid[b], 0, 1),
+                        'res': inputs['res'][b].numpy(),
+                    }
+                    raster_msg = environment_to_vg_msg(raster_dict, frame='local_env_vg', stamp=rospy.Time(0))
+                    self.debug.raster_debug_pubs[i].publish(raster_msg)
 
-            state_t = numpify({k: inputs[add_predicted(k)][b, t] for k in self.state_keys})
-            state_t[add_predicted('joint_positions')] = inputs[add_predicted('joint_positions')][b, t]
-            state_t['joint_names'] = inputs['joint_names'][b, t]
-            self.scenario.plot_state_rviz(state_t)
-            self.scenario.plot_is_close(inputs['is_close'][b, 1])
-            if 'error' in inputs:
-                error_t = inputs['error'][b, 1]
-                self.scenario.plot_error_rviz(error_t)
+            self.debug.plot_state_rviz(inputs, b, t, 'inputs')
 
             anim.step()
 

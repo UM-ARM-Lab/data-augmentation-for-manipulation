@@ -21,10 +21,9 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, pairwise_squared_distances
 from moonshine.moonshine_utils import reduce_mean_no_nan
-from moonshine.optimization import log_barrier
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
-DEBUG_AUG = False
+DEBUG_AUG = True
 DEBUG_AUG_SGD = False
 
 
@@ -72,7 +71,9 @@ class AugmentationOptimization:
                  points_state_keys: List[str],
                  hparams: Dict,
                  batch_size: int,
+                 state_keys: List[str],
                  action_keys: List[str]):
+        self.state_keys = state_keys
         self.action_keys = action_keys
         self.hparams = hparams.get('augmentation', None)
         self.points_state_keys = points_state_keys
@@ -90,12 +91,13 @@ class AugmentationOptimization:
         self.max_steps = 18
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
-        self.step_size = 10.0
+        self.step_size = 5.0
         self.opt = tf.keras.optimizers.SGD(self.step_size)
         self.step_size_threshold = 0.002  # stopping criteria, how far the env moved (meters)
         self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.grad_clip = 0.25  # max dist step the env aug update can take
+        self.attract_loss_weight = 0.05
 
         # Precompute this for speed
         self.barrier_epsilon = 0.01
@@ -111,6 +113,7 @@ class AugmentationOptimization:
                                   batch_size,
                                   time):
         inputs_aug = {
+            # initialize with things that we won't be updating in this augmentation
             'res':                  inputs['res'],
             'extent':               inputs['extent'],
             'origin_point':         inputs['origin_point'],
@@ -121,24 +124,20 @@ class AugmentationOptimization:
             add_predicted('stdev'): inputs[add_predicted('stdev')],
         }
 
-        object_points = inputs['swept_object_points']
+        local_env, local_origin_point = self.get_local_env(inputs, batch_size)
+
+        object_points = self.compute_swept_object_points(inputs)
         res = inputs['res']
-        local_origin_point = inputs['local_origin_point']
-        local_env = inputs['voxel_grids'][:, 0, :, :, :, 0]  # just use 0 because it's the same at all time steps
         # get all components of the state as a set of points
         # in general this should be the swept volume, and should include the robot
         object_points_occupancy = lookup_points_in_vg(object_points, local_env, res, local_origin_point, batch_size)
 
-        transformation_matrices = self.sample_object_transformations(batch_size)
-        object_aug_valid, object_aug_update = self.scenario.apply_object_augmentation(transformation_matrices,
-                                                                                      inputs,
-                                                                                      batch_size,
-                                                                                      time,
-                                                                                      self.local_env_helper.h,
-                                                                                      self.local_env_helper.w,
-                                                                                      self.local_env_helper.c)
+        transformations = self.sample_object_transformations(batch_size)
+        object_aug_valid, object_aug_update, local_origin_point_aug = self.apply_object_augmentation(transformations,
+                                                                                                     inputs,
+                                                                                                     batch_size,
+                                                                                                     time)
         inputs_aug.update(object_aug_update)
-        local_origin_point_aug = inputs_aug['local_origin_point']
 
         # this was just updated by apply_state_augmentation
         if DEBUG_AUG:
@@ -167,7 +166,7 @@ class AugmentationOptimization:
                 self.debug.aug_bbox_pub.publish(bbox_msg)
                 # stepper.step()
 
-        object_points_aug = transform_points_3d(transformation_matrices[:, None], object_points)
+        object_points_aug = transform_points_3d(transformations[:, None], object_points)
         robot_points_aug = self.compute_swept_robot_points(inputs_aug, batch_size)
 
         if DEBUG_AUG:
@@ -195,16 +194,12 @@ class AugmentationOptimization:
                                                                      res,
                                                                      local_origin_point_aug,
                                                                      batch_size)
-        # NOTE: now we to re-compute the voxel_grids, since the object state, robot state, and local_env have changed
-        voxel_grids_aug = self.vg_info.make_voxelgrid_inputs(inputs_aug, local_env_aug, local_origin_point_aug,
-                                                             batch_size, time)
-        inputs_aug['voxel_grids'] = voxel_grids_aug
 
         if DEBUG_AUG:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 _aug_dict = {
-                    'env':          inputs_aug['voxel_grids'][b, 0, :, :, :, 0].numpy(),
+                    'env':          local_env_aug[b].numpy(),
                     'origin_point': local_origin_point_aug[b].numpy(),
                     'res':          res[b].numpy(),
                 }
@@ -215,19 +210,30 @@ class AugmentationOptimization:
                                                    res[b],
                                                    frame='local_env_aug_vg')
 
-                self.debug.plot_state_action_rviz(inputs_aug, b, 'aug', color='blue')
+                self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug', color='blue')
+                self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug', color='blue')
+                self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
                 # stepper.step()  # FINAL AUG (not necessarily what the network sees, only if valid)
+
+                print(env_aug_valid[b], object_aug_valid[b])
 
         is_valid = env_aug_valid * object_aug_valid
         # FIXME: this is so hacky
-        keys_aug = ['voxel_grids', 'local_origin_point', add_predicted('joint_positions')]
+        keys_aug = [add_predicted('joint_positions')]
         keys_aug += self.action_keys
         keys_aug += [add_predicted(psk) for psk in self.points_state_keys]
         for k in keys_aug:
             v = inputs_aug[k]
-            is_valid_expanded = tf.reshape(is_valid, [batch_size] + [1] * (v.ndim - 1))
-            inputs_aug[k] = is_valid_expanded * inputs_aug[k] + (1 - is_valid_expanded) * inputs[k]
-        return inputs_aug
+            iv = tf.reshape(is_valid, [batch_size] + [1] * (v.ndim - 1))
+            inputs_aug[k] = iv * inputs_aug[k] + (1 - iv) * inputs[k]
+
+        iv = tf.reshape(is_valid, [batch_size] + [1, 1, 1])
+        local_env_aug = iv * local_env_aug + (1 - iv) * local_env
+
+        iv = tf.reshape(is_valid, [batch_size] + [1])
+        local_origin_point_aug = iv * local_origin_point_aug + (1 - iv) * local_origin_point
+
+        return inputs_aug, local_env_aug, local_origin_point_aug
 
     def sample_object_transformations(self, batch_size):
         # sample a translation and rotation for the object state
@@ -239,6 +245,15 @@ class AugmentationOptimization:
         transformation_matrices = [transformations.compose_matrix(translate=p[:3], angles=p[3:]) for p in
                                    best_transformation_params]
         return tf.cast(transformation_matrices, tf.float32)
+
+    def apply_object_augmentation(self, transformation_matrices, inputs, batch_size, time):
+        return self.scenario.apply_object_augmentation(transformation_matrices,
+                                                       inputs,
+                                                       batch_size,
+                                                       time,
+                                                       self.local_env_helper.h,
+                                                       self.local_env_helper.w,
+                                                       self.local_env_helper.c)
 
     def opt_new_env_augmentation(self,
                                  inputs_aug: Dict,
@@ -373,7 +388,8 @@ class AugmentationOptimization:
                         self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
 
                         if DEBUG_AUG_SGD:
-                            repel_close_indices = tf.squeeze(tf.where(min_dists.repel < self.barrier_upper_lim), axis=-1)
+                            repel_close_indices = tf.squeeze(tf.where(min_dists.repel < self.barrier_upper_lim),
+                                                             axis=-1)
                             robot_repel_close_indices = tf.squeeze(
                                 tf.where(min_dists.robot_repel < self.barrier_upper_lim),
                                 axis=-1)
@@ -381,15 +397,17 @@ class AugmentationOptimization:
                             nearest_robot_repel_points_where_close = tf.gather(dbg.nearest_robot_repel_points,
                                                                                robot_repel_close_indices)
                             env_points_b_where_close = tf.gather(env_points_b.sparse, repel_close_indices)
-                            env_points_b_where_close_to_robot = tf.gather(env_points_b.sparse, robot_repel_close_indices)
+                            env_points_b_where_close_to_robot = tf.gather(env_points_b.sparse,
+                                                                          robot_repel_close_indices)
                             if b in debug_viz_batch_indices(batch_size):
                                 t_for_robot_viz = 0
                                 state_b_i = {
-                                                 'joint_names':     inputs_aug['joint_names'][b, t_for_robot_viz],
-                                                 'joint_positions': inputs_aug[add_predicted('joint_positions')][b, t_for_robot_viz],
-                                                    }
+                                    'joint_names':     inputs_aug['joint_names'][b, t_for_robot_viz],
+                                    'joint_positions': inputs_aug[add_predicted('joint_positions')][b, t_for_robot_viz],
+                                }
                                 self.scenario.plot_state_rviz(state_b_i, label='aug_opt')
-                                self.scenario.plot_points_rviz(env_points_b.sparse, label='icp', color='grey', scale=0.005)
+                                self.scenario.plot_points_rviz(env_points_b.sparse, label='icp', color='grey',
+                                                               scale=0.005)
                                 self.scenario.plot_lines_rviz(dbg.nearest_attract_env_points, attract_points_b,
                                                               label='attract_correspondence', color='g')
                                 self.scenario.plot_lines_rviz(nearest_repel_points_where_close,
@@ -467,7 +485,7 @@ class AugmentationOptimization:
         # print(f'{attract_dists_b.shape[0]}')
         # print(attract_dists_b.shape[1] + repel_dists_b.shape[1])
 
-        loss = attract_loss * 0.05 + repel_loss + robot_repel_loss
+        loss = attract_loss * self.attract_loss_weight + repel_loss + robot_repel_loss
 
         min_dists = MinDists(min_attract_dist_b, min_repel_dist_b, min_robot_repel_dist_b)
         env_opt_debug_vars = EnvOptDebugVars(nearest_attract_env_points, nearest_repel_points,
@@ -559,3 +577,13 @@ class AugmentationOptimization:
         swept_object_points = tf.reshape(swept_object_points, [batch_size, -1, 3])
 
         return swept_object_points
+
+    def get_local_env(self, input_dict, batch_size):
+        state_0 = {k: input_dict[add_predicted(k)][:, 0] for k in self.state_keys}
+
+        # NOTE: to be more general, this should return a pose not just a point/position
+        local_env_center = self.scenario.local_environment_center_differentiable(state_0)
+        environment = {k: input_dict[k] for k in ['env', 'origin_point', 'res', 'extent']}
+        local_env, local_origin_point = self.local_env_helper.get(local_env_center, environment, batch_size)
+
+        return local_env, local_origin_point

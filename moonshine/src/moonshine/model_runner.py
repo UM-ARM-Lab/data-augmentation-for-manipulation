@@ -47,6 +47,8 @@ class TFProfilerStopper:
         if not self.parent.started or self.parent.finished or self.epoch > 1:
             return
         if force or self.batch_idx >= self.parent.stop_batch:
+            if force:
+                print(Fore.RED + "Force stopping profiler!" + Fore.RESET)
             self.parent.started = False
             self.parent.finished = True
             print(Back.WHITE + Fore.BLACK + "Stopping Profiler" + Fore.RESET + Back.RESET)
@@ -216,7 +218,6 @@ class ModelRunner:
 
         try:
             # In case the data iterator ends before we reach the stop profiling condition, try to stop it here
-            print(Fore.RED + "Force stoping profiler!" + Fore.RESET)
             p.stop(force=True)
         except Exception:
             pass

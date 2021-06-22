@@ -413,7 +413,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             add_predicted('right_gripper'):   right_gripper_aug,
             'left_gripper_position':          left_gripper_position_aug,
             'right_gripper_position':         right_gripper_position_aug,
-            'local_origin_point':             local_origin_point_aug,
         }
 
         if DEBUG_VIZ_STATE_AUG:
@@ -429,7 +428,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 self.plot_environment_rviz(env_b)
                 self.debug_viz_state_action(object_aug_update, b, 'aug', color='white')
                 stepper.step()
-        return object_aug_valid, object_aug_update
+        return object_aug_valid, object_aug_update, local_origin_point_aug
 
     def apply_augmentation_to_robot_state(self, batch_size, inputs, left_gripper_points_aug, right_gripper_points_aug):
         # use IK to get a new starting joint configuration
