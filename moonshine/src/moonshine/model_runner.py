@@ -60,7 +60,7 @@ class ModelRunner:
                  key_metric=LossCheckpointMetric,
                  val_every_n_batches=None,
                  mid_epoch_val_batches=None,
-                 save_every_n_minutes: int = 60,
+                 save_every_n_minutes: int = 20,
                  verbose: int = 0,
                  validate_first=False,
                  batch_metadata=None,
