@@ -78,7 +78,8 @@ class NewClassifierDatasetLoader(NewBaseDatasetLoader):
                  scenario: Optional[ScenarioWithVisualization] = None,
                  load_true_states=UNUSED_COMPAT,
                  old_compat=UNUSED_COMPAT,
-                 use_gt_rope=UNUSED_COMPAT):
+                 use_gt_rope=UNUSED_COMPAT,
+                 verbose=UNUSED_COMPAT):
         super().__init__(dataset_dirs, scenario)
 
         self.labeling_params = self.hparams['labeling_params']
