@@ -440,66 +440,69 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         out_joint_positions_start = []
         out_joint_positions_end = []
         reached = []
+
         for b in range(batch_size):
-            # use the joint config pre-augmentation to seed IK for the augmented joint config
-            seed_joint_position_b = inputs[add_predicted('joint_positions')][b, 0].numpy().tolist()
-            joint_names = inputs['joint_names'][b, 0].numpy().tolist()
-            preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
+            with tf.profiler.experimental.Trace("apply_to_robot_state_batch_loop", b=b):
+                # use the joint config pre-augmentation to seed IK for the augmented joint config
+                seed_joint_position_b = inputs[add_predicted('joint_positions')][b, 0].numpy().tolist()
+                joint_names = inputs['joint_names'][b, 0].numpy().tolist()
+                preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
 
-            left_gripper_aug_start_point = left_gripper_points_aug[b, 0, 0].numpy()
-            right_gripper_aug_start_point = right_gripper_points_aug[b, 0, 0].numpy()
-            left_gripper_aug_end_point = left_gripper_points_aug[b, 1, 0].numpy()
-            right_gripper_aug_end_point = right_gripper_points_aug[b, 1, 0].numpy()
-            grippers_start = [[left_gripper_aug_start_point], [right_gripper_aug_start_point]]
-            grippers_end = [[left_gripper_aug_end_point], [right_gripper_aug_end_point]]
+                left_gripper_aug_start_point = left_gripper_points_aug[b, 0, 0].numpy()
+                right_gripper_aug_start_point = right_gripper_points_aug[b, 0, 0].numpy()
+                left_gripper_aug_end_point = left_gripper_points_aug[b, 1, 0].numpy()
+                right_gripper_aug_end_point = right_gripper_points_aug[b, 1, 0].numpy()
+                grippers_start = [[left_gripper_aug_start_point], [right_gripper_aug_start_point]]
+                grippers_end = [[left_gripper_aug_end_point], [right_gripper_aug_end_point]]
 
-            # run jacobian follower as a hack to try to solve for a joint config with grippers matching the augmented
-            # gripper positions
-            seed_joint_state = JointState(name=joint_names, position=seed_joint_position_b)
-            empty_scene_msg_b, seed_robot_state = merge_joint_state_and_scene_msg(empty_scene_msgs[b], seed_joint_state)
-            plan_to_start, reached_start_b = self.robot.jacobian_follower.plan(
-                group_name='whole_body',
-                tool_names=tool_names,
-                preferred_tool_orientations=preferred_tool_orientations,
-                start_state=seed_robot_state,
-                scene=empty_scene_msg_b,
-                grippers=grippers_start,
-                max_velocity_scaling_factor=0.1,
-                max_acceleration_scaling_factor=0.1,
-            )
+                # run jacobian follower to try to solve for a joint config with grippers matching the augmented
+                # gripper positions
+                seed_joint_state = JointState(name=joint_names, position=seed_joint_position_b)
+                empty_scene_msg_b, seed_robot_state = merge_joint_state_and_scene_msg(empty_scene_msgs[b],
+                                                                                      seed_joint_state)
+                plan_to_start, reached_start_b = self.robot.jacobian_follower.plan(
+                    group_name='whole_body',
+                    tool_names=tool_names,
+                    preferred_tool_orientations=preferred_tool_orientations,
+                    start_state=seed_robot_state,
+                    scene=empty_scene_msg_b,
+                    grippers=grippers_start,
+                    max_velocity_scaling_factor=0.1,
+                    max_acceleration_scaling_factor=0.1,
+                )
 
-            planned_to_start_points = plan_to_start.joint_trajectory.points
-            if len(planned_to_start_points) > 0:
-                out_joint_position_start_b = planned_to_start_points[-1].positions
-            else:
-                out_joint_position_start_b = seed_joint_position_b
+                planned_to_start_points = plan_to_start.joint_trajectory.points
+                if len(planned_to_start_points) > 0:
+                    out_joint_position_start_b = planned_to_start_points[-1].positions
+                else:
+                    out_joint_position_start_b = seed_joint_position_b
 
-            # run jacobian follower (again) to produce the next joint state and confirm the motion is feasible
-            start_joint_state = JointState(name=joint_names, position=out_joint_position_start_b)
-            empty_scene_msg_b, start_robot_state = merge_joint_state_and_scene_msg(empty_scene_msgs[b],
-                                                                                   start_joint_state)
-            plan_to_end, reached_end_b = self.robot.jacobian_follower.plan(
-                group_name='whole_body',
-                tool_names=tool_names,
-                preferred_tool_orientations=preferred_tool_orientations,
-                start_state=start_robot_state,
-                scene=empty_scene_msg_b,
-                grippers=grippers_end,
-                max_velocity_scaling_factor=0.1,
-                max_acceleration_scaling_factor=0.1,
-            )
+                # run jacobian follower (again) to produce the next joint state and confirm the motion is feasible
+                start_joint_state = JointState(name=joint_names, position=out_joint_position_start_b)
+                empty_scene_msg_b, start_robot_state = merge_joint_state_and_scene_msg(empty_scene_msgs[b],
+                                                                                       start_joint_state)
+                plan_to_end, reached_end_b = self.robot.jacobian_follower.plan(
+                    group_name='whole_body',
+                    tool_names=tool_names,
+                    preferred_tool_orientations=preferred_tool_orientations,
+                    start_state=start_robot_state,
+                    scene=empty_scene_msg_b,
+                    grippers=grippers_end,
+                    max_velocity_scaling_factor=0.1,
+                    max_acceleration_scaling_factor=0.1,
+                )
 
-            planned_to_end_points = plan_to_end.joint_trajectory.points
-            if len(planned_to_end_points) > 0:
-                out_joint_position_end_b = planned_to_end_points[-1].positions
-            else:
-                out_joint_position_end_b = seed_joint_position_b
+                planned_to_end_points = plan_to_end.joint_trajectory.points
+                if len(planned_to_end_points) > 0:
+                    out_joint_position_end_b = planned_to_end_points[-1].positions
+                else:
+                    out_joint_position_end_b = seed_joint_position_b
 
-            reached_b = reached_start_b and reached_end_b
+                reached_b = reached_start_b and reached_end_b
 
-            out_joint_positions_start.append(out_joint_position_start_b)
-            out_joint_positions_end.append(out_joint_position_end_b)
-            reached.append(reached_b)
+                out_joint_positions_start.append(out_joint_position_start_b)
+                out_joint_positions_end.append(out_joint_position_end_b)
+                reached.append(reached_b)
 
         joint_positions_aug = tf.stack((tf.constant(out_joint_positions_start, tf.float32),
                                         tf.constant(out_joint_positions_end, tf.float32)), axis=1)

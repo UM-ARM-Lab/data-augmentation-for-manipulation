@@ -52,7 +52,6 @@ class AugmentationOptimization:
                  hparams: Dict,
                  batch_size: int,
                  action_keys: List[str]):
-        self.robot_subsample = 0.1
         self.action_keys = action_keys
         self.hparams = hparams.get('augmentation', None)
         self.points_state_keys = points_state_keys
@@ -63,9 +62,11 @@ class AugmentationOptimization:
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
 
+        self.robot_subsample = 0.1
+        self.env_subsample = 0.1
+        self.num_object_interp = 5  # must be >=3
+        self.num_robot_interp = 3  # must be >=3
         self.max_steps = 18
-        self.num_object_interp = 5
-        self.num_robot_interp = 5
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
         self.step_size = 10.0
@@ -295,78 +296,80 @@ class AugmentationOptimization:
         env_aug_valid = []
 
         for b in range(batch_size):
-            r_b = res[b]
-            o_b = local_origin_point_aug[b]
-            object_points_b = object_points_aug[b]
-            robot_points_b = robot_points_aug[b]
-            robot_points_b = subsample_points(robot_points_b,
-                                              self.robot_subsample)  # sub-sample because to speed up and avoid OOM
-            object_occupancy_b = object_points_occupancy[b]
-            env_points_b_initial = occupied_voxels_to_points(local_env_new[b], r_b, o_b)
-            env_points_b_initial_sparse = subsample_points(env_points_b_initial, 0.5)
+            with tf.profiler.experimental.Trace('one_batch_loop', b=b):
+                r_b = res[b]
+                o_b = local_origin_point_aug[b]
+                object_points_b = object_points_aug[b]
+                robot_points_b = robot_points_aug[b]
+                robot_points_b = subsample_points(robot_points_b,
+                                                  self.robot_subsample)  # sub-sample because to speed up and avoid OOM
+                object_occupancy_b = object_points_occupancy[b]
+                env_points_b_initial = occupied_voxels_to_points(local_env_new[b], r_b, o_b)
+                env_points_b_initial_sparse = subsample_points(env_points_b_initial, self.env_subsample)
 
-            initial_is_attract_indices = tf.squeeze(tf.where(object_occupancy_b > 0.5), 1)
-            initial_attract_points_b = tf.gather(object_points_b, initial_is_attract_indices)
-            if tf.size(initial_is_attract_indices) == 0:
-                initial_translation_b = tf.zeros(3)
-            else:
-                env_points_b_initial_mean = tf.reduce_mean(env_points_b_initial, axis=0)
-                initial_attract_points_b_mean = tf.reduce_mean(initial_attract_points_b, axis=0)
-                initial_translation_b = initial_attract_points_b_mean - env_points_b_initial_mean
+                initial_is_attract_indices = tf.squeeze(tf.where(object_occupancy_b > 0.5), 1)
+                initial_attract_points_b = tf.gather(object_points_b, initial_is_attract_indices)
+                if tf.size(initial_is_attract_indices) == 0:
+                    initial_translation_b = tf.zeros(3)
+                else:
+                    env_points_b_initial_mean = tf.reduce_mean(env_points_b_initial, axis=0)
+                    initial_attract_points_b_mean = tf.reduce_mean(initial_attract_points_b, axis=0)
+                    initial_translation_b = initial_attract_points_b_mean - env_points_b_initial_mean
 
-            translation_b = tf.Variable(initial_translation_b, dtype=tf.float32)
-            variables = [translation_b]
+                translation_b = tf.Variable(initial_translation_b, dtype=tf.float32)
+                translation_b.assign(initial_translation_b)
+                variables = [translation_b]
 
-            hard_constraints_satisfied_b = False
+                hard_constraints_satisfied_b = False
 
-            is_attract_indices = tf.squeeze(tf.where(object_occupancy_b > 0.5), 1)
-            attract_points_b = tf.gather(object_points_b, is_attract_indices)
+                is_attract_indices = tf.squeeze(tf.where(object_occupancy_b > 0.5), 1)
+                attract_points_b = tf.gather(object_points_b, is_attract_indices)
 
-            is_repel_indices = tf.squeeze(tf.where(object_occupancy_b < 0.5), 1)
-            repel_points_b = tf.gather(object_points_b, is_repel_indices)
-            for i in range(self.max_steps):
-                if tf.size(env_points_b_initial) == 0:
-                    hard_constraints_satisfied_b = True
-                    break
+                is_repel_indices = tf.squeeze(tf.where(object_occupancy_b < 0.5), 1)
+                repel_points_b = tf.gather(object_points_b, is_repel_indices)
+                for i in range(self.max_steps):
+                    if tf.size(env_points_b_initial) == 0:
+                        hard_constraints_satisfied_b = True
+                        break
 
-                with tf.GradientTape() as tape:
-                    loss, min_attract_dist_b, nearest_attract_env_points, min_repel_dist_b, min_robot_repel_dist_b, nearest_repel_points, nearest_robot_repel_points, env_points_b, env_points_b_sparse = self.forward(
-                        env_points_b_initial, env_points_b_initial_sparse, translation_b, attract_points_b,
-                        repel_points_b, robot_points_b)
+                    with tf.GradientTape() as tape:
+                        loss, min_attract_dist_b, nearest_attract_env_points, min_repel_dist_b, min_robot_repel_dist_b, nearest_repel_points, nearest_robot_repel_points, env_points_b, env_points_b_sparse = self.forward(
+                            env_points_b_initial, env_points_b_initial_sparse, translation_b, attract_points_b,
+                            repel_points_b, robot_points_b)
 
-                gradients = tape.gradient(loss, variables)
+                    gradients = tape.gradient(loss, variables)
 
-                clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
-                self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
+                    clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
+                    self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
 
-                if DEBUG_AUG_SGD:
-                    repel_close_indices = tf.squeeze(tf.where(min_repel_dist_b < self.barrier_upper_lim), axis=-1)
-                    robot_repel_close_indices = tf.squeeze(tf.where(min_robot_repel_dist_b < self.barrier_upper_lim),
-                                                           axis=-1)
-                    nearest_repel_points_where_close = tf.gather(nearest_repel_points, repel_close_indices)
-                    nearest_robot_repel_points_where_close = tf.gather(nearest_robot_repel_points,
-                                                                       robot_repel_close_indices)
-                    env_points_b_where_close = tf.gather(env_points_b_sparse, repel_close_indices)
-                    env_points_b_where_close_to_robot = tf.gather(env_points_b_sparse, robot_repel_close_indices)
-                    if b in debug_viz_batch_indices(batch_size):
-                        t_for_robot_viz = 0
-                        state_b_i = {
-                            'joint_names':     inputs_aug['joint_names'][b, t_for_robot_viz],
-                            'joint_positions': inputs_aug[add_predicted('joint_positions')][b, t_for_robot_viz],
-                        }
-                        self.scenario.plot_state_rviz(state_b_i, label='aug_opt')
-                        self.scenario.plot_points_rviz(env_points_b_sparse, label='icp', color='grey', scale=0.005)
-                        self.scenario.plot_lines_rviz(nearest_attract_env_points, attract_points_b,
-                                                      label='attract_correspondence', color='g')
-                        self.scenario.plot_lines_rviz(nearest_repel_points_where_close,
-                                                      env_points_b_where_close,
-                                                      label='repel_correspondence', color='r')
-                        self.scenario.plot_lines_rviz(nearest_robot_repel_points_where_close,
-                                                      env_points_b_where_close_to_robot,
-                                                      label='robot_repel_correspondence', color='orange')
-                        # stepper.step()
+                    if DEBUG_AUG_SGD:
+                        repel_close_indices = tf.squeeze(tf.where(min_repel_dist_b < self.barrier_upper_lim), axis=-1)
+                        robot_repel_close_indices = tf.squeeze(
+                            tf.where(min_robot_repel_dist_b < self.barrier_upper_lim),
+                            axis=-1)
+                        nearest_repel_points_where_close = tf.gather(nearest_repel_points, repel_close_indices)
+                        nearest_robot_repel_points_where_close = tf.gather(nearest_robot_repel_points,
+                                                                           robot_repel_close_indices)
+                        env_points_b_where_close = tf.gather(env_points_b_sparse, repel_close_indices)
+                        env_points_b_where_close_to_robot = tf.gather(env_points_b_sparse, robot_repel_close_indices)
+                        if b in debug_viz_batch_indices(batch_size):
+                            t_for_robot_viz = 0
+                            state_b_i = {
+                                'joint_names':     inputs_aug['joint_names'][b, t_for_robot_viz],
+                                'joint_positions': inputs_aug[add_predicted('joint_positions')][b, t_for_robot_viz],
+                            }
+                            self.scenario.plot_state_rviz(state_b_i, label='aug_opt')
+                            self.scenario.plot_points_rviz(env_points_b_sparse, label='icp', color='grey', scale=0.005)
+                            self.scenario.plot_lines_rviz(nearest_attract_env_points, attract_points_b,
+                                                          label='attract_correspondence', color='g')
+                            self.scenario.plot_lines_rviz(nearest_repel_points_where_close,
+                                                          env_points_b_where_close,
+                                                          label='repel_correspondence', color='r')
+                            self.scenario.plot_lines_rviz(nearest_robot_repel_points_where_close,
+                                                          env_points_b_where_close_to_robot,
+                                                          label='robot_repel_correspondence', color='orange')
+                            # stepper.step()
 
-                with tf.profiler.experimental.Trace('can_terminate', batch_idx=b, i=i):
                     squared_res = tf.square(res[b])
                     hard_repel_constraint_satisfied_b = tf.reduce_min(min_repel_dist_b) > squared_res
                     hard_robot_repel_constraint_satisfied_b = tf.reduce_min(min_robot_repel_dist_b) > squared_res
@@ -385,18 +388,18 @@ class AugmentationOptimization:
                     if can_terminate.numpy():
                         break
 
-            local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b, r_b, o_b)
+                local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b, r_b, o_b)
 
-            # NOTE: # after local optimization, enforce the constraint
-            #  one way would be to force voxels with attract points are on and voxels with repel points are off
-            #  another would be to "give up" and use the un-augmented datapoint
-            attract_vg_b = self.points_to_voxel_grid_res_origin_point(attract_points_b, r_b, o_b)
-            repel_vg_b = self.points_to_voxel_grid_res_origin_point(repel_points_b, r_b, o_b)
-            # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
-            local_env_aug_b = subtract(binary_or(local_env_aug_b, attract_vg_b), repel_vg_b)
+                # NOTE: after local optimization, enforce the constraint
+                #  one way would be to force voxels with attract points are on and voxels with repel points are off
+                #  another would be to "give up" and use the un-augmented datapoint
+                attract_vg_b = self.points_to_voxel_grid_res_origin_point(attract_points_b, r_b, o_b)
+                repel_vg_b = self.points_to_voxel_grid_res_origin_point(repel_points_b, r_b, o_b)
+                # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
+                local_env_aug_b = subtract(binary_or(local_env_aug_b, attract_vg_b), repel_vg_b)
 
-            local_env_aug.append(local_env_aug_b)
-            env_aug_valid.append(hard_constraints_satisfied_b)
+                local_env_aug.append(local_env_aug_b)
+                env_aug_valid.append(hard_constraints_satisfied_b)
 
         local_env_aug = tf.stack(local_env_aug)
         env_aug_valid = tf.cast(tf.stack(env_aug_valid), tf.float32)
