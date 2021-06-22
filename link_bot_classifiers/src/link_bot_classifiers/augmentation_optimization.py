@@ -23,7 +23,7 @@ from moonshine.geometry import transform_points_3d, pairwise_squared_distances
 from moonshine.moonshine_utils import reduce_mean_no_nan
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
-DEBUG_AUG = True
+DEBUG_AUG = False
 DEBUG_AUG_SGD = False
 
 
@@ -84,10 +84,10 @@ class AugmentationOptimization:
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
 
-        self.robot_subsample = 0.1
-        self.env_subsample = 0.1
-        self.num_object_interp = 5  # must be >=3
-        self.num_robot_interp = 3  # must be >=3
+        self.robot_subsample = 0.5
+        self.env_subsample = 0.25
+        self.num_object_interp = 5  # must be >=2
+        self.num_robot_interp = 3  # must be >=2
         self.max_steps = 18
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
@@ -341,8 +341,9 @@ class AugmentationOptimization:
                 o_b = local_origin_point_aug[b]
                 object_points_b = object_points_aug[b]
                 robot_points_b = robot_points_aug[b]
-                robot_points_b = subsample_points(robot_points_b,
-                                                  self.robot_subsample)  # sub-sample because to speed up and avoid OOM
+                # NOTE: sub-sample because to speed up and avoid OOM.
+                #  Unfortunately this also makes our no-robot-inside-env constraint approximate
+                robot_points_b_sparse = subsample_points(robot_points_b, self.robot_subsample)
                 object_occupancy_b = object_points_occupancy[b]
                 env_points_b_initial_full = occupied_voxels_to_points(local_env_new[b], r_b, o_b)
                 env_points_b_initial_sparse = subsample_points(env_points_b_initial_full, self.env_subsample)
@@ -380,7 +381,7 @@ class AugmentationOptimization:
                                                                               translation_b,
                                                                               attract_points_b,
                                                                               repel_points_b,
-                                                                              robot_points_b)
+                                                                              robot_points_b_sparse)
 
                         gradients = tape.gradient(loss, variables)
 
@@ -459,7 +460,7 @@ class AugmentationOptimization:
                 translation_b,
                 attract_points_b,
                 repel_points_b,
-                robot_points_b):
+                robot_points_b_sparse):
         env_points_b_sparse = env_points_b_initial.sparse + translation_b  # this expression must be inside the tape
         env_points_b = env_points_b_initial.full + translation_b
 
@@ -476,10 +477,10 @@ class AugmentationOptimization:
         nearest_repel_points = tf.gather(repel_points_b, min_repel_dist_indices_b)
         repel_loss = reduce_mean_no_nan(self.barrier_func(min_repel_dist_b))
 
-        robot_repel_dists_b = pairwise_squared_distances(env_points_b_sparse, robot_points_b)
+        robot_repel_dists_b = pairwise_squared_distances(env_points_b_sparse, robot_points_b_sparse)
         min_robot_repel_dist_b = tf.reduce_min(robot_repel_dists_b, axis=1)
         min_robot_repel_dist_indices_b = tf.argmin(robot_repel_dists_b, axis=1, name='robot_repel_argmin')
-        nearest_robot_repel_points = tf.gather(robot_points_b, min_robot_repel_dist_indices_b)
+        nearest_robot_repel_points = tf.gather(robot_points_b_sparse, min_robot_repel_dist_indices_b)
         robot_repel_loss = tf.reduce_mean(self.barrier_func(min_robot_repel_dist_b))
 
         # print(f'{attract_dists_b.shape[0]}')
