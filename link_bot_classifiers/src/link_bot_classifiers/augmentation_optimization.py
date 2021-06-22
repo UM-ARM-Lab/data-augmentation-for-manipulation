@@ -332,6 +332,7 @@ class AugmentationOptimization:
                 env_points_b_initial_full = occupied_voxels_to_points(local_env_new[b], r_b, o_b)
                 env_points_b_initial_sparse = subsample_points(env_points_b_initial_full, self.env_subsample)
                 env_points_b_initial = EnvPoints(env_points_b_initial_full, env_points_b_initial_sparse)
+                env_points_b = env_points_b_initial
 
                 initial_is_attract_indices = tf.squeeze(tf.where(object_occupancy_b > 0.5), 1)
                 initial_attract_points_b = tf.gather(object_points_b, initial_is_attract_indices)
@@ -354,67 +355,68 @@ class AugmentationOptimization:
                 is_repel_indices = tf.squeeze(tf.where(object_occupancy_b < 0.5), 1)
                 repel_points_b = tf.gather(object_points_b, is_repel_indices)
                 for i in range(self.max_steps):
-                    if tf.size(env_points_b_initial_full) == 0:
-                        hard_constraints_satisfied_b = True
-                        break
+                    with tf.profiler.experimental.Trace('one_step_loop', b=b, i=i):
+                        if tf.size(env_points_b_initial_full) == 0:
+                            hard_constraints_satisfied_b = True
+                            break
 
-                    with tf.GradientTape() as tape:
-                        loss, min_dists, dbg, env_points_b = self.forward(env_points_b_initial,
-                                                                          translation_b,
-                                                                          attract_points_b,
-                                                                          repel_points_b,
-                                                                          robot_points_b)
+                        with tf.GradientTape() as tape:
+                            loss, min_dists, dbg, env_points_b = self.forward(env_points_b_initial,
+                                                                              translation_b,
+                                                                              attract_points_b,
+                                                                              repel_points_b,
+                                                                              robot_points_b)
 
-                    gradients = tape.gradient(loss, variables)
+                        gradients = tape.gradient(loss, variables)
 
-                    clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
-                    self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
+                        clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
+                        self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
 
-                    if DEBUG_AUG_SGD:
-                        repel_close_indices = tf.squeeze(tf.where(min_dists.repel < self.barrier_upper_lim), axis=-1)
-                        robot_repel_close_indices = tf.squeeze(
-                            tf.where(min_dists.robot_repel < self.barrier_upper_lim),
-                            axis=-1)
-                        nearest_repel_points_where_close = tf.gather(dbg.nearest_repel_points, repel_close_indices)
-                        nearest_robot_repel_points_where_close = tf.gather(dbg.nearest_robot_repel_points,
-                                                                           robot_repel_close_indices)
-                        env_points_b_where_close = tf.gather(env_points_b.sparse, repel_close_indices)
-                        env_points_b_where_close_to_robot = tf.gather(env_points_b.sparse, robot_repel_close_indices)
-                        if b in debug_viz_batch_indices(batch_size):
-                            t_for_robot_viz = 0
-                            state_b_i = {
-                                'joint_names':     inputs_aug['joint_names'][b, t_for_robot_viz],
-                                'joint_positions': inputs_aug[add_predicted('joint_positions')][b, t_for_robot_viz],
-                            }
-                            self.scenario.plot_state_rviz(state_b_i, label='aug_opt')
-                            self.scenario.plot_points_rviz(env_points_b.sparse, label='icp', color='grey', scale=0.005)
-                            self.scenario.plot_lines_rviz(dbg.nearest_attract_env_points, attract_points_b,
-                                                          label='attract_correspondence', color='g')
-                            self.scenario.plot_lines_rviz(nearest_repel_points_where_close,
-                                                          env_points_b_where_close,
-                                                          label='repel_correspondence', color='r')
-                            self.scenario.plot_lines_rviz(nearest_robot_repel_points_where_close,
-                                                          env_points_b_where_close_to_robot,
-                                                          label='robot_repel_correspondence', color='orange')
-                            # stepper.step()
+                        if DEBUG_AUG_SGD:
+                            repel_close_indices = tf.squeeze(tf.where(min_dists.repel < self.barrier_upper_lim), axis=-1)
+                            robot_repel_close_indices = tf.squeeze(
+                                tf.where(min_dists.robot_repel < self.barrier_upper_lim),
+                                axis=-1)
+                            nearest_repel_points_where_close = tf.gather(dbg.nearest_repel_points, repel_close_indices)
+                            nearest_robot_repel_points_where_close = tf.gather(dbg.nearest_robot_repel_points,
+                                                                               robot_repel_close_indices)
+                            env_points_b_where_close = tf.gather(env_points_b.sparse, repel_close_indices)
+                            env_points_b_where_close_to_robot = tf.gather(env_points_b.sparse, robot_repel_close_indices)
+                            if b in debug_viz_batch_indices(batch_size):
+                                t_for_robot_viz = 0
+                                state_b_i = {
+                                                 'joint_names':     inputs_aug['joint_names'][b, t_for_robot_viz],
+                                                 'joint_positions': inputs_aug[add_predicted('joint_positions')][b, t_for_robot_viz],
+                                                    }
+                                self.scenario.plot_state_rviz(state_b_i, label='aug_opt')
+                                self.scenario.plot_points_rviz(env_points_b.sparse, label='icp', color='grey', scale=0.005)
+                                self.scenario.plot_lines_rviz(dbg.nearest_attract_env_points, attract_points_b,
+                                                              label='attract_correspondence', color='g')
+                                self.scenario.plot_lines_rviz(nearest_repel_points_where_close,
+                                                              env_points_b_where_close,
+                                                              label='repel_correspondence', color='r')
+                                self.scenario.plot_lines_rviz(nearest_robot_repel_points_where_close,
+                                                              env_points_b_where_close_to_robot,
+                                                              label='robot_repel_correspondence', color='orange')
+                                # stepper.step()
 
-                    squared_res = tf.square(res[b])
-                    hard_repel_constraint_satisfied_b = tf.reduce_min(min_dists.repel) > squared_res
-                    hard_robot_repel_constraint_satisfied_b = tf.reduce_min(min_dists.robot_repel) > squared_res
-                    hard_attract_constraint_satisfied_b = tf.reduce_max(min_dists.attract) < squared_res
+                        squared_res = tf.square(res[b])
+                        hard_repel_constraint_satisfied_b = tf.reduce_min(min_dists.repel) > squared_res
+                        hard_robot_repel_constraint_satisfied_b = tf.reduce_min(min_dists.robot_repel) > squared_res
+                        hard_attract_constraint_satisfied_b = tf.reduce_max(min_dists.attract) < squared_res
 
-                    hard_constraints_satisfied_b = tf.reduce_all([hard_repel_constraint_satisfied_b,
-                                                                  hard_robot_repel_constraint_satisfied_b,
-                                                                  hard_attract_constraint_satisfied_b])
-                    grad_norm = tf.linalg.norm(gradients)
-                    step_size_b_i = grad_norm * self.step_size
-                    if DEBUG_AUG_SGD:
-                        if b in debug_viz_batch_indices(batch_size):
-                            print(step_size_b_i, self.step_size_threshold, hard_constraints_satisfied_b)
+                        hard_constraints_satisfied_b = tf.reduce_all([hard_repel_constraint_satisfied_b,
+                                                                      hard_robot_repel_constraint_satisfied_b,
+                                                                      hard_attract_constraint_satisfied_b])
+                        grad_norm = tf.linalg.norm(gradients)
+                        step_size_b_i = grad_norm * self.step_size
+                        if DEBUG_AUG_SGD:
+                            if b in debug_viz_batch_indices(batch_size):
+                                print(step_size_b_i, self.step_size_threshold, hard_constraints_satisfied_b)
 
-                    can_terminate = self.can_terminate(hard_constraints_satisfied_b, step_size_b_i)
-                    if can_terminate.numpy():
-                        break
+                        can_terminate = self.can_terminate(hard_constraints_satisfied_b, step_size_b_i)
+                        if can_terminate.numpy():
+                            break
 
                 local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b.full, r_b, o_b)
 
@@ -461,6 +463,9 @@ class AugmentationOptimization:
         min_robot_repel_dist_indices_b = tf.argmin(robot_repel_dists_b, axis=1, name='robot_repel_argmin')
         nearest_robot_repel_points = tf.gather(robot_points_b, min_robot_repel_dist_indices_b)
         robot_repel_loss = tf.reduce_mean(self.barrier_func(min_robot_repel_dist_b))
+
+        # print(f'{attract_dists_b.shape[0]}')
+        # print(attract_dists_b.shape[1] + repel_dists_b.shape[1])
 
         loss = attract_loss * 0.05 + repel_loss + robot_repel_loss
 
