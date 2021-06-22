@@ -291,6 +291,8 @@ class AugmentationOptimization:
         if DEBUG_AUG_SGD:
             stepper = RvizSimpleStepper()
 
+        nearest_attract_env_points = None
+        nearest_repel_points = None
         attract_points_b = None
         repel_points_b = None
         local_env_aug = []
@@ -316,46 +318,8 @@ class AugmentationOptimization:
                 initial_translation_b = initial_attract_points_b_mean - env_points_b_initial_mean
             translation_b = tf.Variable(initial_translation_b, dtype=tf.float32)
             variables = [translation_b]
-
-            hard_constraints_satisfied_b = False
-            i = tf.constant(0)
-            step_size_b_i = tf.constant(999, dtype=tf.float32)
-            loop_vars = (
-                i,
-                object_points_b,
-                robot_points_b,
-                object_occupancy_b,
-                env_points_b_initial,
-                env_points_b,
-                translation_b,
-                step_size_b_i,
-                attract_points_b,
-                repel_points_b,
-            )
-
-            def _loop_cond(i,
-                           object_points_b,
-                           robot_points_b,
-                           object_occupancy_b,
-                           env_points_b_initial,
-                           env_points_b,
-                           translation_b,
-                           step_size_b_i,
-                           attract_points_b,
-                           repel_points_b):
-                converged = tf.logical_or(step_size_b_i < self.step_size_threshold, hard_constraints_satisfied_b)
-                return tf.logical_and(tf.logical_not(converged), i < self.max_steps)
-
-            def _loop_body(i,
-                           object_points_b,
-                           robot_points_b,
-                           object_occupancy_b,
-                           env_points_b_initial,
-                           env_points_b,
-                           translation_b,
-                           step_size_b_i,
-                           attract_points_b,
-                           repel_points_b):
+            hard_constraints_satisfied_b = 0
+            for i in range(self.max_steps):
                 with tf.GradientTape(watch_accessed_variables=False) as tape:
                     tape.watch(translation_b)
                     env_points_b = env_points_b_initial + translation_b
@@ -441,23 +405,8 @@ class AugmentationOptimization:
                     if b in debug_viz_batch_indices(batch_size):
                         print(step_size_b_i, self.step_size_threshold, hard_constraints_satisfied_b)
 
-                return (
-                    i + 1,
-                    object_points_b,
-                    robot_points_b,
-                    object_occupancy_b,
-                    env_points_b_initial,
-                    env_points_b,
-                    translation_b,
-                    step_size_b_i,
-                    attract_points_b,
-                    repel_points_b,
-                )
-
-            loop_vars_final = tf.while_loop(_loop_cond, _loop_body, loop_vars)
-            # TODO: use namedtuple
-            i, object_points_b, robot_points_b, object_occupancy_b, env_points_b_initial, env_points_b, translation_b, step_size_b_i, attract_points_b, repel_points_b = loop_vars_final
-
+                if tf.logical_or(step_size_b_i < self.step_size_threshold, hard_constraints_satisfied_b):
+                    break
             local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b, r_b, o_b)
 
             # NOTE: # after local optimization, enforce the constraint

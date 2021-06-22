@@ -8,6 +8,7 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
+from link_bot_pycommon.args import int_tuple_arg
 from moonshine.filepath_tools import load_hjson
 
 
@@ -25,6 +26,7 @@ def main():
     parser.add_argument('--pretransfer-config-dir', type=pathlib.Path, help='dir of pkl files with state/env')
     parser.add_argument('--batch-size', type=int, default=24)
     parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int)
     parser.add_argument('--log-scalars-every', type=int, help='loss/accuracy every this many batches', default=100)
     parser.add_argument('--validation-every', type=int, help='report validation every this many epochs', default=1)
@@ -57,6 +59,7 @@ def main():
                          fine_tune_dense=False,
                          fine_tune_output=True,
                          augmentation_config_dir=args.pretransfer_config_dir,
+                         profile=args.profile,
                          )
 
 

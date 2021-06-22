@@ -1,15 +1,53 @@
 import pathlib
+import sys
 import time
-from typing import Optional
+from typing import Optional, Tuple
 
 import tensorflow as tf
-from tensorflow.python.profiler import trace
-from colorama import Fore, Style
+from colorama import Fore, Style, Back
 from progressbar import progressbar
 
 from link_bot_data.progressbar_widgets import mywidgets
 from moonshine.metrics import LossCheckpointMetric
 from moonshine.my_keras_model import MyKerasModel
+
+
+class TFProfilerHelper:
+
+    def __init__(self, profile_arg: Tuple[int], train_logdir: str):
+        self.train_logdir = train_logdir
+        if profile_arg is None:
+            self.start_batch = sys.maxsize
+            self.stop_batch = -1
+        elif isinstance(profile_arg, tuple):
+            self.start_batch = profile_arg[0]
+            self.stop_batch = profile_arg[1]
+        else:
+            raise NotImplementedError()
+        self.started = False
+        self.finished = False
+
+    def start(self, batch_idx: int, epoch: int):
+        if batch_idx >= self.start_batch and not self.started and not self.finished and epoch == 1:
+            self.started = True
+            print(Back.WHITE + Fore.BLACK + "Starting Profiler" + Fore.RESET + Back.RESET)
+            tf.profiler.experimental.start(self.train_logdir)
+        return TFProfilerStopper(batch_idx, epoch, self)
+
+
+class TFProfilerStopper:
+
+    def __init__(self, batch_idx, epoch, parent: TFProfilerHelper):
+        self.parent = parent
+        self.batch_idx = batch_idx
+        self.epoch = epoch
+
+    def stop(self):
+        if self.parent.started and self.batch_idx >= self.parent.stop_batch and self.epoch == 1:
+            self.parent.started = False
+            self.parent.finished = True
+            print(Back.WHITE + Fore.BLACK + "Stopping Profiler" + Fore.RESET + Back.RESET)
+            tf.profiler.experimental.stop()
 
 
 class ModelRunner:
@@ -27,6 +65,7 @@ class ModelRunner:
                  validate_first=False,
                  batch_metadata=None,
                  early_stopping=False,
+                 profile: Optional[Tuple[int]] = None,
                  **kwargs,
                  ):
         self.early_stopping = early_stopping
@@ -54,6 +93,8 @@ class ModelRunner:
         self.val_summary_writer = tf.summary.create_file_writer((self.trial_path / "logs/1_val").as_posix())
         self.train_logdir = (self.trial_path / "logs/2_train").as_posix()
         self.train_summary_writer = tf.summary.create_file_writer(self.train_logdir)
+
+        self.prof = TFProfilerHelper(profile, self.train_logdir)
 
         self.latest_ckpt = tf.train.Checkpoint(step=tf.Variable(1),
                                                epoch=tf.Variable(0),
@@ -133,7 +174,6 @@ class ModelRunner:
     def train_epoch(self, train_dataset, val_dataset, train_metrics, val_metrics):
         t0 = time.time()
 
-        profiling_started = False
         for batch_idx, train_batch in enumerate(progressbar(train_dataset, widgets=mywidgets)):
             self.model.scenario.heartbeat()
             train_batch.update(self.batch_metadata)
@@ -142,11 +182,10 @@ class ModelRunner:
             for v in train_metrics.values():
                 v.reset_states()
 
-            with trace.Trace('TraceContext', graph_type='train', step_num=batch_idx, epoch=self.latest_ckpt.epoch):
-                if not profiling_started:
-                    profiling_started = True
-                    tf.profiler.experimental.start(self.train_logdir)
+            p = self.prof.start(batch_idx=batch_idx, epoch=self.latest_ckpt.epoch.numpy())
+            with tf.profiler.experimental.Trace('TraceContext', graph_type='train'):
                 self.model.train_step(train_batch, train_metrics)
+            p.stop()
 
             self.write_train_summary({k: m.result() for k, m in train_metrics.items()})
 
@@ -249,8 +288,6 @@ class ModelRunner:
 
         except KeyboardInterrupt:
             print(Fore.YELLOW + "Interrupted." + Fore.RESET)
-
-        tf.profiler.experimental.stop()
 
         return val_metrics
 

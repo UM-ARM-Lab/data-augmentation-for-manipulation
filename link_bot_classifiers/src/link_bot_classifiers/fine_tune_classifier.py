@@ -28,6 +28,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          verbose: int = 0,
                          trials_directory: pathlib.Path = pathlib.Path("./trials"),
                          augmentation_config_dir: Optional[pathlib.Path] = None,
+                         profile: Optional[tuple] = None,
                          take: Optional[int] = None,
                          **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
@@ -58,6 +59,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          checkpoint=checkpoint,
                          batch_metadata=train_dataset_loader.batch_metadata,
                          early_stopping=early_stopping,
+                         profile=profile,
                          trial_path=trial_path,
                          **kwargs)
 

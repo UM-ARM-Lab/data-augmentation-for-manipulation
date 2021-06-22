@@ -101,6 +101,11 @@ def int_set_arg(v):
     raise argparse.ArgumentTypeError(f"invalid int set {v}")
 
 
+def int_tuple_arg(v):
+    values = v.split(",")
+    return tuple(int(v) for v in values)
+
+
 class BooleanOptionalAction(argparse.Action):
     def __init__(self,
                  option_strings,
