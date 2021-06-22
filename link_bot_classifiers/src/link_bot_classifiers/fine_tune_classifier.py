@@ -45,7 +45,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
 
     # decrease the learning rate, this is often done in fine-tuning
     model_hparams['learning_rate'] = 1e-4  # normally 1e-3
-    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.scenario)
+    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.get_scenario())
 
     # override arbitrary parts of the model
     for k, v in kwargs.items():
