@@ -28,7 +28,7 @@ from moonshine.moonshine_utils import numpify
 from moonshine.my_keras_model import MyKerasModel
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_INPUT = False
+DEBUG_INPUT_OUTPUT = False
 
 
 class NNClassifier(MyKerasModel):
@@ -107,7 +107,7 @@ class NNClassifier(MyKerasModel):
         batch_size = inputs['batch_size']
         time = inputs['time']
 
-        if DEBUG_INPUT:
+        if DEBUG_INPUT_OUTPUT:
             # clear the other voxel grids from previous calls
             self.debug.clear()
             self.scenario.delete_points_rviz(label='attract')
@@ -143,14 +143,14 @@ class NNClassifier(MyKerasModel):
 
         inputs['swept_object_points'] = self.aug.compute_swept_object_points(inputs)
 
-        if DEBUG_INPUT:
+        if DEBUG_INPUT_OUTPUT:
             self.debug_viz_voxelgrid_inputs(inputs, time)
 
         if training and self.aug.do_augmentation():
             # returns a copy, does NOT modify inputs in-place
             inputs = self.aug.augmentation_optimization(inputs, batch_size, time)
 
-        if DEBUG_INPUT:
+        if DEBUG_INPUT_OUTPUT:  # Actually output
             self.debug_viz_voxelgrid_inputs(inputs, time)
 
         return inputs
@@ -287,7 +287,7 @@ class NNClassifier(MyKerasModel):
         environment = {k: input_dict[k] for k in ['env', 'origin_point', 'res', 'extent']}
         local_env, local_origin_point = self.local_env_helper.get(local_env_center, environment, batch_size)
 
-        if DEBUG_INPUT:
+        if DEBUG_INPUT_OUTPUT:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(self.batch_size):
                 self.debug.send_position_transform(local_env_center[b], 'local_env_center')

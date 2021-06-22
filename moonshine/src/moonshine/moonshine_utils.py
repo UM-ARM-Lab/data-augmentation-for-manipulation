@@ -424,3 +424,16 @@ def debuggable_tf_function(func: Callable, debug: bool):
         return _debug_func
     else:
         return _non_debug_func
+
+
+def reduce_mean_no_nan(x):
+    """
+
+    Args:
+        x: assumed to be 1-D
+
+    Returns:
+        mean, or 0 if it's empty
+
+    """
+    return tf.math.divide_no_nan(tf.reduce_sum(x), x.shape[0])
