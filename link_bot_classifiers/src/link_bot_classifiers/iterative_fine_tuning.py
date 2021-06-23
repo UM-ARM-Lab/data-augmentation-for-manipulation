@@ -56,7 +56,8 @@ def evaluate(proxy_datasets_and_info: List[Tuple], latest_checkpoint: pathlib.Pa
                              trial_path=trial_path)
 
         val_metrics = model.create_metrics()
-        proxy_dataset = proxy_dataset.batch(batch_size).take(100)  # FIXME: this is just for debugging!
+        proxy_dataset = proxy_dataset.batch(batch_size)
+        # proxy_dataset = proxy_dataset.batch(batch_size).take(100)  # FIXME: this is just for debugging!
         runner.val_epoch(proxy_dataset, val_metrics)
         metric_name = info['metric']
         metric_value = val_metrics[metric_name].result().numpy().squeeze()
