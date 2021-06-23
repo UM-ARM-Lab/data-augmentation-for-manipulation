@@ -1,9 +1,6 @@
-import multiprocessing
 import pathlib
 import queue
-import sys
 from multiprocessing import Pool, Process, Queue
-from time import sleep
 from typing import List, Dict, Optional, Callable
 
 import numpy as np
@@ -150,12 +147,12 @@ class NewBaseDatasetLoader:
 
         return self.scenario
 
-    def get_datasets(self, mode: str, shuffle: bool = False, take: int = None):
+    def get_datasets(self, mode: str, shuffle: Optional[int] = 0, take: int = None):
         filenames = get_filenames(self.dataset_dirs, mode)
         assert len(filenames) > 0
-        dataset = NewBaseDataset(self, filenames)
+        dataset = NewBaseDataset(loader=self, filenames=filenames, mode=mode)
         if shuffle:
-            dataset = dataset.shuffle()
+            dataset = dataset.shuffle(seed=shuffle)
         if take:
             dataset = dataset.take(take)
         return dataset

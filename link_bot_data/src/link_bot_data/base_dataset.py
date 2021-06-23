@@ -115,7 +115,7 @@ class BaseDatasetLoader:
                      do_not_process: bool = False,
                      shard: Optional[int] = None,
                      take: Optional[int] = None,
-                     shuffle: Optional[bool] = False,
+                     shuffle: Optional[int] = 0,
                      sort: Optional[bool] = False,
                      **kwargs):
         all_filenames = self.get_record_filenames(mode, sort=sort)
@@ -172,11 +172,11 @@ class BaseDatasetLoader:
                                   do_not_process: Optional[bool] = False,
                                   shard: Optional[int] = None,
                                   take: Optional[int] = None,
-                                  shuffle: Optional[bool] = False,
+                                  shuffle: Optional[int] = None,
                                   **kwargs,
                                   ):
         if shuffle:
-            shuffle_rng = np.random.RandomState(0)
+            shuffle_rng = np.random.RandomState(shuffle)
             shuffle_rng.shuffle(records)
 
         dataset = tf.data.TFRecordDataset(records, buffer_size=1 * 1024 * 1024, compression_type='ZLIB')

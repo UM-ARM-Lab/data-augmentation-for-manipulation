@@ -439,3 +439,24 @@ def densify_points(batch_size, points, num_densify=5):
 
 def update_if_valid(d: Dict, is_valid, k: str, v_aug):
     d[k] = is_valid * v_aug + (1 - is_valid) * d[k]
+
+
+def has_keys(d: Dict, keys: List[str], noop_val=False):
+    """
+    For when you want to write something like `if d['a']['b']['z']`
+    and you want it to return false (noop_val) if the keys don't exist
+
+    Args:
+        d: dict
+        keys: keys
+
+    Returns: the result of the indexing, or false if the keys don't exist
+
+    """
+    if keys[0] not in d:
+        return noop_val
+
+    if len(keys) == 1:
+        return d[keys[0]]
+    else:
+        return has_keys(d[keys[0]], keys[1:], noop_val=noop_val)

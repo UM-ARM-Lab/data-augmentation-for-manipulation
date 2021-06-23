@@ -22,6 +22,7 @@ from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, Plannin
 from link_bot_planning.test_scenes import get_all_scenes
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
+from link_bot_pycommon.pycommon import has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.spinners import SynchronousSpinner
 from moonshine.moonshine_utils import numpify, remove_batch, add_batch
@@ -110,27 +111,6 @@ def execute_actions(
 
     execution_result = ExecutionResult(path=actual_path, end_trial=end_trial, stopped=stopped, end_t=t)
     return execution_result
-
-
-def has_keys(d: Dict, keys: List[str]):
-    """
-    For when you want to write something like `if d['a']['b']['z']`
-    and you want it to return false if the keys don't exist
-
-    Args:
-        d: dict
-        keys: keys
-
-    Returns: the result of the indexing, or false if the keys don't exist
-
-    """
-    if keys[0] not in d:
-        return False
-
-    if len(keys) == 1:
-        return d[keys[0]]
-    else:
-        return has_keys(d[keys[0]], keys[1:])
 
 
 class PlanAndExecute:
