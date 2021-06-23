@@ -8,12 +8,12 @@ from functools import lru_cache
 from io import BytesIO
 from typing import Optional, Dict, List, Sequence
 
-import genpy
 import git
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
 
+import genpy
 from arc_utilities.filesystem_utils import mkdir_and_ask
 from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
@@ -237,7 +237,7 @@ def git_sha():
     return sha
 
 
-def data_directory(outdir: pathlib.Path, *names):
+def make_unique_outdir(outdir: pathlib.Path, *names):
     now = str(int(time.time()))
     sha = git_sha()
     format_string = "{}_{}_{}" + len(names) * '_{}'

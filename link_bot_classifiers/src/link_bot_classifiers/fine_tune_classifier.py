@@ -1,4 +1,5 @@
 import itertools
+import logging
 import pathlib
 import pickle
 from typing import List, Optional, Dict
@@ -7,11 +8,14 @@ import link_bot_classifiers
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.train_test_classifier import setup_datasets
 from link_bot_data.dataset_utils import add_new
-from link_bot_data.load_dataset import load_classifier_dataset
+from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_pycommon.pycommon import paths_to_json
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.filepath_tools import load_trial, create_trial
 from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import repeat
+
+logger = logging.getLogger(__file__)
 
 
 def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
@@ -31,51 +35,86 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          profile: Optional[tuple] = None,
                          take: Optional[int] = None,
                          **kwargs):
+    train_dataset_loader = get_classifier_dataset_loader(dataset_dirs, load_true_states=True, verbose=verbose)
+    val_dataset_loader = get_classifier_dataset_loader(dataset_dirs, load_true_states=True, verbose=verbose)
+
+    train_dataset = train_dataset_loader.get_datasets(mode='train', shuffle=True)
+    val_dataset = val_dataset_loader.get_datasets(mode='val', shuffle=True)
+
+    return fine_tune_classifier_from_datasets(train_dataset=train_dataset,
+                                              val_dataset=val_dataset,
+                                              checkpoint=checkpoint,
+                                              log=log,
+                                              scenario=train_dataset_loader.get_scenario(),
+                                              dataset_dirs=dataset_dirs,
+                                              batch_metadata=train_dataset_loader.batch_metadata,
+                                              batch_size=batch_size,
+                                              epochs=epochs,
+                                              early_stopping=early_stopping,
+                                              fine_tune_conv=fine_tune_conv,
+                                              fine_tune_dense=fine_tune_dense,
+                                              fine_tune_lstm=fine_tune_lstm,
+                                              fine_tune_output=fine_tune_output,
+                                              model_hparams_update=model_hparams_update,
+                                              trials_directory=trials_directory,
+                                              augmentation_config_dir=augmentation_config_dir,
+                                              profile=profile,
+                                              take=take,
+                                              **kwargs)
+
+
+def fine_tune_classifier_from_datasets(train_dataset,
+                                       val_dataset,
+                                       checkpoint: pathlib.Path,
+                                       log: str,
+                                       scenario: ScenarioWithVisualization,
+                                       dataset_dirs: List[pathlib.Path],
+                                       batch_metadata: Dict,
+                                       batch_size,
+                                       epochs,
+                                       early_stopping,
+                                       fine_tune_conv,
+                                       fine_tune_dense,
+                                       fine_tune_lstm,
+                                       fine_tune_output,
+                                       model_hparams_update,
+                                       trials_directory,
+                                       augmentation_config_dir,
+                                       profile,
+                                       take,
+                                       **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
     model_hparams['datasets'].extend(paths_to_json(dataset_dirs))
     model_hparams = nested_dict_update(model_hparams, model_hparams_update)
-
-    trial_path, _ = create_trial(log, model_hparams, trials_directory=trials_directory)
-
     model_class = link_bot_classifiers.get_model(model_hparams['model_class'])
-
-    train_dataset_loader = load_classifier_dataset(dataset_dirs, use_gt_rope=True, load_true_states=True,
-                                                   verbose=verbose)
-    val_dataset_loader = load_classifier_dataset(dataset_dirs, use_gt_rope=True, load_true_states=True, verbose=verbose)
-
     # decrease the learning rate, this is often done in fine-tuning
     model_hparams['learning_rate'] = 1e-4  # normally 1e-3
-    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.get_scenario())
-
+    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=scenario)
     # override arbitrary parts of the model
     for k, v in kwargs.items():
         if v is not None:
             if hasattr(model, k):
                 setattr(model, k, v)
-
+    trial_path, _ = create_trial(log, model_hparams, trials_directory=trials_directory)
     runner = ModelRunner(model=model,
                          training=True,
                          params=model_hparams,
                          checkpoint=checkpoint,
-                         batch_metadata=train_dataset_loader.batch_metadata,
+                         batch_metadata=batch_metadata,
                          early_stopping=early_stopping,
                          profile=profile,
                          trial_path=trial_path,
                          **kwargs)
-
-    train_dataset, val_dataset = setup_datasets(model_hparams,
+    train_dataset, val_dataset = setup_datasets(model_hparams=model_hparams,
                                                 batch_size=batch_size,
-                                                train_dataset_loader=train_dataset_loader,
-                                                val_dataset_loader=val_dataset_loader,
+                                                train_dataset=train_dataset,
+                                                val_dataset=val_dataset,
                                                 seed=0,
                                                 take=take)
-
     if augmentation_config_dir is not None:
         train_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_dataset, batch_size)
-        val_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, val_dataset, batch_size)
     else:
-        print("Warning, augmentation_config_dir is None")
-
+        logger.warning("augmentation_config_dir is None")
     # Modify the model for feature transfer & fine-tuning
     for c in model.conv_layers:
         c.trainable = fine_tune_conv
@@ -83,10 +122,8 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
         d.trainable = fine_tune_dense
     model.lstm.trainable = fine_tune_lstm
     model.output_layer.trainable = fine_tune_output
-
     runner.reset_best_ket_metric_value()
     runner.train(train_dataset, val_dataset, num_epochs=epochs)
-
     return trial_path
 
 

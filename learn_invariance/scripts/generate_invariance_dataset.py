@@ -12,7 +12,7 @@ from progressbar import progressbar
 from arc_utilities import ros_init
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from learn_invariance.transform_link_states import transform_link_states
-from link_bot_data.dataset_utils import pkl_write_example, data_directory
+from link_bot_data.dataset_utils import pkl_write_example, make_unique_outdir
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_gazebo.gazebo_services import GazeboServices, restore_gazebo
 from link_bot_pycommon.get_scenario import get_scenario
@@ -50,7 +50,7 @@ def main():
     dataset_loader = NewDynamicsDatasetLoader([args.dataset])
     dataset = dataset_loader.get_datasets(mode='all').batch(batch_size=1)
 
-    full_output_directory = data_directory(args.outdir)
+    full_output_directory = make_unique_outdir(args.outdir)
 
     full_output_directory.mkdir(exist_ok=True)
     print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)

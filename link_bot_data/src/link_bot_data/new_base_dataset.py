@@ -110,7 +110,10 @@ class NewBaseDataset:
         rng.shuffle(shuffled_filenames)
         return self.__class__(self.loader, shuffled_filenames, self.mode, self._post_process, self.n_prefetch)
 
-    def take(self, take):
+    def skip(self, skip: int):
+        return self.__class__(self.loader, self.filenames[skip:], self.mode, self._post_process, self.n_prefetch)
+
+    def take(self, take: int):
         return self.__class__(self.loader, self.filenames[:take], self.mode, self._post_process, self.n_prefetch)
 
     def map(self, _post_process: Callable):

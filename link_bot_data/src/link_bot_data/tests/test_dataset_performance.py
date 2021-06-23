@@ -6,7 +6,7 @@ from time import perf_counter
 from progressbar import progressbar
 
 from arc_utilities import ros_init
-from link_bot_data.load_dataset import guess_load_dataset
+from link_bot_data.load_dataset import guess_dataset_loader
 from link_bot_data.progressbar_widgets import mywidgets
 from moonshine.simple_profiler import SimpleProfiler
 
@@ -21,7 +21,7 @@ def main():
 
     args = parser.parse_args()
 
-    dataset_loader = guess_load_dataset(args.dataset_dir)
+    dataset_loader = guess_dataset_loader(args.dataset_dir)
 
     dataset = dataset_loader.get_datasets(mode=args.mode)
     dataset = dataset.batch(args.batch_size)

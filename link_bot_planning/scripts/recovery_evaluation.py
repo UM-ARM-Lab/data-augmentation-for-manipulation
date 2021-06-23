@@ -18,7 +18,7 @@ with warnings.catch_warnings():
 
 from arc_utilities import ros_init
 from arc_utilities.algorithms import nested_dict_update
-from link_bot_data.dataset_utils import data_directory
+from link_bot_data.dataset_utils import make_unique_outdir
 from link_bot_gazebo import gazebo_services
 from link_bot_planning.get_planner import get_planner
 from link_bot_planning.planning_evaluation import EvaluatePlanning, load_planner_params
@@ -36,7 +36,7 @@ def evaluate_recovery(recovery_model_dir: pathlib.Path, planner_params_filename:
                       test_scenes: pathlib.Path,
                       seed: int, no_execution: bool,
                       on_exception: str, verbose: int):
-    outdir = data_directory(pathlib.Path('results') / f"{nickname}-recovery-evaluation")
+    outdir = make_unique_outdir(pathlib.Path('results') / f"{nickname}-recovery-evaluation")
 
     planner_params = load_planner_params(planner_params_filename)
     recovery_model_hparams = load_params(recovery_model_dir)

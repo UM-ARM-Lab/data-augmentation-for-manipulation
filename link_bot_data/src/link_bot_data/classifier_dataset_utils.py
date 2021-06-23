@@ -10,7 +10,7 @@ from progressbar import progressbar
 import rospy
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, add_label, deserialize_scene_msg, write_example
-from link_bot_data.load_dataset import load_dynamics_dataset
+from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -83,7 +83,7 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
 
     dynamics_hparams = hjson.load((dataset_dir / 'hparams.hjson').open('r'))
 
-    dataset_loader = load_dynamics_dataset([dataset_dir])
+    dataset_loader = get_dynamics_dataset_loader([dataset_dir])
 
     fwd_models = dynamics_utils.load_generic_model(fwd_model_dir, dataset_loader.scenario)
 

@@ -19,7 +19,7 @@ from link_bot_classifiers.base_constraint_checker import classifier_ensemble_che
 from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg, get_filter
-from link_bot_data.load_dataset import load_classifier_dataset
+from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -45,24 +45,31 @@ def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
     return hparams
 
 
-def setup_datasets(model_hparams, batch_size, train_dataset_loader, val_dataset_loader, seed, take: Optional[int] = None):
+def setup_dataset_loaders(model_hparams,
+                          batch_size,
+                          train_dataset_loader,
+                          val_dataset_loader,
+                          seed,
+                          take: Optional[int] = None):
     train_dataset = train_dataset_loader.get_datasets(mode='train', shuffle=True)
     val_dataset = val_dataset_loader.get_datasets(mode='val', shuffle=True)
 
+    train_dataset, val_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, take)
+
+    return train_dataset, val_dataset
+
+
+def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, take):
     if 'shuffle_buffer_size' in model_hparams:
         train_dataset = train_dataset.shuffle(model_hparams['shuffle_buffer_size'],
-                                                    reshuffle_each_iteration=True,
-                                                    seed=seed)
-
+                                              reshuffle_each_iteration=True,
+                                              seed=seed)
     train_dataset = train_dataset.balance()
-    val_dataset = val_dataset.balance()
-
     train_dataset = train_dataset.batch(batch_size, drop_remainder=True)
-    val_dataset = val_dataset.batch(batch_size, drop_remainder=True)
-
     train_dataset = train_dataset.take(take)
+    val_dataset = val_dataset.balance()
+    val_dataset = val_dataset.batch(batch_size, drop_remainder=True)
     val_dataset = val_dataset.take(take)
-
     return train_dataset, val_dataset
 
 
@@ -85,18 +92,18 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model_class = link_bot_classifiers.get_model(model_hparams['model_class'])
 
     # set load_true_states=True when debugging
-    train_dataset = load_classifier_dataset(dataset_dirs=dataset_dirs,
-                                            load_true_states=True,
-                                            use_gt_rope=use_gt_rope,
-                                            threshold=threshold,
-                                            old_compat=old_compat,
-                                            )
-    val_dataset = load_classifier_dataset(dataset_dirs=dataset_dirs,
-                                          load_true_states=True,
-                                          use_gt_rope=use_gt_rope,
-                                          threshold=threshold,
-                                          old_compat=old_compat,
-                                          )
+    train_dataset = get_classifier_dataset_loader(dataset_dirs=dataset_dirs,
+                                                  load_true_states=True,
+                                                  use_gt_rope=use_gt_rope,
+                                                  threshold=threshold,
+                                                  old_compat=old_compat,
+                                                  )
+    val_dataset = get_classifier_dataset_loader(dataset_dirs=dataset_dirs,
+                                                load_true_states=True,
+                                                use_gt_rope=use_gt_rope,
+                                                threshold=threshold,
+                                                old_compat=old_compat,
+                                                )
 
     model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))
     if threshold is not None:
@@ -127,7 +134,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          save_every_n_minutes=save_every_n_minutes,
                          validate_first=validate_first,
                          batch_metadata=train_dataset.batch_metadata)
-    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, take)
+    train_tf_dataset, val_tf_dataset = setup_dataset_loaders(model_hparams, batch_size, train_dataset, val_dataset, seed, take)
 
     final_val_metrics = runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
 
@@ -311,12 +318,12 @@ def compare_main(dataset_dirs: List[pathlib.Path],
 
 
 def setup_eval_dataset(balance, dataset_dirs, mode, old_compat, scenario, take, threshold, use_gt_rope, batch_size):
-    dataset_loader = load_classifier_dataset(dataset_dirs,
-                                             load_true_states=True,
-                                             use_gt_rope=use_gt_rope,
-                                             old_compat=old_compat,
-                                             threshold=threshold,
-                                             scenario=scenario)
+    dataset_loader = get_classifier_dataset_loader(dataset_dirs,
+                                                   load_true_states=True,
+                                                   use_gt_rope=use_gt_rope,
+                                                   old_compat=old_compat,
+                                                   threshold=threshold,
+                                                   scenario=scenario)
     dataset = dataset_loader.get_datasets(mode=mode)
     if balance:
         rospy.loginfo(Fore.CYAN + "NOTE! These metrics are on the balanced dataset")
@@ -343,10 +350,10 @@ class ClassifierEvaluation:
                                                         trials_directory=trials_directory)
 
         # Dataset
-        self.dataset_loader = load_classifier_dataset(dataset_dirs,
-                                                      load_true_states=True,
-                                                      use_gt_rope=use_gt_rope,
-                                                      threshold=threshold)
+        self.dataset_loader = get_classifier_dataset_loader(dataset_dirs,
+                                                            load_true_states=True,
+                                                            use_gt_rope=use_gt_rope,
+                                                            threshold=threshold)
         self.dataset = self.dataset_loader.get_datasets(mode=mode)
 
         # Iterate

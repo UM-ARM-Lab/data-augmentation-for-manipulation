@@ -8,7 +8,7 @@ from progressbar import progressbar
 
 import rospy
 from arm_robots.robot import RobotPlanningError
-from link_bot_data.dataset_utils import data_directory, tf_write_example, pkl_write_example
+from link_bot_data.dataset_utils import make_unique_outdir, tf_write_example, pkl_write_example
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.get_service_provider import get_service_provider
@@ -114,7 +114,7 @@ class BaseDataCollector:
                      nickname: str,
                      ):
         outdir = pathlib.Path('fwd_model_data') / nickname
-        full_output_directory = data_directory(outdir, n_trajs)
+        full_output_directory = make_unique_outdir(outdir, n_trajs)
 
         full_output_directory.mkdir(exist_ok=True)
         print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)

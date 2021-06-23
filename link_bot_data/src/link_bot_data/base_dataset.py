@@ -67,10 +67,16 @@ class SizedTFDataset:
         dataset = self.dataset.prefetch(buffer_size)
         return SizedTFDataset(dataset, self.records, size=self.size)
 
+    def skip(self, count: int):
+        if count is not None:
+            dataset = self.dataset.skip(count)
+            return SizedTFDataset(dataset, self.records[count:], size=self.size - count)
+        return self
+
     def take(self, count: int):
         if count is not None:
             dataset = self.dataset.take(count)
-            return SizedTFDataset(dataset, self.records, size=count)
+            return SizedTFDataset(dataset, self.records[:count], size=count)
         return self
 
     def zip(self, dataset2: SizedTFDataset):

@@ -8,7 +8,7 @@ import numpy as np
 
 from arc_utilities import ros_init
 from link_bot_classifiers.visualize_classifier_dataset import visualize_dataset
-from link_bot_data.load_dataset import load_classifier_dataset
+from link_bot_data.load_dataset import get_classifier_dataset_loader
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(1)
@@ -41,7 +41,7 @@ def main():
     args = parser.parse_args()
     args.batch_size = 1
 
-    classifier_dataset = load_classifier_dataset(args.dataset_dirs, load_true_states=True, threshold=args.threshold)
+    classifier_dataset = get_classifier_dataset_loader(args.dataset_dirs, load_true_states=True, threshold=args.threshold)
 
     visualize_dataset(args, classifier_dataset)
 

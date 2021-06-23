@@ -4,7 +4,6 @@ from typing import List, Dict, Optional
 import tensorflow as tf
 from colorama import Fore
 
-import rospy
 from link_bot_data.base_dataset import BaseDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, use_gt_rope, add_label, pprint_example
 from link_bot_data.visualization import classifier_transition_viz_t, init_viz_action, init_viz_env
@@ -45,8 +44,6 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         self.old_compat = old_compat
         if self.old_compat:
             self.true_state_keys.append('is_close')
-        else:
-            self.true_state_keys.append('error')
 
         self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.predicted_state_keys = [add_predicted(k) for k in self.hparams['predicted_state_keys']]
@@ -60,6 +57,7 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
             'classifier_end_t',
             'traj_idx',
             'prediction_start_t',
+            'error'
         ]
 
         self.batch_metadata = {
@@ -95,19 +93,6 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
     def post_process(self, dataset: tf.data.TFRecordDataset, n_parallel_calls: int):
         dataset = super().post_process(dataset, n_parallel_calls)
 
-        def _add_time(example: Dict):
-            # this function is called before batching occurs, so the first dimension should be time
-            example['time'] = tf.cast(self.horizon, tf.int64)
-            return example
-
-        # dataset = dataset.map(_add_time)
-        # import numpy as np
-        # def _debugging(example:Dict):
-        #     example['origin_point'] = example['origin_point'] + np.array([0.01, 0.01, 0.01])
-        #     return example
-        #
-        # dataset = dataset.map(_debugging)
-
         threshold = self.threshold
 
         def _label(example: Dict):
@@ -130,7 +115,7 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         anim.play(example)
 
     def index_true_state_time(self, example: Dict, t: int):
-        return index_time_with_metadata(self.scenario_metadata, example, self.true_state_keys, t)
+        return index_time_with_metadata(self.scenario_metadata, example, self.true_state_keys + ['error'], t)
 
     def index_pred_state_time(self, example: Dict, t: int):
         return index_time_with_metadata(self.scenario_metadata, example, self.predicted_state_keys, t)
@@ -139,7 +124,7 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         return classifier_transition_viz_t(metadata=self.scenario_metadata,
                                            state_metadata_keys=self.state_metadata_keys,
                                            predicted_state_keys=self.predicted_state_keys,
-                                           true_state_keys=self.true_state_keys)
+                                           true_state_keys=self.true_state_keys + ['error'])
 
     def init_viz_action(self):
         return init_viz_action(self.scenario_metadata, self.action_keys, self.predicted_state_keys)

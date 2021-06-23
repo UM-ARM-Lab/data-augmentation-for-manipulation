@@ -7,7 +7,7 @@ from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 
 
-def load_dynamics_dataset(dataset_dirs: List[pathlib.Path], **kwargs):
+def get_dynamics_dataset_loader(dataset_dirs: List[pathlib.Path], **kwargs):
     d_for_checking_type = dataset_dirs[0]
     for e in d_for_checking_type.iterdir():
         if e.is_file():
@@ -25,7 +25,7 @@ def load_dynamics_dataset(dataset_dirs: List[pathlib.Path], **kwargs):
     raise NotImplementedError()
 
 
-def load_classifier_dataset(dataset_dirs: List[pathlib.Path], **kwargs):
+def get_classifier_dataset_loader(dataset_dirs: List[pathlib.Path], **kwargs):
     d_for_checking_type = dataset_dirs[0]
     for e in d_for_checking_type.iterdir():
         if e.is_file():
@@ -43,12 +43,12 @@ def load_classifier_dataset(dataset_dirs: List[pathlib.Path], **kwargs):
     raise NotImplementedError()
 
 
-def guess_load_dataset(dataset_dir: pathlib.Path, **kwargs):
+def guess_dataset_loader(dataset_dir: pathlib.Path, **kwargs):
     for p in dataset_dir.parts:
         if 'classifier' in p:
-            return load_classifier_dataset([dataset_dir], **kwargs)
+            return get_classifier_dataset_loader([dataset_dir], **kwargs)
         if 'fwd_model_data' in p:
-            return load_dynamics_dataset([dataset_dir], **kwargs)
+            return get_dynamics_dataset_loader([dataset_dir], **kwargs)
     raise NotImplementedError()
 
 
