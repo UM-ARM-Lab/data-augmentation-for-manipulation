@@ -2,6 +2,7 @@
 import argparse
 import logging
 import pathlib
+import time
 
 import numpy as np
 import tensorflow as tf
@@ -12,7 +13,7 @@ from link_bot_pycommon.args import int_tuple_arg
 from moonshine.filepath_tools import load_hjson
 
 
-@ros_init.with_ros("fine_tune_classifier")
+@ros_init.with_ros(f"fine_tune_classifier_{int(time.time())}")
 def main():
     tf.get_logger().setLevel(logging.ERROR)
 

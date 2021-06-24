@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 
 from link_bot_data.dataset_utils import parse_and_deserialize, parse_and_slow_deserialize, merge_hparams_dicts, \
-    label_is, add_batch_map
+    label_is, add_batch_map, pprint_example
 
 SORT_FILE_NAME = 'sort_order.csv'
 
@@ -97,6 +97,10 @@ class SizedTFDataset:
         balanced_dataset = tf.data.experimental.sample_from_datasets(datasets=datasets, weights=[0.5, 0.5])
         balanced_dataset = balanced_dataset.take(new_dataset_size)
         return SizedTFDataset(balanced_dataset, records=[], size=new_dataset_size)
+
+    def pprint_example(self):
+        example = self.get_example(0)
+        pprint_example(example)
 
 
 class BaseDatasetLoader:
