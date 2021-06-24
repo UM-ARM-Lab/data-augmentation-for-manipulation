@@ -127,7 +127,6 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          key_metric=AccuracyCheckpointMetric,
                          checkpoint=checkpoint,
                          mid_epoch_val_batches=mid_epoch_val_batches,
-                         val_every_n_batches=val_every_n_batches,
                          save_every_n_minutes=save_every_n_minutes,
                          validate_first=validate_first,
                          batch_metadata=train_dataset.batch_metadata)

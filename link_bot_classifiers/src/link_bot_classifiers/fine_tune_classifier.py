@@ -107,7 +107,6 @@ def fine_tune_classifier_from_datasets(train_dataset,
                          early_stopping=early_stopping,
                          profile=profile,
                          trial_path=trial_path,
-                         val_every_n_batches=None,
                          **kwargs)
     train_dataset, val_dataset = setup_datasets(model_hparams=model_hparams,
                                                 batch_size=batch_size,
