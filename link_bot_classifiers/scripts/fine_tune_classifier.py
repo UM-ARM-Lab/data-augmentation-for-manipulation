@@ -28,13 +28,11 @@ def main():
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int)
+    parser.add_argument('--seed', type=int)
     parser.add_argument('--log-scalars-every', type=int, help='loss/accuracy every this many batches', default=100)
     parser.add_argument('--validation-every', type=int, help='report validation every this many epochs', default=1)
     parser.add_argument('--no-validate-first', action='store_true')
     parser.add_argument('--threshold', type=float, default=None)
-
-    np.random.seed(1)
-    tf.random.set_seed(1)
 
     args = parser.parse_args()
 
@@ -51,6 +49,7 @@ def main():
                          epochs=args.epochs,
                          validate_first=(not args.no_validate_first),
                          take=args.take,
+                         seed=args.seed,
                          model_hparams_update=model_hparams_update,
                          val_every_n_batches=500,
                          mid_epoch_val_batches=100,
