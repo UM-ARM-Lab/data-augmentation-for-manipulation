@@ -1,3 +1,4 @@
+import pathlib
 import pickle
 from typing import Callable
 
@@ -167,8 +168,8 @@ def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable,
     return method_names, metrics
 
 
-def load_fig_specs(analysis_params, args):
-    figures_config = load_hjson(args.figures_config)
+def load_fig_specs(analysis_params, figures_config : pathlib.Path):
+    figures_config = load_hjson(figures_config)
     figspecs = []
     for fig_config in figures_config:
         figure_type = eval(fig_config.pop('type'))
@@ -182,8 +183,8 @@ def load_fig_specs(analysis_params, args):
     return figspecs
 
 
-def load_table_specs(analysis_params, args, table_format: str):
-    tables_conf = load_hjson(args.tables_config)
+def load_table_specs(analysis_params, tables_config: pathlib.Path, table_format: str):
+    tables_conf = load_hjson(tables_config)
     tablespecs = []
     for table_conf in tables_conf:
         table_type = eval(table_conf.pop('type'))

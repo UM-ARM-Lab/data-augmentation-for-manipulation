@@ -291,6 +291,7 @@ class PlanAndExecute:
                         'goal':             goal,
                         'steps':            steps_data,
                         'end_state':        end_state,
+                        'seed':             self.seed,
                     }
                     self.on_trial_complete(trial_data_dict, trial_idx)
                     return
@@ -373,6 +374,7 @@ class PlanAndExecute:
                     'goal':             goal,
                     'steps':            steps_data,
                     'end_state':        end_state,
+                    'seed': self.seed,
                 }
                 self.on_trial_complete(trial_data_dict, trial_idx)
                 return
