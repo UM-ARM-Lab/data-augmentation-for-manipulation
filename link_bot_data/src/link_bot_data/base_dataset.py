@@ -8,8 +8,8 @@ from typing import List, Optional, Dict, Callable, Any
 import numpy as np
 import tensorflow as tf
 
-from link_bot_data.dataset_utils import parse_and_deserialize, make_add_batch_func, parse_and_slow_deserialize, \
-    merge_hparams_dicts, label_is
+from link_bot_data.dataset_utils import parse_and_deserialize, parse_and_slow_deserialize, merge_hparams_dicts, \
+    label_is, add_batch_map
 
 SORT_FILE_NAME = 'sort_order.csv'
 
@@ -44,7 +44,7 @@ class SizedTFDataset:
 
     def batch(self, batch_size: int, *args, **kwargs):
         dataset_batched = self.dataset.batch(*args, batch_size=batch_size, **kwargs)
-        dataset_batched = dataset_batched.map(make_add_batch_func(batch_size))
+        dataset_batched = dataset_batched.map(add_batch_map)
         return SizedTFDataset(dataset_batched, self.records, size=int(self.size / batch_size))
 
     def map(self, function: Callable):

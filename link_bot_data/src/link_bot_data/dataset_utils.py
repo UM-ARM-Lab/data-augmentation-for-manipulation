@@ -195,20 +195,20 @@ def float_feature(values):
     return tf.train.Feature(float_list=tf.train.FloatList(value=values))
 
 
-def make_add_batch_func(batch_size: int):
-    def _add_batch(example: Dict):
-        for v in example.values():
-            v.is_batched = True
-        example['batch_size'] = tf.cast(batch_size, tf.int64)
-        return example
+def get_batch_dim(x):
+    return tf.cast(x.shape[0], tf.int64)
 
-    return _add_batch
+
+def add_batch_map(example: Dict):
+    batch_size = tf.numpy_function(get_batch_dim, [example['traj_idx']], tf.int64)
+    example['batch_size'] = batch_size
+    return example
 
 
 def batch_tf_dataset(dataset, batch_size: int, drop_remainder: bool = True):
     dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
     if isinstance(dataset, tf.data.Dataset):
-        dataset = dataset.map(make_add_batch_func(batch_size))
+        dataset = dataset.map(add_batch_map)
     return dataset
 
 

@@ -57,7 +57,7 @@ def evaluate(proxy_datasets_and_info: List[Tuple], latest_checkpoint: pathlib.Pa
 
         val_metrics = model.create_metrics()
         proxy_dataset = proxy_dataset.batch(batch_size)
-        # proxy_dataset = proxy_dataset.batch(batch_size).take(100)  # FIXME: this is just for debugging!
+        # proxy_dataset = proxy_dataset.take(241).batch(batch_size)  # FIXME: this is just for debugging!
         runner.val_epoch(proxy_dataset, val_metrics)
         metric_name = info['metric']
         metric_value = val_metrics[metric_name].result().numpy().squeeze()
@@ -91,7 +91,7 @@ def iterative_fine_tuning(training_dataset_dir: pathlib.Path,
     if params is not None:
         model_hparams_update = load_hjson(params)
     else:
-        model_hparams_update = None
+        model_hparams_update = {}
 
     print(Fore.YELLOW + f'{seed=}' + Fore.RESET)
 
