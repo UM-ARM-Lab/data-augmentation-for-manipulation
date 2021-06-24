@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers import train_test_classifier
-from link_bot_pycommon.args import run_subparsers
+from link_bot_pycommon.args import run_subparsers, int_tuple_arg
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(9.0)
@@ -82,7 +82,6 @@ def main():
     train_parser.add_argument('--validation-every', type=int,
                               help='report validation every this many epochs', default=1)
     train_parser.add_argument('--seed', type=int, default=None)
-    train_parser.add_argument('--old-compat', action='store_true')
     train_parser.add_argument('--threshold', type=float, default=None)
     train_parser.set_defaults(func=train_main)
 
@@ -105,6 +104,7 @@ def main():
     eval_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_parser.add_argument('--take', type=int)
     eval_parser.add_argument('--threshold', type=float, default=None)
+    eval_parser.add_argument('--profile', type=int_tuple_arg, default=None)
     eval_parser.set_defaults(func=eval_main)
 
     eval_n_parser = subparsers.add_parser('eval_n')
@@ -143,7 +143,6 @@ def main():
     viz_parser.add_argument('--only-tn', action='store_true')
     viz_parser.add_argument('--only-tp', action='store_true')
     viz_parser.add_argument('--threshold', type=float, default=None)
-    viz_parser.add_argument('--old-compat', action='store_true')
     viz_parser.add_argument('--start-at', type=int, default=0)
     viz_parser.set_defaults(func=viz_main)
 

@@ -83,7 +83,6 @@ def train_main(dataset_dirs: List[pathlib.Path],
                checkpoint: Optional[pathlib.Path] = None,
                threshold: Optional[float] = None,
                ensemble_idx: Optional[int] = None,
-               old_compat: bool = False,
                take: Optional[int] = None,
                no_validate: bool = False,
                trials_directory: Optional[pathlib.Path] = pathlib.Path("./trials").absolute(),
@@ -96,13 +95,11 @@ def train_main(dataset_dirs: List[pathlib.Path],
                                                   load_true_states=True,
                                                   use_gt_rope=use_gt_rope,
                                                   threshold=threshold,
-                                                  old_compat=old_compat,
                                                   )
     val_dataset = get_classifier_dataset_loader(dataset_dirs=dataset_dirs,
                                                 load_true_states=True,
                                                 use_gt_rope=use_gt_rope,
                                                 threshold=threshold,
-                                                old_compat=old_compat,
                                                 )
 
     model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))
@@ -134,7 +131,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          save_every_n_minutes=save_every_n_minutes,
                          validate_first=validate_first,
                          batch_metadata=train_dataset.batch_metadata)
-    train_tf_dataset, val_tf_dataset = setup_dataset_loaders(model_hparams, batch_size, train_dataset, val_dataset, seed, take)
+    train_tf_dataset, val_tf_dataset = setup_dataset_loaders(model_hparams, batch_size, train_dataset, val_dataset,
+                                                             seed, take)
 
     final_val_metrics = runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
 
@@ -147,21 +145,19 @@ def eval_generator(dataset_dirs: List[pathlib.Path],
                    batch_size: int,
                    use_gt_rope: bool = True,
                    threshold: Optional[float] = None,
-                   old_compat: bool = False,
                    take: Optional[int] = None,
                    balance: bool = True,
                    scenario: Optional[ScenarioWithVisualization] = None,
                    **kwargs):
-    model, runner, tf_dataset = eval_setup(balance,
-                                           batch_size,
-                                           checkpoint,
-                                           dataset_dirs,
-                                           mode,
-                                           old_compat,
-                                           take,
-                                           threshold,
-                                           use_gt_rope,
-                                           scenario)
+    model, runner, tf_dataset = eval_setup(balance=balance,
+                                           batch_size=batch_size,
+                                           checkpoint=checkpoint,
+                                           dataset_dirs=dataset_dirs,
+                                           mode=mode,
+                                           take=take,
+                                           threshold=threshold,
+                                           use_gt_rope=use_gt_rope,
+                                           scenario=scenario)
 
     val_metrics = model.create_metrics()
     for example, outputs in runner.val_generator(tf_dataset, val_metrics):
@@ -174,21 +170,21 @@ def eval_main(dataset_dirs: pathlib.Path,
               batch_size: int,
               use_gt_rope: bool = True,
               threshold: Optional[float] = None,
-              old_compat: bool = False,
               take: Optional[int] = None,
               no_balance: bool = True,
               scenario: Optional[ScenarioWithVisualization] = None,
+              profile: Optional[tuple] = None,
               **kwargs):
-    model, runner, tf_dataset = eval_setup((not no_balance),
-                                           batch_size,
-                                           checkpoint,
-                                           dataset_dirs,
-                                           mode,
-                                           old_compat,
-                                           take,
-                                           threshold,
-                                           use_gt_rope,
-                                           scenario)
+    model, runner, tf_dataset = eval_setup(balance=(not no_balance),
+                                           batch_size=batch_size,
+                                           checkpoint=checkpoint,
+                                           dataset_dirs=dataset_dirs,
+                                           mode=mode,
+                                           take=take,
+                                           threshold=threshold,
+                                           use_gt_rope=use_gt_rope,
+                                           scenario=scenario,
+                                           profile=profile)
 
     val_metrics = model.create_metrics()
     runner.val_epoch(tf_dataset, val_metrics)
@@ -207,13 +203,12 @@ def eval_n_main(dataset_dir: pathlib.Path,
                 batch_size: int,
                 use_gt_rope: bool = True,
                 threshold: Optional[float] = None,
-                old_compat: bool = False,
                 take: Optional[int] = None,
                 no_balance: bool = True,
                 scenario: Optional[ScenarioWithVisualization] = None,
                 **kwargs):
-    dataset_loader, dataset = setup_eval_dataset((not no_balance), [dataset_dir], mode, old_compat, scenario, take,
-                                                 threshold, use_gt_rope, batch_size)
+    dataset_loader, dataset = setup_eval_dataset((not no_balance), [dataset_dir], mode, scenario, take, threshold,
+                                                 use_gt_rope, batch_size)
 
     metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives']
     all_metrics_to_print = []
@@ -242,13 +237,22 @@ def eval_n_main(dataset_dir: pathlib.Path,
         print("\t".join(metrics_to_print))
 
 
-def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, take, threshold, use_gt_rope, scenario):
+def eval_setup(balance,
+               batch_size,
+               checkpoint,
+               dataset_dirs,
+               mode,
+               take,
+               threshold,
+               use_gt_rope,
+               scenario,
+               **kwargs):
     trial_path = checkpoint.parent.absolute()
     _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
     model_class = link_bot_classifiers.get_model(params['model_class'])
 
-    dataset_loader, dataset = setup_eval_dataset(balance, dataset_dirs, mode, old_compat, scenario, take, threshold,
-                                                 use_gt_rope, batch_size)
+    dataset_loader, dataset = setup_eval_dataset(balance, dataset_dirs, mode, scenario, take, threshold, use_gt_rope,
+                                                 batch_size)
 
     model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario())
     # This call to model runner restores the model
@@ -258,7 +262,8 @@ def eval_setup(balance, batch_size, checkpoint, dataset_dirs, mode, old_compat, 
                          checkpoint=checkpoint,
                          trial_path=trial_path,
                          key_metric=AccuracyCheckpointMetric,
-                         batch_metadata=dataset_loader.batch_metadata)
+                         batch_metadata=dataset_loader.batch_metadata,
+                         **kwargs)
     return model, runner, dataset
 
 
@@ -269,19 +274,11 @@ def compare_main(dataset_dirs: List[pathlib.Path],
                  batch_size: int,
                  use_gt_rope: bool = True,
                  threshold: Optional[float] = None,
-                 old_compat: bool = False,
                  take: Optional[int] = None,
                  balance: bool = True,
                  scenario: Optional[ScenarioWithVisualization] = None,
                  **kwargs):
-    dataset, tf_dataset = setup_eval_dataset(balance,
-                                             dataset_dirs,
-                                             mode,
-                                             old_compat,
-                                             scenario,
-                                             take,
-                                             threshold,
-                                             use_gt_rope,
+    dataset, tf_dataset = setup_eval_dataset(balance, dataset_dirs, mode, scenario, take, threshold, use_gt_rope,
                                              batch_size)
 
     model1 = classifier_utils.load_generic_model(checkpoint1)
@@ -317,11 +314,10 @@ def compare_main(dataset_dirs: List[pathlib.Path],
                 anim.play(inputs_b)
 
 
-def setup_eval_dataset(balance, dataset_dirs, mode, old_compat, scenario, take, threshold, use_gt_rope, batch_size):
+def setup_eval_dataset(balance, dataset_dirs, mode, scenario, take, threshold, use_gt_rope, batch_size):
     dataset_loader = get_classifier_dataset_loader(dataset_dirs,
                                                    load_true_states=True,
                                                    use_gt_rope=use_gt_rope,
-                                                   old_compat=old_compat,
                                                    threshold=threshold,
                                                    scenario=scenario)
     dataset = dataset_loader.get_datasets(mode=mode)
@@ -425,7 +421,6 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              only_negative: bool,
              only_positive: bool,
              use_gt_rope: bool = True,
-             old_compat: bool = False,
              threshold: Optional[float] = None,
              **kwargs):
     count = 0

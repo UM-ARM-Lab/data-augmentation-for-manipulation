@@ -1,58 +1,15 @@
 import pathlib
-import sys
 import time
 from typing import Optional, Tuple
 
 import tensorflow as tf
-from colorama import Fore, Style, Back
+from colorama import Fore, Style
 from progressbar import progressbar
 
 from link_bot_data.progressbar_widgets import mywidgets
 from moonshine.metrics import LossCheckpointMetric
 from moonshine.my_keras_model import MyKerasModel
-
-
-class TFProfilerHelper:
-
-    def __init__(self, profile_arg: Tuple[int], train_logdir: str):
-        self.train_logdir = train_logdir
-        if profile_arg is None:
-            self.start_batch = sys.maxsize
-            self.stop_batch = -1
-        elif isinstance(profile_arg, tuple):
-            self.start_batch = profile_arg[0]
-            self.stop_batch = profile_arg[1]
-        else:
-            raise NotImplementedError()
-        self.started = False
-        self.finished = False
-
-    def start(self, batch_idx: int, epoch: int):
-        if batch_idx >= self.start_batch and not self.started and not self.finished and epoch == 1:
-            self.started = True
-            print(Back.WHITE + Fore.BLACK + "Starting Profiler" + Fore.RESET + Back.RESET)
-            options = tf.profiler.experimental.ProfilerOptions(python_tracer_level=1)
-            tf.profiler.experimental.start(self.train_logdir, options)
-        return TFProfilerStopper(batch_idx, epoch, self)
-
-
-class TFProfilerStopper:
-
-    def __init__(self, batch_idx, epoch, parent: TFProfilerHelper):
-        self.parent = parent
-        self.batch_idx = batch_idx
-        self.epoch = epoch
-
-    def stop(self, force=False):
-        if not self.parent.started or self.parent.finished or self.epoch > 1:
-            return
-        if force or self.batch_idx >= self.parent.stop_batch:
-            if force:
-                print(Fore.RED + "Force stopping profiler!" + Fore.RESET)
-            self.parent.started = False
-            self.parent.finished = True
-            print(Back.WHITE + Fore.BLACK + "Stopping Profiler" + Fore.RESET + Back.RESET)
-            tf.profiler.experimental.stop()
+from moonshine.tf_profiler_helper import TFProfilerHelper
 
 
 class ModelRunner:
@@ -216,12 +173,6 @@ class ModelRunner:
                 save_path = self.latest_checkpoint_manager.save()
                 print("Saving " + save_path)
 
-        try:
-            # In case the data iterator ends before we reach the stop profiling condition, try to stop it here
-            p.stop(force=True)
-        except Exception:
-            pass
-
     def mid_epoch_validation(self, val_dataset, val_metrics):
         for v in val_metrics.values():
             v.reset_states()
@@ -250,10 +201,15 @@ class ModelRunner:
             val_gen = progressbar(val_dataset, widgets=mywidgets)
         else:
             val_gen = val_dataset
-        for val_batch in val_gen:
+
+        for batch_idx, val_batch in enumerate(val_gen):
             self.model.scenario.heartbeat()
             val_batch.update(self.batch_metadata)
-            self.model.val_step(val_batch, val_metrics)
+
+            p = self.prof.start(batch_idx=batch_idx, epoch=1)
+            with tf.profiler.experimental.Trace('TraceContext', graph_type='val', batch_idx=batch_idx):
+                self.model.val_step(val_batch, val_metrics)
+            p.stop()
 
     def train(self, train_dataset, val_dataset, num_epochs):
         val_metrics = self.model.create_metrics()
