@@ -8,4 +8,5 @@
   recovery: {
     recovery_model_dir: recovery_trials/val_car_feasible2/May_22_22-47-32_442a2de391/best_checkpoint/
   }
+  stop_on_error_above: 999.0
 }
