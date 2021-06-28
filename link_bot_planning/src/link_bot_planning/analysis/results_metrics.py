@@ -79,6 +79,8 @@ def mean_progagation_time(scenario: ExperimentScenario, trial_metadata: Dict, tr
     for step in trial_datum['steps']:
         if 'planning_result' in step:
             dt = step['planning_result'].mean_propagate_time
+            if dt is None:
+                dt = np.nan
             progagation_times.append(dt)
     return np.mean(progagation_times)
 
