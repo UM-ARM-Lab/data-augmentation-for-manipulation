@@ -16,11 +16,10 @@ class MyTable:
         self.table = None
         self.header = header
 
-    def make_table(self, data, series_names):
+    def make_table(self, data):
         # Methods need to have consistent colors across different plots
-        for series_name in series_names:
-            data_for_series = data.loc[series_name]
-            self.add_to_table(data_for_series, series_name=series_name)
+        for i, s in data.iterrows():
+            self.add_to_table(s, series_name=i)
 
         self.table = tabulate(self.table_data,
                               headers=self.header,
@@ -56,12 +55,10 @@ class PValuesTable(MyTable):
         self.name = name
         self.table = None
 
-    def make_table(self, data, series_names):
+    def make_table(self, data):
         arrays_per_method = {}
-        for series_name in series_names:
-            data_for_series = data.loc[series_name]
-            x = data_for_series['x']
-            arrays_per_method[series_name] = x
+        for i in data.index.unique():
+            arrays_per_method[str(i)] = data.loc[i].values.squeeze()
 
         self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format, title=self.name)
 

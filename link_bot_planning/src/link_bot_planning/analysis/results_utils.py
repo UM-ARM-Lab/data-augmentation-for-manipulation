@@ -49,7 +49,10 @@ def dynamics_dataset_params_from_planner_params(planner_params: Dict):
 def classifier_params_from_planner_params(planner_params):
     classifier_model_dirs = paths_from_json(planner_params['classifier_model_dir'])
     representative_classifier_model_dir = classifier_model_dirs[0]
-    classifier_hparams = load_params(representative_classifier_model_dir.parent)
+    try:
+        classifier_hparams = load_params(representative_classifier_model_dir.parent)
+    except RuntimeError:
+        classifier_hparams = load_params(pathlib.Path('/media/shared/') / representative_classifier_model_dir.parent)
     return classifier_hparams
 
 

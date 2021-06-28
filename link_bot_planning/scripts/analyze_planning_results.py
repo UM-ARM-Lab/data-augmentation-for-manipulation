@@ -42,14 +42,12 @@ def metrics_main(args):
         with outfile.open("rb") as f:
             df = pickle.load(f)
     else:
-        df = pd.DataFrame([], columns=column_names)
-
-    results_dirs = get_all_subdirs(args.results_dirs)
-    df = load_results(df, results_dirs, outfile)
-    # pd.DataFrame(df, index=df[index_names])  # convert to MultiIndex given index_names
+        df = pd.DataFrame([], columns=column_names, dtype=float)
+        results_dirs = get_all_subdirs(args.results_dirs)
+        df = load_results(df, results_dirs, outfile)
 
     # Figures & Tables
-    figspecs = load_fig_specs(analysis_params, args.figures_config)
+    # figspecs = load_fig_specs(analysis_params, args.figures_config)
     table_specs = load_table_specs(args.tables_config, table_format)
 
     # z = df.copy()
@@ -71,20 +69,18 @@ def metrics_main(args):
 
     for spec in table_specs:
         data_for_table = reduce_metrics3(spec.reductions, df)
-        print(data_for_table)
-        #
-        # spec.table.make_table(data_for_table, method_names)
-        # spec.table.save(out_dir)
+        spec.table.make_table(data_for_table)
+        spec.table.save(out_dir)
 
-    # for spec in table_specs:
-    #     print()
-    #     spec.table.print()
-    #     print()
+    for spec in table_specs:
+        print()
+        spec.table.print()
+        print()
 
-    if not args.no_plot:
-        for spec in figspecs:
-            spec.fig.fig.set_tight_layout(True)
-        plt.show()
+    # if not args.no_plot:
+    #     for spec in figspecs:
+    #         spec.fig.fig.set_tight_layout(True)
+    #     plt.show()
 
 
 @ros_init.with_ros("analyse_planning_results")

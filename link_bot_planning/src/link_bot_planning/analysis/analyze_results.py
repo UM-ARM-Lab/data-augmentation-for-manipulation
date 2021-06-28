@@ -17,7 +17,7 @@ from link_bot_planning.analysis.results_metrics import *
 # noinspection PyUnresolvedReferences
 from link_bot_planning.analysis.results_tables import *
 from link_bot_planning.analysis.results_utils import load_order, add_number_to_method_name
-from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.get_scenario import get_scenario, get_scenario_cached
 from link_bot_pycommon.pandas_utils import df_append
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson, load_json_or_hjson
@@ -223,6 +223,7 @@ def reduce_metrics3(reductions: List[List], metrics: pd.DataFrame):
                 metric_i = metric_i.groupby(group_by).agg({metric: agg})
             else:
                 metric_i.set_index(group_by, inplace=True)
+                metric_i = metric_i[metric]
         reduced_metrics.append(metric_i)
 
     reduced_metrics = pd.concat(reduced_metrics, axis=1)
@@ -235,7 +236,8 @@ def load_results(df, results_dirs: List[pathlib.Path], outfile):
         if already_exists:
             continue
 
-        scenario = get_scenario(metadata['planner_params']['scenario'])
+        # Assume we don't need separate instances of the scenario every time
+        scenario = get_scenario_cached(metadata['planner_params']['scenario'])
         metrics_values = [metric_func(scenario, metadata, datum) for metric_func in metrics_funcs]
         # create and add a row
         row = [
@@ -252,6 +254,7 @@ def load_results(df, results_dirs: List[pathlib.Path], outfile):
     # if everything went well now overwrite the input file
     with outfile.open("wb") as f:
         pickle.dump(df, f)
+    print(Fore.MAGENTA + f"Wrote {outfile.as_posix()}" + Fore.RESET)
     return df
 
 

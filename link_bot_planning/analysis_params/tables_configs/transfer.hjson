@@ -15,15 +15,15 @@
       Median NME
     ]
     reductions: [
-      [[["classifier_source_env", "target_env"], "success", ["sum"]]]
-      [["num_trials", ["sum"]]]
-      [["success", ["mean"]]]
-      [["task_error", ["mean"]]]
-      [["task_error", ["median"]]]
-      [["cumulative_task_error", ["mean"]]]
-      [["cumulative_planning_error", ["mean"]]]
-      [["normalized_model_error", ["mean"]]]
-      [["normalized_model_error", ["median"]]]
+      [[["classifier_source_env", "target_env"], "success", "sum"]]
+      [[["classifier_source_env", "target_env"], "num_trials", "sum"]]
+      [[["classifier_source_env", "target_env"], "success", "mean"]]
+      [[["classifier_source_env", "target_env"], "task_error", "mean"]]
+      [[["classifier_source_env", "target_env"], "task_error", "median"]]
+      [[["classifier_source_env", "target_env"], "cumulative_task_error", "mean"]]
+      [[["classifier_source_env", "target_env"], "cumulative_planning_error", "mean"]]
+      [[["classifier_source_env", "target_env"], "normalized_model_error", "mean"]]
+      [[["classifier_source_env", "target_env"], "normalized_model_error", "median"]]
     ]
   }
   {
@@ -39,12 +39,12 @@
       Mean Propagation Time (s)
     ]
     reductions: [
-      ["num_planning_attempts", ["mean"]]
-      ["num_steps", ["mean"]]
-      ["planning_time", ["mean"]]
-      ["total_time", ["mean"]]
-      ["num_recovery_actions", ["mean"]]
-      ["mean_progagation_time", ["mean"]]
+      [[["classifier_source_env", "target_env"], "num_planning_attempts", "mean"]]
+      [[["classifier_source_env", "target_env"], "num_steps", "mean"]]
+      [[["classifier_source_env", "target_env"], "planning_time", "mean"]]
+      [[["classifier_source_env", "target_env"], "total_time", "mean"]]
+      [[["classifier_source_env", "target_env"], "num_recovery_actions", "mean"]]
+      [[["classifier_source_env", "target_env"], "mean_progagation_time", "mean"]]
     ]
   }
   {
@@ -56,36 +56,15 @@
       '# Trials'
     ]
     reductions: [
-      ["success", ["sum"]]
-      ["num_trials", ["sum"]]
-    ]
-  }
-  {
-    type: PValuesTable
-    name: Success
-    reductions: [
-      ["success", [null]]
+      [[["classifier_source_env", "target_env"], "success", "sum"]]
+      [[["classifier_source_env", "target_env"], "num_trials", "sum"]]
     ]
   }
   {
     type: PValuesTable
     name: Task Error
     reductions: [
-      ["task_error", [null]]
-    ]
-  }
-  {
-    type: PValuesTable
-    name: Normalized Model Error
-    reductions: [
-      ["normalized_model_error", [null]]
-    ]
-  }
-  {
-    type: PValuesTable
-    name: Cumulative Planning Error
-    reductions: [
-      ["cumulative_planning_error", [null]]
+      [[["classifier_source_env", "target_env"], "task_error", null]]
     ]
   }
 ]

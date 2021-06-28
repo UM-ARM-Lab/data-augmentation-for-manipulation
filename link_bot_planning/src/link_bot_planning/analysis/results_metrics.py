@@ -8,6 +8,7 @@ from arc_utilities.algorithms import nested_dict_update
 from link_bot_planning.analysis.results_utils import get_paths, classifier_params_from_planner_params
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.pycommon import has_keys
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import numpify
 
@@ -128,6 +129,7 @@ def normalized_model_error(scenario: ExperimentScenario, trial_metadata: Dict, t
 def learned_classifier(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     c = trial_metadata['planner_params']['classifier_model_dir']
     found = False
+    learned_classifier_ = None
     for c_i in c:
         if 'best_checkpoint' in c_i:
             if found:
@@ -139,7 +141,7 @@ def learned_classifier(scenario: ExperimentScenario, trial_metadata: Dict, trial
 
 def classifier_source_env(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     cl_params = classifier_params_from_planner_params(trial_metadata['planner_params'])
-    scene_name = cl_params['classifier_dataset_hparams'].get("scene_name", None)
+    scene_name = has_keys(cl_params, ['classifier_dataset_hparams', 'scene_name'], None)
     if scene_name is None:
         print(f"Missing scene_name for {trial_metadata['planner_params']['classifier_model_dir'][0]}")
         return "no-scene-name"

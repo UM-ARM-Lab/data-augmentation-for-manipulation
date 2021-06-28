@@ -120,7 +120,7 @@ def main():
 
     for spec in table_specs:
         data_for_table = reduce_metrics(spec.reductions, spec.axes_names, df)
-        spec.table.make_table(data_for_table, method_names)
+        spec.table.make_table(data_for_table)
         spec.table.save(outdir)
 
     for spec in table_specs:

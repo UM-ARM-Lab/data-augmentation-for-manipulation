@@ -58,7 +58,7 @@ def metrics_main(args):
     for spec in table_specs:
         data_for_table = get_data_for_table(spec, metrics)
 
-        spec.table.make_table(data_for_table, method_names)
+        spec.table.make_table(data_for_table)
         spec.table.save(out_dir)
 
     if not args.no_plot:

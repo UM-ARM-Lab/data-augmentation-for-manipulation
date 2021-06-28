@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from colorama import Fore
 
 # With this approach, we only ever import the scenario we want to use. Nice!
@@ -77,3 +79,8 @@ def get_scenario(scenario_name: str) -> ScenarioWithVisualization:
     if scenario_name not in scenario_map:
         raise NotImplementedError(scenario_name)
     return scenario_map[scenario_name]()()
+
+
+@lru_cache
+def get_scenario_cached(scenario_name: str):
+    return get_scenario(scenario_name)
