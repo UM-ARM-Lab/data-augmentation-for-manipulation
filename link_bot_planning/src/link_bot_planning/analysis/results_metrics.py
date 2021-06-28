@@ -1,14 +1,17 @@
+import logging
 import pathlib
 from typing import Dict, Optional
 
-from colorama import Fore
+import numpy as np
 
 from arc_utilities.algorithms import nested_dict_update
-from link_bot_planning.analysis.results_utils import get_paths
+from link_bot_planning.analysis.results_utils import get_paths, classifier_params_from_planner_params
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import numpify
+
+logger = logging.getLogger(__file__)
 
 
 def num_recovery_actions(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
@@ -49,7 +52,7 @@ def task_error(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: 
 
 def success(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     final_execution_to_goal_error = task_error(scenario, trial_metadata, trial_datum)
-    return final_execution_to_goal_error < trial_metadata['planner_params']['goal_params']['threshold']
+    return int(final_execution_to_goal_error < trial_metadata['planner_params']['goal_params']['threshold'])
 
 
 def recovery_success(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
@@ -68,6 +71,16 @@ def planning_time(scenario: ExperimentScenario, trial_metadata: Dict, trial_datu
     for step in trial_datum['steps']:
         planning_time += step['planning_result'].time
     return planning_time
+
+
+def mean_progagation_time(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    progagation_times = []
+    # average across all the planning results in the trial
+    for step in trial_datum['steps']:
+        if 'planning_result' in step:
+            dt = step['planning_result'].mean_propagate_time
+            progagation_times.append(dt)
+    return np.mean(progagation_times)
 
 
 def total_time(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
@@ -110,6 +123,32 @@ def normalized_model_error(scenario: ExperimentScenario, trial_metadata: Dict, t
     return total_model_error / n_total_actions
 
 
+def learned_classifier(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    c = trial_metadata['planner_params']['classifier_model_dir']
+    found = False
+    for c_i in c:
+        if 'best_checkpoint' in c_i:
+            if found:
+                logger.warning("Multiple learned classifiers detected!!!")
+            found = True
+            learned_classifier_ = c_i
+    return learned_classifier_
+
+
+def classifier_source_env(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    cl_params = classifier_params_from_planner_params(trial_metadata['planner_params'])
+    scene_name = cl_params['classifier_dataset_hparams'].get("scene_name", None)
+    if scene_name is None:
+        print(f"Missing scene_name for {trial_metadata['planner_params']['classifier_model_dir'][0]}")
+        return "no-scene-name"
+    else:
+        return scene_name
+
+
+def target_env(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    return pathlib.Path(trial_metadata['test_scenes_dir']).name
+
+
 def load_analysis_params(analysis_params_filename: Optional[pathlib.Path] = None):
     analysis_params_common_filename = pathlib.Path("analysis_params/common.json")
     analysis_params = load_hjson(analysis_params_common_filename)
@@ -134,6 +173,10 @@ __all__ = [
     'cumulative_planning_error',
     'recovery_success',
     'planning_time',
+    'learned_classifier',
+    'classifier_source_env',
+    'target_env',
+    'mean_progagation_time',
 
     'load_analysis_params',
 ]

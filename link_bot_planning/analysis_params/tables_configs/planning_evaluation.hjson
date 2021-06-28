@@ -15,69 +15,15 @@
       Median NME
     ]
     reductions: [
-      [
-        {
-          group_by: ["method_name"]
-          metric: success
-          agg: sum
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: num_trials
-          agg: sum
-        }
-      ]
-      [
-        {
-        group_by: ["method_name"]
-          metric: success
-          agg: mean
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: task_error
-          agg: mean
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: task_error
-          agg: median
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: cumulative_task_error
-          agg: mean
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: cumulative_planning_error
-          agg: mean
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: normalized_model_error
-          agg: mean
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: normalized_model_error
-          agg: median
-        }
-      ]
+      ["success", ["sum"]]
+      ["num_trials", ["sum"]]
+      ["success", ["mean"]]
+      ["task_error", ["mean"]]
+      ["task_error", ["median"]]
+      ["cumulative_task_error", ["mean"]]
+      ["cumulative_planning_error", ["mean"]]
+      ["normalized_model_error", ["mean"]]
+      ["normalized_model_error", ["median"]]
     ]
   }
   {
@@ -87,46 +33,18 @@
       Method Name
       Num (re)plans
       Mean Num Actions
-      Mean Planning Time
-      Mean Total Time
+      Mean Planning Time (s)
+      Mean Total Time (s)
       Num Recovery Actions
+      Mean Propagation Time (s)
     ]
     reductions: [
-      [
-        {
-          group_by: ["method_name"]
-          metric: num_planning_attempts
-          agg: mean
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: num_steps
-          agg: mean
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: planning_time
-          agg: mean
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: total_time
-          agg: mean
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: num_recovery_actions
-          agg: mean
-        }
-      ]
+      ["num_planning_attempts", ["mean"]]
+      ["num_steps", ["mean"]]
+      ["planning_time", ["mean"]]
+      ["total_time", ["mean"]]
+      ["num_recovery_actions", ["mean"]]
+      ["mean_progagation_time", ["mean"]]
     ]
   }
   {
@@ -138,80 +56,36 @@
       '# Trials'
     ]
     reductions: [
-      [
-        {
-          group_by: ["method_name"]
-          metric: success
-          agg: sum
-        }
-      ]
-      [
-        {
-          group_by: ["method_name"]
-          metric: num_trials
-          agg: sum
-        }
-      ]
+      ["success", ["sum"]]
+      ["num_trials", ["sum"]]
     ]
   }
   {
     type: PValuesTable
     name: Success
-    metric: success
     reductions: [
-      [
-      {
-        keys: [
-          method_name
-        ]
-        metric:success
-      }
-      ]
+      ["success", [null]]
     ]
   }
   {
     type: PValuesTable
     name: Task Error
-    metric: task_error
     reductions: [
-      [
-        {
-          keys: [
-            method_name
-          ]
-          metric: task_error
-        }
-      ]
+      ["task_error", [null]]
     ]
   }
   {
     type: PValuesTable
     name: Normalized Model Error
-    metric: normalized_model_error
     reductions: [
-      [
-        {
-          keys: [
-            method_name
-          ]
-          metric: normalized_model_error
-        }
-      ]
+      ["normalized_model_error", [null]]
     ]
   }
   {
     type: PValuesTable
     name: Cumulative Planning Error
-    metric: cumulative_planning_error
     reductions: [
-      [
-        {
-          keys: [
-            method_name
-          ]
-          metric: cumulative_planning_error
-        }
-      ]
+      ["cumulative_planning_error", [null]]
     ]
   }
 ]

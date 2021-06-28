@@ -1,12 +1,14 @@
 import pathlib
 import pickle
-from typing import Callable
+from typing import Callable, List
 
 import pandas as pd
 from colorama import Fore
+from progressbar import progressbar
 
 import rospy
 from arc_utilities.filesystem_utils import get_all_subdirs
+from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_planning.analysis.figspec import DEFAULT_AXES_NAMES, FigSpec, TableSpec
 # noinspection PyUnresolvedReferences
 from link_bot_planning.analysis.results_figures import *
@@ -16,11 +18,15 @@ from link_bot_planning.analysis.results_metrics import *
 from link_bot_planning.analysis.results_tables import *
 from link_bot_planning.analysis.results_utils import load_order, add_number_to_method_name
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.pandas_utils import df_append
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson, load_json_or_hjson
 
 # Edit this to add a new metric
 metrics_funcs = [
+    learned_classifier,
+    classifier_source_env,
+    target_env,
     num_planning_attempts,
     recovery_success,
     total_time,
@@ -34,8 +40,17 @@ metrics_funcs = [
     success,
     normalized_model_error,
     num_recovery_actions,
+    mean_progagation_time,
 ]
 metrics_names = [func.__name__ for func in metrics_funcs]
+column_names = [
+    'method_name',
+    'seed',
+    'ift_iteration',
+    'trial_idx',
+    'uuid',
+]
+column_names += metrics_names
 
 
 def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable, get_metadata: Callable):
@@ -168,7 +183,7 @@ def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable,
     return method_names, metrics
 
 
-def load_fig_specs(analysis_params, figures_config : pathlib.Path):
+def load_fig_specs(analysis_params, figures_config: pathlib.Path):
     figures_config = load_hjson(figures_config)
     figspecs = []
     for fig_config in figures_config:
@@ -196,3 +211,72 @@ def load_table_specs(tables_config: pathlib.Path, table_format: str):
         tablespec = TableSpec(table=table, reductions=reductions, axes_names=axes_names)
         tablespecs.append(tablespec)
     return tablespecs
+
+
+def reduce_metrics3(reductions: List[List], axis_names: List[str], metrics: pd.DataFrame):
+    reduced_metrics = []
+    for reduction in reductions:
+        metric_i = metrics.copy()
+        for reduction_step in reduction:
+            if 'group_by' in dict(reduction_step):
+                data_for_axis_groupby = metric_i.groupby(reduction_step['group_by'])
+                metric_i = data_for_axis_groupby.agg({reduction_step['metric']: reduction_step['agg']})
+            elif 'keys' in reduction_step:
+                metric_i = metric_i[reduction_step['keys'] + [reduction_step['metric']]]
+            else:
+                raise NotImplementedError(reduction_step)
+        reduced_metrics.append(metric_i)
+
+    reduced_metrics = pd.concat(reduced_metrics, axis=1)
+    # columns = dict(zip([r[0] for r in reductions], axis_names))
+    # reduced_metrics.rename(columns=columns, inplace=True)
+
+    return reduced_metrics
+
+
+def load_results(df, results_dirs: List[pathlib.Path], outfile):
+    for metadata, datum in progressbar(PlanningResultsGenerator(results_dirs), widgets=mywidgets):
+        already_exists = datum['uuid'] in df['uuid'].unique()
+        if already_exists:
+            continue
+
+        scenario = get_scenario(metadata['planner_params']['scenario'])
+        metrics_values = [metric_func(scenario, metadata, datum) for metric_func in metrics_funcs]
+        # create and add a row
+        row = [
+            metadata['planner_params']['method_name'],
+            datum.get('seed', 0),
+            metadata.get('ift_iteration', 0),
+            datum['trial_idx'],
+            datum['uuid'],
+        ]
+        row += metrics_values
+
+        df = df_append(df, row)
+
+    # if everything went well now overwrite the input file
+    with outfile.open("wb") as f:
+        pickle.dump(df, f)
+    return df
+
+
+class PlanningResultsGenerator:
+
+    def __init__(self, results_dirs: List[pathlib.Path]):
+        self.metadata_and_filenames = []
+        for d in results_dirs:
+            data_filenames = list(
+                d.glob("*_metrics.pkl.gz"))  # FIXME: "metrics" here is a misleading naming convention :(
+            metadata_filename = d / 'metadata.hjson'
+            metadata = load_hjson(metadata_filename)
+            # for data_filename in data_filenames[:10]:
+            for data_filename in data_filenames:
+                self.metadata_and_filenames.append((metadata, data_filename))
+
+    def __len__(self):
+        return len(self.metadata_and_filenames)
+
+    def __iter__(self):
+        for metadata, data_filename in self.metadata_and_filenames:
+            datum = load_gzipped_pickle(data_filename)
+            yield metadata, datum

@@ -77,11 +77,6 @@ class MyFigure:
         for i, k in enumerate(metric.values):
             metric.method_indices[k] = i
 
-    # def sort_methods(self, metric, sort_order: Dict):
-    #     sorted_values = {k: metric.values[k] for k in sort_order.keys()}
-    #     metric.values = sorted_values
-    #     self.enumerate_methods()
-
     def get_figsize(self):
         #     return get_figsize(len(self.metric.values))
         return 10, 5
