@@ -213,24 +213,19 @@ def load_table_specs(tables_config: pathlib.Path, table_format: str):
     return tablespecs
 
 
-def reduce_metrics3(reductions: List[List], axis_names: List[str], metrics: pd.DataFrame):
+def reduce_metrics3(reductions: List[List], metrics: pd.DataFrame):
     reduced_metrics = []
     for reduction in reductions:
         metric_i = metrics.copy()
         for reduction_step in reduction:
-            if 'group_by' in dict(reduction_step):
-                data_for_axis_groupby = metric_i.groupby(reduction_step['group_by'])
-                metric_i = data_for_axis_groupby.agg({reduction_step['metric']: reduction_step['agg']})
-            elif 'keys' in reduction_step:
-                metric_i = metric_i[reduction_step['keys'] + [reduction_step['metric']]]
+            group_by, metric, agg = reduction_step
+            if agg is not None:
+                metric_i = metric_i.groupby(group_by).agg({metric: agg})
             else:
-                raise NotImplementedError(reduction_step)
+                metric_i.set_index(group_by, inplace=True)
         reduced_metrics.append(metric_i)
 
     reduced_metrics = pd.concat(reduced_metrics, axis=1)
-    # columns = dict(zip([r[0] for r in reductions], axis_names))
-    # reduced_metrics.rename(columns=columns, inplace=True)
-
     return reduced_metrics
 
 

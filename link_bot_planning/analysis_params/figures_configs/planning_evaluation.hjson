@@ -5,7 +5,9 @@
     xlabel: method
     ylabel: Total Time
     reductions: [
-      ["total_time", [null]]
+      [
+        "total_time", [null]
+      ]
     ]
   }
   {

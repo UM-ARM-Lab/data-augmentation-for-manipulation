@@ -1,15 +1,19 @@
 #!/usr/bin/env python
+import seaborn as sns
 import argparse
 import pathlib
+import pickle
+import shutil
 
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from arc_utilities import ros_init
 from arc_utilities.filesystem_utils import get_all_subdirs
-from link_bot_planning.analysis.analyze_results import load_fig_specs, get_metrics2, load_table_specs
+from link_bot_planning.analysis.analyze_results import load_fig_specs, load_table_specs, column_names, load_results, \
+    reduce_metrics3
 from link_bot_planning.analysis.figspec import get_data_for_figure, get_data_for_table
 from link_bot_planning.analysis.results_metrics import load_analysis_params
-from moonshine.filepath_tools import load_hjson, load_json_or_hjson
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -28,43 +32,54 @@ def metrics_main(args):
     else:
         table_format = 'simple'
 
-    def _get_metadata(results_dir: pathlib.Path):
-        return load_json_or_hjson(results_dir, 'metadata')
+    outfile = out_dir / 'data.pkl'
 
-    def _get_method_name(results_dir: pathlib.Path):
-        method_name_filename = results_dir / 'method_name'
-        if method_name_filename.exists():
-            with method_name_filename.open("r") as mnf:
-                return mnf.readline().strip("\n")
-        metadata_filename = results_dir / 'metadata.hjson'
-        if not metadata_filename.exists():
-            metadata_filename = list(results_dir.iterdir())[0] / 'metadata.hjson'
-        metadata = load_hjson(metadata_filename)
-        return metadata['planner_params']['method_name']
+    if outfile.exists():
+        outfile_bak = outfile.parent / (outfile.name + '.bak')
+        shutil.copy(outfile, outfile_bak)
+
+    if not args.regenerate and outfile.exists():
+        with outfile.open("rb") as f:
+            df = pickle.load(f)
+    else:
+        df = pd.DataFrame([], columns=column_names)
 
     results_dirs = get_all_subdirs(args.results_dirs)
-    method_names, metrics = get_metrics2(args, out_dir, results_dirs, _get_method_name, _get_metadata)
+    df = load_results(df, results_dirs, outfile)
+    # pd.DataFrame(df, index=df[index_names])  # convert to MultiIndex given index_names
 
     # Figures & Tables
     figspecs = load_fig_specs(analysis_params, args.figures_config)
     table_specs = load_table_specs(args.tables_config, table_format)
 
-    for spec in figspecs:
-        data_for_figure = get_data_for_figure(spec, metrics)
+    # z = df.copy()
+    # z.set_index(['classifier_source_env', 'target_env'], inplace=True)
+    # plt.figure()
+    # df.melt(id_vars=["subidr", "attnr"], var_name="solutions", value_name="score").
+    # sns.boxplot(
+    #     x=['classifier_source_env', 'target_env'],
+    #     y="task_error",
+    #     hue=('classifier_source_env', 'target_env'),
+    #     data=z
+    # )
 
-        spec.fig.make_figure(data_for_figure, method_names)
-        spec.fig.save_figure(out_dir)
+    # for spec in figspecs:
+    #     data_for_figure = get_data_for_figure(spec, df)
+    #
+    #     # spec.fig.make_figure(data_for_figure, method_names)
+    #     # spec.fig.save_figure(out_dir)
 
     for spec in table_specs:
-        data_for_table = get_data_for_table(spec, metrics)
+        data_for_table = reduce_metrics3(spec.reductions, df)
+        print(data_for_table)
+        #
+        # spec.table.make_table(data_for_table, method_names)
+        # spec.table.save(out_dir)
 
-        spec.table.make_table(data_for_table, method_names)
-        spec.table.save(out_dir)
-
-    for spec in table_specs:
-        print()
-        spec.table.print()
-        print()
+    # for spec in table_specs:
+    #     print()
+    #     spec.table.print()
+    #     print()
 
     if not args.no_plot:
         for spec in figspecs:

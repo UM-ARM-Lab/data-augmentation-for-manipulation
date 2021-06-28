@@ -15,15 +15,15 @@
       Median NME
     ]
     reductions: [
-      [["classifier_source_env", "target_env"], "success", ["sum"]]
-      ["num_trials", ["sum"]]
-      ["success", ["mean"]]
-      ["task_error", ["mean"]]
-      ["task_error", ["median"]]
-      ["cumulative_task_error", ["mean"]]
-      ["cumulative_planning_error", ["mean"]]
-      ["normalized_model_error", ["mean"]]
-      ["normalized_model_error", ["median"]]
+      [[["classifier_source_env", "target_env"], "success", ["sum"]]]
+      [["num_trials", ["sum"]]]
+      [["success", ["mean"]]]
+      [["task_error", ["mean"]]]
+      [["task_error", ["median"]]]
+      [["cumulative_task_error", ["mean"]]]
+      [["cumulative_planning_error", ["mean"]]]
+      [["normalized_model_error", ["mean"]]]
+      [["normalized_model_error", ["median"]]]
     ]
   }
   {
