@@ -47,7 +47,7 @@ def metrics_main(args):
 
     # Figures & Tables
     figspecs = load_fig_specs(analysis_params, args.figures_config)
-    table_specs = load_table_specs(analysis_params, args.tables_config, table_format)
+    table_specs = load_table_specs(args.tables_config, table_format)
 
     for spec in figspecs:
         data_for_figure = get_data_for_figure(spec, metrics)

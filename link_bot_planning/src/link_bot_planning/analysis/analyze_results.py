@@ -183,7 +183,7 @@ def load_fig_specs(analysis_params, figures_config : pathlib.Path):
     return figspecs
 
 
-def load_table_specs(analysis_params, tables_config: pathlib.Path, table_format: str):
+def load_table_specs(tables_config: pathlib.Path, table_format: str):
     tables_conf = load_hjson(tables_config)
     tablespecs = []
     for table_conf in tables_conf:

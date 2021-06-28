@@ -49,18 +49,19 @@ class MyTable:
 
 class PValuesTable(MyTable):
 
-    def __init__(self, name: str, table_format: str):
+    def __init__(self, name: str, metric: str, table_format: str):
         super().__init__(name, table_format, None)
         self.table_data = []
         self.table_format = table_format
         self.name = name
         self.table = None
+        self.metric_name = metric
 
     def make_table(self, data, series_names):
         arrays_per_method = {}
         for series_name in series_names:
-            data_for_series = data.loc[series_name]
-            x = data_for_series['x']
+            data_for_series = data.loc[data['method_name'] == series_name]
+            x = data_for_series[self.metric_name]
             arrays_per_method[series_name] = x
 
         self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format, title=self.name)
