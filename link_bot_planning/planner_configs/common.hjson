@@ -8,7 +8,6 @@
     total_timeout: 900
     timeout: 900
     attempted_extensions_threshold: 32
-    max_attempts: 999
   }
   action_params: {
     max_distance_between_grippers: 1.0
