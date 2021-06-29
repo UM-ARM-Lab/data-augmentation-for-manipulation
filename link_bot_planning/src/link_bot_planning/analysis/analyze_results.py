@@ -193,13 +193,16 @@ def reduce_metrics3(reductions: List[List], metrics: pd.DataFrame):
         metric_i = metrics.copy()
         for reduction_step in reduction:
             group_by, metric, agg = reduction_step
+            assert metric is not None
             if group_by is None or len(group_by) == 0:
                 metric_i = metric_i.agg({metric: agg})
-            elif agg is not None:
+            elif group_by is not None and agg is not None:
                 metric_i = metric_i.groupby(group_by).agg({metric: agg})
-            else:
+            elif group_by is not None and agg is None:
                 metric_i.set_index(group_by, inplace=True)
                 metric_i = metric_i[metric]
+            else:
+                raise NotImplementedError()
         reduced_metrics.append(metric_i)
 
     reduced_metrics = pd.concat(reduced_metrics, axis=1)

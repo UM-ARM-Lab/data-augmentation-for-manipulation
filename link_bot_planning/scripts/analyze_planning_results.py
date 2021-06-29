@@ -7,9 +7,8 @@ import matplotlib.pyplot as plt
 import tabulate
 
 from arc_utilities import ros_init
-from arc_utilities.filesystem_utils import get_all_subdirs
 from link_bot_planning.analysis.analyze_results import load_table_specs, reduce_metrics3, load_results2
-from link_bot_planning.analysis.results_metrics import load_analysis_params, metrics_names
+from link_bot_planning.analysis.results_metrics import load_analysis_params
 from link_bot_planning.analysis.results_utils import get_all_results_subdirs
 from moonshine.gpu_config import limit_gpu_mem
 
