@@ -100,7 +100,8 @@ class NNRecoveryModel(MyKerasModel):
         self.aug = AugmentationOptimization(scenario=self.scenario, debug=self.debug,
                                             local_env_helper=self.local_env_helper, vg_info=self.vg_info,
                                             points_state_keys=self.points_state_keys, hparams=self.hparams,
-                                            batch_size=self.batch_size, action_keys=self.action_keys)
+                                            batch_size=self.batch_size, action_keys=self.action_keys,
+                                            state_keys=self.state_keys)
         if self.aug.do_augmentation():
             rospy.loginfo("Using augmentation during training")
         else:
