@@ -193,7 +193,9 @@ def reduce_metrics3(reductions: List[List], metrics: pd.DataFrame):
         metric_i = metrics.copy()
         for reduction_step in reduction:
             group_by, metric, agg = reduction_step
-            if agg is not None:
+            if group_by is None or len(group_by) == 0:
+                metric_i = metric_i.agg({metric: agg})
+            elif agg is not None:
                 metric_i = metric_i.groupby(group_by).agg({metric: agg})
             else:
                 metric_i.set_index(group_by, inplace=True)

@@ -59,4 +59,14 @@
       [[["classifier_name"], "task_error", "std"]]
     ]
   }
+  {
+    type: MyTable
+    name: std
+    header: [
+      Success
+    ]
+    reductions: [
+      [[['method_name'], "success", "mean"], [null, "success", "std"]]
+    ]
+  }
 ]
