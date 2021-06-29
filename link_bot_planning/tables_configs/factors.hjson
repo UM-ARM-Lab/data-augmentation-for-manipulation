@@ -1,0 +1,62 @@
+[
+  {
+    type: MyTable
+    name: table1
+    header: [
+      Classifier
+      Planning Seed
+      Stop On Error?
+      Recovery
+      Timeout (s)
+      Successes
+      N Trials
+      Success %
+      Task Error (mean)
+      Task Error (std)
+      Recovery Success
+      Num Recovery Actions
+    ]
+    reductions: [
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "classifier_name", "first"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "seed", "first"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "stop_on_error", "first"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "recovery_name", "first"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "timeout", "first"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "success", "sum"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "num_trials", "sum"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "success", "mean"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "task_error", "mean"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "task_error", "std"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "recovery_success", "mean"]]
+      [[["timeout", "stop_on_error", "classifier_name", "seed", "recovery_name"], "num_recovery_actions", "mean"]]
+    ]
+  }
+  {
+    type: MyTable
+    name: by_classifier
+    header: [
+      Classifier
+      Planning Seed
+      Stop On Error?
+      Recovery
+      Timeout (s)
+      Successes
+      N Trials
+      Success %
+      Task Error (mean)
+      Task Error (std)
+    ]
+    reductions: [
+      [[["classifier_name"], "classifier_name", "first"]]
+      [[["classifier_name"], "seed", "first"]]
+      [[["classifier_name"], "stop_on_error", "first"]]
+      [[["classifier_name"], "recovery_name", "first"]]
+      [[["classifier_name"], "timeout", "first"]]
+      [[["classifier_name"], "success", "sum"]]
+      [[["classifier_name"], "num_trials", "sum"]]
+      [[["classifier_name"], "success", "mean"]]
+      [[["classifier_name"], "task_error", "mean"]]
+      [[["classifier_name"], "task_error", "std"]]
+    ]
+  }
+]

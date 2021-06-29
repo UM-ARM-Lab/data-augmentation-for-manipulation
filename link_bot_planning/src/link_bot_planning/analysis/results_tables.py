@@ -1,7 +1,7 @@
 import pathlib
 
 import pandas as pd
-from colorama import Fore
+from colorama import Fore, Style
 from tabulate import tabulate
 
 from link_bot_pycommon.metric_utils import dict_to_pvalue_table
@@ -29,7 +29,7 @@ class MyTable:
                               stralign='left')
 
     def add_to_table(self, data: pd.Series, series_name: str):
-        self.table_data.append([series_name] + data.to_list())
+        self.table_data.append(data.to_list())
 
     def save(self, outdir: pathlib.Path):
         filename = outdir / (self.name + ".txt")
@@ -43,6 +43,7 @@ class MyTable:
             tables_file.write('\n')
 
     def print(self):
+        print(Style.BRIGHT + Fore.LIGHTYELLOW_EX + self.name + Style.RESET_ALL)
         print(self.table)
 
 

@@ -15,6 +15,7 @@
       Median NME
     ]
     reductions: [
+      [[["method_name"], "method_name", "first"]]
       [[["method_name"], "success", "sum"]]
       [[["method_name"], "num_trials", "sum"]]
       [[["method_name"], "success", "mean"]]
@@ -39,6 +40,7 @@
       Mean Propagation Time (s)
     ]
     reductions: [
+      [[["method_name"], "method_name", "first"]]
       [[["method_name"], "num_planning_attempts", "mean"]]
       [[["method_name"], "num_steps", "mean"]]
       [[["method_name"], "planning_time", "mean"]]
@@ -56,6 +58,7 @@
       '# Trials'
     ]
     reductions: [
+      [[["method_name"], "method_name", "first"]]
       [[["method_name"], "success", "sum"]]
       [[["method_name"], "num_trials", "sum"]]
     ]
@@ -79,6 +82,13 @@
     name: Normalized Model Error
     reductions: [
       [[["method_name"], "normalized_model_error", null]]
+    ]
+  }
+  {
+    type: PValuesTable
+    name: Total Time
+    reductions: [
+      [[["method_name"], "total_time", null]]
     ]
   }
   {

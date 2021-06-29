@@ -4,16 +4,16 @@ from typing import Callable, List
 
 import pandas as pd
 from colorama import Fore
+from halo import Halo
 from progressbar import progressbar
 
+import link_bot_planning.analysis.results_metrics
 import rospy
 from arc_utilities.filesystem_utils import get_all_subdirs
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_planning.analysis.figspec import DEFAULT_AXES_NAMES, FigSpec, TableSpec
-# noinspection PyUnresolvedReferences
-from link_bot_planning.analysis.results_figures import *
-# noinspection PyUnresolvedReferences
-from link_bot_planning.analysis.results_metrics import *
+from link_bot_planning.analysis.results_metrics import metrics_funcs
+from link_bot_planning.analysis.results_metrics import metrics_names
 # noinspection PyUnresolvedReferences
 from link_bot_planning.analysis.results_tables import *
 from link_bot_planning.analysis.results_utils import load_order, add_number_to_method_name
@@ -22,41 +22,16 @@ from link_bot_pycommon.pandas_utils import df_append
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson, load_json_or_hjson
 
-# Edit this to add a new metric
-metrics_funcs = [
-    learned_classifier,
-    classifier_source_env,
-    target_env,
-    num_planning_attempts,
-    recovery_success,
-    total_time,
-    planning_time,
-    num_trials,
-    num_steps,
-    task_error,
-    cumulative_task_error,
-    cumulative_planning_error,
-    any_solved,
-    success,
-    normalized_model_error,
-    num_recovery_actions,
-    mean_progagation_time,
-]
-metrics_names = [func.__name__ for func in metrics_funcs]
 column_names = [
-    'method_name',
-    'seed',
-    'ift_iteration',
-    'trial_idx',
-    'uuid',
-]
-column_names += metrics_names
+                   'method_name',
+                   'seed',
+                   'ift_iteration',
+                   'trial_idx',
+                   'uuid',
+               ] + metrics_names
 
 
 def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable, get_metadata: Callable):
-    global metrics_funcs
-    global metrics_names
-
     results_dirs_ordered = load_order(prompt_order=args.order, directories=planning_results_dirs, out_dir=out_dir)
 
     with (out_dir / 'info.txt').open('w') as info_file:
@@ -107,7 +82,8 @@ def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable
                 for file_idx, metrics_filename in enumerate(metrics_filenames):
                     datum = load_gzipped_pickle(metrics_filename)
                     index_tuples.append([method_name, file_idx])
-                    data.append([metric_func(scenario, metadata, datum) for metric_func in metrics_funcs])
+                    data.append([metric_func(scenario, metadata, datum) for metric_func in
+                                 link_bot_planning.analysis.results_metrics.metrics_funcs])
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["method_name", "file_idx"])
         metrics = pd.DataFrame(data=data, index=index, columns=metrics_names)
@@ -120,9 +96,6 @@ def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable
 
 
 def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable, get_metadata: Callable):
-    global metrics_funcs
-    global metrics_names
-
     results_dirs_ordered = load_order(prompt_order=args.order, directories=planning_results_dirs, out_dir=out_dir)
 
     with (out_dir / 'info.txt').open('w') as info_file:
@@ -171,7 +144,8 @@ def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable,
                 for file_idx, metrics_filename in enumerate(metrics_filenames):
                     datum = load_gzipped_pickle(metrics_filename)
                     index_tuples.append([method_name, iteration, file_idx])
-                    data.append([metric_func(scenario, metadata, datum) for metric_func in metrics_funcs])
+                    data.append([metric_func(scenario, metadata, datum) for metric_func in
+                                 link_bot_planning.analysis.results_metrics.metrics_funcs])
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["method_name", "iteration_idx", "file_idx"])
         metrics = pd.DataFrame(data=data, index=index, columns=metrics_names)
@@ -230,25 +204,64 @@ def reduce_metrics3(reductions: List[List], metrics: pd.DataFrame):
     return reduced_metrics
 
 
+def load_results2(results_dirs: List[pathlib.Path], regenerate: bool):
+    dfs = []
+    for d in progressbar(results_dirs, widgets=mywidgets):
+        data_filenames = list(d.glob("*_metrics.pkl.gz"))
+        df_filename = d / 'df.pkl'
+        metadata_filename = d / 'metadata.hjson'
+        metadata = load_hjson(metadata_filename)
+        if not df_filename.exists() or regenerate:
+            scenario = get_scenario_cached(metadata['planner_params']['scenario'])
+            data = []
+            print()
+            halo = Halo()
+            halo.start()
+            for data_filename in data_filenames:
+                datum = load_gzipped_pickle(data_filename)
+                row = make_row(datum, metadata, scenario)
+                data.append(row)
+            df_i = pd.DataFrame(data)
+            halo.stop()
+            with df_filename.open("wb") as f:
+                pickle.dump(df_i, f)
+        else:
+            with df_filename.open("rb") as f:
+                df_i = pickle.load(f)
+        dfs.append(df_i)
+
+    df = pd.concat(dfs)
+    df.columns = column_names
+    return df
+
+
+def make_row(datum, metadata, scenario):
+    metrics_values = [metric_func(scenario, metadata, datum) for metric_func in metrics_funcs]
+    trial_idx = datum['trial_idx']
+    try:
+        seed_guess = datum['steps'][0]['planning_query'].seed - 100000 * trial_idx
+    except KeyError:
+        seed_guess = 0
+    seed = datum.get('seed', seed_guess)
+    row = [
+        metadata['planner_params']['method_name'],
+        seed,
+        metadata.get('ift_iteration', 0),
+        trial_idx,
+        datum['uuid'],
+    ]
+    row += metrics_values
+    return row
+
+
 def load_results(df, results_dirs: List[pathlib.Path], outfile):
     for metadata, datum in progressbar(PlanningResultsGenerator(results_dirs), widgets=mywidgets):
         already_exists = datum['uuid'] in df['uuid'].unique()
         if already_exists:
             continue
-
         # Assume we don't need separate instances of the scenario every time
         scenario = get_scenario_cached(metadata['planner_params']['scenario'])
-        metrics_values = [metric_func(scenario, metadata, datum) for metric_func in metrics_funcs]
-        # create and add a row
-        row = [
-            metadata['planner_params']['method_name'],
-            datum.get('seed', 0),
-            metadata.get('ift_iteration', 0),
-            datum['trial_idx'],
-            datum['uuid'],
-        ]
-        row += metrics_values
-
+        row = make_row(datum, metadata, scenario)
         df = df_append(df, row)
 
     # if everything went well now overwrite the input file

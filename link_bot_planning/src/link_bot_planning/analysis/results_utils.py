@@ -1,16 +1,18 @@
 import pathlib
 import re
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Union
 
 import hjson
 from colorama import Fore
 
 import rospy
 from arc_utilities.algorithms import zip_repeat_shorter
+from arc_utilities.filesystem_utils import is_metrics_dir
 from link_bot_planning.my_planner import PlanningResult, PlanningQuery
 from link_bot_planning.plan_and_execute import ExecutionResult
 from link_bot_planning.planning_evaluation import planning_trial_name
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.grid_utils import extent_res_to_origin_point
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import load_gzipped_pickle, my_hdump
@@ -288,6 +290,8 @@ def plot_steps(scenario: ScenarioWithVisualization,
         start = q.start
         goal = q.goal
         environment = q.environment
+        if 'origin_point' not in environment:
+            environment['origin_point'] = extent_res_to_origin_point(environment['extent'], environment['res'])
         anim = RvizAnimationController(n_time_steps=1)
         scenario.plot_state_rviz(start, label='actual', color='#ff0000aa')
         scenario.plot_goal_rviz(goal, goal_threshold)
@@ -317,6 +321,8 @@ def plot_steps(scenario: ScenarioWithVisualization,
         e_t, a_t, s_t, s_t_pred, type_t = paths[t]
         if 'scene_msg' in e_t and 'attached_collision_objects' not in s_t:
             s_t['attached_collision_objects'] = e_t['scene_msg'].robot_state.attached_collision_objects
+        if 'origin_point' not in e_t:
+            e_t['origin_point'] = extent_res_to_origin_point(e_t['extent'], e_t['res'])
         scenario.plot_environment_rviz(e_t)
         scenario.plot_state_rviz(s_t, label='actual', color='#ff0000aa')
         c = '#0000ffaa'
@@ -341,3 +347,22 @@ def plot_steps(scenario: ScenarioWithVisualization,
         scenario.plot_goal_rviz(goal, goal_threshold, actually_at_goal)
 
         anim.step()
+
+
+def get_all_results_subdirs(dirs: Union[pathlib.Path, List[pathlib.Path]]):
+    if isinstance(dirs, pathlib.Path):
+        dirs = [dirs]
+
+    results_subdirs = []
+    for d_i in dirs:
+        if is_metrics_dir(d_i):
+            results_subdirs.append(d_i)
+
+        for d in d_i.iterdir():
+            if d.is_dir():
+                if is_metrics_dir(d):
+                    results_subdirs.append(d)
+                else:
+                    results_subdirs.extend(get_all_results_subdirs(d))
+
+    return results_subdirs
