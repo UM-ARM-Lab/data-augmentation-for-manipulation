@@ -77,6 +77,13 @@ def metrics_main(args):
         spec.table.print()
         print()
 
+    tables_outfilename = out_dir / 'tables.txt'
+    with tables_outfilename.open("w") as tables_outfile:
+        for spec in table_specs:
+            tables_outfile.write('\n')
+            tables_outfile.write(spec.table.table)
+            tables_outfile.write('\n')
+
     # if not args.no_plot:
     #     for spec in figspecs:
     #         spec.fig.fig.set_tight_layout(True)

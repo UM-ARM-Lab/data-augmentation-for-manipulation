@@ -29,7 +29,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int)
-    parser.add_argument('--seed', type=int)
+    parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--log-scalars-every', type=int, help='loss/accuracy every this many batches', default=100)
     parser.add_argument('--validation-every', type=int, help='report validation every this many epochs', default=1)
     parser.add_argument('--no-validate-first', action='store_true')

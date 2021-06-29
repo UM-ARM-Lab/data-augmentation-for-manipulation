@@ -74,6 +74,7 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             "scene_name":      scene_name,
             "test_scenes_dir": self.test_scenes_dir.as_posix() if self.test_scenes_dir is not None else None,
             'hostname':        socket.gethostname(),
+            'seed':            self.seed,
         }
         metadata.update(self.planner.get_metadata())
         with (self.outdir / 'metadata.hjson').open("w") as metadata_file:

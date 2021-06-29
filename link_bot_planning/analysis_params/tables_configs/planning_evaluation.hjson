@@ -15,15 +15,15 @@
       Median NME
     ]
     reductions: [
-      ["success", ["sum"]]
-      ["num_trials", ["sum"]]
-      ["success", ["mean"]]
-      ["task_error", ["mean"]]
-      ["task_error", ["median"]]
-      ["cumulative_task_error", ["mean"]]
-      ["cumulative_planning_error", ["mean"]]
-      ["normalized_model_error", ["mean"]]
-      ["normalized_model_error", ["median"]]
+      [[["method_name"], "success", "sum"]]
+      [[["method_name"], "num_trials", "sum"]]
+      [[["method_name"], "success", "mean"]]
+      [[["method_name"], "task_error", "mean"]]
+      [[["method_name"], "task_error", "median"]]
+      [[["method_name"], "cumulative_task_error", "mean"]]
+      [[["method_name"], "cumulative_planning_error", "mean"]]
+      [[["method_name"], "normalized_model_error", "mean"]]
+      [[["method_name"], "normalized_model_error", "median"]]
     ]
   }
   {
@@ -39,12 +39,12 @@
       Mean Propagation Time (s)
     ]
     reductions: [
-      ["num_planning_attempts", ["mean"]]
-      ["num_steps", ["mean"]]
-      ["planning_time", ["mean"]]
-      ["total_time", ["mean"]]
-      ["num_recovery_actions", ["mean"]]
-      ["mean_progagation_time", ["mean"]]
+      [[["method_name"], "num_planning_attempts", "mean"]]
+      [[["method_name"], "num_steps", "mean"]]
+      [[["method_name"], "planning_time", "mean"]]
+      [[["method_name"], "total_time", "mean"]]
+      [[["method_name"], "num_recovery_actions", "mean"]]
+      [[["method_name"], "mean_progagation_time", "mean"]]
     ]
   }
   {
@@ -56,36 +56,36 @@
       '# Trials'
     ]
     reductions: [
-      ["success", ["sum"]]
-      ["num_trials", ["sum"]]
+      [[["method_name"], "success", "sum"]]
+      [[["method_name"], "num_trials", "sum"]]
     ]
   }
   {
     type: PValuesTable
     name: Success
     reductions: [
-      ["success", [null]]
+      [[["method_name"], "success", null]]
     ]
   }
   {
     type: PValuesTable
     name: Task Error
     reductions: [
-      ["task_error", [null]]
+      [[["method_name"], "task_error", null]]
     ]
   }
   {
     type: PValuesTable
     name: Normalized Model Error
     reductions: [
-      ["normalized_model_error", [null]]
+      [[["method_name"], "normalized_model_error", null]]
     ]
   }
   {
     type: PValuesTable
     name: Cumulative Planning Error
     reductions: [
-      ["cumulative_planning_error", [null]]
+      [[["method_name"], "cumulative_planning_error", null]]
     ]
   }
 ]
