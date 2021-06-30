@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>analysis</name>
+  <version>0.0.0</version>
+  <description>The analysis package</description>
+
+  <maintainer email="peter@todo.todo">peter</maintainer>
+  <license>TODO</license>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>link_bot_data</depend>
+  <depend>link_bot_planning</depend>
+  <depend>link_bot_pycommon</depend>
+  <depend>rospy</depend>
+</package>
