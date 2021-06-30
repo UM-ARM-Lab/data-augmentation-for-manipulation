@@ -7,7 +7,6 @@ from colorama import Fore
 
 import rospy
 from arc_utilities.algorithms import zip_repeat_shorter
-from arc_utilities.filesystem_utils import is_metrics_dir
 from link_bot_planning.my_planner import PlanningResult, PlanningQuery
 from link_bot_planning.plan_and_execute import ExecutionResult
 from link_bot_planning.planning_evaluation import planning_trial_name
@@ -366,3 +365,8 @@ def get_all_results_subdirs(dirs: Union[pathlib.Path, List[pathlib.Path]]):
                     results_subdirs.extend(get_all_results_subdirs(d))
 
     return results_subdirs
+
+
+def is_metrics_dir(d):
+    data_filenames = list(d.glob("*_metrics.pkl.gz"))
+    return len(data_filenames) > 0
