@@ -23,8 +23,8 @@ from moonshine.geometry import transform_points_3d, pairwise_squared_distances
 from moonshine.moonshine_utils import reduce_mean_no_nan
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
-DEBUG_AUG = False
-DEBUG_AUG_SGD = False
+DEBUG_AUG = rospy.get_param("DEBUG_AUG", False)
+DEBUG_AUG_SGD = rospy.get_param("DEBUG_AUG_SGD", False)
 
 
 @dataclass
