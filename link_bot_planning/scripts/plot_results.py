@@ -36,7 +36,7 @@ def main():
 
     for trial_idx, datum in results_utils.trials_generator(args.results_dir, args.trials):
         trial_status = datum['trial_status']
-        should_skip = (args.only_timeouts and trial_status != TrialStatus.Timeout or
+        should_skip = (args.only_timeouts and trial_status == TrialStatus.Reached or
                        args.only_reached and trial_status != TrialStatus.Reached)
         if should_skip:
             continue
