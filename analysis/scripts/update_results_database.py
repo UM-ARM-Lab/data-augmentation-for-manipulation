@@ -23,8 +23,6 @@ def main():
 
     args = parser.parse_args()
 
-    outfile = args.root / 'data.pkl'
-
     if outfile.exists():
         outfile_bak = outfile.parent / (outfile.name + '.bak')
         shutil.copy(outfile, outfile_bak)
