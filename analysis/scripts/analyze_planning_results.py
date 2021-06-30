@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import shutil
 
 import matplotlib.pyplot as plt
 import tabulate
 
-from arc_utilities import ros_init
-from analysis.analyze_results import load_table_specs, reduce_metrics3, load_results2
+from analysis.analyze_results import load_table_specs, reduce_planning_metrics, load_planning_results
 from analysis.results_metrics import load_analysis_params
 from analysis.results_utils import get_all_results_subdirs
+from arc_utilities import ros_init
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -28,15 +27,9 @@ def metrics_main(args):
     else:
         table_format = tabulate.simple_separated_format("\t")
 
-    outfile = out_dir / 'data.pkl'
-
-    if outfile.exists():
-        outfile_bak = outfile.parent / (outfile.name + '.bak')
-        shutil.copy(outfile, outfile_bak)
-
     results_dirs = get_all_results_subdirs(args.results_dirs)
 
-    df = load_results2(results_dirs, regenerate=args.regenerate)
+    df = load_planning_results(results_dirs, regenerate=args.regenerate)
 
     # Figures & Tables
     # figspecs = load_fig_specs(analysis_params, args.figures_config)
@@ -60,7 +53,7 @@ def metrics_main(args):
     #     # spec.fig.save_figure(out_dir)
 
     for spec in table_specs:
-        data_for_table = reduce_metrics3(spec.reductions, df)
+        data_for_table = reduce_planning_metrics(spec.reductions, df)
         spec.table.make_table(data_for_table)
         spec.table.save(out_dir)
 

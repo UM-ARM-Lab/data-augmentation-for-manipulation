@@ -31,132 +31,6 @@ column_names = [
                ] + metrics_names
 
 
-def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable, get_metadata: Callable):
-    results_dirs_ordered = load_order(prompt_order=args.order, directories=planning_results_dirs, out_dir=out_dir)
-
-    with (out_dir / 'info.txt').open('w') as info_file:
-        for f in planning_results_dirs:
-            info_file.write(f.as_posix() + '\n')
-
-    results_dirs_dict = {}
-    sort_order_dict = {}
-    for idx, results_dir in enumerate(results_dirs_ordered):
-        method_name = get_method_name(results_dir)
-        while method_name in results_dirs_dict:
-            method_name = add_number_to_method_name(method_name)
-        results_dirs_dict[method_name] = results_dir
-        print(method_name, results_dir)
-        sort_order_dict[method_name] = idx
-
-    method_names = list(sort_order_dict.keys())
-
-    tables_filename = out_dir / 'tables.txt'
-    with tables_filename.open("w") as tables_file:
-        tables_file.truncate()
-
-    pickle_filename = out_dir / f"metrics.pkl"
-    if pickle_filename.exists() and not args.regenerate:
-        rospy.loginfo(Fore.GREEN + f"Loading existing metrics from {pickle_filename}" + Fore.RESET)
-        with pickle_filename.open("rb") as pickle_file:
-            metrics = pickle.load(pickle_file)
-    else:
-        rospy.loginfo(Fore.GREEN + f"Generating metrics" + Fore.RESET)
-
-        data = []
-        index_tuples = []
-        for method_name, results_dir in results_dirs_dict.items():
-            if (results_dir / 'metadata.hjson').exists():
-                results_dir_list = [results_dir]
-            else:
-                results_dir_list = []
-                for d in results_dir.iterdir():
-                    if (d / 'metadata.hjson').exists():
-                        results_dir_list.append(d)
-
-            for results_dir_i in results_dir_list:
-                metadata = get_metadata(results_dir_i)
-                scenario = get_scenario(metadata['planner_params']['scenario'])
-
-                # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
-                metrics_filenames = list(results_dir_i.glob("*_metrics.pkl.gz"))
-                for file_idx, metrics_filename in enumerate(metrics_filenames):
-                    datum = load_gzipped_pickle(metrics_filename)
-                    index_tuples.append([method_name, file_idx])
-                    data.append([metric_func(scenario, metadata, datum) for metric_func in
-                                 analysis.results_metrics.metrics_funcs])
-
-        index = pd.MultiIndex.from_tuples(index_tuples, names=["method_name", "file_idx"])
-        metrics = pd.DataFrame(data=data, index=index, columns=metrics_names)
-
-        with pickle_filename.open("wb") as pickle_file:
-            pickle.dump(metrics, pickle_file)
-        rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}" + Fore.RESET)
-
-    return method_names, metrics
-
-
-def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable, get_metadata: Callable):
-    results_dirs_ordered = load_order(prompt_order=args.order, directories=planning_results_dirs, out_dir=out_dir)
-
-    with (out_dir / 'info.txt').open('w') as info_file:
-        for f in planning_results_dirs:
-            info_file.write(f.as_posix() + '\n')
-
-    results_dirs_dict = {}
-    sort_order_dict = {}
-    for idx, results_dir in enumerate(results_dirs_ordered):
-        method_name = get_method_name(results_dir)
-        subfolders = sorted(get_all_subdirs([results_dir]))
-        while method_name in results_dirs_dict:
-            method_name = add_number_to_method_name(method_name)
-        results_dirs_dict[method_name] = subfolders
-        sort_order_dict[method_name] = idx
-
-    method_names = list(sort_order_dict.keys())
-
-    tables_filename = out_dir / 'tables.txt'
-    with tables_filename.open("w") as tables_file:
-        tables_file.truncate()
-
-    pickle_filename = out_dir / f"metrics.pkl"
-    if pickle_filename.exists() and not args.regenerate:
-        rospy.loginfo(Fore.GREEN + f"Loading existing metrics from {pickle_filename}" + Fore.RESET)
-        with pickle_filename.open("rb") as pickle_file:
-            metrics = pickle.load(pickle_file)
-    else:
-        rospy.loginfo(Fore.GREEN + f"Generating metrics" + Fore.RESET)
-
-        data = []
-        index_tuples = []
-        for method_name, results_dir in results_dirs_dict.items():
-            print(Fore.GREEN + f"processing {method_name} {[d.name for d in results_dir]}" + Fore.RESET)
-
-            for iteration, iteration_folder in enumerate(results_dir):
-                assert str(iteration) in iteration_folder.name  # sanity check
-
-                metadata = get_metadata(iteration_folder)
-                scenario = get_scenario(metadata['planner_params']['scenario'])
-
-                metadata = load_json_or_hjson(iteration_folder, 'metadata')
-
-                # NOTE: even though this is slow, parallelizing is not easy because "scenario" cannot be pickled
-                metrics_filenames = list(iteration_folder.glob("*_metrics.pkl.gz"))
-                for file_idx, metrics_filename in enumerate(metrics_filenames):
-                    datum = load_gzipped_pickle(metrics_filename)
-                    index_tuples.append([method_name, iteration, file_idx])
-                    data.append([metric_func(scenario, metadata, datum) for metric_func in
-                                 analysis.results_metrics.metrics_funcs])
-
-        index = pd.MultiIndex.from_tuples(index_tuples, names=["method_name", "iteration_idx", "file_idx"])
-        metrics = pd.DataFrame(data=data, index=index, columns=metrics_names)
-
-        with pickle_filename.open("wb") as pickle_file:
-            pickle.dump(metrics, pickle_file)
-        rospy.loginfo(Fore.GREEN + f"Pickling metrics to {pickle_filename}" + Fore.RESET)
-
-    return method_names, metrics
-
-
 def load_fig_specs(analysis_params, figures_config: pathlib.Path):
     figures_config = load_hjson(figures_config)
     figspecs = []
@@ -187,7 +61,7 @@ def load_table_specs(tables_config: pathlib.Path, table_format: str):
     return tablespecs
 
 
-def reduce_metrics3(reductions: List[List], metrics: pd.DataFrame):
+def reduce_planning_metrics(reductions: List[List], metrics: pd.DataFrame):
     reduced_metrics = []
     for reduction in reductions:
         metric_i = metrics.copy()
@@ -209,7 +83,7 @@ def reduce_metrics3(reductions: List[List], metrics: pd.DataFrame):
     return reduced_metrics
 
 
-def load_results2(results_dirs: List[pathlib.Path], regenerate: bool):
+def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool):
     dfs = []
     for d in progressbar(results_dirs, widgets=mywidgets):
         data_filenames = list(d.glob("*_metrics.pkl.gz"))
@@ -257,42 +131,3 @@ def make_row(datum, metadata, scenario):
     ]
     row += metrics_values
     return row
-
-
-def load_results(df, results_dirs: List[pathlib.Path], outfile):
-    for metadata, datum in progressbar(PlanningResultsGenerator(results_dirs), widgets=mywidgets):
-        already_exists = datum['uuid'] in df['uuid'].unique()
-        if already_exists:
-            continue
-        # Assume we don't need separate instances of the scenario every time
-        scenario = get_scenario_cached(metadata['planner_params']['scenario'])
-        row = make_row(datum, metadata, scenario)
-        df = df_append(df, row)
-
-    # if everything went well now overwrite the input file
-    with outfile.open("wb") as f:
-        pickle.dump(df, f)
-    print(Fore.MAGENTA + f"Wrote {outfile.as_posix()}" + Fore.RESET)
-    return df
-
-
-class PlanningResultsGenerator:
-
-    def __init__(self, results_dirs: List[pathlib.Path]):
-        self.metadata_and_filenames = []
-        for d in results_dirs:
-            data_filenames = list(
-                d.glob("*_metrics.pkl.gz"))  # FIXME: "metrics" here is a misleading naming convention :(
-            metadata_filename = d / 'metadata.hjson'
-            metadata = load_hjson(metadata_filename)
-            # for data_filename in data_filenames[:10]:
-            for data_filename in data_filenames:
-                self.metadata_and_filenames.append((metadata, data_filename))
-
-    def __len__(self):
-        return len(self.metadata_and_filenames)
-
-    def __iter__(self):
-        for metadata, data_filename in self.metadata_and_filenames:
-            datum = load_gzipped_pickle(data_filename)
-            yield metadata, datum
