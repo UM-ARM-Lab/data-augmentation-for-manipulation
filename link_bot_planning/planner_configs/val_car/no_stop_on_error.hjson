@@ -1,0 +1,8 @@
+{
+  method_name: no stop on error
+  recovery: {
+    recovery_model_dir: /media/shared/recovery_trials/random/none
+    use_recovery: true
+  }
+  stop_on_error_above: 999.0
+}

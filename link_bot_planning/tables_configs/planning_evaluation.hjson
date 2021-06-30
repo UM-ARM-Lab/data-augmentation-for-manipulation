@@ -13,6 +13,7 @@
       Mean Cumulative Planning Error
       Mean NME
       Median NME
+      Recovery Success
     ]
     reductions: [
       [[["method_name"], "method_name", "first"]]
@@ -25,6 +26,7 @@
       [[["method_name"], "cumulative_planning_error", "mean"]]
       [[["method_name"], "normalized_model_error", "mean"]]
       [[["method_name"], "normalized_model_error", "median"]]
+      [[["method_name"], "recovery_success", "mean"]]
     ]
   }
   {
