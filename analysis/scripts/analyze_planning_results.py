@@ -28,7 +28,6 @@ def metrics_main(args):
         table_format = tabulate.simple_separated_format("\t")
 
     results_dirs = get_all_results_subdirs(args.results_dirs)
-
     df = load_planning_results(results_dirs, regenerate=args.regenerate)
 
     # Figures & Tables

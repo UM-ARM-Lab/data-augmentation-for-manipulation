@@ -2,6 +2,8 @@
 import argparse
 import pathlib
 
+from analysis.analyze_results import load_planning_results
+from analysis.results_utils import get_all_results_subdirs
 from arc_utilities import ros_init
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -16,6 +18,9 @@ def main():
     parser.add_argument('--regenerate', action='store_true')
 
     args = parser.parse_args()
+
+    results_dirs = get_all_results_subdirs(args.root)
+    load_planning_results(results_dirs, regenerate=args.regenerate)
 
 
 if __name__ == '__main__':

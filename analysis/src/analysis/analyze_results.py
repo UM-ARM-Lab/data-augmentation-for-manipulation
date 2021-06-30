@@ -1,26 +1,21 @@
 import pathlib
 import pickle
-from typing import Callable, List
+import logging
+from typing import List
 
 import pandas as pd
-from colorama import Fore
-from halo import Halo
-from progressbar import progressbar
+from tqdm import tqdm
 
-import analysis.results_metrics
-import rospy
-from arc_utilities.filesystem_utils import get_all_subdirs
-from link_bot_data.progressbar_widgets import mywidgets
 from analysis.figspec import DEFAULT_AXES_NAMES, FigSpec, TableSpec
 from analysis.results_metrics import metrics_funcs
 from analysis.results_metrics import metrics_names
 # noinspection PyUnresolvedReferences
 from analysis.results_tables import *
-from analysis.results_utils import load_order, add_number_to_method_name
-from link_bot_pycommon.get_scenario import get_scenario, get_scenario_cached
-from link_bot_pycommon.pandas_utils import df_append
+from link_bot_pycommon.get_scenario import get_scenario_cached
 from link_bot_pycommon.serialization import load_gzipped_pickle
-from moonshine.filepath_tools import load_hjson, load_json_or_hjson
+from moonshine.filepath_tools import load_hjson
+
+logger = logging.getLogger(__file__)
 
 column_names = [
                    'method_name',
@@ -85,7 +80,7 @@ def reduce_planning_metrics(reductions: List[List], metrics: pd.DataFrame):
 
 def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool):
     dfs = []
-    for d in progressbar(results_dirs, widgets=mywidgets):
+    for d in tqdm(results_dirs, desc='results dirs'):
         data_filenames = list(d.glob("*_metrics.pkl.gz"))
         df_filename = d / 'df.pkl'
         metadata_filename = d / 'metadata.hjson'
@@ -93,15 +88,16 @@ def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool):
         if not df_filename.exists() or regenerate:
             scenario = get_scenario_cached(metadata['planner_params']['scenario'])
             data = []
-            print()
-            halo = Halo()
-            halo.start()
-            for data_filename in data_filenames:
+            for data_filename in tqdm(data_filenames, desc='results files'):
                 datum = load_gzipped_pickle(data_filename)
-                row = make_row(datum, metadata, scenario)
+                try:
+                    row = make_row(datum, metadata, scenario)
+                except:
+                    logger.error(data_filename)
+                    continue
+
                 data.append(row)
             df_i = pd.DataFrame(data)
-            halo.stop()
             with df_filename.open("wb") as f:
                 pickle.dump(df_i, f)
         else:

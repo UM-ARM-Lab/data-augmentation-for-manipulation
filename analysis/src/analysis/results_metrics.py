@@ -183,8 +183,11 @@ def classifier_name(scenario: ExperimentScenario, trial_metadata: Dict, trial_da
             found = True
             classifier_name_ = pathlib.Path(*pathlib.Path(c_i).parent.parts[-2:]).as_posix()
     if not found:
-        if len(c) > 1:
+        if len(c) >= 1:
             classifier_name_ = c[0]
+            found = True
+        elif len(c) == 0:
+            classifier_name_ = 'no classifier'
             found = True
     if not found:
         raise RuntimeError(f"Could not guess the classifier name:\n{c}")

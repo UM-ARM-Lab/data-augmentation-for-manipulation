@@ -1,4 +1,5 @@
 import pathlib
+import logging
 import re
 from typing import Dict, Optional, List, Union
 
@@ -19,6 +20,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from moonshine.filepath_tools import load_params, load_json_or_hjson
 from moonshine.moonshine_utils import numpify
 
+logger = logging.getLogger(__name__)
 
 class NoTransitionsError(Exception):
     pass
@@ -91,7 +93,7 @@ def get_paths(datum: Dict, verbose: int = 0, full_path: bool = True):
         e = step['planning_query'].environment
 
         if verbose >= 1:
-            print(step['type'])
+            logger.debug(step['type'])
         if step['type'] == 'executed_plan':
             planning_result: PlanningResult = step['planning_result']
             execution_result: ExecutionResult = step['execution_result']
@@ -107,7 +109,7 @@ def get_paths(datum: Dict, verbose: int = 0, full_path: bool = True):
             raise NotImplementedError(f"invalid step type {step['type']}")
 
         if len(actions) == 0 or actions[0] is None:
-            print("Skipping step with no actions")
+            logger.info("Skipping step with no actions")
             continue
         actions = numpify(actions)
         actual_states = numpify(actual_states)
@@ -165,7 +167,7 @@ def get_transitions(datum: Dict):
             raise NotImplementedError(f"invalid step type {step['type']}")
 
         if len(actions) == 0 or actions[0] is None:
-            print("Skipping step with no actions")
+            logger.info("Skipping step with no actions")
             continue
         actions = numpify(actions)
         actual_states = numpify(actual_states)
