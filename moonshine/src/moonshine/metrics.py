@@ -225,3 +225,19 @@ class FalseNegativeOverallRate(FalseNegatives):
     def update_state(self, y_true, y_pred, **kwargs):
         super().update_state(y_true, y_pred, **kwargs)
         self.count.assign_add(tf.reshape(tf.cast(tf.size(y_true), tf.float32), self.shape))
+
+
+class BinaryRate(Metric):
+    """ computes percentages of 1's in a binary list """
+
+    def __init__(self):
+        super().__init__()
+        self.sum = self.add_weight(name='sum', shape=[], initializer='zeros')
+        self.count = self.add_weight(name='count', shape=[], initializer='zeros')
+
+    def result(self):
+        return self.sum / self.count
+
+    def update_state(self, y, **kwargs):
+        self.sum.assign_add(tf.reduce_sum(y))
+        self.count.assign_add(tf.cast(tf.size(y), tf.float32))

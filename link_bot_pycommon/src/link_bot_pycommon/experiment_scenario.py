@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Optional
 
 import numpy as np
@@ -13,6 +14,8 @@ from moonshine.indexing import index_dict_of_batched_tensors_tf, index_time_2
 from peter_msgs.srv import GetPosition3DRequest, Position3DEnableRequest, Position3DActionRequest
 from std_msgs.msg import Int64, Float32
 from visualization_msgs.msg import MarkerArray
+
+logger = logging.getLogger(__file__)
 
 
 class MockRobot:

@@ -23,8 +23,13 @@ from moonshine.geometry import transform_points_3d, pairwise_squared_distances
 from moonshine.moonshine_utils import reduce_mean_no_nan
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
-DEBUG_AUG = rospy.get_param("DEBUG_AUG", False)
-DEBUG_AUG_SGD = rospy.get_param("DEBUG_AUG_SGD", False)
+
+def debug_aug():
+    return rospy.get_param("DEBUG_AUG", False)
+
+
+def debug_aug_sgd():
+    return rospy.get_param("DEBUG_AUG_SGD", False)
 
 
 @dataclass
@@ -108,39 +113,40 @@ class AugmentationOptimization:
             self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
                                                                    self.scenario)
 
+        # metrics
+        self.is_valids = tf.zeros([0], dtype=tf.float32)
+
     def augmentation_optimization(self,
                                   inputs: Dict,
                                   batch_size,
                                   time):
-        inputs_aug = {
-            # initialize with things that we won't be updating in this augmentation
-            'res':                  inputs['res'],
-            'extent':               inputs['extent'],
-            'origin_point':         inputs['origin_point'],
-            'env':                  inputs['env'],
-            'is_close':             inputs['is_close'],
-            'batch_size':           inputs['batch_size'],
-            'time':                 inputs['time'],
-            add_predicted('stdev'): inputs[add_predicted('stdev')],
-        }
+        if self.hparams['type'] == 'optimization':
+            return self.augmentation_optimization1(inputs, batch_size, time)
+        elif self.hparams['type'] == 'optimization':
+            return self.augmentation_optimization2(inputs, batch_size, time)
 
-        local_env, local_origin_point = self.get_local_env(inputs, batch_size)
+    def augmentation_optimization2(self,
+                                   inputs: Dict,
+                                   batch_size,
+                                   time):
+        pass
 
-        object_points = self.compute_swept_object_points(inputs)
-        res = inputs['res']
-        # get all components of the state as a set of points
-        # in general this should be the swept volume, and should include the robot
-        object_points_occupancy = lookup_points_in_vg(object_points, local_env, res, local_origin_point, batch_size)
+    def augmentation_optimization1(self,
+                                   inputs: Dict,
+                                   batch_size,
+                                   time):
+        _setup = self.setup(inputs, batch_size)
+        inputs_aug, res, object_points, object_points_occupancy, local_env, local_origin_point = _setup
 
-        transformations = self.sample_object_transformations(batch_size)
-        object_aug_valid, object_aug_update, local_origin_point_aug = self.apply_object_augmentation(transformations,
+        object_transforms = self.sample_object_transformations(batch_size)
+        object_aug_valid, object_aug_update, local_origin_point_aug = self.apply_object_augmentation(object_transforms,
                                                                                                      inputs,
                                                                                                      batch_size,
                                                                                                      time)
         inputs_aug.update(object_aug_update)
 
         # this was just updated by apply_state_augmentation
-        if DEBUG_AUG:
+        if debug_aug():
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
@@ -166,10 +172,10 @@ class AugmentationOptimization:
                 self.debug.aug_bbox_pub.publish(bbox_msg)
                 # stepper.step()
 
-        object_points_aug = transform_points_3d(transformations[:, None], object_points)
+        object_points_aug = transform_points_3d(object_transforms[:, None], object_points)
         robot_points_aug = self.compute_swept_robot_points(inputs_aug, batch_size)
 
-        if DEBUG_AUG:
+        if debug_aug():
             for b in debug_viz_batch_indices(batch_size):
                 debug_i = tf.squeeze(tf.where(object_points_occupancy[b]), -1)
                 points_debug_b = tf.gather(object_points_aug[b], debug_i)
@@ -195,7 +201,7 @@ class AugmentationOptimization:
                                                                      local_origin_point_aug,
                                                                      batch_size)
 
-        if DEBUG_AUG:
+        if debug_aug():
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 _aug_dict = {
@@ -218,6 +224,8 @@ class AugmentationOptimization:
                 print(env_aug_valid[b], object_aug_valid[b])
 
         is_valid = env_aug_valid * object_aug_valid
+        self.is_valids = tf.concat([self.is_valids, is_valid], axis=0)
+
         # FIXME: this is so hacky
         keys_aug = [add_predicted('joint_positions')]
         keys_aug += self.action_keys
@@ -234,6 +242,28 @@ class AugmentationOptimization:
         local_origin_point_aug = iv * local_origin_point_aug + (1 - iv) * local_origin_point
 
         return inputs_aug, local_env_aug, local_origin_point_aug
+
+    def setup(self, inputs, batch_size):
+        inputs_aug = {
+            # initialize with things that we won't be updating in this augmentation
+            'res':                  inputs['res'],
+            'extent':               inputs['extent'],
+            'origin_point':         inputs['origin_point'],
+            'env':                  inputs['env'],
+            'is_close':             inputs['is_close'],
+            'batch_size':           inputs['batch_size'],
+            'time':                 inputs['time'],
+            add_predicted('stdev'): inputs[add_predicted('stdev')],
+        }
+
+        local_env, local_origin_point = self.get_local_env(inputs, batch_size)
+
+        object_points = self.compute_swept_object_points(inputs)
+        res = inputs['res']
+        # get all components of the state as a set of points
+        # in general this should be the swept volume, and should include the robot
+        object_points_occupancy = lookup_points_in_vg(object_points, local_env, res, local_origin_point, batch_size)
+        return inputs_aug, res, object_points, object_points_occupancy, local_env, local_origin_point
 
     def sample_object_transformations(self, batch_size):
         # sample a translation and rotation for the object state
@@ -285,7 +315,7 @@ class AugmentationOptimization:
         local_env_new_center = self.sample_local_env_position(new_env, batch_size)
         local_env_new, local_env_new_origin_point = self.local_env_helper.get(local_env_new_center, new_env, batch_size)
         # viz new env
-        if DEBUG_AUG:
+        if debug_aug():
             for b in debug_viz_batch_indices(self.batch_size):
                 self.debug.send_position_transform(local_env_new_center[b], 'local_env_new_center')
 
@@ -329,7 +359,7 @@ class AugmentationOptimization:
 
                 # stepper.step()
 
-        if DEBUG_AUG_SGD:
+        if debug_aug_sgd():
             stepper = RvizSimpleStepper()
 
         local_env_aug = []
@@ -388,7 +418,7 @@ class AugmentationOptimization:
                         clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
                         self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
 
-                        if DEBUG_AUG_SGD:
+                        if debug_aug_sgd():
                             repel_close_indices = tf.squeeze(tf.where(min_dists.repel < self.barrier_upper_lim),
                                                              axis=-1)
                             robot_repel_close_indices = tf.squeeze(
@@ -429,7 +459,7 @@ class AugmentationOptimization:
                                                                       hard_attract_constraint_satisfied_b])
                         grad_norm = tf.linalg.norm(gradients)
                         step_size_b_i = grad_norm * self.step_size
-                        if DEBUG_AUG_SGD:
+                        if debug_aug_sgd():
                             if b in debug_viz_batch_indices(batch_size):
                                 print(step_size_b_i, self.step_size_threshold, hard_constraints_satisfied_b)
 

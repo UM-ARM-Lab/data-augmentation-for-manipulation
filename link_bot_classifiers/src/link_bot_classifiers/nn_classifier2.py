@@ -23,12 +23,14 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
-    FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
+    FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate, BinaryRate
 from moonshine.moonshine_utils import numpify
 from moonshine.my_keras_model import MyKerasModel
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_INPUT = rospy.get_param("DEBUG_INPUT", False)
+
+def debug_input():
+    return rospy.get_param("DEBUG_INPUT", False)
 
 
 class NNClassifier(MyKerasModel):
@@ -108,7 +110,7 @@ class NNClassifier(MyKerasModel):
         batch_size = inputs['batch_size']
         time = inputs['time']
 
-        if DEBUG_INPUT:
+        if debug_input():
             # clear the other voxel grids from previous calls
             self.debug.clear()
             self.scenario.delete_points_rviz(label='attract')
@@ -143,7 +145,7 @@ class NNClassifier(MyKerasModel):
         voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
         inputs['voxel_grids'] = voxel_grids
 
-        if DEBUG_INPUT:
+        if debug_input():
             assert not rospy.get_param("use_sim_time", False)
             self.debug_viz_inputs(inputs, local_origin_point, time)
 
@@ -214,6 +216,7 @@ class NNClassifier(MyKerasModel):
             'fn/mistakes':           FalseNegativeMistakeRate(),
             'fp/total':              FalsePositiveOverallRate(),
             'fn/total':              FalseNegativeOverallRate(),
+            'aug_validity_rate':     BinaryRate(),
         }
 
     def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
@@ -228,6 +231,7 @@ class NNClassifier(MyKerasModel):
         metrics['fn/total'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
+        metrics['aug_validity_rate'].update_state(self.aug.is_valids)
 
     def conv_encoder(self, voxel_grids, batch_size, time):
         conv_outputs_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)

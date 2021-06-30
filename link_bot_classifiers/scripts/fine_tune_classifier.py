@@ -32,7 +32,6 @@ def main():
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--log-scalars-every', type=int, help='loss/accuracy every this many batches', default=100)
     parser.add_argument('--validation-every', type=int, help='report validation every this many epochs', default=1)
-    parser.add_argument('--no-validate-first', action='store_true')
     parser.add_argument('--threshold', type=float, default=None)
 
     args = parser.parse_args()
@@ -48,7 +47,7 @@ def main():
                          batch_size=args.batch_size,
                          early_stopping=False,
                          epochs=args.epochs,
-                         validate_first=(not args.no_validate_first),
+                         validate_first=False,
                          take=args.take,
                          seed=args.seed,
                          model_hparams_update=model_hparams_update,

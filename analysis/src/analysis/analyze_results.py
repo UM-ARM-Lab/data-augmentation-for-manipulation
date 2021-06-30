@@ -1,7 +1,7 @@
+import logging
 import pathlib
 import pickle
-import logging
-from typing import List
+from typing import List, Dict
 
 import pandas as pd
 from tqdm import tqdm
@@ -12,12 +12,15 @@ from analysis.results_metrics import metrics_names
 # noinspection PyUnresolvedReferences
 from analysis.results_tables import *
 from link_bot_pycommon.get_scenario import get_scenario_cached
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson
 
 logger = logging.getLogger(__file__)
 
 column_names = [
+                   'data_filename',
+                   'results_folder_name',
                    'method_name',
                    'seed',
                    'ift_iteration',
@@ -91,7 +94,7 @@ def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool):
             for data_filename in tqdm(data_filenames, desc='results files'):
                 datum = load_gzipped_pickle(data_filename)
                 try:
-                    row = make_row(datum, metadata, scenario)
+                    row = make_row(datum, data_filename, metadata, scenario)
                 except:
                     logger.error(data_filename)
                     continue
@@ -110,7 +113,7 @@ def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool):
     return df
 
 
-def make_row(datum, metadata, scenario):
+def make_row(datum: Dict, data_filename: pathlib.Path, metadata: Dict, scenario: ScenarioWithVisualization):
     metrics_values = [metric_func(scenario, metadata, datum) for metric_func in metrics_funcs]
     trial_idx = datum['trial_idx']
     try:
@@ -118,7 +121,14 @@ def make_row(datum, metadata, scenario):
     except KeyError:
         seed_guess = 0
     seed = datum.get('seed', seed_guess)
+    results_folders = data_filename.parts[:-1]
+    if pathlib.Path("/media/shared/planning_results") in data_filename.parents:
+        results_folders = results_folders[4:]
+    results_folder_name = pathlib.Path(*results_folders).as_posix()
+
     row = [
+        data_filename.as_posix(),
+        results_folder_name,
         metadata['planner_params']['method_name'],
         seed,
         metadata.get('ift_iteration', 0),
