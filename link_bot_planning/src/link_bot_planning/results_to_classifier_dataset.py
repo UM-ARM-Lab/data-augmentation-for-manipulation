@@ -14,8 +14,8 @@ from link_bot_data.dataset_utils import add_predicted, write_example
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.split_dataset import split_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
-from link_bot_planning.analysis import results_utils
-from link_bot_planning.analysis.results_utils import NoTransitionsError, get_transitions, \
+from analysis import results_utils
+from analysis.results_utils import NoTransitionsError, get_transitions, \
     dynamics_dataset_params_from_classifier_params, classifier_params_from_planner_params, \
     fwd_model_params_from_planner_params
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree

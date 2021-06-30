@@ -16,8 +16,8 @@ from link_bot_data.recovery_dataset import RecoveryDatasetLoader, compute_recove
 from link_bot_data.recovery_dataset_utils import batch_stateless_sample_action, \
     predict_and_classify_for_recovery_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
-from link_bot_planning.analysis import results_utils
-from link_bot_planning.analysis.results_utils import NoTransitionsError, get_recovery_transitions, \
+from analysis import results_utils
+from analysis.results_utils import NoTransitionsError, get_recovery_transitions, \
     classifier_params_from_planner_params, dynamics_dataset_params_from_classifier_params
 from link_bot_planning.results_to_classifier_dataset import compute_example_idx
 from link_bot_pycommon.job_chunking import JobChunker

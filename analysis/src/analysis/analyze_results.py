@@ -7,16 +7,16 @@ from colorama import Fore
 from halo import Halo
 from progressbar import progressbar
 
-import link_bot_planning.analysis.results_metrics
+import analysis.results_metrics
 import rospy
 from arc_utilities.filesystem_utils import get_all_subdirs
 from link_bot_data.progressbar_widgets import mywidgets
-from link_bot_planning.analysis.figspec import DEFAULT_AXES_NAMES, FigSpec, TableSpec
-from link_bot_planning.analysis.results_metrics import metrics_funcs
-from link_bot_planning.analysis.results_metrics import metrics_names
+from analysis.figspec import DEFAULT_AXES_NAMES, FigSpec, TableSpec
+from analysis.results_metrics import metrics_funcs
+from analysis.results_metrics import metrics_names
 # noinspection PyUnresolvedReferences
-from link_bot_planning.analysis.results_tables import *
-from link_bot_planning.analysis.results_utils import load_order, add_number_to_method_name
+from analysis.results_tables import *
+from analysis.results_utils import load_order, add_number_to_method_name
 from link_bot_pycommon.get_scenario import get_scenario, get_scenario_cached
 from link_bot_pycommon.pandas_utils import df_append
 from link_bot_pycommon.serialization import load_gzipped_pickle
@@ -83,7 +83,7 @@ def get_metrics2(args, out_dir, planning_results_dirs, get_method_name: Callable
                     datum = load_gzipped_pickle(metrics_filename)
                     index_tuples.append([method_name, file_idx])
                     data.append([metric_func(scenario, metadata, datum) for metric_func in
-                                 link_bot_planning.analysis.results_metrics.metrics_funcs])
+                                 analysis.results_metrics.metrics_funcs])
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["method_name", "file_idx"])
         metrics = pd.DataFrame(data=data, index=index, columns=metrics_names)
@@ -145,7 +145,7 @@ def get_metrics(args, out_dir, planning_results_dirs, get_method_name: Callable,
                     datum = load_gzipped_pickle(metrics_filename)
                     index_tuples.append([method_name, iteration, file_idx])
                     data.append([metric_func(scenario, metadata, datum) for metric_func in
-                                 link_bot_planning.analysis.results_metrics.metrics_funcs])
+                                 analysis.results_metrics.metrics_funcs])
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["method_name", "iteration_idx", "file_idx"])
         metrics = pd.DataFrame(data=data, index=index, columns=metrics_names)

@@ -67,14 +67,16 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
         else:
             scene_name = self.test_scenes_dir.name.replace("_", " ")
         metadata = {
-            "trials":          self.trials,
-            "planner_params":  self.planner_params,
-            "scenario":        self.planner.scenario.simple_name(),
-            "commit":          git_sha(),
-            "scene_name":      scene_name,
-            "test_scenes_dir": self.test_scenes_dir.as_posix() if self.test_scenes_dir is not None else None,
-            'hostname':        socket.gethostname(),
-            'seed':            self.seed,
+            "trials":                self.trials,
+            "planner_params":        self.planner_params,
+            "scenario":              self.planner.scenario.simple_name(),
+            "commit":                git_sha(),
+            "scene_name":            scene_name,
+            "test_scenes_dir":       self.test_scenes_dir.as_posix() if self.test_scenes_dir is not None else None,
+            'hostname':              socket.gethostname(),
+            'seed':                  self.seed,
+            'experiment_start_time': int(time()),
+            'experiment_uuid':       uuid.uuid4(),
         }
         metadata.update(self.planner.get_metadata())
         with (self.outdir / 'metadata.hjson').open("w") as metadata_file:

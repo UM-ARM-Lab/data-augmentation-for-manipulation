@@ -12,9 +12,9 @@ import rospy
 from arc_utilities import ros_init
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_classifiers.train_test_classifier import ClassifierEvaluationFilter
-from link_bot_data.dataset_utils import deserialize_scene_msg, replaced_true_with_predicted, add_predicted
+from link_bot_data.dataset_utils import deserialize_scene_msg, replaced_true_with_predicted
 from link_bot_data.visualization import init_viz_env
-from link_bot_planning.analysis.results_utils import print_percentage
+from analysis.results_utils import print_percentage
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import dump_gzipped_pickle

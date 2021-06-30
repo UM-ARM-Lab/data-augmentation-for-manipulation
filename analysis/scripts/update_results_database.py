@@ -7,8 +7,8 @@ import shutil
 import pandas as pd
 
 from arc_utilities import ros_init
-from link_bot_planning.analysis.results_utils import get_all_results_subdirs
-from link_bot_planning.analysis.analyze_results import load_results, column_names
+from analysis.results_utils import get_all_results_subdirs
+from analysis.analyze_results import load_results, column_names
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)

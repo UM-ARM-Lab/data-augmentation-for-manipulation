@@ -10,7 +10,7 @@ def main():
     parser.add_argument('name2')
     args = parser.parse_args()
 
-    root = pathlib.Path("results")
+    root = pathlib.Path("../../link_bot_planning/scripts/results")
     for d1 in root.iterdir():
         if d1.is_dir():
             if args.name1 in d1.name:

@@ -4,7 +4,7 @@ import unittest
 
 import numpy as np
 
-from link_bot_planning.analysis.figspec import make_groups
+from analysis.figspec import make_groups
 
 
 class TestCase(unittest.TestCase):

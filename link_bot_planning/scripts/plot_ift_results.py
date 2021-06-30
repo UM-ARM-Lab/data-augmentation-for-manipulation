@@ -3,14 +3,12 @@ import argparse
 import pathlib
 
 import colorama
-import numpy as np
 from colorama import Style, Fore
 
 from arc_utilities import ros_init
-from link_bot_planning.analysis import results_utils
-from link_bot_planning.analysis.results_utils import classifier_params_from_planner_params, plot_steps
+from analysis import results_utils
+from analysis.results_utils import classifier_params_from_planner_params, plot_steps
 from link_bot_planning.plan_and_execute import TrialStatus
-from link_bot_pycommon.args import my_formatter
 
 
 @ros_init.with_ros("plot_ift_results")

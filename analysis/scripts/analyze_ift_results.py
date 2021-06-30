@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import rospy
-from link_bot_planning.analysis.analyze_results import get_metrics, load_fig_specs, load_table_specs
-from link_bot_planning.analysis.figspec import get_data_for_figure, get_data_for_table
+from analysis.analyze_results import get_metrics, load_fig_specs, load_table_specs
+from analysis.figspec import get_data_for_figure, get_data_for_table
 # noinspection PyUnresolvedReferences
-from link_bot_planning.analysis.results_figures import *
-from link_bot_planning.analysis.results_metrics import *
+from analysis.results_figures import *
+from analysis.results_metrics import *
 from link_bot_pycommon.args import my_formatter
 from moonshine.filepath_tools import load_hjson, load_json_or_hjson
 from moonshine.gpu_config import limit_gpu_mem

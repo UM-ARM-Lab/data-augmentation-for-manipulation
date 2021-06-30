@@ -9,11 +9,11 @@
       Success %
       Mean Task Error
       Median Task Error
-      Mean Cumulative Task Error
-      Mean Cumulative Planning Error
+      Mean CTE
+      Mean CPE
       Mean NME
       Median NME
-      Recovery Success
+      Mean Recovery Success
     ]
     reductions: [
       [[["method_name"], "method_name", "first"]]

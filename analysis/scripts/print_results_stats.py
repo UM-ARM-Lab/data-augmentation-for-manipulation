@@ -8,8 +8,7 @@ import numpy as np
 import tabulate
 
 import rospy
-from link_bot_planning.analysis import results_utils, results_metrics
-from link_bot_planning.analysis.results_metrics import any_solved
+from analysis import results_utils, results_metrics
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_json_or_hjson

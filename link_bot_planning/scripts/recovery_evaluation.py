@@ -6,7 +6,7 @@ import warnings
 
 import tensorflow as tf
 
-from link_bot_planning.analysis import results_metrics
+from analysis import results_metrics
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus, PlanningQuery
 from link_bot_planning.plan_and_execute import ExecutionResult
 from link_bot_planning.timeout_or_not_progressing import EvalRecoveryPTC

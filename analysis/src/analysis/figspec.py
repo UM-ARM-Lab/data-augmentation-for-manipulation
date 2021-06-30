@@ -1,10 +1,10 @@
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List
 
 import pandas as pd
 
-from link_bot_planning.analysis.results_figures import *
-from link_bot_planning.analysis.results_tables import MyTable
+from analysis.results_figures import *
+from analysis.results_tables import MyTable
 
 DEFAULT_AXES_NAMES = ['x', 'y', 'z']
 

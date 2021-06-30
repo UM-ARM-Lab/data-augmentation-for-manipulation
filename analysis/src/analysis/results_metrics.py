@@ -6,7 +6,7 @@ from typing import Dict, Optional
 import numpy as np
 
 from arc_utilities.algorithms import nested_dict_update
-from link_bot_planning.analysis.results_utils import get_paths, classifier_params_from_planner_params
+from analysis.results_utils import get_paths, classifier_params_from_planner_params
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.func_list_registrar import FuncListRegistrar

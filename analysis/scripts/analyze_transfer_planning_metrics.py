@@ -11,8 +11,8 @@ from progressbar import progressbar
 from arc_utilities import ros_init
 from arc_utilities.filesystem_utils import get_all_subdirs
 from link_bot_data.progressbar_widgets import mywidgets
-from link_bot_planning.analysis.analyze_results import load_table_specs
-from link_bot_planning.analysis.results_metrics import metrics_funcs, metrics_names
+from analysis.analyze_results import load_table_specs
+from analysis.results_metrics import metrics_funcs, metrics_names
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pandas_utils import df_append
 from link_bot_pycommon.serialization import load_gzipped_pickle
