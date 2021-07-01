@@ -69,7 +69,13 @@ def reduce_planning_metrics(reductions: List[List], metrics: pd.DataFrame):
             if group_by is None or len(group_by) == 0:
                 metric_i = metric_i.agg({metric: agg})
             elif group_by is not None and agg is not None:
-                metric_i = metric_i.groupby(group_by).agg({metric: agg})
+                if metric in metric_i.index.names:
+                    assert len(metric_i.columns) == 1
+                    metric_i.columns = ['tmp']
+                    metric_i = metric_i.groupby(group_by).agg({'tmp': agg})
+                    metric_i.columns = [metric]
+                else:
+                    metric_i = metric_i.groupby(group_by).agg({metric: agg})
             elif group_by is not None and agg is None:
                 metric_i.set_index(group_by, inplace=True)
                 metric_i = metric_i[metric]
@@ -121,10 +127,8 @@ def make_row(datum: Dict, data_filename: pathlib.Path, metadata: Dict, scenario:
     except KeyError:
         seed_guess = 0
     seed = datum.get('seed', seed_guess)
-    results_folders = data_filename.parts[:-1]
-    if pathlib.Path("/media/shared/planning_results") in data_filename.parents:
-        results_folders = results_folders[4:]
-    results_folder_name = pathlib.Path(*results_folders).as_posix()
+
+    results_folder_name = guess_results_folder_name(data_filename)
 
     row = [
         data_filename.as_posix(),
@@ -137,3 +141,9 @@ def make_row(datum: Dict, data_filename: pathlib.Path, metadata: Dict, scenario:
     ]
     row += metrics_values
     return row
+
+
+def guess_results_folder_name(data_filename):
+    results_folders = data_filename.parts[:-1]
+    results_folder_name = pathlib.Path(*results_folders[-2:]).as_posix()
+    return results_folder_name

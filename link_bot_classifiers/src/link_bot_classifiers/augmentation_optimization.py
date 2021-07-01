@@ -122,7 +122,7 @@ class AugmentationOptimization:
                                   time):
         if self.hparams['type'] == 'optimization':
             return self.augmentation_optimization1(inputs, batch_size, time)
-        elif self.hparams['type'] == 'optimization':
+        elif self.hparams['type'] == 'optimization2':
             return self.augmentation_optimization2(inputs, batch_size, time)
 
     def augmentation_optimization2(self,

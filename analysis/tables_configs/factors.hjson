@@ -3,6 +3,7 @@
     type: MyTable
     name: table1
     header: [
+      Name
       Classifier Source Env
       Stop On Error?
       Timeout (s)
@@ -10,51 +11,117 @@
       N Trials
       Success %
       Task Error (mean)
-      Recovery Success
-      Num Recovery Actions
+      Task Error (std)
       Mean CPE
       Mean NME
     ]
     reductions: [
-      [[["classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]]
-      [[["classifier_source_env", "stop_on_error"], "stop_on_error", "first"]]
-      [[["classifier_source_env", "stop_on_error"], "timeout", "first"]]
-      [[["classifier_source_env", "stop_on_error"], "success", "sum"]]
-      [[["classifier_source_env", "stop_on_error"], "num_trials", "sum"]]
-      [[["classifier_source_env", "stop_on_error"], "success", "mean"]]
-      [[["classifier_source_env", "stop_on_error"], "task_error", "mean"]]
-      [[["classifier_source_env", "stop_on_error"], "recovery_success", "mean"]]
-      [[["classifier_source_env", "stop_on_error"], "num_recovery_actions", "mean"]]
-      [[["classifier_source_env", "stop_on_error"], "cumulative_planning_error", "mean"]]
-      [[["classifier_source_env", "stop_on_error"], "normalized_model_error", "mean"]]
+      [[["results_folder_name", "classifier_source_env", "stop_on_error"], "results_folder_name", "first"]]
+      [[["results_folder_name", "classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]]
+      [[["results_folder_name", "classifier_source_env", "stop_on_error"], "stop_on_error", "first"]]
+      [[["results_folder_name", "classifier_source_env", "stop_on_error"], "timeout", "first"]]
+      [[["results_folder_name", "classifier_source_env", "stop_on_error"], "success", "sum"]]
+      [[["results_folder_name", "classifier_source_env", "stop_on_error"], "num_trials", "sum"]]
+      [[["results_folder_name", "classifier_source_env", "stop_on_error"], "success", "mean"]]
+      [[["results_folder_name", "classifier_source_env", "stop_on_error"], "task_error", ["mean", "std"]]]
+      [[["results_folder_name", "classifier_source_env", "stop_on_error"], "cumulative_planning_error", "mean"]]
+      [[["results_folder_name", "classifier_source_env", "stop_on_error"], "normalized_model_error", "mean"]]
     ]
   }
   {
     type: MyTable
-    name: table1
+    name: mean
     header: [
       Classifier Source Env
-      Stop On Error?
-      Timeout (s)
       Successes
-      N Trials
+      Success %
+      Task Error (mean)
       Task Error (std)
-      Recovery Success
-      Num Recovery Actions
       Mean CPE
       Mean NME
+      Num Planning Attempts
     ]
     reductions: [
-      [[["classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]]
-      [[["classifier_source_env", "stop_on_error"], "stop_on_error", "first"]]
-      [[["classifier_source_env", "stop_on_error"], "timeout", "first"]]
-      [[["classifier_source_env", "stop_on_error"], "success", "std"]]
-      [[["classifier_source_env", "stop_on_error"], "num_trials", "sum"]]
-      [[["classifier_source_env", "stop_on_error"], "task_error", "std"]]
-      [[["classifier_source_env", "stop_on_error"], "recovery_success", "std"]]
-      [[["classifier_source_env", "stop_on_error"], "num_recovery_actions", "std"]]
-      [[["classifier_source_env", "stop_on_error"], "cumulative_planning_error", "std"]]
-      [[["classifier_source_env", "stop_on_error"], "normalized_model_error", "std"]]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]
+        [["classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "success", "sum"]
+        [["classifier_source_env", "stop_on_error"], "success", "mean"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "success", "mean"]
+        [["classifier_source_env", "stop_on_error"], "success", "mean"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "task_error", "mean"]
+        [["classifier_source_env", "stop_on_error"], "task_error", "mean"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "task_error", "std"]
+        [["classifier_source_env", "stop_on_error"], "task_error", "mean"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "cumulative_planning_error", "mean"]
+        [["classifier_source_env", "stop_on_error"], "cumulative_planning_error", "mean"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "normalized_model_error", "mean"]
+        [["classifier_source_env", "stop_on_error"], "normalized_model_error", "mean"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "num_planning_attempts", "mean"]
+        [["classifier_source_env", "stop_on_error"], "num_planning_attempts", "mean"]
+      ]
+    ]
+  }
+  {
+    type: MyTable
+    name: std
+    header: [
+      Classifier Source Env
+      Successes
+      Success %
+      Task Error (mean)
+      Task Error (std)
+      Mean CPE
+      Mean NME
+      Num Planning Attempts
+    ]
+    reductions: [
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]
+        [["classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "success", "sum"]
+        [["classifier_source_env", "stop_on_error"], "success", "std"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "success", "mean"]
+        [["classifier_source_env", "stop_on_error"], "success", "std"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "task_error", "mean"]
+        [["classifier_source_env", "stop_on_error"], "task_error", "std"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "task_error", "std"]
+        [["classifier_source_env", "stop_on_error"], "task_error", "std"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "cumulative_planning_error", "mean"]
+        [["classifier_source_env", "stop_on_error"], "cumulative_planning_error", "std"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "normalized_model_error", "mean"]
+        [["classifier_source_env", "stop_on_error"], "normalized_model_error", "std"]
+      ]
+      [
+        [["results_folder_name", "classifier_source_env", "stop_on_error"], "num_planning_attempts", "mean"]
+        [["classifier_source_env", "stop_on_error"], "num_planning_attempts", "std"]
+      ]
     ]
   }
 ]
