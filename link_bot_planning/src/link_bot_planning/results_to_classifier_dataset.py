@@ -7,17 +7,17 @@ from colorama import Fore
 from progressbar import progressbar
 
 import rospy
-from arm_robots.robot import RobotPlanningError
-from gazebo_msgs.msg import LinkStates
-from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
-from link_bot_data.dataset_utils import add_predicted, write_example
-from link_bot_data.progressbar_widgets import mywidgets
-from link_bot_data.split_dataset import split_dataset
-from link_bot_gazebo.gazebo_services import GazeboServices
 from analysis import results_utils
 from analysis.results_utils import NoTransitionsError, get_transitions, \
     dynamics_dataset_params_from_classifier_params, classifier_params_from_planner_params, \
     fwd_model_params_from_planner_params
+from arm_robots.robot import RobotPlanningError
+from gazebo_msgs.msg import LinkStates
+from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
+from link_bot_data.dataset_utils import add_predicted, write_example, DEFAULT_VAL_SPLIT, DEFAULT_TEST_SPLIT
+from link_bot_data.progressbar_widgets import mywidgets
+from link_bot_data.split_dataset import split_dataset
+from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.job_chunking import JobChunker
@@ -47,12 +47,13 @@ class ResultsToClassifierDataset:
                  verbose: int = 1,
                  only_rejected_transitions: bool = False,
                  max_examples_per_trial: Optional[int] = 500,
+                 val_split=DEFAULT_VAL_SPLIT,
+                 test_split=DEFAULT_TEST_SPLIT,
                  **kwargs):
         self.restart = False
         self.save_format = save_format
         self.rng = np.random.RandomState(0)
         self.service_provider = GazeboServices()
-        self.service_provider.play()
         self.full_tree = full_tree
         self.results_dir = results_dir
         self.outdir = outdir
@@ -61,6 +62,8 @@ class ResultsToClassifierDataset:
         self.regenerate = regenerate
         self.only_rejected_transitions = only_rejected_transitions
         self.max_examples_per_trial = max_examples_per_trial
+        self.val_split = val_split
+        self.test_split = test_split
 
         if self.max_examples_per_trial is not None:
             print(Fore.LIGHTMAGENTA_EX + f"{self.max_examples_per_trial=}" + Fore.RESET)
@@ -81,6 +84,7 @@ class ResultsToClassifierDataset:
         self.example_idx = None
 
         if self.full_tree:
+            self.service_provider.play()
             self.scenario.on_before_get_state_or_execute_action()
             self.scenario.grasp_rope_endpoints(settling_time=0.0)
 
@@ -102,7 +106,7 @@ class ResultsToClassifierDataset:
         else:
             self.results_to_classifier_dataset()
 
-        split_dataset(self.outdir)
+        split_dataset(self.outdir, val_split=self.val_split, test_split=self.test_split)
 
     def save_hparams(self):
         planner_params = self.metadata['planner_params']
@@ -242,6 +246,7 @@ class ResultsToClassifierDataset:
                 after_state=after_state,
                 after_state_pred=after_state_pred,
                 classifier_start_t=t,
+                accept_probabilities={},
             )
 
     @staticmethod
@@ -317,7 +322,7 @@ class ResultsToClassifierDataset:
                          after_state_pred: Dict,
                          classifier_start_t: int,
                          accept_probabilities: Dict):
-        if 'num_diverged' not in after_state_pred:
+        if self.full_tree and 'num_diverged' not in after_state_pred:
             return
         # this will be False if and only if the planner actually checked it, and it was infeasible. So if
         # a different classifier gets run first and rejects it, and thus feasibility isn't ever checked,
