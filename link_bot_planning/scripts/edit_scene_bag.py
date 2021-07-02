@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import pathlib
 
 from link_bot_planning.test_scenes import TestScene
@@ -55,7 +56,7 @@ def shift_hook(s: TestScene):
 
 
 def main():
-    scene_dir = "long_hook2"
+    scene_dir = "slit"
     scene_indices = range(0, 60)
 
     root_dir = pathlib.Path("/home/peter/catkin_ws/src/link_bot/link_bot_planning/test_scenes")
@@ -64,8 +65,9 @@ def main():
     for scene_idx in scene_indices:
         s = TestScene(scenes_fulldir, scene_idx)
 
-        s = shift_hook(s)
-        s.save(force=True)
+        print(s.links_states.name)
+        # s = shift_hook(s)
+        # s.save(force=True)
 
 
 if __name__ == '__main__':

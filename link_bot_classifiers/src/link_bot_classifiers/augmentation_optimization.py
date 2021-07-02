@@ -129,6 +129,7 @@ class AugmentationOptimization:
                                    inputs: Dict,
                                    batch_size,
                                    time):
+        # TODO: copy stuff from ik_demo
         pass
 
     def augmentation_optimization1(self,

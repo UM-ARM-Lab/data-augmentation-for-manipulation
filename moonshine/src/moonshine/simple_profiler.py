@@ -46,12 +46,10 @@ class SimpleProfiler:
             s += f"{measurement.__name__}: {measurement(self.dts) * 1e3:.4f}ms "
         return s
 
-    def profile(self, max_iters, f, *args, **kwargs):
+    def profile(self, max_iters, f, skip_fisrt_n = 4, *args, **kwargs):
         # the first call often is slow for caching reasons, but we don't want to measure that
-        f(*args, **kwargs)
-        f(*args, **kwargs)
-        f(*args, **kwargs)
-        f(*args, **kwargs)
+        for skip_i in range(skip_fisrt_n):
+            f(*args, **kwargs)
 
         self.start()
 
