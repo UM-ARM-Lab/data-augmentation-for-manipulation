@@ -44,10 +44,10 @@ class NewClassifierDataset(NewBaseDataset):
         negative_filenames = np.take(self.filenames, is_far_indices).tolist()
         if len(positive_filenames) == 0:
             print("No positive examples! Not balancing")
-            return negative_filenames
+            return self.filenames
         if len(negative_filenames) == 0:
             print("No negative examples! Not balancing")
-            return positive_filenames
+            return self.filenames
         if len(positive_filenames) < len(negative_filenames):
             balanced_filenames = list(interleave(cycle(positive_filenames), negative_filenames))
         else:
