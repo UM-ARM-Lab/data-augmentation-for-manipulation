@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>tf_robot_learning</name>
+  <name>tensorflow_kinematics</name>
   <version>0.0.0</version>
-  <description>jupyter pycommon</description>
+  <description>tensorflow kinematics</description>
 
   <maintainer email="pmitrano@umich.edu">pmitrano</maintainer>
 
@@ -14,5 +14,4 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <!-- TODO: properly list dependencies -->
-
 </package>

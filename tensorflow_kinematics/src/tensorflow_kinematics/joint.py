@@ -1,28 +1,28 @@
-# tf_robot_learning, a all-around tensorflow library for robotics.
+# tensorflow_kinematics, a all-around tensorflow library for robotics.
 #
 # Copyright (c) 2020 Idiap Research Institute, http://www.idiap.ch/
 # Written by Emmanuel Pignat <emmanuel.pignat@idiap.ch>,
 #
-# This file is part of tf_robot_learning.
+# This file is part of tensorflow_kinematics.
 #
-# tf_robot_learning is free software: you can redistribute it and/or modify
+# tensorflow_kinematics is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 3 as
 # published by the Free Software Foundation.
 #
-# tf_robot_learning is distributed in the hope that it will be useful,
+# tensorflow_kinematics is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with tf_robot_learning. If not, see <http://www.gnu.org/licenses/>.
+# along with tensorflow_kinematics. If not, see <http://www.gnu.org/licenses/>.
 
 from enum import IntEnum
 
 import tensorflow as tf
 
-from tf_robot_learning.kinematic.frame import Frame, Twist
-from tf_robot_learning.kinematic.rotation import rot_2, rot_x, rot_y, rot_z, twist_x, twist_y, twist_z, twist_2
+from tensorflow_kinematics.frame import Frame, Twist
+from tensorflow_kinematics.rotation import rot_2, rot_x, rot_y, rot_z, twist_x, twist_y, twist_z, twist_2
 
 
 class JointType(IntEnum):

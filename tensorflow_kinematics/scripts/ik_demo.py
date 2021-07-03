@@ -10,18 +10,18 @@ import rospy
 import urdf_parser_py.xml_reflection.core
 from arc_utilities.ros_helpers import get_connected_publisher
 from arc_utilities.tf2wrapper import TF2Wrapper
-from geometry_msgs.msg import Point
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo
+from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.geometry import pairwise_squared_distances
 from moonshine.moonshine_utils import repeat_tensor, reduce_mean_no_nan
 from moonshine.simple_profiler import SimpleProfiler
 from moveit_msgs.msg import DisplayRobotState
 from sensor_msgs.msg import JointState
+from tensorflow_kinematics.joint import SUPPORTED_ACTUATED_JOINT_TYPES
+from tensorflow_kinematics.tree import Tree
+from tensorflow_kinematics.urdf_utils import urdf_from_file, urdf_to_tree
 from tf.transformations import quaternion_from_euler
-from tf_robot_learning.kinematic.joint import SUPPORTED_ACTUATED_JOINT_TYPES
-from tf_robot_learning.kinematic.tree import Tree
-from tf_robot_learning.kinematic.urdf_utils import urdf_from_file, urdf_to_tree
-from visualization_msgs.msg import Marker
 
 
 def orientation_error_quat(q1, q2):
@@ -93,8 +93,9 @@ def xm_to_44(xm):
 
 class HdtIK:
 
-    def __init__(self, urdf_filename: pathlib.Path, max_iters: int = 5000):
+    def __init__(self, urdf_filename: pathlib.Path, scenario: ScenarioWithVisualization, max_iters: int = 5000):
         self.urdf = urdf_from_file(urdf_filename.as_posix())
+        self.scenario = scenario
 
         self.tree = urdf_to_tree(self.urdf)
         self.left_ee_name = 'left_tool'
@@ -121,7 +122,6 @@ class HdtIK:
         self.optimizer = tf.keras.optimizers.Adam(lr, amsgrad=True)
 
         self.display_robot_state_pub = get_connected_publisher("display_robot_state", DisplayRobotState, queue_size=10)
-        self.point_pub = get_connected_publisher("point", Marker, queue_size=10)
         self.joint_states_viz_pub = rospy.Publisher("joint_states_viz", JointState, queue_size=10)
         self.tf2 = TF2Wrapper()
 
@@ -141,7 +141,7 @@ class HdtIK:
                 break
 
             if viz:
-                self.viz_func(left_target_pose, right_target_pose, q, viz_info)
+                self.viz_func(env_points, left_target_pose, right_target_pose, q, viz_info)
 
         return q, converged
 
@@ -157,7 +157,7 @@ class HdtIK:
         self.optimizer.apply_gradients(grads_and_vars=zip(gradients, [q]))
         return loss, gradients, viz_info
 
-    # @tf.function
+    @tf.function
     def step(self, q, env_points, left_target_pose, right_target_pose):
         poses = self.tree.fk(q)
         jl_loss = self.compute_jl_loss(self.tree, q)
@@ -166,6 +166,7 @@ class HdtIK:
         left_pose_loss = self.compute_pose_loss(left_ee_pose, left_target_pose)
         right_pose_loss = self.compute_pose_loss(right_ee_pose, right_target_pose)
 
+        self_collision_loss, collision_viz_info = self.compute_collision_loss(poses, env_points)
         # collision_loss, collision_viz_info = self.compute_collision_loss(poses, env_points)
 
         losses = [
@@ -220,7 +221,7 @@ class HdtIK:
         pose_loss = self.theta * pos_error + (1 - self.theta) * rot_error
         return pose_loss
 
-    def viz_func(self, left_target_pose, right_target_pose, q, viz_info):
+    def viz_func(self, env_points, left_target_pose, right_target_pose, q, viz_info):
         poses, = viz_info
         b = 0
         self.tf2.send_transform(left_target_pose[b, :3].numpy().tolist(),
@@ -241,26 +242,10 @@ class HdtIK:
         self.display_robot_state_pub.publish(robot)
         self.joint_states_viz_pub.publish(robot.state.joint_state)
 
-        msg = Marker()
-        msg.header.frame_id = 'world'
-        msg.header.stamp = rospy.Time.now()
-        msg.id = 0
-        msg.type = Marker.SPHERE_LIST
-        msg.action = Marker.ADD
-        msg.pose.orientation.w = 1
-        scale = 0.01
-        msg.scale.x = scale
-        msg.scale.y = scale
-        msg.scale.z = scale
-        msg.color.r = 1
-        msg.color.a = 1
-        msg.points = []
-        for pose in poses.values():
-            position = pose.numpy()[b, :3]
-            p = Point(x=position[0], y=position[1], z=position[2])
-            msg.points.append(p)
+        points = [pose.numpy()[b, :3] for pose in poses.values()]
+        self.scenario.plot_points_rviz(points, label='fk', color='b')
 
-        self.point_pub.publish(msg)
+        self.scenario.plot_points_rviz(env_points[b].numpy(), label='env', color='magenta')
 
     def get_joint_names(self):
         return self.actuated_joint_names
@@ -279,14 +264,16 @@ def main():
     urdf_parser_py.xml_reflection.core.on_error = _on_error
 
     urdf_filename = pathlib.Path("/home/peter/catkin_ws/src/hdt_robot/hdt_michigan_description/urdf/hdt_michigan.urdf")
-    ik_solver = HdtIK(urdf_filename, max_iters=500)
+    scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
+    ik_solver = HdtIK(urdf_filename, scenario, max_iters=500)
 
     batch_size = 32
     viz = True
 
-    left_target_pose = tf.tile(target(-0.2, 0.3, 0.3, 0, -pi / 2, -pi / 2), [batch_size, 1])
-    right_target_pose = tf.tile(target(0.4, 0.6, 0.4, -pi / 2, -pi / 2, 0), [batch_size, 1])
-    env_points = tf.random.uniform([batch_size, 10, 3], -1, 1, dtype=tf.float32)
+    left_target_pose = tf.tile(target(-0.2, 0.3, 0.0, -pi, 0, 0), [batch_size, 1])
+    right_target_pose = tf.tile(target(0.3, 0.3, 0.0, 0, -pi, 0), [batch_size, 1])
+    o = tf.constant([[[0.25, 0.2, 0.2]]], tf.float32)
+    env_points = tf.random.uniform([batch_size, 100, 3], -0.1, 0.1, dtype=tf.float32) + o
 
     initial_value = tf.zeros([batch_size, ik_solver.get_num_joints()], dtype=tf.float32)
     q, converged = ik_solver.solve(env_points=env_points,
