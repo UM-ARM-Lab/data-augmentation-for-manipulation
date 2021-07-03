@@ -2,6 +2,7 @@ import pathlib
 import tempfile
 from typing import Optional, List, Dict, Union
 
+from halo import Halo
 import numpy as np
 from colorama import Fore
 from progressbar import progressbar
@@ -148,6 +149,7 @@ class ResultsToClassifierDataset:
         with (self.outdir / 'hparams.hjson').open('w') as dataset_hparams_file:
             my_hdump(dataset_hparams, dataset_hparams_file, indent=2)
 
+    @Halo("results to classifier dataset")
     def results_to_classifier_dataset(self):
         logfilename = self.outdir / 'logfile.hjson'
         job_chunker = JobChunker(logfilename)

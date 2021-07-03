@@ -132,7 +132,6 @@ class NewBaseDatasetLoader:
 
     def __init__(self, dataset_dirs: List[pathlib.Path],
                  scenario: Optional[ScenarioWithVisualization] = None):
-        assert len(dataset_dirs) == 1
         self.dataset_dirs = dataset_dirs
         self.hparams = merge_hparams_dicts(dataset_dirs)
         self.scenario = scenario
