@@ -411,10 +411,13 @@ def coerce_types(d: Dict):
             v = v.numpy()
             if isinstance(v, np.ndarray):
                 if v.dtype == np.float64:
-                    print("converting", k)
                     out_d[k] = v.astype(np.float32)
                 else:
                     out_d[k] = v
+            elif isinstance(v, np.float64):
+                out_d[k] = np.float32(v)
+            else:
+                out_d[k] = v
         elif isinstance(v, genpy.Message):
             out_d[k] = v
         elif isinstance(v, str):
@@ -445,6 +448,8 @@ def coerce_types(d: Dict):
                     out_d[k] = np.array(v, dtype=object)
                 else:
                     raise NotImplementedError()
+            else:
+                raise NotImplementedError()
         elif isinstance(v, dict):
             out_d[k] = coerce_types(v)
         else:
