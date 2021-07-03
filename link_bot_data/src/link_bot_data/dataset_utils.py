@@ -454,6 +454,7 @@ def coerce_types(d: Dict):
             out_d[k] = coerce_types(v)
         else:
             raise NotImplementedError(f"{k} {type(v)}")
+    assert len(out_d) == len(d)
     return out_d
 
 
