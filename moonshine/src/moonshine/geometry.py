@@ -57,7 +57,7 @@ def pairwise_squared_distances(a, b):
     """
     a_s = tf.reduce_sum(tf.square(a), axis=-1, keepdims=True)  # [b, ..., n, 1]
     b_s = tf.reduce_sum(tf.square(b), axis=-1, keepdims=True)  # [b, ..., m, 1]
-    dist = a_s - 2 * tf.matmul(a, b, transpose_b=True) + tf.transpose(b_s)  # [b, ..., n, m]
+    dist = a_s - 2 * tf.matmul(a, b, transpose_b=True) + tf.linalg.matrix_transpose(b_s)  # [b, ..., n, m]
     return dist
 
 

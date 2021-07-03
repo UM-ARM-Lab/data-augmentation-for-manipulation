@@ -1,10 +1,11 @@
 import pathlib
 from typing import Dict, Optional, List, Callable
 
-import genpy
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
+
+import genpy
 
 
 def check_numerics(x, msg: Optional[str] = "found infs or nans!"):
@@ -426,14 +427,14 @@ def debuggable_tf_function(func: Callable, debug: bool):
         return _non_debug_func
 
 
-def reduce_mean_no_nan(x):
+def reduce_mean_no_nan(x, axis=-1):
     """
 
     Args:
-        x: assumed to be 1-D
+        x: [b,n] or just [n]
 
     Returns:
         mean, or 0 if it's empty
 
     """
-    return tf.math.divide_no_nan(tf.reduce_sum(x), x.shape[0])
+    return tf.math.divide_no_nan(tf.reduce_sum(x, axis=axis), x.shape[axis])

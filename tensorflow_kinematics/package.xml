@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>tf_robot_learning</name>
+  <version>0.0.0</version>
+  <description>jupyter pycommon</description>
+
+  <maintainer email="pmitrano@umich.edu">pmitrano</maintainer>
+
+
+  <license>BSD</license>
+
+  <author >Peter Mitrano</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- TODO: properly list dependencies -->
+
+</package>
