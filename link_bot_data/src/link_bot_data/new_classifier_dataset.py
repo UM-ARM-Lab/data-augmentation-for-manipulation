@@ -34,39 +34,39 @@ class NewClassifierDataset(NewBaseDataset):
             post_process.append(self.add_time())
         super().__init__(loader, filenames, mode, post_process, n_prefetch)
 
-    def balance(self):
-        root = self.loader.dataset_dirs[0]
-        balance_filename = root / 'balanced.hjson'
-        if balance_filename.exists():
-            balance_info = load_hjson(balance_filename)
+    @halo.Halo("balancing")
+    def _balance(self):
+        metadata = [load_metadata(f) for f in self.filenames]
+        is_close = np.array([m['error'][1] < self.loader.threshold for m in metadata])
+        is_close_indices, = np.where(is_close)  # returns a tuple of length 1
+        is_far_indices, = np.where(np.logical_not(is_close))  # returns a tuple of length 1
+        positive_filenames = np.take(self.filenames, is_close_indices).tolist()
+        negative_filenames = np.take(self.filenames, is_far_indices).tolist()
+        if len(positive_filenames) < len(negative_filenames):
+            balanced_filenames = list(interleave(cycle(positive_filenames), negative_filenames))
         else:
-            balance_info = {}
+            balanced_filenames = list(interleave(positive_filenames, cycle(negative_filenames)))
+        return balanced_filenames
 
-        if self.mode in balance_info:
-            if str(self.loader.threshold) in balance_info[self.mode]:
-                balanced_filenames = [pathlib.Path(f) for f in balance_info[self.mode][str(self.loader.threshold)]]
-                return NewClassifierDataset(self.loader, balanced_filenames, self.mode, self._post_process)
-
-        @halo.Halo("balancing")
-        def _balance():
-            metadata = [load_metadata(f) for f in self.filenames]
-            is_close = np.array([m['error'][1] < self.loader.threshold for m in metadata])
-            is_close_indices, = np.where(is_close)  # returns a tuple of length 1
-            is_far_indices, = np.where(np.logical_not(is_close))  # returns a tuple of length 1
-            positive_filenames = np.take(self.filenames, is_close_indices).tolist()
-            negative_filenames = np.take(self.filenames, is_far_indices).tolist()
-            if len(positive_filenames) < len(negative_filenames):
-                balanced_filenames = list(interleave(cycle(positive_filenames), negative_filenames))
+    def balance(self):
+        all_balanced_filenames = []
+        for root in self.loader.dataset_dirs:
+            balance_filename = root / 'balanced.hjson'
+            if balance_filename.exists():
+                balance_info = load_hjson(balance_filename)
             else:
-                balanced_filenames = list(interleave(positive_filenames, cycle(negative_filenames)))
-            return balanced_filenames
+                balance_info = {}
 
-        balanced_filenames = _balance()
+            if self.mode in balance_info and str(self.loader.threshold) in balance_info[self.mode]:
+                balanced_filenames = [pathlib.Path(f) for f in balance_info[self.mode][str(self.loader.threshold)]]
+            else:
+                balanced_filenames = self._balance()
+                balance_info[self.mode] = {}
+                balance_info[self.mode][str(self.loader.threshold)] = [f.as_posix() for f in balanced_filenames]
+                with balance_filename.open("w") as bf:
+                    hjson.dump(balance_info, bf)
 
-        balance_info[self.mode] = {}
-        balance_info[self.mode][str(self.loader.threshold)] = [f.as_posix() for f in balanced_filenames]
-        with balance_filename.open("w") as bf:
-            hjson.dump(balance_info, bf)
+            all_balanced_filenames.extend(balanced_filenames)
 
         return NewClassifierDataset(self.loader, balanced_filenames, self.mode, self._post_process, self.n_prefetch)
 
