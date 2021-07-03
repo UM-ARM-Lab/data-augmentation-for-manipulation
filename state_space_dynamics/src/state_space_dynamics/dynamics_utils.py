@@ -1,4 +1,5 @@
 import pathlib
+from functools import lru_cache
 from typing import Optional
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -8,6 +9,7 @@ from state_space_dynamics.udnn_with_robot import UDNNEnsembleWithRobot
 from state_space_dynamics.unconstrained_dynamics_nn import UDNNWrapper
 
 
+@lru_cache
 def load_generic_model(model_dir: pathlib.Path, scenario: Optional[ExperimentScenario] = None):
     _, params = load_trial(model_dir.parent.absolute())
 
