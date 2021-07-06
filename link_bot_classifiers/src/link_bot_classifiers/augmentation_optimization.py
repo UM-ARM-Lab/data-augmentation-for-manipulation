@@ -408,8 +408,12 @@ class AugmentationOptimization:
                     attract_loss = min_dist * self.attract_loss_weight
                     repel_loss = self.barrier_func(min_dist)
 
-                    loss_per_point = attract_mask * attract_loss + (1 - attract_mask) * repel_loss
-                    loss = tf.reduce_mean(loss_per_point)
+                    attract_repel_loss_per_point = attract_mask * attract_loss + (1 - attract_mask) * repel_loss
+
+                    invariance_loss = self.invariance_model_wrapper.evaluate(obj_transforms)
+
+                    loss = tf.reduce_mean(attract_repel_loss_per_point, axis=-1) + invariance_loss
+                    loss = tf.reduce_mean(loss)
 
                     # min_dists = MinDists(min_attract_dist_b, min_repel_dist_b, min_robot_repel_dist_b)
                     # env_opt_debug_vars = EnvOptDebugVars(nearest_attract_env_points, nearest_repel_points,
