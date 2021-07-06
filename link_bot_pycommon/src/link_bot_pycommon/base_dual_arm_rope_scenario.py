@@ -18,7 +18,7 @@ from link_bot_pycommon.moveit_utils import make_joint_state
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import numpify, to_list_of_strings
-from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
+from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene, AllowedCollisionMatrix
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():
@@ -450,8 +450,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_position_aug = transform_points_3d(m[:, None], left_gripper_position)
         right_gripper_position_aug = transform_points_3d(m[:, None], right_gripper_position)
 
+        joint_names = inputs['joint_names'][0, 0].numpy().tolist()  # assumed constant across batch
+        joint_positions_seed = inputs[add_predicted('joint_positions')][:, 0].numpy().tolist()
+        _deserialize_scene_msg(inputs)
+        allowed_collision_matrix = inputs['scene_msg'][0].allowed_collision_matrix
         joint_positions_aug, reached = self.apply_augmentation_to_robot_state(batch_size,
-                                                                              inputs,
+                                                                              joint_positions_seed,
+                                                                              joint_names,
+                                                                              allowed_collision_matrix,
                                                                               left_gripper_points_aug,
                                                                               right_gripper_points_aug)
 
@@ -497,12 +503,16 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 stepper.step()
         return object_aug_valid, object_aug_update, local_origin_point_aug
 
-    def apply_augmentation_to_robot_state(self, batch_size, inputs, left_gripper_points_aug, right_gripper_points_aug):
+    def apply_augmentation_to_robot_state(self,
+                                          batch_size,
+                                          joint_positions_seed,
+                                          joint_names,
+                                          allowed_collision_matrix: AllowedCollisionMatrix,
+                                          left_gripper_points_aug,
+                                          right_gripper_points_aug):
         # use IK to get a new starting joint configuration
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
-        empty_scene_msgs = _deserialize_scene_msg(inputs)
-        for s in empty_scene_msgs:
-            s.world.collision_objects = []
+        empty_scene_msgs = [PlanningScene(allowed_collision_matrix=allowed_collision_matrix)] * batch_size.numpy()
         out_joint_positions_start = []
         out_joint_positions_end = []
         reached = []
@@ -510,8 +520,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         for b in range(batch_size):
             with tf.profiler.experimental.Trace("apply_to_robot_state_batch_loop", b=b):
                 # use the joint config pre-augmentation to seed IK for the augmented joint config
-                seed_joint_position_b = inputs[add_predicted('joint_positions')][b, 0].numpy().tolist()
-                joint_names = inputs['joint_names'][b, 0].numpy().tolist()
+                seed_joint_position_b = joint_positions_seed[b]
                 preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
 
                 left_gripper_aug_start_point = left_gripper_points_aug[b, 0, 0].numpy()

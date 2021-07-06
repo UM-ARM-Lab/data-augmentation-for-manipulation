@@ -11,7 +11,7 @@ from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
-from link_bot_data.dataset_utils import add_new, add_predicted
+from link_bot_data.dataset_utils import add_new, add_predicted, _deserialize_scene_msg
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg, \
@@ -93,7 +93,7 @@ class AugmentationOptimization:
         self.env_subsample = 0.25
         self.num_object_interp = 5  # must be >=2
         self.num_robot_interp = 3  # must be >=2
-        self.max_steps = 18
+        self.max_steps = 100
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
         self.step_size = 5.0
@@ -102,7 +102,9 @@ class AugmentationOptimization:
         self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.grad_clip = 0.25  # max dist step the env aug update can take
-        self.attract_loss_weight = 0.05
+        self.attract_loss_weight = 0.1
+        self.invariance_loss_weight = 0.0
+        print("FIXME INVARIANCE LOSS WEIGHT")
 
         # Precompute this for speed
         self.barrier_epsilon = 0.01
@@ -150,14 +152,27 @@ class AugmentationOptimization:
                                                                                                            batch_size,
                                                                                                            time)
         # TODO: solve IK and check collision
-        joint_positions_aug, is_ik_valid = solve_ik()
+        joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
-            'joint_positions': joint_positions_aug,
+            add_predicted('joint_positions'): joint_positions_aug,
+            'joint_names': inputs['joint_names'],
         })
 
         if debug_aug():
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
+                _aug_dict = {
+                    'env':          local_env_aug[b].numpy(),
+                    'origin_point': local_origin_point_aug[b].numpy(),
+                    'res':          res[b].numpy(),
+                }
+                msg = environment_to_vg_msg(_aug_dict, frame='local_env_aug_vg', stamp=rospy.Time(0))
+                self.debug.env_aug_pub5.publish(msg)
+                send_voxelgrid_tf_origin_point_res(self.broadcaster,
+                                                   local_origin_point_aug[b],
+                                                   res[b],
+                                                   frame='local_env_aug_vg')
+
                 self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug', color='blue')
                 self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug', color='blue')
                 self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
@@ -177,7 +192,6 @@ class AugmentationOptimization:
             inputs_aug[k] = iv * inputs_aug[k] + (1 - iv) * inputs[k]
 
         iv = tf.reshape(is_valid, [batch_size] + [1, 1, 1])
-        new_env_tiled = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
         local_env_aug = iv * local_env_aug + (1 - iv) * local_env
 
         iv = tf.reshape(is_valid, [batch_size] + [1])
@@ -409,7 +423,7 @@ class AugmentationOptimization:
 
                     attract_repel_loss_per_point = attract_mask * attract_loss + (1 - attract_mask) * repel_loss
 
-                    invariance_loss = self.invariance_model_wrapper.evaluate(obj_transforms)
+                    invariance_loss = self.invariance_loss_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
 
                     loss = tf.reduce_mean(attract_repel_loss_per_point, axis=-1) + invariance_loss
                     loss = tf.reduce_mean(loss)
@@ -455,8 +469,11 @@ class AugmentationOptimization:
             constraints_satisfied = attract_mask * attract_satisfied + (1 - attract_mask) * repel_satisfied
             constraints_satisfied = tf.reduce_all(tf.cast(constraints_satisfied, tf.bool), axis=-1)
 
-            grad_norm = tf.linalg.norm(gradients, axis=-1)
+            grad_norm = tf.linalg.norm(gradients[0], axis=-1)
             step_size_i = grad_norm * self.step_size
+            if debug_aug_sgd():
+                if b in debug_viz_batch_indices(batch_size):
+                    print(step_size_i[b].numpy(), self.step_size_threshold, constraints_satisfied[b].numpy())
             can_terminate = self.can_terminate(constraints_satisfied, step_size_i)
             can_terminate = tf.reduce_all(can_terminate)
             if can_terminate:
@@ -824,3 +841,27 @@ class AugmentationOptimization:
         local_env, local_origin_point = self.local_env_helper.get(local_env_center, environment, batch_size)
 
         return local_env, local_origin_point
+
+    def solve_ik(self, inputs, inputs_aug, new_env, batch_size):
+        left_gripper_points_aug = inputs_aug[add_predicted('left_gripper')][:, :, None]
+        right_gripper_points_aug = inputs_aug[add_predicted('right_gripper')][:, :, None]
+        joint_positions_seed = inputs[add_predicted('joint_positions')][:, 0].numpy().tolist()
+        # TODO: call ik fast here instead of using the jacobian follower
+        joint_names = inputs['joint_names'][0, 0].numpy().tolist()
+        allowed_collision_matrix = _deserialize_scene_msg(inputs)[0].allowed_collision_matrix
+        joint_positions_aug, reached = self.scenario.apply_augmentation_to_robot_state(batch_size,
+                                                                                       joint_positions_seed,
+                                                                                       joint_names,
+                                                                                       allowed_collision_matrix,
+                                                                                       left_gripper_points_aug,
+                                                                                       right_gripper_points_aug,
+                                                                                       )
+        reached = tf.cast(reached, tf.float32)
+        # check if the min dist between any robot points and any env point is above a threshold
+        # robot_points =
+        # env_points =
+        # min_dist = pairwise_squared_distances(robot_points, env_points)
+        # not_in_collision = min_dist > tf.square(new_env['res'][0])
+        # is_ik_valid = not_in_collision * reached
+        is_ik_valid = reached
+        return joint_positions_aug, is_ik_valid
