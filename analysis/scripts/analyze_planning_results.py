@@ -29,6 +29,7 @@ def metrics_main(args):
 
     results_dirs = get_all_results_subdirs(args.results_dirs)
     df = load_planning_results(results_dirs, regenerate=args.regenerate)
+    df.to_csv("/media/shared/analysis/all_results.csv")
 
     # Figures & Tables
     # figspecs = load_fig_specs(analysis_params, args.figures_config)

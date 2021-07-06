@@ -460,3 +460,9 @@ def has_keys(d: Dict, keys: List[str], noop_val=False):
         return d[keys[0]]
     else:
         return has_keys(d[keys[0]], keys[1:], noop_val=noop_val)
+
+
+def unordered_pairs(x):
+    for i in range(len(x) - 1):
+        for j in range(i + 1, len(x)):
+            yield x[i], x[j]
