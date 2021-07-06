@@ -39,7 +39,7 @@ class GazeboServices(BaseServices):
             model_name, link_name = name.split('::')
             if excluded_models is not None and model_name not in excluded_models:
                 link_state = gz_msg.LinkState()
-                # name here is moel_name::link_name, what gazebo calls "scoped"
+                # name here is model_name::link_name, what gazebo calls "scoped"
                 link_state.link_name = name
                 link_state.pose = pose
                 link_state.twist = twist
