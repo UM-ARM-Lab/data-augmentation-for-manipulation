@@ -7,7 +7,7 @@ from colorama import Back, Fore
 
 class TFProfilerHelper:
 
-    def __init__(self, profile_arg: Tuple[int], train_logdir: str):
+    def __init__(self, profile_arg: Tuple, train_logdir: str):
         self.train_logdir = train_logdir
         if profile_arg is None:
             self.start_batch = sys.maxsize

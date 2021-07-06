@@ -1,6 +1,7 @@
 import logging
 import pathlib
 from math import pi
+from typing import Optional
 
 import tensorflow as tf
 from tensorflow_graphics.geometry.transformation import rotation_matrix_3d as tfr
@@ -16,6 +17,7 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from moonshine.geometry import pairwise_squared_distances
 from moonshine.moonshine_utils import reduce_mean_no_nan
 from moonshine.simple_profiler import SimpleProfiler
+from moonshine.tf_profiler_helper import TFProfilerHelper
 from moveit_msgs.msg import DisplayRobotState
 from sensor_msgs.msg import JointState
 from tensorflow_kinematics.joint import SUPPORTED_ACTUATED_JOINT_TYPES
@@ -180,7 +182,7 @@ def min_dists_and_indices(m):
 class HdtIK:
 
     def __init__(self, urdf_filename: pathlib.Path, scenario: ScenarioWithVisualization, max_iters: int = 5000):
-        self.avoid_env_collision = False
+        self.avoid_env_collision = True
         self.avoid_self_collision = False
         self.urdf = urdf_from_file(urdf_filename.as_posix())
         self.scenario = scenario
@@ -199,6 +201,7 @@ class HdtIK:
         self.theta = 0.992
         self.jl_alpha = 0.1
         self.self_collision_alpha = 10.0
+        self.collision_alpha = 50.0
         self.loss_threshold = 1e-4
         self.barrier_upper_lim = tf.square(0.04)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
@@ -218,7 +221,13 @@ class HdtIK:
 
         self.p = SimpleProfiler()
 
-    def solve(self, env_points, left_target_pose, right_target_pose, initial_value=None, viz=False):
+    def solve(self,
+              env_points,
+              left_target_pose,
+              right_target_pose,
+              initial_value=None,
+              viz=False,
+              profiler_helper: Optional[TFProfilerHelper] = None):
         batch_size = left_target_pose.shape[0]
 
         if initial_value is None:
@@ -227,8 +236,11 @@ class HdtIK:
 
         converged = False
         for iter in trange(self.max_iters):
+
+            p = profiler_helper.start(batch_idx=iter, epoch=1)
             with tf.profiler.experimental.Trace('TraceContext', iter=iter):
                 loss, gradients = self.opt(q, env_points, left_target_pose, right_target_pose, batch_size, viz=viz)
+            p.stop()
             if loss < self.loss_threshold:
                 converged = True
                 break
@@ -255,7 +267,6 @@ class HdtIK:
     @tf.function
     def step(self, q, env_points, left_target_pose, right_target_pose, batch_size, viz: bool):
         poses = self.tree.fk_no_recursion(q)
-        # poses = self.tree.fk(q)
         jl_loss = self.compute_jl_loss(self.tree, q)
         left_ee_pose = poses[self.left_ee_name]
         right_ee_pose = poses[self.right_ee_name]
@@ -329,14 +340,13 @@ class HdtIK:
 
         # compute the distance matrix between robot points and the environment points
         dists = pairwise_squared_distances(env_points, robot_points)
-        # FIXME: add visualization
         min_dists_indices = tf.argmin(dists, axis=-1)
-        min_dist_robot_points = tf.gather(robot_points, min_dists_indices, axis=-1)
+        nearest_points = tf.gather(robot_points, min_dists_indices, axis=1, batch_dims=1)
         min_dists = tf.reduce_min(dists, axis=-1)
 
-        viz_info = [min_dists_indices]
+        viz_info = [nearest_points, min_dists]
 
-        return reduce_mean_no_nan(self.barrier_func(min_dists), axis=-1), viz_info
+        return self.collision_alpha * reduce_mean_no_nan(self.barrier_func(min_dists), axis=-1), viz_info
 
     def reformat_link_transforms(self, poses):
         link_to_robot_transforms = []
@@ -361,15 +371,27 @@ class HdtIK:
         return pose_loss
 
     def viz_func(self, env_points, left_target_pose, right_target_pose, q, viz_info):
-        poses, (self_nearest_points, min_dists), _ = viz_info
+        poses, (self_nearest_points, self_min_dists), (nearest_points, min_dists) = viz_info
         b = 0
+
+        if self.avoid_env_collision:
+            p_b = []
+            starts = []
+            ends = []
+            for env_point_i, nearest_point_i, min_d in zip(env_points[b], nearest_points[b], min_dists[b]):
+                if min_d.numpy() < tf.square(self.barrier_upper_lim):
+                    p_b.append(env_point_i[b].numpy())
+                    p_b.append(nearest_point_i.numpy())
+                    starts.append(env_point_i.numpy())
+                    ends.append(nearest_point_i.numpy())
+            self.scenario.plot_lines_rviz(starts, ends, label='nearest', color='red')
 
         if self.avoid_self_collision:
             p_b = []
             starts = []
             ends = []
-            for self_nearest_points_i, min_d in zip(self_nearest_points[b], min_dists[b]):
-                if min_d.numpy() < tf.square(0.02):
+            for self_nearest_points_i, min_d in zip(self_nearest_points[b], self_min_dists[b]):
+                if min_d.numpy() < tf.square(self.barrier_upper_lim):
                     p_b.append(self_nearest_points_i[0].numpy())
                     p_b.append(self_nearest_points_i[1].numpy())
                     starts.append(self_nearest_points_i[0].numpy())
@@ -395,7 +417,7 @@ class HdtIK:
         self.joint_states_viz_pub.publish(robot.state.joint_state)
 
         points = [pose.numpy()[b, :3] for pose in poses.values()]
-        self.scenario.plot_points_rviz(points, label='fk', color='b')
+        self.scenario.plot_points_rviz(points, label='fk', color='b', scale=0.005)
 
         self.scenario.plot_points_rviz(env_points[b].numpy(), label='env', color='magenta')
 
@@ -417,31 +439,29 @@ def main():
 
     urdf_filename = pathlib.Path("/home/peter/catkin_ws/src/hdt_robot/hdt_michigan_description/urdf/hdt_michigan.urdf")
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
-    ik_solver = HdtIK(urdf_filename, scenario, max_iters=200)
+    ik_solver = HdtIK(urdf_filename, scenario, max_iters=30)
 
     batch_size = 32
     viz = False
 
-    left_target_pose = tf.tile(target(0.1, 0.4, 0.2, -pi / 2, 0, 0), [batch_size, 1])
-    right_target_pose = tf.tile(target(-0.1, 0.4, 0.22, -pi / 2, -pi, 0), [batch_size, 1])
+    left_target_pose = tf.tile(target(-0.2, 0.55, 0.2, -pi / 2, 0, 0), [batch_size, 1])
+    right_target_pose = tf.tile(target(0.2, 0.55, 0.22, -pi / 2 + 0.5, -pi, 0), [batch_size, 1])
     # right_target_pose = tf.tile(target(0.0, 0.0, 0.0, 0, -pi, 0), [batch_size, 1])
     o = tf.constant([[[0.25, 0.2, 0.2]]], tf.float32)
     env_points = tf.random.uniform([batch_size, 100, 3], -0.1, 0.1, dtype=tf.float32) + o
 
-    initial_value = tf.zeros([batch_size, ik_solver.get_num_joints()], dtype=tf.float32)
+    gen = tf.random.Generator.from_seed(0)
+    initial_noise = gen.uniform([batch_size, ik_solver.get_num_joints()], -1, 1, dtype=tf.float32) * 0.1
+    initial_value = tf.zeros([batch_size, ik_solver.get_num_joints()], dtype=tf.float32) + initial_noise
 
-    options = tf.profiler.experimental.ProfilerOptions(python_tracer_level=1)
     logdir = "ik_demo_logdir"
-    # tf.profiler.experimental.start(logdir, options)
-    from time import perf_counter
-    t0 = perf_counter()
+    h = TFProfilerHelper(profile_arg=(1, 29), train_logdir=logdir)
     q, converged = ik_solver.solve(env_points=env_points,
                                    left_target_pose=left_target_pose,
                                    right_target_pose=right_target_pose,
                                    viz=viz,
-                                   initial_value=initial_value)
-    print(perf_counter() - t0)
-    # tf.profiler.experimental.stop()
+                                   initial_value=initial_value,
+                                   profiler_helper=h)
 
     ik_solver.get_joint_names()
     print(f'{converged=}')
