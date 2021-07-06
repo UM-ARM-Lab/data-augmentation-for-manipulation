@@ -10,11 +10,11 @@ import rospy
 import urdf_parser_py.xml_reflection.core
 from arc_utilities.ros_helpers import get_connected_publisher
 from arc_utilities.tf2wrapper import TF2Wrapper
-from link_bot_classifiers.robot_points import RobotVoxelgridInfo
+from link_bot_classifiers.robot_points import RobotVoxelgridInfo, batch_transform_robot_points
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.geometry import pairwise_squared_distances
-from moonshine.moonshine_utils import repeat_tensor, reduce_mean_no_nan
+from moonshine.moonshine_utils import reduce_mean_no_nan
 from moonshine.simple_profiler import SimpleProfiler
 from moveit_msgs.msg import DisplayRobotState
 from sensor_msgs.msg import JointState
@@ -22,6 +22,60 @@ from tensorflow_kinematics.joint import SUPPORTED_ACTUATED_JOINT_TYPES
 from tensorflow_kinematics.tree import Tree
 from tensorflow_kinematics.urdf_utils import urdf_from_file, urdf_to_tree
 from tf.transformations import quaternion_from_euler
+
+IGNORE_COLLISIONS = [
+    {"drive1", "drive2"},
+    {"drive1", "torso"},
+    {"drive2", "rightshoulder"},
+    {"drive3", "rightshoulder"},
+    {"drive3", "righttube"},
+    {"drive4", "rightforearm"},
+    {"drive4", "righttube"},
+    {"drive41", "drive42"},
+    {"drive41", "torso"},
+    {"drive42", "leftshoulder"},
+    {"drive43", "leftshoulder"},
+    {"drive43", "lefttube"},
+    {"drive44", "leftforearm"},
+    {"drive44", "lefttube"},
+    {"drive45", "drive46"},
+    {"drive45", "leftforearm"},
+    {"drive46", "leftwrist"},
+    {"drive47", "end_effector_left"},
+    {"drive47", "leftwrist"},
+    {"drive5", "drive6"},
+    {"drive5", "rightforearm"},
+    {"drive56", "drive57"},
+    {"drive56", "pedestal_link"},
+    {"drive57", "torso"},
+    {"drive6", "rightwrist"},
+    {"drive7", "end_effector_right"},
+    {"drive7", "rightwrist"},
+    {"end_effector_left", "leftgripper_link"},
+    {"end_effector_left", "leftgripper2_link"},
+    {"end_effector_right", "rightgripper_link"},
+    {"end_effector_right", "rightgripper2_link"},
+    {"drive56", "torso"},
+    {"drive57", "pedestal_link"},
+    {"drive42", "torso"},
+    {"drive2", "torso"},
+    {"rightgripper2_link", "rightgripper_link"},
+    {"leftgripper2_link", "leftgripper_link"},
+    {"drive41", "drive43"},
+    {"drive1", "drive3"},
+    {"drive42", "drive43"},
+    {"drive2", "drive3"},
+    {"drive6", "drive7"},
+    {"drive46", "drive47"},
+    {"pedestal_link", "husky"},
+    {"drive56", "husky"},
+    {"drive57", "husky"},
+    {"rightforearm", "righttube"},
+    {"leftforearm", "lefttube"},
+    {"realsense", "torso"},
+    {"realsense", "drive41"},
+    {"realsense", "drive1"},
+]
 
 
 def orientation_error_quat(q1, q2):
@@ -91,9 +145,43 @@ def xm_to_44(xm):
     return m44
 
 
+def add_homo_batch(points):
+    """
+
+    Args:
+        points: [n, 3]
+
+    Returns: [1, n, 4, 1]
+
+    """
+    ones = tf.ones([points.shape[0], 1], dtype=tf.float32)
+    points_homo = tf.concat([points, ones], axis=-1)
+    points_homo_batch = points_homo[None, :, :, None]
+    return points_homo_batch
+
+
+def min_dists_and_indices(m):
+    """
+
+    Args:
+        m:  [b,r,c]
+
+    Returns: [b], [b], [b]
+
+    """
+    min_c_indices = tf.argmin(m, axis=-1)  # [b,r]
+    min_along_c = tf.reduce_min(m, axis=-1)  # [b,r]
+    min_r_indices = tf.argmin(min_along_c, axis=-1)  # [b]
+    min_along_cr = tf.reduce_min(min_along_c, axis=-1)  # [b]
+    min_c_indices = tf.gather(min_c_indices, min_r_indices, axis=-1, batch_dims=1)
+    return min_along_cr, min_r_indices, min_c_indices
+
+
 class HdtIK:
 
     def __init__(self, urdf_filename: pathlib.Path, scenario: ScenarioWithVisualization, max_iters: int = 5000):
+        self.avoid_env_collision = False
+        self.avoid_self_collision = False
         self.urdf = urdf_from_file(urdf_filename.as_posix())
         self.scenario = scenario
 
@@ -110,11 +198,14 @@ class HdtIK:
         self.initial_lr = 0.05
         self.theta = 0.992
         self.jl_alpha = 0.1
+        self.self_collision_alpha = 10.0
         self.loss_threshold = 1e-4
-        self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
+        self.barrier_upper_lim = tf.square(0.04)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.barrier_epsilon = 0.01
         self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
+
+        self.robot_info.precompute_allowed_collidable_pairs(IGNORE_COLLISIONS)
 
         lr = tf.keras.optimizers.schedules.ExponentialDecay(self.initial_lr, int(self.max_iters / 10), 0.9)
         # lr = self.initial_lr
@@ -128,37 +219,42 @@ class HdtIK:
         self.p = SimpleProfiler()
 
     def solve(self, env_points, left_target_pose, right_target_pose, initial_value=None, viz=False):
+        batch_size = left_target_pose.shape[0]
+
         if initial_value is None:
-            batch_size = left_target_pose.shape[0]
             initial_value = tf.zeros([batch_size, self.get_num_joints()], dtype=tf.float32)
         q = tf.Variable(initial_value)
 
         converged = False
-        for _ in trange(self.max_iters):
-            loss, gradients, viz_info = self.opt(q, env_points, left_target_pose, right_target_pose)
+        for iter in trange(self.max_iters):
+            with tf.profiler.experimental.Trace('TraceContext', iter=iter):
+                loss, gradients = self.opt(q, env_points, left_target_pose, right_target_pose, batch_size, viz=viz)
             if loss < self.loss_threshold:
                 converged = True
                 break
-
-            if viz:
-                self.viz_func(env_points, left_target_pose, right_target_pose, q, viz_info)
 
         return q, converged
 
     def print_stats(self):
         print(self.p)
 
-    def opt(self, q, env_points, left_target_pose, right_target_pose):
+    def opt(self, q, env_points, left_target_pose, right_target_pose, batch_size, viz: bool):
         with tf.GradientTape() as tape:
             self.p.start()
-            loss, viz_info = self.step(q, env_points, left_target_pose, right_target_pose)
+            loss, viz_info = self.step(q, env_points, left_target_pose, right_target_pose, batch_size, viz)
             self.p.stop()
         gradients = tape.gradient([loss], [q])
+
+        if viz:
+            self.viz_func(env_points, left_target_pose, right_target_pose, q, viz_info)
+
         self.optimizer.apply_gradients(grads_and_vars=zip(gradients, [q]))
-        return loss, gradients, viz_info
+
+        return loss, gradients
 
     @tf.function
-    def step(self, q, env_points, left_target_pose, right_target_pose):
+    def step(self, q, env_points, left_target_pose, right_target_pose, batch_size, viz: bool):
+        # poses = self.tree.fk_no_recursion(q)
         poses = self.tree.fk(q)
         jl_loss = self.compute_jl_loss(self.tree, q)
         left_ee_pose = poses[self.left_ee_name]
@@ -166,47 +262,90 @@ class HdtIK:
         left_pose_loss = self.compute_pose_loss(left_ee_pose, left_target_pose)
         right_pose_loss = self.compute_pose_loss(right_ee_pose, right_target_pose)
 
-        self_collision_loss, collision_viz_info = self.compute_collision_loss(poses, env_points)
-        # collision_loss, collision_viz_info = self.compute_collision_loss(poses, env_points)
-
         losses = [
             left_pose_loss,
             right_pose_loss,
             jl_loss,
-            # collision_loss,
         ]
+
+        if self.avoid_self_collision:
+            self_collision_loss, self_collision_viz_info = self.compute_self_collision_loss(poses, batch_size, viz)
+            losses.append(self_collision_loss)
+        else:
+            self_collision_viz_info = [None, None]
+
+        if self.avoid_env_collision:
+            collision_loss, collision_viz_info = self.compute_collision_loss(poses, env_points, batch_size)
+            losses.append(collision_loss)
+        else:
+            collision_viz_info = [None, None]
+
         loss = tf.reduce_mean(tf.math.add_n(losses))
 
-        viz_info = [poses]
-        # viz_info.extend(collision_viz_info)
+        viz_info = [
+            poses,
+            self_collision_viz_info,
+            collision_viz_info
+        ]
 
         return loss, viz_info
 
-    def compute_collision_loss(self, poses, env_points):
-        # compute robot points given q
+    def compute_self_collision_loss(self, poses, batch_size: int, viz: bool):
+        nearest_points = []
+        min_dists = []
+        for (name1, l1), (name2, l2) in self.robot_info.allowed_collidable_pairs():
+            # l1,l2 are in link frame, we need them in robot frame
+            l1_robot_frame = self.link_points_robot_frame(poses, name1, l1)
+            l2_robot_frame = self.link_points_robot_frame(poses, name2, l2)
+
+            dists = pairwise_squared_distances(l1_robot_frame, l2_robot_frame)
+            min_dist, l1_indices, l2_indices = min_dists_and_indices(dists)
+
+            min_dists.append(min_dist)
+
+            if viz:
+                l1_nearest_point = tf.gather(l1_robot_frame, l1_indices, axis=1, batch_dims=1)
+                l2_nearest_point = tf.gather(l2_robot_frame, l2_indices, axis=1, batch_dims=1)
+                nearest_points.append((l1_nearest_point, l2_nearest_point))
+
+        min_dists = tf.stack(min_dists, axis=1)
+        if tf.size(nearest_points) > 0:
+            nearest_points = tf.stack(nearest_points, axis=0)
+            nearest_points = tf.transpose(nearest_points, [2, 0, 1, 3])
+        viz_info = [nearest_points, min_dists]
+
+        loss = self.self_collision_alpha * reduce_mean_no_nan(self.barrier_func(min_dists), axis=-1)
+        return loss, viz_info
+
+    def link_points_robot_frame(self, poses, name: str, link_points_link_frame):
+        homo_batch = add_homo_batch(link_points_link_frame)
+        transform = xm_to_44(poses[name])[:, None]
+        robot_frame = tf.matmul(transform, homo_batch)[:, :, :3, 0]
+        return robot_frame
+
+    def compute_collision_loss(self, poses, env_points, batch_size):
+        link_transforms = self.reformat_link_transforms(poses)
+        robot_points = batch_transform_robot_points(link_transforms, self.robot_info, batch_size)
+
+        # compute the distance matrix between robot points and the environment points
+        dists = pairwise_squared_distances(env_points, robot_points)
+        # FIXME: add visualization
+        min_dists_indices = tf.argmin(dists, axis=-1)
+        min_dist_robot_points = tf.gather(robot_points, min_dists_indices, axis=-1)
+        min_dists = tf.reduce_min(dists, axis=-1)
+
+        viz_info = [min_dists_indices]
+
+        return reduce_mean_no_nan(self.barrier_func(min_dists), axis=-1), viz_info
+
+    def reformat_link_transforms(self, poses):
         link_to_robot_transforms = []
         for link_name in self.robot_info.link_names:
             link_to_robot_transform = xm_to_44(poses[link_name])
             link_to_robot_transforms.append(link_to_robot_transform)
         # [b, n_links, 4, 4, 1], links/order based on robot_info
         link_to_robot_transforms = tf.stack(link_to_robot_transforms, axis=1)
-        links_to_robot_transform_batch = tf.repeat(link_to_robot_transforms, self.robot_info.points_per_links,
-                                                   axis=1)
-        batch_size = env_points.shape[0]
-        points_link_frame_homo_batch = repeat_tensor(self.robot_info.points_link_frame, batch_size, 0, True)
-        points_robot_frame_homo_batch = tf.matmul(links_to_robot_transform_batch, points_link_frame_homo_batch)
-        points_robot_frame_batch = points_robot_frame_homo_batch[:, :, :3, 0]  # [b, n_env_points, n_robot_points]
-
-        # compute the distance matrix between robot points and the environment points
-        dists = pairwise_squared_distances(env_points, points_robot_frame_batch)
-        # FIXME: add visualization
-        min_dists_indices = tf.argmin(dists, axis=-1)
-        min_dist_robot_points = tf.gather(points_robot_frame_batch, min_dists_indices, axis=-1)
-        min_dists = tf.reduce_min(dists, axis=-1)
-
-        viz_info = [min_dists_indices]
-
-        return reduce_mean_no_nan(self.barrier_func(min_dists), axis=-1), viz_info
+        return link_to_robot_transforms
 
     def barrier_func(self, min_dists_b):
         z = tf.math.log(self.barrier_scale * min_dists_b + self.barrier_epsilon)
@@ -222,8 +361,21 @@ class HdtIK:
         return pose_loss
 
     def viz_func(self, env_points, left_target_pose, right_target_pose, q, viz_info):
-        poses, = viz_info
+        poses, (self_nearest_points, min_dists), _ = viz_info
         b = 0
+
+        if self.avoid_self_collision:
+            p_b = []
+            starts = []
+            ends = []
+            for self_nearest_points_i, min_d in zip(self_nearest_points[b], min_dists[b]):
+                if min_d.numpy() < tf.square(0.02):
+                    p_b.append(self_nearest_points_i[0].numpy())
+                    p_b.append(self_nearest_points_i[1].numpy())
+                    starts.append(self_nearest_points_i[0].numpy())
+                    ends.append(self_nearest_points_i[1].numpy())
+            self.scenario.plot_lines_rviz(starts, ends, label='self_nearest', color='white')
+
         self.tf2.send_transform(left_target_pose[b, :3].numpy().tolist(),
                                 left_target_pose[b, 3:].numpy().tolist(),
                                 parent='world', child='left_target')
@@ -265,22 +417,29 @@ def main():
 
     urdf_filename = pathlib.Path("/home/peter/catkin_ws/src/hdt_robot/hdt_michigan_description/urdf/hdt_michigan.urdf")
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
-    ik_solver = HdtIK(urdf_filename, scenario, max_iters=500)
+    ik_solver = HdtIK(urdf_filename, scenario, max_iters=200)
 
     batch_size = 32
-    viz = True
+    viz = False
 
-    left_target_pose = tf.tile(target(-0.2, 0.3, 0.0, -pi, 0, 0), [batch_size, 1])
-    right_target_pose = tf.tile(target(0.3, 0.3, 0.0, 0, -pi, 0), [batch_size, 1])
+    left_target_pose = tf.tile(target(0.1, 0.4, 0.2, -pi / 2, 0, 0), [batch_size, 1])
+    right_target_pose = tf.tile(target(-0.1, 0.4, 0.22, -pi / 2, -pi, 0), [batch_size, 1])
+    # right_target_pose = tf.tile(target(0.0, 0.0, 0.0, 0, -pi, 0), [batch_size, 1])
     o = tf.constant([[[0.25, 0.2, 0.2]]], tf.float32)
     env_points = tf.random.uniform([batch_size, 100, 3], -0.1, 0.1, dtype=tf.float32) + o
 
     initial_value = tf.zeros([batch_size, ik_solver.get_num_joints()], dtype=tf.float32)
+
+    options = tf.profiler.experimental.ProfilerOptions(python_tracer_level=1)
+    logdir = "ik_demo_logdir"
+    # tf.profiler.experimental.start(logdir, options)
     q, converged = ik_solver.solve(env_points=env_points,
                                    left_target_pose=left_target_pose,
                                    right_target_pose=right_target_pose,
                                    viz=viz,
                                    initial_value=initial_value)
+    # tf.profiler.experimental.stop()
+
     ik_solver.get_joint_names()
     print(f'{converged=}')
     ik_solver.print_stats()

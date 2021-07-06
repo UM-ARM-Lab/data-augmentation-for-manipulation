@@ -4,7 +4,8 @@ from typing import List, Dict
 import pyjacobian_follower
 import tensorflow as tf
 
-from link_bot_classifiers.robot_points import batch_transform_robot_points, RobotVoxelgridInfo
+from link_bot_classifiers.robot_points import batch_transform_robot_points, RobotVoxelgridInfo, \
+    batch_robot_state_to_transforms
 from link_bot_pycommon.pycommon import densify_points
 from moonshine.moonshine_utils import numpify
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
@@ -102,9 +103,9 @@ class VoxelgridInfo:
     def make_robot_points_batched(self, batch_size, inputs, t):
         names = inputs['joint_names'][:, t]
         positions = inputs[self.robot_info.joint_positions_key][:, t]
-        robot_points = batch_transform_robot_points(self.jacobian_follower,
-                                                    numpify(names),
-                                                    positions.numpy(),
-                                                    self.robot_info,
-                                                    batch_size)
+        link_to_robot_transforms = batch_robot_state_to_transforms(self.jacobian_follower,
+                                                                   numpify(names),
+                                                                   positions.numpy(),
+                                                                   self.robot_info.link_names)
+        robot_points = batch_transform_robot_points(link_to_robot_transforms, self.robot_info, batch_size)
         return robot_points

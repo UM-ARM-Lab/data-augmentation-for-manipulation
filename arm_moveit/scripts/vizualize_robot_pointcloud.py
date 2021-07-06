@@ -9,7 +9,8 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from arc_utilities.listener import Listener
-from link_bot_classifiers.robot_points import setup_robot_points, batch_transform_robot_points
+from link_bot_classifiers.robot_points import batch_transform_robot_points, batch_robot_state_to_transforms, \
+    RobotVoxelgridInfo
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import repeat_tensor, numpify
 from moonshine.simple_profiler import SimpleProfiler
@@ -37,6 +38,7 @@ def test_batched_perf():
     parser.add_argument('robot_points', type=pathlib.Path, help='a pkl file')
     args = parser.parse_args()
 
+    robot_info = RobotVoxelgridInfo('joint_positions')
     jacobian_follower = pyjacobian_follower.JacobianFollower('hdt_michigan', 0.001, True, True, False)
 
     with args.robot_points.open("rb") as file:
@@ -71,18 +73,14 @@ def test_batched_perf():
     ]
 
     batch_size = 24
-    points_per_links, points_link_frame_homo_batch = setup_robot_points(batch_size, points, link_names)
+    # points_per_links, points_link_frame_homo_batch = setup_robot_points(points, link_names)
 
     positions = tf.random.normal([batch_size, 20])
     names = [names] * batch_size
 
     def _transform_robot_points():
-        return batch_transform_robot_points(jacobian_follower,
-                                            names,
-                                            positions,
-                                            points_per_links,
-                                            points_link_frame_homo_batch,
-                                            link_names)
+        link_to_robot_transforms = batch_robot_state_to_transforms(jacobian_follower, names, positions, link_names)
+        return batch_transform_robot_points(link_to_robot_transforms, robot_info, batch_size)
 
     points_robot_frame_batch = _transform_robot_points()
     points_robot_frame_b = points_robot_frame_batch[0]
@@ -173,8 +171,8 @@ def main():
     3) load the moveit config, run joint_state_publisher_gui, run robot_state_publisher
     """
     # viz_with_live_tf()
-    # viz_with_internal_tf()
-    test_batched_perf()
+    viz_with_internal_tf()
+    # test_batched_perf()
     # test_matmul_perf()
 
 
