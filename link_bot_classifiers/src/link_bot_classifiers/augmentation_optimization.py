@@ -438,7 +438,7 @@ class AugmentationOptimization:
 
                     self.scenario.plot_lines_rviz(nearest_attract_env_points, attract_points_aug,
                                                   label='attract_correspondence', color='g')
-                    self.scenario.plot_lines_rviz(nearest_repel_env_points, repel_points,
+                    self.scenario.plot_lines_rviz(nearest_repel_env_points, repel_points_aug,
                                                   label='repel_correspondence', color='r')
                     # stepper.step()
 
