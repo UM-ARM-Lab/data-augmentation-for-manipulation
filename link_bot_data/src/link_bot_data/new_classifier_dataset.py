@@ -42,6 +42,12 @@ class NewClassifierDataset(NewBaseDataset):
         is_far_indices, = np.where(np.logical_not(is_close))  # returns a tuple of length 1
         positive_filenames = np.take(self.filenames, is_close_indices).tolist()
         negative_filenames = np.take(self.filenames, is_far_indices).tolist()
+        if len(positive_filenames) == 0:
+            print("No positive examples! Not balancing")
+            return negative_filenames
+        if len(negative_filenames) == 0:
+            print("No negative examples! Not balancing")
+            return positive_filenames
         if len(positive_filenames) < len(negative_filenames):
             balanced_filenames = list(interleave(cycle(positive_filenames), negative_filenames))
         else:

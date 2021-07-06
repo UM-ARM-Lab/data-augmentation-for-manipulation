@@ -66,4 +66,4 @@ def guess_dataset_format(dataset_dir: pathlib.Path):
                         return 'tfrecord'
                     elif 'pkl' in sub_e.as_posix():
                         return 'pkl'
-    raise NotImplementedError()
+    return 'pkl'
