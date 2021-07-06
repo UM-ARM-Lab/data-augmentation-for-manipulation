@@ -286,7 +286,7 @@ class HdtIK:
             self_collision_viz_info = [None, None]
 
         if self.avoid_env_collision:
-            collision_loss, collision_viz_info = self.compute_collision_loss(poses, env_points, batch_size)
+            collision_loss, collision_viz_info = self.compute_collision_loss(poses, env_points, batch_size, viz)
             losses.append(collision_loss)
         else:
             collision_viz_info = [None, None]
@@ -334,15 +334,18 @@ class HdtIK:
         robot_frame = tf.matmul(transform, homo_batch)[:, :, :3, 0]
         return robot_frame
 
-    def compute_collision_loss(self, poses, env_points, batch_size):
+    def compute_collision_loss(self, poses, env_points, batch_size, viz):
         link_transforms = self.reformat_link_transforms(poses)
         robot_points = batch_transform_robot_points(link_transforms, self.robot_info, batch_size)
 
         # compute the distance matrix between robot points and the environment points
         dists = pairwise_squared_distances(env_points, robot_points)
-        min_dists_indices = tf.argmin(dists, axis=-1)
-        nearest_points = tf.gather(robot_points, min_dists_indices, axis=1, batch_dims=1)
         min_dists = tf.reduce_min(dists, axis=-1)
+        if viz:
+            min_dists_indices = tf.argmin(dists, axis=-1)
+            nearest_points = tf.gather(robot_points, min_dists_indices, axis=1, batch_dims=1)
+        else:
+            nearest_points = None
 
         viz_info = [nearest_points, min_dists]
 
