@@ -94,7 +94,7 @@ class SizedTFDataset:
         positive_dataset = positive_dataset.repeat()
 
         datasets = [positive_dataset, negative_dataset]
-        balanced_dataset = tf.data.experimental.sample_from_datasets(datasets=datasets, weights=[0.5, 0.5])
+        balanced_dataset = tf.data.experimental.sample_from_datasets(datasets=datasets, weights=[0.5, 0.5], seed=0)
         balanced_dataset = balanced_dataset.take(new_dataset_size)
         return SizedTFDataset(balanced_dataset, records=[], size=new_dataset_size)
 

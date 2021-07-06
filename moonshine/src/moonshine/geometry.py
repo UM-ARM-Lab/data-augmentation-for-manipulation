@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow_graphics.geometry.transformation import rotation_matrix_3d as tfr
 
 
 def transform_points_3d(transform_matrix, points):
@@ -120,3 +121,22 @@ def transform_dict_of_points_vectors(m: np.ndarray, d, keys):
         points_aug = np.matmul(m[None], points_homo)[:, :3, 0]
         d_out[k] = np.reshape(points_aug, -1).astype(np.float32)
     return d_out
+
+
+def transformation_params_to_matrices(params, batch_size):
+    """
+
+    Args:
+        params:  [b,6] in the form [x,y,z,roll,pitch,yaw]
+        batch_size: int, the value of b
+
+    Returns: [b,4,4] with the assumption of roll, pitch, yaw, then translation (aka the normal thing)
+
+    """
+    translation = params[:, :3][:, :, None]
+    angles = params[:, 3:]
+    r33 = tfr.from_euler(angles)
+    r34 = tf.concat([r33, translation], axis=2)
+    h = tf.tile(tf.constant([[[0, 0, 0, 1]]], dtype=tf.float32), [batch_size, 1, 1])
+    matrices = tf.concat([r34, h], axis=1)
+    return matrices

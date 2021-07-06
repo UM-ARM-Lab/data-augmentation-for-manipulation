@@ -23,7 +23,7 @@ def prefetch(queue: Queue, filenames: List, n_prefetch: int):
                 pass
 
             if isinstance(filenames_i, list):
-                examples_i = list(pool.imap_unordered(load_single, filenames_i))
+                examples_i = list(pool.imap(load_single, filenames_i))
                 example = batch_examples_dicts(examples_i)
             else:
                 example = load_single(filenames_i)

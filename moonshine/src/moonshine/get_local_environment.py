@@ -25,9 +25,9 @@ def create_env_indices(local_env_h_rows: int, local_env_w_cols: int, local_env_c
     pixel_indices = tf.tile(pixel_indices, [batch_size, 1, 1, 1, 1])
 
     return {
-        'x': batch_x_indices,
-        'y': batch_y_indices,
-        'z': batch_z_indices,
+        'x':             batch_x_indices,
+        'y':             batch_y_indices,
+        'z':             batch_z_indices,
         'pixel_indices': pixel_indices
     }
 
@@ -45,15 +45,6 @@ def get_local_env_and_origin_point(center_point,
                                    c: int,
                                    indices: Dict,
                                    batch_size: int):
-    """
-    :param center_point: [batch, 3]
-    :param full_env: [batch, h, w, c]
-    :param full_env_origin_point: [batch, 3]
-    :param res: [batch]
-    :param h: scalar
-    :param w: scalar
-    :return:
-    """
     res = environment['res']
     full_env_origin_point = environment['origin_point']
     full_env = environment['env']
