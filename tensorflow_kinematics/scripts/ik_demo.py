@@ -254,8 +254,8 @@ class HdtIK:
 
     @tf.function
     def step(self, q, env_points, left_target_pose, right_target_pose, batch_size, viz: bool):
-        # poses = self.tree.fk_no_recursion(q)
-        poses = self.tree.fk(q)
+        poses = self.tree.fk_no_recursion(q)
+        # poses = self.tree.fk(q)
         jl_loss = self.compute_jl_loss(self.tree, q)
         left_ee_pose = poses[self.left_ee_name]
         right_ee_pose = poses[self.right_ee_name]
@@ -433,11 +433,14 @@ def main():
     options = tf.profiler.experimental.ProfilerOptions(python_tracer_level=1)
     logdir = "ik_demo_logdir"
     # tf.profiler.experimental.start(logdir, options)
+    from time import perf_counter
+    t0 = perf_counter()
     q, converged = ik_solver.solve(env_points=env_points,
                                    left_target_pose=left_target_pose,
                                    right_target_pose=right_target_pose,
                                    viz=viz,
                                    initial_value=initial_value)
+    print(perf_counter() - t0)
     # tf.profiler.experimental.stop()
 
     ik_solver.get_joint_names()
