@@ -20,7 +20,7 @@ from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, pairwise_squared_distances, transformation_params_to_matrices
-from moonshine.moonshine_utils import reduce_mean_no_nan, repeat
+from moonshine.moonshine_utils import reduce_mean_no_nan, repeat, remove_batch, add_batch
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
 
@@ -141,7 +141,7 @@ class AugmentationOptimization:
         # new environment. Furthermore, in most cases we test with only one new environment, in which case this is
         # actually identical.
         new_env = {k: v[0] for k, v in new_env.items()}
-        obj_aug_valid, inputs_aug, local_origin_point_aug, local_center_aug = self.opt_object_augmentation(inputs,
+        inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug = self.opt_object_augmentation(inputs,
                                                                                                            inputs_aug,
                                                                                                            new_env,
                                                                                                            object_points,
@@ -150,7 +150,7 @@ class AugmentationOptimization:
                                                                                                            batch_size,
                                                                                                            time)
         # TODO: solve IK and check collision
-        joint_positions_aug, ik_valid = solve_ik()
+        joint_positions_aug, is_ik_valid = solve_ik()
         inputs_aug.update({
             'joint_positions': joint_positions_aug,
         })
@@ -164,7 +164,7 @@ class AugmentationOptimization:
                 # stepper.step()  # FINAL AUG (not necessarily what the network sees, only if valid)
                 # print(env_aug_valid[b], object_aug_valid[b])
 
-        is_valid = obj_aug_valid * ik_valid
+        is_valid = is_ik_valid
         self.is_valids = tf.concat([self.is_valids, is_valid], axis=0)
 
         # FIXME: this is so hacky
@@ -178,7 +178,6 @@ class AugmentationOptimization:
 
         iv = tf.reshape(is_valid, [batch_size] + [1, 1, 1])
         new_env_tiled = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
-        local_env_aug, _ = self.local_env_helper.get(local_center_aug, new_env_tiled, batch_size)
         local_env_aug = iv * local_env_aug + (1 - iv) * local_env
 
         iv = tf.reshape(is_valid, [batch_size] + [1])
@@ -449,15 +448,48 @@ class AugmentationOptimization:
             clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
             self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
 
+            # check termination criteria
+            squared_res_expanded = tf.square(res)[:, None]
+            attract_satisfied = tf.cast(min_dist < squared_res_expanded, tf.float32)
+            repel_satisfied = tf.cast(min_dist > squared_res_expanded, tf.float32)
+            constraints_satisfied = attract_mask * attract_satisfied + (1 - attract_mask) * repel_satisfied
+            constraints_satisfied = tf.reduce_all(tf.cast(constraints_satisfied, tf.bool), axis=-1)
+
+            grad_norm = tf.linalg.norm(gradients, axis=-1)
+            step_size_i = grad_norm * self.step_size
+            can_terminate = self.can_terminate(constraints_satisfied, step_size_i)
+            can_terminate = tf.reduce_all(can_terminate)
+            if can_terminate:
+                break
+
         # this updates other representations of state/action that are fed into the network
-        object_aug_valid, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
-            obj_transforms,
+        _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
+            transformation_matrices,
             inputs,
             batch_size,
             time)
         inputs_aug.update(object_aug_update)
 
-        return valid, inputs_aug, local_origin_point_aug, local_center_aug
+        local_env_aug_0, _ = remove_batch(*self.local_env_helper.get(local_center_aug[0], add_batch(new_env), 1))
+        # force the constraints to be satisfied by modifying the environment
+        # NOTE: after local optimization, enforce the constraint
+        #  one way would be to force voxels with attract points are on and voxels with repel points are off
+        #  another would be to "give up" and use the un-augmented datapoint
+
+        local_env_aug_fixed = []
+        for b in range(batch_size):
+            attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), axis=1)
+            repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), axis=1)
+            attract_points = tf.gather(obj_points[b], attract_indices)
+            repel_points = tf.gather(obj_points[b], repel_indices)
+            attract_vg = self.points_to_voxel_grid_res_origin_point(attract_points, res[b], local_origin_point_aug[b])
+            repel_vg = self.points_to_voxel_grid_res_origin_point(repel_points, res[b], local_origin_point_aug[b])
+            # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
+            local_env_aug_fixed_b = subtract(binary_or(local_env_aug_0, attract_vg), repel_vg)
+            local_env_aug_fixed.append(local_env_aug_fixed_b)
+        local_env_aug_fixed = tf.stack(local_env_aug_fixed, axis=0)
+
+        return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug_fixed
 
     def opt_new_env_augmentation(self,
                                  inputs_aug: Dict,
@@ -703,8 +735,8 @@ class AugmentationOptimization:
             env_points_b,
         )
 
-    def can_terminate(self, hard_constraints_satisfied_b, step_size_b_i):
-        can_terminate = tf.logical_or(step_size_b_i < self.step_size_threshold, hard_constraints_satisfied_b)
+    def can_terminate(self, constraints_satisfied, step_size):
+        can_terminate = tf.logical_or(step_size < self.step_size_threshold, constraints_satisfied)
         return can_terminate
 
     def clip_env_aug_grad(self, gradients, variables):

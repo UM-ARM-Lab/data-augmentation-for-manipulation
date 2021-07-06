@@ -114,3 +114,22 @@ def points_to_voxel_grid_res_origin_point(points, res, origin_point, h, w, c):
     voxel_grid = tf.scatter_nd(indices, ones, [h, w, c])
     voxel_grid = tf.clip_by_value(voxel_grid, 0, 1)
     return voxel_grid
+
+def points_to_voxel_grid_res_origin_point_flat_batch(points, res, origin_point, h, w, c):
+    """
+    Args:
+        points: [n, 4] where the second dimension is [batch,x,y,z]
+        res: [n]
+        origin_point: [n, 3]
+        h:
+        w:
+        c:
+
+    Returns: 1-channel binary voxel grid
+    """
+    n = points.shape[0]
+    indices = batch_point_to_idx(points, res, origin_point)  # [n, 3]
+    ones = tf.ones([n])
+    voxel_grid = tf.scatter_nd(indices, ones, [h, w, c])
+    voxel_grid = tf.clip_by_value(voxel_grid, 0, 1)
+    return voxel_grid
