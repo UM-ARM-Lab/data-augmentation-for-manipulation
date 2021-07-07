@@ -489,8 +489,10 @@ class AugmentationOptimization:
 
         if debug_aug():
             self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
+            self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
 
-        local_env_aug_0, _ = remove_batch(*self.local_env_helper.get(local_center_aug[0], add_batch(new_env), 1))
+        new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
+        local_env_aug, _ = self.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
         # NOTE: after local optimization, enforce the constraint
         #  one way would be to force voxels with attract points are on and voxels with repel points are off
         #  another would be to "give up" and use the un-augmented datapoint
@@ -504,7 +506,7 @@ class AugmentationOptimization:
             attract_vg = self.points_to_voxel_grid_res_origin_point(attract_points_aug, res[b], local_origin_point_aug[b])
             repel_vg = self.points_to_voxel_grid_res_origin_point(repel_points_aug, res[b], local_origin_point_aug[b])
             # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
-            local_env_aug_fixed_b = subtract(binary_or(local_env_aug_0, attract_vg), repel_vg)
+            local_env_aug_fixed_b = subtract(binary_or(local_env_aug[b], attract_vg), repel_vg)
             local_env_aug_fixed.append(local_env_aug_fixed_b)
         local_env_aug_fixed = tf.stack(local_env_aug_fixed, axis=0)
 
@@ -737,9 +739,6 @@ class AugmentationOptimization:
         min_robot_repel_dist_indices_b = tf.argmin(robot_repel_dists_b, axis=1, name='robot_repel_argmin')
         nearest_robot_repel_points = tf.gather(robot_points_b_sparse, min_robot_repel_dist_indices_b)
         robot_repel_loss = tf.reduce_mean(self.barrier_func(min_robot_repel_dist_b))
-
-        # print(f'{attract_dists_b.shape[0]}')
-        # print(attract_dists_b.shape[1] + repel_dists_b.shape[1])
 
         loss = attract_loss * self.attract_loss_weight + repel_loss + robot_repel_loss
 
