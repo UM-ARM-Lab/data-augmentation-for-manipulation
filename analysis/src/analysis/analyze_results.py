@@ -99,11 +99,11 @@ def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool):
             data = []
             for data_filename in tqdm(data_filenames, desc='results files'):
                 datum = load_gzipped_pickle(data_filename)
-                try:
-                    row = make_row(datum, data_filename, metadata, scenario)
-                except:
-                    logger.error(data_filename)
-                    continue
+                # try:
+                row = make_row(datum, data_filename, metadata, scenario)
+                # except:
+                #     logger.error(data_filename)
+                #     continue
 
                 data.append(row)
             df_i = pd.DataFrame(data)
@@ -124,7 +124,7 @@ def make_row(datum: Dict, data_filename: pathlib.Path, metadata: Dict, scenario:
     trial_idx = datum['trial_idx']
     try:
         seed_guess = datum['steps'][0]['planning_query'].seed - 100000 * trial_idx
-    except KeyError:
+    except (KeyError, IndexError):
         seed_guess = 0
     seed = datum.get('seed', seed_guess)
 

@@ -100,4 +100,6 @@ def main():
 
 
 if __name__ == '__main__':
+    import numpy as np
+    np.seterr(all='raise') # DEBUGGING
     main()

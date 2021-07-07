@@ -89,8 +89,9 @@ def recovery_success(_: ExperimentScenario, __: Dict, trial_datum: Dict):
         elif step['type'] == 'executed_recovery' and not recovery_started:
             recoveries_started += 1
             recovery_started = True
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+    if recoveries_started == 0:
+        _recovery_success = np.nan
+    else:
         _recovery_success = np.divide(recoveries_finished, recoveries_started)
     return _recovery_success
 
@@ -113,7 +114,10 @@ def mean_progagation_time(_: ExperimentScenario, __: Dict, trial_datum: Dict):
             if dt is None:
                 dt = np.nan
             progagation_times.append(dt)
-    return np.mean(progagation_times)
+    if len(progagation_times) == 0:
+        return np.nan
+    else:
+        return np.mean(progagation_times)
 
 
 @metrics_funcs
