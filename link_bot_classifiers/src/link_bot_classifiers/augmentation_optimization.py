@@ -103,8 +103,8 @@ class AugmentationOptimization:
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.grad_clip = 0.25  # max dist step the env aug update can take
         self.attract_loss_weight = 0.1
+        self.repel_loss_weight = 1.0
         self.invariance_loss_weight = 0.01
-        print("FIXME INVARIANCE LOSS WEIGHT")
 
         # Precompute this for speed
         self.barrier_epsilon = 0.01
@@ -334,7 +334,7 @@ class AugmentationOptimization:
 
     def sample_object_transformations(self, batch_size):
         # sample a translation and rotation for the object state
-        transformation_params = self.scenario.sample_object_augmentation_variables(10 * batch_size, self.seed)
+        transformation_params = self.scenario.sample_object_augmentation_variables(1 * batch_size, self.seed)
         # pick the most valid transforms, via the learned object state augmentation validity model
         predicted_errors = self.invariance_model_wrapper.evaluate(transformation_params)
         _, best_transform_params_indices = tf.math.top_k(-predicted_errors, tf.cast(batch_size, tf.int32), sorted=False)
@@ -419,7 +419,7 @@ class AugmentationOptimization:
                     nearest_env_points = tf.gather(env_points_sparse, min_dist_indices)
 
                     attract_loss = min_dist * self.attract_loss_weight
-                    repel_loss = self.barrier_func(min_dist)
+                    repel_loss = self.barrier_func(min_dist) * self.repel_loss_weight
 
                     attract_repel_loss_per_point = attract_mask * attract_loss + (1 - attract_mask) * repel_loss
 
