@@ -93,7 +93,7 @@ class AugmentationOptimization:
         self.env_subsample = 0.25
         self.num_object_interp = 5  # must be >=2
         self.num_robot_interp = 3  # must be >=2
-        self.max_steps = 500
+        self.max_steps = 100
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
         self.step_size = 20.0
@@ -103,7 +103,7 @@ class AugmentationOptimization:
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.grad_clip = 0.25  # max dist step the env aug update can take
         self.attract_loss_weight = 0.1
-        self.invariance_loss_weight = 0.0
+        self.invariance_loss_weight = 0.01
         print("FIXME INVARIANCE LOSS WEIGHT")
 
         # Precompute this for speed
@@ -151,16 +151,19 @@ class AugmentationOptimization:
                                                                                                            res,
                                                                                                            batch_size,
                                                                                                            time)
-        # TODO: solve IK and check collision
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,
             'joint_names': inputs['joint_names'],
         })
 
+        is_valid = is_ik_valid
+        self.is_valids = tf.concat([self.is_valids, is_valid], axis=0)
+
         if debug_aug():
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
+                print(is_valid[b])
                 _aug_dict = {
                     'env':          local_env_aug[b].numpy(),
                     'origin_point': local_origin_point_aug[b].numpy(),
@@ -178,9 +181,6 @@ class AugmentationOptimization:
                 self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
                 # stepper.step()  # FINAL AUG (not necessarily what the network sees, only if valid)
                 # print(env_aug_valid[b], object_aug_valid[b])
-
-        is_valid = is_ik_valid
-        self.is_valids = tf.concat([self.is_valids, is_valid], axis=0)
 
         # FIXME: this is so hacky
         keys_aug = [add_predicted('joint_positions')]
@@ -487,21 +487,22 @@ class AugmentationOptimization:
             time)
         inputs_aug.update(object_aug_update)
 
+        if debug_aug():
+            self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
+
         local_env_aug_0, _ = remove_batch(*self.local_env_helper.get(local_center_aug[0], add_batch(new_env), 1))
-        # force the constraints to be satisfied by modifying the environment
         # NOTE: after local optimization, enforce the constraint
         #  one way would be to force voxels with attract points are on and voxels with repel points are off
         #  another would be to "give up" and use the un-augmented datapoint
 
-        print("FIXME: this part isn't working")
         local_env_aug_fixed = []
         for b in range(batch_size):
             attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), axis=1)
             repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), axis=1)
-            attract_points = tf.gather(obj_points[b], attract_indices)
-            repel_points = tf.gather(obj_points[b], repel_indices)
-            attract_vg = self.points_to_voxel_grid_res_origin_point(attract_points, res[b], local_origin_point_aug[b])
-            repel_vg = self.points_to_voxel_grid_res_origin_point(repel_points, res[b], local_origin_point_aug[b])
+            attract_points_aug = tf.gather(obj_points_aug[b], attract_indices)
+            repel_points_aug = tf.gather(obj_points_aug[b], repel_indices)
+            attract_vg = self.points_to_voxel_grid_res_origin_point(attract_points_aug, res[b], local_origin_point_aug[b])
+            repel_vg = self.points_to_voxel_grid_res_origin_point(repel_points_aug, res[b], local_origin_point_aug[b])
             # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
             local_env_aug_fixed_b = subtract(binary_or(local_env_aug_0, attract_vg), repel_vg)
             local_env_aug_fixed.append(local_env_aug_fixed_b)
@@ -864,5 +865,6 @@ class AugmentationOptimization:
         # min_dist = pairwise_squared_distances(robot_points, env_points)
         # not_in_collision = min_dist > tf.square(new_env['res'][0])
         # is_ik_valid = not_in_collision * reached
+        # FIXME: check collision with environment!!!!
         is_ik_valid = reached
         return joint_positions_aug, is_ik_valid
