@@ -370,6 +370,10 @@ class IterativeFineTuning:
             classifier_models = load_classifier(planner_params, self.scenario)
             self.planner.classifier_models = classifier_models
 
+            seed = self.log.get('seed', 0)
+            metadata_update = {
+                'ift_iteration': iteration_data.iteration,
+            }
             runner = EvaluatePlanning(planner=self.planner,
                                       service_provider=self.service_provider,
                                       job_chunker=planning_chunker,
@@ -378,7 +382,8 @@ class IterativeFineTuning:
                                       outdir=planning_results_dir,
                                       trials=trials,
                                       test_scenes_dir=self.test_scenes_dir,
-                                      seed=self.log.get('seed', 0))
+                                      seed=seed,
+                                      metadata_update=metadata_update)
 
             deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)
             [p.suspend() for p in self.gazebo_processes]

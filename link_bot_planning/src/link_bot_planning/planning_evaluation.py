@@ -50,6 +50,7 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
                  no_execution: Optional[bool] = False,
                  test_scenes_dir: Optional[pathlib.Path] = None,
                  extra_end_conditions: Optional[List[Callable]] = None,
+                 metadata_update: Optional[Dict] = None,
                  seed: int = 0,
                  ):
         super().__init__(planner, trials=trials, verbose=verbose, planner_params=planner_params,
@@ -79,6 +80,8 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             'experiment_uuid':       uuid.uuid4(),
         }
         metadata.update(self.planner.get_metadata())
+        if metadata_update is not None:
+            metadata.update(metadata_update)
         with (self.outdir / 'metadata.hjson').open("w") as metadata_file:
             my_hdump(metadata, metadata_file, indent=2)
 

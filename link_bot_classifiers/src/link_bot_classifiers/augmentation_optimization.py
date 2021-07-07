@@ -93,10 +93,10 @@ class AugmentationOptimization:
         self.env_subsample = 0.25
         self.num_object_interp = 5  # must be >=2
         self.num_robot_interp = 3  # must be >=2
-        self.max_steps = 100
+        self.max_steps = 500
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
-        self.step_size = 5.0
+        self.step_size = 20.0
         self.opt = tf.keras.optimizers.SGD(self.step_size)
         self.step_size_threshold = 0.002  # stopping criteria, how far the env moved (meters)
         self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
@@ -493,6 +493,7 @@ class AugmentationOptimization:
         #  one way would be to force voxels with attract points are on and voxels with repel points are off
         #  another would be to "give up" and use the un-augmented datapoint
 
+        print("FIXME: this part isn't working")
         local_env_aug_fixed = []
         for b in range(batch_size):
             attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), axis=1)

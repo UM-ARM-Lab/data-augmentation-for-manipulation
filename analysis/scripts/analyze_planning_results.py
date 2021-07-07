@@ -3,9 +3,10 @@ import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
+import seaborn as sns
 import tabulate
 
-from analysis.analyze_results import load_table_specs, reduce_planning_metrics, load_planning_results
+from analysis.analyze_results import load_table_specs, reduce_planning_metrics, load_planning_results, load_fig_specs
 from analysis.results_metrics import load_analysis_params
 from analysis.results_utils import get_all_results_subdirs
 from arc_utilities import ros_init
@@ -29,22 +30,34 @@ def metrics_main(args):
 
     results_dirs = get_all_results_subdirs(args.results_dirs)
     df = load_planning_results(results_dirs, regenerate=args.regenerate)
-    df.to_csv("/media/shared/analysis/all_results.csv")
+    df.to_csv("/media/shared/analysis/tmp_results.csv")
 
     # Figures & Tables
-    # figspecs = load_fig_specs(analysis_params, args.figures_config)
+    figspecs = load_fig_specs(analysis_params, args.figures_config)
     table_specs = load_table_specs(args.tables_config, table_format)
 
-    # z = df.copy()
-    # z.set_index(['classifier_source_env', 'target_env'], inplace=True)
-    # plt.figure()
-    # df.melt(id_vars=["subidr", "attnr"], var_name="solutions", value_name="score").
-    # sns.boxplot(
-    #     x=['classifier_source_env', 'target_env'],
-    #     y="task_error",
-    #     hue=('classifier_source_env', 'target_env'),
-    #     data=z
-    # )
+    plt.figure()
+    sns.lineplot(
+        data=df,
+        x='ift_iteration',
+        y="task_error",
+        palette='colorblind',
+        estimator='mean',
+        ci='sd',
+    )
+
+    # Rolling
+    z = df.copy()
+    z['task_error'] = df['task_error'].rolling(window=5, min_periods=1).agg('mean')
+    plt.figure()
+    sns.lineplot(
+        data=z,
+        x='ift_iteration',
+        y="task_error",
+        palette='colorblind',
+        estimator='mean',
+        ci='sd',
+    )
 
     # for spec in figspecs:
     #     data_for_figure = get_data_for_figure(spec, df)
@@ -101,5 +114,6 @@ def main():
 
 if __name__ == '__main__':
     import numpy as np
-    np.seterr(all='raise') # DEBUGGING
+
+    np.seterr(all='raise')  # DEBUGGING
     main()

@@ -55,7 +55,12 @@ def classifier_params_from_planner_params(planner_params):
     try:
         classifier_hparams = load_params(representative_classifier_model_dir.parent)
     except RuntimeError:
-        classifier_hparams = load_params(pathlib.Path('/media/shared/') / representative_classifier_model_dir.parent)
+        try:
+            classifier_hparams = load_params(pathlib.Path('/media/shared/') / representative_classifier_model_dir.parent)
+        except RuntimeError:
+            p1 = representative_classifier_model_dir.parent
+            p2 = pathlib.Path(*p1.parts[2:])
+            classifier_hparams = load_params(pathlib.Path('/media/shared/ift') / p2)
     return classifier_hparams
 
 

@@ -7,6 +7,18 @@
       Classifier Source Env
       Stop On Error?
       Timeout (s)
+    ]
+    reductions: [
+      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "results_folder_name", "first"]]
+      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]]
+      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "stop_on_error", "first"]]
+      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "timeout", "first"]]
+    ]
+  }
+  {
+    type: MyTable
+    name: table2
+    header: [
       Successes
       N Trials
       Success %
@@ -16,10 +28,6 @@
       Mean NME
     ]
     reductions: [
-      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "results_folder_name", "first"]]
-      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]]
-      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "stop_on_error", "first"]]
-      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "timeout", "first"]]
       [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "success", "sum"]]
       [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "num_trials", "sum"]]
       [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "success", "mean"]]

@@ -1,18 +1,2 @@
 [
-  {
-    type: First
-    name: initial_and_final_success_rate
-    reductions: {
-      success: [
-        null
-        null
-        mean
-      ]
-    }
-    header: [
-      'method_name'
-      'initial success rate'
-      'final success rate'
-    ]
-  }
 ]
