@@ -547,10 +547,11 @@ def ift_main(args):
                               on_exception=args.on_exception,
                               )
     profiling_logdir = args.logfile.parent
-    tf.profiler.experimental.start(profiling_logdir.as_posix())
-    with tf.profiler.experimental.Trace("TraceContext"):
-        ift.run(n_iters=args.n_iters)
-    tf.profiler.experimental.stop()
+    ift.run(n_iters=args.n_iters)
+    #tf.profiler.experimental.start(profiling_logdir.as_posix())
+    #with tf.profiler.experimental.Trace("TraceContext"):
+    #    ift.run(n_iters=args.n_iters)
+    #tf.profiler.experimental.stop()
 
 
 @ros_init.with_ros("iterative_fine_tuning")
