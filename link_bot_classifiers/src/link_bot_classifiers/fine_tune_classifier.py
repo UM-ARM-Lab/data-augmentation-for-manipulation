@@ -147,6 +147,7 @@ def add_augmentation_configs_to_dataset(augmentation_config_dir, dataset, batch_
         example[add_new('res')] = new_example['res']
         example[add_new('origin')] = new_example['origin']
         example[add_new('origin_point')] = new_example['origin_point']
+        example[add_new('scene_msg')] = new_example['scene_msg']
 
         return example
 
@@ -161,7 +162,6 @@ def load_augmentation_configs(augmentation_config_dir: pathlib.Path):
         for filename in augmentation_config_dir.glob("initial_config*.pkl"):
             with filename.open("rb") as file:
                 augmentation_config = pickle.load(file)
-                augmentation_config['env'].pop("scene_msg")
                 augmentation_configs.append(augmentation_config)
     augmentation_config_gen = itertools.cycle(augmentation_configs)
     return augmentation_config_gen

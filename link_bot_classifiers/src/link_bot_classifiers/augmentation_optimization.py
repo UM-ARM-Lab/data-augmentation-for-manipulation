@@ -11,7 +11,7 @@ from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
-from link_bot_data.dataset_utils import add_new, add_predicted, _deserialize_scene_msg
+from link_bot_data.dataset_utils import add_new, add_predicted, deserialize_scene_msg
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg, \
@@ -20,7 +20,7 @@ from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, pairwise_squared_distances, transformation_params_to_matrices
-from moonshine.moonshine_utils import reduce_mean_no_nan, repeat, remove_batch, add_batch
+from moonshine.moonshine_utils import reduce_mean_no_nan, repeat
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 
 
@@ -142,10 +142,10 @@ class AugmentationOptimization:
         # independently, but shouldn't really change the overall effect because each batch will have a randomly selected
         # new environment. Furthermore, in most cases we test with only one new environment, in which case this is
         # actually identical.
-        new_env = {k: v[0] for k, v in new_env.items()}
+        new_env_0 = {k: v[0] for k, v in new_env.items()}
         inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug = self.opt_object_augmentation(inputs,
                                                                                                            inputs_aug,
-                                                                                                           new_env,
+                                                                                                           new_env_0,
                                                                                                            object_points,
                                                                                                            object_points_occupancy,
                                                                                                            res,
@@ -154,7 +154,7 @@ class AugmentationOptimization:
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,
-            'joint_names': inputs['joint_names'],
+            'joint_names':                    inputs['joint_names'],
         })
 
         is_valid = is_ik_valid
@@ -409,7 +409,6 @@ class AugmentationOptimization:
 
                     env_points_full = occupied_voxels_to_points(new_env['env'], new_env['res'], new_env['origin_point'])
                     env_points_sparse = subsample_points(env_points_full, self.env_subsample)
-                    env_points = EnvPoints(env_points_full, env_points_sparse)
 
                     # compute repel and attract loss between the environment points and the obj_points_aug
                     attract_mask = object_points_occupancy  # assumed to already be either 0.0 or 1.0
@@ -423,7 +422,8 @@ class AugmentationOptimization:
 
                     attract_repel_loss_per_point = attract_mask * attract_loss + (1 - attract_mask) * repel_loss
 
-                    invariance_loss = self.invariance_loss_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
+                    invariance_loss = self.invariance_loss_weight * self.invariance_model_wrapper.evaluate(
+                        obj_transforms)
 
                     loss = tf.reduce_mean(attract_repel_loss_per_point, axis=-1) + invariance_loss
                     loss = tf.reduce_mean(loss)
@@ -503,7 +503,8 @@ class AugmentationOptimization:
             repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), axis=1)
             attract_points_aug = tf.gather(obj_points_aug[b], attract_indices)
             repel_points_aug = tf.gather(obj_points_aug[b], repel_indices)
-            attract_vg = self.points_to_voxel_grid_res_origin_point(attract_points_aug, res[b], local_origin_point_aug[b])
+            attract_vg = self.points_to_voxel_grid_res_origin_point(attract_points_aug, res[b],
+                                                                    local_origin_point_aug[b])
             repel_vg = self.points_to_voxel_grid_res_origin_point(repel_points_aug, res[b], local_origin_point_aug[b])
             # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
             local_env_aug_fixed_b = subtract(binary_or(local_env_aug[b], attract_vg), repel_vg)
@@ -784,11 +785,13 @@ class AugmentationOptimization:
             example[add_new('extent')] = example['extent']
             example[add_new('origin_point')] = example['origin_point']
             example[add_new('res')] = example['res']
+            example[add_new('scene_msg')] = example['scene_msg']
         new_env = {
             'env':          example[add_new('env')],
             'extent':       example[add_new('extent')],
             'origin_point': example[add_new('origin_point')],
             'res':          example[add_new('res')],
+            'scene_msg':    example[add_new('scene_msg')],
         }
         return new_env
 
@@ -843,27 +846,15 @@ class AugmentationOptimization:
 
         return local_env, local_origin_point
 
-    def solve_ik(self, inputs, inputs_aug, new_env, batch_size):
+    def solve_ik(self, inputs: Dict, inputs_aug: Dict, new_env: Dict, batch_size: int):
         left_gripper_points_aug = inputs_aug[add_predicted('left_gripper')][:, :, None]
         right_gripper_points_aug = inputs_aug[add_predicted('right_gripper')][:, :, None]
         joint_positions_seed = inputs[add_predicted('joint_positions')][:, 0].numpy().tolist()
-        # TODO: call ik fast here instead of using the jacobian follower
         joint_names = inputs['joint_names'][0, 0].numpy().tolist()
-        allowed_collision_matrix = _deserialize_scene_msg(inputs)[0].allowed_collision_matrix
-        joint_positions_aug, reached = self.scenario.apply_augmentation_to_robot_state(batch_size,
-                                                                                       joint_positions_seed,
-                                                                                       joint_names,
-                                                                                       allowed_collision_matrix,
-                                                                                       left_gripper_points_aug,
-                                                                                       right_gripper_points_aug,
-                                                                                       )
+        deserialize_scene_msg(new_env)
+
+        # FIXME: can I use moveit + IKFast to find a collision free thing?
+
         reached = tf.cast(reached, tf.float32)
-        # check if the min dist between any robot points and any env point is above a threshold
-        # robot_points =
-        # env_points =
-        # min_dist = pairwise_squared_distances(robot_points, env_points)
-        # not_in_collision = min_dist > tf.square(new_env['res'][0])
-        # is_ik_valid = not_in_collision * reached
-        # FIXME: check collision with environment!!!!
         is_ik_valid = reached
         return joint_positions_aug, is_ik_valid

@@ -6,7 +6,7 @@ import tensorflow as tf
 from progressbar import progressbar
 
 from arc_utilities import ros_init
-from link_bot_data.dataset_utils import deserialize_scene_msg, pprint_example
+from link_bot_data.dataset_utils import pprint_example, deserialize_scene_msg
 from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from link_bot_data.progressbar_widgets import mywidgets
 from moonshine.moonshine_utils import numpify

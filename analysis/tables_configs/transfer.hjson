@@ -4,6 +4,19 @@
     name: table1
     header: [
       Name
+      From
+      To
+    ]
+    reductions: [
+      [[["classifier_source_env", "target_env"], "results_folder_name", "first"]]
+      [[["classifier_source_env", "target_env"], "classifier_source_env", "first"]]
+      [[["classifier_source_env", "target_env"], "target_env", "first"]]
+    ]
+  }
+  {
+    type: MyTable
+    name: table2
+    header: [
       Num Success
       Num Trials
       Success %
@@ -15,7 +28,6 @@
       Median NME
     ]
     reductions: [
-      [[["classifier_source_env", "target_env"], "results_folder_name", "first"]]
       [[["classifier_source_env", "target_env"], "success", "sum"]]
       [[["classifier_source_env", "target_env"], "num_trials", "sum"]]
       [[["classifier_source_env", "target_env"], "success", "mean"]]
@@ -29,7 +41,7 @@
   }
   {
     type: MyTable
-    name: table2
+    name: table3
     header: [
       Method Name
       Num (re)plans

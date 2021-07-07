@@ -6,6 +6,7 @@ import tensorflow as tf
 from colorama import Fore
 
 import genpy
+from link_bot_data.ros_msg_serialization import ros_msg_to_bytes_tensor
 
 
 def check_numerics(x, msg: Optional[str] = "found infs or nans!"):
@@ -217,7 +218,8 @@ def repeat_tensor(v, repetitions, axis, new_axis):
     if np.isscalar(v):
         multiples = []
     elif isinstance(v, genpy.Message):
-        raise NotImplementedError("ROS Messages can't be put in tensors, don't use this function with messages")
+        v = ros_msg_to_bytes_tensor(v)
+        multiples = []
     else:
         multiples = [1] * v.ndim
 

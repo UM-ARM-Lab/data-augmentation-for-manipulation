@@ -4,8 +4,6 @@ import pathlib
 import pickle
 import time
 from collections import OrderedDict
-from functools import lru_cache
-from io import BytesIO
 from typing import Optional, Dict, List, Sequence
 
 import git
@@ -15,6 +13,7 @@ from colorama import Fore
 
 import genpy
 from arc_utilities.filesystem_utils import mkdir_and_ask
+from link_bot_data.ros_msg_serialization import ros_msg_to_bytes_tensor, bytes_to_ros_msg
 from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
 from link_bot_pycommon.serialization import dump_gzipped_pickle
@@ -155,18 +154,10 @@ def dict_of_float_tensors_to_bytes_feature(d):
     return {k: float_tensor_to_bytes_feature(v) for k, v in d.items()}
 
 
-@lru_cache
-def bytes_to_ros_msg(bytes, msg_type: type):
-    msg = msg_type()
-    msg.deserialize(bytes)
-    return msg
-
-
 def ros_msg_to_bytes_feature(msg):
-    buff = BytesIO()
-    msg.serialize(buff)
-    serialized_bytes = buff.getvalue()
-    return bytes_feature(tf.io.serialize_tensor(tf.convert_to_tensor(serialized_bytes)).numpy())
+    bt = ros_msg_to_bytes_tensor(msg)
+    st = tf.io.serialize_tensor(bt)
+    return bytes_feature(st.numpy())
 
 
 def generic_to_bytes_feature(value):
@@ -513,29 +504,6 @@ def count_up_to_next_record_idx(full_output_directory):
     return record_idx
 
 
-def deserialize_scene_msg(example: Dict):
-    if 'scene_msg' in example:
-        scene_msg = _deserialize_scene_msg(example)
-
-        example['scene_msg'] = scene_msg
-
-
-def _deserialize_scene_msg(example):
-    scene_msg = example['scene_msg']
-    if isinstance(scene_msg, tf.Tensor):
-        scene_msg = scene_msg.numpy()
-
-    if isinstance(scene_msg, np.ndarray):
-        assert scene_msg.ndim == 1
-        if not isinstance(scene_msg[0], PlanningScene):
-            scene_msg = np.array([bytes_to_ros_msg(m_i, PlanningScene) for m_i in scene_msg])
-    elif isinstance(scene_msg, bytes):
-        scene_msg = bytes_to_ros_msg(scene_msg, PlanningScene)
-        # FIXME: why when I deserialize is it sometimes a list of bytes and sometimes a list of strings?
-        scene_msg.robot_state.joint_state.name = to_list_of_strings(scene_msg.robot_state.joint_state.name)
-    return scene_msg
-
-
 def convert_to_tf_features(example: Dict):
     features = {}
     for k, v in example.items():
@@ -672,3 +640,26 @@ def label_is(label_is, key='is_close'):
         return result
 
     return __filter
+
+
+def deserialize_scene_msg(example: Dict):
+    if 'scene_msg' in example:
+        scene_msg = _deserialize_scene_msg(example)
+
+        example['scene_msg'] = scene_msg
+
+
+def _deserialize_scene_msg(example):
+    scene_msg = example['scene_msg']
+    if isinstance(scene_msg, tf.Tensor):
+        scene_msg = scene_msg.numpy()
+
+    if isinstance(scene_msg, np.ndarray):
+        assert scene_msg.ndim == 1
+        if not isinstance(scene_msg[0], PlanningScene):
+            scene_msg = np.array([bytes_to_ros_msg(m_i, PlanningScene) for m_i in scene_msg])
+    elif isinstance(scene_msg, bytes):
+        scene_msg = bytes_to_ros_msg(scene_msg, PlanningScene)
+        # FIXME: why when I deserialize is it sometimes a list of bytes and sometimes a list of strings?
+        scene_msg.robot_state.joint_state.name = to_list_of_strings(scene_msg.robot_state.joint_state.name)
+    return scene_msg

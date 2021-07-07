@@ -42,7 +42,7 @@ def save_initial_config(planner_params_filename: pathlib.Path,
         print(f"Wrote {filename.as_posix()}")
 
 
-@ros_init.with_ros("generate_pretransfer_dataset")
+@ros_init.with_ros("save_config_for_offline_transfer")
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('planner_params_filename', type=pathlib.Path)

@@ -9,7 +9,7 @@ from progressbar import progressbar
 
 import rospy
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import add_predicted, add_label, deserialize_scene_msg, write_example
+from link_bot_data.dataset_utils import add_predicted, add_label, write_example, deserialize_scene_msg
 from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.progressbar_widgets import mywidgets

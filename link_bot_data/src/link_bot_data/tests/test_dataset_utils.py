@@ -5,8 +5,8 @@ import numpy as np
 import tensorflow as tf
 
 from link_bot_data.dataset_utils import is_reconverging, null_pad, NULL_PAD_VALUE, num_reconverging, \
-    num_reconverging_subsequences, add_predicted, remove_predicted, replaced_true_with_predicted, deserialize_scene_msg, \
-    multigen, compute_batch_size_for_n_examples
+    num_reconverging_subsequences, add_predicted, remove_predicted, replaced_true_with_predicted, multigen, \
+    compute_batch_size_for_n_examples, deserialize_scene_msg
 from moonshine.gpu_config import limit_gpu_mem
 from moonshine.moonshine_utils import remove_batch
 from moveit_msgs.msg import PlanningScene

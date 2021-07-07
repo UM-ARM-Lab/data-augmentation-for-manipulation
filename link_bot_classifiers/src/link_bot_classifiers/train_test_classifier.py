@@ -18,7 +18,7 @@ from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
 from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg, get_filter
+from link_bot_data.dataset_utils import batch_tf_dataset, get_filter, deserialize_scene_msg
 from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.visualization import init_viz_env
