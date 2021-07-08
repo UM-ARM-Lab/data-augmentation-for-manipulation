@@ -20,12 +20,12 @@ import tensorflow as tf
 
 from tensorflow_kinematics.frame import Frame
 from tensorflow_kinematics.joint import JointType, Joint, Link
-from tensorflow_kinematics.segment import Segment
 
 
 class Tree:
     def __init__(self, urdf, segments_map: Dict[str, List[Tuple[Joint, Link]]]):
         self.urdf = urdf
+        self.root_name = self.urdf.get_root()
         self.segments_map = segments_map
         self.nb_segm = len(segments_map)
 
@@ -33,40 +33,43 @@ class Tree:
         self._names = None
         self._nb_joints = None
 
-    # @tf.function
+    @tf.function()
     def fk_no_recursion(self, q):
         """
-        Pose of all segments of the tree
 
-        :param q:		[batch_size, nb_joint] or [nb_joint] or list of [batch_size] Joint angles
-        :return:
-        output order is based on order of segments, which is constructed via DFS over the URDF
+        Args:
+            q: [batch_size, num_joints]
+
+        Returns: pose of all the segments in the tree, order is based on the order of segments
+
         """
-        assert q.shape[1] == self.get_num_joints()
+        # assert q.shape[1] == self.get_num_joints()
 
         batch_size = q.shape[0]
         root_frame = Frame(batch_shape=batch_size)  # could use this to represent transform from robot to world
-        root_name = self.urdf.get_root()
         frames = {
-            root_name: root_frame,
+            self.root_name: root_frame,
         }
-        stack = [(root_name, root_frame)]
+
+        stack = [(self.root_name, root_frame)]
 
         while len(stack) > 0:
             node = stack.pop()
             parent_name, parent_frame = node
 
-            joint: Joint
-            segment: Segment
+            # NOTE: I wanted to include these local variable type annotations, but cause errors in autograph
+            # joint: Joint
+            # segment: Segment
             if parent_name not in self.segments_map:
                 continue
 
             for (joint, segment) in self.segments_map[parent_name]:
                 if segment.joint.type is not JointType.NoneT:
                     j = self.actuated_joint_names().index(segment.joint.name)
-                    link_frame = parent_frame * segment.pose(q[:, j], batch_size)
+                    q_j = q[:, j]
                 else:
-                    link_frame = parent_frame * segment.pose(tf.zeros([1], dtype=tf.float32), 1)
+                    q_j = tf.zeros([1], dtype=tf.float32)
+                link_frame = parent_frame * segment.pose(q_j, batch_size)
                 frames[segment.child_name] = link_frame
 
                 stack.append((segment.child_name, link_frame))
@@ -75,8 +78,6 @@ class Tree:
         return poses
 
     def _fk(self, frames: Dict[str, Frame], q, parent_link_name: str, parent_frame: Frame, batch_size: int):
-        joint: Joint
-        segment: Segment
         for (joint, segment) in self.segments_map[parent_link_name]:
             if segment.joint.type is not JointType.NoneT:
                 j = self.actuated_joint_names().index(segment.joint.name)
