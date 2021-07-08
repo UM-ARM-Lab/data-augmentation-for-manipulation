@@ -33,7 +33,6 @@ class Tree:
         self._names = None
         self._nb_joints = None
 
-    @tf.function()
     def fk_no_recursion(self, q):
         """
 
@@ -43,7 +42,7 @@ class Tree:
         Returns: pose of all the segments in the tree, order is based on the order of segments
 
         """
-        # assert q.shape[1] == self.get_num_joints()
+        assert q.shape[1] == self.get_num_joints()
 
         batch_size = q.shape[0]
         root_frame = Frame(batch_shape=batch_size)  # could use this to represent transform from robot to world

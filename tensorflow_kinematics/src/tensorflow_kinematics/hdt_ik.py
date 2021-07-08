@@ -232,6 +232,8 @@ class HdtIK:
 
         self.p = SimpleProfiler()
 
+        self.q = None
+
     def solve(self,
               env_points,
               left_target_pose,
@@ -246,7 +248,12 @@ class HdtIK:
 
         if initial_value is None:
             initial_value = self.sample_joint_positions(full_batch_size)
-        q = tf.Variable(initial_value)
+
+        # constructing this once (lazily) saves the cost of re-tracing the tf.function every time
+        if self.q is None:
+            self.q = tf.Variable(initial_value)
+
+        self.q.assign(initial_value)
 
         def _wrap_for_profiling(func, profiler_helper, *args, **kwargs):
             if profiler_helper is not None:
@@ -265,7 +272,7 @@ class HdtIK:
             from time import perf_counter
             t0 = perf_counter()
             foo, _ = _wrap_for_profiling(self.opt, profiler_helper,
-                                         q=q,
+                                         q=self.q,
                                          env_points=env_points,
                                          left_target_pose=left_target_pose_repeated,
                                          right_target_pose=right_target_pose_repeated,
@@ -285,7 +292,7 @@ class HdtIK:
             if tf.reduce_all(solved):
                 break
 
-        q = tf.reshape(q, [batch_size, self.num_restarts, -1])
+        q = tf.reshape(self.q, [batch_size, self.num_restarts, -1])
         loss_batch = tf.reshape(loss_batch, [batch_size, self.num_restarts])
         score = tf.cast(converged, tf.float32) * -999 + loss_batch  # select the best solution out of the num_repeated
         best_solution_indices = tf.argmin(score, axis=1)
@@ -314,7 +321,7 @@ class HdtIK:
 
         return foo, gradient
 
-    # @tf.function
+    @tf.function
     def step(self, q: tf.Variable, env_points, left_target_pose, right_target_pose, batch_size, viz: bool):
         poses = self.tree.fk_no_recursion(q)
         jl_loss = self.compute_jl_loss(self.tree, q)

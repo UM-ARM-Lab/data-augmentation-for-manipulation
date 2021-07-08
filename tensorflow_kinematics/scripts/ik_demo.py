@@ -24,7 +24,7 @@ def main():
 
     urdf_filename = pathlib.Path("/home/peter/catkin_ws/src/hdt_robot/hdt_michigan_description/urdf/hdt_michigan.urdf")
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
-    ik_solver = HdtIK(urdf_filename, scenario, max_iters=10)
+    ik_solver = HdtIK(urdf_filename, scenario)
 
     batch_size = 32
     viz = False
