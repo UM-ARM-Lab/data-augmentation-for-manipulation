@@ -142,13 +142,11 @@ class PlanAndExecute:
         self.extra_end_conditions = extra_end_conditions
         if has_keys(self.planner_params, ['recovery', 'use_recovery']):
             recovery_model_dir = pathlib.Path(self.planner_params['recovery']['recovery_model_dir'])
+            update_hparams = {'extent': self.planner_params['extent']}
             self.recovery_policy = recovery_policy_utils.load_generic_model(path=recovery_model_dir,
                                                                             scenario=self.scenario,
                                                                             rng=self.recovery_rng,
-                                                                            # FIXME: hacky is heck
-                                                                            update_hparams={
-                                                                                'extent': self.planner_params[
-                                                                                              'extent']})
+                                                                            update_hparams=update_hparams)
         else:
             self.recovery_policy = None
 
@@ -374,7 +372,7 @@ class PlanAndExecute:
                     'goal':             goal,
                     'steps':            steps_data,
                     'end_state':        end_state,
-                    'seed': self.seed,
+                    'seed':             self.seed,
                 }
                 self.on_trial_complete(trial_data_dict, trial_idx)
                 return
