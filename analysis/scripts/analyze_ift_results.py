@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tabulate
 
 from analysis.analyze_results import load_table_specs, load_planning_results, generate_tables
-from analysis.results_metrics import load_analysis_params
 from analysis.results_utils import get_all_results_subdirs
 from arc_utilities import ros_init
 from moonshine.gpu_config import limit_gpu_mem
@@ -16,12 +16,10 @@ limit_gpu_mem(0.1)
 
 
 def metrics_main(args):
-    analysis_params = load_analysis_params(args.analysis_params)
-
     # The default for where we write results
-    out_dir = args.results_dirs[0]
+    outdir = args.results_dirs[0]
 
-    print(f"Writing analysis to {out_dir}")
+    print(f"Writing analysis to {outdir}")
 
     if args.latex:
         table_format = 'latex_raw'
@@ -34,19 +32,26 @@ def metrics_main(args):
 
     table_specs = load_table_specs(args.tables_config, table_format)
 
-    lineplot(df, 'ift_iteration', 'success', 'Success Rate', out_dir)
-    lineplot(df, 'ift_iteration', 'success', 'Success Rate (rolling)', out_dir, window=5)
-    lineplot(df, 'ift_iteration', 'task_error', 'Task Error', out_dir)
-    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', out_dir, window=5)
-    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error', out_dir)
-    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error (rolling)', out_dir, window=5)
+    lineplot(df, 'ift_iteration', 'success', 'Success Rate', outdir)
+    lineplot(df, 'ift_iteration', 'success', 'Success Rate (rolling)', outdir, window=5)
+    lineplot(df, 'ift_iteration', 'task_error', 'Task Error', outdir)
+    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=5)
+    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=5, hue='seed')
+    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error', outdir)
+    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error (rolling)', outdir, window=5)
+
+    df = df.copy()
+    task_error = df['task_error'].rolling(window=5, min_periods=1).agg('mean')
+    normalized_model_error = df['normalized_model_error'].rolling(window=5, min_periods=1).agg('mean')
+    df['combined_error'] = task_error + normalized_model_error * 0.5
+    lineplot(df, 'ift_iteration', 'combined_error', 'Combined Error (rolling)', outdir, window=5, hue='seed')
 
     plt.show()
 
-    generate_tables(df, out_dir, table_specs)
+    generate_tables(df, outdir, table_specs)
 
 
-def lineplot(df, x: str, metric: str, title: str, outdir: pathlib.Path, window=1):
+def lineplot(df, x: str, metric: str, title: str, outdir: pathlib.Path, window: int = 1, hue: Optional[str] = None):
     df = df.copy()
     df[metric] = df[metric].rolling(window=window, min_periods=1).agg('mean')
     plt.figure()
@@ -54,6 +59,7 @@ def lineplot(df, x: str, metric: str, title: str, outdir: pathlib.Path, window=1
         data=df,
         x=x,
         y=metric,
+        hue=hue,
         palette='colorblind',
         estimator='mean',
         ci='sd',

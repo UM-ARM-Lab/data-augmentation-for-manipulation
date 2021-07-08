@@ -216,15 +216,19 @@ def target_env(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: 
 
 
 def load_analysis_params(analysis_params_filename: Optional[pathlib.Path] = None):
-    r = rospkg.RosPack()
-    analysis_dir = pathlib.Path(r.get_path("analysis"))
-    analysis_params_common_filename = analysis_dir / "analysis_params" / "common.json"
-    analysis_params_filename = analysis_dir / analysis_params_filename
-    analysis_params = load_hjson(analysis_params_common_filename)
+    analysis_params = load_analysis_hjson(pathlib.Path("analysis_params/common.json"))
 
     if analysis_params_filename is not None:
         analysis_params = nested_dict_update(analysis_params, load_hjson(analysis_params_filename))
 
+    return analysis_params
+
+
+def load_analysis_hjson(analysis_params_filename: pathlib.Path):
+    r = rospkg.RosPack()
+    analysis_dir = pathlib.Path(r.get_path("analysis"))
+    analysis_params_common_filename = analysis_dir / analysis_params_filename
+    analysis_params = load_hjson(analysis_params_common_filename)
     return analysis_params
 
 

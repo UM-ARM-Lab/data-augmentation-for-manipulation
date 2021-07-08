@@ -7,12 +7,12 @@ import pandas as pd
 from tqdm import tqdm
 
 from analysis.figspec import DEFAULT_AXES_NAMES, FigSpec, TableSpec
-from analysis.results_metrics import metrics_funcs
+# noinspection PyUnresolvedReferences
+from analysis.results_figures import *
+from analysis.results_metrics import metrics_funcs, load_analysis_hjson
 from analysis.results_metrics import metrics_names
 # noinspection PyUnresolvedReferences
 from analysis.results_tables import *
-# noinspection PyUnresolvedReferences
-from analysis.results_figures import *
 from link_bot_pycommon.get_scenario import get_scenario_cached
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import load_gzipped_pickle
@@ -47,7 +47,7 @@ def load_fig_specs(analysis_params, figures_config: pathlib.Path):
 
 
 def load_table_specs(tables_config: pathlib.Path, table_format: str):
-    tables_conf = load_hjson(tables_config)
+    tables_conf = load_analysis_hjson(tables_config)
     tablespecs = []
     for table_conf in tables_conf:
         table_type = eval(table_conf.pop('type'))
