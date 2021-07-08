@@ -180,6 +180,13 @@ def min_dists_and_indices(m):
     return min_along_cr, min_r_indices, min_c_indices
 
 
+def possibly_non_concat(old, new, axis: int):
+    if old is None:
+        return new
+    else:
+        return tf.concat([old, new], axis=axis)
+
+
 class HdtIK:
 
     def __init__(self,
@@ -187,6 +194,7 @@ class HdtIK:
                  scenario: ScenarioWithVisualization,
                  max_iters: int = 1000,
                  num_restarts: int = 100):
+        self.all_solved = None
         self.avoid_env_collision = False
         self.avoid_self_collision = False
         self.urdf = urdf_from_file(urdf_filename.as_posix())
@@ -246,6 +254,7 @@ class HdtIK:
         q = tf.Variable(initial_value)
 
         converged = None
+        solved = None
         loss_batch = None
         for iter in trange(self.max_iters):
 
@@ -262,8 +271,8 @@ class HdtIK:
             ], axis=-1)
             converged_repeated = tf.reduce_all(conds, axis=-1)  # [b * num_restarts]
             converged = tf.reshape(converged_repeated, [batch_size, self.num_restarts])
-            converged_any = tf.reduce_any(converged, axis=1)
-            if tf.reduce_all(converged_any):
+            solved = tf.reduce_any(converged, axis=1)
+            if tf.reduce_all(solved):
                 break
 
         q = tf.reshape(q, [batch_size, self.num_restarts, -1])
@@ -271,7 +280,10 @@ class HdtIK:
         score = tf.cast(converged, tf.float32) * -999 + loss_batch  # select the best solution out of the num_repeated
         best_solution_indices = tf.argmin(score, axis=1)
         best_q = tf.gather(q, best_solution_indices, axis=1, batch_dims=1)
-        return best_q, converged_any
+
+        self.all_solved = possibly_non_concat(self.all_solved, solved, axis=0)
+
+        return best_q, solved
 
     def print_stats(self):
         print(self.p)
@@ -482,6 +494,9 @@ class HdtIK:
         jl_high = joint_limits[:, 1][tf.newaxis]
         return gen.uniform([n, self.get_num_joints()], jl_low, jl_high, dtype=tf.float32)
 
+    def get_percentage_solved(self):
+        return tf.reduce_mean(tf.cast(self.all_solved, tf.float32)).numpy()
+
 
 def main():
     tf.get_logger().setLevel(logging.ERROR)
@@ -521,15 +536,24 @@ def main():
     else:
         profile_arg = None
     h = TFProfilerHelper(profile_arg=profile_arg, train_logdir=logdir)
+    total_p = SimpleProfiler()
+
+    def _solve():
+        ik_solver.solve(env_points=env_points,
+                        left_target_pose=left_target_pose,
+                        right_target_pose=right_target_pose,
+                        viz=viz,
+                        profiler_helper=h)
+
+    total_p.profile(5, _solve, skip_first_n=1)
+    print(total_p)
+
     q, converged = ik_solver.solve(env_points=env_points,
                                    left_target_pose=left_target_pose,
                                    right_target_pose=right_target_pose,
                                    viz=viz,
                                    profiler_helper=h)
-
-    ik_solver.get_joint_names()
-    print(f'{converged=}')
-    ik_solver.print_stats()
+    print(ik_solver.get_percentage_solved())
 
     stepper = RvizSimpleStepper()
     for b in range(batch_size):

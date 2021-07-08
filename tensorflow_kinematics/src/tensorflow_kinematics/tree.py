@@ -88,7 +88,6 @@ class Tree:
             if segment.child_name in self.segments_map:
                 self._fk(frames, q, segment.child_name, link_frame, batch_size)
 
-    @tf.function
     def fk(self, q):
         """
         Pose of all segments of the tree
