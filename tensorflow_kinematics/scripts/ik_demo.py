@@ -197,12 +197,14 @@ class HdtIK:
         self.robot_info = RobotVoxelgridInfo(joint_positions_key='!!!')
 
         self.max_iters = max_iters
-        self.initial_lr = 0.05
-        self.theta = 0.992
+        self.initial_lr = 0.1
+        self.orientation_weight = 0.0001
         self.jl_alpha = 0.1
         self.self_collision_alpha = 10.0
         self.collision_alpha = 50.0
         self.loss_threshold = 1e-4
+        self.position_threshold = 1e-3
+        self.orientation_threshold = 1e-3
         self.barrier_upper_lim = tf.square(0.04)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.barrier_epsilon = 0.01
@@ -239,9 +241,15 @@ class HdtIK:
 
             p = profiler_helper.start(batch_idx=iter, epoch=1)
             with tf.profiler.experimental.Trace('TraceContext', iter=iter):
-                loss, gradients = self.opt(q, env_points, left_target_pose, right_target_pose, batch_size, viz=viz)
+                foo, _ = self.opt(q, env_points, left_target_pose, right_target_pose, batch_size, viz=viz)
             p.stop()
-            if loss < self.loss_threshold:
+            left_pos_error, left_rot_error, right_pos_error, right_rot_error, jl_loss = foo
+            conds = [
+                self.position_satisfied(left_pos_error),
+                self.position_satisfied(right_pos_error),
+                self.jl_satsified(jl_loss),
+            ]
+            if tf.reduce_all(conds):
                 converged = True
                 break
 
@@ -250,28 +258,30 @@ class HdtIK:
     def print_stats(self):
         print(self.p)
 
-    def opt(self, q, env_points, left_target_pose, right_target_pose, batch_size, viz: bool):
+    def opt(self, q: tf.Variable, env_points, left_target_pose, right_target_pose, batch_size, viz: bool):
         with tf.GradientTape() as tape:
             self.p.start()
-            loss, viz_info = self.step(q, env_points, left_target_pose, right_target_pose, batch_size, viz)
+            foo, loss, viz_info = self.step(q, env_points, left_target_pose, right_target_pose, batch_size, viz)
             self.p.stop()
-        gradients = tape.gradient([loss], [q])
+        gradient = tape.gradient([loss], [q])[0]
 
         if viz:
             self.viz_func(env_points, left_target_pose, right_target_pose, q, viz_info)
 
-        self.optimizer.apply_gradients(grads_and_vars=zip(gradients, [q]))
+        self.optimizer.apply_gradients(grads_and_vars=[(gradient, q)])
+        # delta = self.initial_lr * gradient
+        # q.assign_sub(delta)
 
-        return loss, gradients
+        return foo, gradient
 
     @tf.function
-    def step(self, q, env_points, left_target_pose, right_target_pose, batch_size, viz: bool):
+    def step(self, q: tf.Variable, env_points, left_target_pose, right_target_pose, batch_size, viz: bool):
         poses = self.tree.fk_no_recursion(q)
         jl_loss = self.compute_jl_loss(self.tree, q)
         left_ee_pose = poses[self.left_ee_name]
         right_ee_pose = poses[self.right_ee_name]
-        left_pose_loss = self.compute_pose_loss(left_ee_pose, left_target_pose)
-        right_pose_loss = self.compute_pose_loss(right_ee_pose, right_target_pose)
+        left_pos_error, left_rot_error, left_pose_loss = self.compute_pose_loss(left_ee_pose, left_target_pose)
+        right_pos_error, right_rot_error, right_pose_loss = self.compute_pose_loss(right_ee_pose, right_target_pose)
 
         losses = [
             left_pose_loss,
@@ -299,7 +309,13 @@ class HdtIK:
             collision_viz_info
         ]
 
-        return loss, viz_info
+        foo = [
+            left_pos_error, left_rot_error,
+            right_pos_error, right_rot_error,
+            jl_loss,
+        ]
+
+        return foo, loss, viz_info
 
     def compute_self_collision_loss(self, poses, batch_size: int, viz: bool):
         nearest_points = []
@@ -370,8 +386,8 @@ class HdtIK:
 
     def compute_pose_loss(self, xs, target_pose):
         pos_error, rot_error = compute_pose_loss(xs, target_pose)
-        pose_loss = self.theta * pos_error + (1 - self.theta) * rot_error
-        return pose_loss
+        pose_loss = (1 - self.orientation_weight) * pos_error + self.orientation_weight * rot_error
+        return pos_error, rot_error, pose_loss
 
     def viz_func(self, env_points, left_target_pose, right_target_pose, q, viz_info):
         poses, (self_nearest_points, self_min_dists), (nearest_points, min_dists) = viz_info
@@ -430,6 +446,14 @@ class HdtIK:
     def get_num_joints(self):
         return self.n_actuated_joints
 
+    @staticmethod
+    def jl_satsified(jl_loss):
+        return jl_loss < 1e-9
+
+    def position_satisfied(self, pos_error):
+        # pos_error is squared, so to make the threshold in meters we square it here
+        return pos_error < tf.square(self.position_threshold)
+
 
 def main():
     tf.get_logger().setLevel(logging.ERROR)
@@ -442,15 +466,16 @@ def main():
 
     urdf_filename = pathlib.Path("/home/peter/catkin_ws/src/hdt_robot/hdt_michigan_description/urdf/hdt_michigan.urdf")
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
-    ik_solver = HdtIK(urdf_filename, scenario, max_iters=30)
+    ik_solver = HdtIK(urdf_filename, scenario, max_iters=1000)
 
-    batch_size = 32
-    viz = False
+    batch_size = 1
+    viz = True
+    profile = False
 
     left_target_pose = tf.tile(target(-0.2, 0.55, 0.2, -pi / 2, 0, 0), [batch_size, 1])
     right_target_pose = tf.tile(target(0.2, 0.55, 0.22, -pi / 2 + 0.5, -pi, 0), [batch_size, 1])
     # right_target_pose = tf.tile(target(0.0, 0.0, 0.0, 0, -pi, 0), [batch_size, 1])
-    o = tf.constant([[[0.25, 0.2, 0.2]]], tf.float32)
+    o = tf.constant([[[-0.25, 0.2, 0.2]]], tf.float32)
     env_points = tf.random.uniform([batch_size, 100, 3], -0.1, 0.1, dtype=tf.float32) + o
 
     gen = tf.random.Generator.from_seed(0)
@@ -458,7 +483,11 @@ def main():
     initial_value = tf.zeros([batch_size, ik_solver.get_num_joints()], dtype=tf.float32) + initial_noise
 
     logdir = "ik_demo_logdir"
-    h = TFProfilerHelper(profile_arg=(1, 29), train_logdir=logdir)
+    if profile:
+        profile_arg = (1, 29)
+    else:
+        profile_arg = None
+    h = TFProfilerHelper(profile_arg=profile_arg, train_logdir=logdir)
     q, converged = ik_solver.solve(env_points=env_points,
                                    left_target_pose=left_target_pose,
                                    right_target_pose=right_target_pose,
