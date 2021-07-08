@@ -38,6 +38,8 @@ def metrics_main(args):
     lineplot(df, 'ift_iteration', 'success', 'Success Rate (rolling)', out_dir, window=5)
     lineplot(df, 'ift_iteration', 'task_error', 'Task Error', out_dir)
     lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', out_dir, window=5)
+    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error', out_dir)
+    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error (rolling)', out_dir, window=5)
 
     plt.show()
 

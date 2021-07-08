@@ -82,7 +82,7 @@ class IterativeFineTuning:
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
-        self.verbose = 2
+        self.verbose = -1
         self.tpi = self.ift_config['trials_per_iteration']
         self.classifier_labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
         self.classifier_labeling_params = nested_dict_update(self.classifier_labeling_params,
