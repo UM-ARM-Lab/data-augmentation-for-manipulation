@@ -269,8 +269,6 @@ class HdtIK:
         solved = None
         loss_batch = None
         for iter in trange(self.max_iters):
-            from time import perf_counter
-            t0 = perf_counter()
             foo, _ = _wrap_for_profiling(self.opt, profiler_helper,
                                          q=self.q,
                                          env_points=env_points,
@@ -278,8 +276,6 @@ class HdtIK:
                                          right_target_pose=right_target_pose_repeated,
                                          batch_size=full_batch_size,
                                          viz=viz)
-            if iter == 0:
-                print(perf_counter() - t0)
             left_pos_error, left_rot_error, right_pos_error, right_rot_error, jl_loss, loss_batch = foo
             conds = tf.stack([
                 self.position_satisfied(left_pos_error),

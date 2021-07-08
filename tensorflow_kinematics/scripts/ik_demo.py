@@ -7,7 +7,6 @@ import tensorflow as tf
 import rospy
 import urdf_parser_py.xml_reflection.core
 from link_bot_pycommon.get_scenario import get_scenario
-from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.simple_profiler import SimpleProfiler
 from moonshine.tf_profiler_helper import TFProfilerHelper
 from tensorflow_kinematics.hdt_ik import HdtIK, target
@@ -61,6 +60,7 @@ def main():
                         profiler_helper=h)
 
     total_p.profile(5, _solve, skip_first_n=1)
+    print()
     print(total_p)
 
     q, converged = ik_solver.solve(env_points=env_points,
@@ -69,10 +69,11 @@ def main():
                                    viz=viz,
                                    profiler_helper=h)
     print(ik_solver.get_percentage_solved())
-    stepper = RvizSimpleStepper()
-    for b in range(batch_size):
-        ik_solver.plot_robot_and_targets(q, left_target_pose, right_target_pose, b=b)
-        stepper.step()
+    # from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
+    # stepper = RvizSimpleStepper()
+    # for b in range(batch_size):
+    #     ik_solver.plot_robot_and_targets(q, left_target_pose, right_target_pose, b=b)
+    #     stepper.step()
 
 
 if __name__ == '__main__':
