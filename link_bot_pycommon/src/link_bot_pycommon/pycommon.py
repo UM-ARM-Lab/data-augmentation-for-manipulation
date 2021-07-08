@@ -404,7 +404,9 @@ def pathify(x):
     Returns:
 
     """
-    if isinstance(x, str):
+    if x is None:
+        return None
+    elif isinstance(x, str):
         if os.sep in x:
             return pathlib.Path(x)
         else:

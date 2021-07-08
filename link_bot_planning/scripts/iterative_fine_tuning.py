@@ -141,8 +141,8 @@ class IterativeFineTuning:
                                    scenario=self.scenario)
 
     def run(self, n_iters: int):
-        initial_classifier_checkpoint = pathlib.Path(self.log['initial_classifier_checkpoint'])
-        initial_recovery_checkpoint = pathlib.Path(self.log['initial_recovery_checkpoint'])
+        initial_classifier_checkpoint = pathify(self.log['initial_classifier_checkpoint'])
+        initial_recovery_checkpoint = pathify(self.log['initial_recovery_checkpoint'])
 
         # Pre-adaptation training steps
         if self.pretraining_config.get('use_pretraining', False):
