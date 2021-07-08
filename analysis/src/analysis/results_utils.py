@@ -1,5 +1,5 @@
-import pathlib
 import logging
+import pathlib
 import re
 from typing import Dict, Optional, List, Union
 
@@ -21,6 +21,7 @@ from moonshine.filepath_tools import load_params, load_json_or_hjson
 from moonshine.moonshine_utils import numpify
 
 logger = logging.getLogger(__name__)
+
 
 class NoTransitionsError(Exception):
     pass
@@ -52,11 +53,17 @@ def dynamics_dataset_params_from_planner_params(planner_params: Dict):
 def classifier_params_from_planner_params(planner_params):
     classifier_model_dirs = paths_from_json(planner_params['classifier_model_dir'])
     representative_classifier_model_dir = classifier_model_dirs[0]
+    classifier_hparams = try_load_classifier_params(representative_classifier_model_dir)
+    return classifier_hparams
+
+
+def try_load_classifier_params(representative_classifier_model_dir):
     try:
         classifier_hparams = load_params(representative_classifier_model_dir.parent)
     except RuntimeError:
         try:
-            classifier_hparams = load_params(pathlib.Path('/media/shared/') / representative_classifier_model_dir.parent)
+            classifier_hparams = load_params(
+                pathlib.Path('/media/shared/') / representative_classifier_model_dir.parent)
         except RuntimeError:
             p1 = representative_classifier_model_dir.parent
             p2 = pathlib.Path(*p1.parts[2:])
@@ -76,8 +83,8 @@ def classifer_dataset_params_from_planner_params(planner_params: Dict):
 def labeling_params_from_planner_params(planner_params, fallback_labeling_params: Dict):
     classifier_model_dirs = paths_from_json(planner_params['classifier_model_dir'])
     representative_classifier_model_dir = classifier_model_dirs[0]
-    classifier_hparams_filename = representative_classifier_model_dir.parent
-    classifier_hparams = load_params(classifier_hparams_filename)
+    classifier_hparams = try_load_classifier_params(representative_classifier_model_dir)
+
     if 'labeling_params' in classifier_hparams:
         labeling_params = classifier_hparams['labeling_params']
     elif 'classifier_dataset_hparams' in classifier_hparams:

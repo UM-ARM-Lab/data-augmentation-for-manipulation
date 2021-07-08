@@ -3,6 +3,7 @@ import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
+import seaborn as sns
 import tabulate
 
 from analysis.analyze_results import load_table_specs, load_planning_results, generate_tables
@@ -33,17 +34,39 @@ def metrics_main(args):
 
     table_specs = load_table_specs(args.tables_config, table_format)
 
+    lineplot(df, 'ift_iteration', 'success', 'Success Rate', out_dir)
+    lineplot(df, 'ift_iteration', 'success', 'Success Rate (rolling)', out_dir, window=5)
+    lineplot(df, 'ift_iteration', 'task_error', 'Task Error', out_dir)
+    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', out_dir, window=5)
+
+    plt.show()
+
     generate_tables(df, out_dir, table_specs)
 
 
-@ros_init.with_ros("analyse_planning_results")
+def lineplot(df, x: str, metric: str, title: str, outdir: pathlib.Path, window=1):
+    df = df.copy()
+    df[metric] = df[metric].rolling(window=window, min_periods=1).agg('mean')
+    plt.figure()
+    ax = sns.lineplot(
+        data=df,
+        x=x,
+        y=metric,
+        palette='colorblind',
+        estimator='mean',
+        ci='sd',
+    ).set_title(title)
+    outfilename = outdir / f'{title}.png'
+    plt.savefig(outfilename)
+    return ax
+
+
+@ros_init.with_ros("analyse_ift_results")
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('results_dirs', help='results directory', type=pathlib.Path, nargs='+')
-    parser.add_argument('--figures-config', type=pathlib.Path,
-                        default=pathlib.Path("figures_configs/planning_evaluation.hjson"))
     parser.add_argument('--tables-config', type=pathlib.Path,
-                        default=pathlib.Path("tables_configs/factors.hjson"))
+                        default=pathlib.Path("tables_configs/planning_evaluation.hjson"))
     parser.add_argument('--analysis-params', type=pathlib.Path,
                         default=pathlib.Path("analysis_params/env_across_methods.json"))
     parser.add_argument('--no-plot', action='store_true')

@@ -82,7 +82,7 @@ class IterativeFineTuning:
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
-        self.verbose = -1
+        self.verbose = 2
         self.tpi = self.ift_config['trials_per_iteration']
         self.classifier_labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
         self.classifier_labeling_params = nested_dict_update(self.classifier_labeling_params,
@@ -356,12 +356,13 @@ class IterativeFineTuning:
         if planning_results_dir is None:
             planning_results_dir = self.planning_results_root_dir / f'iteration_{i:04d}_planning'
             latest_classifier_checkpoint = iteration_data.latest_classifier_checkpoint_dir / checkpoint_suffix
-            latest_recovery_checkpoint = iteration_data.latest_recovery_checkpoint_dir / 'best_checkpoint'
             planner_params = self.initial_planner_params.copy()
-            planner_params['recovery']['recovery_model_dir'] = latest_recovery_checkpoint
+            if iteration_data.latest_recovery_checkpoint_dir is not None:
+                latest_recovery_checkpoint = iteration_data.latest_recovery_checkpoint_dir / 'best_checkpoint'
+                planner_params['recovery']['recovery_model_dir'] = latest_recovery_checkpoint
             planner_params['classifier_model_dir'] = [
                 latest_classifier_checkpoint,
-                pathlib.Path('cl_trials/new_feasibility_baseline/none'),
+                pathlib.Path('/media/shared/cl_trials/new_feasibility_baseline/none'),
             ]
             self.initial_planner_params['fine_tuning_iteration'] = i
 

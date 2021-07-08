@@ -149,3 +149,19 @@ def guess_results_folder_name(data_filename):
     results_folders = data_filename.parts[:-1]
     results_folder_name = pathlib.Path(*results_folders[-2:]).as_posix()
     return results_folder_name
+
+
+def generate_tables(df: pd.DataFrame, out_dir: pathlib.Path, table_specs):
+    for spec in table_specs:
+        data_for_table = reduce_planning_metrics(spec.reductions, df)
+        spec.table.make_table(data_for_table)
+        spec.table.save(out_dir)
+    for spec in table_specs:
+        print()
+        spec.table.print()
+        print()
+    tables_outfilename = out_dir / 'tables.txt'
+    with tables_outfilename.open("w") as tables_outfile:
+        for spec in table_specs:
+            tables_outfile.write(spec.table.table)
+            tables_outfile.write('\n\n\n')

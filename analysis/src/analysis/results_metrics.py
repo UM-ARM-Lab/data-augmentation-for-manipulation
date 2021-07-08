@@ -1,12 +1,12 @@
 import logging
 import pathlib
-import warnings
 from typing import Dict, Optional
 
 import numpy as np
+import rospkg
 
-from arc_utilities.algorithms import nested_dict_update
 from analysis.results_utils import get_paths, classifier_params_from_planner_params
+from arc_utilities.algorithms import nested_dict_update
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.func_list_registrar import FuncListRegistrar
@@ -216,7 +216,10 @@ def target_env(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: 
 
 
 def load_analysis_params(analysis_params_filename: Optional[pathlib.Path] = None):
-    analysis_params_common_filename = pathlib.Path("analysis_params/common.json")
+    r = rospkg.RosPack()
+    analysis_dir = pathlib.Path(r.get_path("analysis"))
+    analysis_params_common_filename = analysis_dir / "analysis_params" / "common.json"
+    analysis_params_filename = analysis_dir / analysis_params_filename
     analysis_params = load_hjson(analysis_params_common_filename)
 
     if analysis_params_filename is not None:
