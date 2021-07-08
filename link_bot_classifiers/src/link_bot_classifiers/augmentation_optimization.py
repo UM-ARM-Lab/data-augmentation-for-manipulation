@@ -853,7 +853,7 @@ class AugmentationOptimization:
         joint_names = inputs['joint_names'][0, 0].numpy().tolist()
         deserialize_scene_msg(new_env)
 
-        # FIXME: can I use moveit + IKFast to find a collision free thing?
+        # TODO: run tree IK, try to find collision free solution
 
         reached = tf.cast(reached, tf.float32)
         is_ik_valid = reached

@@ -14,6 +14,7 @@ from arc_utilities.tf2wrapper import TF2Wrapper
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo, batch_transform_robot_points
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import pairwise_squared_distances
 from moonshine.moonshine_utils import reduce_mean_no_nan
 from moonshine.simple_profiler import SimpleProfiler
@@ -181,7 +182,11 @@ def min_dists_and_indices(m):
 
 class HdtIK:
 
-    def __init__(self, urdf_filename: pathlib.Path, scenario: ScenarioWithVisualization, max_iters: int = 5000):
+    def __init__(self,
+                 urdf_filename: pathlib.Path,
+                 scenario: ScenarioWithVisualization,
+                 max_iters: int = 1000,
+                 num_restarts: int = 100):
         self.avoid_env_collision = False
         self.avoid_self_collision = False
         self.urdf = urdf_from_file(urdf_filename.as_posix())
@@ -197,6 +202,7 @@ class HdtIK:
         self.robot_info = RobotVoxelgridInfo(joint_positions_key='!!!')
 
         self.max_iters = max_iters
+        self.num_restarts = num_restarts
         self.initial_lr = 0.1
         self.orientation_weight = 0.0001
         self.jl_alpha = 0.1
@@ -231,29 +237,41 @@ class HdtIK:
               viz=False,
               profiler_helper: Optional[TFProfilerHelper] = None):
         batch_size = left_target_pose.shape[0]
+        full_batch_size = batch_size * self.num_restarts
+        left_target_pose_repeated = tf.repeat(left_target_pose, self.num_restarts, axis=0)
+        right_target_pose_repeated = tf.repeat(right_target_pose, self.num_restarts, axis=0)
 
         if initial_value is None:
-            initial_value = tf.zeros([batch_size, self.get_num_joints()], dtype=tf.float32)
+            initial_value = self.sample_joint_positions(full_batch_size)
         q = tf.Variable(initial_value)
 
-        conds = None
+        converged = None
+        loss_batch = None
         for iter in trange(self.max_iters):
 
             p = profiler_helper.start(batch_idx=iter, epoch=1)
             with tf.profiler.experimental.Trace('TraceContext', iter=iter):
-                foo, _ = self.opt(q, env_points, left_target_pose, right_target_pose, batch_size, viz=viz)
+                foo, _ = self.opt(q, env_points, left_target_pose_repeated, right_target_pose_repeated, full_batch_size,
+                                  viz=viz)
             p.stop()
-            left_pos_error, left_rot_error, right_pos_error, right_rot_error, jl_loss = foo
+            left_pos_error, left_rot_error, right_pos_error, right_rot_error, jl_loss, loss_batch = foo
             conds = tf.stack([
                 self.position_satisfied(left_pos_error),
                 self.position_satisfied(right_pos_error),
                 self.jl_satsified(jl_loss),
             ], axis=-1)
-            converged = tf.reduce_all(conds)
-            if converged:
+            converged_repeated = tf.reduce_all(conds, axis=-1)  # [b * num_restarts]
+            converged = tf.reshape(converged_repeated, [batch_size, self.num_restarts])
+            converged_any = tf.reduce_any(converged, axis=1)
+            if tf.reduce_all(converged_any):
                 break
 
-        return q, tf.reduce_all(conds, axis=-1)
+        q = tf.reshape(q, [batch_size, self.num_restarts, -1])
+        loss_batch = tf.reshape(loss_batch, [batch_size, self.num_restarts])
+        score = tf.cast(converged, tf.float32) * -999 + loss_batch  # select the best solution out of the num_repeated
+        best_solution_indices = tf.argmin(score, axis=1)
+        best_q = tf.gather(q, best_solution_indices, axis=1, batch_dims=1)
+        return best_q, converged_any
 
     def print_stats(self):
         print(self.p)
@@ -301,7 +319,8 @@ class HdtIK:
         else:
             collision_viz_info = [None, None]
 
-        loss = tf.reduce_mean(tf.math.add_n(losses))
+        loss_batch = tf.math.add_n(losses)
+        loss = tf.reduce_mean(loss_batch)
 
         viz_info = [
             poses,
@@ -313,6 +332,7 @@ class HdtIK:
             left_pos_error, left_rot_error,
             right_pos_error, right_rot_error,
             jl_loss,
+            loss_batch,
         ]
 
         return foo, loss, viz_info
@@ -455,6 +475,13 @@ class HdtIK:
         # pos_error is squared, so to make the threshold in meters we square it here
         return pos_error < tf.square(self.position_threshold)
 
+    def sample_joint_positions(self, n: int):
+        gen = tf.random.Generator.from_seed(0)
+        joint_limits = self.tree.get_joint_limits()
+        jl_low = joint_limits[:, 0][tf.newaxis]
+        jl_high = joint_limits[:, 1][tf.newaxis]
+        return gen.uniform([n, self.get_num_joints()], jl_low, jl_high, dtype=tf.float32)
+
 
 def main():
     tf.get_logger().setLevel(logging.ERROR)
@@ -467,21 +494,26 @@ def main():
 
     urdf_filename = pathlib.Path("/home/peter/catkin_ws/src/hdt_robot/hdt_michigan_description/urdf/hdt_michigan.urdf")
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
-    ik_solver = HdtIK(urdf_filename, scenario, max_iters=1000)
+    ik_solver = HdtIK(urdf_filename, scenario)
 
     batch_size = 32
     viz = False
     profile = False
 
-    left_target_pose = tf.tile(target(-0.2, 0.55, 0.2, -pi / 2, 0, 0), [batch_size, 1])
-    right_target_pose = tf.tile(target(0.2, 0.55, 0.22, -pi / 2 + 0.5, -pi, 0), [batch_size, 1])
+    gen = tf.random.Generator.from_seed(0)
+    target_noise = gen.uniform([2, batch_size, 7],
+                               [-1, -1, -1, 0, 0, 0, 0],
+                               [1, 1, 1, 0, 0, 0, 0],
+                               dtype=tf.float32) * 0.1
+    left_target_pose = tf.tile(target(-0.2, 0.55, 0.2, -pi / 2, 0, 0), [batch_size, 1]) + target_noise[0]
+    right_target_pose = tf.tile(target(0.2, 0.55, 0.22, -pi / 2 + 0.5, -pi, 0), [batch_size, 1]) + target_noise[1]
     # right_target_pose = tf.tile(target(0.0, 0.0, 0.0, 0, -pi, 0), [batch_size, 1])
     o = tf.constant([[[-0.25, 0.2, 0.2]]], tf.float32)
     env_points = tf.random.uniform([batch_size, 100, 3], -0.1, 0.1, dtype=tf.float32) + o
 
-    gen = tf.random.Generator.from_seed(0)
-    initial_noise = gen.uniform([batch_size, ik_solver.get_num_joints()], -1, 1, dtype=tf.float32) * 0.1
-    initial_value = tf.zeros([batch_size, ik_solver.get_num_joints()], dtype=tf.float32) + initial_noise
+    # gen = tf.random.Generator.from_seed(0)
+    # initial_noise = gen.uniform([batch_size, ik_solver.get_num_joints()], -1, 1, dtype=tf.float32) * 0.1
+    # initial_value = tf.zeros([batch_size, ik_solver.get_num_joints()], dtype=tf.float32) + initial_noise
 
     logdir = "ik_demo_logdir"
     if profile:
@@ -493,13 +525,16 @@ def main():
                                    left_target_pose=left_target_pose,
                                    right_target_pose=right_target_pose,
                                    viz=viz,
-                                   initial_value=initial_value,
                                    profiler_helper=h)
 
     ik_solver.get_joint_names()
     print(f'{converged=}')
     ik_solver.print_stats()
-    ik_solver.plot_robot_and_targets(q, left_target_pose, right_target_pose, b=1)
+
+    stepper = RvizSimpleStepper()
+    for b in range(batch_size):
+        ik_solver.plot_robot_and_targets(q, left_target_pose, right_target_pose, b=b)
+        stepper.step()
 
 
 if __name__ == '__main__':
