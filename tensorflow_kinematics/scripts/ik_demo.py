@@ -13,7 +13,7 @@ from tensorflow_kinematics.hdt_ik import HdtIK, target
 
 
 def main():
-    tf.get_logger().setLevel(logging.DEBUG)
+    tf.get_logger().setLevel(logging.ERROR)
     rospy.init_node("ik_demo")
 
     def _on_error(_):

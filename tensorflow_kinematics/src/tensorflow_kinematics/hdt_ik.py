@@ -188,7 +188,7 @@ class HdtIK:
                  urdf_filename: pathlib.Path,
                  scenario: ScenarioWithVisualization,
                  max_iters: int = 1000,
-                 num_restarts: int = 100):
+                 num_restarts: int = 12):
         self.all_solved = None
         self.avoid_env_collision = False
         self.avoid_self_collision = False
