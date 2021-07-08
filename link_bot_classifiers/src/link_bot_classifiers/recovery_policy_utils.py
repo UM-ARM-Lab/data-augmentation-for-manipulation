@@ -12,7 +12,6 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from moonshine.filepath_tools import load_trial
 
 
-@lru_cache
 def load_generic_model(path: pathlib.Path,
                        scenario: Optional[ScenarioWithVisualization] = None,
                        rng: np.random.RandomState = None,
