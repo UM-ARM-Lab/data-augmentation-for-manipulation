@@ -182,7 +182,7 @@ def min_dists_and_indices(m):
 class HdtIK:
 
     def __init__(self, urdf_filename: pathlib.Path, scenario: ScenarioWithVisualization, max_iters: int = 5000):
-        self.avoid_env_collision = True
+        self.avoid_env_collision = False
         self.avoid_self_collision = False
         self.urdf = urdf_from_file(urdf_filename.as_posix())
         self.scenario = scenario
@@ -236,7 +236,7 @@ class HdtIK:
             initial_value = tf.zeros([batch_size, self.get_num_joints()], dtype=tf.float32)
         q = tf.Variable(initial_value)
 
-        converged = False
+        conds = None
         for iter in trange(self.max_iters):
 
             p = profiler_helper.start(batch_idx=iter, epoch=1)
@@ -244,16 +244,16 @@ class HdtIK:
                 foo, _ = self.opt(q, env_points, left_target_pose, right_target_pose, batch_size, viz=viz)
             p.stop()
             left_pos_error, left_rot_error, right_pos_error, right_rot_error, jl_loss = foo
-            conds = [
+            conds = tf.stack([
                 self.position_satisfied(left_pos_error),
                 self.position_satisfied(right_pos_error),
                 self.jl_satsified(jl_loss),
-            ]
-            if tf.reduce_all(conds):
-                converged = True
+            ], axis=-1)
+            converged = tf.reduce_all(conds)
+            if converged:
                 break
 
-        return q, converged
+        return q, tf.reduce_all(conds, axis=-1)
 
     def print_stats(self):
         print(self.p)
@@ -417,28 +417,29 @@ class HdtIK:
                     ends.append(self_nearest_points_i[1].numpy())
             self.scenario.plot_lines_rviz(starts, ends, label='self_nearest', color='white')
 
+        self.plot_robot_and_targets(q, left_target_pose, right_target_pose, b)
+
+        points = [pose.numpy()[b, :3] for pose in poses.values()]
+        self.scenario.plot_points_rviz(points, label='fk', color='b', scale=0.005)
+
+        self.scenario.plot_points_rviz(env_points[b].numpy(), label='env', color='magenta')
+
+    def plot_robot_and_targets(self, q, left_target_pose, right_target_pose, b: int):
         self.tf2.send_transform(left_target_pose[b, :3].numpy().tolist(),
                                 left_target_pose[b, 3:].numpy().tolist(),
                                 parent='world', child='left_target')
         self.tf2.send_transform(right_target_pose[b, :3].numpy().tolist(),
                                 right_target_pose[b, 3:].numpy().tolist(),
                                 parent='world', child='right_target')
-
         robot_state_dict = {}
         for name, pose in zip(self.actuated_joint_names, q[b].numpy().tolist()):
             robot_state_dict[name] = pose
-
         robot = DisplayRobotState()
         robot.state.joint_state.name = robot_state_dict.keys()
         robot.state.joint_state.position = robot_state_dict.values()
         robot.state.joint_state.header.stamp = rospy.Time.now()
         self.display_robot_state_pub.publish(robot)
         self.joint_states_viz_pub.publish(robot.state.joint_state)
-
-        points = [pose.numpy()[b, :3] for pose in poses.values()]
-        self.scenario.plot_points_rviz(points, label='fk', color='b', scale=0.005)
-
-        self.scenario.plot_points_rviz(env_points[b].numpy(), label='env', color='magenta')
 
     def get_joint_names(self):
         return self.actuated_joint_names
@@ -468,8 +469,8 @@ def main():
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
     ik_solver = HdtIK(urdf_filename, scenario, max_iters=1000)
 
-    batch_size = 1
-    viz = True
+    batch_size = 32
+    viz = False
     profile = False
 
     left_target_pose = tf.tile(target(-0.2, 0.55, 0.2, -pi / 2, 0, 0), [batch_size, 1])
@@ -498,6 +499,7 @@ def main():
     ik_solver.get_joint_names()
     print(f'{converged=}')
     ik_solver.print_stats()
+    ik_solver.plot_robot_and_targets(q, left_target_pose, right_target_pose, b=1)
 
 
 if __name__ == '__main__':
