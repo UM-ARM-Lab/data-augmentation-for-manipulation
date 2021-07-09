@@ -45,7 +45,7 @@ def bio_ik_demo():
     scenario.robot.display_robot_state(zero_robot_state, label='zero')
 
     n = 5
-    positions = np.stack(np.meshgrid(np.linspace(-0.4, 0.0, n), np.linspace(0.7, 0.7, n), np.linspace(0.1, 0.2, n)),
+    positions = np.stack(np.meshgrid(np.linspace(-0.4, 0.0, n), np.linspace(0.7, 0.7, n), np.linspace(0.0, 0.2, n)),
                          axis=-1)
     positions = positions.reshape([-1, 3])
     # positions = [np.array([-0.25, 0.5, 0.25])] * n
@@ -65,6 +65,7 @@ def bio_ik_demo():
         scenario.plot_points_rviz([position], label='target')
         scenario.tf.send_transform_from_pose_msg(left_target_pose, 'world', 'left_target')
         scenario.tf.send_transform_from_pose_msg(right_target_pose, 'world', 'right_target')
+        scenario.planning_scene_viz_pub.publish(scene_msg)
         if robot_state is not None:
             scenario.robot.display_robot_state(robot_state, label='')
             scenario.joint_state_viz_pub.publish(robot_state.joint_state)
