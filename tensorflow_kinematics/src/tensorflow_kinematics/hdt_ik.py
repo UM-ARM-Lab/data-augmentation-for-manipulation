@@ -1,6 +1,8 @@
+import logging
 import pathlib
 from typing import Optional
 
+import numpy as np
 import tensorflow as tf
 from tensorflow_graphics.geometry.transformation import rotation_matrix_3d as tfr
 from tqdm import trange
@@ -9,17 +11,20 @@ import rospy
 from arc_utilities.ros_helpers import get_connected_publisher
 from arc_utilities.tf2wrapper import TF2Wrapper
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo, batch_transform_robot_points
+from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.geometry import pairwise_squared_distances
-from moonshine.moonshine_utils import reduce_mean_no_nan
+from moonshine.moonshine_utils import reduce_mean_no_nan, possibly_none_concat
 from moonshine.simple_profiler import SimpleProfiler
 from moonshine.tf_profiler_helper import TFProfilerHelper
-from moveit_msgs.msg import DisplayRobotState
+from moveit_msgs.msg import DisplayRobotState, RobotState
 from sensor_msgs.msg import JointState
 from tensorflow_kinematics.joint import SUPPORTED_ACTUATED_JOINT_TYPES
 from tensorflow_kinematics.tree import Tree
 from tensorflow_kinematics.urdf_utils import urdf_from_file, urdf_to_tree
 from tf.transformations import quaternion_from_euler
+
+logger = logging.getLogger(__file__)
 
 IGNORE_COLLISIONS = [
     {"drive1", "drive2"},
@@ -175,20 +180,15 @@ def min_dists_and_indices(m):
     return min_along_cr, min_r_indices, min_c_indices
 
 
-def possibly_non_concat(old, new, axis: int):
-    if old is None:
-        return new
-    else:
-        return tf.concat([old, new], axis=axis)
-
-
 class HdtIK:
 
     def __init__(self,
                  urdf_filename: pathlib.Path,
                  scenario: ScenarioWithVisualization,
                  max_iters: int = 1000,
-                 num_restarts: int = 12):
+                 num_restarts: int = 12,
+                 initial_value_noise=0.25):
+        self.initial_value_noise = initial_value_noise
         self.all_solved = None
         self.avoid_env_collision = False
         self.avoid_self_collision = False
@@ -225,6 +225,7 @@ class HdtIK:
         # lr = self.initial_lr
         # opt = tf.keras.optimizers.SGD(lr)
         self.optimizer = tf.keras.optimizers.Adam(lr, amsgrad=True)
+        self.reset_optimizer()
 
         self.display_robot_state_pub = get_connected_publisher("display_robot_state", DisplayRobotState, queue_size=10)
         self.joint_states_viz_pub = rospy.Publisher("joint_states_viz", JointState, queue_size=10)
@@ -234,26 +235,71 @@ class HdtIK:
 
         self.q = None
 
+    def reset_optimizer(self):
+        for var in self.optimizer.variables():
+            var.assign(tf.zeros_like(var))
+
     def solve(self,
               env_points,
-              left_target_pose,
-              right_target_pose,
+              scene_msg=None,
+              left_target_pose=None,
+              right_target_pose=None,
+              left_target_position=None,
+              right_target_position=None,
               initial_value=None,
               viz=False,
               profiler_helper: Optional[TFProfilerHelper] = None):
-        batch_size = left_target_pose.shape[0]
+        """
+
+        Args:
+            env_points: dict
+            scene_msg: list/array of shape[b] of PlanningScene messages
+            left_target_pose:  [b, 7] representing x,y,z,q_x,q_y,q_z,q_w
+            right_target_pose: [b, 7] representing x,y,z,q_x,q_y,q_z,q_w
+            left_target_position: [b, 3] representing x,y,z
+            right_target_position: [b, 3] representing x,y,z
+            initial_value: [b, num_joints]
+            viz: plot stuff in rviz while optimizing
+            profiler_helper: profile stuff
+
+        Returns:
+            [b, num_joints] solutions
+            [b] whether the solutions satisfy the constraints
+
+        """
+        if left_target_pose is not None:
+            batch_size = left_target_pose.shape[0]
+        else:
+            batch_size = left_target_position.shape[0]
+
         full_batch_size = batch_size * self.num_restarts
+        zero_orientation = tf.zeros([batch_size, 4])
+        if left_target_pose is None and right_target_pose is None:
+            self.orientation_weight = 0.0001
+            assert left_target_position is not None, "missing left pose or position"
+            left_target_pose = tf.concat([left_target_position, zero_orientation], axis=-1)
+            assert right_target_position is not None, "missing right pose or position"
+            right_target_pose = tf.concat([right_target_position, zero_orientation], axis=-1)
+        elif left_target_pose is not None and right_target_pose is not None:
+            self.orientation_weight = 0.008
+        else:
+            raise NotImplementedError()
         left_target_pose_repeated = tf.repeat(left_target_pose, self.num_restarts, axis=0)
         right_target_pose_repeated = tf.repeat(right_target_pose, self.num_restarts, axis=0)
 
         if initial_value is None:
             initial_value = self.sample_joint_positions(full_batch_size)
+        else:
+            initial_value_noise = self.sample_joint_positions(full_batch_size) * self.initial_value_noise
+            initial_value = tf.repeat(initial_value, self.num_restarts, axis=0) + initial_value_noise
 
         # constructing this once (lazily) saves the cost of re-tracing the tf.function every time
         if self.q is None:
             self.q = tf.Variable(initial_value)
 
         self.q.assign(initial_value)
+
+        self.reset_optimizer()
 
         def _wrap_for_profiling(func, profiler_helper, *args, **kwargs):
             if profiler_helper is not None:
@@ -265,43 +311,65 @@ class HdtIK:
                 outputs = func(*args, **kwargs)
             return outputs
 
-        converged = None
-        solved = None
+        self.avoid_env_collision = (env_points is not None)
+        if scene_msg is not None:
+            scene_msg_repeated = np.repeat(scene_msg, self.num_restarts)
+        else:
+            scene_msg_repeated = None
+
         loss_batch = None
-        for iter in trange(self.max_iters):
+        converged_batch_restarts = None
+        for iter in trange(self.max_iters, leave=False):
             foo, _ = _wrap_for_profiling(self.opt, profiler_helper,
                                          q=self.q,
+                                         scene_msg=scene_msg_repeated,
                                          env_points=env_points,
                                          left_target_pose=left_target_pose_repeated,
                                          right_target_pose=right_target_pose_repeated,
                                          batch_size=full_batch_size,
                                          viz=viz)
-            left_pos_error, left_rot_error, right_pos_error, right_rot_error, jl_loss, loss_batch = foo
-            conds = tf.stack([
-                self.position_satisfied(left_pos_error),
-                self.position_satisfied(right_pos_error),
-                self.jl_satsified(jl_loss),
-            ], axis=-1)
-            converged_repeated = tf.reduce_all(conds, axis=-1)  # [b * num_restarts]
-            converged = tf.reshape(converged_repeated, [batch_size, self.num_restarts])
-            solved = tf.reduce_any(converged, axis=1)
-            if tf.reduce_all(solved):
+            loss_batch, converged_batch = foo
+            converged_batch_restarts = tf.reshape(converged_batch, [batch_size, self.num_restarts])
+            converged_batch = tf.reduce_any(converged_batch_restarts, axis=1)
+            if tf.reduce_all(converged_batch):
                 break
 
-        q = tf.reshape(self.q, [batch_size, self.num_restarts, -1])
-        loss_batch = tf.reshape(loss_batch, [batch_size, self.num_restarts])
-        score = tf.cast(converged, tf.float32) * -999 + loss_batch  # select the best solution out of the num_repeated
+        # Call moveit collision checking
+        # This is a non-differentiable constraint, so we reject invalid solutions after optimizing
+        if scene_msg is not None:
+            collision_with_scene = []
+            for b in range(full_batch_size):
+                scene_msg_b = scene_msg_repeated[b]
+                joint_state = JointState(name=self.get_joint_names(), position=self.q[b].numpy().tolist())
+                attached_collision_objects = scene_msg_b.robot_state.attached_collision_objects
+                start_state = RobotState(joint_state=joint_state, attached_collision_objects=attached_collision_objects)
+                scene_msg_b.robot_state = start_state
+                collision_with_scene_b = self.scenario.robot.jacobian_follower.check_collision(scene_msg_b,
+                                                                                               start_state)
+                collision_with_scene.append(collision_with_scene_b)
+            collision_with_scene = tf.stack(collision_with_scene, axis=0)
+            collision_with_scene = tf.reshape(collision_with_scene, [batch_size, self.num_restarts])
+
+        q_ = tf.reshape(self.q, [batch_size, self.num_restarts, -1])
+        loss_batch = tf.reshape(loss_batch, [batch_size, self.num_restarts])  # [b, num_restarts]
+        if scene_msg is not None:
+            solved_batch_restarts = tf.logical_and(converged_batch_restarts,
+                                                   tf.logical_not(collision_with_scene))  # [b, num_restarts]
+        else:
+            solved_batch_restarts = converged_batch_restarts  # [b, num_restarts]
+        score = tf.cast(solved_batch_restarts, tf.float32) * -999 + loss_batch  # select best solution of "restarts"
         best_solution_indices = tf.argmin(score, axis=1)
-        best_q = tf.gather(q, best_solution_indices, axis=1, batch_dims=1)
+        best_q = tf.gather(q_, best_solution_indices, axis=1, batch_dims=1)
+        solved_batch = tf.gather(solved_batch_restarts, best_solution_indices, axis=1, batch_dims=1)  # [b]
 
-        self.all_solved = possibly_non_concat(self.all_solved, solved, axis=0)
+        self.all_solved = possibly_none_concat(self.all_solved, solved_batch, axis=0)
 
-        return best_q, solved
+        return best_q, solved_batch
 
     def print_stats(self):
         print(self.p)
 
-    def opt(self, q: tf.Variable, env_points, left_target_pose, right_target_pose, batch_size, viz: bool):
+    def opt(self, q: tf.Variable, env_points, scene_msg, left_target_pose, right_target_pose, batch_size, viz: bool):
         with tf.GradientTape() as tape:
             self.p.start()
             foo, loss, viz_info = self.step(q, env_points, left_target_pose, right_target_pose, batch_size, viz)
@@ -309,11 +377,10 @@ class HdtIK:
         gradient = tape.gradient([loss], [q])[0]
 
         if viz:
-            self.viz_func(env_points, left_target_pose, right_target_pose, q, viz_info)
+            for b in debug_viz_batch_indices(batch_size):
+                self.viz_func(env_points, scene_msg, left_target_pose, right_target_pose, q, viz_info, b)
 
         self.optimizer.apply_gradients(grads_and_vars=[(gradient, q)])
-        # delta = self.initial_lr * gradient
-        # q.assign_sub(delta)
 
         return foo, gradient
 
@@ -344,7 +411,15 @@ class HdtIK:
         else:
             collision_viz_info = [None, None]
 
+        conds_batch = tf.stack([
+            self.position_satisfied(left_pos_error),
+            self.position_satisfied(right_pos_error),
+            self.jl_satsified(jl_loss),
+        ], axis=-1)  # [b * num_restarts, m]
+        converged_batch = tf.reduce_all(conds_batch, axis=-1)  # [b * num_restarts]
+
         loss_batch = tf.math.add_n(losses)
+        loss_batch = tf.where(converged_batch, 0.0, loss_batch)  # kill gradients if we've solved it
         loss = tf.reduce_mean(loss_batch)
 
         viz_info = [
@@ -354,10 +429,8 @@ class HdtIK:
         ]
 
         foo = [
-            left_pos_error, left_rot_error,
-            right_pos_error, right_rot_error,
-            jl_loss,
             loss_batch,
+            converged_batch,
         ]
 
         return foo, loss, viz_info
@@ -434,15 +507,18 @@ class HdtIK:
         pose_loss = (1 - self.orientation_weight) * pos_error + self.orientation_weight * rot_error
         return pos_error, rot_error, pose_loss
 
-    def viz_func(self, env_points, left_target_pose, right_target_pose, q, viz_info):
+    def viz_func(self, env_points, scene_msg, left_target_pose, right_target_pose, q, viz_info, b: int):
         poses, (self_nearest_points, self_min_dists), (nearest_points, min_dists) = viz_info
-        b = 0
+
+        if scene_msg is not None:
+            self.scenario.planning_scene_viz_pub.publish(scene_msg[b])
 
         if self.avoid_env_collision:
             p_b = []
             starts = []
             ends = []
-            for env_point_i, nearest_point_i, min_d in zip(env_points[b], nearest_points[b], min_dists[b]):
+            for env_point_i, nearest_point_i, min_d in zip(env_points[b], nearest_points[b],
+                                                           min_dists[b]):
                 if min_d.numpy() < tf.square(self.barrier_upper_lim):
                     p_b.append(env_point_i[b].numpy())
                     p_b.append(nearest_point_i.numpy())
@@ -467,15 +543,22 @@ class HdtIK:
         points = [pose.numpy()[b, :3] for pose in poses.values()]
         self.scenario.plot_points_rviz(points, label='fk', color='b', scale=0.005)
 
-        self.scenario.plot_points_rviz(env_points[b].numpy(), label='env', color='magenta')
+        if env_points is not None:
+            self.scenario.plot_points_rviz(env_points[b].numpy(), label='env', color='magenta')
 
     def plot_robot_and_targets(self, q, left_target_pose, right_target_pose, b: int):
-        self.tf2.send_transform(left_target_pose[b, :3].numpy().tolist(),
-                                left_target_pose[b, 3:].numpy().tolist(),
-                                parent='world', child='left_target')
-        self.tf2.send_transform(right_target_pose[b, :3].numpy().tolist(),
-                                right_target_pose[b, 3:].numpy().tolist(),
-                                parent='world', child='right_target')
+        left_target_pos = left_target_pose[b, :3].numpy().tolist()
+        left_target_quat = left_target_pose[b, 3:].numpy().tolist()
+        right_target_pos = right_target_pose[b, :3].numpy().tolist()
+        right_target_quat = right_target_pose[b, 3:].numpy().tolist()
+        if left_target_quat == [0, 0, 0, 0]:
+            self.scenario.plot_points_rviz([left_target_pos], label='left_target', color='magenta')
+        else:
+            self.tf2.send_transform(left_target_pos, left_target_quat, parent='world', child='left_target')
+        if right_target_quat == [0, 0, 0, 0]:
+            self.scenario.plot_points_rviz([right_target_pos], label='right_target', color='magenta')
+        else:
+            self.tf2.send_transform(right_target_pos, right_target_quat, parent='world', child='right_target')
         robot_state_dict = {}
         for name, pose in zip(self.actuated_joint_names, q[b].numpy().tolist()):
             robot_state_dict[name] = pose

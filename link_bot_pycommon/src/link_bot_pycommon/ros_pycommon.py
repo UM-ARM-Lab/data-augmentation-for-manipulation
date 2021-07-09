@@ -2,6 +2,7 @@ import numpy as np
 
 import ros_numpy
 import rospy
+import urdf_parser_py.xml_reflection
 from arc_utilities.listener import Listener
 from arc_utilities.tf2wrapper import TF2Wrapper
 from peter_msgs.srv import Position3DEnable, GetPosition3D, Position3DAction
@@ -49,3 +50,11 @@ def transform_points_to_robot_frame(tf: TF2Wrapper, cdcpd_msg: PointCloud2, robo
     z = cdcpd_points_array['z']
     points = np.stack([x, y, z], axis=-1)
     return points
+
+
+def silence_urdfpy_warnings():
+    def _on_error(_):
+        pass
+
+    import urdf_parser_py.xml_reflection.core
+    urdf_parser_py.xml_reflection.core.on_error = _on_error

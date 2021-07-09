@@ -1,14 +1,16 @@
 import logging
 import pathlib
+import pickle
 from math import pi
 
 import tensorflow as tf
 
 import rospy
-import urdf_parser_py.xml_reflection.core
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.ros_pycommon import silence_urdfpy_warnings
 from moonshine.simple_profiler import SimpleProfiler
 from moonshine.tf_profiler_helper import TFProfilerHelper
+from tensorflow_kinematics import hdt_ik
 from tensorflow_kinematics.hdt_ik import HdtIK, target
 
 
@@ -16,14 +18,13 @@ def main():
     tf.get_logger().setLevel(logging.ERROR)
     rospy.init_node("ik_demo")
 
-    def _on_error(_):
-        pass
-
-    urdf_parser_py.xml_reflection.core.on_error = _on_error
+    silence_urdfpy_warnings()
 
     urdf_filename = pathlib.Path("/home/peter/catkin_ws/src/hdt_robot/hdt_michigan_description/urdf/hdt_michigan.urdf")
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
     ik_solver = HdtIK(urdf_filename, scenario)
+
+    hdt_ik.logger.setLevel(logging.INFO)
 
     batch_size = 32
     viz = False
@@ -50,24 +51,31 @@ def main():
     else:
         h = None
 
-    total_p = SimpleProfiler()
+    # total_p = SimpleProfiler()
+    #
+    # def _solve():
+    #     ik_solver.solve(env_points=env_points,
+    #                     left_target_pose=left_target_pose,
+    #                     right_target_pose=right_target_pose,
+    #                     viz=viz,
+    #                     profiler_helper=h)
+    #
+    # total_p.profile(5, _solve, skip_first_n=1)
+    # print()
+    # print(total_p)
 
-    def _solve():
-        ik_solver.solve(env_points=env_points,
-                        left_target_pose=left_target_pose,
-                        right_target_pose=right_target_pose,
-                        viz=viz,
-                        profiler_helper=h)
 
-    total_p.profile(5, _solve, skip_first_n=1)
-    print()
-    print(total_p)
+    with pathlib.Path("/media/shared/pretransfer_initial_configs/car/initial_config_0.pkl").open("rb") as f:
+        scene_msg = pickle.load(f)['env']['scene_msg']
+    scene_msg_batched = [scene_msg] * batch_size
+
+    scenario.planning_scene_viz_pub.publish(scene_msg)
 
     q, converged = ik_solver.solve(env_points=env_points,
+                                   scene_msg=scene_msg_batched,
                                    left_target_pose=left_target_pose,
                                    right_target_pose=right_target_pose,
-                                   viz=viz,
-                                   profiler_helper=h)
+                                   viz=viz)
     print(ik_solver.get_percentage_solved())
     # from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
     # stepper = RvizSimpleStepper()

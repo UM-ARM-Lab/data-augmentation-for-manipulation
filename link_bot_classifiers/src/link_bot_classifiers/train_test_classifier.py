@@ -11,6 +11,7 @@ from colorama import Fore
 from progressbar import progressbar
 
 import link_bot_classifiers
+import link_bot_classifiers.get_model
 import ros_numpy
 import rospy
 from geometry_msgs.msg import Point
@@ -88,7 +89,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                trials_directory: Optional[pathlib.Path] = pathlib.Path("./trials").absolute(),
                **kwargs):
     model_hparams = load_hjson(model_hparams)
-    model_class = link_bot_classifiers.get_model(model_hparams['model_class'])
+    model_class = link_bot_classifiers.get_model.get_model(model_hparams['model_class'])
 
     # set load_true_states=True when debugging
     train_dataset = get_classifier_dataset_loader(dataset_dirs=dataset_dirs,
@@ -214,7 +215,7 @@ def eval_n_main(dataset_dir: pathlib.Path,
     for checkpoint in checkpoints:
         trial_path = checkpoint.parent.absolute()
         _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
-        model_class = link_bot_classifiers.get_model(params['model_class'])
+        model_class = link_bot_classifiers.get_model.get_model(params['model_class'])
 
         model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario(), verbose=-1)
         # This call to model runner restores the model
@@ -248,7 +249,7 @@ def eval_setup(balance,
                **kwargs):
     trial_path = checkpoint.parent.absolute()
     _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
-    model_class = link_bot_classifiers.get_model(params['model_class'])
+    model_class = link_bot_classifiers.get_model.get_model(params['model_class'])
 
     dataset_loader, dataset = setup_eval_dataset(balance, dataset_dirs, mode, scenario, take, threshold, use_gt_rope,
                                                  batch_size)

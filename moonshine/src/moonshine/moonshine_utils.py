@@ -440,3 +440,10 @@ def reduce_mean_no_nan(x, axis=-1):
 
     """
     return tf.math.divide_no_nan(tf.reduce_sum(x, axis=axis), x.shape[axis])
+
+
+def possibly_none_concat(old, new, axis: int):
+    if old is None:
+        return new
+    else:
+        return tf.concat([old, new], axis=axis)

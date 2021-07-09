@@ -7,7 +7,8 @@ import numpy as np
 import tensorflow as tf
 from progressbar import progressbar
 
-from link_bot_classifiers import recovery_policy_utils, get_model
+from link_bot_classifiers import recovery_policy_utils
+from link_bot_classifiers.get_model import get_model
 from link_bot_classifiers.nn_recovery_model import NNRecoveryModel
 from link_bot_data.dataset_utils import batch_tf_dataset
 from link_bot_data.progressbar_widgets import mywidgets

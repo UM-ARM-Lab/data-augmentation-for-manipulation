@@ -9,6 +9,7 @@ import tabulate
 from colorama import Style, Fore
 
 import link_bot_classifiers
+import link_bot_classifiers.get_model
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier_from_datasets
 from link_bot_data.dataset_utils import compute_batch_size_for_n_examples
 from link_bot_data.load_dataset import get_classifier_dataset_loader
@@ -54,7 +55,7 @@ def evaluate(proxy_datasets_and_info: List[Tuple], latest_checkpoint: pathlib.Pa
     for loader, proxy_dataset, info in proxy_datasets_and_info:
         trial_path = latest_checkpoint.parent.absolute()
         _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
-        model_class = link_bot_classifiers.get_model(params['model_class'])
+        model_class = link_bot_classifiers.get_model.get_model(params['model_class'])
 
         model = model_class(hparams=params, batch_size=batch_size, scenario=loader.get_scenario())
 

@@ -5,6 +5,7 @@ import pickle
 from typing import List, Optional, Dict
 
 import link_bot_classifiers
+import link_bot_classifiers.get_model
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.train_test_classifier import setup_datasets
 from link_bot_data.dataset_utils import add_new
@@ -89,7 +90,7 @@ def fine_tune_classifier_from_datasets(train_dataset,
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
     model_hparams['datasets'].extend(paths_to_json(dataset_dirs))
     model_hparams = nested_dict_update(model_hparams, model_hparams_update)
-    model_class = link_bot_classifiers.get_model(model_hparams['model_class'])
+    model_class = link_bot_classifiers.get_model.get_model(model_hparams['model_class'])
     # decrease the learning rate, this is often done in fine-tuning
     model_hparams['learning_rate'] = 1e-4  # normally 1e-3
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=scenario)

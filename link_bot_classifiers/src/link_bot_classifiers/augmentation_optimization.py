@@ -2,11 +2,13 @@ import pathlib
 from dataclasses import dataclass
 from typing import Dict, List
 
+import rospkg
 import tensorflow as tf
 import tensorflow_probability as tfp
 import transformations
 
 import rospy
+from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
@@ -17,11 +19,14 @@ from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg, \
     occupied_voxels_to_points, subtract, binary_or
 from link_bot_pycommon.pycommon import densify_points
+from link_bot_pycommon.ros_pycommon import silence_urdfpy_warnings
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, pairwise_squared_distances, transformation_params_to_matrices
-from moonshine.moonshine_utils import reduce_mean_no_nan, repeat
+from moonshine.moonshine_utils import reduce_mean_no_nan, repeat, to_list_of_strings, possibly_none_concat
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
+from sensor_msgs.msg import JointState
+from tensorflow_kinematics.hdt_ik import HdtIK
 
 
 def debug_aug():
@@ -30,6 +35,10 @@ def debug_aug():
 
 def debug_aug_sgd():
     return rospy.get_param("DEBUG_AUG_SGD", False)
+
+
+def debug_ik():
+    return rospy.get_param("DEBUG_IK", False)
 
 
 @dataclass
@@ -88,17 +97,23 @@ class AugmentationOptimization:
         self.debug = debug
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
+        p = rospkg.RosPack()
+        desc_path = pathlib.Path(p.get_path('hdt_michigan_description'))
+        urdf_filename = desc_path / 'urdf' / 'hdt_michigan.urdf'
+        self.ik_solver = HdtIK(urdf_filename, scenario, max_iters=1000)
+
+        silence_urdfpy_warnings()
 
         self.robot_subsample = 0.5
         self.env_subsample = 0.25
         self.num_object_interp = 5  # must be >=2
         self.num_robot_interp = 3  # must be >=2
-        self.max_steps = 100
+        self.max_steps = 200
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
-        self.step_size = 20.0
+        self.step_size = 10.0
         self.opt = tf.keras.optimizers.SGD(self.step_size)
-        self.step_size_threshold = 0.002  # stopping criteria, how far the env moved (meters)
+        self.step_size_threshold = 0.001  # stopping criteria, how far the env moved (meters)
         self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.grad_clip = 0.25  # max dist step the env aug update can take
@@ -116,7 +131,7 @@ class AugmentationOptimization:
                                                                    self.scenario)
 
         # metrics
-        self.is_valids = tf.zeros([0], dtype=tf.float32)
+        self.is_valids = None
 
     def augmentation_optimization(self,
                                   inputs: Dict,
@@ -158,7 +173,7 @@ class AugmentationOptimization:
         })
 
         is_valid = is_ik_valid
-        self.is_valids = tf.concat([self.is_valids, is_valid], axis=0)
+        self.is_valids = possibly_none_concat(self.is_valids, is_valid, axis=0)
 
         if debug_aug():
             stepper = RvizSimpleStepper()
@@ -434,7 +449,7 @@ class AugmentationOptimization:
                     # env_points_b = EnvPoints(env_points_b, env_points_b_sparse)
                 gradients = tape.gradient(loss, variables)
 
-            if debug_aug():
+            if debug_aug_sgd():
                 stepper = RvizSimpleStepper()
                 scale = 0.005
                 for b in debug_viz_batch_indices(batch_size):
@@ -487,7 +502,7 @@ class AugmentationOptimization:
             time)
         inputs_aug.update(object_aug_update)
 
-        if debug_aug():
+        if debug_aug_sgd():
             self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
             self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
 
@@ -847,14 +862,62 @@ class AugmentationOptimization:
         return local_env, local_origin_point
 
     def solve_ik(self, inputs: Dict, inputs_aug: Dict, new_env: Dict, batch_size: int):
-        left_gripper_points_aug = inputs_aug[add_predicted('left_gripper')][:, :, None]
-        right_gripper_points_aug = inputs_aug[add_predicted('right_gripper')][:, :, None]
-        joint_positions_seed = inputs[add_predicted('joint_positions')][:, 0].numpy().tolist()
-        joint_names = inputs['joint_names'][0, 0].numpy().tolist()
+        left_gripper_points_aug = inputs_aug[add_predicted('left_gripper')]
+        right_gripper_points_aug = inputs_aug[add_predicted('right_gripper')]
         deserialize_scene_msg(new_env)
 
-        # TODO: run tree IK, try to find collision free solution
+        # run hdt_ik, try to find collision free solution
+        scene_msg = new_env['scene_msg']
+        initial_value = inputs[add_predicted('joint_positions')][:, 0]
+        joint_positions_aug_, is_ik_valid = self.ik_solver.solve(env_points=None,
+                                                                 scene_msg=scene_msg,
+                                                                 initial_value=initial_value,
+                                                                 left_target_position=left_gripper_points_aug[:, 0],
+                                                                 right_target_position=right_gripper_points_aug[:, 0],
+                                                                 viz=debug_ik())
+        # Ensures the order of joints we get from the ik solver matches the inputs
+        joint_names = to_list_of_strings(inputs['joint_names'][0, 0].numpy().tolist())
+        joint_name_indices = tf.constant([self.ik_solver.get_joint_names().index(name) for name in joint_names])
+        joint_name_indices = tf.tile(joint_name_indices[None], [batch_size, 1])
+        joint_positions_aug_start = tf.gather(joint_positions_aug_, joint_name_indices, batch_dims=1)
 
-        reached = tf.cast(reached, tf.float32)
-        is_ik_valid = reached
+        # NOTE: am I doing collision checking twice by calling "plan" after this? I think I am.
+
+        # then run the jacobian follower to compute the second new position
+        tool_names = [self.scenario.robot.left_tool_name, self.scenario.robot.right_tool_name]
+        preferred_tool_orientations = self.scenario.get_preferred_tool_orientations(tool_names)
+        joint_positions_aug = []
+        reached = []
+        for b in range(batch_size):
+            scene_msg_b = scene_msg[b]
+            grippers_end_b = [left_gripper_points_aug[b, 1][None].numpy(), right_gripper_points_aug[b, 1][None].numpy()]
+            joint_positions_aug_start_b = joint_positions_aug_start[b]
+            start_joint_state_b = JointState(name=joint_names, position=joint_positions_aug_start_b.numpy())
+            empty_scene_msg_b, start_robot_state_b = merge_joint_state_and_scene_msg(scene_msg_b,
+                                                                                     start_joint_state_b)
+            plan_to_end, reached_end_b = self.scenario.robot.jacobian_follower.plan(
+                group_name='whole_body',
+                tool_names=tool_names,
+                preferred_tool_orientations=preferred_tool_orientations,
+                start_state=start_robot_state_b,
+                scene=scene_msg_b,
+                grippers=grippers_end_b,
+                max_velocity_scaling_factor=0.1,
+                max_acceleration_scaling_factor=0.1,
+            )
+            planned_to_end_points = plan_to_end.joint_trajectory.points
+            if len(planned_to_end_points) > 0:
+                end_joint_state_b = planned_to_end_points[-1].positions
+            else:
+                end_joint_state_b = joint_positions_aug_start_b  # just a filler
+
+            joint_positions_aug_b = tf.stack([joint_positions_aug_start_b, end_joint_state_b])
+            joint_positions_aug.append(joint_positions_aug_b)
+            reached.append(reached_end_b)
+        reached = tf.stack(reached, axis=0)
+        joint_positions_aug = tf.stack(joint_positions_aug, axis=0)
+        is_ik_valid = tf.cast(tf.logical_and(is_ik_valid, reached), tf.float32)
+
+        if debug_ik():
+            print(f"valid % = {tf.reduce_mean(is_ik_valid)}")
         return joint_positions_aug, is_ik_valid

@@ -2,6 +2,7 @@ import pathlib
 from typing import List, Optional, Dict
 
 import link_bot_classifiers
+import link_bot_classifiers.get_model
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.train_test_recovery import setup_datasets
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
@@ -30,7 +31,7 @@ def fine_tune_recovery(dataset_dirs: List[pathlib.Path],
 
     trial_path, _ = create_trial(log, model_hparams, trials_directory=trials_directory)
 
-    model_class = link_bot_classifiers.get_model(model_hparams['model_class'])
+    model_class = link_bot_classifiers.get_model.get_model(model_hparams['model_class'])
 
     train_dataset = RecoveryDatasetLoader(dataset_dirs)
     val_dataset = RecoveryDatasetLoader(dataset_dirs)
