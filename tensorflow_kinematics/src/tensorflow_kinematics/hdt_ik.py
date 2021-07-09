@@ -228,7 +228,6 @@ class HdtIK:
         self.reset_optimizer()
 
         self.display_robot_state_pub = get_connected_publisher("display_robot_state", DisplayRobotState, queue_size=10)
-        self.joint_states_viz_pub = rospy.Publisher("joint_states_viz", JointState, queue_size=10)
         self.tf2 = TF2Wrapper()
 
         self.p = SimpleProfiler()
@@ -567,7 +566,7 @@ class HdtIK:
         robot.state.joint_state.position = robot_state_dict.values()
         robot.state.joint_state.header.stamp = rospy.Time.now()
         self.display_robot_state_pub.publish(robot)
-        self.joint_states_viz_pub.publish(robot.state.joint_state)
+        self.scenario.joint_state_viz_pub.publish(robot.state.joint_state)
 
     def get_joint_names(self):
         return self.actuated_joint_names

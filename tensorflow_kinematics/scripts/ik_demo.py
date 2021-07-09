@@ -3,23 +3,77 @@ import pathlib
 import pickle
 from math import pi
 
+import numpy as np
 import tensorflow as tf
 
+import ros_numpy
 import rospy
+from arc_utilities import ros_init
+from geometry_msgs.msg import Pose, Quaternion, Point
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.ros_pycommon import silence_urdfpy_warnings
-from moonshine.simple_profiler import SimpleProfiler
 from moonshine.tf_profiler_helper import TFProfilerHelper
+from moveit_msgs.msg import RobotState
 from tensorflow_kinematics import hdt_ik
 from tensorflow_kinematics.hdt_ik import HdtIK, target
+from tf.transformations import quaternion_from_euler
 
 
+@ros_init.with_ros("ik_demo")
 def main():
     tf.get_logger().setLevel(logging.ERROR)
-    rospy.init_node("ik_demo")
-
     silence_urdfpy_warnings()
+    # tensorflow_kinematics_ik_demo()
+    bio_ik_demo()
 
+
+def bio_ik_demo():
+    scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
+    j = scenario.robot.jacobian_follower
+
+    with pathlib.Path("/media/shared/pretransfer_initial_configs/car/initial_config_0.pkl").open("rb") as f:
+        scene_msg = pickle.load(f)['env']['scene_msg']
+
+    group_name = "both_arms"
+
+    gen = tf.random.Generator.from_seed(0)
+
+    name = scenario.robot.get_joint_names(group_name)
+    zero_robot_state = RobotState()
+    zero_robot_state.joint_state.position = [0] * len(name)
+    zero_robot_state.joint_state.name = name
+    scenario.robot.display_robot_state(zero_robot_state, label='zero')
+
+    n = 5
+    positions = np.stack(np.meshgrid(np.linspace(-0.4, 0.0, n), np.linspace(0.7, 0.7, n), np.linspace(0.1, 0.2, n)),
+                         axis=-1)
+    positions = positions.reshape([-1, 3])
+    # positions = [np.array([-0.25, 0.5, 0.25])] * n
+    tip_names = ["left_tool", "right_tool"]
+    for position in positions:
+        left_point = ros_numpy.msgify(Point, position)
+        right_point = ros_numpy.msgify(Point, position + np.array([0.2, 0, 0]))
+        orientation_list = Quaternion(*quaternion_from_euler(-np.pi / 2 - 0.2, 0, 0))
+
+        left_target_pose = Pose(left_point, orientation_list)
+        right_target_pose = Pose(right_point, orientation_list)
+        scene_msg.robot_state.joint_state.position = [0] * len(name)
+        scene_msg.robot_state.joint_state.name = name
+        poses = [left_target_pose, right_target_pose]
+        robot_state: RobotState = j.compute_collision_free_ik(poses, group_name, tip_names, scene_msg)
+
+        scenario.plot_points_rviz([position], label='target')
+        scenario.tf.send_transform_from_pose_msg(left_target_pose, 'world', 'left_target')
+        scenario.tf.send_transform_from_pose_msg(right_target_pose, 'world', 'right_target')
+        if robot_state is not None:
+            scenario.robot.display_robot_state(robot_state, label='')
+            scenario.joint_state_viz_pub.publish(robot_state.joint_state)
+        else:
+            print("No Solution!")
+        rospy.sleep(0.1)
+
+
+def tensorflow_kinematics_ik_demo():
     urdf_filename = pathlib.Path("/home/peter/catkin_ws/src/hdt_robot/hdt_michigan_description/urdf/hdt_michigan.urdf")
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
     ik_solver = HdtIK(urdf_filename, scenario)
@@ -51,6 +105,7 @@ def main():
     else:
         h = None
 
+    # from moonshine.simple_profiler import SimpleProfiler
     # total_p = SimpleProfiler()
     #
     # def _solve():
@@ -63,7 +118,6 @@ def main():
     # total_p.profile(5, _solve, skip_first_n=1)
     # print()
     # print(total_p)
-
 
     with pathlib.Path("/media/shared/pretransfer_initial_configs/car/initial_config_0.pkl").open("rb") as f:
         scene_msg = pickle.load(f)['env']['scene_msg']

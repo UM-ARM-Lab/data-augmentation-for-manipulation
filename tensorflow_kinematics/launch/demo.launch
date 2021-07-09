@@ -1,5 +1,5 @@
 <launch>
-    <node pkg="robot_state_publisher" type="robot_state_publisher" name="rsp" args="joint_states:=joint_states_viz"/>
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="rsp" args="joint_states:=/hdt_michigan/joint_states_viz"/>
     <node pkg="tf" type="static_transform_publisher" name="stp" args="0 0 0 0 0 0 world hdt_michigan_root 100"/>
     <node pkg="tf" type="static_transform_publisher" name="stp2" args="0 0 0 0 0 0 world robot_root 100"/>
     <node pkg="rviz" type="rviz" name="rviz"/>
