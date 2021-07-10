@@ -437,10 +437,13 @@ def coerce_types(d: Dict):
                     out_d[k] = v
                 elif isinstance(v00, genpy.Message):
                     out_d[k] = np.array(v, dtype=object)
+            elif isinstance(v0, np.ndarray):
+                if v0.dtype == np.float64:
+                    out_d[k] = np.array(v).astype(np.float32)
                 else:
-                    raise NotImplementedError()
+                    out_d[k] = np.array(v)
             else:
-                raise NotImplementedError()
+                raise NotImplementedError(f"{k} {type(v)} {v}")
         elif isinstance(v, dict):
             out_d[k] = coerce_types(v)
         else:

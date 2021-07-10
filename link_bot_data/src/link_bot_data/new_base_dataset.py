@@ -37,7 +37,10 @@ class NewBaseDataset:
         self.loader = loader
         self.mode = mode
         self.filenames = filenames
-        self._post_process = post_process
+        if post_process is None:
+            self._post_process = []
+        else:
+            self._post_process = post_process
         self.n_prefetch = n_prefetch
 
     def __iter__(self):
