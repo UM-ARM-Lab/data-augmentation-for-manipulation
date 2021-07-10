@@ -25,6 +25,7 @@ def main():
     parser.add_argument('--display-type', choices=['just_count', '3d', 'stdev'], default='3d')
     parser.add_argument('--mode', choices=['train', 'val', 'test', 'all'], default='train')
     parser.add_argument('--shuffle', action='store_true')
+    parser.add_argument('--shard', type=int)
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--threshold', type=float, default=None)
     parser.add_argument('--start-at', type=int, default=0)

@@ -51,6 +51,8 @@ def bio_ik_demo():
     # positions = [np.array([-0.25, 0.5, 0.25])] * n
     tip_names = ["left_tool", "right_tool"]
     for position in positions:
+        left_position = position
+        right_position = position + np.array([0.2, 0, 0])
         left_point = ros_numpy.msgify(Point, position)
         right_point = ros_numpy.msgify(Point, position + np.array([0.2, 0, 0]))
         orientation_list = Quaternion(*quaternion_from_euler(-np.pi / 2 - 0.2, 0, 0))
@@ -59,10 +61,15 @@ def bio_ik_demo():
         right_target_pose = Pose(right_point, orientation_list)
         scene_msg.robot_state.joint_state.position = [0] * len(name)
         scene_msg.robot_state.joint_state.name = name
-        poses = [left_target_pose, right_target_pose]
-        robot_state: RobotState = j.compute_collision_free_ik(poses, group_name, tip_names, scene_msg)
 
-        scenario.plot_points_rviz([position], label='target')
+        poses = [left_target_pose, right_target_pose]
+        # robot_state: RobotState = j.compute_collision_free_pose_ik(poses, group_name, tip_names, scene_msg)
+
+        points = [left_point, right_point]
+        robot_state: RobotState = j.compute_collision_free_point_ik(points, group_name, tip_names, scene_msg)
+
+        scenario.plot_points_rviz([left_position], label='left_target')
+        scenario.plot_points_rviz([right_position], label='right_target')
         scenario.tf.send_transform_from_pose_msg(left_target_pose, 'world', 'left_target')
         scenario.tf.send_transform_from_pose_msg(right_target_pose, 'world', 'right_target')
         scenario.planning_scene_viz_pub.publish(scene_msg)

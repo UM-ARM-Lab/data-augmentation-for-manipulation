@@ -113,6 +113,9 @@ class NewBaseDataset:
     def skip(self, skip: int):
         return self.__class__(self.loader, self.filenames[skip:], self.mode, self._post_process, self.n_prefetch)
 
+    def shard(self, shard: int):
+        return self.__class__(self.loader, self.filenames[::shard], self.mode, self._post_process, self.n_prefetch)
+
     def take(self, take: int):
         return self.__class__(self.loader, self.filenames[:take], self.mode, self._post_process, self.n_prefetch)
 

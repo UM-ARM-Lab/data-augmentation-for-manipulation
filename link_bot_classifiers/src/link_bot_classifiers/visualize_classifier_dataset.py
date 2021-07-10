@@ -25,6 +25,7 @@ def visualize_dataset(args, dataset_loader):
 
     dataset = dataset.batch(1)
     dataset = dataset.take(args.take)
+    dataset = dataset.shard(args.shard)
 
     t0 = perf_counter()
 
