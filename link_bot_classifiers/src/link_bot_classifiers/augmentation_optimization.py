@@ -8,7 +8,9 @@ import tensorflow_probability as tfp
 import transformations
 
 import rospy
+from arm_robots.robot import MoveitEnabledRobot
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
+from geometry_msgs.msg import Point
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
@@ -25,8 +27,8 @@ from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, pairwise_squared_distances, transformation_params_to_matrices
 from moonshine.moonshine_utils import reduce_mean_no_nan, repeat, to_list_of_strings, possibly_none_concat
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
+from moveit_msgs.msg import RobotState, PlanningScene
 from sensor_msgs.msg import JointState
-from tensorflow_kinematics.hdt_ik import HdtIK
 
 
 def debug_aug():
@@ -75,6 +77,79 @@ def subsample_points(points, fraction):
     return points[::n_take_every]
 
 
+class BioIKSolver:
+
+    def __init__(self, robot: MoveitEnabledRobot, group_name='both_arms', position_only=True):
+        self.position_only = position_only
+        self.robot = robot
+        self.group_name = group_name
+        self.j = robot.jacobian_follower
+        if self.group_name == 'both_arms':
+            self.tip_names = ['left_tool', 'right_tool']
+        else:
+            raise NotImplementedError()
+
+    def solve(self, scene_msg: List[PlanningScene],
+              joint_names,
+              default_robot_positions,
+              batch_size: int,
+              left_target_position=None,
+              right_target_position=None,
+              left_target_pose=None,
+              right_target_pose=None):
+        """
+
+        Args:
+            scene_msg: [b] list of PlanningScene
+            left_target_position:  [b,3], xyz
+            right_target_position: [b,3], xyz
+            left_target_pose:  [b,7] euler xyz, quat xyzw
+            right_target_pose: [b,7] euler xyz, quat xyzw
+
+        Returns:
+
+        """
+        robot_state_b: RobotState
+        joint_positions = []
+        reached = []
+
+        def _pose_tensor_to_point(_positions):
+            raise NotImplementedError()
+
+        def _position_tensor_to_point(_positions):
+            return Point(*_positions.numpy())
+
+        for b in range(batch_size):
+            scene_msg_b = scene_msg[b]
+
+            default_robot_state_b = RobotState()
+            default_robot_state_b.joint_state.position = default_robot_positions[b].numpy().tolist()
+            default_robot_state_b.joint_state.name = joint_names
+            scene_msg_b.robot_state.joint_state.position = default_robot_positions[b].numpy().tolist()
+            scene_msg_b.robot_state.joint_state.name = joint_names
+            if self.position_only:
+                points_b = [_position_tensor_to_point(left_target_position[b]),
+                            _position_tensor_to_point(right_target_position[b])]
+                robot_state_b = self.j.compute_collision_free_point_ik(default_robot_state_b, points_b, self.group_name,
+                                                                       self.tip_names,
+                                                                       scene_msg_b)
+            else:
+                poses_b = [left_target_pose[b], right_target_pose[b]]
+                robot_state_b = self.j.compute_collision_free_pose_ik(default_robot_state_b, poses_b, self.group_name,
+                                                                      self.tip_names, scene_msg_b)
+
+            reached.append(robot_state_b is not None)
+            if robot_state_b is None:
+                joint_position_b = default_robot_state_b.joint_state.position
+            else:
+                joint_position_b = robot_state_b.joint_state.position
+            joint_positions.append(tf.convert_to_tensor(joint_position_b, dtype=tf.float32))
+
+        joint_positions = tf.stack(joint_positions, axis=0)
+        reached = tf.stack(reached, axis=0)
+        return joint_positions, reached
+
+
 class AugmentationOptimization:
 
     def __init__(self,
@@ -99,8 +174,7 @@ class AugmentationOptimization:
         self.broadcaster = self.scenario.tf.tf_broadcaster
         p = rospkg.RosPack()
         desc_path = pathlib.Path(p.get_path('hdt_michigan_description'))
-        urdf_filename = desc_path / 'urdf' / 'hdt_michigan.urdf'
-        self.ik_solver = HdtIK(urdf_filename, scenario, max_iters=1000)
+        self.ik_solver = BioIKSolver(scenario.robot)
 
         silence_urdfpy_warnings()
 
@@ -108,7 +182,7 @@ class AugmentationOptimization:
         self.env_subsample = 0.25
         self.num_object_interp = 5  # must be >=2
         self.num_robot_interp = 3  # must be >=2
-        self.max_steps = 200
+        self.max_steps = 20
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
         self.step_size = 10.0
@@ -866,22 +940,17 @@ class AugmentationOptimization:
         right_gripper_points_aug = inputs_aug[add_predicted('right_gripper')]
         deserialize_scene_msg(new_env)
 
-        # run hdt_ik, try to find collision free solution
+        # run ik, try to find collision free solution
+        joint_names = to_list_of_strings(inputs['joint_names'][0, 0].numpy().tolist())
         scene_msg = new_env['scene_msg']
-        initial_value = inputs[add_predicted('joint_positions')][:, 0]
-        joint_positions_aug_, is_ik_valid = self.ik_solver.solve(env_points=None,
-                                                                 scene_msg=scene_msg,
-                                                                 initial_value=initial_value,
+        default_robot_positions = inputs[add_predicted('joint_positions')][:, 0]
+        joint_positions_aug_, is_ik_valid = self.ik_solver.solve(scene_msg=scene_msg,
+                                                                 joint_names=joint_names,
+                                                                 default_robot_positions=default_robot_positions,
                                                                  left_target_position=left_gripper_points_aug[:, 0],
                                                                  right_target_position=right_gripper_points_aug[:, 0],
-                                                                 viz=debug_ik())
-        # Ensures the order of joints we get from the ik solver matches the inputs
-        joint_names = to_list_of_strings(inputs['joint_names'][0, 0].numpy().tolist())
-        joint_name_indices = tf.constant([self.ik_solver.get_joint_names().index(name) for name in joint_names])
-        joint_name_indices = tf.tile(joint_name_indices[None], [batch_size, 1])
-        joint_positions_aug_start = tf.gather(joint_positions_aug_, joint_name_indices, batch_dims=1)
-
-        # NOTE: am I doing collision checking twice by calling "plan" after this? I think I am.
+                                                                 batch_size=batch_size)
+        joint_positions_aug_start = joint_positions_aug_
 
         # then run the jacobian follower to compute the second new position
         tool_names = [self.scenario.robot.left_tool_name, self.scenario.robot.right_tool_name]
