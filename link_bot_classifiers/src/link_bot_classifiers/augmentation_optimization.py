@@ -2,7 +2,6 @@ import pathlib
 from dataclasses import dataclass
 from typing import Dict, List
 
-import rospkg
 import tensorflow as tf
 import tensorflow_probability as tfp
 import transformations
@@ -21,7 +20,6 @@ from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg, \
     occupied_voxels_to_points, subtract, binary_or
 from link_bot_pycommon.pycommon import densify_points
-from link_bot_pycommon.ros_pycommon import silence_urdfpy_warnings
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, pairwise_squared_distances, transformation_params_to_matrices
@@ -172,11 +170,7 @@ class AugmentationOptimization:
         self.debug = debug
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
-        p = rospkg.RosPack()
-        desc_path = pathlib.Path(p.get_path('hdt_michigan_description'))
         self.ik_solver = BioIKSolver(scenario.robot)
-
-        silence_urdfpy_warnings()
 
         self.robot_subsample = 0.5
         self.env_subsample = 0.25
