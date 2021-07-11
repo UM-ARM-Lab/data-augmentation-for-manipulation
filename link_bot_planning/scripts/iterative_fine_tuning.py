@@ -246,7 +246,7 @@ class IterativeFineTuning:
         new_latest_checkpoint_dir = pathify(pretraining_chunker.get_result('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
             print(Style.BRIGHT + Fore.LIGHTBLUE_EX + "Running Pretraining" + Style.RESET_ALL)
-            new_latest_checkpoint_dir = fine_tune_classifier(dataset_dirs=dataset_dirs,
+            new_latest_checkpoint_dir = fine_tune_classifier(train_dataset_dirs=dataset_dirs,
                                                              checkpoint=initial_classifier_checkpoint / 'best_checkpoint',
                                                              log=f'pretraining_logdir',
                                                              early_stopping=True,

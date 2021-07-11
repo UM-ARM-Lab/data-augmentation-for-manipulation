@@ -19,7 +19,7 @@ from moonshine.moonshine_utils import repeat
 logger = logging.getLogger(__file__)
 
 
-def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
+def fine_tune_classifier(train_dataset_dirs: List[pathlib.Path],
                          checkpoint: pathlib.Path,
                          log: str,
                          batch_size: int,
@@ -29,6 +29,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          fine_tune_dense: bool,
                          fine_tune_lstm: bool,
                          fine_tune_output: bool,
+                         val_dataset_dirs: Optional[List[pathlib.Path]] = None,
                          model_hparams_update: Optional[Dict] = None,
                          verbose: int = 0,
                          trials_directory: pathlib.Path = pathlib.Path("./trials"),
@@ -37,8 +38,10 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                          take: Optional[int] = None,
                          seed: int = 0,
                          **kwargs):
-    train_dataset_loader = get_classifier_dataset_loader(dataset_dirs, load_true_states=True, verbose=verbose)
-    val_dataset_loader = get_classifier_dataset_loader(dataset_dirs, load_true_states=True, verbose=verbose)
+    train_dataset_loader = get_classifier_dataset_loader(train_dataset_dirs, load_true_states=True, verbose=verbose)
+    if val_dataset_dirs is None:
+        val_dataset_dirs = train_dataset_dirs
+    val_dataset_loader = get_classifier_dataset_loader(val_dataset_dirs, load_true_states=True, verbose=verbose)
 
     train_dataset = train_dataset_loader.get_datasets(mode='train', shuffle=True)
     val_dataset = val_dataset_loader.get_datasets(mode='val', shuffle=True)
@@ -48,7 +51,7 @@ def fine_tune_classifier(dataset_dirs: List[pathlib.Path],
                                               checkpoint=checkpoint,
                                               log=log,
                                               scenario=train_dataset_loader.get_scenario(),
-                                              dataset_dirs=dataset_dirs,
+                                              dataset_dirs=train_dataset_dirs,
                                               batch_metadata=train_dataset_loader.batch_metadata,
                                               batch_size=batch_size,
                                               epochs=epochs,

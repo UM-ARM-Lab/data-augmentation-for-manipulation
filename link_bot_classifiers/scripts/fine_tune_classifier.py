@@ -23,6 +23,7 @@ def main():
     parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
     parser.add_argument('checkpoint', type=pathlib.Path)
     parser.add_argument('log')
+    parser.add_argument('--val-dataset-dir', type=pathlib.Path)
     parser.add_argument('--params', '-p', type=pathlib.Path, help='an hjson file to override the model hparams')
     parser.add_argument('--pretransfer-config-dir', type=pathlib.Path, help='dir of pkl files with state/env')
     parser.add_argument('--batch-size', type=int, default=24)
@@ -30,8 +31,6 @@ def main():
     parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int)
     parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--log-scalars-every', type=int, help='loss/accuracy every this many batches', default=100)
-    parser.add_argument('--validation-every', type=int, help='report validation every this many epochs', default=1)
     parser.add_argument('--threshold', type=float, default=None)
 
     args = parser.parse_args()
@@ -41,13 +40,14 @@ def main():
     else:
         model_hparams_update = None
 
-    fine_tune_classifier(dataset_dirs=args.dataset_dirs,
+    fine_tune_classifier(train_dataset_dirs=args.dataset_dirs,
+                         val_dataset_dirs=[args.val_dataset_dir],
                          checkpoint=args.checkpoint,
                          log=args.log,
                          batch_size=args.batch_size,
                          early_stopping=False,
                          epochs=args.epochs,
-                         validate_first=False,
+                         validate_first=True,
                          take=args.take,
                          seed=args.seed,
                          model_hparams_update=model_hparams_update,
