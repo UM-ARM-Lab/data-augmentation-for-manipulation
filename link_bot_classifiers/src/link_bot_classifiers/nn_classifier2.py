@@ -231,7 +231,7 @@ class NNClassifier(MyKerasModel):
         metrics['fn/total'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
-        if self.aug.do_augmentation():
+        if self.aug.do_augmentation() and self.aug.is_valids is not None:
             metrics['aug_validity_rate'].update_state(self.aug.is_valids)
 
     def conv_encoder(self, voxel_grids, batch_size, time):

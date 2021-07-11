@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from copy import copy
 from typing import Dict
 
 import tensorflow as tf
@@ -16,8 +17,7 @@ from link_bot_pycommon.grid_utils import send_voxelgrid_tf, environment_to_vg_ms
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
-from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_point, \
-    get_local_env_and_origin
+from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, \
     FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
@@ -77,6 +77,8 @@ class NNClassifier(MyKerasModel):
 
         # TODO: add stdev to states keys?
         self.state_keys = self.hparams['state_keys']
+        self.points_state_keys = copy(self.state_keys)
+        self.points_state_keys.remove("joint_positions")  # FIXME: feels hacky
         self.action_keys = self.hparams['action_keys']
 
         self.conv_layers = []
@@ -233,7 +235,8 @@ class NNClassifier(MyKerasModel):
             local_voxel_grid_t_array = local_voxel_grid_t_array.write(0, local_env)
 
             # insert the rastered states
-            for i, (k, state_component_t) in enumerate(state_t.items()):
+            for i, k in enumerate(self.points_state_keys):
+                state_component_t = state_t[k]
                 state_component_voxel_grid = raster_3d(state=state_component_t,
                                                        pixel_indices=indices['pixel_indices'],
                                                        res=input_dict['res'],
@@ -247,7 +250,7 @@ class NNClassifier(MyKerasModel):
                 local_voxel_grid_t_array = local_voxel_grid_t_array.write(i + 1, state_component_voxel_grid)
             local_voxel_grid_t = tf.transpose(local_voxel_grid_t_array.stack(), [1, 2, 3, 4, 0])
             # add channel dimension information because tf.function erases it somehow...
-            local_voxel_grid_t.set_shape([None, None, None, None, len(self.state_keys) + 1])
+            local_voxel_grid_t.set_shape([None, None, None, None, len(self.points_state_keys) + 1])
 
             local_voxel_grids_array = local_voxel_grids_array.write(t, local_voxel_grid_t)
 
