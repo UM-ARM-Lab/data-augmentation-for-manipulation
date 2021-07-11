@@ -17,7 +17,7 @@
   goal_params: {
     type: saved
     goal_type: any_point
-    threshold: 0.05
+    threshold: 0.045
   }
   real_time_rate: 0.0
   horizon: 2
