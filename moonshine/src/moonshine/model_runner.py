@@ -170,8 +170,7 @@ class ModelRunner:
                     and current_minute > self.latest_minute \
                     and current_minute % self.save_every_n_minutes == 0:
                 self.latest_minute = current_minute
-                save_path = self.latest_checkpoint_manager.save()
-                print("Saving " + save_path)
+                self.latest_checkpoint_manager.save()
 
     def mid_epoch_validation(self, val_dataset, val_metrics):
         for v in val_metrics.values():
