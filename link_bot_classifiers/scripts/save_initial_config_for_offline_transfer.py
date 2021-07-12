@@ -12,7 +12,8 @@ from link_bot_pycommon.get_scenario import get_scenario
 
 def save_initial_config(planner_params_filename: pathlib.Path,
                         test_scenes_dir: pathlib.Path,
-                        outdir: pathlib.Path):
+                        outdir: pathlib.Path,
+                        start_at: int = 0):
     outdir.mkdir(exist_ok=True, parents=True)
 
     planner_params = load_planner_params(planner_params_filename)
@@ -23,7 +24,7 @@ def save_initial_config(planner_params_filename: pathlib.Path,
 
     service_provider = GazeboServices()
     scenes = get_all_scenes(test_scenes_dir)
-    for s in scenes:
+    for s in scenes[start_at:]:
         bagfile_name = make_scene_filename(test_scenes_dir, s.idx)
         scenario.restore_from_bag(service_provider, planner_params, bagfile_name)
 
@@ -48,6 +49,7 @@ def main():
     parser.add_argument('planner_params_filename', type=pathlib.Path)
     parser.add_argument('test_scenes_dir', type=pathlib.Path)
     parser.add_argument('outdir', type=pathlib.Path)
+    parser.add_argument('--start-at', type=int)
 
     args = parser.parse_args()
 
