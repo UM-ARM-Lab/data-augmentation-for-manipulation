@@ -203,7 +203,7 @@ def eval_main(dataset_dirs: pathlib.Path,
     item = {
         'uuid': str(uuid.uuid4()),
     }
-    item.update({k: v.numpy() for k, v in val_metrics.items()})
+    item.update({k: v.result().numpy() for k, v in val_metrics.items()})
     put_item(item=item, table=dynamodb_utils.table_name)
 
     return val_metrics
