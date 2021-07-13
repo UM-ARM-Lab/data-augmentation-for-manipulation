@@ -14,6 +14,7 @@ import numpy as np
 from more_itertools import chunked
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
+from analysis.results_utils import list_all_planning_results_trials
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_classifiers.fine_tune_recovery import fine_tune_recovery
@@ -22,7 +23,6 @@ from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_data.files_dataset import OldDatasetSplitter
 from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
-from analysis.results_utils import list_all_planning_results_trials
 from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.results_to_recovery_dataset import ResultsToRecoveryDataset
@@ -480,7 +480,7 @@ class IterativeFineTuning:
             adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_classifier_dataset_dirs,
                                                      max_batch_size=16)
             new_latest_checkpoint_dir = fine_tune_classifier(
-                dataset_dirs=iteration_data.fine_tuning_classifier_dataset_dirs,
+                train_dataset_dirs=iteration_data.fine_tuning_classifier_dataset_dirs,
                 checkpoint=latest_checkpoint,
                 log=f'iteration_{i:04d}_classifier_training_logdir',
                 trials_directory=self.trials_directory,
@@ -513,6 +513,7 @@ class IterativeFineTuning:
                 **self.ift_config['fine_tune_recovery'])
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         return new_latest_checkpoint_dir
+
 
 def setup_ift(args):
     from_env = input("from: ")
@@ -554,10 +555,10 @@ def ift_main(args):
                               )
     profiling_logdir = args.logfile.parent
     ift.run(n_iters=args.n_iters)
-    #tf.profiler.experimental.start(profiling_logdir.as_posix())
-    #with tf.profiler.experimental.Trace("TraceContext"):
+    # tf.profiler.experimental.start(profiling_logdir.as_posix())
+    # with tf.profiler.experimental.Trace("TraceContext"):
     #    ift.run(n_iters=args.n_iters)
-    #tf.profiler.experimental.stop()
+    # tf.profiler.experimental.stop()
 
 
 @ros_init.with_ros("iterative_fine_tuning")
