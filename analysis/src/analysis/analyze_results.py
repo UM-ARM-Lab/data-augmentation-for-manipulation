@@ -74,10 +74,10 @@ def reduce_planning_metrics(reductions: List[List], metrics: pd.DataFrame):
                 if metric in metric_i.index.names:
                     assert len(metric_i.columns) == 1
                     metric_i.columns = ['tmp']
-                    metric_i = metric_i.groupby(group_by).agg({'tmp': agg})
+                    metric_i = metric_i.groupby(group_by, dropna=False).agg({'tmp': agg})
                     metric_i.columns = [metric]
                 else:
-                    metric_i = metric_i.groupby(group_by).agg({metric: agg})
+                    metric_i = metric_i.groupby(group_by, dropna=False).agg({metric: agg})
             elif group_by is not None and agg is None:
                 metric_i.set_index(group_by, inplace=True)
                 metric_i = metric_i[metric]

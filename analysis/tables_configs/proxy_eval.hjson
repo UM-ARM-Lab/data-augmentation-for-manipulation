@@ -1,18 +1,30 @@
 [
   {
     type: MyTable
-    name: table1
+    name: all
     header: [
-      Name
+      Classifer
+      Aug?
       Classifier Source Env
-      Stop On Error?
-      Timeout (s)
+      Fine-Tuning Seed
+      Random Actions Specificity
     ]
     reductions: [
-      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "results_folder_name", "first"]]
-      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]]
-      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "stop_on_error", "first"]]
-      [[["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "timeout", "first"]]
+      [
+        [["uuid"], "classifier", "first"]
+      ]
+      [
+        [["uuid"], "do_augmentation", "first"]
+      ]
+      [
+        [["uuid"], "classifier_source_env", "first"]
+      ]
+      [
+        [["uuid"], "fine_tuning_seed", "first"]
+      ]
+      [
+        [["uuid"], "accuracy on negatives", "mean"]
+      ]
     ]
   }
   {
@@ -20,46 +32,25 @@
     name: mean
     header: [
       Classifier Source Env
-      Successes
-      Success %
-      Task Error (mean)
-      Task Error (std)
-      Mean CPE
-      Mean NME
-      Num Planning Attempts
+      Aug?
+      Fine-Tuning Take
+      Random Actions Specificity
     ]
     reductions: [
       [
-        [["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]
-        [["target_env", "classifier_source_env", "stop_on_error"], "classifier_source_env", "first"]
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "classifier_source_env", "first"]
       ]
       [
-        [["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "success", "sum"]
-        [["target_env", "classifier_source_env", "stop_on_error"], "success", "mean"]
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "do_augmentation", "first"]
+      ]
+      # [
+      #   [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "aug", "first"]
+      # ]
+      [
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "fine_tuning_take", "first"]
       ]
       [
-        [["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "success", "mean"]
-        [["target_env", "classifier_source_env", "stop_on_error"], "success", "mean"]
-      ]
-      [
-        [["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "task_error", "mean"]
-        [["target_env", "classifier_source_env", "stop_on_error"], "task_error", "mean"]
-      ]
-      [
-        [["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "task_error", "std"]
-        [["target_env", "classifier_source_env", "stop_on_error"], "task_error", "mean"]
-      ]
-      [
-        [["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "cumulative_planning_error", "mean"]
-        [["target_env", "classifier_source_env", "stop_on_error"], "cumulative_planning_error", "mean"]
-      ]
-      [
-        [["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "normalized_model_error", "mean"]
-        [["target_env", "classifier_source_env", "stop_on_error"], "normalized_model_error", "mean"]
-      ]
-      [
-        [["target_env", "results_folder_name", "classifier_source_env", "stop_on_error"], "num_planning_attempts", "mean"]
-        [["target_env", "classifier_source_env", "stop_on_error"], "num_planning_attempts", "mean"]
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "accuracy on negatives", "mean"]
       ]
     ]
   }

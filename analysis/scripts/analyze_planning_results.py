@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import tabulate
 
 from analysis.analyze_results import load_table_specs, load_planning_results, generate_tables
-from analysis.results_metrics import load_analysis_params
 from analysis.results_utils import get_all_results_subdirs
 from arc_utilities import ros_init
 from moonshine.gpu_config import limit_gpu_mem
@@ -15,8 +14,6 @@ limit_gpu_mem(0.1)
 
 
 def metrics_main(args):
-    analysis_params = load_analysis_params(args.analysis_params)
-
     # The default for where we write results
     out_dir = args.results_dirs[0]
 

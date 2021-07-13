@@ -16,10 +16,12 @@ import link_bot_classifiers
 import link_bot_classifiers.get_model
 import ros_numpy
 import rospy
+from analysis.results_utils import try_load_classifier_params
 from geometry_msgs.msg import Point
-from link_bot_classifiers import classifier_utils, dynamodb_utils
+from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
 from link_bot_classifiers.uncertainty import make_max_class_prob
+from link_bot_data import dynamodb_utils
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import batch_tf_dataset, get_filter, deserialize_scene_msg
 from link_bot_data.load_dataset import get_classifier_dataset_loader
@@ -313,6 +315,11 @@ def put_eval_in_database(val_metrics,
     if kwargs is None:
         kwargs = {}
 
+    classifier_hparams = try_load_classifier_params(checkpoint)
+    classifier_source_env = classifier_hparams['classifier_dataset_hparams']['scene_name']
+    original_training_seed = classifier_hparams['seed']
+    fine_tuning_seed = classifier_hparams['fine_tuning_seed']
+
     item = {
         'uuid':                   str(uuid.uuid4()),
         'classifier':             checkpoint.as_posix(),
@@ -325,10 +332,13 @@ def put_eval_in_database(val_metrics,
         'take':                   take,
         'profile':                str(profile),
         'include_robot_geometry': getattr(model.hparams, 'include_robot_geometry', None),
-        'do_augmentation':        model.aug.do_augmentation()
+        'do_augmentation':        model.aug.do_augmentation(),
+        'classifier_source_env':  classifier_source_env,
+        'original_training_seed': original_training_seed,
+        'fine_tuning_seed':       fine_tuning_seed,
     }
     item.update({k: float(v.result().numpy().squeeze()) for k, v in val_metrics.items()})
-    put_item(item=item, table=dynamodb_utils.table(kwargs.get("debug", False)))
+    put_item(item=item, table=dynamodb_utils.classifier_table(kwargs.get("debug", False)))
 
 
 def compare_main(dataset_dirs: List[pathlib.Path],

@@ -92,6 +92,8 @@ def fine_tune_classifier_from_datasets(train_dataset,
                                        **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
     model_hparams['datasets'].extend(paths_to_json(dataset_dirs))
+    model_hparams['fine_tuning_seed'] = seed
+    model_hparams['fine_tuning_take'] = take
     model_hparams = nested_dict_update(model_hparams, model_hparams_update)
     model_class = link_bot_classifiers.get_model.get_model(model_hparams['model_class'])
     # decrease the learning rate, this is often done in fine-tuning
