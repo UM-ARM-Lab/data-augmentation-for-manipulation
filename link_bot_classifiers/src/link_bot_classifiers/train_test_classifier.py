@@ -202,6 +202,15 @@ def eval_main(dataset_dirs: pathlib.Path,
     # Upload the results to the database
     item = {
         'uuid': str(uuid.uuid4()),
+        'classifier': checkpoint.as_posix(),
+        'dataset_dirs': ','.join([d.as_posix() for d in dataset_dirs]),
+        'balance': balance,
+        'threshold': threshold,
+        'use_gt_rope': use_gt_rope,
+        'batch_size': batch_size,
+        'mode': mode,
+        'take': take,
+        'profile': str(profile),
     }
     item.update({k: float(v.result().numpy().squeeze()) for k, v in val_metrics.items()})
     put_item(item=item, table=dynamodb_utils.table(kwargs.get("debug", False)))
