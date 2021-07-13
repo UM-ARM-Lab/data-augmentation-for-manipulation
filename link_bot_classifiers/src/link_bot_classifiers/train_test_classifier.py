@@ -70,7 +70,8 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, 
     train_dataset = train_dataset.take(take)
     val_dataset = val_dataset.balance()
     val_dataset = val_dataset.batch(batch_size, drop_remainder=True)
-    val_dataset = val_dataset.take(take)
+    rospy.logwarn_once("Only calling 'take' on training, not validation")
+    # val_dataset = val_dataset.take(take)
     return train_dataset, val_dataset
 
 
@@ -171,11 +172,11 @@ def eval_main(dataset_dirs: pathlib.Path,
               use_gt_rope: bool = True,
               threshold: Optional[float] = None,
               take: Optional[int] = None,
-              no_balance: bool = True,
+              balance: bool = False,
               scenario: Optional[ScenarioWithVisualization] = None,
               profile: Optional[tuple] = None,
               **kwargs):
-    model, runner, tf_dataset = eval_setup(balance=(not no_balance),
+    model, runner, tf_dataset = eval_setup(balance=balance,
                                            batch_size=batch_size,
                                            checkpoint=checkpoint,
                                            dataset_dirs=dataset_dirs,
@@ -204,10 +205,10 @@ def eval_n_main(dataset_dir: pathlib.Path,
                 use_gt_rope: bool = True,
                 threshold: Optional[float] = None,
                 take: Optional[int] = None,
-                no_balance: bool = True,
+                balance: bool = False,
                 scenario: Optional[ScenarioWithVisualization] = None,
                 **kwargs):
-    dataset_loader, dataset = setup_eval_dataset((not no_balance), [dataset_dir], mode, scenario, take, threshold,
+    dataset_loader, dataset = setup_eval_dataset(balance, [dataset_dir], mode, scenario, take, threshold,
                                                  use_gt_rope, batch_size)
 
     metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives']
