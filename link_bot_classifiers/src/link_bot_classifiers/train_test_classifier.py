@@ -200,20 +200,18 @@ def eval_main(dataset_dirs: pathlib.Path,
     print("\t".join(metrics_to_print))
 
     # Upload the results to the database
-    item = {
-        'uuid': str(uuid.uuid4()),
-        'classifier': checkpoint.as_posix(),
-        'dataset_dirs': ','.join([d.as_posix() for d in dataset_dirs]),
-        'balance': balance,
-        'threshold': threshold,
-        'use_gt_rope': use_gt_rope,
-        'batch_size': batch_size,
-        'mode': mode,
-        'take': take,
-        'profile': str(profile),
-    }
-    item.update({k: float(v.result().numpy().squeeze()) for k, v in val_metrics.items()})
-    put_item(item=item, table=dynamodb_utils.table(kwargs.get("debug", False)))
+    put_eval_in_database(val_metrics=val_metrics,
+                         balance=balance,
+                         batch_size=batch_size,
+                         checkpoint=checkpoint,
+                         dataset_dirs=dataset_dirs,
+                         mode=mode,
+                         model=model,
+                         profile=profile,
+                         take=take,
+                         threshold=threshold,
+                         use_gt_rope=use_gt_rope,
+                         kwargs=kwargs)
 
     return val_metrics
 
@@ -254,6 +252,18 @@ def eval_n_main(dataset_dir: pathlib.Path,
         metrics_to_print = [f"{val_metrics[k].result().numpy().squeeze():.4f}" for k in metric_keys_to_print]
         all_metrics_to_print.append(metrics_to_print)
 
+        put_eval_in_database(val_metrics=val_metrics,
+                             balance=balance,
+                             batch_size=batch_size,
+                             checkpoint=checkpoint,
+                             dataset_dirs=[dataset_dir],
+                             mode=mode,
+                             model=model,
+                             take=take,
+                             threshold=threshold,
+                             use_gt_rope=use_gt_rope,
+                             kwargs=kwargs)
+
     for metrics_to_print in all_metrics_to_print:
         print("\t".join(metrics_to_print))
 
@@ -286,6 +296,39 @@ def eval_setup(balance,
                          batch_metadata=dataset_loader.batch_metadata,
                          **kwargs)
     return model, runner, dataset
+
+
+def put_eval_in_database(val_metrics,
+                         balance,
+                         batch_size,
+                         checkpoint,
+                         dataset_dirs,
+                         mode,
+                         model,
+                         profile=None,
+                         take=None,
+                         threshold=None,
+                         use_gt_rope=None,
+                         kwargs=None):
+    if kwargs is None:
+        kwargs = {}
+
+    item = {
+        'uuid':                   str(uuid.uuid4()),
+        'classifier':             checkpoint.as_posix(),
+        'dataset_dirs':           ','.join([d.as_posix() for d in dataset_dirs]),
+        'balance':                balance,
+        'threshold':              threshold,
+        'use_gt_rope':            use_gt_rope,
+        'batch_size':             batch_size,
+        'mode':                   mode,
+        'take':                   take,
+        'profile':                str(profile),
+        'include_robot_geometry': getattr(model.hparams, 'include_robot_geometry', None),
+        'do_augmentation':        model.aug.do_augmentation()
+    }
+    item.update({k: float(v.result().numpy().squeeze()) for k, v in val_metrics.items()})
+    put_item(item=item, table=dynamodb_utils.table(kwargs.get("debug", False)))
 
 
 def compare_main(dataset_dirs: List[pathlib.Path],

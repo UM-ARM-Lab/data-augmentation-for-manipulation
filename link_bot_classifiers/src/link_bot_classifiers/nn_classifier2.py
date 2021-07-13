@@ -76,7 +76,6 @@ class NNClassifier(MyKerasModel):
         self.lstm = layers.LSTM(self.hparams['rnn_size'], unroll=True, return_sequences=True)
         self.output_layer = layers.Dense(1, activation=None)
         self.sigmoid = layers.Activation("sigmoid")
-        self.certs_k = 100
 
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
                                                c=self.local_env_c_channels)
