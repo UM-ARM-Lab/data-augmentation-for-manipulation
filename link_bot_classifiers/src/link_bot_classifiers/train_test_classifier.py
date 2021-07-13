@@ -318,8 +318,8 @@ def put_eval_in_database(val_metrics,
     classifier_hparams = try_load_classifier_params(checkpoint)
     classifier_source_env = classifier_hparams['classifier_dataset_hparams']['scene_name']
     original_training_seed = classifier_hparams['seed']
-    fine_tuning_seed = classifier_hparams['fine_tuning_seed']
-    fine_tuning_take = classifier_hparams['fine_tuning_take']
+    fine_tuning_seed = classifier_hparams.get('fine_tuning_seed', None)
+    fine_tuning_take = classifier_hparams.get('fine_tuning_take', None)
 
     item = {
         'uuid':                   str(uuid.uuid4()),
