@@ -43,8 +43,8 @@ def fine_tune_classifier(train_dataset_dirs: List[pathlib.Path],
         val_dataset_dirs = train_dataset_dirs
     val_dataset_loader = get_classifier_dataset_loader(val_dataset_dirs, load_true_states=True, verbose=verbose)
 
-    train_dataset = train_dataset_loader.get_datasets(mode='train', shuffle=True)
-    val_dataset = val_dataset_loader.get_datasets(mode='val', shuffle=True)
+    train_dataset = train_dataset_loader.get_datasets(mode='train', shuffle=seed)
+    val_dataset = val_dataset_loader.get_datasets(mode='val', shuffle=seed)
 
     return fine_tune_classifier_from_datasets(train_dataset=train_dataset,
                                               val_dataset=val_dataset,

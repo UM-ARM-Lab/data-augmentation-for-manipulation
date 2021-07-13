@@ -60,8 +60,8 @@ def setup_dataset_loaders(model_hparams,
     return train_dataset, val_dataset
 
 
-def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, train_take, val_take=None):
-    if val_take is None and train_take is not None:
+def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, train_take, val_take=-1):
+    if val_take == -1 and train_take is not None:
         val_take = train_take
 
     if 'shuffle_buffer_size' in model_hparams:
