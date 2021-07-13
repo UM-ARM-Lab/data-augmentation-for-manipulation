@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import pathlib
 import pickle
+import uuid
 from time import time
 from typing import List, Optional, Dict, Callable
 
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
+from dynamo_pandas.transactions import put_item
 from progressbar import progressbar
 
 import link_bot_classifiers
@@ -15,7 +17,7 @@ import link_bot_classifiers.get_model
 import ros_numpy
 import rospy
 from geometry_msgs.msg import Point
-from link_bot_classifiers import classifier_utils
+from link_bot_classifiers import classifier_utils, dynamodb_utils
 from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
 from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
@@ -196,6 +198,13 @@ def eval_main(dataset_dirs: pathlib.Path,
     metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives']
     metrics_to_print = [f"{val_metrics[k].result().numpy().squeeze():.4f}" for k in metric_keys_to_print]
     print("\t".join(metrics_to_print))
+
+    # Upload the results to the database
+    item = {
+        'uuid': str(uuid.uuid4()),
+    }
+    item.update({k: v.numpy() for k, v in val_metrics.items()})
+    put_item(item=item, table=dynamodb_utils.table_name)
 
     return val_metrics
 
