@@ -102,6 +102,7 @@ def main():
     eval_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_parser.add_argument('--take', type=int)
     eval_parser.add_argument('--threshold', type=float, default=None)
+    eval_parser.add_argument('--debug', action='store_true')
     eval_parser.add_argument('--profile', type=int_tuple_arg, default=None)
     eval_parser.set_defaults(func=eval_main)
 
@@ -111,6 +112,7 @@ def main():
     eval_n_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     eval_n_parser.add_argument('--balance', action='store_true')
     eval_n_parser.add_argument('--batch-size', type=int, default=64)
+    eval_n_parser.add_argument('--debug', action='store_true')
     eval_n_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_n_parser.add_argument('--take', type=int)
     eval_n_parser.add_argument('--threshold', type=float, default=None)

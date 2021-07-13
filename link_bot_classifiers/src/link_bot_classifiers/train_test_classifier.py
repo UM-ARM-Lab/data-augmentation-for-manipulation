@@ -319,6 +319,7 @@ def put_eval_in_database(val_metrics,
     classifier_source_env = classifier_hparams['classifier_dataset_hparams']['scene_name']
     original_training_seed = classifier_hparams['seed']
     fine_tuning_seed = classifier_hparams['fine_tuning_seed']
+    fine_tuning_take = classifier_hparams['fine_tuning_take']
 
     item = {
         'uuid':                   str(uuid.uuid4()),
@@ -336,6 +337,7 @@ def put_eval_in_database(val_metrics,
         'classifier_source_env':  classifier_source_env,
         'original_training_seed': original_training_seed,
         'fine_tuning_seed':       fine_tuning_seed,
+        'fine_tuning_take':       fine_tuning_take,
     }
     item.update({k: float(v.result().numpy().squeeze()) for k, v in val_metrics.items()})
     put_item(item=item, table=dynamodb_utils.classifier_table(kwargs.get("debug", False)))
