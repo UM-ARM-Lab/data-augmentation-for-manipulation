@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--params', '-p', type=pathlib.Path, help='an hjson file to override the model hparams')
     parser.add_argument('--pretransfer-config-dir', type=pathlib.Path, help='dir of pkl files with state/env')
     parser.add_argument('--batch-size', type=int, default=24)
+    parser.add_argument('--early-stopping', action='store_true')
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int)
@@ -45,7 +46,7 @@ def main():
                          checkpoint=args.checkpoint,
                          log=args.log,
                          batch_size=args.batch_size,
-                         early_stopping=False,
+                         early_stopping=args.early_stopping,
                          epochs=args.epochs,
                          validate_first=True,
                          take=args.take,
@@ -59,6 +60,7 @@ def main():
                          fine_tune_output=True,
                          augmentation_config_dir=args.pretransfer_config_dir,
                          profile=args.profile,
+                         val_take=None,
                          )
 
 

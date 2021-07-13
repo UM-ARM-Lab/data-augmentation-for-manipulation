@@ -60,18 +60,20 @@ def setup_dataset_loaders(model_hparams,
     return train_dataset, val_dataset
 
 
-def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, take):
+def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, train_take, val_take=None):
+    if val_take is None and train_take is not None:
+        val_take = train_take
+
     if 'shuffle_buffer_size' in model_hparams:
         train_dataset = train_dataset.shuffle(model_hparams['shuffle_buffer_size'],
                                               reshuffle_each_iteration=True,
                                               seed=seed)
     train_dataset = train_dataset.balance()
     train_dataset = train_dataset.batch(batch_size, drop_remainder=True)
-    train_dataset = train_dataset.take(take)
+    train_dataset = train_dataset.take(train_take)
     val_dataset = val_dataset.balance()
     val_dataset = val_dataset.batch(batch_size, drop_remainder=True)
-    rospy.logwarn_once("Only calling 'take' on training, not validation")
-    # val_dataset = val_dataset.take(take)
+    val_dataset = val_dataset.take(val_take)
     return train_dataset, val_dataset
 
 

@@ -98,7 +98,7 @@ def main():
     eval_parser.add_argument('checkpoint', type=pathlib.Path)
     eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='all')
     eval_parser.add_argument('--balance', action='store_true')
-    eval_parser.add_argument('--batch-size', type=int, default=64)
+    eval_parser.add_argument('--batch-size', type=int, default=128)
     eval_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_parser.add_argument('--take', type=int)
     eval_parser.add_argument('--threshold', type=float, default=None)

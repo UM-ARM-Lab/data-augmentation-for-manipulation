@@ -112,12 +112,14 @@ def fine_tune_classifier_from_datasets(train_dataset,
                          profile=profile,
                          trial_path=trial_path,
                          **kwargs)
+    val_take = kwargs.get('val_take', take)
     train_dataset, val_dataset = setup_datasets(model_hparams=model_hparams,
                                                 batch_size=batch_size,
                                                 train_dataset=train_dataset,
                                                 val_dataset=val_dataset,
                                                 seed=seed,
-                                                take=take)
+                                                train_take=take,
+                                                val_take=val_take)
     if augmentation_config_dir is not None:
         train_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_dataset, batch_size)
     else:
