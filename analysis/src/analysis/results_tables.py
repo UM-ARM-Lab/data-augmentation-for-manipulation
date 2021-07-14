@@ -67,7 +67,11 @@ class PValuesTable(MyTable):
         indices_matrix = np.array([list(v) for v in indices.values])
         useful_levels = np.all(indices_matrix[0] == indices_matrix, axis=0)
         useful_levels_indices = np.where(np.logical_not(useful_levels))[0]
-        useful_level_names = np.take(indices.names, useful_levels_indices).tolist()
+        if np.size(useful_levels_indices) == 0:
+            useful_level_names = indices.names
+        else:
+            useful_level_names = np.take(indices.names, useful_levels_indices).tolist()
+
         data.index = pd.MultiIndex.from_frame(data.index.to_frame().fillna('na'))
         for index, values in data.groupby(useful_level_names, dropna=False):
             arrays_per_method[str(index)] = values.squeeze()
