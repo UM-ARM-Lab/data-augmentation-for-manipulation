@@ -95,7 +95,7 @@ def check_and_fine_tune(job_chunker_i, dataset_loader, training_dataset_dir, tra
         print(banners.equals("FINE-TUNE"))
         adaptive_batch_size = compute_batch_size_for_n_examples(total_examples=len(train_chunk),
                                                                 max_batch_size=32)
-        new_trial_path = fine_tune_classifier_from_datasets(dataset_dirs=[training_dataset_dir],
+        new_trial_path = fine_tune_classifier_from_datasets(train_dataset_dirs=[training_dataset_dir],
                                                             batch_metadata=dataset_loader.batch_metadata,
                                                             train_dataset=train_chunk,
                                                             scenario=dataset_loader.get_scenario(),

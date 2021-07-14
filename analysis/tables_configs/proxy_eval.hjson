@@ -36,26 +36,30 @@
     name: mean
     header: [
       Classifier Source Env
-      Dataset
+      Fine-Tuning Dataset
+      Eval Dataset
       Aug?
       Fine-Tuning Take
       Random Actions Specificity
     ]
     reductions: [
       [
-        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "classifier_source_env", "first"]
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance", "fine_tuning_dataset_dirs"], "classifier_source_env", "first"]
       ]
       [
-        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "dataset_dirs", "first"]
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance", "fine_tuning_dataset_dirs"], "fine_tuning_dataset_dirs", "first"]
       ]
       [
-        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "do_augmentation", "first"]
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance", "fine_tuning_dataset_dirs"], "dataset_dirs", "first"]
       ]
       [
-        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "fine_tuning_take", "first"]
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance", "fine_tuning_dataset_dirs"], "do_augmentation", "first"]
       ]
       [
-        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "accuracy on negatives", "mean"]
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance", "fine_tuning_dataset_dirs"], "fine_tuning_take", "first"]
+      ]
+      [
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance", "fine_tuning_dataset_dirs"], "accuracy on negatives", "mean"]
       ]
     ]
   }

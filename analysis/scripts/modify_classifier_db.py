@@ -9,6 +9,22 @@ from link_bot_data import dynamodb_utils
 from link_bot_data.dynamodb_utils import update_classifier_db
 
 
+def add_fine_tuning_dataset_dirs(item):
+    k = 'fine_tuning_dataset_dirs'
+    if k in item:
+        return None
+
+    classifier_model_dir = pathlib.Path(item['classifier']["S"])
+    classifier_hparams = try_load_classifier_params(classifier_model_dir)
+    datasets = classifier_hparams['datasets']
+    if len(datasets) == 1:
+        return True, 'NULL', k
+    else:
+        default = classifier_hparams['datasets'][-1]
+        fine_tuning_dataset_dirs = classifier_hparams.get('fine_tuning_dataset_dirs', default)
+        return str(fine_tuning_dataset_dirs), 'S', k
+
+
 def get_classifier_source_env(item):
     if 'classifier_source_env' in item and "S" in item['classifier_source_env']:
         return None
@@ -88,8 +104,9 @@ def main():
     #     print("Aborting")
     #     return
 
-    update_classifier_db(client, table, get_classifier_source_env)
+    # update_classifier_db(client, table, get_classifier_source_env)
     # update_classifier_db(client, table, rename_classifier_model_dir)
+    update_classifier_db(client, table, add_fine_tuning_dataset_dirs)
     # update_classifier_db(client, table, update_original_seed)
     # update_classifier_db(client, table, update_do_augmentation)
     # update_classifier_db(client, table, add_fine_tuning_take)

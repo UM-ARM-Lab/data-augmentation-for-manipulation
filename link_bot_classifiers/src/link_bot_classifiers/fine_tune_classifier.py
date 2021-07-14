@@ -51,7 +51,7 @@ def fine_tune_classifier(train_dataset_dirs: List[pathlib.Path],
                                               checkpoint=checkpoint,
                                               log=log,
                                               scenario=train_dataset_loader.get_scenario(),
-                                              dataset_dirs=train_dataset_dirs,
+                                              train_dataset_dirs=train_dataset_dirs,
                                               batch_metadata=train_dataset_loader.batch_metadata,
                                               batch_size=batch_size,
                                               epochs=epochs,
@@ -74,7 +74,7 @@ def fine_tune_classifier_from_datasets(train_dataset,
                                        checkpoint: pathlib.Path,
                                        log: str,
                                        scenario: ScenarioWithVisualization,
-                                       dataset_dirs: List[pathlib.Path],
+                                       train_dataset_dirs: List[pathlib.Path],
                                        batch_metadata: Dict,
                                        batch_size: int,
                                        epochs: int,
@@ -91,9 +91,10 @@ def fine_tune_classifier_from_datasets(train_dataset,
                                        seed: Optional[int] = None,
                                        **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
-    model_hparams['datasets'].extend(paths_to_json(dataset_dirs))
+    model_hparams['datasets'].extend(paths_to_json(train_dataset_dirs))
     model_hparams['fine_tuning_seed'] = seed
     model_hparams['fine_tuning_take'] = take
+    model_hparams['fine_tuning_dataset_dirs'] = train_dataset_dirs
     model_hparams = nested_dict_update(model_hparams, model_hparams_update)
     model_class = link_bot_classifiers.get_model.get_model(model_hparams['model_class'])
     # decrease the learning rate, this is often done in fine-tuning

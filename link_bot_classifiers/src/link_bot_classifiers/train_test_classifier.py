@@ -73,11 +73,11 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, 
                                               reshuffle_each_iteration=True,
                                               seed=seed)
     train_dataset = train_dataset.balance()
-    train_dataset = train_dataset.batch(batch_size, drop_remainder=True)
     train_dataset = train_dataset.take(train_take)
+    train_dataset = train_dataset.batch(batch_size, drop_remainder=True)
     val_dataset = val_dataset.balance()
-    val_dataset = val_dataset.batch(batch_size, drop_remainder=True)
     val_dataset = val_dataset.take(val_take)
+    val_dataset = val_dataset.batch(batch_size, drop_remainder=True)
     return train_dataset, val_dataset
 
 
@@ -320,6 +320,7 @@ def put_eval_in_database(val_metrics,
     original_training_seed = classifier_hparams['seed']
     fine_tuning_seed = classifier_hparams.get('fine_tuning_seed', None)
     fine_tuning_take = classifier_hparams.get('fine_tuning_take', None)
+    fine_tuning_dataset_dirs = classifier_hparams.get('fine_tuning_dataset_dirs', None)
 
     item = {
         'uuid':                   str(uuid.uuid4()),
@@ -338,6 +339,7 @@ def put_eval_in_database(val_metrics,
         'original_training_seed': original_training_seed,
         'fine_tuning_seed':       fine_tuning_seed,
         'fine_tuning_take':       fine_tuning_take,
+        'fine_tuning_dataset_dirs':       fine_tuning_dataset_dirs,
     }
     item.update({k: float(v.result().numpy().squeeze()) for k, v in val_metrics.items()})
     put_item(item=item, table=dynamodb_utils.classifier_table(kwargs.get("debug", False)))

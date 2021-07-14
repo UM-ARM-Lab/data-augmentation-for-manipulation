@@ -63,12 +63,14 @@ class PValuesTable(MyTable):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             indices = data.index.unique()
-            indices_matrix = np.array([list(v) for v in indices.values])
-            useful_levels = np.all(indices_matrix[0] == indices_matrix, axis=0)
-            useful_levels_indices = np.where(np.logical_not(useful_levels))[0]
-            useful_level_names = np.take(indices.names, useful_levels_indices).tolist()
-            for index, values in data.groupby(useful_level_names):
-                arrays_per_method[str(index)] = values.squeeze()
+
+        indices_matrix = np.array([list(v) for v in indices.values])
+        useful_levels = np.all(indices_matrix[0] == indices_matrix, axis=0)
+        useful_levels_indices = np.where(np.logical_not(useful_levels))[0]
+        useful_level_names = np.take(indices.names, useful_levels_indices).tolist()
+        data.index = pd.MultiIndex.from_frame(data.index.to_frame().fillna('na'))
+        for index, values in data.groupby(useful_level_names, dropna=False):
+            arrays_per_method[str(index)] = values.squeeze()
 
         self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format, title=self.name)
 
