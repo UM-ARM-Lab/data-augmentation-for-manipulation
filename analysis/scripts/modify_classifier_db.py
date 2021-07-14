@@ -10,6 +10,8 @@ from link_bot_data.dynamodb_utils import update_classifier_db
 
 
 def get_classifier_source_env(item):
+    if 'classifier_source_env' in item and "S" in item['classifier_source_env']:
+        return None
     try:
         classifier_model_dir = pathlib.Path(item['classifier']["S"])
         classifier_hparams = try_load_classifier_params(classifier_model_dir)
@@ -27,23 +29,34 @@ def add_fine_tuning_take(item):
 
 
 def update_do_augmentation(item):
-    if 'do_augmentation' not in item or list(item['do_augmentation'].keys())[0] == 'N':
+    if 'do_augmentation' not in item or list(item['do_augmentation'].keys())[0] == 'NULL':
         return str(0), 'N', 'do_augmentation'
     return None
 
 
 def update_original_seed(item):
     try:
-        classifier_model_dir = pathlib.Path(item['classifier']["S"])
-        classifier_hparams = try_load_classifier_params(classifier_model_dir)
-        seed = classifier_hparams['seed']
-        return str(seed), "N", "original_training_seed"
+        if 'original_trining_seed' not in item:
+            classifier_model_dir = pathlib.Path(item['classifier']["S"])
+            classifier_hparams = try_load_classifier_params(classifier_model_dir)
+            seed = classifier_hparams['seed']
+            return str(seed), "N", "original_training_seed"
+        else:
+            return None
     except Exception:
         return True, "NULL", "original_training_seed"
 
 
 def update_fine_tuning_seed(item):
-    return True, "NULL", "fine_tuning_seed"
+    if 'fine_tuning_seed' not in item or 'NULL' in item['fine_tuning_seed']:
+        print(item['classifier']['S'])
+        q = input("Aug?")
+        if q in ['Y', 'y', '1']:
+            return str(0), "N", "fine_tuning_seed"
+        else:
+            return True, "NULL", "fine_tuning_seed"
+    else:
+        return None
 
 
 def rename_classifier_model_dir(item):
@@ -75,11 +88,11 @@ def main():
     #     print("Aborting")
     #     return
 
-    # update_classifier_db(client, table, get_classifier_source_env)
+    update_classifier_db(client, table, get_classifier_source_env)
     # update_classifier_db(client, table, rename_classifier_model_dir)
     # update_classifier_db(client, table, update_original_seed)
     # update_classifier_db(client, table, update_do_augmentation)
-    update_classifier_db(client, table, add_fine_tuning_take)
+    # update_classifier_db(client, table, add_fine_tuning_take)
     # update_classifier_db(client, table, update_fine_tuning_seed)
 
 
