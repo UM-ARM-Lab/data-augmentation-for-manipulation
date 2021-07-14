@@ -8,13 +8,7 @@
     fine_tune_output: true
     epochs: 25
   }
-  fine_tune_recovery: {
-    fine_tune_conv: false
-    fine_tune_dense: false
-    fine_tune_output1: false
-    fine_tune_output2: true
-    epochs: 25
-  }
+  fine_tune_recovery: null
   planner_params_update: {
     termination_criteria:
     {
@@ -24,23 +18,20 @@
     val_split: 0.5
     test_split: 0.0
   }
-  results_to_recovery_dataset: {
-    val_split: 0.5
-    test_split: 0.0
-  }
+  results_to_recovery_dataset: null
   labeling_params_update: {
     use_augmentation: true
   }
   pretraining: {
-    use_pretraining: true
-    pretraining_type: augmentation
-    model_hparams_update_filename: ../link_bot_classifiers/hparams/aug.hjson
-    augmentation_config_dir: pretransfer_initial_configs/long_hook/
-    epochs: 10
-    batch_size: 16
-    fine_tune_conv: false
-    fine_tune_dense: false
-    fine_tune_lstm: false
-    fine_tune_output: true
+    use_pretraining: false # at the moment I'm running this as a separate step
+    # pretraining_type: augmentation
+    # model_hparams_update_filename: ../link_bot_classifiers/hparams/aug.hjson
+    # augmentation_config_dir: pretransfer_initial_configs/long_hook/
+    # epochs: 100
+    # batch_size: 16
+    # fine_tune_conv: false
+    # fine_tune_dense: false
+    # fine_tune_lstm: false
+    # fine_tune_output: true
   }
 }
