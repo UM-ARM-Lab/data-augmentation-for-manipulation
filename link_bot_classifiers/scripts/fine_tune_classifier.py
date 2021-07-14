@@ -31,6 +31,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int)
+    parser.add_argument('--val-take', type=int)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--threshold', type=float, default=None)
 
@@ -60,7 +61,7 @@ def main():
                          fine_tune_output=True,
                          augmentation_config_dir=args.pretransfer_config_dir,
                          profile=args.profile,
-                         val_take=None,
+                         val_take=args.val_take,
                          )
 
 
