@@ -18,6 +18,7 @@ def main():
     parser.add_argument("ift_dir", type=pathlib.Path)
     parser.add_argument("--threshold", type=float)
     parser.add_argument("--full-plan", action='store_true')
+    parser.add_argument("--start-at", action='store_true')
     parser.add_argument("--only-timeouts", action='store_true')
     parser.add_argument("--max-trials", "-t", type=int, default=None)
     parser.add_argument("--verbose", '-v', action="count", default=0)
@@ -38,6 +39,8 @@ def main():
             threshold = args.threshold
 
         for trial_idx, datum in results_utils.trials_generator(results_dir):
+            if args.start_at is not None and trial_idx < args.start_at:
+                continue
             if args.max_trials is not None and trial_idx >= args.max_trials:
                 continue
 

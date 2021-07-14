@@ -112,6 +112,8 @@ def get_paths(datum: Dict, verbose: int = 0, full_path: bool = True):
             actions = planning_result.actions
             actual_states = execution_result.path
             predicted_states = planning_result.path
+            if verbose >= 2:
+                print(planning_result.status)
         elif step['type'] == 'executed_recovery':
             execution_result: ExecutionResult = step['execution_result']
             actions = [step['recovery_action']]
@@ -313,7 +315,6 @@ def plot_steps(scenario: ScenarioWithVisualization,
         return
 
     goal = datum['goal']
-    first_step = steps[0]
     paths = list(get_paths(datum, verbose, full_plan))
 
     if len(paths) == 0:

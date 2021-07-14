@@ -48,7 +48,7 @@ class SizedTFDataset:
         if kwargs.get("drop_reminder", False):
             size = int(self.size / batch_size)
         else:
-            size = np.ceil(self.size / batch_size)
+            size = int(np.ceil(self.size / batch_size))
         return SizedTFDataset(dataset_batched, self.records, size=size)
 
     def map(self, function: Callable):
