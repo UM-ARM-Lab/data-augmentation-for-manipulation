@@ -74,10 +74,10 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, 
                                               seed=seed)
     train_dataset = train_dataset.balance()
     train_dataset = train_dataset.take(train_take)
-    train_dataset = train_dataset.batch(batch_size, drop_remainder=True)
+    train_dataset = train_dataset.batch(batch_size, drop_remainder=False)
     val_dataset = val_dataset.balance()
     val_dataset = val_dataset.take(val_take)
-    val_dataset = val_dataset.batch(batch_size, drop_remainder=True)
+    val_dataset = val_dataset.batch(batch_size, drop_remainder=False)
     return train_dataset, val_dataset
 
 
