@@ -42,8 +42,13 @@ def main():
     else:
         model_hparams_update = None
 
+    if args.val_dataset_dir is None:
+        val_dataset_dirs = None
+    else:
+        val_dataset_dirs = [args.val_dataset_dir]
+
     fine_tune_classifier(train_dataset_dirs=args.dataset_dirs,
-                         val_dataset_dirs=[args.val_dataset_dir],
+                         val_dataset_dirs=val_dataset_dirs,
                          checkpoint=args.checkpoint,
                          log=args.log,
                          batch_size=args.batch_size,
