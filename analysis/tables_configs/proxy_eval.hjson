@@ -36,6 +36,7 @@
     name: mean
     header: [
       Classifier Source Env
+      Dataset
       Aug?
       Fine-Tuning Take
       Random Actions Specificity
@@ -45,11 +46,11 @@
         [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "classifier_source_env", "first"]
       ]
       [
+        [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "dataset_dirs", "first"]
+      ]
+      [
         [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "do_augmentation", "first"]
       ]
-      # [
-      #   [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "aug", "first"]
-      # ]
       [
         [["do_augmentation", "fine_tuning_take", "classifier_source_env", "dataset_dirs", "mode", "balance"], "fine_tuning_take", "first"]
       ]

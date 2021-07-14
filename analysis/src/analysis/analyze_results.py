@@ -1,7 +1,8 @@
 import logging
 import pathlib
 import pickle
-from typing import List, Dict
+from copy import deepcopy
+from typing import List, Dict, Optional
 
 import pandas as pd
 from tqdm import tqdm
@@ -48,7 +49,12 @@ def load_fig_specs(analysis_params, figures_config: pathlib.Path):
 
 def load_table_specs(tables_config: pathlib.Path, table_format: str):
     tables_conf = load_analysis_hjson(tables_config)
+    return make_table_specs(table_format, tables_conf)
+
+
+def make_table_specs(table_format: str, tables_conf: List[Dict]):
     tablespecs = []
+    tables_conf = deepcopy(tables_conf)
     for table_conf in tables_conf:
         table_type = eval(table_conf.pop('type'))
         reductions = table_conf.pop('reductions')
@@ -151,17 +157,19 @@ def guess_results_folder_name(data_filename):
     return results_folder_name
 
 
-def generate_tables(df: pd.DataFrame, out_dir: pathlib.Path, table_specs):
+def generate_tables(df: pd.DataFrame, outdir: Optional[pathlib.Path], table_specs):
     for spec in table_specs:
         data_for_table = reduce_planning_metrics(spec.reductions, df)
         spec.table.make_table(data_for_table)
-        spec.table.save(out_dir)
+        if outdir is not None:
+            spec.table.save(outdir)
     for spec in table_specs:
         print()
         spec.table.print()
         print()
-    tables_outfilename = out_dir / 'tables.txt'
-    with tables_outfilename.open("w") as tables_outfile:
-        for spec in table_specs:
-            tables_outfile.write(spec.table.table)
-            tables_outfile.write('\n\n\n')
+    if outdir is not None:
+        tables_outfilename = outdir / 'tables.txt'
+        with tables_outfilename.open("w") as tables_outfile:
+            for spec in table_specs:
+                tables_outfile.write(spec.table.table)
+                tables_outfile.write('\n\n\n')

@@ -1,5 +1,7 @@
 import pathlib
+import warnings
 
+import numpy as np
 import pandas as pd
 from colorama import Fore, Style
 from tabulate import tabulate
@@ -56,10 +58,17 @@ class PValuesTable(MyTable):
         self.name = name
         self.table = None
 
-    def make_table(self, data):
+    def make_table(self, data: pd.DataFrame):
         arrays_per_method = {}
-        for i in data.index.unique():
-            arrays_per_method[str(i)] = data.loc[i].values.squeeze()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            indices = data.index.unique()
+            indices_matrix = np.array([list(v) for v in indices.values])
+            useful_levels = np.all(indices_matrix[0] == indices_matrix, axis=0)
+            useful_levels_indices = np.where(np.logical_not(useful_levels))[0]
+            useful_level_names = np.take(indices.names, useful_levels_indices).tolist()
+            for index, values in data.groupby(useful_level_names):
+                arrays_per_method[str(index)] = values.squeeze()
 
         self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format, title=self.name)
 

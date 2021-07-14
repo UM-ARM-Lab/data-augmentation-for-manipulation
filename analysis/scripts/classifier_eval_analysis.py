@@ -18,6 +18,7 @@ def main():
     args = parser.parse_args()
 
     df = get_df(table=dynamodb_utils.classifier_table(args.debug))
+    df = df.loc[df['mode'] == 'all']
 
     if args.latex:
         table_format = 'latex_raw'
