@@ -133,6 +133,13 @@ class NewBaseDataset:
         self.n_prefetch = n_prefetch
         return self
 
+    def pprint_example(self):
+        for k,v in self.get_example(0).items():
+            try:
+                print(k, v.shape)
+            except AttributeError:
+                print(k, type(v))
+
 
 class NewBaseDatasetLoader:
 

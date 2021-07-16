@@ -115,11 +115,12 @@ def dim_viz_main(checkpoint: pathlib.Path, **kwargs):
     plt.show()
 
 
+lim = np.array([0.5, 0.5, 0.5, np.pi, np.pi, np.pi])
+
+
 def plot_angle_invariance(ax, m, n):
     ax.set_xlabel(f"rotation (deg)")
     ax.set_ylabel("error")
-
-    angles = np.linspace(-np.pi / 2, np.pi / 2, n, dtype=np.float32)
 
     def _plot_by_axis(axis: str):
         if axis == 'roll':
@@ -131,8 +132,11 @@ def plot_angle_invariance(ax, m, n):
         else:
             raise NotImplementedError(axis)
 
-        transformation_params = np.zeros([n, 6], dtype=np.float32)
-        transformation_params[:, param_idx] = angles
+        transformation_params = np.random.uniform(-lim, lim, size=[n, 6]).astype(np.float32)
+        for i in [3, 4, 5]:
+            if i != param_idx:
+                transformation_params[:, i] = 0
+        angles = transformation_params[:, param_idx]
         errors = viz_eval(m, transformation_params)
         angles_deg = np.rad2deg(angles)
 
@@ -148,8 +152,6 @@ def plot_position_invariance(ax, m, n):
     ax.set_xlabel(f"translation (m)")
     ax.set_ylabel("error")
 
-    positions = np.linspace(-0.5, 0.5, n, dtype=np.float32)
-
     def _plot_by_axis(axis: str):
         if axis == 'x':
             param_idx = 0
@@ -160,8 +162,11 @@ def plot_position_invariance(ax, m, n):
         else:
             raise NotImplementedError(axis)
 
-        transformation_params = np.zeros([n, 6], dtype=np.float32)
-        transformation_params[:, param_idx] = positions
+        transformation_params = np.random.uniform(-lim, lim, size=[n, 6]).astype(np.float32)
+        for i in [0, 1, 2]:
+            if i != param_idx:
+                transformation_params[:, i] = 0
+        positions = transformation_params[:, param_idx]
         errors = viz_eval(m, transformation_params)
 
         ax.scatter(positions, errors, label=axis)

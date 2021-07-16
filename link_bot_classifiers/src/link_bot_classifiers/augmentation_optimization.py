@@ -23,7 +23,8 @@ from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, pairwise_squared_distances, transformation_params_to_matrices
-from moonshine.moonshine_utils import reduce_mean_no_nan, repeat, to_list_of_strings, possibly_none_concat
+from moonshine.moonshine_utils import reduce_mean_no_nan, repeat, to_list_of_strings, possibly_none_concat, \
+    repeat_tensor
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 from moveit_msgs.msg import RobotState, PlanningScene
 from sensor_msgs.msg import JointState
@@ -187,7 +188,7 @@ class AugmentationOptimization:
         self.grad_clip = 0.25  # max dist step the env aug update can take
         self.attract_weight = 0.2
         self.repel_weight = 1.0
-        self.invariance_weight = 0.01
+        self.invariance_weight = 1.0
         self.ground_penetration_weight = 1.0
         self.robot_base_penetration_weight = 1.0
 
@@ -472,12 +473,13 @@ class AugmentationOptimization:
                                                    frame='new_env_aug_vg')
                 # stepper.step()
 
-        # Sample an initial random object transformation
-        initial_transformation_params = self.scenario.sample_object_augmentation_variables(100 * batch_size, self.seed)
+        # Sample an initial random object transformation. This can be the same across the batch
+        initial_transformation_params = self.scenario.sample_object_augmentation_variables(1000, self.seed)
         # pick the most valid transforms, via the learned object state augmentation validity model
         predicted_errors = self.invariance_model_wrapper.evaluate(initial_transformation_params)
-        best_errors, best_transform_params_indices = tf.math.top_k(-predicted_errors, tf.cast(batch_size, tf.int32), sorted=False)
-        initial_transformation_params = tf.gather(initial_transformation_params, best_transform_params_indices, axis=0)
+        best_transformation_idx = tf.argmin(predicted_errors)
+        best_transformation_params = tf.gather(initial_transformation_params, best_transformation_idx)
+        initial_transformation_params = repeat_tensor(best_transformation_params, batch_size, 0, True)
 
         # optimization loop
         obj_transforms = tf.Variable(initial_transformation_params)  # [x,y,z,roll,pitch,yaw]

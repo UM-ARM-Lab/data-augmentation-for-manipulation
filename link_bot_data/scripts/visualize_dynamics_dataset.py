@@ -31,12 +31,14 @@ def main():
     # print info about shapes
     dataset.pprint_example()
 
+    s = dataset_loader.get_scenario()
     for i, example in enumerate(progressbar(dataset, widgets=mywidgets)):
         if args.start_at is not None and i < args.start_at:
             continue
 
-        traj_idx = example['traj_idx']
-        dataset_loader.get_scenario().plot_traj_idx_rviz(traj_idx)
+        if 'traj_idx' in example:
+            traj_idx = example['traj_idx']
+            s.plot_traj_idx_rviz(traj_idx)
 
         if args.plot_type == '3d':
             deserialize_scene_msg(example)

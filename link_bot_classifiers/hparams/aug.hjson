@@ -1,6 +1,6 @@
 {
   augmentation: {
     type: optimization2
-    invariance_model: /media/shared/invariance_trials/rope_data2/May_31_17-20-10_4eba9ffc9f/best_checkpoint
+    invariance_model: /media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint
   }
 }
