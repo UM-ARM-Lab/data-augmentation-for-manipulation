@@ -528,13 +528,19 @@ def setup_ift(args):
 
     initial_planner_params = load_planner_params(args.planner_params)
 
+    if args.recovery_checkpoint.as_posix() == 'none':
+        initial_recovery_checkpoint = None
+    else:
+        initial_recovery_checkpoint = args.recovery_checkpoint.as_posix()
+    print(initial_recovery_checkpoint)
+
     logfile_name = outdir / 'logfile.hjson'
     log = {
         'nickname':                      args.nickname,
         'planner_params':                initial_planner_params,
         'test_scenes_dir':               args.test_scenes_dir.as_posix(),
         'initial_classifier_checkpoint': args.classifier_checkpoint.as_posix(),
-        'initial_recovery_checkpoint':   args.recovery_checkpoint.as_posix(),
+        'initial_recovery_checkpoint':   initial_recovery_checkpoint,
         'from_env':                      from_env,
         'to_env':                        to_env,
         'ift_config':                    ift_config,
