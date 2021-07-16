@@ -17,7 +17,7 @@ from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneSce
 from link_bot_pycommon.moveit_utils import make_joint_state
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d
-from moonshine.moonshine_utils import numpify, to_list_of_strings
+from moonshine.moonshine_utils import numpify, to_list_of_strings, repeat_tensor
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene, AllowedCollisionMatrix
 from trajectory_msgs.msg import JointTrajectoryPoint
 
@@ -346,12 +346,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                              batch_size,
                                              seed: tfp.util.SeedStream):
         # NOTE: lots of hidden hyper-parameters here :(
-        zeros = tf.zeros([batch_size, 6], dtype=tf.float32)
-        trans_lim = 0.25
-        rot_lim = 0.15
-        scale = tf.constant([trans_lim, trans_lim, trans_lim, rot_lim, rot_lim, rot_lim], dtype=tf.float32)
-        lim = tf.constant([0.5, 0.5, 0.5, np.pi, np.pi, np.pi], dtype=tf.float32)
-        distribution = tfp.distributions.TruncatedNormal(zeros, scale=scale, low=-lim, high=lim)
+        trans_lim = 0.5
+        rot_lim = np.pi
+        lim = tf.constant([trans_lim, trans_lim, trans_lim, rot_lim, rot_lim, rot_lim], dtype=tf.float32)
+        lim = repeat_tensor(lim, repetitions=batch_size, axis=0, new_axis=True)
+        distribution = tfp.distributions.Uniform(low=-lim, high=lim)
         transformation_params = distribution.sample(seed=seed())
 
         return transformation_params

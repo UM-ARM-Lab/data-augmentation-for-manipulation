@@ -25,11 +25,12 @@ class InvarianceModel(MyKerasModel):
         for layer_size in self.hparams['fc_layer_sizes']:
             fc_layers.append(layers.Dense(layer_size,
                                           kernel_regularizer=tf.keras.regularizers.l2(self.hparams['reg']),
-                                          bias_regularizer=tf.keras.regularizers.l2(self.hparams['reg'])))
-            fc_layers.append(layers.ReLU())
+                                          bias_regularizer=tf.keras.regularizers.l2(self.hparams['reg']),
+                                          activation='relu'))
         fc_layers.append(layers.Dense(1,
                                       kernel_regularizer=tf.keras.regularizers.l2(self.hparams['reg']),
-                                      bias_regularizer=tf.keras.regularizers.l2(self.hparams['reg'])))
+                                      bias_regularizer=tf.keras.regularizers.l2(self.hparams['reg']),
+                                      activation='relu'))
         self.sequential = tf.keras.Sequential(fc_layers)
 
         self.inputs_keys = ['transformation']

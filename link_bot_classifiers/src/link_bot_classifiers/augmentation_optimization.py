@@ -473,10 +473,10 @@ class AugmentationOptimization:
                 # stepper.step()
 
         # Sample an initial random object transformation
-        initial_transformation_params = self.scenario.sample_object_augmentation_variables(10 * batch_size, self.seed)
+        initial_transformation_params = self.scenario.sample_object_augmentation_variables(100 * batch_size, self.seed)
         # pick the most valid transforms, via the learned object state augmentation validity model
         predicted_errors = self.invariance_model_wrapper.evaluate(initial_transformation_params)
-        _, best_transform_params_indices = tf.math.top_k(-predicted_errors, tf.cast(batch_size, tf.int32), sorted=False)
+        best_errors, best_transform_params_indices = tf.math.top_k(-predicted_errors, tf.cast(batch_size, tf.int32), sorted=False)
         initial_transformation_params = tf.gather(initial_transformation_params, best_transform_params_indices, axis=0)
 
         # optimization loop
