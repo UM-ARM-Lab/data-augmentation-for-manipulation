@@ -347,7 +347,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                              seed: tfp.util.SeedStream):
         # NOTE: lots of hidden hyper-parameters here :(
         zeros = tf.zeros([batch_size, 6], dtype=tf.float32)
-        scale = tf.constant([0.25, 0.25, 0.25, 0.15, 0.15, 0.15], dtype=tf.float32)
+        trans_lim = 0.25
+        rot_lim = 0.15
+        scale = tf.constant([trans_lim, trans_lim, trans_lim, rot_lim, rot_lim, rot_lim], dtype=tf.float32)
         lim = tf.constant([0.5, 0.5, 0.5, np.pi, np.pi, np.pi], dtype=tf.float32)
         distribution = tfp.distributions.TruncatedNormal(zeros, scale=scale, low=-lim, high=lim)
         transformation_params = distribution.sample(seed=seed())

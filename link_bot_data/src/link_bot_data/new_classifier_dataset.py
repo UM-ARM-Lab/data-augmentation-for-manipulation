@@ -34,6 +34,13 @@ class NewClassifierDataset(NewBaseDataset):
             post_process.append(self.add_time())
         super().__init__(loader, filenames, mode, post_process, n_prefetch)
 
+    def _only_negative(self):
+        metadata = [load_metadata(f) for f in self.filenames]
+        is_close = np.array([m['error'][1] < self.loader.threshold for m in metadata])
+        is_far_indices, = np.where(np.logical_not(is_close))  # returns a tuple of length 1
+        negative_filenames = np.take(self.filenames, is_far_indices).tolist()
+        return negative_filenames
+
     @halo.Halo("balancing")
     def _balance(self):
         metadata = [load_metadata(f) for f in self.filenames]

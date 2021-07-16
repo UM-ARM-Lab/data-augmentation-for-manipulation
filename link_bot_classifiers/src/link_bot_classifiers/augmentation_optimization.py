@@ -176,7 +176,7 @@ class AugmentationOptimization:
         self.env_subsample = 0.25
         self.num_object_interp = 5  # must be >=2
         self.num_robot_interp = 3  # must be >=2
-        self.max_steps = 20
+        self.max_steps = 25
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
         self.step_size = 10.0
@@ -185,10 +185,11 @@ class AugmentationOptimization:
         self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.grad_clip = 0.25  # max dist step the env aug update can take
-        self.attract_weight = 0.1
+        self.attract_weight = 0.2
         self.repel_weight = 1.0
         self.invariance_weight = 0.01
-        self.ground_penetration_weight = 100.0
+        self.ground_penetration_weight = 1.0
+        self.robot_base_penetration_weight = 1.0
 
         # Precompute this for speed
         self.barrier_epsilon = 0.01
@@ -201,6 +202,7 @@ class AugmentationOptimization:
 
         # metrics
         self.is_valids = None
+        self.local_env_aug_fix_delta = None
 
     def augmentation_optimization(self,
                                   inputs: Dict,
@@ -247,7 +249,7 @@ class AugmentationOptimization:
         if debug_aug():
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
-                print(is_valid[b])
+                print(bool(is_valid[b].numpy()))
                 _aug_dict = {
                     'env':          local_env_aug[b].numpy(),
                     'origin_point': local_origin_point_aug[b].numpy(),
@@ -508,12 +510,14 @@ class AugmentationOptimization:
 
                     invariance_loss = self.invariance_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
 
-                    ground_penetration_loss = self.ground_penetration_weight * self.ground_penetration_loss(
-                        obj_points_aug)
+                    robot_base_penetration_loss = self.robot_base_penetration_loss(obj_points_aug)
+
+                    ground_penetration_loss = self.ground_penetration_loss(obj_points_aug)
 
                     losses = [
                         tf.reduce_mean(attract_repel_loss_per_point, axis=-1),
-                        ground_penetration_loss,
+                        tf.reduce_mean(ground_penetration_loss, axis=-1),
+                        tf.reduce_mean(robot_base_penetration_loss, axis=-1),
                         invariance_loss,
                     ]
                     loss = tf.reduce_mean(tf.add_n(losses))
@@ -561,9 +565,6 @@ class AugmentationOptimization:
 
             grad_norm = tf.linalg.norm(gradients[0], axis=-1)
             step_size_i = grad_norm * self.step_size
-            if debug_aug_sgd():
-                if b in debug_viz_batch_indices(batch_size):
-                    print(step_size_i[b].numpy(), self.step_size_threshold, constraints_satisfied[b].numpy())
             can_terminate = self.can_terminate(constraints_satisfied, step_size_i)
             can_terminate = tf.reduce_all(can_terminate)
             if can_terminate:
@@ -588,6 +589,7 @@ class AugmentationOptimization:
         #  another would be to "give up" and use the un-augmented datapoint
 
         local_env_aug_fixed = []
+        local_env_aug_fix_deltas = []
         for b in range(batch_size):
             attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), axis=1)
             repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), axis=1)
@@ -598,8 +600,13 @@ class AugmentationOptimization:
             repel_vg = self.points_to_voxel_grid_res_origin_point(repel_points_aug, res[b], local_origin_point_aug[b])
             # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
             local_env_aug_fixed_b = subtract(binary_or(local_env_aug[b], attract_vg), repel_vg)
+            local_env_aug_fix_delta = tf.reduce_sum(tf.abs(local_env_aug_fixed_b - local_env_aug[b]))
+            local_env_aug_fix_deltas.append(local_env_aug_fix_delta)
             local_env_aug_fixed.append(local_env_aug_fixed_b)
         local_env_aug_fixed = tf.stack(local_env_aug_fixed, axis=0)
+        local_env_aug_fix_deltas = tf.stack(local_env_aug_fix_deltas, axis=0)
+        self.local_env_aug_fix_delta = possibly_none_concat(self.local_env_aug_fix_delta, local_env_aug_fix_deltas,
+                                                            axis=0)
 
         return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug_fixed
 
@@ -995,4 +1002,9 @@ class AugmentationOptimization:
     def ground_penetration_loss(self, obj_points_aug):
         obj_points_aug_z = obj_points_aug[:, :, 2]
         ground_z = -0.415  # FIXME: hardcoded, copied from the gazebo world file
-        return tf.maximum(0, ground_z - obj_points_aug_z)
+        return self.ground_penetration_weight * tf.maximum(0, ground_z - obj_points_aug_z)
+
+    def robot_base_penetration_loss(self, obj_points_aug):
+        obj_points_aug_y = obj_points_aug[:, :, 1]
+        base_y = 0.15  # FIXME: hardcoded
+        return self.robot_base_penetration_weight * tf.maximum(0, base_y - obj_points_aug_y)

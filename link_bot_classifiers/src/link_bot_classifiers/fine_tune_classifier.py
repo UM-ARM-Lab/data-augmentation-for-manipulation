@@ -1,4 +1,5 @@
 import itertools
+import tensorflow as tf
 import logging
 import pathlib
 import pickle
@@ -8,7 +9,7 @@ import link_bot_classifiers
 import link_bot_classifiers.get_model
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.train_test_classifier import setup_datasets
-from link_bot_data.dataset_utils import add_new
+from link_bot_data.dataset_utils import add_new, label_is
 from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_pycommon.pycommon import paths_to_json
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -44,6 +45,7 @@ def fine_tune_classifier(train_dataset_dirs: List[pathlib.Path],
     val_dataset_loader = get_classifier_dataset_loader(val_dataset_dirs, load_true_states=True, verbose=verbose)
 
     train_dataset = train_dataset_loader.get_datasets(mode='train', shuffle=seed)
+    train_dataset = train_dataset.filter(label_is(0)).take(1000).skip(batch_size*1)
     val_dataset = val_dataset_loader.get_datasets(mode='val', shuffle=seed)
 
     return fine_tune_classifier_from_datasets(train_dataset=train_dataset,
@@ -123,6 +125,7 @@ def fine_tune_classifier_from_datasets(train_dataset,
                                                 seed=seed,
                                                 train_take=take,
                                                 val_take=val_take)
+
     if augmentation_config_dir is not None:
         train_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_dataset, batch_size)
     else:
