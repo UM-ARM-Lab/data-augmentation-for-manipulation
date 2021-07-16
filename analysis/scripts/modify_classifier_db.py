@@ -90,6 +90,18 @@ def rename_classifier_model_dir(item):
     return classifier_model_dir_out.as_posix(), "S", "classifier"
 
 
+def unlistify_fine_tuning_dataset_dirs(item):
+    k = 'fine_tuning_dataset_dirs'
+    if 'NULL' in item[k]:
+        return None
+    if 'S' in item[k]:
+        return None
+    if 'L' in item[k]:
+        d = item[k]['L']
+        d0 = d[0]['S']
+        return str(d0), 'S', k
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug')
@@ -106,11 +118,12 @@ def main():
 
     # update_classifier_db(client, table, get_classifier_source_env)
     # update_classifier_db(client, table, rename_classifier_model_dir)
-    update_classifier_db(client, table, add_fine_tuning_dataset_dirs)
+    # update_classifier_db(client, table, add_fine_tuning_dataset_dirs)
     # update_classifier_db(client, table, update_original_seed)
     # update_classifier_db(client, table, update_do_augmentation)
     # update_classifier_db(client, table, add_fine_tuning_take)
     # update_classifier_db(client, table, update_fine_tuning_seed)
+    update_classifier_db(client, table, unlistify_fine_tuning_dataset_dirs)
 
 
 if __name__ == '__main__':

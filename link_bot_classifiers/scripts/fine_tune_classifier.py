@@ -47,6 +47,7 @@ def main():
     else:
         val_dataset_dirs = [args.val_dataset_dir]
 
+    print("FIXME VALIDATE_FIRST SHOULD BE TRUE!!!")
     fine_tune_classifier(train_dataset_dirs=args.dataset_dirs,
                          val_dataset_dirs=val_dataset_dirs,
                          checkpoint=args.checkpoint,
@@ -54,7 +55,7 @@ def main():
                          batch_size=args.batch_size,
                          early_stopping=args.early_stopping,
                          epochs=args.epochs,
-                         validate_first=True,
+                         validate_first=False,
                          take=args.take,
                          seed=args.seed,
                          model_hparams_update=model_hparams_update,

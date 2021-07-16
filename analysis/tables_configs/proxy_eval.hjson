@@ -3,7 +3,7 @@
     type: MyTable
     name: all
     header: [
-      Classifer
+      Classifier
       Aug?
       Classifier Source Env
       Fine-Tuning Take

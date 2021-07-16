@@ -1,5 +1,6 @@
 import pathlib
 import warnings
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
@@ -7,6 +8,29 @@ from colorama import Fore, Style
 from tabulate import tabulate
 
 from link_bot_pycommon.metric_utils import dict_to_pvalue_table
+
+
+def fix_long_string(s: str):
+    prefixes = [
+        '/',
+        'media',
+        'shared',
+        'ift',
+        'planning_results',
+        'classifier_data',
+    ]
+    no_prefixes_left = False
+    while not no_prefixes_left:
+        no_prefixes_left = True
+        for prefix in prefixes:
+            if s.startswith(prefix):
+                no_prefixes_left = False
+                s = s.lstrip(prefix)
+    return s
+
+
+def fix_long_strings(row: Iterable):
+    return [fix_long_string(str(e)) for e in row]
 
 
 class MyTable:
@@ -31,7 +55,9 @@ class MyTable:
                               stralign='left')
 
     def add_to_table(self, data: pd.Series, series_name: str):
-        self.table_data.append(data.to_list())
+        row = data.to_list()
+        row = fix_long_strings(row)
+        self.table_data.append(row)
 
     def save(self, outdir: pathlib.Path):
         filename = outdir / (self.name + ".txt")
@@ -53,7 +79,6 @@ class PValuesTable(MyTable):
 
     def __init__(self, name: str, table_format: str):
         super().__init__(name, table_format, None)
-        self.table_data = []
         self.table_format = table_format
         self.name = name
         self.table = None
@@ -74,7 +99,8 @@ class PValuesTable(MyTable):
 
         data.index = pd.MultiIndex.from_frame(data.index.to_frame().fillna('na'))
         for index, values in data.groupby(useful_level_names, dropna=False):
-            arrays_per_method[str(index)] = values.squeeze()
+            name = '-'.join(fix_long_strings(index))
+            arrays_per_method[name] = values.squeeze()
 
         self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format, title=self.name)
 

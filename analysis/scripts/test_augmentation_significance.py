@@ -22,9 +22,10 @@ def make_tables_specs(column_name: str, metric_name: str, table_format: str):
     tables_config = [
         {
             'type':       'MyTable',
-            'name':       'mean',
+            'name':       f'{metric_name} mean',
             'header':     [
                 'Classifier Source Env',
+                'N',
                 'Dataset',
                 'Aug?',
                 'Fine-Tuning Take',
@@ -32,6 +33,7 @@ def make_tables_specs(column_name: str, metric_name: str, table_format: str):
             ],
             'reductions': [
                 [[groupby, "classifier_source_env", "first"]],
+                [[groupby, "classifier_source_env", "count"]],
                 [[groupby, "dataset_dirs", "first"]],
                 [[groupby, "do_augmentation", "first"]],
                 [[groupby, "fine_tuning_take", "first"]],
@@ -40,7 +42,7 @@ def make_tables_specs(column_name: str, metric_name: str, table_format: str):
         },
         {
             'type':       'PValuesTable',
-            'name':       'pvalues',
+            'name':       f'{metric_name} pvalues',
             'reductions': [
                 [[groupby, metric_name, None]],
             ],
@@ -82,10 +84,17 @@ def main():
 
 def filter_df_for_experiment(df):
     # just some nicknames
-    experiment_type = 'take10'
+    experiment_type = 'online'
     df = df.loc[df['mode'] == 'all']
+    cond1 = (df['fine_tuning_dataset_dirs'] == '/media/shared/classifier_data/val_car_feasible_1614981888+op2')
+    cond2 = df['fine_tuning_dataset_dirs'].isna()
+    df = df.loc[cond1 | cond2]
     print(experiment_type)
-    if experiment_type == 'take10':
+    if experiment_type == 'online':
+        cond1 = (df['fine_tuning_take'] == 500)
+        cond2 = (df['fine_tuning_take'].isna() & (~df['do_augmentation']))
+        df = df.loc[cond1 | cond2]
+    elif experiment_type == 'take10':
         drop_indices = df.index[(df['fine_tuning_take'] != 10) & df['do_augmentation']]
         df.drop(drop_indices, inplace=True)
     elif experiment_type == 'full':

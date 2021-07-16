@@ -185,9 +185,10 @@ class AugmentationOptimization:
         self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
         self.barrier_scale = 0.05  # scales the gradients for the repelling points
         self.grad_clip = 0.25  # max dist step the env aug update can take
-        self.attract_loss_weight = 0.1
-        self.repel_loss_weight = 1.0
-        self.invariance_loss_weight = 0.01
+        self.attract_weight = 0.1
+        self.repel_weight = 1.0
+        self.invariance_weight = 0.01
+        self.ground_penetration_weight = 100.0
 
         # Precompute this for speed
         self.barrier_epsilon = 0.01
@@ -500,16 +501,22 @@ class AugmentationOptimization:
                     min_dist_indices = tf.argmin(dists, axis=1)
                     nearest_env_points = tf.gather(env_points_sparse, min_dist_indices)
 
-                    attract_loss = min_dist * self.attract_loss_weight
-                    repel_loss = self.barrier_func(min_dist) * self.repel_loss_weight
+                    attract_loss = min_dist * self.attract_weight
+                    repel_loss = self.barrier_func(min_dist) * self.repel_weight
 
                     attract_repel_loss_per_point = attract_mask * attract_loss + (1 - attract_mask) * repel_loss
 
-                    invariance_loss = self.invariance_loss_weight * self.invariance_model_wrapper.evaluate(
-                        obj_transforms)
+                    invariance_loss = self.invariance_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
 
-                    loss = tf.reduce_mean(attract_repel_loss_per_point, axis=-1) + invariance_loss
-                    loss = tf.reduce_mean(loss)
+                    ground_penetration_loss = self.ground_penetration_weight * self.ground_penetration_loss(
+                        obj_points_aug)
+
+                    losses = [
+                        tf.reduce_mean(attract_repel_loss_per_point, axis=-1),
+                        ground_penetration_loss,
+                        invariance_loss,
+                    ]
+                    loss = tf.reduce_mean(tf.add_n(losses))
 
                     # min_dists = MinDists(min_attract_dist_b, min_repel_dist_b, min_robot_repel_dist_b)
                     # env_opt_debug_vars = EnvOptDebugVars(nearest_attract_env_points, nearest_repel_points,
@@ -824,7 +831,7 @@ class AugmentationOptimization:
         nearest_robot_repel_points = tf.gather(robot_points_b_sparse, min_robot_repel_dist_indices_b)
         robot_repel_loss = tf.reduce_mean(self.barrier_func(min_robot_repel_dist_b))
 
-        loss = attract_loss * self.attract_loss_weight + repel_loss + robot_repel_loss
+        loss = attract_loss * self.attract_weight + repel_loss + robot_repel_loss
 
         min_dists = MinDists(min_attract_dist_b, min_repel_dist_b, min_robot_repel_dist_b)
         env_opt_debug_vars = EnvOptDebugVars(nearest_attract_env_points, nearest_repel_points,
@@ -984,3 +991,8 @@ class AugmentationOptimization:
         if debug_ik():
             print(f"valid % = {tf.reduce_mean(is_ik_valid)}")
         return joint_positions_aug, is_ik_valid
+
+    def ground_penetration_loss(self, obj_points_aug):
+        obj_points_aug_z = obj_points_aug[:, :, 2]
+        ground_z = -0.415  # FIXME: hardcoded, copied from the gazebo world file
+        return tf.maximum(0, ground_z - obj_points_aug_z)
