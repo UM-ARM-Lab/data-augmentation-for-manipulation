@@ -2,16 +2,14 @@ import pathlib
 import tempfile
 from typing import Optional, List, Dict, Union
 
-from halo import Halo
 import numpy as np
 from colorama import Fore
 from progressbar import progressbar
 
 import rospy
 from analysis import results_utils
-from analysis.results_utils import NoTransitionsError, get_transitions, \
-    dynamics_dataset_params_from_classifier_params, classifier_params_from_planner_params, \
-    fwd_model_params_from_planner_params
+from analysis.results_utils import NoTransitionsError, dynamics_dataset_params_from_classifier_params, \
+    classifier_params_from_planner_params, fwd_model_params_from_planner_params
 from arm_robots.robot import RobotPlanningError
 from gazebo_msgs.msg import LinkStates
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
@@ -19,14 +17,17 @@ from link_bot_data.dataset_utils import add_predicted, write_example, DEFAULT_VA
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.split_dataset import split_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
-from link_bot_planning.my_planner import PlanningQuery, LoggingTree
+from link_bot_planning.my_planner import PlanningQuery, LoggingTree, PlanningResult
+from link_bot_planning.plan_and_execute import ExecutionResult
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
-from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch_single, add_batch, remove_batch
+from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch_single, add_batch, remove_batch, \
+    numpify
+from state_space_dynamics import dynamics_utils
 from std_msgs.msg import Empty
 
 
@@ -50,6 +51,7 @@ class ResultsToClassifierDataset:
                  max_examples_per_trial: Optional[int] = 500,
                  val_split=DEFAULT_VAL_SPLIT,
                  test_split=DEFAULT_TEST_SPLIT,
+                 fwd_model: Optional = None,
                  **kwargs):
         self.restart = False
         self.save_format = save_format
@@ -65,6 +67,7 @@ class ResultsToClassifierDataset:
         self.max_examples_per_trial = max_examples_per_trial
         self.val_split = val_split
         self.test_split = test_split
+        self.fwd_model = fwd_model
 
         if self.max_examples_per_trial is not None:
             print(Fore.LIGHTMAGENTA_EX + f"{self.max_examples_per_trial=}" + Fore.RESET)
@@ -229,7 +232,7 @@ class ResultsToClassifierDataset:
                                                  'examples for trial': example_idx_for_trial})
 
     def result_datum_to_dynamics_dataset(self, datum: Dict):
-        for t, transition in enumerate(get_transitions(datum)):
+        for t, transition in enumerate(self.get_transitions(datum)):
             environment, (before_state_pred, before_state), action, (after_state_pred, after_state), _ = transition
             if self.visualize:
                 self.visualize_example(action=action,
@@ -345,6 +348,7 @@ class ResultsToClassifierDataset:
 
         classifier_horizon = 2  # this script only handles this case
         example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
+        # FIXME: debug this
         example_states_pred = sequence_of_dicts_to_dict_of_tensors([before_state_pred, after_state_pred])
         if 'num_diverged' in example_states_pred:
             example_states_pred.pop("num_diverged")
@@ -437,6 +441,53 @@ class ResultsToClassifierDataset:
         make_links_states_quasistatic(links_states)
         bagfile_name = pathlib.Path(tempfile.NamedTemporaryFile().name)
         return save_test_scene_given_name(joint_state, links_states, bagfile_name, force=True)
+
+    def get_transitions(self, datum: Dict):
+        steps = datum['steps']
+
+        if len(steps) == 0:
+            raise NoTransitionsError()
+
+        for step_idx, step in enumerate(steps):
+            if step['type'] == 'executed_plan':
+                planning_result: PlanningResult = step['planning_result']
+                execution_result: ExecutionResult = step['execution_result']
+                actions = planning_result.actions
+                actual_states = execution_result.path
+                predicted_states = planning_result.path
+            elif step['type'] == 'executed_recovery':
+                execution_result: ExecutionResult = step['execution_result']
+                recovery_action = step['recovery_action']
+                environment = step['planning_query'].environment
+                actions = [recovery_action]
+                actual_states = execution_result.path
+                recovery_before_state = execution_result.path[0]
+                predicted_recovery_after_states, _ = self.fwd_model.propagate(environment=environment,
+                                                                              start_state=recovery_before_state,
+                                                                              actions=[recovery_action])
+                predicted_recovery_after_state = predicted_recovery_after_states[0]
+                predicted_states = [recovery_before_state, predicted_recovery_after_state]
+            else:
+                raise NotImplementedError(f"invalid step type {step['type']}")
+
+            if len(actions) == 0 or actions[0] is None:
+                continue
+            actions = numpify(actions)
+            actual_states = numpify(actual_states)
+            predicted_states = numpify(predicted_states)
+
+            e = step['planning_query'].environment
+            types = [step['type']] * len(actions)
+            n_actual_states = len(actual_states)
+
+            for t in range(n_actual_states - 1):
+                before_state_pred_t = predicted_states[t]
+                before_state_t = actual_states[t]
+                after_state_pred_t = predicted_states[t + 1]
+                after_state_t = actual_states[t + 1]
+                a_t = actions[t]
+                type_t = types[t]
+                yield e, (before_state_pred_t, before_state_t), a_t, (after_state_pred_t, after_state_t), type_t
 
 
 def make_links_states_quasistatic(links_states: LinkStates):

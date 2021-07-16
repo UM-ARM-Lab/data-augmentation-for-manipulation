@@ -199,9 +199,9 @@ class ResultsToRecoveryDataset:
         # actions will be of shape [1, n_action_samples, 1, n]
 
         start_state_batch = {k: tf.tile(v[tf.newaxis], [n_action_samples, 1]) for k, v in after_state.items()}
-        start_state_batch_time = {k: tf.tile(v[:, tf.newaxis], [1, 1, 1]) for k, v in start_state_batch.items()}
+        environment_batch = add_batch(environment)
         random_actions_dict = batch_stateless_sample_action(scenario=self.scenario,
-                                                            environment=environment,
+                                                            environment=environment_batch,
                                                             state=start_state_batch,
                                                             batch_size=batch_size,
                                                             n_action_samples=n_action_samples,
@@ -219,7 +219,7 @@ class ResultsToRecoveryDataset:
             self.fwd_model,
             self.classifier,
             environment_batched,  # [b*nas, ...]
-            start_state_batch_time,  # [b*nas, 1, ...]
+            start_state_batch,  # [b*nas, 1, ...]
             random_actions_dict,  # [b*nas, 1, ...]
             bs,
             classifier_horizon)
