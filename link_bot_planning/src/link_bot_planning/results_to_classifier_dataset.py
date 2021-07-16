@@ -348,7 +348,6 @@ class ResultsToClassifierDataset:
 
         classifier_horizon = 2  # this script only handles this case
         example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
-        # FIXME: debug this
         example_states_pred = sequence_of_dicts_to_dict_of_tensors([before_state_pred, after_state_pred])
         if 'num_diverged' in example_states_pred:
             example_states_pred.pop("num_diverged")
