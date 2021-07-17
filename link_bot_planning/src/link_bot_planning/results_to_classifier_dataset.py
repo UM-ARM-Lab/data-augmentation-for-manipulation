@@ -3,6 +3,7 @@ import tempfile
 from typing import Optional, List, Dict, Union
 
 import numpy as np
+import tensorflow as tf
 from colorama import Fore
 from progressbar import progressbar
 
@@ -27,7 +28,6 @@ from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch_single, add_batch, remove_batch, \
     numpify
-from state_space_dynamics import dynamics_utils
 from std_msgs.msg import Empty
 
 
@@ -465,6 +465,10 @@ class ResultsToClassifierDataset:
                                                                               start_state=recovery_before_state,
                                                                               actions=[recovery_action])
                 predicted_recovery_after_state = predicted_recovery_after_states[0]
+                print(recovery_before_state.keys())
+                print(predicted_recovery_after_state.keys())
+                print(predicted_recovery_after_state['stdev'])
+                recovery_before_state['stdev'] = tf.zeros(1)
                 predicted_states = [recovery_before_state, predicted_recovery_after_state]
             else:
                 raise NotImplementedError(f"invalid step type {step['type']}")
