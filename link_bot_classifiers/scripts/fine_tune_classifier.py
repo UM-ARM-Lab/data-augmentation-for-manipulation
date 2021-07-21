@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--pretransfer-config-dir', type=pathlib.Path, help='dir of pkl files with state/env')
     parser.add_argument('--batch-size', type=int, default=24)
     parser.add_argument('--early-stopping', action='store_true')
+    parser.add_argument('--debug', action='store_true')
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int)
@@ -47,6 +48,11 @@ def main():
     else:
         val_dataset_dirs = [args.val_dataset_dir]
 
+    if args.debug:
+        validate_first = False
+    else:
+        validate_first = True
+
     fine_tune_classifier(train_dataset_dirs=args.dataset_dirs,
                          val_dataset_dirs=val_dataset_dirs,
                          checkpoint=args.checkpoint,
@@ -54,7 +60,7 @@ def main():
                          batch_size=args.batch_size,
                          early_stopping=args.early_stopping,
                          epochs=args.epochs,
-                         validate_first=True,
+                         validate_first=validate_first,
                          take=args.take,
                          seed=args.seed,
                          model_hparams_update=model_hparams_update,

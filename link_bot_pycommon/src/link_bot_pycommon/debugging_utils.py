@@ -1,5 +1,5 @@
 SHOW_ALL = False
-DEBUG_VIZ_B = 3
+DEBUG_VIZ_B = 2
 
 
 def debug_viz_batch_indices(batch_size):
