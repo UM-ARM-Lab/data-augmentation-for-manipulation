@@ -272,22 +272,27 @@ class AugmentationOptimization:
 
         on_invalid_aug = self.hparams.get('on_invalid_aug', 'original')
         if on_invalid_aug == 'original':
-            local_env_aug, local_origin_point_aug = self.use_original_if_invalid(batch_size, inputs, inputs_aug,
-                                                                                 is_valid, local_env, local_env_aug,
-                                                                                 local_origin_point,
-                                                                                 local_origin_point_aug)
+            inputs_aug, local_env_aug, local_origin_point_aug = self.use_original_if_invalid(is_valid, batch_size,
+                                                                                             inputs,
+                                                                                             inputs_aug, local_env,
+                                                                                             local_env_aug,
+                                                                                             local_origin_point,
+                                                                                             local_origin_point_aug)
         elif on_invalid_aug == 'drop':
             if tf.reduce_any(tf.cast(is_valid, tf.bool)):
-                inputs_aug, local_env_aug, local_origin_point_aug = self.drop_if_invalid(is_valid, batch_size, inputs, inputs_aug,
-                                                                             local_env, local_env_aug,
-                                                                             local_origin_point,
-                                                                             local_origin_point_aug)
+                inputs_aug, local_env_aug, local_origin_point_aug = self.drop_if_invalid(is_valid, batch_size, inputs,
+                                                                                         inputs_aug,
+                                                                                         local_env, local_env_aug,
+                                                                                         local_origin_point,
+                                                                                         local_origin_point_aug)
             else:
                 print("All augmentations in the batch are invalid!")
-                inputs_aug, local_env_aug, local_origin_point_aug = self.use_original_if_invalid(is_valid, batch_size, inputs,
-                                                                                     inputs_aug, local_env,
-                                                                                     local_env_aug, local_origin_point,
-                                                                                     local_origin_point_aug)
+                inputs_aug, local_env_aug, local_origin_point_aug = self.use_original_if_invalid(is_valid, batch_size,
+                                                                                                 inputs,
+                                                                                                 inputs_aug, local_env,
+                                                                                                 local_env_aug,
+                                                                                                 local_origin_point,
+                                                                                                 local_origin_point_aug)
         else:
             raise NotImplementedError(on_invalid_aug)
 
@@ -1058,4 +1063,3 @@ class AugmentationOptimization:
         upper_extent_loss = tf.maximum(0, lower_extent - obj_points_aug)
         bbox_loss = tf.reduce_sum(tf.reduce_sum(lower_extent_loss + upper_extent_loss, axis=-1), axis=-1)
         return self.bbox_weight * bbox_loss
-
