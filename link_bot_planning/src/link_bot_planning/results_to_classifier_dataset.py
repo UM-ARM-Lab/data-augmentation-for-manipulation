@@ -465,9 +465,6 @@ class ResultsToClassifierDataset:
                                                                               start_state=recovery_before_state,
                                                                               actions=[recovery_action])
                 predicted_recovery_after_state = predicted_recovery_after_states[0]
-                print(recovery_before_state.keys())
-                print(predicted_recovery_after_state.keys())
-                print(predicted_recovery_after_state['stdev'])
                 recovery_before_state['stdev'] = tf.zeros(1)
                 predicted_states = [recovery_before_state, predicted_recovery_after_state]
             else:
