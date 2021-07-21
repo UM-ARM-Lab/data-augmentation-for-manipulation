@@ -161,7 +161,7 @@ class ResultsToClassifierDataset:
         for trial_idx, datum in results_utils.trials_generator(self.results_dir, self.trial_indices):
             self.scenario.heartbeat()
 
-            if job_chunker.has_result(str(trial_idx)):
+            if job_chunker.has_result(str(trial_idx)) and not self.regenerate:
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
                 continue
 
@@ -351,6 +351,8 @@ class ResultsToClassifierDataset:
         example_states_pred = sequence_of_dicts_to_dict_of_tensors([before_state_pred, after_state_pred])
         if 'num_diverged' in example_states_pred:
             example_states_pred.pop("num_diverged")
+        if 'num_diverged' in example_states:
+            example_states.pop("num_diverged")
         example_actions = add_batch_single(action)
         example = {
             'classifier_start_t': classifier_start_t,
@@ -483,6 +485,9 @@ class ResultsToClassifierDataset:
             for t in range(n_actual_states - 1):
                 before_state_pred_t = predicted_states[t]
                 before_state_t = actual_states[t]
+                # stdev being in the "true" state is an artifact of the planner, it's always zero, and is meaningless.
+                if 'stdev' in before_state_t:
+                    before_state_t.pop('stdev')
                 after_state_pred_t = predicted_states[t + 1]
                 after_state_t = actual_states[t + 1]
                 a_t = actions[t]
