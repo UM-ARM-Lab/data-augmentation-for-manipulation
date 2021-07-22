@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 
+import pandas as pd
 import tabulate
 from dynamo_pandas import get_df
 
@@ -11,12 +12,8 @@ from link_bot_pycommon.pandas_utils import df_where
 
 def make_tables_specs(column_name: str, metric_name: str, table_format: str):
     groupby = [
-        "do_augmentation",
-        "fine_tuning_take",
         "classifier_source_env",
         "dataset_dirs",
-        "mode",
-        "balance",
         "fine_tuning_dataset_dirs",
     ]
     tables_config = [
@@ -25,17 +22,13 @@ def make_tables_specs(column_name: str, metric_name: str, table_format: str):
             'name':       f'{metric_name} mean',
             'header':     [
                 'Classifier Source Env',
-                'N',
                 'Dataset',
-                'Aug?',
                 'Fine-Tuning Take',
                 column_name,
             ],
             'reductions': [
                 [[groupby, "classifier_source_env", "first"]],
-                [[groupby, "classifier_source_env", "count"]],
                 [[groupby, "dataset_dirs", "first"]],
-                [[groupby, "do_augmentation", "first"]],
                 [[groupby, "fine_tuning_take", "first"]],
                 [[groupby, metric_name, "mean"]],
             ],
@@ -67,27 +60,22 @@ def main():
 
     df = filter_df_for_experiment(df)
 
-    cld = '/media/shared/classifier_data/'
-
-    random_actions_table_specs = make_tables_specs('Random Actions Spec', 'accuracy on negatives', table_format)
-    df_random_actions = df_where(df, 'dataset_dirs', cld + 'val_car_feasible_1614981888+op2')
-    generate_tables(df=df_random_actions, outdir=None, table_specs=random_actions_table_specs)
-
-    no_classifier_table_specs = make_tables_specs('No Classifier Spec', 'accuracy on negatives', table_format)
-    df_no_classifier = df_where(df, 'dataset_dirs', cld + 'car_no_classifier_eval')
-    generate_tables(df=df_no_classifier, outdir=None, table_specs=no_classifier_table_specs)
-
-    heuristic_rejected_table_specs = make_tables_specs('Heuristic Rejected Spec', 'accuracy on negatives', table_format)
-    df_heuristic_rejected = df_where(df, 'dataset_dirs', cld + 'car_heuristic_classifier_eval2')
-    generate_tables(df=df_heuristic_rejected, outdir=None, table_specs=heuristic_rejected_table_specs)
+    s = make_tables_specs('Car Random Actions Specificity', 'accuracy on negatives', table_format)
+    generate_tables(df=df, outdir=None, table_specs=s)
 
 
 def filter_df_for_experiment(df):
-    cond1 = (df['fine_tuning_dataset_dirs'] == '/media/shared/classifier_data/val_car_feasible_1614981888+op2')
-    cond2 = df['fine_tuning_dataset_dirs'].isna()
-    original_car_classifier = df['classifier'].in([])
-    full_fine_tuned_classifier =
-    df = df.loc[original_car_classifier | full_fine_tuned_classifier]
+    df = df_where(df, 'dataset_dirs', '/media/shared/classifier_data/val_car_feasible_1614981888+op2')
+    original_car_classifier = df.loc[df['classifier'].isin([
+        '/media/shared/cl_trials/val_car_new1/May_26_18-02-36_c5cea66458/best_checkpoint',
+        '/media/shared/cl_trials/val_car_new2/June_03_17-08-01_23380b9dd6/best_checkpoint',
+    ])]
+    full_fine_tuned_classifier = df.loc[
+        df['fine_tuning_take'].isna() &
+        (df['fine_tuning_dataset_dirs'] == '/media/shared/classifier_data/val_car_feasible_1614981888+op2') &
+        (df['do_augmentation'] == 0)
+        ]
+    df = pd.concat([original_car_classifier, full_fine_tuned_classifier], axis=0)
     return df
 
 
