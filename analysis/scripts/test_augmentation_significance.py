@@ -70,34 +70,45 @@ def main():
     cld = '/media/shared/classifier_data/'
 
     random_actions_table_specs = make_tables_specs('Random Actions Spec', 'accuracy on negatives', table_format)
-    df_random_actions = df_where(df, 'dataset_dirs', cld + 'val_car_feasible_1614981888+op2')
+    df_random_actions = df_where(df, 'dataset_dirs', cld + 'val_car_bigger_hooks1_1625783230')
     generate_tables(df=df_random_actions, outdir=None, table_specs=random_actions_table_specs)
 
     no_classifier_table_specs = make_tables_specs('No Classifier Spec', 'accuracy on negatives', table_format)
-    df_no_classifier = df_where(df, 'dataset_dirs', cld + 'car_no_classifier_eval')
+    df_no_classifier = df_where(df, 'dataset_dirs', cld + 'proxy_car_bigger_hooks_no_classifier')
     generate_tables(df=df_no_classifier, outdir=None, table_specs=no_classifier_table_specs)
 
     heuristic_rejected_table_specs = make_tables_specs('Heuristic Rejected Spec', 'accuracy on negatives', table_format)
-    df_heuristic_rejected = df_where(df, 'dataset_dirs', cld + 'car_heuristic_classifier_eval2')
+    df_heuristic_rejected = df_where(df, 'dataset_dirs', cld + 'proxy_car_bigger_hooks_heuristic')
     generate_tables(df=df_heuristic_rejected, outdir=None, table_specs=heuristic_rejected_table_specs)
 
 
 def filter_df_for_experiment(df):
     # just some nicknames
-    experiment_type = 'online'
+    experiment_type = 'none'
     df = df.loc[df['mode'] == 'all']
-    cond1 = (df['fine_tuning_dataset_dirs'] == '/media/shared/classifier_data/val_car_feasible_1614981888+op2')
-    cond2 = df['fine_tuning_dataset_dirs'].isna()
-    df = df.loc[cond1 | cond2]
     print(experiment_type)
-    if experiment_type == 'online':
+    if experiment_type == 'none':
+        return df
+    elif experiment_type == 'online':
+        ft_dataset = '/media/shared/classifier_data/val_car_feasible_1614981888+op2'
+        cond1 = (df['fine_tuning_dataset_dirs'] == ft_dataset)
+        cond2 = df['fine_tuning_dataset_dirs'].isna()
+        df = df.loc[cond1 | cond2]
         cond1 = (df['fine_tuning_take'] == 500)
         cond2 = (df['fine_tuning_take'].isna() & (~df['do_augmentation']))
         df = df.loc[cond1 | cond2]
     elif experiment_type == 'take10':
+        ft_dataset = '/media/shared/classifier_data/val_car_feasible_1614981888+op2'
+        cond1 = (df['fine_tuning_dataset_dirs'] == ft_dataset)
+        cond2 = df['fine_tuning_dataset_dirs'].isna()
+        df = df.loc[cond1 | cond2]
         drop_indices = df.index[(df['fine_tuning_take'] != 10) & df['do_augmentation']]
         df.drop(drop_indices, inplace=True)
     elif experiment_type == 'full':
+        ft_dataset = '/media/shared/classifier_data/val_car_feasible_1614981888+op2'
+        cond1 = (df['fine_tuning_dataset_dirs'] == ft_dataset)
+        cond2 = df['fine_tuning_dataset_dirs'].isna()
+        df = df.loc[cond1 | cond2]
         df = df.loc[df['fine_tuning_take'].isna()]
     return df
 

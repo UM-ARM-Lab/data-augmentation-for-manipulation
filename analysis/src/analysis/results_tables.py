@@ -99,7 +99,10 @@ class PValuesTable(MyTable):
 
         data.index = pd.MultiIndex.from_frame(data.index.to_frame().fillna('na'))
         for index, values in data.groupby(useful_level_names, dropna=False):
-            name = '-'.join(fix_long_strings(index))
+            if isinstance(index, str):
+                name = index
+            else:
+                name = '-'.join(fix_long_strings(index))
             arrays_per_method[name] = values.squeeze()
 
         self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format, title=self.name)

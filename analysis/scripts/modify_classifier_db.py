@@ -44,6 +44,36 @@ def add_fine_tuning_take(item):
         return True, 'NULL', 'fine_tuning_take'
 
 
+def add_lr(item):
+    k = 'learning_rate'
+    try:
+        classifier_model_dir = pathlib.Path(item['classifier']["S"])
+        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        v = classifier_hparams.get(k, None)
+        if v is None:
+            return True, "NULL", k
+        return str(v), 'N', 'learning_rate'
+    except Exception:
+        return True, "NULL", k
+
+
+def add_fine_tuning_layers(s):
+    def _f(item):
+        k = f'fine_tune_{s}'
+
+        try:
+            classifier_model_dir = pathlib.Path(item['classifier']["S"])
+            classifier_hparams = try_load_classifier_params(classifier_model_dir)
+            v = classifier_hparams.get(k, None)
+            if v is None:
+                return True, "NULL", k
+            return v, "BOOL", k
+        except Exception:
+            return True, "NULL", k
+
+    return _f
+
+
 def update_do_augmentation(item):
     if 'do_augmentation' not in item or list(item['do_augmentation'].keys())[0] == 'NULL':
         return str(0), 'N', 'do_augmentation'
@@ -87,6 +117,8 @@ def rename_classifier_model_dir(item):
         if d.exists():
             classifier_model_dir_out = d
             break
+    if 'best_checkpoint' not in classifier_model_dir_out.as_posix():
+        classifier_model_dir_out = classifier_model_dir_out / 'best_checkpoint'
     return classifier_model_dir_out.as_posix(), "S", "classifier"
 
 
@@ -116,14 +148,18 @@ def main():
     #     print("Aborting")
     #     return
 
-    # update_classifier_db(client, table, get_classifier_source_env)
     # update_classifier_db(client, table, rename_classifier_model_dir)
+    # update_classifier_db(client, table, get_classifier_source_env)
     # update_classifier_db(client, table, add_fine_tuning_dataset_dirs)
     # update_classifier_db(client, table, update_original_seed)
     # update_classifier_db(client, table, update_do_augmentation)
     # update_classifier_db(client, table, add_fine_tuning_take)
     # update_classifier_db(client, table, update_fine_tuning_seed)
-    update_classifier_db(client, table, unlistify_fine_tuning_dataset_dirs)
+    update_classifier_db(client, table, add_lr)
+    # update_classifier_db(client, table, add_fine_tuning_layers('conv'))
+    # update_classifier_db(client, table, add_fine_tuning_layers('lstm'))
+    # update_classifier_db(client, table, add_fine_tuning_layers('dense'))
+    # update_classifier_db(client, table, add_fine_tuning_layers('output'))
 
 
 if __name__ == '__main__':

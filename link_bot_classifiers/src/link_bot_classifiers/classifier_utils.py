@@ -12,7 +12,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_trial, load_params
 
 
-@lru_cache
+# @lru_cache
 def load_generic_model(path: pathlib.Path,
                        scenario: Optional[ExperimentScenario] = None) -> BaseConstraintChecker:
     # FIXME: remove batch_size=1 here? can I put it in base model?

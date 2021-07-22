@@ -321,25 +321,35 @@ def put_eval_in_database(val_metrics,
     fine_tuning_seed = classifier_hparams.get('fine_tuning_seed', None)
     fine_tuning_take = classifier_hparams.get('fine_tuning_take', None)
     fine_tuning_dataset_dirs = classifier_hparams.get('fine_tuning_dataset_dirs', None)
+    fine_tune_conv = classifier_hparams.get('fine_tune_conv', None)
+    fine_tune_lstm = classifier_hparams.get('fine_tune_lstm', None)
+    fine_tune_dense = classifier_hparams.get('fine_tune_dense', None)
+    fine_tune_output = classifier_hparams.get('fine_tune_output', None)
+    learning_rate = classifier_hparams.get('learning_rate', None)
 
     item = {
-        'uuid':                   str(uuid.uuid4()),
-        'classifier':             checkpoint.as_posix(),
-        'dataset_dirs':           ','.join([d.as_posix() for d in dataset_dirs]),
-        'balance':                balance,
-        'threshold':              threshold,
-        'use_gt_rope':            use_gt_rope,
-        'batch_size':             batch_size,
-        'mode':                   mode,
-        'take':                   take,
-        'profile':                str(profile),
-        'include_robot_geometry': getattr(model.hparams, 'include_robot_geometry', None),
-        'do_augmentation':        model.aug.do_augmentation(),
-        'classifier_source_env':  classifier_source_env,
-        'original_training_seed': original_training_seed,
-        'fine_tuning_seed':       fine_tuning_seed,
-        'fine_tuning_take':       fine_tuning_take,
-        'fine_tuning_dataset_dirs':       fine_tuning_dataset_dirs,
+        'uuid':                     str(uuid.uuid4()),
+        'classifier':               checkpoint.as_posix(),
+        'dataset_dirs':             ','.join([d.as_posix() for d in dataset_dirs]),
+        'balance':                  balance,
+        'threshold':                threshold,
+        'use_gt_rope':              use_gt_rope,
+        'batch_size':               batch_size,
+        'mode':                     mode,
+        'take':                     take,
+        'profile':                  str(profile),
+        'include_robot_geometry':   getattr(model.hparams, 'include_robot_geometry', None),
+        'do_augmentation':          model.aug.do_augmentation(),
+        'classifier_source_env':    classifier_source_env,
+        'original_training_seed':   original_training_seed,
+        'fine_tuning_seed':         fine_tuning_seed,
+        'fine_tuning_take':         fine_tuning_take,
+        'learning_rate':            learning_rate,
+        'fine_tuning_dataset_dirs': fine_tuning_dataset_dirs,
+        'fine_tune_conv':           fine_tune_conv,
+        'fine_tune_lstm':           fine_tune_lstm,
+        'fine_tune_dense':          fine_tune_dense,
+        'fine_tune_output':         fine_tune_output,
     }
     item.update({k: float(v.result().numpy().squeeze()) for k, v in val_metrics.items()})
     put_item(item=item, table=dynamodb_utils.classifier_table(kwargs.get("debug", False)))

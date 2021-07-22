@@ -1,5 +1,4 @@
 import itertools
-import tensorflow as tf
 import logging
 import pathlib
 import pickle
@@ -9,7 +8,7 @@ import link_bot_classifiers
 import link_bot_classifiers.get_model
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.train_test_classifier import setup_datasets
-from link_bot_data.dataset_utils import add_new, label_is
+from link_bot_data.dataset_utils import add_new
 from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_pycommon.pycommon import paths_to_json
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -30,6 +29,7 @@ def fine_tune_classifier(train_dataset_dirs: List[pathlib.Path],
                          fine_tune_dense: bool,
                          fine_tune_lstm: bool,
                          fine_tune_output: bool,
+                         learning_rate: float = 1e-4,
                          val_dataset_dirs: Optional[List[pathlib.Path]] = None,
                          model_hparams_update: Optional[Dict] = None,
                          verbose: int = 0,
@@ -61,6 +61,7 @@ def fine_tune_classifier(train_dataset_dirs: List[pathlib.Path],
                                               fine_tune_dense=fine_tune_dense,
                                               fine_tune_lstm=fine_tune_lstm,
                                               fine_tune_output=fine_tune_output,
+                                              learning_rate=learning_rate,
                                               model_hparams_update=model_hparams_update,
                                               trials_directory=trials_directory,
                                               augmentation_config_dir=augmentation_config_dir,
@@ -84,6 +85,7 @@ def fine_tune_classifier_from_datasets(train_dataset,
                                        fine_tune_dense: bool = False,
                                        fine_tune_lstm: bool = False,
                                        fine_tune_output: bool = True,
+                                       learning_rate: float = 1e-4,
                                        model_hparams_update: Optional[Dict] = None,
                                        trials_directory: pathlib.Path = pathlib.Path("./trials"),
                                        augmentation_config_dir: Optional[pathlib.Path] = None,
@@ -99,7 +101,10 @@ def fine_tune_classifier_from_datasets(train_dataset,
     model_hparams = nested_dict_update(model_hparams, model_hparams_update)
     model_class = link_bot_classifiers.get_model.get_model(model_hparams['model_class'])
     # decrease the learning rate, this is often done in fine-tuning
-    model_hparams['learning_rate'] = 1e-4  # normally 1e-3
+    if learning_rate is None:
+        learning_rate = 1e-4
+    model_hparams['learning_rate'] = learning_rate
+    model_hparams['fine_tune_conv'] = fine_tune_conv
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=scenario)
     # override arbitrary parts of the model
     for k, v in kwargs.items():

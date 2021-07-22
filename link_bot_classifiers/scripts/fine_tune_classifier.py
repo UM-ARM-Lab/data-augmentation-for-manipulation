@@ -53,7 +53,7 @@ def main():
     else:
         validate_first = True
 
-    def _get_trainable(name, default):
+    def _get_param(name, default):
         if model_hparams_update is None:
             return default
         elif name not in model_hparams_update:
@@ -61,10 +61,11 @@ def main():
         else:
             return model_hparams_update[name]
 
-    fine_tune_conv = _get_trainable('fine_tune_conv', False)
-    fine_tune_lstm = _get_trainable('fine_tune_lstm', False)
-    fine_tune_dense = _get_trainable('fine_tune_dense', False)
-    fine_tune_output = _get_trainable('fine_tune_output', True)
+    fine_tune_conv = _get_param('fine_tune_conv', False)
+    fine_tune_lstm = _get_param('fine_tune_lstm', False)
+    fine_tune_dense = _get_param('fine_tune_dense', False)
+    fine_tune_output = _get_param('fine_tune_output', True)
+    learning_rate = _get_param('learning_rate', 1e-4)
 
     fine_tune_classifier(train_dataset_dirs=args.dataset_dirs,
                          val_dataset_dirs=val_dataset_dirs,
@@ -79,6 +80,7 @@ def main():
                          model_hparams_update=model_hparams_update,
                          val_every_n_batches=None,
                          mid_epoch_val_batches=None,
+                         learning_rate=learning_rate,
                          fine_tune_conv=fine_tune_conv,
                          fine_tune_lstm=fine_tune_lstm,
                          fine_tune_dense=fine_tune_dense,
