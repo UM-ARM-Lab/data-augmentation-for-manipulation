@@ -18,7 +18,7 @@ def make_tables_specs(column_name: str, metric_name: str, table_format: str):
         "mode",
         "balance",
         "fine_tuning_dataset_dirs",
-        'on_invalid_aug',
+        'on_invalid_aug'
     ]
     tables_config = [
         {
@@ -28,14 +28,14 @@ def make_tables_specs(column_name: str, metric_name: str, table_format: str):
                 'Classifier Source Env',
                 'N',
                 'Dataset',
-                'Aug?',
+                'On Invalid Aug',
                 column_name,
             ],
             'reductions': [
                 [[groupby, "classifier_source_env", "first"]],
                 [[groupby, "classifier_source_env", "count"]],
                 [[groupby, "dataset_dirs", "first"]],
-                [[groupby, "do_augmentation", "first"]],
+                [[groupby, "on_invalid_aug", "first"]],
                 [[groupby, metric_name, "mean"]],
             ],
         },
@@ -92,16 +92,11 @@ def main():
 
 def filter_df_for_experiment(df):
     # just some nicknames
-    experiment_type = 'offline'
+    experiment_type = 'drop'
     df = df.loc[df['mode'] == 'all']
     print(experiment_type)
     if experiment_type == 'none':
         return df
-    elif experiment_type == 'offline':
-        new_car_aug = df['classifier'].str.contains('fb2car_v3-')
-        no_aug = df['classifier'].str.contains('val_floating_boxes*')
-        car_baseline = df['classifier'].str.contains('val_car_new*')
-        df = df.loc[new_car_aug | no_aug | car_baseline]
     elif experiment_type == 'online':
         ft_dataset = '/media/shared/classifier_data/val_car_feasible_1614981888+op2'
         cond1 = (df['fine_tuning_dataset_dirs'] == ft_dataset)

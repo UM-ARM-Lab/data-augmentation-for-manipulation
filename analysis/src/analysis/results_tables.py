@@ -40,8 +40,13 @@ def fix_long_string(s: str):
     return s
 
 
-def fix_long_strings(row: Iterable):
-    return [fix_long_string(str(e)) if isinstance(e, str) else e for e in row]
+def fix_long_strings(row):
+    fixed = []
+    for e in row:
+        if isinstance(e, str):
+            e = fix_long_string(e)
+        fixed.append(e)
+    return fixed
 
 
 class MyTable:
@@ -113,7 +118,7 @@ class PValuesTable(MyTable):
             if isinstance(index, str):
                 name = index
             else:
-                name = '-'.join(fix_long_strings(index))
+                name = '-'.join([str(e) for e in fix_long_strings(index)])
             arrays_per_method[name] = values.squeeze()
 
         self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format, title=self.name)
