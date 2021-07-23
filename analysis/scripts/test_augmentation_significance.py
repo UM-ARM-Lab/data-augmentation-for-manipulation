@@ -92,16 +92,24 @@ def main():
 
 def filter_df_for_experiment(df):
     # just some nicknames
-    experiment_type = 'offline'
+    experiment_type = 'offline_v3'
     df = df.loc[df['mode'] == 'all']
     print(experiment_type)
     if experiment_type == 'none':
         return df
-    elif experiment_type == 'offline':
-        new_car_aug = df['classifier'].str.contains('fb2car_v3-')
+    elif experiment_type == 'offline_v2':
+        offline_ft_dataset = '/media/shared/classifier_data/val_floating_boxes_1622170084+fix-op'
+        v2_car_aug = (df['classifier'].str.contains('fb2car_pre_aug') & df['fine_tuning_take'].isna() & (
+                df['fine_tuning_dataset_dirs'] == offline_ft_dataset))
         no_aug = df['classifier'].str.contains('val_floating_boxes*')
         car_baseline = df['classifier'].str.contains('val_car_new*')
-        df = df.loc[new_car_aug | no_aug | car_baseline]
+        df = df.loc[v2_car_aug | no_aug | car_baseline]
+    elif experiment_type == 'offline_v3':
+        offline_ft_dataset = '/media/shared/classifier_data/val_floating_boxes_1622170084+fix-op'
+        v3_car_aug = df['classifier'].str.contains('fb2car_v3-')
+        no_aug = df['classifier'].str.contains('val_floating_boxes*')
+        car_baseline = df['classifier'].str.contains('val_car_new*')
+        df = df.loc[v3_car_aug | no_aug | car_baseline]
     elif experiment_type == 'online':
         ft_dataset = '/media/shared/classifier_data/val_car_feasible_1614981888+op2'
         cond1 = (df['fine_tuning_dataset_dirs'] == ft_dataset)
