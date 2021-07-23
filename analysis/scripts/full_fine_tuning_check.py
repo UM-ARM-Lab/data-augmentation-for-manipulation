@@ -12,20 +12,27 @@ from link_bot_pycommon.pandas_utils import df_where
 
 
 def make_tables_specs(table_format: str):
-    def _table_config(_groupby, agg):
-        return {
+    groupby = [
+        "classifier_source_env",
+        "dataset_dirs",
+        "fine_tuning_dataset_dirs",
+        "fine_tune_conv",
+        "fine_tune_lstm",
+        "fine_tune_dense",
+        "fine_tune_output",
+        "learning_rate",
+    ]
+    tables_config = [
+        {
             'type':       'MyTable',
-            'name':       'mean',
+            'name':       'mean&std',
             'header':     [
                 'Classifier Source Env',
                 'N',
-                'Dataset',
-                'Fine-Tuning Take',
                 'FT Conv',
                 'FT LSTM',
                 'FT Dense',
                 'FT Output',
-                'Learning Rate',
                 'Accuracy',
                 'Accuracy [std]',
                 'Precision',
@@ -38,37 +45,59 @@ def make_tables_specs(table_format: str):
                 'loss [std]',
             ],
             'reductions': [
-                [[_groupby, "classifier_source_env", "first"]],
-                [[_groupby, "classifier_source_env", "count"]],
-                [[_groupby, "dataset_dirs", "first"]],
-                [[_groupby, "fine_tuning_take", "first"]],
-                [[_groupby, "fine_tune_conv", "first"]],
-                [[_groupby, "fine_tune_lstm", "first"]],
-                [[_groupby, "fine_tune_dense", "first"]],
-                [[_groupby, "fine_tune_output", "first"]],
-                [[_groupby, "learning_rate", "first"]],
-                [[_groupby, 'accuracy', agg]],
-                [[_groupby, 'precision', agg]],
-                [[_groupby, 'accuracy on positives', agg]],
-                [[_groupby, 'accuracy on negatives', agg]],
-                [[_groupby, 'loss', agg]],
+                [[groupby, "classifier_source_env", "first"]],
+                [[groupby, "classifier_source_env", "count"]],
+                [[groupby, "fine_tune_conv", "first"]],
+                [[groupby, "fine_tune_lstm", "first"]],
+                [[groupby, "fine_tune_dense", "first"]],
+                [[groupby, "fine_tune_output", "first"]],
+                [[groupby, 'accuracy', ['mean', 'std']]],
+                [[groupby, 'precision', ['mean', 'std']]],
+                [[groupby, 'accuracy on positives', ['mean', 'std']]],
+                [[groupby, 'accuracy on negatives', ['mean', 'std']]],
+                [[groupby, 'loss', ['mean', 'std']]],
             ],
-        }
+        },
+        {
+            'type':       'PValuesTable',
+            'name':       'Accuracy',
+            'reductions': [
+                [[groupby, 'accuracy', None]],
+            ],
 
-    groupby = [
-        "classifier_source_env",
-        "dataset_dirs",
-        "fine_tuning_dataset_dirs",
-        "fine_tune_conv",
-        "fine_tune_lstm",
-        "fine_tune_dense",
-        "fine_tune_output",
-        "learning_rate",
-    ]
-    tables_config = [
+        },
+        {
+            'type':       'PValuesTable',
+            'name':       'Precision',
+            'reductions': [
+                [[groupby, 'precision', None]],
+            ],
 
-        _table_config(groupby + ['uuid'], "mean"),
-        _table_config(groupby, ["mean", "std"]),
+        },
+        {
+            'type':       'PValuesTable',
+            'name':       'Accuracy',
+            'reductions': [
+                [[groupby, 'accuracy on positives', None]],
+            ],
+
+        },
+        {
+            'type':       'PValuesTable',
+            'name':       'AoN',
+            'reductions': [
+                [[groupby, 'accuracy on negatives', None]],
+            ],
+
+        },
+        {
+            'type':       'PValuesTable',
+            'name':       'loss',
+            'reductions': [
+                [[groupby, 'loss', None]],
+            ],
+
+        },
     ]
     return make_table_specs(table_format, tables_config)
 
@@ -91,10 +120,6 @@ def main():
     s = make_tables_specs(table_format)
     generate_tables(df=df, outdir=None, table_specs=s)
 
-    for classifier_model_dir in df['classifier']:
-        classifier_hparams = try_load_classifier_params(classifier_model_dir)
-        print(classifier_hparams[''])
-
 
 def filter_df_for_experiment(df):
     df = df_where(df, 'dataset_dirs', '/media/shared/classifier_data/val_car_feasible_1614981888+op2')
@@ -104,7 +129,8 @@ def filter_df_for_experiment(df):
     full_fine_tuned_classifier = df.loc[
         df['fine_tuning_take'].isna() &
         (df['fine_tuning_dataset_dirs'] == '/media/shared/classifier_data/val_car_feasible_1614981888+op2') &
-        (df['do_augmentation'] == 0)
+        (df['do_augmentation'] == 0) &
+        (df['learning_rate'] == 0.0001)
         ]
     df = pd.concat([original_car_classifier, full_fine_tuned_classifier], axis=0)
     return df
