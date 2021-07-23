@@ -57,6 +57,10 @@ def add_lr(item):
         return True, "NULL", k
 
 
+def add_time(s):
+    return '-1', 'N', 'time'
+
+
 def add_fine_tuning_layers(s):
     def _f(item):
         k = f'fine_tune_{s}'
@@ -157,9 +161,10 @@ def main():
     # update_classifier_db(client, table, update_fine_tuning_seed)
     # update_classifier_db(client, table, add_lr)
     # update_classifier_db(client, table, add_fine_tuning_layers('conv'))
-    update_classifier_db(client, table, add_fine_tuning_layers('lstm'))
-    update_classifier_db(client, table, add_fine_tuning_layers('dense'))
-    update_classifier_db(client, table, add_fine_tuning_layers('output'))
+    # update_classifier_db(client, table, add_fine_tuning_layers('lstm'))
+    # update_classifier_db(client, table, add_fine_tuning_layers('dense'))
+    # update_classifier_db(client, table, add_fine_tuning_layers('output'))
+    update_classifier_db(client, table, add_time)
 
 
 if __name__ == '__main__':
