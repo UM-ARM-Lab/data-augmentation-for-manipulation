@@ -138,6 +138,48 @@ def unlistify_fine_tuning_dataset_dirs(item):
         return str(d0), 'S', k
 
 
+def add_aug_type(item):
+    k = 'augmentation_type'
+    if "NULL" in item['fine_tuning_dataset_dirs']:
+        return True, 'NULL', k
+    else:
+        return 'optimization2', 'S', k
+
+
+def add_invariance_model(item):
+    k = 'invariance_model'
+    if "N" in item['do_augmentation'] and item['do_augmentation']['N'] == '1':
+        return '/media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint', 'S', k
+    else:
+        return True, 'NULL', k
+
+
+def add_on_invalid_aug(item):
+    k = 'on_invalid_aug'
+    if "N" in item['do_augmentation'] and item['do_augmentation']['N'] == '1':
+        classifier_model_dir = pathlib.Path(item['classifier']["S"])
+        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        v = classifier_hparams['augmentation'].get(k, None)
+        if v is None:
+            return 'original', "S", k
+        return v, "S", k
+    else:
+        return True, 'NULL', k
+
+
+def add_fine_tuned_from(item):
+    k = 'fine_tuned_from'
+    if "S" in item['fine_tuning_dataset_dirs']:
+        classifier_model_dir = pathlib.Path(item['classifier']["S"])
+        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        v = classifier_hparams.get(k, None)
+        if v is None:
+            return 'unknown', "S", k
+        return v, "S", k
+    else:
+        return True, 'NULL', k
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug')
@@ -152,19 +194,8 @@ def main():
     #     print("Aborting")
     #     return
 
-    # update_classifier_db(client, table, rename_classifier_model_dir)
-    # update_classifier_db(client, table, get_classifier_source_env)
-    # update_classifier_db(client, table, add_fine_tuning_dataset_dirs)
-    # update_classifier_db(client, table, update_original_seed)
-    # update_classifier_db(client, table, update_do_augmentation)
-    # update_classifier_db(client, table, add_fine_tuning_take)
-    # update_classifier_db(client, table, update_fine_tuning_seed)
-    # update_classifier_db(client, table, add_lr)
-    # update_classifier_db(client, table, add_fine_tuning_layers('conv'))
-    # update_classifier_db(client, table, add_fine_tuning_layers('lstm'))
-    # update_classifier_db(client, table, add_fine_tuning_layers('dense'))
-    # update_classifier_db(client, table, add_fine_tuning_layers('output'))
-    update_classifier_db(client, table, add_time)
+    # update_classifier_db(client, table, add_invariance_model)
+    update_classifier_db(client, table, add_fine_tuned_from)
 
 
 if __name__ == '__main__':

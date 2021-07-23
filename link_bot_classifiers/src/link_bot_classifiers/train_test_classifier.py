@@ -28,6 +28,7 @@ from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.pycommon import has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine import filepath_tools, common_train_hparams
@@ -326,6 +327,9 @@ def put_eval_in_database(val_metrics,
     fine_tune_dense = classifier_hparams.get('fine_tune_dense', None)
     fine_tune_output = classifier_hparams.get('fine_tune_output', None)
     learning_rate = classifier_hparams.get('learning_rate', None)
+    augmentation_type = has_keys(classifier_hparams, ['augmentation', 'type'], None)
+    on_invalid_aug = has_keys(classifier_hparams, ['augmentation', 'on_invalid_aug'], None)
+    invariance_model = has_keys(classifier_hparams, ['augmentation', 'invariance_model'], None)
 
     item = {
         'uuid':                     str(uuid.uuid4()),
@@ -351,6 +355,9 @@ def put_eval_in_database(val_metrics,
         'fine_tune_lstm':           fine_tune_lstm,
         'fine_tune_dense':          fine_tune_dense,
         'fine_tune_output':         fine_tune_output,
+        'augmentation_type':        augmentation_type,
+        'on_invalid_aug':           on_invalid_aug,
+        'invariance_model':         invariance_model,
     }
     item.update({k: float(v.result().numpy().squeeze()) for k, v in val_metrics.items()})
     put_item(item=item, table=dynamodb_utils.classifier_table(kwargs.get("debug", False)))

@@ -18,6 +18,7 @@ def make_tables_specs(column_name: str, metric_name: str, table_format: str):
         "mode",
         "balance",
         "fine_tuning_dataset_dirs",
+        'on_invalid_aug'
     ]
     tables_config = [
         {
@@ -27,16 +28,14 @@ def make_tables_specs(column_name: str, metric_name: str, table_format: str):
                 'Classifier Source Env',
                 'N',
                 'Dataset',
-                'Aug?',
-                'Fine-Tuning Take',
+                'On Invalid Aug',
                 column_name,
             ],
             'reductions': [
                 [[groupby, "classifier_source_env", "first"]],
                 [[groupby, "classifier_source_env", "count"]],
                 [[groupby, "dataset_dirs", "first"]],
-                [[groupby, "do_augmentation", "first"]],
-                [[groupby, "fine_tuning_take", "first"]],
+                [[groupby, "on_invalid_aug", "first"]],
                 [[groupby, metric_name, "mean"]],
             ],
         },
@@ -69,22 +68,31 @@ def main():
 
     cld = '/media/shared/classifier_data/'
 
+    proxy_datasets = {
+        'car1': {
+            'ras': 'val_car_feasible_1614981888+op2',
+            'ncs': 'car_no_classifier_eval',
+            'hrs': 'car_heuristic_classifier_eval2',
+        }
+    }
+    proxy_dataset_name = 'car1'
+
     random_actions_table_specs = make_tables_specs('Random Actions Spec', 'accuracy on negatives', table_format)
-    df_random_actions = df_where(df, 'dataset_dirs', cld + 'val_car_bigger_hooks1_1625783230')
+    df_random_actions = df_where(df, 'dataset_dirs', cld + proxy_datasets[proxy_dataset_name]['ras'])
     generate_tables(df=df_random_actions, outdir=None, table_specs=random_actions_table_specs)
 
     no_classifier_table_specs = make_tables_specs('No Classifier Spec', 'accuracy on negatives', table_format)
-    df_no_classifier = df_where(df, 'dataset_dirs', cld + 'proxy_car_bigger_hooks_no_classifier')
+    df_no_classifier = df_where(df, 'dataset_dirs', cld + proxy_datasets[proxy_dataset_name]['ncs'])
     generate_tables(df=df_no_classifier, outdir=None, table_specs=no_classifier_table_specs)
 
     heuristic_rejected_table_specs = make_tables_specs('Heuristic Rejected Spec', 'accuracy on negatives', table_format)
-    df_heuristic_rejected = df_where(df, 'dataset_dirs', cld + 'proxy_car_bigger_hooks_heuristic')
+    df_heuristic_rejected = df_where(df, 'dataset_dirs', cld + proxy_datasets[proxy_dataset_name]['hrs'])
     generate_tables(df=df_heuristic_rejected, outdir=None, table_specs=heuristic_rejected_table_specs)
 
 
 def filter_df_for_experiment(df):
     # just some nicknames
-    experiment_type = 'none'
+    experiment_type = 'drop'
     df = df.loc[df['mode'] == 'all']
     print(experiment_type)
     if experiment_type == 'none':
@@ -110,6 +118,8 @@ def filter_df_for_experiment(df):
         cond2 = df['fine_tuning_dataset_dirs'].isna()
         df = df.loc[cond1 | cond2]
         df = df.loc[df['fine_tuning_take'].isna()]
+    elif experiment_type == 'drop':
+        df = df.loc[df['classifier'].str.contains('fb2car_v3')]
     return df
 
 

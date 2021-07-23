@@ -1,4 +1,5 @@
 import pathlib
+import re
 import warnings
 from typing import Iterable
 
@@ -10,7 +11,7 @@ from tabulate import tabulate
 from link_bot_pycommon.metric_utils import dict_to_pvalue_table
 
 
-def fix_long_string(s: str):
+def remove_uninformative_parts_of_paths(s: str):
     prefixes = [
         '/',
         'media',
@@ -29,8 +30,18 @@ def fix_long_string(s: str):
     return s
 
 
+def remove_long_numbers(s: str):
+    return re.sub(r'\d\d\d\d+', '', s)
+
+
+def fix_long_string(s: str):
+    s = remove_uninformative_parts_of_paths(s)
+    s = remove_long_numbers(s)
+    return s
+
+
 def fix_long_strings(row: Iterable):
-    return [fix_long_string(str(e)) for e in row]
+    return [fix_long_string(str(e)) if isinstance(e, str) else e for e in row]
 
 
 class MyTable:
