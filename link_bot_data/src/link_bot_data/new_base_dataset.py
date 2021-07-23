@@ -1,6 +1,5 @@
 import pathlib
-import queue
-from multiprocessing import Pool, Process, Queue
+from multiprocessing import get_context
 from typing import List, Dict, Optional, Callable
 
 import numpy as np
@@ -11,24 +10,6 @@ from link_bot_data.new_dataset_utils import get_filenames, UNUSED_COMPAT, load_s
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import batch_examples_dicts
-
-
-def prefetch(queue: Queue, filenames: List, n_prefetch: int):
-    assert n_prefetch > 0
-    with Pool() as pool:
-        print(f"Created pool with {pool._processes} workers")
-        for filenames_i in filenames:
-            # possibly wait here, because we only want to prefetch one batch
-            while queue.qsize() > n_prefetch:
-                pass
-
-            if isinstance(filenames_i, list):
-                examples_i = list(pool.imap(load_single, filenames_i))
-                example = batch_examples_dicts(examples_i)
-            else:
-                example = load_single(filenames_i)
-
-            queue.put(example)
 
 
 class NewBaseDataset:
@@ -69,20 +50,14 @@ class NewBaseDataset:
             yield example
 
     def iter_multiprocessing(self):
-        # start some background processes, tell the pool to start a constant background thread that loads items
-        prefetch_queue = Queue()
-        prefetch_process = Process(target=prefetch, args=(prefetch_queue, self.filenames, self.n_prefetch))
-        prefetch_process.start()
-
-        while prefetch_process.is_alive():
-            try:
-                example = prefetch_queue.get(timeout=5)
-                yield example
-            except queue.Empty:
-                break
-
-        prefetch_process.terminate()
-        prefetch_process.join()
+        assert self.n_prefetch > 0
+        for idx, filenames_i in enumerate(self.filenames):
+            if isinstance(filenames_i, list):
+                examples_i = list(self.loader.pool.imap_unordered(load_single, filenames_i))
+                example = batch_examples_dicts(examples_i)
+            else:
+                example = load_single(filenames_i)
+            yield example
 
     def get_example(self, idx: int):
         filename = self.filenames[idx]
@@ -134,7 +109,7 @@ class NewBaseDataset:
         return self
 
     def pprint_example(self):
-        for k,v in self.get_example(0).items():
+        for k, v in self.get_example(0).items():
             try:
                 print(k, v.shape)
             except AttributeError:
@@ -149,6 +124,12 @@ class NewBaseDatasetLoader:
         self.hparams = merge_hparams_dicts(dataset_dirs)
         self.scenario = scenario
         self.batch_metadata = {}
+
+        self.pool = get_context("spawn").Pool()
+        print(f"Created pool with {self.pool._processes} workers")
+
+    def __del__(self):
+        self.pool.close()
 
     def post_process(self, e):
         return e
