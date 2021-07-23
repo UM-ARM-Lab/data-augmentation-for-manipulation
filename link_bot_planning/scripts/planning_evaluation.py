@@ -11,13 +11,14 @@ from link_bot_data.dataset_utils import make_unique_outdir
 from link_bot_planning.planning_evaluation import evaluate_multiple_planning, load_planner_params
 from link_bot_planning.test_scenes import get_all_scene_indices
 from link_bot_pycommon.args import int_set_arg
+from moonshine.gpu_config import limit_gpu_mem
 
+limit_gpu_mem(None)
 
 @ros_init.with_ros("planning_evaluation")
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
-    tf.autograph.set_verbosity(0)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('planner_params', type=pathlib.Path, help='planner params hjson file')

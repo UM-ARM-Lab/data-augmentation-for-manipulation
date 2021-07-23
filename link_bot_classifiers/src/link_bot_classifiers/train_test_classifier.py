@@ -329,6 +329,7 @@ def put_eval_in_database(val_metrics,
 
     item = {
         'uuid':                     str(uuid.uuid4()),
+        'time':                     str(int(time.time())),
         'classifier':               checkpoint.as_posix(),
         'dataset_dirs':             ','.join([d.as_posix() for d in dataset_dirs]),
         'balance':                  balance,

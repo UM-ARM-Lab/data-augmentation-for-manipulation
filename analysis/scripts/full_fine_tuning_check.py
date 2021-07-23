@@ -6,13 +6,13 @@ import tabulate
 from dynamo_pandas import get_df
 
 from analysis.analyze_results import generate_tables, make_table_specs
+from analysis.results_utils import try_load_classifier_params
 from link_bot_data import dynamodb_utils
 from link_bot_pycommon.pandas_utils import df_where
 
 
 def make_tables_specs(table_format: str):
-    def _table_config(_groupby):
-        agg = ["mean", "std"]
+    def _table_config(_groupby, agg):
         return {
             'type':       'MyTable',
             'name':       'mean',
@@ -66,8 +66,9 @@ def make_tables_specs(table_format: str):
         "learning_rate",
     ]
     tables_config = [
-        _table_config(groupby + ['uuid']),
-        _table_config(groupby),
+
+        _table_config(groupby + ['uuid'], "mean"),
+        _table_config(groupby, ["mean", "std"]),
     ]
     return make_table_specs(table_format, tables_config)
 
@@ -89,6 +90,10 @@ def main():
 
     s = make_tables_specs(table_format)
     generate_tables(df=df, outdir=None, table_specs=s)
+
+    for classifier_model_dir in df['classifier']:
+        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        print(classifier_hparams[''])
 
 
 def filter_df_for_experiment(df):

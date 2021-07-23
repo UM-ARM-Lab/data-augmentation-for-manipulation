@@ -105,6 +105,10 @@ def fine_tune_classifier_from_datasets(train_dataset,
         learning_rate = 1e-4
     model_hparams['learning_rate'] = learning_rate
     model_hparams['fine_tune_conv'] = fine_tune_conv
+    model_hparams['fine_tune_lstm'] = fine_tune_lstm
+    model_hparams['fine_tune_dense'] = fine_tune_dense
+    model_hparams['fine_tune_output'] = fine_tune_output
+    model_hparams['fine_tuned_from'] = checkpoint.as_posix()
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=scenario)
     # override arbitrary parts of the model
     for k, v in kwargs.items():

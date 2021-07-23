@@ -155,11 +155,11 @@ def main():
     # update_classifier_db(client, table, update_do_augmentation)
     # update_classifier_db(client, table, add_fine_tuning_take)
     # update_classifier_db(client, table, update_fine_tuning_seed)
-    update_classifier_db(client, table, add_lr)
+    # update_classifier_db(client, table, add_lr)
     # update_classifier_db(client, table, add_fine_tuning_layers('conv'))
-    # update_classifier_db(client, table, add_fine_tuning_layers('lstm'))
-    # update_classifier_db(client, table, add_fine_tuning_layers('dense'))
-    # update_classifier_db(client, table, add_fine_tuning_layers('output'))
+    update_classifier_db(client, table, add_fine_tuning_layers('lstm'))
+    update_classifier_db(client, table, add_fine_tuning_layers('dense'))
+    update_classifier_db(client, table, add_fine_tuning_layers('output'))
 
 
 if __name__ == '__main__':
