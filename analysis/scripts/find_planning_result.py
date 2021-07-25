@@ -17,12 +17,14 @@ def main():
     def query_fun(row):
         match = all([
             row['target_env'] == 'swap_straps_no_recovery3',
+            row['classifier_source_env'] == 'floating_boxes',
+            row['recovery_name'] == 'recovery_trials/random',
         ])
         return match
 
     for d in results_dirs:
         try:
-            df = load_planning_results([d], regenerate=False)
+            df = load_planning_results([d], regenerate=False, progressbar=False)
         except Exception:
             df = load_planning_results([d], regenerate=True)
         if query_fun(df.loc[0]):

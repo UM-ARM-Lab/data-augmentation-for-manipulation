@@ -95,9 +95,10 @@ def reduce_planning_metrics(reductions: List[List], metrics: pd.DataFrame):
     return reduced_metrics
 
 
-def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool = False):
+def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool = False, progressbar: bool = True):
     dfs = []
-    for d in tqdm(results_dirs, desc='results dirs'):
+    results_dirs_gen = tqdm(results_dirs, desc='results dirs') if progressbar else results_dirs
+    for d in results_dirs_gen:
         data_filenames = list(d.glob("*_metrics.pkl.gz"))
         df_filename = d / 'df.pkl'
         metadata_filename = d / 'metadata.hjson'
@@ -105,7 +106,8 @@ def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool = F
         if not df_filename.exists() or regenerate:
             scenario = get_scenario_cached(metadata['planner_params']['scenario'])
             data = []
-            for data_filename in tqdm(data_filenames, desc='results files'):
+            data_gen = tqdm(data_filenames, desc='results files') if progressbar else data_filenames
+            for data_filename in data_gen:
                 datum = load_gzipped_pickle(data_filename)
                 # try:
                 row = make_row(datum, data_filename, metadata, scenario)
