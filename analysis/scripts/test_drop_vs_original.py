@@ -11,32 +11,36 @@ from link_bot_pycommon.pandas_utils import df_where
 
 def make_tables_specs(column_name: str, metric_name: str, table_format: str):
     groupby = [
-        "do_augmentation",
-        "fine_tuning_take",
-        "classifier_source_env",
-        "dataset_dirs",
-        "mode",
-        "balance",
-        "fine_tuning_dataset_dirs",
+        'fine_tuned_from',
+        'do_augmentation',
+        'fine_tuning_take',
+        'classifier_source_env',
+        'dataset_dirs',
+        'mode',
+        'balance',
+        'fine_tuning_dataset_dirs',
         'on_invalid_aug'
     ]
     tables_config = [
         {
             'type':       'MyTable',
-            'name':       f'{metric_name} mean',
+            'name':       f'{metric_name} mean/std',
             'header':     [
                 'Classifier Source Env',
                 'N',
                 'Dataset',
+                'Fine Tuned From',
                 'On Invalid Aug',
-                column_name,
+                f'{column_name} (mean)',
+                f'{column_name} (std)',
             ],
             'reductions': [
-                [[groupby, "classifier_source_env", "first"]],
-                [[groupby, "classifier_source_env", "count"]],
-                [[groupby, "dataset_dirs", "first"]],
-                [[groupby, "on_invalid_aug", "first"]],
-                [[groupby, metric_name, "mean"]],
+                [[groupby, 'classifier_source_env', 'first']],
+                [[groupby, 'classifier_source_env', 'count']],
+                [[groupby, 'dataset_dirs', 'first']],
+                [[groupby, 'fine_tuned_from', 'first']],
+                [[groupby, 'on_invalid_aug', 'first']],
+                [[groupby, metric_name, ['mean', 'std']]],
             ],
         },
         {
@@ -60,7 +64,7 @@ def main():
     if args.latex:
         table_format = 'latex_raw'
     else:
-        table_format = tabulate.simple_separated_format("\t")
+        table_format = tabulate.simple_separated_format('\t')
 
     df = get_df(table=dynamodb_utils.classifier_table(args.debug))
 
@@ -120,6 +124,8 @@ def filter_df_for_experiment(df):
         df = df.loc[df['fine_tuning_take'].isna()]
     elif experiment_type == 'drop':
         df = df.loc[df['classifier'].str.contains('fb2car_v3')]
+        # FIXME: excluding some fb3&4 because they only have results for "original" and not "drop"
+        df = df.drop(df.index[df['fine_tuned_from'].str.contains('floating_boxes3') | df['fine_tuned_from'].str.contains('floating_boxes4')])
     return df
 
 

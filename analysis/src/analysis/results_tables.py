@@ -117,8 +117,10 @@ class PValuesTable(MyTable):
         for index, values in data.groupby(useful_level_names, dropna=False):
             if isinstance(index, str):
                 name = index
-            else:
+            elif isinstance(index, list):
                 name = '-'.join([str(e) for e in fix_long_strings(index)])
+            else:
+                name = index
             arrays_per_method[name] = values.squeeze()
 
         self.table = dict_to_pvalue_table(arrays_per_method, table_format=self.table_format, title=self.name)
