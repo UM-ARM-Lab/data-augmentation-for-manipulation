@@ -108,7 +108,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         self.size_of_box_around_tool_for_planning = 0.05
         exclude_srv_name = ns_join(self.robot_namespace, "exclude_models_from_planning_scene")
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
-        # FIXME: this blocks until the robot is available, we need lazy construction
+        # FIXME: this blocks until the robot is available
         self.robot = Lazy(get_moveit_robot, self.robot_namespace, raise_on_failure=True)
 
         self.get_robot_state = GetDualArmRobotState(self.robot)
