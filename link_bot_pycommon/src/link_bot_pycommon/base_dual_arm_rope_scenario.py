@@ -13,6 +13,7 @@ from link_bot_data.dataset_utils import add_predicted, _deserialize_scene_msg
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.get_dual_arm_robot_state import GetDualArmRobotState
 from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
+from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
@@ -98,7 +99,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         self.service_provider = BaseServices()
         joint_state_viz_topic = ns_join(self.robot_namespace, "joint_states_viz")
         self.joint_state_viz_pub = rospy.Publisher(joint_state_viz_topic, JointState, queue_size=10)
-        self.cdcpd_listener = Listener("cdcpd/output", PointCloud2)
+        self.cdcpd_listener = Lazy(Listener, "cdcpd/output", PointCloud2)
 
         # NOTE: you may want to override this for your specific robot/scenario
         self.left_preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
@@ -108,7 +109,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         exclude_srv_name = ns_join(self.robot_namespace, "exclude_models_from_planning_scene")
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
         # FIXME: this blocks until the robot is available, we need lazy construction
-        self.robot = get_moveit_robot(self.robot_namespace, raise_on_failure=True)
+        self.robot = Lazy(get_moveit_robot, self.robot_namespace, raise_on_failure=True)
 
         self.get_robot_state = GetDualArmRobotState(self.robot)
 

@@ -22,6 +22,7 @@ from link_bot_pycommon.collision_checking import inflate_tf_3d
 from link_bot_pycommon.get_cdcpd_state import GetCdcpdState
 from link_bot_pycommon.get_link_states import GetLinkStates
 from link_bot_pycommon.grid_utils import extent_to_env_shape, extent_res_to_origin_point
+from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.matplotlib_utils import adjust_lightness_msg
@@ -41,6 +42,7 @@ from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
 rope_key_name = 'rope'
+
 
 # p_get_rope_state = SimpleProfiler()
 
@@ -66,22 +68,23 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     def __init__(self):
         ScenarioWithVisualization.__init__(self)
         MoveitPlanningSceneScenarioMixin.__init__(self, robot_namespace='')
-        self.color_image_listener = Listener(self.COLOR_IMAGE_TOPIC, Image)
-        self.depth_image_listener = Listener(self.DEPTH_IMAGE_TOPIC, Image)
-        self.camera_info_listener = Listener(self.CAMERA_INFO_TOPIC, CameraInfo)
+        self.color_image_listener = Lazy(Listener, self.COLOR_IMAGE_TOPIC, Image)
+        self.depth_image_listener = Lazy(Listener, self.DEPTH_IMAGE_TOPIC, Image)
+        self.camera_info_listener = Lazy(Listener, self.CAMERA_INFO_TOPIC, CameraInfo)
         self.state_color_viz_pub = rospy.Publisher("state_color_viz", Image, queue_size=10, latch=True)
         self.state_depth_viz_pub = rospy.Publisher("state_depth_viz", Image, queue_size=10, latch=True)
         self.last_action = None
         self.get_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_dual_gripper_points"),
                                                           GetDualGripperPoints)
-        self.get_rope_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_rope_state"), GetRopeState, persistent=True)
+        self.get_rope_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_rope_state"), GetRopeState,
+                                               persistent=True)
 
         self.pos3d = Position3D()
         self.set_rope_state_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set_rope_state"), SetRopeState)
         self.reset_srv = rospy.ServiceProxy("/gazebo/reset_simulation", Empty)
 
-        self.get_cdcpd_state = GetCdcpdState(self.tf, rope_key_name)
-        self.get_links_states = GetLinkStates()
+        self.get_cdcpd_state = Lazy(GetCdcpdState, self.tf, rope_key_name)
+        self.get_links_states = Lazy(GetLinkStates)
 
         self.left_gripper_bbox_pub = rospy.Publisher('/left_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
         self.right_gripper_bbox_pub = rospy.Publisher('/right_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)

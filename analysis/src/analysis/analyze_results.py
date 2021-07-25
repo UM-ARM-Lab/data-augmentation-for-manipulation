@@ -95,7 +95,7 @@ def reduce_planning_metrics(reductions: List[List], metrics: pd.DataFrame):
     return reduced_metrics
 
 
-def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool):
+def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool = False):
     dfs = []
     for d in tqdm(results_dirs, desc='results dirs'):
         data_filenames = list(d.glob("*_metrics.pkl.gz"))

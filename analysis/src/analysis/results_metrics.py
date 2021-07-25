@@ -5,7 +5,7 @@ from typing import Dict, Optional
 import numpy as np
 import rospkg
 
-from analysis.results_utils import get_paths, classifier_params_from_planner_params
+from analysis.results_utils import get_paths, classifier_params_from_planner_params, try_load_classifier_params
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -59,6 +59,18 @@ def task_error(scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
     final_execution_to_goal_error = scenario.distance_to_goal(final_actual_state, goal)
     return numpify(final_execution_to_goal_error)
 
+
+@metrics_funcs
+def is_fine_tuned(_: ExperimentScenario, trial_metadata: Dict, ___: Dict):
+    try:
+        classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
+        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        for k in list(classifier_hparams.keys()):
+            if 'fine_tune' in k:
+                return True
+        return False
+    except RuntimeError:
+        return None
 
 @metrics_funcs
 def timeout(_: ExperimentScenario, trial_metadata: Dict, ___: Dict):
@@ -201,13 +213,16 @@ def classifier_name(scenario: ExperimentScenario, trial_metadata: Dict, trial_da
 
 @metrics_funcs
 def classifier_source_env(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
-    cl_params = classifier_params_from_planner_params(trial_metadata['planner_params'])
-    scene_name = has_keys(cl_params, ['classifier_dataset_hparams', 'scene_name'], None)
-    if scene_name is None:
-        print(f"Missing scene_name for {trial_metadata['planner_params']['classifier_model_dir'][0]}")
-        return "no-scene-name"
-    else:
-        return scene_name
+    try:
+        cl_params = classifier_params_from_planner_params(trial_metadata['planner_params'])
+        scene_name = has_keys(cl_params, ['classifier_dataset_hparams', 'scene_name'], None)
+        if scene_name is None:
+            print(f"Missing scene_name for {trial_metadata['planner_params']['classifier_model_dir'][0]}")
+            return "no-scene-name"
+        else:
+            return scene_name
+    except RuntimeError:
+        return None
 
 
 @metrics_funcs
