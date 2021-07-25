@@ -326,6 +326,7 @@ def put_eval_in_database(val_metrics,
     fine_tune_lstm = classifier_hparams.get('fine_tune_lstm', None)
     fine_tune_dense = classifier_hparams.get('fine_tune_dense', None)
     fine_tune_output = classifier_hparams.get('fine_tune_output', None)
+    fine_tuned_from = classifier_hparams.get('fine_tuned_from', None)
     learning_rate = classifier_hparams.get('learning_rate', None)
     augmentation_type = has_keys(classifier_hparams, ['augmentation', 'type'], None)
     on_invalid_aug = has_keys(classifier_hparams, ['augmentation', 'on_invalid_aug'], None)
@@ -355,6 +356,7 @@ def put_eval_in_database(val_metrics,
         'fine_tune_lstm':           fine_tune_lstm,
         'fine_tune_dense':          fine_tune_dense,
         'fine_tune_output':         fine_tune_output,
+        'fine_tuned_from':          fine_tuned_from,
         'augmentation_type':        augmentation_type,
         'on_invalid_aug':           on_invalid_aug,
         'invariance_model':         invariance_model,
