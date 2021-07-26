@@ -156,4 +156,22 @@
       ]
     ]
   }
+  {
+    type: PValuesTable
+    name: Success
+    reductions: [
+      [
+      [["is_fine_tuned", "target_env", "classifier_source_env", "stop_on_error"], "success", null]
+      ]
+    ]
+  }
+  {
+    type: PValuesTable
+    name: Task Error
+    reductions: [
+      [
+      [["is_fine_tuned", "target_env", "classifier_source_env", "stop_on_error"], "task_error", null]
+      ]
+    ]
+  }
 ]

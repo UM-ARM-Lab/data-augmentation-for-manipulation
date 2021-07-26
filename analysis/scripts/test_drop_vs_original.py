@@ -67,6 +67,8 @@ def test_significance_for_metric(df, proxy_dataset_name, groupby, proxy_metric_n
     p = scipy.stats.ttest_1samp(delta.squeeze(), 0).pvalue
     flag = '!' if p < 0.01 else ''
     print(Fore.GREEN + f'p-value for improvement {flag}{p:0.4f}' + Fore.RESET)
+    print()
+    print()
 
 
 def filter_df_for_experiment(df):

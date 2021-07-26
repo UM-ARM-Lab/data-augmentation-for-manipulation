@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 
+from colorama import Fore
 from dynamo_pandas import get_df
 import scipy.stats
 
@@ -25,7 +26,8 @@ def main():
 
 def test_improvement_significance_for_metric(df, proxy_dataset_name, groupby, proxy_metric_name):
     cld = '/media/shared/classifier_data/'
-    df_p = df_where(df, 'dataset_dirs', cld + proxy_datasets_dict[proxy_dataset_name][proxy_metric_name])
+    proxy_dataset_path = cld + proxy_datasets_dict[proxy_dataset_name][proxy_metric_name]
+    df_p = df_where(df, 'dataset_dirs', proxy_dataset_path)
     agg = {k: 'first' for k in groupby}
     metric_name = 'accuracy on negatives'
     agg[metric_name] = 'mean'
@@ -44,12 +46,20 @@ def test_improvement_significance_for_metric(df, proxy_dataset_name, groupby, pr
     offline_ft_aug_baseline_all_dropped = offline_ft_aug_baseline_all_dropped[metric_name]
     improvement = offline_ft_aug_baseline_all_dropped - no_ft_baseline_all_dropped
 
-    print("All Results")
-    print(improvement.round(3))
+    print(Fore.CYAN + f"All Results {proxy_dataset_path}, {metric_name}" + Fore.RESET)
+    drop_for_display = [
+        'classifier_source_env',
+        'dataset_dirs',
+        'balance',
+        'mode'
+    ]
+    print(improvement.round(3).droplevel(drop_for_display))
+    print('MEAN:', improvement.mean())
 
     p = scipy.stats.ttest_1samp(improvement, 0).pvalue
     flag = '!' if p < 0.01 else ''
-    print(f'p-value for improvement {flag}{p:0.4f}')
+    print(Fore.CYAN + f'p-value for improvement {flag}{p:0.4f}' + Fore.RESET)
+    print()
 
 
 def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
