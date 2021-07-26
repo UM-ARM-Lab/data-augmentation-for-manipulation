@@ -7,6 +7,7 @@ import tensorflow_probability as tfp
 import transformations
 
 import rospy
+import sdf_tools.utils_3d
 from arm_robots.robot import MoveitEnabledRobot
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from geometry_msgs.msg import Point
@@ -18,11 +19,12 @@ from link_bot_data.dataset_utils import add_new, add_predicted, deserialize_scen
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg, \
-    occupied_voxels_to_points, subtract, binary_or
+    occupied_voxels_to_points, subtract, binary_or, batch_point_to_idx
 from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-from moonshine.geometry import transform_points_3d, pairwise_squared_distances, transformation_params_to_matrices
+from moonshine.geometry import transform_points_3d, pairwise_squared_distances, transformation_params_to_matrices, \
+    transformation_jacobian, homogeneous
 from moonshine.moonshine_utils import reduce_mean_no_nan, repeat, to_list_of_strings, possibly_none_concat, \
     repeat_tensor
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
@@ -186,9 +188,10 @@ class AugmentationOptimization:
         self.barrier_cut_off = tf.square(0.04)  # stop repelling loss after this (squared) distance (meters)
         self.barrier_epsilon = 0.01
         self.grad_clip = 0.25  # max dist step the env aug update can take
-        self.attract_weight = 4.0
-        self.repel_weight = 0.02
+        self.attract_weight = 1.0
+        self.repel_weight = 0.1
         self.invariance_weight = 0.1
+        self.sdf_grad_scale = 0.02
         self.ground_penetration_weight = 1.0
         self.bbox_weight = 0.1
         self.robot_base_penetration_weight = 1.0
@@ -519,63 +522,84 @@ class AugmentationOptimization:
         best_transformation_params = tf.gather(initial_transformation_params, best_transformation_idx)
         initial_transformation_params = repeat_tensor(best_transformation_params, batch_size, 0, True)
 
+        if 'sdf' in new_env and 'sdf_grad' in new_env:
+            sdf = new_env['sdf']
+            sdf_grad = new_env['sdf_grad']
+        else:
+            sdf, sdf_grad = sdf_tools.utils_3d.compute_sdf_and_gradient(new_env['env'],
+                                                                        new_env['res'],
+                                                                        new_env['origin_point'])
+        sdf = tf.convert_to_tensor(sdf)
+        sdf_grad = tf.convert_to_tensor(sdf_grad)
+        clip_mask = tf.cast(sdf > self.barrier_cut_off, tf.float32)
+        sdf_clipped = sdf * clip_mask
+        sdf_grad_clipped = sdf_grad * tf.expand_dims(clip_mask, -1)
+
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.imshow(sdf_grad_clipped[:,:,10])
+        # import numpy as np
+        # plt.figure()
+        # xx, yy = np.meshgrid(range(sdf.shape[1]), range(sdf.shape[0]))
+        # plt.quiver(xx, yy, sdf_grad[:, :, 10, 0], sdf_grad[:, :, 10, 1])
+        # plt.axis("equal")
+
         # optimization loop
         obj_transforms = tf.Variable(initial_transformation_params)  # [x,y,z,roll,pitch,yaw]
         variables = [obj_transforms]
         for i in range(self.max_steps):
             with tf.profiler.experimental.Trace('one_step_loop', i=i):
-                with tf.GradientTape() as tape:
+                with tf.GradientTape(persistent=True) as tape:
                     # obj_points is the set of points that define the object state, ie. the swept rope points
                     # to compute the object state constraints loss we need to transform this during each forward pass
                     # we also need to call apply_object_augmentation* at the end
-                    # to update the rest of the "state" which is
-                    # input to the network
+                    # to update the rest of the "state" which is input to the network
                     transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
                     to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
                     obj_points_local_frame = obj_points - to_local_frame
-                    obj_points_aug_local_frame = transform_points_3d(transformation_matrices[:, None], obj_points_local_frame)
+                    obj_points_aug_local_frame = transform_points_3d(transformation_matrices[:, None],
+                                                                     obj_points_local_frame)
                     obj_points_aug = obj_points_aug_local_frame + to_local_frame
-
-                    env_points_full = occupied_voxels_to_points(new_env['env'], new_env['res'], new_env['origin_point'])
-                    env_points_sparse = subsample_points(env_points_full, self.env_subsample)
-
-                    # compute repel and attract loss between the environment points and the obj_points_aug
-                    attract_mask = object_points_occupancy  # assumed to already be either 0.0 or 1.0
-                    dists = pairwise_squared_distances(env_points_sparse, obj_points_aug)
-                    min_dist = tf.reduce_min(dists, axis=1)
-                    min_dist_indices = tf.argmin(dists, axis=1)
-                    nearest_env_points = tf.gather(env_points_sparse, min_dist_indices)
-
-                    attract_loss = min_dist * self.attract_weight
-                    repel_loss = self.barrier_func(min_dist) * self.repel_weight
-
-                    attract_repel_loss_per_point = (attract_mask * attract_loss) + ((1 - attract_mask) * repel_loss)
 
                     invariance_loss = self.invariance_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
 
-                    # robot_base_penetration_loss = self.robot_base_penetration_loss(obj_points_aug)
-                    # ground_penetration_loss = self.ground_penetration_loss(obj_points_aug)
                     bbox_loss = self.bbox_loss(obj_points_aug)
 
                     print("DEBUGGING: comment back in the other losses!!!")
                     losses = [
-                        tf.reduce_mean(attract_repel_loss_per_point, axis=-1),
-                        # bbox_loss,
-                        # invariance_loss,
+                        bbox_loss,
+                        invariance_loss,
                     ]
                     losses_sum = tf.add_n(losses)
                     loss = tf.reduce_mean(losses_sum)
 
-                    # min_dists = MinDists(min_attract_dist_b, min_repel_dist_b, min_robot_repel_dist_b)
-                    # env_opt_debug_vars = EnvOptDebugVars(nearest_attract_env_points, nearest_repel_points,
-                    #                                      nearest_robot_repel_points)
-                    # env_points_b = EnvPoints(env_points_b, env_points_b_sparse)
                 gradients = tape.gradient(loss, variables)
-                # TODO: debug whether we're getting gradients w.r.t rotation
-                if debug_aug_sgd():
-                    for b in debug_viz_batch_indices(batch_size):
-                        yaw_grad = gradients[0][b, -1]
-                        print(yaw_grad)
+
+                # compute repel and attract gradient via the SDF
+                attract_mask = object_points_occupancy  # assumed to already be either 0.0 or 1.0
+                obj_point_indices_aug = batch_point_to_idx(obj_points_aug, new_env['res'],
+                                                           new_env['origin_point'][None, None])
+                sdf_dist = tf.gather_nd(sdf_clipped, obj_point_indices_aug)
+                sdf_grad = tf.gather_nd(sdf_grad_clipped, obj_point_indices_aug)
+                attract_grad = sdf_grad * tf.expand_dims(attract_mask, -1) * self.attract_weight
+                repel_grad = -sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.repel_weight
+                attract_repel_dpoint = (attract_grad + repel_grad) * self.sdf_grad_scale  # [b,n,3]
+
+                # Compute the jacobian of the transformation
+                # from time import perf_counter
+                # t0 = perf_counter()
+                jacobian = transformation_jacobian(obj_transforms)[:, None]  # [b,1,6,4,4]
+                to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
+                obj_points_local_frame = obj_points - to_local_frame  # [b,n,3]
+                obj_points_local_frame_h = homogeneous(obj_points_local_frame)[:, :, None, :, None]  # [b,1,4,1]
+                dpoint_dvariables_h = tf.squeeze(tf.matmul(jacobian, obj_points_local_frame_h))  # [b,6]
+                dpoint_dvariables = tf.transpose(dpoint_dvariables_h[:, :, :, :3], [0, 1, 3, 2])  # [b,3,6]
+                # print(perf_counter() - t0)
+                attract_repel_sdf_grad = tf.einsum('bni,bnij->bnj', attract_repel_dpoint, dpoint_dvariables)  # [b,n,6]
+                attract_repel_sdf_grad = tf.reduce_mean(attract_repel_sdf_grad, axis=1)
+
+                # combine with the gradient for the other aspects of the loss, those computed by tf.gradient
+                gradients = [gradients[0] + attract_repel_sdf_grad]
 
             if debug_aug_sgd():
                 stepper = RvizSimpleStepper()
@@ -588,22 +612,23 @@ class AugmentationOptimization:
                     repel_points = tf.gather(obj_points[b], repel_indices).numpy()
                     attract_points_aug = tf.gather(obj_points_aug[b], attract_indices).numpy()
                     repel_points_aug = tf.gather(obj_points_aug[b], repel_indices).numpy()
-                    nearest_attract_env_points = tf.gather(nearest_env_points[b], attract_indices).numpy()
-                    nearest_repel_env_points = tf.gather(nearest_env_points[b], repel_indices).numpy()
 
                     self.scenario.plot_points_rviz(attract_points, label='attract', color='g', scale=scale)
                     self.scenario.plot_points_rviz(repel_points, label='repel', color='r', scale=scale)
                     self.scenario.plot_points_rviz(attract_points_aug, label='attract_aug', color='g', scale=scale)
                     self.scenario.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=scale)
 
-                    repel_min_dist = tf.gather(min_dist[b], repel_indices)
-                    repel_close_indices = tf.squeeze(tf.where(repel_min_dist < self.barrier_cut_off), axis=-1)
-                    nearest_repel_env_points_close = tf.gather(nearest_repel_env_points, repel_close_indices)
-                    repel_points_aug_close = tf.gather(repel_points_aug, repel_close_indices)
-                    self.scenario.plot_lines_rviz(nearest_attract_env_points, attract_points_aug,
-                                                  label='attract_correspondence', color='g')
-                    self.scenario.plot_lines_rviz(nearest_repel_env_points_close, repel_points_aug_close,
-                                                  label='repel_correspondence', color='r')
+                    attract_grad_b = -tf.gather(sdf_grad[b], attract_indices, axis=0) * 0.02
+                    repel_sdf_dist = tf.gather(sdf_dist[b], repel_indices, axis=0)
+                    repel_close_indices = tf.squeeze(tf.where(repel_sdf_dist < self.barrier_cut_off), axis=-1)
+                    repel_close_grad_b = tf.gather(sdf_grad[b], repel_close_indices, axis=0) * 0.02
+                    repel_close_points_aug = tf.gather(repel_points_aug, repel_close_indices)
+                    self.scenario.delete_arrows_rviz(label='attract_sdf_grad')
+                    self.scenario.delete_arrows_rviz(label='repel_sdf_grad')
+                    self.scenario.plot_arrows_rviz(attract_points_aug, attract_grad_b, label='attract_sdf_grad',
+                                                   color='g', scale=0.5)
+                    self.scenario.plot_arrows_rviz(repel_close_points_aug, repel_close_grad_b, label='repel_sdf_grad',
+                                                   color='r', scale=0.5)
                     # stepper.step()
 
             clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
@@ -611,8 +636,8 @@ class AugmentationOptimization:
 
             # check termination criteria
             squared_res_expanded = tf.square(res)[:, None]
-            attract_satisfied = tf.cast(min_dist < squared_res_expanded, tf.float32)
-            repel_satisfied = tf.cast(min_dist > squared_res_expanded, tf.float32)
+            attract_satisfied = tf.cast(sdf_dist < squared_res_expanded, tf.float32)
+            repel_satisfied = tf.cast(sdf_dist > squared_res_expanded, tf.float32)
             constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
             constraints_satisfied = tf.reduce_all(tf.cast(constraints_satisfied, tf.bool), axis=-1)
 
@@ -952,6 +977,10 @@ class AugmentationOptimization:
             'res':          example[add_new('res')],
             'scene_msg':    example[add_new('scene_msg')],
         }
+        if add_new('sdf') in example:
+            new_env['sdf'] = example[add_new('sdf')]
+        if add_new('sdf_grad') in example:
+            new_env['sdf_grad'] = example[add_new('sdf_grad')]
         return new_env
 
     def sample_local_env_position(self, example, batch_size):

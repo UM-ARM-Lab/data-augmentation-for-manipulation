@@ -8,7 +8,7 @@ import ros_numpy
 import rospy
 from geometry_msgs.msg import Point
 from link_bot_data.dataset_utils import add_predicted, get_maybe_predicted
-from link_bot_data.visualization import rviz_arrow
+from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_gazebo.gazebo_services import gz_scope
 from link_bot_gazebo.position_3d import Position3D
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization

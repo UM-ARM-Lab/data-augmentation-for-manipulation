@@ -172,6 +172,8 @@ def add_augmentation_configs_to_dataset(augmentation_config_dir, dataset, batch_
         example[add_new('origin')] = new_example['origin']
         example[add_new('origin_point')] = new_example['origin_point']
         example[add_new('scene_msg')] = new_example['scene_msg']
+        example[add_new('sdf')] = new_example['sdf']
+        example[add_new('sdf_grad')] = new_example['sdf_grad']
 
         return example
 

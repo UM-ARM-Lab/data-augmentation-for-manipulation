@@ -4,14 +4,12 @@ import numpy as np
 from matplotlib import colors
 
 import rospy
-from geometry_msgs.msg import Point
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import vector_to_points_2d
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.indexing import index_time_with_metadata, index_state_action_with_metadata
-from std_msgs.msg import Float32, ColorRGBA
-from visualization_msgs.msg import Marker
+from std_msgs.msg import Float32
 
 
 def plot_rope_configuration(ax, rope_configuration, linewidth=None, linestyle=None, s=1, label=None, scatt=True,
@@ -22,108 +20,12 @@ def plot_rope_configuration(ax, rope_configuration, linewidth=None, linestyle=No
     return ax.plot(xs, ys, linewidth=linewidth, label=label, linestyle=linestyle, **kwargs)
 
 
-def my_arrow(xs, ys, us, vs, scale=0.2):
-    xs = np.array(xs)
-    ys = np.array(ys)
-    us = np.array(us)
-    vs = np.array(vs)
-
-    thetas = np.arctan2(vs, us)
-    head_lengths = np.sqrt(np.square(us) + np.square(vs)) * scale
-    theta1s = 3 * np.pi / 4 + thetas
-    u1_primes = np.cos(theta1s) * head_lengths
-    v1_primes = np.sin(theta1s) * head_lengths
-    theta2s = thetas - 3 * np.pi / 4
-    u2_primes = np.cos(theta2s) * head_lengths
-    v2_primes = np.sin(theta2s) * head_lengths
-
-    return ([xs, xs + us], [ys, ys + vs]), \
-           ([xs + us, xs + us + u1_primes], [ys + vs, ys + vs + v1_primes]), \
-           ([xs + us, xs + us + u2_primes], [ys + vs, ys + vs + v2_primes])
-
-
-def plot_arrow(ax, xs, ys, us, vs, color, **kwargs):
-    xys1, xys2, xys3 = my_arrow(xs, ys, us, vs)
-    lines = []
-    lines.append(ax.plot(xys1[0], xys1[1], c=color, **kwargs)[0])
-    lines.append(ax.plot(xys2[0], xys2[1], c=color, **kwargs)[0])
-    lines.append(ax.plot(xys3[0], xys3[1], c=color, **kwargs)[0])
-    return lines
-
-
-def update_arrow(lines, xs, ys, us, vs):
-    xys1, xys2, xys3 = my_arrow(xs, ys, us, vs)
-    lines[0].set_data(xys1[0], xys1[1])
-    lines[1].set_data(xys2[0], xys2[1])
-    lines[2].set_data(xys3[0], xys3[1])
-
-
 def plot_extents(ax, extent, linewidth=6, **kwargs):
     line = ax.plot([extent[0], extent[1], extent[1], extent[0], extent[0]],
                    [extent[2], extent[2], extent[3], extent[3], extent[2]],
                    linewidth=linewidth,
                    **kwargs)[0]
     return line
-
-
-def color_from_kwargs(kwargs, r, g, b, a=1.0):
-    """
-
-    Args:
-        kwargs:
-        r:  default red
-        g:  default green
-        b:  default blue
-        a:  refault alpha
-
-    Returns:
-
-    """
-    if 'color' in kwargs:
-        return ColorRGBA(*colors.to_rgba(kwargs["color"]))
-    else:
-        r = float(kwargs.get("r", r))
-        g = float(kwargs.get("g", g))
-        b = float(kwargs.get("b", b))
-        a = float(kwargs.get("a", a))
-        return ColorRGBA(r, g, b, a)
-
-
-def rviz_arrow(position: np.ndarray,
-               target_position: np.ndarray,
-               label: str = 'arrow',
-               **kwargs):
-    idx = kwargs.get("idx", 0)
-    color = color_from_kwargs(kwargs, 0, 0, 1.0)
-
-    arrow = Marker()
-    arrow.action = Marker.ADD  # create or modify
-    arrow.type = Marker.ARROW
-    arrow.header.frame_id = "world"
-    arrow.header.stamp = rospy.Time.now()
-    arrow.ns = label
-    arrow.id = idx
-
-    arrow.scale.x = 0.01
-    arrow.scale.y = 0.02
-    arrow.scale.z = 0
-
-    arrow.pose.orientation.w = 1
-
-    start = Point()
-    start.x = position[0]
-    start.y = position[1]
-    start.z = position[2]
-    end = Point()
-    end.x = target_position[0]
-    end.y = target_position[1]
-    end.z = target_position[2]
-    arrow.points.append(start)
-    arrow.points.append(end)
-
-    arrow.color = color
-
-    return arrow
 
 
 def dynamics_viz_t(metadata: Dict, state_metadata_keys, state_keys, action_keys):

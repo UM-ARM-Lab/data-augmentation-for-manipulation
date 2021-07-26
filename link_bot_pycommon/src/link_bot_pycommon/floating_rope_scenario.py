@@ -11,7 +11,7 @@ from arc_utilities.marker_utils import scale_marker_array
 from geometry_msgs.msg import Point, Vector3
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted
-from link_bot_data.visualization import rviz_arrow
+from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_gazebo.gazebo_services import gz_scope
 from link_bot_gazebo.gazebo_utils import get_gazebo_kinect_pose
 from link_bot_gazebo.position_3d import Position3D

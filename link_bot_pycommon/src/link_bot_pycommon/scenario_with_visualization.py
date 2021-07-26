@@ -14,7 +14,8 @@ from gazebo_msgs.srv import SetModelState
 from geometry_msgs.msg import Pose, Point, Quaternion
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import NULL_PAD_VALUE
-from link_bot_data.visualization_common import make_delete_marker
+from link_bot_data.rviz_arrow import rviz_arrow
+from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -46,6 +47,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.label_viz_pub = rospy.Publisher("label_viz", LabelStatus, queue_size=10)
         self.error_pub = rospy.Publisher("error", Float32, queue_size=10)
         self.point_pub = rospy.Publisher("point", Marker, queue_size=10)
+        self.arrows_pub = rospy.Publisher("arrows", MarkerArray, queue_size=10)
 
         self.sampled_goal_marker_idx = 0
         self.tree_state_idx = 0
@@ -365,6 +367,17 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
         self.point_pub.publish(msg)
 
+    def plot_arrows_rviz(self, positions, directions, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+        msg = MarkerArray()
+        for i, (position, direction) in enumerate(zip(positions, directions)):
+            msg.markers.append(rviz_arrow(position,
+                                          position + direction,
+                                          frame_id=frame_id,
+                                          idx=100 * id + i,
+                                          label=label,
+                                          **kwargs))
+        self.arrows_pub.publish(msg)
+
     def plot_points_rviz(self, positions, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
         color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
 
@@ -413,6 +426,9 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
             msg.points.append(p)
 
         self.point_pub.publish(msg)
+
+    def delete_arrows_rviz(self, label: str, id: int = 0):
+        self.arrows_pub.publish(make_delete_markerarray(id, label))
 
     def delete_points_rviz(self, label: str, id: int = 0):
         self.point_pub.publish(make_delete_marker(id, label))

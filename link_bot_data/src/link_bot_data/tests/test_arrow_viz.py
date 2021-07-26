@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 import rospy
-from link_bot_data.visualization import rviz_arrow
+from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.pycommon import directions_3d
 from visualization_msgs.msg import MarkerArray
 
