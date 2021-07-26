@@ -32,6 +32,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int)
+    parser.add_argument('--skip', type=int)
     parser.add_argument('--val-take', type=int)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--threshold', type=float, default=None)
@@ -76,6 +77,7 @@ def main():
                          epochs=args.epochs,
                          validate_first=validate_first,
                          take=args.take,
+                         skip=args.skip,
                          seed=args.seed,
                          model_hparams_update=model_hparams_update,
                          val_every_n_batches=None,
