@@ -59,10 +59,14 @@ class ClassifierDebugging:
 
         if 'is_close' in input_dict:
             self.scenario.plot_is_close(input_dict['is_close'][b, 1])
+        else:
+            self.scenario.plot_is_close(None)
 
         if 'error' in input_dict:
             error_t = input_dict['error'][b, 1]
             self.scenario.plot_error_rviz(error_t)
+        else:
+            self.scenario.plot_error_rviz(-999)
 
     def send_position_transform(self, p, child: str):
         self.scenario.tf.send_transform(p, [0, 0, 0, 1], 'world', child=child, is_static=False)

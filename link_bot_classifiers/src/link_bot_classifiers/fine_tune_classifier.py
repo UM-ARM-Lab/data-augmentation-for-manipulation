@@ -37,6 +37,7 @@ def fine_tune_classifier(train_dataset_dirs: List[pathlib.Path],
                          augmentation_config_dir: Optional[pathlib.Path] = None,
                          profile: Optional[tuple] = None,
                          take: Optional[int] = None,
+                         skip: Optional[int] = None,
                          seed: int = 0,
                          **kwargs):
     train_dataset_loader = get_classifier_dataset_loader(train_dataset_dirs, load_true_states=True, verbose=verbose)
@@ -67,6 +68,7 @@ def fine_tune_classifier(train_dataset_dirs: List[pathlib.Path],
                                               augmentation_config_dir=augmentation_config_dir,
                                               profile=profile,
                                               take=take,
+                                              skip=skip,
                                               seed=seed,
                                               **kwargs)
 
@@ -91,6 +93,7 @@ def fine_tune_classifier_from_datasets(train_dataset,
                                        augmentation_config_dir: Optional[pathlib.Path] = None,
                                        profile: Optional[tuple] = None,
                                        take: Optional[int] = None,
+                                       skip: Optional[int] = None,
                                        seed: Optional[int] = None,
                                        **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
@@ -133,6 +136,7 @@ def fine_tune_classifier_from_datasets(train_dataset,
                                                 seed=seed,
                                                 train_take=take,
                                                 val_take=val_take)
+    train_dataset = train_dataset.skip(skip)  # useful for debugging specific batches
 
     if augmentation_config_dir is not None:
         train_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_dataset, batch_size)

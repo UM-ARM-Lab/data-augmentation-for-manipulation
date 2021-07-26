@@ -183,19 +183,15 @@ class AugmentationOptimization:
         self.step_size = 5.0
         self.opt = tf.keras.optimizers.SGD(self.step_size)
         self.step_size_threshold = 0.001  # stopping criteria, how far the env moved (meters)
-        self.barrier_upper_lim = tf.square(0.06)  # stops repelling points from pushing after this distance
-        self.barrier_scale = 0.1  # scales the gradients for the repelling points. larger is 'more binary'
+        self.barrier_cut_off = tf.square(0.04)  # stop repelling loss after this (squared) distance (meters)
+        self.barrier_epsilon = 0.01
         self.grad_clip = 0.25  # max dist step the env aug update can take
-        self.attract_weight = 10.0
-        self.repel_weight = 1.0
+        self.attract_weight = 4.0
+        self.repel_weight = 0.02
         self.invariance_weight = 0.1
         self.ground_penetration_weight = 1.0
         self.bbox_weight = 0.1
         self.robot_base_penetration_weight = 1.0
-
-        # Precompute this for speed
-        self.barrier_epsilon = 0.01
-        self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
 
         if self.hparams is not None:
             invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
@@ -535,7 +531,10 @@ class AugmentationOptimization:
                     # to update the rest of the "state" which is
                     # input to the network
                     transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
-                    obj_points_aug = transform_points_3d(transformation_matrices[:, None], obj_points)
+                    to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
+                    obj_points_local_frame = obj_points - to_local_frame
+                    obj_points_aug_local_frame = transform_points_3d(transformation_matrices[:, None], obj_points_local_frame)
+                    obj_points_aug = obj_points_aug_local_frame + to_local_frame
 
                     env_points_full = occupied_voxels_to_points(new_env['env'], new_env['res'], new_env['origin_point'])
                     env_points_sparse = subsample_points(env_points_full, self.env_subsample)
@@ -550,7 +549,7 @@ class AugmentationOptimization:
                     attract_loss = min_dist * self.attract_weight
                     repel_loss = self.barrier_func(min_dist) * self.repel_weight
 
-                    attract_repel_loss_per_point = attract_mask * attract_loss + (1 - attract_mask) * repel_loss
+                    attract_repel_loss_per_point = (attract_mask * attract_loss) + ((1 - attract_mask) * repel_loss)
 
                     invariance_loss = self.invariance_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
 
@@ -558,11 +557,11 @@ class AugmentationOptimization:
                     # ground_penetration_loss = self.ground_penetration_loss(obj_points_aug)
                     bbox_loss = self.bbox_loss(obj_points_aug)
 
+                    print("DEBUGGING: comment back in the other losses!!!")
                     losses = [
                         tf.reduce_mean(attract_repel_loss_per_point, axis=-1),
-                        bbox_loss,
-                        invariance_loss,
-
+                        # bbox_loss,
+                        # invariance_loss,
                     ]
                     losses_sum = tf.add_n(losses)
                     loss = tf.reduce_mean(losses_sum)
@@ -572,6 +571,11 @@ class AugmentationOptimization:
                     #                                      nearest_robot_repel_points)
                     # env_points_b = EnvPoints(env_points_b, env_points_b_sparse)
                 gradients = tape.gradient(loss, variables)
+                # TODO: debug whether we're getting gradients w.r.t rotation
+                if debug_aug_sgd():
+                    for b in debug_viz_batch_indices(batch_size):
+                        yaw_grad = gradients[0][b, -1]
+                        print(yaw_grad)
 
             if debug_aug_sgd():
                 stepper = RvizSimpleStepper()
@@ -592,9 +596,13 @@ class AugmentationOptimization:
                     self.scenario.plot_points_rviz(attract_points_aug, label='attract_aug', color='g', scale=scale)
                     self.scenario.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=scale)
 
+                    repel_min_dist = tf.gather(min_dist[b], repel_indices)
+                    repel_close_indices = tf.squeeze(tf.where(repel_min_dist < self.barrier_cut_off), axis=-1)
+                    nearest_repel_env_points_close = tf.gather(nearest_repel_env_points, repel_close_indices)
+                    repel_points_aug_close = tf.gather(repel_points_aug, repel_close_indices)
                     self.scenario.plot_lines_rviz(nearest_attract_env_points, attract_points_aug,
                                                   label='attract_correspondence', color='g')
-                    self.scenario.plot_lines_rviz(nearest_repel_env_points, repel_points_aug,
+                    self.scenario.plot_lines_rviz(nearest_repel_env_points_close, repel_points_aug_close,
                                                   label='repel_correspondence', color='r')
                     # stepper.step()
 
@@ -605,7 +613,7 @@ class AugmentationOptimization:
             squared_res_expanded = tf.square(res)[:, None]
             attract_satisfied = tf.cast(min_dist < squared_res_expanded, tf.float32)
             repel_satisfied = tf.cast(min_dist > squared_res_expanded, tf.float32)
-            constraints_satisfied = attract_mask * attract_satisfied + (1 - attract_mask) * repel_satisfied
+            constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
             constraints_satisfied = tf.reduce_all(tf.cast(constraints_satisfied, tf.bool), axis=-1)
 
             grad_norm = tf.linalg.norm(gradients[0], axis=-1)
@@ -790,10 +798,10 @@ class AugmentationOptimization:
                         self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
 
                         if debug_aug_sgd():
-                            repel_close_indices = tf.squeeze(tf.where(min_dists.repel < self.barrier_upper_lim),
+                            repel_close_indices = tf.squeeze(tf.where(min_dists.repel < self.barrier_cut_off),
                                                              axis=-1)
                             robot_repel_close_indices = tf.squeeze(
-                                tf.where(min_dists.robot_repel < self.barrier_upper_lim),
+                                tf.where(min_dists.robot_repel < self.barrier_cut_off),
                                 axis=-1)
                             nearest_repel_points_where_close = tf.gather(dbg.nearest_repel_points, repel_close_indices)
                             nearest_robot_repel_points_where_close = tf.gather(dbg.nearest_robot_repel_points,
@@ -910,9 +918,17 @@ class AugmentationOptimization:
         return [(_clip(g), v) for (g, v) in zip(gradients, variables)]
 
     def barrier_func(self, min_dists_b):
-        z = tf.math.log(self.barrier_scale * min_dists_b + self.barrier_epsilon)
-        # of course this additive term doesn't affect the gradient, but it makes hyper-parameters more interpretable
-        return tf.maximum(-z, -self.log_cutoff) + self.log_cutoff
+        """
+
+        Args:
+            min_dists_b:  squared distances between each object point and the nearest environment point
+
+        Returns:
+
+        """
+        far = tf.cast(min_dists_b > self.barrier_cut_off, tf.float32)
+        min_dists_b = far * 999.0 + (1 - far) * min_dists_b
+        return -tf.math.log(min_dists_b + self.barrier_epsilon)
 
     def points_to_voxel_grid_res_origin_point(self, points, res, origin_point):
         return points_to_voxel_grid_res_origin_point(points,
