@@ -185,7 +185,7 @@ class AugmentationOptimization:
         self.step_size = 5.0
         self.opt = tf.keras.optimizers.SGD(self.step_size)
         self.step_size_threshold = 0.001  # stopping criteria, how far the env moved (meters)
-        self.barrier_cut_off = tf.square(0.04)  # stop repelling loss after this (squared) distance (meters)
+        self.barrier_cut_off = 0.04  # stop repelling loss after this (squared) distance (meters)
         self.barrier_epsilon = 0.01
         self.grad_clip = 0.25  # max dist step the env aug update can take
         self.attract_weight = 1.0
@@ -523,17 +523,16 @@ class AugmentationOptimization:
         initial_transformation_params = repeat_tensor(best_transformation_params, batch_size, 0, True)
 
         if 'sdf' in new_env and 'sdf_grad' in new_env:
-            sdf = new_env['sdf']
-            sdf_grad = new_env['sdf_grad']
+            sdf_no_clipped = new_env['sdf']
+            sdf_grad_no_clipped = new_env['sdf_grad']
         else:
-            sdf, sdf_grad = sdf_tools.utils_3d.compute_sdf_and_gradient(new_env['env'],
-                                                                        new_env['res'],
-                                                                        new_env['origin_point'])
-        sdf = tf.convert_to_tensor(sdf)
-        sdf_grad = tf.convert_to_tensor(sdf_grad)
-        clip_mask = tf.cast(sdf > self.barrier_cut_off, tf.float32)
-        sdf_clipped = sdf * clip_mask
-        sdf_grad_clipped = sdf_grad * tf.expand_dims(clip_mask, -1)
+            sdf_no_clipped, sdf_grad_no_clipped = sdf_tools.utils_3d.compute_sdf_and_gradient(new_env['env'],
+                                                                                              new_env['res'],
+                                                                                              new_env['origin_point'])
+        sdf_no_clipped = tf.convert_to_tensor(sdf_no_clipped)
+        sdf_grad_no_clipped = tf.convert_to_tensor(sdf_grad_no_clipped)
+        clip_mask = tf.cast(sdf_no_clipped < self.barrier_cut_off, tf.float32)
+        sdf_grad_clipped = sdf_grad_no_clipped * tf.expand_dims(clip_mask, -1)
 
         # import matplotlib.pyplot as plt
         # plt.figure()
@@ -579,10 +578,14 @@ class AugmentationOptimization:
                 attract_mask = object_points_occupancy  # assumed to already be either 0.0 or 1.0
                 obj_point_indices_aug = batch_point_to_idx(obj_points_aug, new_env['res'],
                                                            new_env['origin_point'][None, None])
-                sdf_dist = tf.gather_nd(sdf_clipped, obj_point_indices_aug)
-                sdf_grad = tf.gather_nd(sdf_grad_clipped, obj_point_indices_aug)
-                attract_grad = sdf_grad * tf.expand_dims(attract_mask, -1) * self.attract_weight
-                repel_grad = -sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.repel_weight
+                oob = tf.logical_or(obj_point_indices_aug < 0,
+                                    obj_point_indices_aug > tf.convert_to_tensor(new_env['env'].shape, tf.int64)[
+                                        None, None])
+                oob = tf.reduce_any(oob, axis=-1)
+                sdf_dist = tf.gather_nd(sdf_no_clipped, obj_point_indices_aug)  # will be zero if index OOB
+                obj_sdf_grad = tf.gather_nd(sdf_grad_clipped, obj_point_indices_aug)  # will be zero if index OOB
+                attract_grad = obj_sdf_grad * tf.expand_dims(attract_mask, -1) * self.attract_weight
+                repel_grad = -obj_sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.repel_weight
                 attract_repel_dpoint = (attract_grad + repel_grad) * self.sdf_grad_scale  # [b,n,3]
 
                 # Compute the jacobian of the transformation
@@ -618,10 +621,13 @@ class AugmentationOptimization:
                     self.scenario.plot_points_rviz(attract_points_aug, label='attract_aug', color='g', scale=scale)
                     self.scenario.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=scale)
 
-                    attract_grad_b = -tf.gather(sdf_grad[b], attract_indices, axis=0) * 0.02
+                    attract_grad_b = -tf.gather(obj_sdf_grad[b], attract_indices, axis=0) * 0.02
                     repel_sdf_dist = tf.gather(sdf_dist[b], repel_indices, axis=0)
-                    repel_close_indices = tf.squeeze(tf.where(repel_sdf_dist < self.barrier_cut_off), axis=-1)
-                    repel_close_grad_b = tf.gather(sdf_grad[b], repel_close_indices, axis=0) * 0.02
+                    repel_oob = tf.gather(oob[b], repel_indices, axis=0)
+                    repel_sdf_grad = tf.gather(obj_sdf_grad[b], repel_indices, axis=0)
+                    repel_close = tf.logical_and(repel_sdf_dist < self.barrier_cut_off, tf.logical_not(repel_oob))
+                    repel_close_indices = tf.squeeze(tf.where(repel_close), axis=-1)
+                    repel_close_grad_b = tf.gather(repel_sdf_grad, repel_close_indices, axis=0) * 0.02
                     repel_close_points_aug = tf.gather(repel_points_aug, repel_close_indices)
                     self.scenario.delete_arrows_rviz(label='attract_sdf_grad')
                     self.scenario.delete_arrows_rviz(label='repel_sdf_grad')

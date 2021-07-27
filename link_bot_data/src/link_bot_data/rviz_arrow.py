@@ -37,9 +37,9 @@ def rviz_arrow(position: np.ndarray,
     arrow.ns = label
     arrow.id = idx
 
-    arrow.scale.x = kwargs.get('scale', 1.0) * 0.01
-    arrow.scale.y = kwargs.get('scale', 1.0) * 0.02
-    arrow.scale.z = 0
+    arrow.scale.x = kwargs.get('scale', 1.0) * 0.0025
+    arrow.scale.y = kwargs.get('scale', 1.0) * 0.004
+    arrow.scale.z = kwargs.get('scale', 1.0) * 0.006
 
     arrow.pose.orientation.w = 1
 
