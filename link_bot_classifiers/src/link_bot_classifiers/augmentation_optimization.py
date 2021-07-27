@@ -131,6 +131,7 @@ class BioIKSolver:
             if self.position_only:
                 points_b = [_position_tensor_to_point(left_target_position[b]),
                             _position_tensor_to_point(right_target_position[b])]
+
                 robot_state_b = self.j.compute_collision_free_point_ik(default_robot_state_b, points_b, self.group_name,
                                                                        self.tip_names,
                                                                        scene_msg_b)
@@ -182,14 +183,14 @@ class AugmentationOptimization:
         self.max_steps = 40
         self.gen = tf.random.Generator.from_seed(0)
         self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
-        self.step_size = 5.0
+        self.step_size = 2.0
         self.opt = tf.keras.optimizers.SGD(self.step_size)
         self.step_size_threshold = 0.001  # stopping criteria, how far the env moved (meters)
         self.barrier_cut_off = 0.04  # stop repelling loss after this (squared) distance (meters)
         self.barrier_epsilon = 0.01
         self.grad_clip = 0.25  # max dist step the env aug update can take
         self.attract_weight = 1.0
-        self.repel_weight = 0.1
+        self.repel_weight = 1.0
         self.invariance_weight = 0.1
         self.sdf_grad_scale = 0.02
         self.ground_penetration_weight = 1.0
@@ -531,17 +532,10 @@ class AugmentationOptimization:
                                                                                               new_env['origin_point'])
         sdf_no_clipped = tf.convert_to_tensor(sdf_no_clipped)
         sdf_grad_no_clipped = tf.convert_to_tensor(sdf_grad_no_clipped)
-        clip_mask = tf.cast(sdf_no_clipped < self.barrier_cut_off, tf.float32)
-        sdf_grad_clipped = sdf_grad_no_clipped * tf.expand_dims(clip_mask, -1)
-
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.imshow(sdf_grad_clipped[:,:,10])
-        # import numpy as np
-        # plt.figure()
-        # xx, yy = np.meshgrid(range(sdf.shape[1]), range(sdf.shape[0]))
-        # plt.quiver(xx, yy, sdf_grad[:, :, 10, 0], sdf_grad[:, :, 10, 1])
-        # plt.axis("equal")
+        repel_grad_mask = tf.cast(sdf_no_clipped < self.barrier_cut_off, tf.float32)
+        repel_sdf_grad = sdf_grad_no_clipped * tf.expand_dims(repel_grad_mask, -1)
+        attract_grad_mask = tf.cast(sdf_no_clipped > 0, tf.float32)
+        attract_sdf_grad = sdf_grad_no_clipped * tf.expand_dims(attract_grad_mask, -1)
 
         # optimization loop
         obj_transforms = tf.Variable(initial_transformation_params)  # [x,y,z,roll,pitch,yaw]
@@ -564,7 +558,6 @@ class AugmentationOptimization:
 
                     bbox_loss = self.bbox_loss(obj_points_aug)
 
-                    print("DEBUGGING: comment back in the other losses!!!")
                     losses = [
                         bbox_loss,
                         invariance_loss,
@@ -583,21 +576,20 @@ class AugmentationOptimization:
                                         None, None])
                 oob = tf.reduce_any(oob, axis=-1)
                 sdf_dist = tf.gather_nd(sdf_no_clipped, obj_point_indices_aug)  # will be zero if index OOB
-                obj_sdf_grad = tf.gather_nd(sdf_grad_clipped, obj_point_indices_aug)  # will be zero if index OOB
-                attract_grad = obj_sdf_grad * tf.expand_dims(attract_mask, -1) * self.attract_weight
-                repel_grad = -obj_sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.repel_weight
+                obj_attract_sdf_grad = tf.gather_nd(attract_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
+                obj_repel_sdf_grad = tf.gather_nd(repel_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
+                attract_grad = obj_attract_sdf_grad * tf.expand_dims(attract_mask, -1) * self.attract_weight
+                repel_grad = -obj_repel_sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.repel_weight
                 attract_repel_dpoint = (attract_grad + repel_grad) * self.sdf_grad_scale  # [b,n,3]
 
                 # Compute the jacobian of the transformation
-                # from time import perf_counter
-                # t0 = perf_counter()
                 jacobian = transformation_jacobian(obj_transforms)[:, None]  # [b,1,6,4,4]
                 to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
                 obj_points_local_frame = obj_points - to_local_frame  # [b,n,3]
                 obj_points_local_frame_h = homogeneous(obj_points_local_frame)[:, :, None, :, None]  # [b,1,4,1]
                 dpoint_dvariables_h = tf.squeeze(tf.matmul(jacobian, obj_points_local_frame_h))  # [b,6]
                 dpoint_dvariables = tf.transpose(dpoint_dvariables_h[:, :, :, :3], [0, 1, 3, 2])  # [b,3,6]
-                # print(perf_counter() - t0)
+                # chain rule
                 attract_repel_sdf_grad = tf.einsum('bni,bnij->bnj', attract_repel_dpoint, dpoint_dvariables)  # [b,n,6]
                 attract_repel_sdf_grad = tf.reduce_mean(attract_repel_sdf_grad, axis=1)
 
@@ -621,13 +613,13 @@ class AugmentationOptimization:
                     self.scenario.plot_points_rviz(attract_points_aug, label='attract_aug', color='g', scale=scale)
                     self.scenario.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=scale)
 
-                    attract_grad_b = -tf.gather(obj_sdf_grad[b], attract_indices, axis=0) * 0.02
+                    attract_grad_b = -tf.gather(obj_attract_sdf_grad[b], attract_indices, axis=0) * 0.02
                     repel_sdf_dist = tf.gather(sdf_dist[b], repel_indices, axis=0)
                     repel_oob = tf.gather(oob[b], repel_indices, axis=0)
-                    repel_sdf_grad = tf.gather(obj_sdf_grad[b], repel_indices, axis=0)
+                    repel_sdf_grad_b = tf.gather(obj_repel_sdf_grad[b], repel_indices, axis=0)
                     repel_close = tf.logical_and(repel_sdf_dist < self.barrier_cut_off, tf.logical_not(repel_oob))
                     repel_close_indices = tf.squeeze(tf.where(repel_close), axis=-1)
-                    repel_close_grad_b = tf.gather(repel_sdf_grad, repel_close_indices, axis=0) * 0.02
+                    repel_close_grad_b = tf.gather(repel_sdf_grad_b, repel_close_indices, axis=0) * 0.02
                     repel_close_points_aug = tf.gather(repel_points_aug, repel_close_indices)
                     self.scenario.delete_arrows_rviz(label='attract_sdf_grad')
                     self.scenario.delete_arrows_rviz(label='repel_sdf_grad')
