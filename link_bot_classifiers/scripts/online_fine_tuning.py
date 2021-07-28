@@ -72,9 +72,12 @@ def main():
     fine_tune_output = _get_param('fine_tune_output', True)
     learning_rate = _get_param('learning_rate', 1e-4)
 
-    fine_tune_classifier(train_dataset_dirs=args.dataset_dirs,
+    checkpoint_dir = pathlib.Path(f"/media/shared/cl_trials/val_floating_boxes{args.fb}")
+    checkpoint = list(checkpoint_dir.iterdir())[-1] / 'best_checkpoint'
+
+    fine_tune_classifier(train_dataset_dirs=dataset_dirs,
                          val_dataset_dirs=val_dataset_dirs,
-                         checkpoint=args.checkpoint,
+                         checkpoint=checkpoint,
                          log=f"{args.log}_fb2car_online_{'aug' if args.aug else ''}-{args.fb}-{args.seed}",
                          batch_size=args.batch_size,
                          early_stopping=True,

@@ -29,6 +29,7 @@ def main():
     parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int)
     parser.add_argument('--skip', type=int)
+    parser.add_argument('--save-inputs', action='store_true')
     parser.add_argument('--val-take', type=int)
     parser.add_argument('--threshold', type=float, default=None)
 
@@ -66,7 +67,7 @@ def main():
     fine_tune_classifier(train_dataset_dirs=dataset_dirs,
                          val_dataset_dirs=val_dataset_dirs,
                          checkpoint=checkpoint,
-                         log=f"{args.log}_fb2car_offline_{'aug' if args.aug else ''}-{args.fb}-{args.seed}",
+                         log=f"{args.log}_fb2car_offline_aug-{args.fb}-{args.seed}",
                          batch_size=args.batch_size,
                          early_stopping=True,
                          epochs=args.epochs,
@@ -85,6 +86,7 @@ def main():
                          augmentation_config_dir=pretransfer_config_dir,
                          profile=args.profile,
                          val_take=args.val_take,
+                         save_inputs=args.save_inputs,
                          )
 
 

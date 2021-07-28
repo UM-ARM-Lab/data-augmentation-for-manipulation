@@ -1,3 +1,4 @@
+import pickle
 from copy import copy
 from typing import Dict
 
@@ -55,6 +56,8 @@ class NNClassifier(MyKerasModel):
         self.points_state_keys.remove("joint_positions")  # FIXME: feels hacky
         self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.action_keys = self.hparams['action_keys']
+        self.save_inputs_path = None
+        self.save_idx = 0
         self.conv_layers = []
         self.pool_layers = []
         for n_filters, kernel_size in self.hparams['conv_filters']:
@@ -149,6 +152,18 @@ class NNClassifier(MyKerasModel):
         if debug_input() and training:
             assert not rospy.get_param("use_sim_time", False)
             self.debug_viz_inputs(inputs, local_origin_point, time)
+
+        if training and self.save_inputs_path is not None:
+            self.save_inputs_path.mkdir(exist_ok=True)
+            save_filename = self.save_inputs_path / f'example_{self.save_idx}.pkl'
+            self.save_idx += 1
+            with save_filename.open("wb") as file:
+                inputs_save = {
+                    'rope':            inputs[add_predicted('rope')],
+                    'joint_positions': inputs[add_predicted('joint_positions')],
+                    'env':             inputs['env'],
+                }
+                pickle.dump(inputs_save, file)
 
         return inputs
 

@@ -38,6 +38,7 @@ def fine_tune_classifier(train_dataset_dirs: List[pathlib.Path],
                          profile: Optional[tuple] = None,
                          take: Optional[int] = None,
                          skip: Optional[int] = None,
+                         save_inputs: bool = False,
                          seed: int = 0,
                          **kwargs):
     train_dataset_loader = get_classifier_dataset_loader(train_dataset_dirs, load_true_states=True, verbose=verbose)
@@ -70,6 +71,7 @@ def fine_tune_classifier(train_dataset_dirs: List[pathlib.Path],
                                               take=take,
                                               skip=skip,
                                               seed=seed,
+                                              save_inputs=save_inputs,
                                               **kwargs)
 
 
@@ -95,6 +97,7 @@ def fine_tune_classifier_from_datasets(train_dataset,
                                        take: Optional[int] = None,
                                        skip: Optional[int] = None,
                                        seed: Optional[int] = None,
+                                       save_inputs: bool = False,
                                        **kwargs):
     _, model_hparams = load_trial(trial_path=checkpoint.parent.absolute())
     model_hparams['datasets'].extend(paths_to_json(train_dataset_dirs))
@@ -137,6 +140,9 @@ def fine_tune_classifier_from_datasets(train_dataset,
                                                 train_take=take,
                                                 val_take=val_take)
     train_dataset = train_dataset.skip(skip)  # useful for debugging specific batches
+
+    if save_inputs:
+        model.save_inputs_path = trial_path / 'saved_inputs'
 
     if augmentation_config_dir is not None:
         train_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_dataset, batch_size)
