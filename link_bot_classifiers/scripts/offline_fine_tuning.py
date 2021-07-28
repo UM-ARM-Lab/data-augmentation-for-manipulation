@@ -23,7 +23,6 @@ def main():
     parser.add_argument('log')
     parser.add_argument('fb', type=int)
     parser.add_argument('seed', type=int)
-    parser.add_argument('--aug', action='store_true')
     parser.add_argument('--batch-size', type=int, default=24)
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--epochs', type=int, default=10)
@@ -38,17 +37,9 @@ def main():
     dataset_dirs = [pathlib.Path("/media/shared/classifier_data/val_floating_boxes_1622170084+fix-op/")]
     val_dataset_dirs = [pathlib.Path("/media/shared/classifier_data/val_car_feasible_1614981888+op2/")]
 
-    if args.aug:
-        params = pathlib.Path("hparams/aug.hjson")
-        pretransfer_config_dir = pathlib.Path("/media/shared/pretransfer_initial_configs/car")
-    else:
-        params = None
-        pretransfer_config_dir = None
-
-    if params is not None:
-        model_hparams_update = load_hjson(params)
-    else:
-        model_hparams_update = None
+    params = pathlib.Path("hparams/aug.hjson")
+    pretransfer_config_dir = pathlib.Path("/media/shared/pretransfer_initial_configs/car")
+    model_hparams_update = load_hjson(params)
 
     if args.debug:
         validate_first = False
