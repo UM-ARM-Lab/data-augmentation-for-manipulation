@@ -21,8 +21,8 @@ def main():
     np.set_printoptions(linewidth=250, precision=4, suppress=True)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('fb', type=int)
     parser.add_argument('log')
+    parser.add_argument('fb', type=int)
     parser.add_argument('seed', type=int)
     parser.add_argument('--aug', action='store_true')
     parser.add_argument('--batch-size', type=int, default=24)
