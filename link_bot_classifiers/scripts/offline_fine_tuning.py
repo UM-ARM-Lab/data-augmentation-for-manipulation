@@ -75,7 +75,7 @@ def main():
     fine_tune_classifier(train_dataset_dirs=dataset_dirs,
                          val_dataset_dirs=val_dataset_dirs,
                          checkpoint=checkpoint,
-                         log=f'{args.log}_fb2car_offline_{args.fb}-{args.seed}',
+                         log=f"{args.log}_fb2car_offline_{'aug' if args.aug else ''}-{args.fb}-{args.seed}",
                          batch_size=args.batch_size,
                          early_stopping=True,
                          epochs=args.epochs,
