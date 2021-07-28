@@ -15,6 +15,7 @@ from link_bot_classifiers.local_env_helper import LocalEnvHelper
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
+from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import environment_to_vg_msg, \
@@ -134,7 +135,7 @@ class NNClassifier(MyKerasModel):
                 self.debug.send_position_transform(origin_point_b, 'origin_point')
                 # stepper.step()  # INPUT
 
-            # self.debug_viz_inputs(inputs, None, time)
+            self.debug_viz_inputs(inputs, None, time)
 
         if training and self.aug.do_augmentation():
             # returns a copy, does NOT modify inputs in-place
@@ -206,17 +207,17 @@ class NNClassifier(MyKerasModel):
     def create_metrics(self):
         super().create_metrics()
         return {
-            'accuracy':              BinaryAccuracy(),
-            'precision':             Precision(),
-            'recall':                Recall(),
-            'accuracy on positives': BinaryAccuracyOnPositives(),
-            'accuracy on negatives': BinaryAccuracyOnNegatives(),
-            'loss':                  LossMetric(),
-            'fp/mistakes':           FalsePositiveMistakeRate(),
-            'fn/mistakes':           FalseNegativeMistakeRate(),
-            'fp/total':              FalsePositiveOverallRate(),
-            'fn/total':              FalseNegativeOverallRate(),
-            'aug_validity_rate':     BinaryRate(),
+            'accuracy':                BinaryAccuracy(),
+            'precision':               Precision(),
+            'recall':                  Recall(),
+            'accuracy on positives':   BinaryAccuracyOnPositives(),
+            'accuracy on negatives':   BinaryAccuracyOnNegatives(),
+            'loss':                    LossMetric(),
+            'fp/mistakes':             FalsePositiveMistakeRate(),
+            'fn/mistakes':             FalseNegativeMistakeRate(),
+            'fp/total':                FalsePositiveOverallRate(),
+            'fn/total':                FalseNegativeOverallRate(),
+            'aug_validity_rate':       BinaryRate(),
             'local_env_aug_fix_delta': Mean(),
         }
 
@@ -327,15 +328,10 @@ class NNClassifier(MyKerasModel):
             anim.step()
 
     def delete_state_action_markers(self, label):
-        def _make_delete_marker(ns):
-            delete_marker = Marker()
-            delete_marker.action = Marker.DELETEALL
-            delete_marker.ns = ns
-            return delete_marker
-
-        state_delete_msg = MarkerArray(markers=[_make_delete_marker(label + '_l'),
-                                                _make_delete_marker(label + 'aug_r'),
-                                                _make_delete_marker(label + 'aug_rope')])
+        state_delete_msg = MarkerArray(markers=[make_delete_marker(ns=label + '_l'),
+                                                make_delete_marker(ns=label + 'aug_r'),
+                                                make_delete_marker(ns=label + 'aug_rope')])
         self.scenario.state_viz_pub.publish(state_delete_msg)
-        action_delete_msg = MarkerArray(markers=[_make_delete_marker(label)])
+        action_delete_msg = MarkerArray(markers=[make_delete_marker(ns=label)])
         self.scenario.action_viz_pub.publish(action_delete_msg)
+        self.scenario.arrows_pub.publish(make_delete_markerarray())
