@@ -134,7 +134,7 @@ class NNClassifier(MyKerasModel):
                 self.debug.send_position_transform(origin_point_b, 'origin_point')
                 # stepper.step()  # INPUT
 
-            self.debug_viz_inputs(inputs, None, time)
+            # self.debug_viz_inputs(inputs, None, time)
 
         if training and self.aug.do_augmentation():
             # returns a copy, does NOT modify inputs in-place

@@ -357,6 +357,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
     def apply_object_augmentation_no_ik(self,
                                         m,
+                                        to_local_frame,
                                         inputs: Dict,
                                         batch_size,
                                         time,
@@ -371,24 +372,28 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
         right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
+        def _transform(m, points, _to_local_frame):
+            points_local_frame = points - _to_local_frame
+            points_local_frame_aug = transform_points_3d(m, points_local_frame)
+            return points_local_frame_aug + _to_local_frame
+
         # m is expanded to broadcast across batch & num_points dimensions
-        rope_points_aug = transform_points_3d(m[:, None, None], rope_points)
-        left_gripper_points_aug = transform_points_3d(m[:, None, None], left_gripper_points)
-        right_gripper_points_aug = transform_points_3d(m[:, None, None], right_gripper_points)
+        rope_points_aug = _transform(m[:, None, None], rope_points, to_local_frame[:, None])
+        left_gripper_points_aug = _transform(m[:, None, None], left_gripper_points, to_local_frame[:, None])
+        right_gripper_points_aug = _transform(m[:, None, None], right_gripper_points, to_local_frame[:, None])
 
         # compute the new action
         left_gripper_position = inputs['left_gripper_position']
         right_gripper_position = inputs['right_gripper_position']
         # m is expanded to broadcast across batch dimensions
-        left_gripper_position_aug = transform_points_3d(m[:, None], left_gripper_position)
-        right_gripper_position_aug = transform_points_3d(m[:, None], right_gripper_position)
+        left_gripper_position_aug = _transform(m[:, None], left_gripper_position, to_local_frame)
+        right_gripper_position_aug = _transform(m[:, None], right_gripper_position, to_local_frame)
 
         rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
         left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
         right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
 
-        object_aug_valid = tf.ones([batch_size],
-                                   dtype=tf.float32)  # NOTE: there could be other constraints we need to check
+        object_aug_valid = tf.ones([batch_size], dtype=tf.float32)  # NOTE: no constraints here currently
 
         # Now that we've updated the state/action in inputs, compute the local origin point
         state_aug_0 = {

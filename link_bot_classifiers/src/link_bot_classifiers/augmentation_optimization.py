@@ -472,8 +472,9 @@ class AugmentationOptimization:
                                    best_transformation_params]
         return tf.cast(transformation_matrices, tf.float32)
 
-    def apply_object_augmentation_no_ik(self, transformation_matrices, inputs, batch_size, time):
+    def apply_object_augmentation_no_ik(self, transformation_matrices, to_local_frame, inputs, batch_size, time):
         return self.scenario.apply_object_augmentation_no_ik(transformation_matrices,
+                                                             to_local_frame,
                                                              inputs,
                                                              batch_size,
                                                              time,
@@ -576,7 +577,8 @@ class AugmentationOptimization:
                                         None, None])
                 oob = tf.reduce_any(oob, axis=-1)
                 sdf_dist = tf.gather_nd(sdf_no_clipped, obj_point_indices_aug)  # will be zero if index OOB
-                obj_attract_sdf_grad = tf.gather_nd(attract_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
+                obj_attract_sdf_grad = tf.gather_nd(attract_sdf_grad,
+                                                    obj_point_indices_aug)  # will be zero if index OOB
                 obj_repel_sdf_grad = tf.gather_nd(repel_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
                 attract_grad = obj_attract_sdf_grad * tf.expand_dims(attract_mask, -1) * self.attract_weight
                 repel_grad = -obj_repel_sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.repel_weight
@@ -629,9 +631,6 @@ class AugmentationOptimization:
                                                    color='r', scale=0.5)
                     # stepper.step()
 
-            clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
-            self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
-
             # check termination criteria
             squared_res_expanded = tf.square(res)[:, None]
             attract_satisfied = tf.cast(sdf_dist < squared_res_expanded, tf.float32)
@@ -646,9 +645,13 @@ class AugmentationOptimization:
             if can_terminate:
                 break
 
+            clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
+            self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
+
         # this updates other representations of state/action that are fed into the network
         _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
             transformation_matrices,
+            to_local_frame,
             inputs,
             batch_size,
             time)
