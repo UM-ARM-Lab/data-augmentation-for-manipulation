@@ -21,8 +21,8 @@ def main():
     np.set_printoptions(linewidth=250, precision=4, suppress=True)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
-    parser.add_argument('checkpoint', type=pathlib.Path)
+    parser.add_argument('--dataset-dirs', type=pathlib.Path, default=pathlib.Path("/media/shared/classifier_data/val_car_feasible_1614981888+op2/"))
+    parser.add_argument('checkpoint', type=pathlib.Path, default=pathlib.Path(""))
     parser.add_argument('log')
     parser.add_argument('--val-dataset-dir', type=pathlib.Path)
     parser.add_argument('--params', '-p', type=pathlib.Path, help='an hjson file to override the model hparams')
@@ -73,7 +73,7 @@ def main():
     fine_tune_classifier(train_dataset_dirs=args.dataset_dirs,
                          val_dataset_dirs=val_dataset_dirs,
                          checkpoint=args.checkpoint,
-                         log=args.log,
+                         log=args.log + f'-{args.seed}',
                          batch_size=args.batch_size,
                          early_stopping=True,
                          epochs=args.epochs,

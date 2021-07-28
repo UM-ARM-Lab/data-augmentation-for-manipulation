@@ -20,12 +20,10 @@ def main():
     np.set_printoptions(linewidth=250, precision=4, suppress=True)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
-    parser.add_argument('checkpoint', type=pathlib.Path)
     parser.add_argument('log')
-    parser.add_argument('val_dataset_dir', type=pathlib.Path)
-    parser.add_argument('--params', '-p', type=pathlib.Path, help='an hjson file to override the model hparams')
-    parser.add_argument('--pretransfer-config-dir', type=pathlib.Path, help='dir of pkl files with state/env')
+    parser.add_argument('fb', type=int)
+    parser.add_argument('seed', type=int)
+    parser.add_argument('--aug', action='store_true')
     parser.add_argument('--batch-size', type=int, default=24)
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--epochs', type=int, default=10)
@@ -33,20 +31,24 @@ def main():
     parser.add_argument('--take', type=int)
     parser.add_argument('--skip', type=int)
     parser.add_argument('--val-take', type=int)
-    parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--threshold', type=float, default=None)
 
     args = parser.parse_args()
 
-    if args.params is not None:
-        model_hparams_update = load_hjson(args.params)
+    dataset_dirs = [pathlib.Path("/media/shared/classifier_data/val_floating_boxes_1622170084+fix-op/")]
+    val_dataset_dirs = [pathlib.Path("/media/shared/classifier_data/val_car_feasible_1614981888+op2/")]
+
+    if args.aug:
+        params = pathlib.Path("hparams/aug.hjson")
+        pretransfer_config_dir = pathlib.Path("/media/shared/pretransfer_initial_configs/car")
+    else:
+        params = None
+        pretransfer_config_dir = None
+
+    if params is not None:
+        model_hparams_update = load_hjson(params)
     else:
         model_hparams_update = None
-
-    if args.val_dataset_dir is None:
-        val_dataset_dirs = None
-    else:
-        val_dataset_dirs = [args.val_dataset_dir]
 
     if args.debug:
         validate_first = False
@@ -67,10 +69,13 @@ def main():
     fine_tune_output = _get_param('fine_tune_output', True)
     learning_rate = _get_param('learning_rate', 1e-4)
 
-    fine_tune_classifier(train_dataset_dirs=args.dataset_dirs,
+    checkpoint_dir = pathlib.Path(f"/media/shared/cl_trials/val_floating_boxes{args.fb}")
+    checkpoint = list(checkpoint_dir.iterdir())[-1] / 'best_checkpoint'
+
+    fine_tune_classifier(train_dataset_dirs=dataset_dirs,
                          val_dataset_dirs=val_dataset_dirs,
-                         checkpoint=args.checkpoint,
-                         log=args.log,
+                         checkpoint=checkpoint,
+                         log=f'{args.log}_fb2car_offline_{args.fb}-{args.seed}',
                          batch_size=args.batch_size,
                          early_stopping=True,
                          epochs=args.epochs,
@@ -86,7 +91,7 @@ def main():
                          fine_tune_lstm=fine_tune_lstm,
                          fine_tune_dense=fine_tune_dense,
                          fine_tune_output=fine_tune_output,
-                         augmentation_config_dir=args.pretransfer_config_dir,
+                         augmentation_config_dir=pretransfer_config_dir,
                          profile=args.profile,
                          val_take=args.val_take,
                          )
