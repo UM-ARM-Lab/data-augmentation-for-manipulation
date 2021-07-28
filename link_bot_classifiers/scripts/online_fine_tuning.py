@@ -29,7 +29,7 @@ def main():
     parser.add_argument('--pretransfer-config-dir', type=pathlib.Path, help='dir of pkl files with state/env')
     parser.add_argument('--batch-size', type=int, default=24)
     parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int, default=100)
     parser.add_argument('--skip', type=int)
