@@ -22,6 +22,7 @@ from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import environment_to_vg_msg, \
     send_voxelgrid_tf_origin_point_res
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from link_bot_pycommon.serialization import dump_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper, RvizAnimationController
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
@@ -155,15 +156,16 @@ class NNClassifier(MyKerasModel):
 
         if training and self.save_inputs_path is not None:
             self.save_inputs_path.mkdir(exist_ok=True)
-            save_filename = self.save_inputs_path / f'example_{self.save_idx}.pkl'
-            self.save_idx += 1
-            with save_filename.open("wb") as file:
-                inputs_save = {
-                    'rope':            inputs[add_predicted('rope')],
-                    'joint_positions': inputs[add_predicted('joint_positions')],
-                    'env':             inputs['env'],
-                }
-                pickle.dump(inputs_save, file)
+            for b in range(batch_size):
+                save_filename = self.save_inputs_path / f'example_{self.save_idx}.pkl.gz'
+                with save_filename.open("wb") as file:
+                    self.save_idx += 1
+                    inputs_save = {
+                        'rope':            inputs[add_predicted('rope')][b],
+                        'joint_positions': inputs[add_predicted('joint_positions')][b],
+                        'env':             inputs['env'][b],
+                    }
+                    dump_gzipped_pickle(inputs_save, file)
 
         return inputs
 
