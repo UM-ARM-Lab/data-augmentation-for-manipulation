@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from operator import ior
+import functools
 import argparse
 
 import scipy.stats
@@ -8,9 +10,11 @@ from dynamo_pandas import get_df
 from analysis.proxy_datasets import proxy_datasets_dict
 from link_bot_data import dynamodb_utils
 from link_bot_pycommon.pandas_utils import df_where
+import pandas as pd
 
 
 def main():
+    pd.options.display.max_colwidth = 100
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug')
     args = parser.parse_args()
@@ -18,6 +22,9 @@ def main():
     df = get_df(table=dynamodb_utils.classifier_table(args.debug))
 
     df = filter_df_for_experiment(df)
+
+    print("Classifiers:")
+    print(df['classifier'].sort_values()[::3])
 
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='ras')
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='ncs')
@@ -78,14 +85,16 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
 def filter_df_for_experiment(df):
     df = df.loc[df['mode'] == 'all']
     offline_ft_dataset = '/media/shared/classifier_data/val_floating_boxes_1622170084+fix-op'
-    v3_car_aug = (df['classifier'].str.contains('fb2car_v3_drop') & df['fine_tuning_take'].isna() & (
+    v4_car_aug = (df['classifier'].str.contains('v4_fb2car_offline') & df['fine_tuning_take'].isna() & (
             df['fine_tuning_dataset_dirs'] == offline_ft_dataset))
-    no_aug = (df['classifier'].str.contains('val_floating_boxes1') |
-              df['classifier'].str.contains('val_floating_boxes2') |
-              df['classifier'].str.contains('val_floating_boxes3') |
-              df['classifier'].str.contains('val_floating_boxes4'))
+    no_aug = functools.reduce(ior, [
+        df['classifier'].str.contains('val_floating_boxes1'),
+        df['classifier'].str.contains('val_floating_boxes2'),
+        # df['classifier'].str.contains('val_floating_boxes3') |
+        # df['classifier'].str.contains('val_floating_boxes4')
+    ])
     car_baseline = df['classifier'].str.contains('val_car_new*')
-    df = df.loc[v3_car_aug | no_aug | car_baseline]
+    df = df.loc[v4_car_aug | no_aug | car_baseline]
     return df
 
 
