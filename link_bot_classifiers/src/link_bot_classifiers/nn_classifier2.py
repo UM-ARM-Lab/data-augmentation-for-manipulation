@@ -147,13 +147,6 @@ class NNClassifier(MyKerasModel):
         else:
             local_env, local_origin_point = self.aug.get_local_env(inputs, batch_size)
 
-        voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
-        inputs['voxel_grids'] = voxel_grids
-
-        if debug_input() and training:
-            assert not rospy.get_param("use_sim_time", False)
-            self.debug_viz_inputs(inputs, local_origin_point, time)
-
         if training and self.save_inputs_path is not None:
             self.save_inputs_path.mkdir(exist_ok=True)
             for b in range(batch_size):
@@ -163,9 +156,18 @@ class NNClassifier(MyKerasModel):
                     inputs_save = {
                         'rope':            inputs[add_predicted('rope')][b],
                         'joint_positions': inputs[add_predicted('joint_positions')][b],
-                        'env':             inputs['env'][b],
+                        'env':             local_env[b],
+                        'res':             inputs['res'][b],
+                        'origin_point':    local_origin_point[b],
                     }
                     dump_gzipped_pickle(inputs_save, file)
+
+        voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
+        inputs['voxel_grids'] = voxel_grids
+
+        if debug_input() and training:
+            assert not rospy.get_param("use_sim_time", False)
+            self.debug_viz_inputs(inputs, local_origin_point, time)
 
         return inputs
 

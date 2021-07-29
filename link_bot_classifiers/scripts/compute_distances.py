@@ -8,14 +8,20 @@ from typing import Dict
 from tqdm import tqdm
 
 from link_bot_pycommon.grid_utils import occupied_voxels_to_points
+from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from tensorflow_graphics.nn.loss.chamfer_distance import evaluate
+
+from moonshine.gpu_config import limit_gpu_mem
+
+limit_gpu_mem(None)
 
 
 def cd_env_dist(aug_env, data_env):
     # chamfer distances
-    aug_points = occupied_voxels_to_points(aug_env, 0.02, [0, 0, 0])
-    data_points = occupied_voxels_to_points(data_env, 0.02, [0, 0, 0])
+    subsample = 10
+    aug_points = occupied_voxels_to_points(aug_env, 0.02, [0, 0, 0])[::subsample]
+    data_points = occupied_voxels_to_points(data_env, 0.02, [0, 0, 0])[::subsample]
     chamfer_distance = evaluate(aug_points, data_points)
     return chamfer_distance
 
@@ -51,9 +57,9 @@ def compute_distance(aug_example: Dict, data_example: Dict):
     weights = tf.constant([
         1.0,
         1.0,
-        1.0,
-        1.0,
-        1.0,
+        0.1,
+        0.1,
+        10.0,
     ])
     distances = tf.stack([
         rope_before_dist,
@@ -62,26 +68,38 @@ def compute_distance(aug_example: Dict, data_example: Dict):
         joint_positions_after_dist,
         env_dist,
     ], axis=0)
-    return tf.tensordot(weights, distances, axes=1)
+    combined_distance = tf.tensordot(weights, distances, axes=1)
+    return combined_distance
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('augdir', type=pathlib.Path)
     parser.add_argument('datadir', type=pathlib.Path)
+    parser.add_argument('--regenerate', action='store_true')
 
     args = parser.parse_args()
 
     augfiles = list(args.augdir.glob("*.pkl.gz"))
     datafiles = list(args.datadir.glob("*.pkl.gz"))
 
-    distances = np.empty([len(augfiles), len(datafiles)])
+    # TODO: batch on GPU
+    logfilename = pathlib.Path('results') / f"{args.augdir.parent.name}-{args.datadir.parent.name}.hjson"
+    jc = JobChunker(logfilename)
+
     for i, augfile in enumerate(tqdm(augfiles)):
         for j, datafile in enumerate(tqdm(datafiles, leave=False, position=1)):
-            aug_example = load_gzipped_pickle(augfile)
-            data_example = load_gzipped_pickle(datafile)
-            d = compute_distance(aug_example, data_example)
-            distances[i][j] = d
+
+            key = f"{i}-{j}"
+            d = jc.get_result(key)
+            if d is None or args.regenerate:
+                try:
+                    aug_example = load_gzipped_pickle(augfile)
+                    data_example = load_gzipped_pickle(datafile)
+                    d = compute_distance(aug_example, data_example)
+                    jc.store_result(key, d)
+                except Exception:
+                    print("Error on ", augfile.as_posix(), datafile.as_posix())
 
 
 if __name__ == '__main__':

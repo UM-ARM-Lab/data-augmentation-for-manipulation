@@ -98,12 +98,10 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.send_occupancy_tf(environment, frame)
         self.tf.send_transform(environment['origin_point'], [0, 0, 0, 1], 'world', child='origin_point')
 
-        # vg_points = occupied_voxels_to_points(environment['env'], environment['res'], environment['origin_point'])
-        # self.plot_points_rviz(vg_points, label="debugging_vg", frame_id='world', scale=0.002, color='white')
-
-        bbox_msg = extent_to_bbox(environment['extent'])
-        bbox_msg.header.frame_id = 'world'
-        self.env_bbox_pub.publish(bbox_msg)
+        if 'extent' in environment:
+            bbox_msg = extent_to_bbox(environment['extent'])
+            bbox_msg.header.frame_id = 'world'
+            self.env_bbox_pub.publish(bbox_msg)
 
     def send_occupancy_tf(self, environment: Dict, frame):
         grid_utils.send_voxelgrid_tf_origin_point_res(self.tf.tf_broadcaster,

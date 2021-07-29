@@ -219,7 +219,7 @@ def eval_main(dataset_dirs: pathlib.Path,
     return val_metrics
 
 
-def eval_n_main(dataset_dir: pathlib.Path,
+def eval_n_main(dataset_dirs: List[pathlib.Path],
                 checkpoints: List[pathlib.Path],
                 mode: str,
                 batch_size: int,
@@ -229,46 +229,49 @@ def eval_n_main(dataset_dir: pathlib.Path,
                 balance: bool = False,
                 scenario: Optional[ScenarioWithVisualization] = None,
                 **kwargs):
-    dataset_loader, dataset = setup_eval_dataset(balance, [dataset_dir], mode, scenario, take, threshold,
-                                                 use_gt_rope, batch_size)
+    for dataset_dir in dataset_dirs:
+        dataset_loader, dataset = setup_eval_dataset(scenario=scenario, dataset_dirs=[dataset_dir], mode=mode,
+                                                     balance=balance, take=take, threshold=threshold,
+                                                     use_gt_rope=use_gt_rope, batch_size=batch_size)
 
-    metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives']
-    all_metrics_to_print = []
-    for checkpoint in checkpoints:
-        trial_path = checkpoint.parent.absolute()
-        _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
-        model_class = link_bot_classifiers.get_model.get_model(params['model_class'])
+        metric_keys_to_print = ['accuracy', 'precision', 'recall', 'accuracy on negatives']
+        all_metrics_to_print = []
+        for checkpoint in checkpoints:
+            trial_path = checkpoint.parent.absolute()
+            _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
+            model_class = link_bot_classifiers.get_model.get_model(params['model_class'])
 
-        model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario(), verbose=-1)
-        # This call to model runner restores the model
-        runner = ModelRunner(model=model,
-                             training=False,
-                             params=params,
-                             checkpoint=checkpoint,
-                             trial_path=trial_path,
-                             key_metric=AccuracyCheckpointMetric,
-                             batch_metadata=dataset_loader.batch_metadata,
-                             verbose=-1)
+            model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario(),
+                                verbose=-1)
+            # This call to model runner restores the model
+            runner = ModelRunner(model=model,
+                                 training=False,
+                                 params=params,
+                                 checkpoint=checkpoint,
+                                 trial_path=trial_path,
+                                 key_metric=AccuracyCheckpointMetric,
+                                 batch_metadata=dataset_loader.batch_metadata,
+                                 verbose=-1)
 
-        val_metrics = model.create_metrics()
-        runner.val_epoch(dataset, val_metrics)
-        metrics_to_print = [f"{val_metrics[k].result().numpy().squeeze():.4f}" for k in metric_keys_to_print]
-        all_metrics_to_print.append(metrics_to_print)
+            val_metrics = model.create_metrics()
+            runner.val_epoch(dataset, val_metrics)
+            metrics_to_print = [f"{val_metrics[k].result().numpy().squeeze():.4f}" for k in metric_keys_to_print]
+            all_metrics_to_print.append(metrics_to_print)
 
-        put_eval_in_database(val_metrics=val_metrics,
-                             balance=balance,
-                             batch_size=batch_size,
-                             checkpoint=checkpoint,
-                             dataset_dirs=[dataset_dir],
-                             mode=mode,
-                             model=model,
-                             take=take,
-                             threshold=threshold,
-                             use_gt_rope=use_gt_rope,
-                             kwargs=kwargs)
+            put_eval_in_database(val_metrics=val_metrics,
+                                 balance=balance,
+                                 batch_size=batch_size,
+                                 checkpoint=checkpoint,
+                                 dataset_dirs=[dataset_dir],
+                                 mode=mode,
+                                 model=model,
+                                 take=take,
+                                 threshold=threshold,
+                                 use_gt_rope=use_gt_rope,
+                                 kwargs=kwargs)
 
-    for metrics_to_print in all_metrics_to_print:
-        print("\t".join(metrics_to_print))
+        for metrics_to_print in all_metrics_to_print:
+            print("\t".join(metrics_to_print))
 
 
 def eval_setup(balance,
@@ -285,8 +288,9 @@ def eval_setup(balance,
     _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
     model_class = link_bot_classifiers.get_model.get_model(params['model_class'])
 
-    dataset_loader, dataset = setup_eval_dataset(balance, dataset_dirs, mode, scenario, take, threshold, use_gt_rope,
-                                                 batch_size)
+    dataset_loader, dataset = setup_eval_dataset(scenario=scenario, dataset_dirs=dataset_dirs, mode=mode,
+                                                 balance=balance, take=take, threshold=threshold,
+                                                 use_gt_rope=use_gt_rope, batch_size=batch_size)
 
     model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario())
     # This call to model runner restores the model
@@ -376,8 +380,9 @@ def compare_main(dataset_dirs: List[pathlib.Path],
                  balance: bool = True,
                  scenario: Optional[ScenarioWithVisualization] = None,
                  **kwargs):
-    dataset, tf_dataset = setup_eval_dataset(balance, dataset_dirs, mode, scenario, take, threshold, use_gt_rope,
-                                             batch_size)
+    dataset, tf_dataset = setup_eval_dataset(scenario=scenario, dataset_dirs=dataset_dirs, mode=mode, balance=balance,
+                                             take=take, threshold=threshold, use_gt_rope=use_gt_rope,
+                                             batch_size=batch_size)
 
     model1 = classifier_utils.load_generic_model(checkpoint1)
     model2 = classifier_utils.load_generic_model(checkpoint2)
@@ -412,7 +417,7 @@ def compare_main(dataset_dirs: List[pathlib.Path],
                 anim.play(inputs_b)
 
 
-def setup_eval_dataset(balance, dataset_dirs, mode, scenario, take, threshold, use_gt_rope, batch_size):
+def setup_eval_dataset(scenario, dataset_dirs, mode, balance, take, threshold, use_gt_rope, batch_size):
     dataset_loader = get_classifier_dataset_loader(dataset_dirs,
                                                    load_true_states=True,
                                                    use_gt_rope=use_gt_rope,
