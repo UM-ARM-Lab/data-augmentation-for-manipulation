@@ -136,6 +136,8 @@ def listify(x):
             return x
         elif isinstance(x, str):
             return x
+        elif isinstance(x, pathlib.Path):
+            return x.as_posix()
         else:
             raise NotImplementedError(type(x))
 

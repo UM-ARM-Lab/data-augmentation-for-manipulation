@@ -1,17 +1,16 @@
 #!/usr/bin/env python
-import tensorflow as tf
 import argparse
-import numpy as np
 import pathlib
 from typing import Dict
 
+import tensorflow as tf
+from tensorflow_graphics.nn.loss.chamfer_distance import evaluate
 from tqdm import tqdm
 
 from link_bot_pycommon.grid_utils import occupied_voxels_to_points
 from link_bot_pycommon.job_chunking import JobChunker
+from link_bot_pycommon.pycommon import paths_to_json
 from link_bot_pycommon.serialization import load_gzipped_pickle
-from tensorflow_graphics.nn.loss.chamfer_distance import evaluate
-
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(None)
@@ -77,15 +76,21 @@ def main():
     parser.add_argument('augdir', type=pathlib.Path)
     parser.add_argument('datadir', type=pathlib.Path)
     parser.add_argument('--regenerate', action='store_true')
+    parser.add_argument('--debug', action='store_true')
 
     args = parser.parse_args()
 
-    augfiles = list(args.augdir.glob("*.pkl.gz"))
-    datafiles = list(args.datadir.glob("*.pkl.gz"))
+    augfiles = list(args.augdir.glob("*.pkl.gz"))[:10]
+    datafiles = list(args.datadir.glob("*.pkl.gz"))[:10]
 
     # TODO: batch on GPU
-    logfilename = pathlib.Path('results') / f"{args.augdir.parent.name}-{args.datadir.parent.name}.hjson"
+    name = f"{args.augdir.parent.name}-{args.datadir.parent.name}.hjson"
+    if args.debug:
+        name = 'debug-' + name
+    logfilename = pathlib.Path('results') / name
     jc = JobChunker(logfilename)
+    jc.store_result('augfiles', paths_to_json(augfiles))
+    jc.store_result('datafiles', paths_to_json(datafiles))
 
     for i, augfile in enumerate(tqdm(augfiles)):
         for j, datafile in enumerate(tqdm(datafiles, leave=False, position=1)):
@@ -97,6 +102,7 @@ def main():
                     aug_example = load_gzipped_pickle(augfile)
                     data_example = load_gzipped_pickle(datafile)
                     d = compute_distance(aug_example, data_example)
+
                     jc.store_result(key, d)
                 except Exception:
                     print("Error on ", augfile.as_posix(), datafile.as_posix())

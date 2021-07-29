@@ -10,7 +10,10 @@ from scipy import stats
 import rospy
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_data.progressbar_widgets import mywidgets
+from link_bot_pycommon import grid_utils
+from link_bot_pycommon.grid_utils import environment_to_vg_msg
 from link_bot_pycommon.pycommon import print_dict
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import remove_batch
 from visualization_msgs.msg import Marker
 
@@ -172,3 +175,43 @@ def compare_examples_from_datasets(args, classifier_dataset1, classifier_dataset
         classifier_dataset1.anim_transition_rviz(example1)
         print(f"Dataset 2, Example {i}")
         classifier_dataset2.anim_transition_rviz(example2)
+
+
+def viz_compare_examples(s: ScenarioWithVisualization,
+                         aug_example: Dict,
+                         data_example: Dict,
+                         aug_env_pub: rospy.Publisher,
+                         data_env_pub: rospy.Publisher):
+    viz_compare_example(s, aug_example, 'aug', aug_env_pub)
+    viz_compare_example(s, data_example, 'data', data_env_pub)
+
+
+def viz_compare_example(s: ScenarioWithVisualization,
+                        e: Dict,
+                        label: str,
+                        env_pub: rospy.Publisher):
+    state_before = {
+        'rope':            e['rope'][0],
+        'joint_positions': e['joint_positions'][0],
+    }
+    state_after = {
+        'rope':            e['rope'][1],
+        'joint_positions': e['joint_positions'][1],
+    }
+    s.plot_state_rviz(state_before, label=label + '_before')
+    s.plot_state_rviz(state_after, label=label + '_after')
+    env = {
+        'env':          e['env'],
+        'res':          0.02,
+        'origin_point': np.array([1.0, 0, 0]),
+    }
+    s.plot_environment_rviz(env)
+
+    frame = 'env_vg'
+    env_msg = environment_to_vg_msg(env, frame=frame)
+    env_pub.publish(env_msg)
+    grid_utils.send_voxelgrid_tf_origin_point_res(s.tf.tf_broadcaster,
+                                                  env['origin_point'],
+                                                  env['res'],
+                                                  frame=frame)
+    s.tf.send_transform(env['origin_point'], [0, 0, 0, 1], 'world', child='origin_point')

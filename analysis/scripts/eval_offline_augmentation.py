@@ -23,9 +23,6 @@ def main():
 
     df = filter_df_for_experiment(df)
 
-    print("Classifiers:")
-    print(df['classifier'].sort_values()[::3])
-
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='ras')
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='ncs')
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='hrs')
@@ -49,10 +46,11 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
     cld = '/media/shared/classifier_data/'
     proxy_dataset_path = cld + proxy_datasets_dict[proxy_dataset_name][proxy_metric_name]
     df_p = df_where(df, 'dataset_dirs', proxy_dataset_path)
-    agg = {k: 'first' for k in groupby}
+
+    print("Classifiers:")
+    print(df['classifier'].sort_values()[::3])
+
     metric_name = 'accuracy on negatives'
-    agg[metric_name] = 'mean'
-    agg['classifier'] = 'first'
     # drop things which are the thing we expect to differ between baseline and our method?
     l = ['do_augmentation', 'on_invalid_aug', 'fine_tuning_take', 'fine_tuned_from', 'fine_tuning_dataset_dirs']
 
@@ -73,7 +71,7 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
         'balance',
         'mode'
     ]
-    print(improvement.round(3).droplevel(drop_for_display))
+    print(improvement.round(3).droplevel(drop_for_display).reset_index())
     print('MEAN:', improvement.mean())
 
     p = scipy.stats.ttest_1samp(improvement, 0).pvalue
