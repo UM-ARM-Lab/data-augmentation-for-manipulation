@@ -9,6 +9,7 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers import train_test_classifier
+from link_bot_classifiers.train_test_classifier import add_eval_args
 from link_bot_pycommon.args import run_subparsers, int_tuple_arg
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -109,13 +110,7 @@ def main():
     eval_n_parser = subparsers.add_parser('eval_n')
     eval_n_parser.add_argument('--dataset-dirs', type=pathlib.Path, nargs='+', required=True)
     eval_n_parser.add_argument('--checkpoints', type=pathlib.Path, nargs='+', required=True)
-    eval_n_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='all')
-    eval_n_parser.add_argument('--balance', action='store_true')
-    eval_n_parser.add_argument('--batch-size', type=int, default=128)
-    eval_n_parser.add_argument('--debug', action='store_true')
-    eval_n_parser.add_argument('--verbose', '-v', action='count', default=0)
-    eval_n_parser.add_argument('--take', type=int)
-    eval_n_parser.add_argument('--threshold', type=float, default=None)
+    add_eval_args(eval_n_parser)
     eval_n_parser.set_defaults(func=eval_n_main)
 
     compare_parser = subparsers.add_parser('compare')
