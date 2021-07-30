@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from link_bot_pycommon.grid_utils import occupied_voxels_to_points
 from link_bot_pycommon.job_chunking import JobChunker
+from link_bot_pycommon.my_periodic_timer import MyPeriodicTimer
 from link_bot_pycommon.pycommon import paths_to_json
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.geometry import pairwise_squared_distances
@@ -150,15 +151,18 @@ def main():
     jc.store_result('datafiles', paths_to_json(datafiles))
     jc.store_result('weights', weights.numpy().tolist())
 
+    timer = MyPeriodicTimer(10)  # save logfile every 10 seconds
+
     with Pool(2) as p:
         for i, augfile in enumerate(tqdm(augfiles)):
-            jc.save()
+            if timer:
+                jc.save()
             for j, datafile in enumerate(tqdm(datafiles, leave=False, position=1)):
                 key = f"{i}-{j}"
                 if jc.get_result(key) is None or args.regenerate:
-                    # aug_example, data_example = p.map(load_gzipped_pickle, [augfile, datafile])
-                    aug_example = load_gzipped_pickle(augfile)
-                    data_example = load_gzipped_pickle(datafile)
+                    aug_example, data_example = p.map(load_gzipped_pickle, [augfile, datafile])
+                    # aug_example = load_gzipped_pickle(augfile)
+                    # data_example = load_gzipped_pickle(datafile)
                     d = compute_distance(aug_example, data_example)
                     to_save = {
                         'distance':     d,
@@ -169,6 +173,7 @@ def main():
                     with outfilename.open("wb") as f:
                         pickle.dump(to_save, f)
                     jc.store_result(key, 'done', save=False)
+        jc.save()
 
 
 if __name__ == '__main__':
