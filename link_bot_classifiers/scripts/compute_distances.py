@@ -136,7 +136,7 @@ def main():
 
     augfiles = list(args.augdir.glob("*.pkl.gz"))
     # datafiles = list(args.datadir.glob("*.pkl.gz"))[:100]
-    datafiles = [pathlib.Path("trials/just_for_saving/July_30_10-44-31_33e8e6bc48/saved_inputs/example_33.pkl.gz")]
+    datafiles = [pathlib.Path("trials/just_for_saving/July_30_10-44-31_33e8e6bc48/saved_inputs/example_32.pkl.gz")]
 
     # TODO: batch on GPU
     name = f"{args.augdir.parent.name}-{args.datadir.parent.name}"
@@ -160,9 +160,8 @@ def main():
             for j, datafile in enumerate(tqdm(datafiles, leave=False, position=1)):
                 key = f"{i}-{j}"
                 if jc.get_result(key) is None or args.regenerate:
-                    aug_example, data_example = p.map(load_gzipped_pickle, [augfile, datafile])
-                    # aug_example = load_gzipped_pickle(augfile)
-                    # data_example = load_gzipped_pickle(datafile)
+                    aug_example = load_gzipped_pickle(augfile)
+                    data_example = load_gzipped_pickle(datafile)
                     d = compute_distance(aug_example, data_example)
                     to_save = {
                         'distance':     d,

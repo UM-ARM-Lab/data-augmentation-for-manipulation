@@ -1,9 +1,8 @@
 from time import perf_counter
 from typing import Dict
 
-import numpy as np
 from colorama import Style
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, colors
 from progressbar import progressbar
 from scipy import stats
 
@@ -15,6 +14,7 @@ from link_bot_pycommon.grid_utils import environment_to_vg_msg
 from link_bot_pycommon.pycommon import print_dict
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import remove_batch
+from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
 
 
@@ -182,14 +182,15 @@ def viz_compare_examples(s: ScenarioWithVisualization,
                          data_example: Dict,
                          aug_env_pub: rospy.Publisher,
                          data_env_pub: rospy.Publisher):
-    viz_compare_example(s, aug_example, 'aug', aug_env_pub)
-    viz_compare_example(s, data_example, 'data', data_env_pub)
+    viz_compare_example(s, aug_example, 'aug', aug_env_pub, color='#aa2222')
+    viz_compare_example(s, data_example, 'data', data_env_pub, color='#2222aa')
 
 
 def viz_compare_example(s: ScenarioWithVisualization,
                         e: Dict,
                         label: str,
-                        env_pub: rospy.Publisher):
+                        env_pub: rospy.Publisher,
+                        color):
     state_before = {
         'rope':            e['rope'][0],
         'joint_positions': e['joint_positions'][0],
@@ -200,8 +201,8 @@ def viz_compare_example(s: ScenarioWithVisualization,
         'joint_positions': e['joint_positions'][1],
         'joint_names':     e['joint_names'][0],
     }
-    s.plot_state_rviz(state_before, label=label + '_before')
-    s.plot_state_rviz(state_after, label=label + '_after')
+    s.plot_state_rviz(state_before, label=label + '_before', color=color)
+    s.plot_state_rviz(state_after, label=label + '_after', color=color)
     env = {
         'env':          e['env'],
         'res':          e['res'],
@@ -212,7 +213,8 @@ def viz_compare_example(s: ScenarioWithVisualization,
     s.plot_environment_rviz(env)
 
     frame = 'env_vg'
-    env_msg = environment_to_vg_msg(env, frame=frame)
+    color_rgba = ColorRGBA(*colors.to_rgba(color))
+    env_msg = environment_to_vg_msg(env, frame=frame, color=color_rgba)
     env_pub.publish(env_msg)
     grid_utils.send_voxelgrid_tf_origin_point_res(s.tf.tf_broadcaster,
                                                   env['origin_point'],
