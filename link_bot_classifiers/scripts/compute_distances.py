@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import pickle
 from multiprocessing import Pool
 from typing import Dict
 
@@ -9,23 +8,16 @@ import tensorflow as tf
 from tensorflow_graphics.nn.loss.chamfer_distance import evaluate
 from tqdm import tqdm
 
+from link_bot_classifiers.pd_distances_utils import weights, too_far, joints_weights
 from link_bot_pycommon.grid_utils import occupied_voxels_to_points
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.my_periodic_timer import MyPeriodicTimer
 from link_bot_pycommon.pycommon import paths_to_json
-from link_bot_pycommon.serialization import load_gzipped_pickle
+from link_bot_pycommon.serialization import load_gzipped_pickle, dump_gzipped_pickle
 from moonshine.geometry import pairwise_squared_distances
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(None)
-
-weights = tf.constant([
-    1.0,
-    1.0,
-    0.1,
-    0.1,
-    # 100.0,
-])
 
 
 def cd_env_dist(aug_env,
@@ -61,11 +53,16 @@ def compute_distance(aug_example: Dict, data_example: Dict):
     rope_before_dist = tf.linalg.norm(aug_rope_before - data_rope_before)
     rope_after_dist = tf.linalg.norm(aug_rope_after - data_rope_after)
 
-    joint_positions_before_dist = tf.linalg.norm(aug_joint_positions_before - data_joint_positions_before)
-    joint_positions_after_dist = tf.linalg.norm(aug_joint_positions_after - data_joint_positions_after)
+    joint_positions_before_difference = aug_joint_positions_before - data_joint_positions_before
+    joint_positions_before_difference_weighted = joint_positions_before_difference * joints_weights
+    joint_positions_after_difference = aug_joint_positions_after - data_joint_positions_after
+    joint_positions_after_difference_weighted = joint_positions_after_difference * joints_weights
+    joint_positions_before_dist = tf.linalg.norm(joint_positions_before_difference_weighted)
+    joint_positions_after_dist = tf.linalg.norm(joint_positions_after_difference_weighted)
 
-    env_dist = cd_env_dist(aug_env, aug_example['res'], aug_example['origin_point'],
-                           data_env, data_example['res'], data_example['origin_point'])
+    # env_dist = cd_env_dist(aug_env, aug_example['res'], aug_example['origin_point'],
+    #                        data_env, data_example['res'], data_example['origin_point'])
+    env_dist = -1
 
     distances = tf.stack([
         rope_before_dist,
@@ -135,21 +132,21 @@ def main():
     args = parser.parse_args()
 
     augfiles = list(args.augdir.glob("*.pkl.gz"))
-    # datafiles = list(args.datadir.glob("*.pkl.gz"))[:100]
-    datafiles = [pathlib.Path("trials/just_for_saving/July_30_10-44-31_33e8e6bc48/saved_inputs/example_32.pkl.gz")]
+    datafiles = list(args.datadir.glob("*.pkl.gz"))
 
-    # TODO: batch on GPU
-    name = f"{args.augdir.parent.name}-{args.datadir.parent.name}"
+    aug_name = '-'.join(args.augdir.parts[-3:-1])
+    data_name = '-'.join(args.datadir.parts[-3:-1])
+    name = f"{aug_name}-{data_name}"
     if args.debug:
         name = 'debug-' + name
     dirname = pathlib.Path('results') / name
     dirname.mkdir(exist_ok=True)
     logfilename = dirname / 'logfile.hjson'
-    print(logfilename)
+    print(dirname)
     jc = JobChunker(logfilename)
     jc.store_result('augfiles', paths_to_json(augfiles))
     jc.store_result('datafiles', paths_to_json(datafiles))
-    jc.store_result('weights', weights.numpy().tolist())
+    jc.store_result('weights', weights.tolist())
 
     timer = MyPeriodicTimer(10)  # save logfile every 10 seconds
 
@@ -168,9 +165,13 @@ def main():
                         'aug_example':  aug_example,
                         'data_example': data_example,
                     }
-                    outfilename = dirname / f'{i}-{j}.pkl'
-                    with outfilename.open("wb") as f:
-                        pickle.dump(to_save, f)
+
+                    # writing this is slow, so it's good to skip really far pairs
+                    if tf.reduce_any(d > too_far):
+                        continue
+
+                    outfilename = dirname / f'{i}-{j}.pkl.gz'
+                    dump_gzipped_pickle(to_save, outfilename)
                     jc.store_result(key, 'done', save=False)
         jc.save()
 

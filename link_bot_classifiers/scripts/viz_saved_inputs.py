@@ -54,14 +54,15 @@ def main():
     s = get_scenario("dual_arm_rope_sim_val")
     env_pub = rospy.Publisher('env', VoxelgridStamped, queue_size=10)
 
-    filenames = list(args.saved_inputs.glob("*.pkl.gz"))
+    filenames = sorted(list(args.saved_inputs.glob("*.pkl.gz")))
 
     r = RvizAnimationController(n_time_steps=len(filenames))
     while not r.done and not rospy.is_shutdown():
         t = r.t()
         filename_t = filenames[t]
+        print(filename_t)
         example_t = load_gzipped_pickle(filename_t)
-        viz_compare_example(s, example_t, '', env_pub)
+        viz_compare_example(s, example_t, '', env_pub, color='m')
         r.step()
 
 

@@ -1,16 +1,18 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import pickle
 from dataclasses import dataclass
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 import rospy
 from arc_utilities import ros_init
+from link_bot_classifiers.pd_distances_utils import too_far
 from link_bot_classifiers.visualize_classifier_dataset import viz_compare_examples
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from link_bot_pycommon.serialization import load_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.gpu_config import limit_gpu_mem
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
@@ -44,21 +46,27 @@ def viz_pd(aug_viz_info: AugVizInfo, pd, distances_matrix):
         pass
 
 
-def format_distances(aug_viz_info: AugVizInfo, results_dir: pathlib.Path):
-    results_filenames = list(results_dir.glob("*.pkl"))
-    n_aug = max([int(filename.stem.split('-')[0]) for filename in results_filenames]) + 1
-    n_data = max([int(filename.stem.split('-')[1]) for filename in results_filenames]) + 1
+def _stem(p):
+    return p.name.split('.')[0]
+
+
+def format_distances(aug_viz_info: AugVizInfo, results_dir: pathlib.Path, space_idx: int):
+    results_filenames = list(results_dir.glob("*.pkl.gz"))
+    n_aug = max([int(_stem(filename).split('-')[0]) for filename in results_filenames]) + 1
+    n_data = max([int(_stem(filename).split('-')[1]) for filename in results_filenames]) + 1
     shape = [n_aug, n_data]
-    distances_matrix = np.ones(shape) * 999
+    distances_matrix = np.ones(shape) * too_far[space_idx]
     aug_examples_matrix = np.empty(shape, dtype=object)
     data_examples_matrix = np.empty(shape, dtype=object)
     for results_filename in results_filenames:
-        with results_filename.open("rb") as f:
-            result = pickle.load(f)
+        result = load_gzipped_pickle(results_filename)
+        # with results_filename.open("rb") as f:
+        #     result = pickle.load(f)
         distances = result['distance']
-        i = int(results_filename.stem.split('-')[0])
-        j = int(results_filename.stem.split('-')[1])
-        distances_matrix[i][j] = distances[0]
+        i = int(_stem(results_filename).split('-')[0])
+        j = int(_stem(results_filename).split('-')[1])
+
+        distances_matrix[i][j] = distances[space_idx]
         aug_examples_matrix[i][j] = result['aug_example']
         data_examples_matrix[i][j] = result['data_example']
     return aug_examples_matrix, data_examples_matrix, distances_matrix
@@ -68,6 +76,8 @@ def format_distances(aug_viz_info: AugVizInfo, results_dir: pathlib.Path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('results_dir', type=pathlib.Path)
+    parser.add_argument('display_type', choices=['data_all', 'aug_all', 'both', 'plausibility', 'diversity'])
+    parser.add_argument('space', choices=['rope', 'robot', 'env'])
 
     args = parser.parse_args()
 
@@ -77,42 +87,93 @@ def main():
 
     aug_viz_info = AugVizInfo(s=s, aug_env_pub=aug_env_pub, data_env_pub=data_env_pub)
 
-    aug_examples_matrix, data_examples_matrix, distances_matrix = format_distances(aug_viz_info=aug_viz_info,
-                                                                                   results_dir=args.results_dir)
+    if args.space == 'rope':
+        space_idx = 0
+    elif args.space == 'robot':
+        space_idx = 3
+    elif args.space == 'env':
+        space_idx = 4
+    else:
+        raise NotImplementedError(args.space)
 
-    display_type = 'data_all'
-    if display_type == 'aug_all':
+    aug_examples_matrix, data_examples_matrix, distances_matrix = format_distances(aug_viz_info=aug_viz_info,
+                                                                                   results_dir=args.results_dir,
+                                                                                   space_idx=space_idx)
+
+    def get_first_non_none(m):
+        for i, m_i in enumerate(m):
+            if m_i is not None:
+                return i, m_i
+        return 0, None
+
+    if args.display_type == 'aug_all':
         for i in range(aug_examples_matrix.shape[0]):
-            aug_example = aug_examples_matrix[i, 0]
+            max_j, aug_example = get_first_non_none(aug_examples_matrix[i])
+            if max_j == 0:
+                print("no close examples")
+                continue
             distances_for_aug_i = distances_matrix[i]
             sorted_indices = np.argsort(distances_for_aug_i)
             sorted_data_examples = np.take(data_examples_matrix[i], sorted_indices)
             distances_for_aug_i_sorted = np.take(distances_for_aug_i, sorted_indices)
-            v = RvizAnimationController(n_time_steps=aug_examples_matrix.shape[1])
+            print(distances_for_aug_i_sorted[0])
+            v = RvizAnimationController(n_time_steps=max_j)
             while not v.done:
                 sorted_j = v.t()
-                data_example = data_examples_matrix[sorted_j]
+                data_example = sorted_data_examples[sorted_j]
                 d = distances_for_aug_i_sorted[sorted_j]
-                viz_compare_examples(s, aug_example, data_example, aug_env_pub, data_env_pub)
-                s.plot_error_rviz(d)
+                if aug_example is not None and data_example is not None:
+                    viz_compare_examples(s, aug_example, data_example, aug_env_pub, data_env_pub)
+                    s.plot_error_rviz(d)
                 v.step()
-    elif display_type == 'data_all':
+    elif args.display_type == 'data_all':
         for j in range(aug_examples_matrix.shape[1]):
-            data_example = data_examples_matrix[0, j]  # 0 works because they're all the same
+            max_i, data_example = get_first_non_none(data_examples_matrix[:, j])  # 0 works because they're all the same
+            if max_i == 0:
+                print("no close examples")
+                continue
             distances_for_data_j = distances_matrix[:, j]
             sorted_indices = np.argsort(distances_for_data_j)
             sorted_aug_examples = np.take(aug_examples_matrix[:, j], sorted_indices)
-            distances_for_aug_i_sorted = np.take(distances_for_data_j, sorted_indices)
-            v = RvizAnimationController(n_time_steps=aug_examples_matrix.shape[0])
+            distances_for_data_j_sorted = np.take(distances_for_data_j, sorted_indices)
+            print(distances_for_data_j_sorted[0])
+            v = RvizAnimationController(n_time_steps=max_i)
             while not v.done:
                 sorted_j = v.t()
                 aug_example = sorted_aug_examples[sorted_j]
-                d = distances_for_aug_i_sorted[sorted_j]
-                viz_compare_examples(s, aug_example, data_example, aug_env_pub, data_env_pub)
-                s.plot_error_rviz(d)
+                d = distances_for_data_j_sorted[sorted_j]
+                if aug_example is not None and data_example is not None:
+                    viz_compare_examples(s, aug_example, data_example, aug_env_pub, data_env_pub)
+                    s.plot_error_rviz(d)
                 v.step()
+    elif args.display_type == 'both':
+        diversities = []
+        for j in range(aug_examples_matrix.shape[1]):
+            distances_for_data_j = distances_matrix[:, j]
+            sorted_indices = np.argsort(distances_for_data_j)
+            distances_for_data_j_sorted = np.take(distances_for_data_j, sorted_indices)
+            diversity = distances_for_data_j_sorted[0]
+            diversities.append(diversity)
+        plausibilities = []
+        for i in range(aug_examples_matrix.shape[0]):
+            distances_for_aug_i = distances_matrix[i]
+            sorted_indices = np.argsort(distances_for_aug_i)
+            distances_for_aug_i_sorted = np.take(distances_for_aug_i, sorted_indices)
+            plausibility = distances_for_aug_i_sorted[0]
+            plausibilities.append(plausibility)
+
+        print(f'\tP: {1 / np.mean(plausibilities):.3f}')
+        print(f'\tD: {1 / np.mean(diversities):.3f}')
+        bins = 400
+        plt.hist(plausibilities, label='plausibility', bins=bins, alpha=0.5)
+        plt.hist(diversities, label='diversity', bins=bins, alpha=0.5)
+        plt.legend()
+        plt.title(args.results_dir.as_posix())
+        plt.xlabel("distance to nearest")
+        plt.ylabel("count/freq")
+        plt.show()
     else:
-        viz_pd(aug_viz_info, display_type, distances_matrix)
+        viz_pd(aug_viz_info, args.display_type, distances_matrix)
 
 
 if __name__ == '__main__':

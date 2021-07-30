@@ -11,6 +11,7 @@ from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.grid_utils import environment_to_vg_msg
+from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import print_dict
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import remove_batch
@@ -201,8 +202,8 @@ def viz_compare_example(s: ScenarioWithVisualization,
         'joint_positions': e['joint_positions'][1],
         'joint_names':     e['joint_names'][0],
     }
-    s.plot_state_rviz(state_before, label=label + '_before', color=color)
-    s.plot_state_rviz(state_after, label=label + '_after', color=color)
+    s.plot_state_rviz(state_before, label=label + '_before', color=adjust_lightness(color, 0.4))
+    s.plot_state_rviz(state_after, label=label + '_after', color=adjust_lightness(color, 0.6))
     env = {
         'env':          e['env'],
         'res':          e['res'],

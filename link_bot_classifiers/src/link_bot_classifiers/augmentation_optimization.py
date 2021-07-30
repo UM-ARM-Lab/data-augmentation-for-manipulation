@@ -180,7 +180,7 @@ class AugmentationOptimization:
         self.env_subsample = 0.25
         self.num_object_interp = 5  # must be >=2
         self.num_robot_interp = 3  # must be >=2
-        self.max_steps = 1000
+        self.max_steps = 40
         self.seed_int = 0 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.gen = tf.random.Generator.from_seed(self.seed_int)
         self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
@@ -565,7 +565,7 @@ class AugmentationOptimization:
 
                     losses = [
                         bbox_loss,
-                        # invariance_loss,
+                        invariance_loss,
                     ]
                     losses_sum = tf.add_n(losses)
                     loss = tf.reduce_mean(losses_sum)
