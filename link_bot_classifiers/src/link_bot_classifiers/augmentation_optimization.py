@@ -180,16 +180,17 @@ class AugmentationOptimization:
         self.env_subsample = 0.25
         self.num_object_interp = 5  # must be >=2
         self.num_robot_interp = 3  # must be >=2
-        self.max_steps = 40
-        self.gen = tf.random.Generator.from_seed(0)
-        self.seed = tfp.util.SeedStream(1, salt="nn_classifier_aug")
+        self.max_steps = 1000
+        self.seed_int = 0 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
+        self.gen = tf.random.Generator.from_seed(self.seed_int)
+        self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
         self.step_size = 2.0
         self.opt = tf.keras.optimizers.SGD(self.step_size)
         self.step_size_threshold = 0.001  # stopping criteria, how far the env moved (meters)
-        self.barrier_cut_off = 0.04  # stop repelling loss after this (squared) distance (meters)
+        self.barrier_cut_off = 0.06  # stop repelling loss after this (squared) distance (meters)
         self.barrier_epsilon = 0.01
         self.grad_clip = 0.25  # max dist step the env aug update can take
-        self.attract_weight = 1.0
+        self.attract_weight = 2.0
         self.repel_weight = 1.0
         self.invariance_weight = 0.1
         self.sdf_grad_scale = 0.02
@@ -197,7 +198,7 @@ class AugmentationOptimization:
         self.bbox_weight = 0.1
         self.robot_base_penetration_weight = 1.0
 
-        if self.hparams is not None:
+        if self.hparams is not None and 'invariance_model' in self.hparams:
             invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
             self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
                                                                    self.scenario)
@@ -231,14 +232,15 @@ class AugmentationOptimization:
         # new environment. Furthermore, in most cases we test with only one new environment, in which case this is
         # actually identical.
         new_env_0 = {k: v[0] for k, v in new_env.items()}
-        inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug = self.opt_object_augmentation(inputs,
-                                                                                                           inputs_aug,
-                                                                                                           new_env_0,
-                                                                                                           object_points,
-                                                                                                           object_points_occupancy,
-                                                                                                           res,
-                                                                                                           batch_size,
-                                                                                                           time)
+        inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, local_env_aug_fix_deltas = \
+            self.opt_object_augmentation(inputs,
+                                         inputs_aug,
+                                         new_env_0,
+                                         object_points,
+                                         object_points_occupancy,
+                                         res,
+                                         batch_size,
+                                         time)
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,
@@ -280,25 +282,27 @@ class AugmentationOptimization:
                                                                                              local_origin_point_aug)
         elif on_invalid_aug == 'drop':
             if tf.reduce_any(tf.cast(is_valid, tf.bool)):
-                inputs_aug, local_env_aug, local_origin_point_aug = self.drop_if_invalid(is_valid, batch_size, inputs,
-                                                                                         inputs_aug,
-                                                                                         local_env, local_env_aug,
-                                                                                         local_origin_point,
-                                                                                         local_origin_point_aug)
+                inputs_aug, local_env_aug, local_origin_point_aug = self.drop_if_invalid(is_valid, batch_size,
+                                                                                         None, inputs_aug,
+                                                                                         None, local_env_aug,
+                                                                                         None, local_origin_point_aug)
             else:
                 print("All augmentations in the batch are invalid!")
                 inputs_aug, local_env_aug, local_origin_point_aug = self.use_original_if_invalid(is_valid, batch_size,
-                                                                                                 inputs,
-                                                                                                 inputs_aug, local_env,
+                                                                                                 inputs, inputs_aug,
+                                                                                                 local_env,
                                                                                                  local_env_aug,
                                                                                                  local_origin_point,
                                                                                                  local_origin_point_aug)
         else:
             raise NotImplementedError(on_invalid_aug)
 
-        return inputs_aug, local_env_aug, local_origin_point_aug
+        return inputs_aug, local_env_aug, local_origin_point_aug, local_env_aug_fix_deltas
 
-    def drop_if_invalid(self, is_valid, batch_size, _, inputs_aug, __, local_env_aug, ___, local_origin_point_aug):
+    def drop_if_invalid(self, is_valid, batch_size,
+                        _, inputs_aug,
+                        __, local_env_aug,
+                        ___, local_origin_point_aug):
         valid_indices = tf.squeeze(tf.where(is_valid), axis=-1)
         n_tile = tf.cast(tf.cast(batch_size, tf.int64) / tf.cast(tf.size(valid_indices), tf.int64), tf.int64) + 1
         repeated_indices = tf.tile(valid_indices, [n_tile])[:batch_size]  # ex: [0,19,22], 8 --> [0,19,22,0,19,22,0,19]
@@ -557,11 +561,11 @@ class AugmentationOptimization:
 
                     invariance_loss = self.invariance_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
 
-                    bbox_loss = self.bbox_loss(obj_points_aug)
+                    bbox_loss = self.bbox_loss(obj_points_aug, new_env['extent'])
 
                     losses = [
                         bbox_loss,
-                        invariance_loss,
+                        # invariance_loss,
                     ]
                     losses_sum = tf.add_n(losses)
                     loss = tf.reduce_mean(losses_sum)
@@ -688,7 +692,7 @@ class AugmentationOptimization:
         self.local_env_aug_fix_delta = possibly_none_concat(self.local_env_aug_fix_delta, local_env_aug_fix_deltas,
                                                             axis=0)
 
-        return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug_fixed
+        return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug_fixed, local_env_aug_fix_deltas
 
     def opt_new_env_augmentation(self,
                                  inputs_aug: Dict,
@@ -1101,10 +1105,10 @@ class AugmentationOptimization:
         base_y = 0.15  # FIXME: hardcoded
         return self.robot_base_penetration_weight * tf.maximum(0, base_y - obj_points_aug_y)
 
-    def bbox_loss(self, obj_points_aug):
-        # FIXME: hardcoded
-        lower_extent = tf.constant([-0.6, 0.20, -0.4], tf.float32)
-        upper_extent = tf.constant([0.6, 1.2, 1], tf.float32)
+    def bbox_loss(self, obj_points_aug, extent):
+        extent = tf.reshape(extent, [3, 2])
+        lower_extent = extent[None, None, :, 0]
+        upper_extent = extent[None, None, :, 1]
         lower_extent_loss = tf.maximum(0, obj_points_aug - upper_extent)
         upper_extent_loss = tf.maximum(0, lower_extent - obj_points_aug)
         bbox_loss = tf.reduce_sum(tf.reduce_sum(lower_extent_loss + upper_extent_loss, axis=-1), axis=-1)

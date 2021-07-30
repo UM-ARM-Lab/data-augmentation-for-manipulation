@@ -11,6 +11,9 @@ from arc_utilities import ros_init
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_pycommon.args import int_tuple_arg
 from moonshine.filepath_tools import load_hjson
+from moonshine.gpu_config import limit_gpu_mem
+
+limit_gpu_mem(None)
 
 
 @ros_init.with_ros(f"offline_fine_tuning_{int(time.time())}")

@@ -129,7 +129,7 @@ class NewBaseDatasetLoader:
         print(f"Created pool with {self.pool._processes} workers")
 
     def __del__(self):
-        self.pool.close()
+        self.pool.terminate()
 
     def post_process(self, e):
         return e

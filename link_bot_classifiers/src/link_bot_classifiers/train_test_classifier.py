@@ -544,7 +544,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
 
         # Visualization
         example.pop("time")
-        example.pop("batch_size")
+        actual_batch_size = example.pop("batch_size")
+        example.pop('scene_msg')
         decisions = tf.squeeze(probabilities > 0.5, axis=-1)
         labels = tf.squeeze(tf.cast(labels, tf.bool), axis=-1)
         classifier_is_correct = tf.equal(decisions, labels)
@@ -554,7 +555,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
         is_fn = tf.logical_and(labels, tf.logical_not(decisions))
         is_negative = tf.logical_not(labels)
         is_positive = labels
-        for b in range(batch_size):
+        for b in range(actual_batch_size):
             example_b = index_dict_of_batched_tensors_tf(example, b)
 
             # if the classifier is correct at all time steps, ignore

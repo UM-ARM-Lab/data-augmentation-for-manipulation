@@ -193,17 +193,21 @@ def viz_compare_example(s: ScenarioWithVisualization,
     state_before = {
         'rope':            e['rope'][0],
         'joint_positions': e['joint_positions'][0],
+        'joint_names':     e['joint_names'][0],
     }
     state_after = {
         'rope':            e['rope'][1],
         'joint_positions': e['joint_positions'][1],
+        'joint_names':     e['joint_names'][0],
     }
     s.plot_state_rviz(state_before, label=label + '_before')
     s.plot_state_rviz(state_after, label=label + '_after')
     env = {
         'env':          e['env'],
-        'res':          0.02,
-        'origin_point': np.array([1.0, 0, 0]),
+        'res':          e['res'],
+        'origin_point': e['origin_point'],
+        # 'res':          0.02,
+        # 'origin_point': np.array([1.0, 0, 0]),
     }
     s.plot_environment_rviz(env)
 

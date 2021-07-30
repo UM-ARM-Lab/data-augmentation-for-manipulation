@@ -53,8 +53,8 @@ def pairwise_squared_distances(a, b):
     Computes pairwise distances between to sets of points
 
     Args:
-        a: [b, ..., n, 3]
-        b:  [b, ..., m, 3]
+        a: [b, ..., n, k]
+        b:  [b, ..., m, k]
 
     Returns: [b, ..., n, m]
 

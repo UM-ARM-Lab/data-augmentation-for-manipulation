@@ -115,6 +115,8 @@ def fine_tune_classifier_from_datasets(train_dataset,
     model_hparams['fine_tune_dense'] = fine_tune_dense
     model_hparams['fine_tune_output'] = fine_tune_output
     model_hparams['fine_tuned_from'] = checkpoint.as_posix()
+    if 'augmentation' in model_hparams:
+        model_hparams['augmentation']['seed'] = seed
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=scenario)
     # override arbitrary parts of the model
     for k, v in kwargs.items():
@@ -143,6 +145,7 @@ def fine_tune_classifier_from_datasets(train_dataset,
 
     if save_inputs:
         model.save_inputs_path = trial_path / 'saved_inputs'
+        print(model.save_inputs_path.as_posix())
 
     if augmentation_config_dir is not None:
         train_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_dataset, batch_size)

@@ -145,7 +145,9 @@ def index_dict_of_batched_tensors_np(in_dict: Dict, index: int, batch_axis: int 
 def index_dict_of_batched_tensors_tf(in_dict: Dict, index: int, batch_axis: int = 0, keep_dims=False):
     out_dict = {}
     for k, v in in_dict.items():
-        if isinstance(v, OrderedDict) or isinstance(v, dict):
+        if v is None:
+            out_dict[k] = v
+        elif isinstance(v, OrderedDict) or isinstance(v, dict):
             out_dict[k] = v
         else:
             try:

@@ -194,8 +194,8 @@ def main():
     #     print("Aborting")
     #     return
 
-    # update_classifier_db(client, table, add_invariance_model)
-    update_classifier_db(client, table, add_fine_tuned_from)
+    update_classifier_db(client, table, rename_classifier_model_dir)
+    # update_classifier_db(client, table, add_fine_tuned_from)
 
 
 if __name__ == '__main__':

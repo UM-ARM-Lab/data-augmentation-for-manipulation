@@ -1,4 +1,3 @@
-import pickle
 from copy import copy
 from typing import Dict
 
@@ -6,6 +5,7 @@ import tensorflow as tf
 from colorama import Fore
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.keras.metrics import Mean
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 import rospy
@@ -28,9 +28,8 @@ from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate, BinaryRate
 from moonshine.moonshine_utils import numpify
-from tensorflow.keras.metrics import Mean
 from moonshine.my_keras_model import MyKerasModel
-from visualization_msgs.msg import MarkerArray, Marker
+from visualization_msgs.msg import MarkerArray
 
 
 def debug_input():
@@ -139,27 +138,33 @@ class NNClassifier(MyKerasModel):
                 self.debug.send_position_transform(origin_point_b, 'origin_point')
                 # stepper.step()  # INPUT
 
-            self.debug_viz_inputs(inputs, None, time)
+            # self.debug_viz_inputs(inputs, None, time)
 
         if training and self.aug.do_augmentation():
             # returns a copy, does NOT modify inputs in-place
-            inputs, local_env, local_origin_point = self.aug.augmentation_optimization(inputs, batch_size, time)
+            inputs, local_env, local_origin_point, env_delta = self.aug.augmentation_optimization(inputs, batch_size,
+                                                                                                  time)
         else:
+            env_delta = None
             local_env, local_origin_point = self.aug.get_local_env(inputs, batch_size)
 
         if training and self.save_inputs_path is not None:
             self.save_inputs_path.mkdir(exist_ok=True)
             for b in range(batch_size):
                 save_filename = self.save_inputs_path / f'example_{self.save_idx}.pkl.gz'
+                self.save_idx += 1
+                env_delta_b = env_delta[b] if env_delta is not None else None
+                inputs_save = {
+                    'env_delta':       env_delta_b,
+                    'rope':            inputs[add_predicted('rope')][b],
+                    'joint_positions': inputs[add_predicted('joint_positions')][b],
+                    'joint_names':     inputs['joint_names'][b],
+                    'env':             local_env[b],
+                    'res':             inputs['res'][b],
+                    'origin_point':    local_origin_point[b],
+                    'is_close':        inputs['is_close'][b],
+                }
                 with save_filename.open("wb") as file:
-                    self.save_idx += 1
-                    inputs_save = {
-                        'rope':            inputs[add_predicted('rope')][b],
-                        'joint_positions': inputs[add_predicted('joint_positions')][b],
-                        'env':             local_env[b],
-                        'res':             inputs['res'][b],
-                        'origin_point':    local_origin_point[b],
-                    }
                     dump_gzipped_pickle(inputs_save, file)
 
         voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)

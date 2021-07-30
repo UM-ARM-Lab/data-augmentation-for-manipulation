@@ -922,8 +922,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             idx2 = kwargs.pop("idx2", 1)
 
         msg = MarkerArray()
-        msg.markers.append(rviz_arrow(s1, a1, idx=idx1, label=label, **kwargs))
-        msg.markers.append(rviz_arrow(s2, a2, idx=idx2, label=label, **kwargs))
+        msg.markers.append(rviz_arrow(s1, a1, idx=idx1, label=label, **kwargs, scale=2.0))
+        msg.markers.append(rviz_arrow(s2, a2, idx=idx2, label=label, **kwargs, scale=2.0))
 
         self.action_viz_pub.publish(msg)
 
