@@ -373,12 +373,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
         def _transform(m, points, _to_local_frame):
-            if _to_local_frame is None:
-                return transform_points_3d(m, points)
-            else:
-                points_local_frame = points - _to_local_frame
-                points_local_frame_aug = transform_points_3d(m, points_local_frame)
-                return points_local_frame_aug + _to_local_frame
+            points_local_frame = points - _to_local_frame
+            points_local_frame_aug = transform_points_3d(m, points_local_frame)
+            return points_local_frame_aug + _to_local_frame
 
         # m is expanded to broadcast across batch & num_points dimensions
         rope_points_aug = _transform(m[:, None, None], rope_points, to_local_frame[:, None])

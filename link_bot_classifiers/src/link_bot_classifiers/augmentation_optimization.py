@@ -184,7 +184,6 @@ class AugmentationOptimization:
         self.seed_int = 0 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.gen = tf.random.Generator.from_seed(self.seed_int)
         self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
-        self.opt = tf.keras.optimizers.SGD(self.step_size)
         self.step_size_threshold = 0.001  # stopping criteria, how far the env moved (meters)
         self.barrier_cut_off = 0.06  # stop repelling loss after this (squared) distance (meters)
         self.barrier_epsilon = 0.01
@@ -203,6 +202,8 @@ class AugmentationOptimization:
         self.step_size = 2.0
         self.attract_weight = 2.0
         self.sdf_grad_scale = 0.02
+
+        self.opt = tf.keras.optimizers.SGD(self.step_size)
 
         # Precompute this for speed
         self.barrier_epsilon = 0.01
@@ -627,7 +628,7 @@ class AugmentationOptimization:
         # this updates other representations of state/action that are fed into the network
         _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
             transformation_matrices,
-            None,
+            tf.zeros([batch_size, 1, 3], dtype=tf.float32),
             inputs,
             batch_size,
             time)
