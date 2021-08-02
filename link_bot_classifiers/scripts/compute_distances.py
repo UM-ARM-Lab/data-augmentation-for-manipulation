@@ -134,8 +134,8 @@ def main():
     augfiles = list(args.augdir.glob("*.pkl.gz"))
     datafiles = list(args.datadir.glob("*.pkl.gz"))
 
-    aug_name = '-'.join(args.augdir.parts[-3])
-    data_name = '-'.join(args.datadir.parts[-3])
+    aug_name = '-'.join(args.augdir.parts[-3:])
+    data_name = '-'.join(args.datadir.parts[-3:])
     name = f"{aug_name}-{data_name}"
     if args.debug:
         name = 'debug-' + name
@@ -172,7 +172,7 @@ def main():
 
                     outfilename = dirname / f'{i}-{j}.pkl.gz'
                     dump_gzipped_pickle(to_save, outfilename)
-                    jc.store_result(key, d, save=False)
+                    jc.store_result(key, d.numpy().tolist(), save=False)
         jc.save()
 
 
