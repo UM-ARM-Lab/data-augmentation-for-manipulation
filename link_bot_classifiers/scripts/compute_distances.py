@@ -60,9 +60,9 @@ def compute_distance(aug_example: Dict, data_example: Dict):
     joint_positions_before_dist = tf.linalg.norm(joint_positions_before_difference_weighted)
     joint_positions_after_dist = tf.linalg.norm(joint_positions_after_difference_weighted)
 
-    # env_dist = cd_env_dist(aug_env, aug_example['res'], aug_example['origin_point'],
-    #                        data_env, data_example['res'], data_example['origin_point'])
-    env_dist = -1
+    env_dist = cd_env_dist(aug_env, aug_example['res'], aug_example['origin_point'],
+                           data_env, data_example['res'], data_example['origin_point'])
+    # env_dist = -1
 
     distances = tf.stack([
         rope_before_dist,
@@ -134,8 +134,8 @@ def main():
     augfiles = list(args.augdir.glob("*.pkl.gz"))
     datafiles = list(args.datadir.glob("*.pkl.gz"))
 
-    aug_name = '-'.join(args.augdir.parts[-3:-1])
-    data_name = '-'.join(args.datadir.parts[-3:-1])
+    aug_name = '-'.join(args.augdir.parts[-3])
+    data_name = '-'.join(args.datadir.parts[-3])
     name = f"{aug_name}-{data_name}"
     if args.debug:
         name = 'debug-' + name
