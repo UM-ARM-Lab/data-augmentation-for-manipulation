@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from matplotlib import pyplot as plt
+from tqdm import tqdm
 
 import rospy
 from arc_utilities import ros_init
@@ -58,7 +59,7 @@ def format_distances(aug_viz_info: AugVizInfo, results_dir: pathlib.Path, space_
     distances_matrix = np.ones(shape) * too_far[space_idx]
     aug_examples_matrix = np.empty(shape, dtype=object)
     data_examples_matrix = np.empty(shape, dtype=object)
-    for results_filename in results_filenames:
+    for results_filename in tqdm(results_filenames):
         result = load_gzipped_pickle(results_filename)
         # with results_filename.open("rb") as f:
         #     result = pickle.load(f)
@@ -162,15 +163,19 @@ def main():
             plausibility = 1 / distances_for_aug_i_sorted[0]
             plausibilities.append(plausibility)
 
-        print(f'\tP: {np.mean(plausibilities):.3f}')
-        print(f'\tD: {np.mean(diversities):.3f}')
-        bins = 400
-        plt.hist(plausibilities, label='plausibility', bins=bins, alpha=0.5)
-        plt.hist(diversities, label='diversity', bins=bins, alpha=0.5)
-        plt.legend()
-        plt.title(f'{args.results_dir.as_posix()} {args.space}')
-        plt.xlabel("1 / distance to nearest")
-        plt.ylabel("count")
+        print(f'\tP: {np.mean(plausibilities):.3f}, {np.std(plausibilities):.3f}, {len(plausibilities)}')
+        print(f'\tD: {np.mean(diversities):.3f}, {np.std(diversities):.3f}, {len(diversities)}')
+        bins = 200
+        fig, axes = plt.subplots(1, 2)
+        axes[0].hist(plausibilities, label='plausibility', bins=bins, alpha=0.5)
+        axes[0].legend()
+        axes[0].set_xlabel("1 / distance to nearest")
+        axes[0].set_ylabel("count")
+        axes[1].hist(diversities, label='diversity', bins=bins, alpha=0.5)
+        axes[1].legend()
+        axes[1].set_xlabel("1 / distance to nearest")
+        axes[0].set_ylabel("count")
+        fig.suptitle(f'{args.results_dir.name} {args.space}')
         plt.savefig(args.results_dir / f'{args.space}.png')
         plt.show()
     else:
