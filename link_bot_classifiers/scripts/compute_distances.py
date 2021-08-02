@@ -172,7 +172,7 @@ def main():
 
                     outfilename = dirname / f'{i}-{j}.pkl.gz'
                     dump_gzipped_pickle(to_save, outfilename)
-                    jc.store_result(key, 'done', save=False)
+                    jc.store_result(key, d, save=False)
         jc.save()
 
 

@@ -152,25 +152,26 @@ def main():
             distances_for_data_j = distances_matrix[:, j]
             sorted_indices = np.argsort(distances_for_data_j)
             distances_for_data_j_sorted = np.take(distances_for_data_j, sorted_indices)
-            diversity = distances_for_data_j_sorted[0]
+            diversity = 1 / distances_for_data_j_sorted[0]
             diversities.append(diversity)
         plausibilities = []
         for i in range(aug_examples_matrix.shape[0]):
             distances_for_aug_i = distances_matrix[i]
             sorted_indices = np.argsort(distances_for_aug_i)
             distances_for_aug_i_sorted = np.take(distances_for_aug_i, sorted_indices)
-            plausibility = distances_for_aug_i_sorted[0]
+            plausibility = 1 / distances_for_aug_i_sorted[0]
             plausibilities.append(plausibility)
 
-        print(f'\tP: {1 / np.mean(plausibilities):.3f}')
-        print(f'\tD: {1 / np.mean(diversities):.3f}')
+        print(f'\tP: {np.mean(plausibilities):.3f}')
+        print(f'\tD: {np.mean(diversities):.3f}')
         bins = 400
         plt.hist(plausibilities, label='plausibility', bins=bins, alpha=0.5)
         plt.hist(diversities, label='diversity', bins=bins, alpha=0.5)
         plt.legend()
-        plt.title(args.results_dir.as_posix())
-        plt.xlabel("distance to nearest")
-        plt.ylabel("count/freq")
+        plt.title(f'{args.results_dir.as_posix()} {args.space}')
+        plt.xlabel("1 / distance to nearest")
+        plt.ylabel("count")
+        plt.savefig(args.results_dir / f'{args.space}.png')
         plt.show()
     else:
         viz_pd(aug_viz_info, args.display_type, distances_matrix)
