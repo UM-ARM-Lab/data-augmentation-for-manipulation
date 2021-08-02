@@ -2,6 +2,7 @@
 import argparse
 import pathlib
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -15,61 +16,61 @@ from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
+from moonshine.filepath_tools import load_hjson
 from moonshine.gpu_config import limit_gpu_mem
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
 limit_gpu_mem(None)
 
 
-@dataclass
-class AugVizInfo:
-    s: ScenarioWithVisualization
-    aug_env_pub: rospy.Publisher
-    data_env_pub: rospy.Publisher
-
-
-def viz_pd(aug_viz_info: AugVizInfo, pd, distances_matrix):
-    if pd == 'plausibility':
-        axis = 1
-    elif pd == 'diversity':
-        axis = 0
-    else:
-        raise NotImplementedError(pd)
-    nearest_indices = np.argmin(distances_matrix, axis=axis)
-    nearest_distances = np.min(distances_matrix, axis=axis)
-    for data_i, (aug_j, d) in enumerate(zip(nearest_indices, nearest_distances)):
-        # data_i is closest to aug_j, with distance d.
-        # aug_example = load_gzipped_pickle(aug_viz_info.augfiles[aug_j])
-        # data_example = load_gzipped_pickle(aug_viz_info.datafiles[data_i])
-        #
-        # viz_compare_examples(aug_viz_info.s, aug_example, data_example, aug_viz_info.aug_env_pub,
-        #                      aug_viz_info.data_env_pub)
-        pass
-
-
 def _stem(p):
     return p.name.split('.')[0]
 
 
-def format_distances(aug_viz_info: AugVizInfo, results_dir: pathlib.Path, space_idx: int):
-    results_filenames = list(results_dir.glob("*.pkl.gz"))
-    n_aug = max([int(_stem(filename).split('-')[0]) for filename in results_filenames]) + 1
-    n_data = max([int(_stem(filename).split('-')[1]) for filename in results_filenames]) + 1
-    shape = [n_aug, n_data]
-    distances_matrix = np.ones(shape) * too_far[space_idx]
-    aug_examples_matrix = np.empty(shape, dtype=object)
-    data_examples_matrix = np.empty(shape, dtype=object)
-    for results_filename in tqdm(results_filenames):
-        result = load_gzipped_pickle(results_filename)
-        # with results_filename.open("rb") as f:
-        #     result = pickle.load(f)
-        distances = result['distance']
-        i = int(_stem(results_filename).split('-')[0])
-        j = int(_stem(results_filename).split('-')[1])
+class LazyMatrix:
 
-        distances_matrix[i][j] = distances[space_idx]
-        aug_examples_matrix[i][j] = result['aug_example']
-        data_examples_matrix[i][j] = result['data_example']
+    def __init__(self, shape):
+        self.shape = shape
+        self.m = np.empty(shape, dtype=object)
+
+    @lru_cache
+    def __getitem__(self, indices):
+        # results_filenames = list(results_dir.glob("*.pkl.gz"))
+        # for results_filename in tqdm(results_filenames):
+        #     result = load_gzipped_pickle(results_filename)
+        #     distances = result['distance']
+        #     i = int(_stem(results_filename).split('-')[0])
+        #     j = int(_stem(results_filename).split('-')[1])
+        #     aug_examples_matrix[i][j] = result['aug_example']
+        #     data_examples_matrix[i][j] = result['data_example']
+        #
+        #     distances_matrix[i][j] = distances[space_idx]
+        if isinstance(indices, int):
+            pass
+        elif isinstance(indices, tuple):
+            pass
+        else:
+            raise NotImplementedError(f'unsupported index {indices} of type {type(indices)}')
+
+
+def format_distances(results_dir: pathlib.Path, space_idx: int):
+    logfilename = results_dir / 'logfile.hjson'
+    log = load_hjson(logfilename)
+    log.pop("augfiles")
+    log.pop("datafiles")
+    log.pop("weights")
+    n_aug = max([int(k.split('-')[0]) for k in log.keys()]) + 1
+    n_data = max([int(k.split('-')[1]) for k in log.keys()]) + 1
+    distances_matrix = np.ones([n_aug, n_data, 5]) * too_far[space_idx]
+    aug_examples_matrix = LazyMatrix([n_aug, n_data])
+    data_examples_matrix = LazyMatrix([n_aug, n_data])
+
+    for k, d in log.items():
+        aug_i, data_j = k.split('-')
+        aug_i = int(aug_i)
+        data_j = int(data_j)
+        distances_matrix[aug_i][data_j] = d[space_idx]
+
     return aug_examples_matrix, data_examples_matrix, distances_matrix
 
 
@@ -77,7 +78,8 @@ def format_distances(aug_viz_info: AugVizInfo, results_dir: pathlib.Path, space_
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('results_dir', type=pathlib.Path)
-    parser.add_argument('display_type', choices=['both', 'plausibility', 'diversity'])
+    parser.add_argument('display_type',
+                        choices=['both', 'plausibility', 'diversity', 'plausibility_all', 'diversity_all'])
     parser.add_argument('space', choices=['rope', 'robot', 'env'])
 
     args = parser.parse_args()
@@ -85,8 +87,6 @@ def main():
     s = get_scenario("dual_arm_rope_sim_val")
     aug_env_pub = rospy.Publisher('aug_env', VoxelgridStamped, queue_size=10)
     data_env_pub = rospy.Publisher('data_env', VoxelgridStamped, queue_size=10)
-
-    aug_viz_info = AugVizInfo(s=s, aug_env_pub=aug_env_pub, data_env_pub=data_env_pub)
 
     if args.space == 'rope':
         space_idx = 0
@@ -97,8 +97,7 @@ def main():
     else:
         raise NotImplementedError(args.space)
 
-    aug_examples_matrix, data_examples_matrix, distances_matrix = format_distances(aug_viz_info=aug_viz_info,
-                                                                                   results_dir=args.results_dir,
+    aug_examples_matrix, data_examples_matrix, distances_matrix = format_distances(results_dir=args.results_dir,
                                                                                    space_idx=space_idx)
 
     def get_first_non_none(m):
@@ -108,6 +107,40 @@ def main():
         return 0, None
 
     if args.display_type == 'plausibility':
+        v = RvizAnimationController(n_time_steps=aug_examples_matrix.shape[0])
+        while not v.done:
+            i = v.t()
+            max_j, aug_example = get_first_non_none(aug_examples_matrix[i])
+            if max_j == 0:
+                print("no close examples")
+            else:
+                distances_for_aug_i = distances_matrix[i]
+                best_idx = np.argmin(distances_for_aug_i)
+                best_d = distances_for_aug_i[best_idx]
+                data_example = data_examples_matrix[i][best_idx]
+                print(i, best_d)
+                if aug_example is not None and data_example is not None:
+                    viz_compare_examples(s, aug_example, data_example, aug_env_pub, data_env_pub)
+                    s.plot_error_rviz(best_d)
+            v.step()
+    elif args.display_type == 'diversity':
+        v = RvizAnimationController(n_time_steps=aug_examples_matrix.shape[1])
+        while not v.done:
+            j = v.t()
+            max_i, data_example = get_first_non_none(data_examples_matrix[:, j])
+            if max_i == 0:
+                print("no close examples")
+            else:
+                distances_for_data_j = distances_matrix[:, j]
+                best_idx = np.argmin(distances_for_data_j)
+                aug_example = aug_examples_matrix[best_idx, j]
+                best_d = distances_for_data_j[best_idx]
+                print(j, best_d)
+                if aug_example is not None and data_example is not None:
+                    viz_compare_examples(s, aug_example, data_example, aug_env_pub, data_env_pub)
+                    s.plot_error_rviz(best_d)
+            v.step()
+    elif args.display_type == 'plausibility_all':
         for i in range(aug_examples_matrix.shape[0]):
             max_j, aug_example = get_first_non_none(aug_examples_matrix[i])
             if max_j == 0:
@@ -127,9 +160,9 @@ def main():
                     viz_compare_examples(s, aug_example, data_example, aug_env_pub, data_env_pub)
                     s.plot_error_rviz(d)
                 v.step()
-    elif args.display_type == 'diversity':
+    elif args.display_type == 'diversity_all':
         for j in range(aug_examples_matrix.shape[1]):
-            max_i, data_example = get_first_non_none(data_examples_matrix[:, j])  # 0 works because they're all the same
+            max_i, data_example = get_first_non_none(data_examples_matrix[:, j])
             if max_i == 0:
                 print("no close examples")
                 continue
@@ -179,7 +212,7 @@ def main():
         plt.savefig(args.results_dir / f'{args.space}.png')
         plt.show()
     else:
-        viz_pd(aug_viz_info, args.display_type, distances_matrix)
+        raise NotImplementedError()
 
 
 if __name__ == '__main__':

@@ -117,7 +117,7 @@ def main():
                     }
 
                     # writing this is slow, so it's good to skip really far pairs
-                    if tf.reduce_any(d > too_far):
+                    if tf.reduce_all(d > too_far):
                         continue
 
                     outfilename = dirname / f'{i}-{j}.pkl.gz'
