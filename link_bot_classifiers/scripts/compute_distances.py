@@ -84,8 +84,8 @@ def main():
     augfiles = list(args.augdir.glob("*.pkl.gz"))
     datafiles = list(args.datadir.glob("*.pkl.gz"))
 
-    aug_name = '-'.join(args.augdir.parts[-3:])
-    data_name = '-'.join(args.datadir.parts[-3:])
+    aug_name = '-'.join(args.augdir.name)
+    data_name = '-'.join(args.datadir.name)
     name = f"{aug_name}-{data_name}"
     if args.debug:
         name = 'debug-' + name

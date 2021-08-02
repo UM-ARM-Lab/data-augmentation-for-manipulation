@@ -77,7 +77,7 @@ def format_distances(aug_viz_info: AugVizInfo, results_dir: pathlib.Path, space_
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('results_dir', type=pathlib.Path)
-    parser.add_argument('display_type', choices=['data_all', 'aug_all', 'both', 'plausibility', 'diversity'])
+    parser.add_argument('display_type', choices=['both', 'plausibility', 'diversity'])
     parser.add_argument('space', choices=['rope', 'robot', 'env'])
 
     args = parser.parse_args()
@@ -107,7 +107,7 @@ def main():
                 return i, m_i
         return 0, None
 
-    if args.display_type == 'aug_all':
+    if args.display_type == 'plausibility':
         for i in range(aug_examples_matrix.shape[0]):
             max_j, aug_example = get_first_non_none(aug_examples_matrix[i])
             if max_j == 0:
@@ -127,7 +127,7 @@ def main():
                     viz_compare_examples(s, aug_example, data_example, aug_env_pub, data_env_pub)
                     s.plot_error_rviz(d)
                 v.step()
-    elif args.display_type == 'data_all':
+    elif args.display_type == 'diversity':
         for j in range(aug_examples_matrix.shape[1]):
             max_i, data_example = get_first_non_none(data_examples_matrix[:, j])  # 0 works because they're all the same
             if max_i == 0:
