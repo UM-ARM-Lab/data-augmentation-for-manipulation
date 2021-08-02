@@ -183,8 +183,10 @@ def viz_compare_examples(s: ScenarioWithVisualization,
                          data_example: Dict,
                          aug_env_pub: rospy.Publisher,
                          data_env_pub: rospy.Publisher):
-    viz_compare_example(s, aug_example, 'aug', aug_env_pub, color='#aa2222')
-    viz_compare_example(s, data_example, 'data', data_env_pub, color='#2222aa')
+    if aug_example is not None:
+        viz_compare_example(s, aug_example, 'aug', aug_env_pub, color='#aa2222')
+    if data_example is not None:
+        viz_compare_example(s, data_example, 'data', data_env_pub, color='#2222aa')
 
 
 def viz_compare_example(s: ScenarioWithVisualization,
@@ -202,8 +204,8 @@ def viz_compare_example(s: ScenarioWithVisualization,
         'joint_positions': e['joint_positions'][1],
         'joint_names':     e['joint_names'][0],
     }
-    s.plot_state_rviz(state_before, label=label + '_before', color=adjust_lightness(color, 0.4))
-    s.plot_state_rviz(state_after, label=label + '_after', color=adjust_lightness(color, 0.6))
+    s.plot_state_rviz(state_before, label=label + '_before', color=adjust_lightness(color, 0.6))
+    s.plot_state_rviz(state_after, label=label + '_after', color=adjust_lightness(color, 0.8))
     env = {
         'env':          e['env'],
         'res':          e['res'],

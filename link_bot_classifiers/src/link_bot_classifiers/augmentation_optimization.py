@@ -244,7 +244,7 @@ class AugmentationOptimization:
         # actually identical.
         new_env_0 = {k: v[0] for k, v in new_env.items()}
         inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, local_env_aug_fix_deltas = \
-            self.opt_object_augmentation5(inputs,
+            self.opt_object_augmentation3(inputs,
                                           inputs_aug,
                                           new_env_0,
                                           object_points,
