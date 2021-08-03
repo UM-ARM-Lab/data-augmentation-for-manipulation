@@ -194,30 +194,29 @@ class AugmentationOptimization:
         self.bbox_weight = 0.1
         self.robot_base_penetration_weight = 1.0
 
-        self.aug_type = self.hparams['type']
+        if self.do_augmentation():
+            self.aug_type = self.hparams['type']
+            if self.aug_type == 'optimization':
+                pass
+            elif self.aug_type in ['optimization2', 'v3']:
+                ######## v3
+                self.barrier_upper_lim = tf.square(0.06)
+                self.barrier_scale = 0.1
+                self.step_size = 5.0
+                self.attract_weight = 10.0
+                self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
+            elif self.aug_type in ['v5']:
+                self.step_size = 2.0
+                self.attract_weight = 2.0
+                self.sdf_grad_scale = 0.02
+            else:
+                raise NotImplementedError(self.aug_type)
 
-        if self.aug_type == 'optimization':
-            pass
-        elif self.aug_type in ['optimization2', 'v3']:
-            ######## v3
-            self.barrier_upper_lim = tf.square(0.06)
-            self.barrier_scale = 0.1
-            self.step_size = 5.0
-            self.attract_weight = 10.0
-            self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
-        elif self.aug_type in ['v5']:
-            self.step_size = 2.0
-            self.attract_weight = 2.0
-            self.sdf_grad_scale = 0.02
-        else:
-            raise NotImplementedError(self.aug_type)
+            self.opt = tf.keras.optimizers.SGD(self.step_size)
 
-        self.opt = tf.keras.optimizers.SGD(self.step_size)
+            # Precompute this for speed
+            self.barrier_epsilon = 0.01
 
-        # Precompute this for speed
-        self.barrier_epsilon = 0.01
-
-        if self.hparams is not None and 'invariance_model' in self.hparams:
             invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
             self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
                                                                    self.scenario)
