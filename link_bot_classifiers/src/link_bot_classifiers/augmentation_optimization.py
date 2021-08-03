@@ -204,6 +204,7 @@ class AugmentationOptimization:
             self.barrier_scale = 0.1
             self.step_size = 5.0
             self.attract_weight = 10.0
+            self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
         elif self.aug_type in ['v5']:
             self.step_size = 2.0
             self.attract_weight = 2.0
@@ -215,7 +216,6 @@ class AugmentationOptimization:
 
         # Precompute this for speed
         self.barrier_epsilon = 0.01
-        self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
 
         if self.hparams is not None and 'invariance_model' in self.hparams:
             invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
