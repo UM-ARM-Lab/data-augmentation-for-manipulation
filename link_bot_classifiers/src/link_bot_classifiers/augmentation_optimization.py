@@ -193,15 +193,23 @@ class AugmentationOptimization:
         self.ground_penetration_weight = 1.0
         self.bbox_weight = 0.1
         self.robot_base_penetration_weight = 1.0
-        ######## v3
-        self.barrier_upper_lim = tf.square(0.06)
-        self.barrier_scale = 0.1
-        self.step_size = 5.0
-        self.attract_weight = 10.0
-        ######## v5
-        self.step_size = 2.0
-        self.attract_weight = 2.0
-        self.sdf_grad_scale = 0.02
+
+        self.aug_type = self.hparams['type']
+
+        if self.aug_type == 'optimization':
+            pass
+        elif self.aug_type in ['optimization2', 'v3']:
+            ######## v3
+            self.barrier_upper_lim = tf.square(0.06)
+            self.barrier_scale = 0.1
+            self.step_size = 5.0
+            self.attract_weight = 10.0
+        elif self.aug_type in ['v5']:
+            self.step_size = 2.0
+            self.attract_weight = 2.0
+            self.sdf_grad_scale = 0.02
+        else:
+            raise NotImplementedError(self.aug_type)
 
         self.opt = tf.keras.optimizers.SGD(self.step_size)
 
@@ -222,13 +230,12 @@ class AugmentationOptimization:
                                   inputs: Dict,
                                   batch_size,
                                   time):
-        aug_type = self.hparams['type']
-        if aug_type == 'optimization':
+        if self.aug_type == 'optimization':
             return self.augmentation_optimization1(inputs, batch_size, time)
-        elif aug_type == 'optimization2':
+        elif self.aug_type == 'optimization2':
             return self.augmentation_optimization2(inputs, batch_size, time)
         else:
-            raise NotImplementedError(aug_type)
+            raise NotImplementedError(self.aug_type)
 
     def augmentation_optimization2(self,
                                    inputs: Dict,
@@ -243,15 +250,21 @@ class AugmentationOptimization:
         # new environment. Furthermore, in most cases we test with only one new environment, in which case this is
         # actually identical.
         new_env_0 = {k: v[0] for k, v in new_env.items()}
+        if self.aug_type in ['optimization2', 'v3']:
+            aug_f = self.opt_object_augmentation3
+        elif self.aug_type in ['v5']:
+            aug_f = self.opt_object_augmentation5
+        else:
+            raise NotImplementedError()
         inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, local_env_aug_fix_deltas = \
-            self.opt_object_augmentation3(inputs,
-                                          inputs_aug,
-                                          new_env_0,
-                                          object_points,
-                                          object_points_occupancy,
-                                          res,
-                                          batch_size,
-                                          time)
+            aug_f(inputs,
+                  inputs_aug,
+                  new_env_0,
+                  object_points,
+                  object_points_occupancy,
+                  res,
+                  batch_size,
+                  time)
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,

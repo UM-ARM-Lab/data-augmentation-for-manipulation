@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-from operator import ior
-import functools
 import argparse
+import functools
+from operator import ior, iand
 
+import pandas as pd
 import scipy.stats
 from colorama import Fore
 from dynamo_pandas import get_df
@@ -10,7 +11,6 @@ from dynamo_pandas import get_df
 from analysis.proxy_datasets import proxy_datasets_dict
 from link_bot_data import dynamodb_utils
 from link_bot_pycommon.pandas_utils import df_where
-import pandas as pd
 
 
 def main():
@@ -72,7 +72,7 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
         'mode'
     ]
     print(improvement.round(3).droplevel(drop_for_display).reset_index())
-    print(f'MEAN: {improvement.mean():.4f}')
+    print(f'Improvement: {improvement.mean():.4f} {improvement.std():.4f} {improvement.count():d}')
 
     p = scipy.stats.ttest_1samp(improvement, 0).pvalue
     flag = '!' if p < 0.01 else ''
@@ -83,8 +83,10 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
 def filter_df_for_experiment(df):
     df = df.loc[df['mode'] == 'all']
     offline_ft_dataset = '/media/shared/classifier_data/val_floating_boxes_1622170084+fix-op'
-    v4_car_aug = (df['classifier'].str.contains('v3-revert') & df['fine_tuning_take'].isna() & (
-            df['fine_tuning_dataset_dirs'] == offline_ft_dataset))
+    v4_car_aug = functools.reduce(iand, [
+        df['classifier'].str.contains('v3-revert-debugging'),
+        (df['fine_tuning_dataset_dirs'] == offline_ft_dataset),
+    ])
     no_aug = functools.reduce(ior, [
         df['classifier'].str.contains('val_floating_boxes1'),
         # df['classifier'].str.contains('val_floating_boxes2'),

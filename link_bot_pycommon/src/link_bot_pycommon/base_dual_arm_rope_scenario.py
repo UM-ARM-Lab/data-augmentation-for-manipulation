@@ -351,7 +351,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         scale = tf.constant([trans_scale, trans_scale, trans_scale, rot_scale, rot_scale, rot_scale], dtype=tf.float32)
         lim = tf.constant([0.5, 0.5, 0.5, np.pi, np.pi, np.pi], dtype=tf.float32)
         distribution = tfp.distributions.TruncatedNormal(zeros, scale=scale, low=-lim, high=lim)
-        transformation_params = distribution.sample(seed=seed()) - 0.05
+        transformation_params = distribution.sample(seed=seed())
 
         return transformation_params
 
