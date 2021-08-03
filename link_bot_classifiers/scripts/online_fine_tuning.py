@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--profile', type=int_tuple_arg, default=None)
     parser.add_argument('--take', type=int, default=100)
     parser.add_argument('--skip', type=int)
+    parser.add_argument('--save-inputs', action='store_true')
     parser.add_argument('--val-take', type=int)
     parser.add_argument('--threshold', type=float, default=None)
 
@@ -83,7 +84,7 @@ def main():
                          checkpoint=checkpoint,
                          log=f"{args.log}_fb2car_online_{'aug' if args.aug else ''}-{args.fb}-{args.seed}",
                          batch_size=args.batch_size,
-                         early_stopping=True,
+                         early_stopping=(not args.save_inputs),
                          epochs=args.epochs,
                          validate_first=validate_first,
                          take=args.take,
@@ -100,6 +101,7 @@ def main():
                          augmentation_config_dir=pretransfer_config_dir,
                          profile=args.profile,
                          val_take=args.val_take,
+                         save_inputs=args.save_inputs,
                          )
 
 

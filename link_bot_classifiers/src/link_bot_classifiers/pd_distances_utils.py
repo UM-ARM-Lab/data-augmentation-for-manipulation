@@ -99,7 +99,11 @@ def format_distances(results_dir: pathlib.Path, space_idx: int):
         aug_i, data_j = k.split('-')
         aug_i = int(aug_i)
         data_j = int(data_j)
-        distances_matrix[aug_i][data_j] = d[space_idx]
+        if d != 'too_far':
+            d_space = d[space_idx]
+        else:
+            d_space = too_far[space_idx]
+        distances_matrix[aug_i][data_j] = d_space
 
     return aug_examples_matrix, data_examples_matrix, distances_matrix
 
@@ -127,9 +131,9 @@ def compute_diversity(distances_matrix):
     diversities = []
     for j in range(distances_matrix.shape[1]):
         distances_for_data_j = distances_matrix[:, j]
-        sorted_indices = np.argsort(distances_for_data_j)
-        distances_for_data_j_sorted = np.take(distances_for_data_j, sorted_indices)
-        diversity = 1 / distances_for_data_j_sorted[0]
+        best_idx = np.argmin(distances_for_data_j)
+        best_d = distances_for_data_j[best_idx]
+        diversity = 1 / best_d
         diversities.append(diversity)
     return np.array(diversities)
 
@@ -138,8 +142,8 @@ def compute_plausibility(distances_matrix):
     plausibilities = []
     for i in range(distances_matrix.shape[0]):
         distances_for_aug_i = distances_matrix[i]
-        sorted_indices = np.argsort(distances_for_aug_i)
-        distances_for_aug_i_sorted = np.take(distances_for_aug_i, sorted_indices)
-        plausibility = 1 / distances_for_aug_i_sorted[0]
+        best_idx = np.argmin(distances_for_aug_i)
+        best_d = distances_for_aug_i[best_idx]
+        plausibility = 1 / best_d
         plausibilities.append(plausibility)
     return np.array(plausibilities)

@@ -18,6 +18,7 @@ node_name = f"eval_proxy_datasets_{int(time())}"
 def main():
     tf.get_logger().setLevel(logging.ERROR)
     np.set_printoptions(linewidth=250, precision=4, suppress=True)
+
     parser = argparse.ArgumentParser()
     parser.add_argument('checkpoints', type=pathlib.Path, nargs='+')
     add_eval_args(parser)

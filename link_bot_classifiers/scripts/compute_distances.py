@@ -9,6 +9,7 @@ from tensorflow_graphics.nn.loss.chamfer_distance import evaluate
 from tqdm import tqdm
 
 from link_bot_classifiers.pd_distances_utils import weights, too_far, joints_weights
+from link_bot_data.dataset_utils import batch_sequence
 from link_bot_pycommon.grid_utils import occupied_voxels_to_points
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.my_periodic_timer import MyPeriodicTimer
@@ -72,6 +73,34 @@ def compute_distance(aug_example: Dict, data_example: Dict):
     return distances
 
 
+def worker(inputs):
+    i, j, augfile, datafile, dirname = inputs
+    aug_example = load_gzipped_pickle(augfile)
+    data_example = load_gzipped_pickle(datafile)
+    d = compute_distance(aug_example, data_example)
+    to_save = {
+        'distance':     d,
+        'aug_example':  aug_example,
+        'data_example': data_example,
+    }
+
+    # writing this is slow, so it's good to skip really far pairs
+    if tf.reduce_any(d > too_far):
+        return 'too_far'
+
+    outfilename = dirname / f'{i}-{j}.pkl.gz'
+    dump_gzipped_pickle(to_save, outfilename)
+    return d.numpy().tolist()
+
+
+def make_inputs(jc, dirname, augfiles, datafiles, regenerate):
+    for i, augfile in enumerate(augfiles):
+        for j, datafile in enumerate(datafiles):
+            key = f"{i}-{j}"
+            if jc.get_result(key) is None or regenerate:
+                yield i, j, augfile, datafile, dirname
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('augdir', type=pathlib.Path)
@@ -100,30 +129,20 @@ def main():
 
     timer = MyPeriodicTimer(10)  # save logfile every 10 seconds
 
-    with Pool(2) as p:
-        for i, augfile in enumerate(tqdm(augfiles)):
-            if timer:
-                jc.save()
-            for j, datafile in enumerate(tqdm(datafiles, leave=False, position=1)):
+    all_inputs = list(make_inputs(jc, dirname, augfiles, datafiles, args.regenerate))
+    print('total n', len(all_inputs))
+    all_inputs = list(batch_sequence(all_inputs, 100, False))
+
+    with Pool() as p:
+        for batch_inputs in tqdm(all_inputs):
+            results = p.map(worker, batch_inputs)
+            for a, result in zip(batch_inputs, results):
+                i, j, augfile, datafile, dirname = a
                 key = f"{i}-{j}"
-                if jc.get_result(key) is None or args.regenerate:
-                    aug_example = load_gzipped_pickle(augfile)
-                    data_example = load_gzipped_pickle(datafile)
-                    d = compute_distance(aug_example, data_example)
-                    to_save = {
-                        'distance':     d,
-                        'aug_example':  aug_example,
-                        'data_example': data_example,
-                    }
-
-                    # writing this is slow, so it's good to skip really far pairs
-                    if tf.reduce_all(d > too_far):
-                        continue
-
-                    outfilename = dirname / f'{i}-{j}.pkl.gz'
-                    dump_gzipped_pickle(to_save, outfilename)
-                    jc.store_result(key, d.numpy().tolist(), save=False)
-        jc.save()
+                jc.store_result(key, result, save=False)
+                if timer:
+                    jc.save()
+    jc.save()
 
 
 if __name__ == '__main__':
