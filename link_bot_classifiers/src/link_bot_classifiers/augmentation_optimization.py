@@ -232,7 +232,7 @@ class AugmentationOptimization:
                                   time):
         if self.aug_type == 'optimization':
             return self.augmentation_optimization1(inputs, batch_size, time)
-        elif self.aug_type == 'optimization2':
+        elif self.aug_type in ['optimization2', 'v3', 'v5']:
             return self.augmentation_optimization2(inputs, batch_size, time)
         else:
             raise NotImplementedError(self.aug_type)
