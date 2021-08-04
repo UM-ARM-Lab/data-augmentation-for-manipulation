@@ -52,7 +52,7 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
 
     metric_name = 'accuracy on negatives'
     # drop things which are the thing we expect to differ between baseline and our method?
-    l = ['do_augmentation', 'on_invalid_aug', 'fine_tuning_take', 'fine_tuned_from', 'fine_tuning_dataset_dirs']
+    l = ['do_augmentation', 'on_invalid_aug', 'fine_tuning_take', 'fine_tuned_from', 'fine_tuning_dataset_dirs', 'balance']
 
     no_aug_baseline_all = df_p.loc[(df_p['classifier_source_env'] == 'floating_boxes') & (df_p['do_augmentation'] == 0)]
     no_aug_baseline_all.set_index(groupby, inplace=True)
@@ -84,12 +84,12 @@ def filter_df_for_experiment(df):
     df = df.loc[df['mode'] == 'all']
     offline_ft_dataset = '/media/shared/classifier_data/val_floating_boxes_1622170084+fix-op'
     v4_car_aug = functools.reduce(iand, [
-        df['classifier'].str.contains('v3-revert-debugging'),
+        df['classifier'].str.contains('v5.2'),
         (df['fine_tuning_dataset_dirs'] == offline_ft_dataset),
     ])
     no_aug = functools.reduce(ior, [
         df['classifier'].str.contains('val_floating_boxes1'),
-        # df['classifier'].str.contains('val_floating_boxes2'),
+        df['classifier'].str.contains('val_floating_boxes2'),
         # df['classifier'].str.contains('val_floating_boxes3'),
         # df['classifier'].str.contains('val_floating_boxes4'),
     ])

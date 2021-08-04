@@ -127,13 +127,20 @@ def space_to_idx(space):
     return space_idx
 
 
+def distance_to_score(d):
+    if d < 1e-5:
+        return 1e5
+    else:
+        return 1 / d
+
+
 def compute_diversity(distances_matrix):
     diversities = []
     for j in range(distances_matrix.shape[1]):
         distances_for_data_j = distances_matrix[:, j]
         best_idx = np.argmin(distances_for_data_j)
         best_d = distances_for_data_j[best_idx]
-        diversity = 1 / best_d
+        diversity = distance_to_score(best_d)
         diversities.append(diversity)
     return np.array(diversities)
 
@@ -144,6 +151,6 @@ def compute_plausibility(distances_matrix):
         distances_for_aug_i = distances_matrix[i]
         best_idx = np.argmin(distances_for_aug_i)
         best_d = distances_for_aug_i[best_idx]
-        plausibility = 1 / best_d
+        plausibility = distance_to_score(best_d)
         plausibilities.append(plausibility)
     return np.array(plausibilities)
