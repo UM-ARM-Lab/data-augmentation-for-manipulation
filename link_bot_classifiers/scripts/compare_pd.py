@@ -46,7 +46,6 @@ def main():
         print_test(args.d1.name, p1, args.d2.name, p2)
 
         print()
-        print()
 
 
 if __name__ == '__main__':
