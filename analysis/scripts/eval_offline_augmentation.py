@@ -38,7 +38,7 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
         "dataset_dirs",
         "mode",
         'original_training_seed',
-        "balance",
+        # "balance",
         "fine_tuning_dataset_dirs",
         'on_invalid_aug',
     ]
@@ -52,7 +52,14 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
 
     metric_name = 'accuracy on negatives'
     # drop things which are the thing we expect to differ between baseline and our method?
-    l = ['do_augmentation', 'on_invalid_aug', 'fine_tuning_take', 'fine_tuned_from', 'fine_tuning_dataset_dirs', 'balance']
+    l = [
+        'do_augmentation',
+        'on_invalid_aug',
+        'fine_tuning_take',
+        'fine_tuned_from',
+        'fine_tuning_dataset_dirs',
+        # 'class_balance',
+    ]
 
     no_aug_baseline_all = df_p.loc[(df_p['classifier_source_env'] == 'floating_boxes') & (df_p['do_augmentation'] == 0)]
     no_aug_baseline_all.set_index(groupby, inplace=True)
@@ -68,7 +75,7 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
     drop_for_display = [
         'classifier_source_env',
         'dataset_dirs',
-        'balance',
+        # 'balance',
         'mode'
     ]
     print(improvement.round(3).droplevel(drop_for_display).reset_index())

@@ -243,7 +243,7 @@ class NNClassifier(MyKerasModel):
             'fn/total':                FalseNegativeOverallRate(),
             'aug_validity_rate':       BinaryRate(),
             'local_env_aug_fix_delta': Mean(),
-            'balance':                 Mean(),
+            'class_balance':                 Mean(),
         }
 
     def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
@@ -258,7 +258,7 @@ class NNClassifier(MyKerasModel):
         metrics['fn/total'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
-        metrics['balance'].update_state(labels)
+        metrics['class_balance'].update_state(labels)
         if self.aug.do_augmentation() and self.aug.is_valids is not None:
             metrics['aug_validity_rate'].update_state(self.aug.is_valids)
             metrics['local_env_aug_fix_delta'].update_state(self.aug.local_env_aug_fix_delta)
