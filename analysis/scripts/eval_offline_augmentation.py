@@ -16,12 +16,13 @@ from link_bot_pycommon.pandas_utils import df_where
 def main():
     pd.options.display.max_colwidth = 100
     parser = argparse.ArgumentParser()
+    parser.add_argument('contains', type=str, help="includes classifiers with 'contains' in their name")
     parser.add_argument('--debug')
     args = parser.parse_args()
 
     df = get_df(table=dynamodb_utils.classifier_table(args.debug))
 
-    df = filter_df_for_experiment(df)
+    df = filter_df_for_experiment(df, args.contains)
 
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='ras')
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='ncs')
@@ -87,17 +88,17 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
     print()
 
 
-def filter_df_for_experiment(df):
+def filter_df_for_experiment(df, classifier_contains: str):
     df = df.loc[df['mode'] == 'all']
     offline_ft_dataset = '/media/shared/classifier_data/val_floating_boxes_1622170084+fix-op'
     v4_car_aug = functools.reduce(iand, [
-        df['classifier'].str.contains('v5.2'),
+        df['classifier'].str.contains(classifier_contains),
         (df['fine_tuning_dataset_dirs'] == offline_ft_dataset),
     ])
     no_aug = functools.reduce(ior, [
         df['classifier'].str.contains('val_floating_boxes1'),
         df['classifier'].str.contains('val_floating_boxes2'),
-        # df['classifier'].str.contains('val_floating_boxes3'),
+        df['classifier'].str.contains('val_floating_boxes3'),
         # df['classifier'].str.contains('val_floating_boxes4'),
     ])
     car_baseline = df['classifier'].str.contains('val_car_new*')
