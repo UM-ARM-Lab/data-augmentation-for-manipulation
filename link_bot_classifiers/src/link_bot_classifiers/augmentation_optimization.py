@@ -2,6 +2,7 @@ import pathlib
 from dataclasses import dataclass
 from typing import Dict, List
 
+import pyjacobian_follower
 import tensorflow as tf
 import tensorflow_probability as tfp
 import transformations
@@ -85,6 +86,7 @@ class BioIKSolver:
         self.robot = robot
         self.group_name = group_name
         self.j = robot.jacobian_follower
+        self.ik_params = pyjacobian_follower.IkParams(rng_dist=0.1, max_collision_check_attempts=100)
         if self.group_name == 'both_arms':
             self.tip_names = ['left_tool', 'right_tool']
         else:
@@ -134,11 +136,11 @@ class BioIKSolver:
 
                 robot_state_b = self.j.compute_collision_free_point_ik(default_robot_state_b, points_b, self.group_name,
                                                                        self.tip_names,
-                                                                       scene_msg_b)
+                                                                       scene_msg_b, self.ik_params)
             else:
                 poses_b = [left_target_pose[b], right_target_pose[b]]
                 robot_state_b = self.j.compute_collision_free_pose_ik(default_robot_state_b, poses_b, self.group_name,
-                                                                      self.tip_names, scene_msg_b)
+                                                                      self.tip_names, scene_msg_b, self.ik_params)
 
             reached.append(robot_state_b is not None)
             if robot_state_b is None:
