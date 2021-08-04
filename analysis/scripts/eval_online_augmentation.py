@@ -40,7 +40,7 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
         "dataset_dirs",
         "mode",
         'original_training_seed',
-        "balance",
+        # "balance",
         "fine_tuning_dataset_dirs",
         'on_invalid_aug',
     ]
@@ -78,20 +78,22 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
 
 
 def filter_df_for_experiment(df, classifier_contains: str):
+    df = df.loc[df['mode'] == 'all']
     online_ft_dataset = '/media/shared/classifier_data/val_car_feasible_1614981888+op2'
     cond = [
         df['classifier'].str.contains(classifier_contains),
         (df['fine_tuning_take'] == 100),
         (df['fine_tuning_dataset_dirs'] == online_ft_dataset),
     ]
-    baseline_cond = [
-        df['classifier'].str.contains('fb2car_online100'),
-        (df['do_augmentation'] == 0.0),
-        (df['fine_tuning_take'] == 100),
-        (df['fine_tuning_dataset_dirs'] == online_ft_dataset),
-    ]
-    df = df.loc[df['mode'] == 'all']
-    df = df.loc[reduce(iand, cond) | reduce(iand, baseline_cond)]
+    no_aug = ((df['classifier'].str.contains('fb2car_online100_baseline1')
+               | df['classifier'].str.contains('fb2car_online100_baseline2')
+               # | df['classifier'].str.contains('fb2car_online100_baseline3')
+               # | df['classifier'].str.contains('fb2car_online100_baseline4')
+               )
+              & (df['do_augmentation'] == 0.0) & (df['fine_tuning_take'] == 100)
+              & (df['fine_tuning_dataset_dirs'] == online_ft_dataset))
+
+    df = df.loc[reduce(iand, cond) | no_aug]
     return df
 
 
