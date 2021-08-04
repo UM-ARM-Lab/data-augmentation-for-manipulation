@@ -119,13 +119,11 @@ def gz_scope(*args):
 @halo.Halo("Getting gazebo processes")
 def get_gazebo_processes():
     processes = []
-    for proc in psutil.process_iter(['pid', 'name']):
+    for proc in psutil.process_iter(['name']):
         if proc.info['name'] == 'gzserver':
-            p = psutil.Process(pid=proc.info['pid'])
-            processes.append(p)
-        if proc.info['name'] == 'gzclient':
-            p = psutil.Process(pid=proc.info['pid'])
-            processes.append(p)
+            processes.append(proc)
+        elif proc.info['name'] == 'gzclient':
+            processes.append(proc)
     return processes
 
 

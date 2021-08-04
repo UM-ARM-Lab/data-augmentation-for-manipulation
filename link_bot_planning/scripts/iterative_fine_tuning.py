@@ -27,9 +27,9 @@ from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.results_to_recovery_dataset import ResultsToRecoveryDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
-from link_bot_pycommon import notifyme
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import pathify, deal_with_exceptions, paths_from_json
+from moonshine.gpu_config import limit_gpu_mem
 from moonshine.metrics import LossMetric
 from moonshine.moonshine_utils import repeat, add_batch
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors as tt
@@ -52,6 +52,8 @@ from link_bot_planning.planning_evaluation import load_planner_params, EvaluateP
 from link_bot_pycommon.args import run_subparsers
 from link_bot_pycommon.job_chunking import JobChunker
 from moonshine.filepath_tools import load_hjson, load_params
+
+limit_gpu_mem(None)
 
 
 @dataclass
@@ -489,6 +491,7 @@ class IterativeFineTuning:
                 verbose=self.verbose,
                 validate_first=True,
                 early_stopping=True,
+                model_hparams_update=self.ift_config['labeling_params_update'],
                 **self.ift_config['fine_tune_classifier'])
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir.as_posix())
         return new_latest_checkpoint_dir
@@ -517,8 +520,10 @@ class IterativeFineTuning:
 
 
 def setup_ift(args):
-    from_env = input("from: ")
-    to_env = input("to: ")
+    # from_env = input("from: ")
+    # to_env = input("to: ")
+    from_env = 'floating boxes'
+    to_env = 'car3'
 
     # setup
     outdir = make_unique_outdir(pathlib.Path('results') / 'iterative_fine_tuning' / f"{args.nickname}")
@@ -582,12 +587,12 @@ def main():
 
     setup_parser.add_argument("ift_config", type=pathlib.Path, help='hjson file from ift_config/')
     setup_parser.add_argument('planner_params', type=pathlib.Path, help='hjson file from planner_configs/')
-    setup_parser.add_argument("classifier_checkpoint", type=pathlib.Path,
-                              help='classifier checkpoint to setup from')
-    setup_parser.add_argument("recovery_checkpoint", type=pathlib.Path, help='recovery checkpoint to setup from')
-    setup_parser.add_argument("test_scenes_dir", type=pathlib.Path)
+    setup_parser.add_argument("classifier_checkpoint", type=pathlib.Path, help='classifier checkpoint to setup from')
     setup_parser.add_argument("nickname", type=str, help='used in making the output directory')
-    setup_parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
+    setup_parser.add_argument("seed", type=int, help='an additional seed for testing randomness')
+    setup_parser.add_argument("--recovery-checkpoint", type=pathlib.Path, help='recovery checkpoint to setup from',
+                              default='/media/shared/recovery_trials/random')
+    setup_parser.add_argument("--test-scenes-dir", type=pathlib.Path, default='test_scenes/swap_straps_no_recovery3')
     setup_parser.set_defaults(func=setup_ift)
 
     run_parser.add_argument("logfile", type=pathlib.Path)
