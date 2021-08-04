@@ -16,12 +16,13 @@ import pandas as pd
 def main():
     pd.options.display.max_colwidth = 100
     parser = argparse.ArgumentParser()
+    parser.add_argument('contains', type=str, help="includes classifiers with 'contains' in their name")
     parser.add_argument('--debug')
     args = parser.parse_args()
 
     df = get_df(table=dynamodb_utils.classifier_table(args.debug))
 
-    df = filter_df_for_experiment(df)
+    df = filter_df_for_experiment(df, args.contains)
 
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='ras')
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='ncs')
@@ -76,10 +77,10 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
     print()
 
 
-def filter_df_for_experiment(df):
+def filter_df_for_experiment(df, classifier_contains: str):
     online_ft_dataset = '/media/shared/classifier_data/val_car_feasible_1614981888+op2'
     cond = [
-        df['classifier'].str.contains('v4_fb2car_online'),
+        df['classifier'].str.contains(classifier_contains),
         (df['fine_tuning_take'] == 100),
         (df['fine_tuning_dataset_dirs'] == online_ft_dataset),
     ]
