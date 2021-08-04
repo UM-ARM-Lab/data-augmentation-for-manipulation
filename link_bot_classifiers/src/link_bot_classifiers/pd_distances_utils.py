@@ -128,10 +128,11 @@ def space_to_idx(space):
 
 
 def distance_to_score(d):
-    if d < 1e-5:
-        return 1e5
-    else:
-        return 1 / d
+    return d
+    # if d < 1e-5:
+    #     return 1e5
+    # else:
+    #     return 1 / d
 
 
 def compute_diversity(distances_matrix):
