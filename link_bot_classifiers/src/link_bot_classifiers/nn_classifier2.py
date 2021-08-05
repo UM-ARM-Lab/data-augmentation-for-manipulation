@@ -171,7 +171,8 @@ class NNClassifier(MyKerasModel):
         inputs['voxel_grids'] = voxel_grids
 
         if debug_input() and training:
-            assert not rospy.get_param("use_sim_time", False)
+            if rospy.get_param("use_sim_time", False):
+                print("use sim time is true!")
             self.debug_viz_inputs(inputs, local_origin_point, time)
 
         return inputs

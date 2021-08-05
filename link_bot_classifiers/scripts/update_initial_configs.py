@@ -10,7 +10,7 @@ import sdf_tools.utils_3d
 
 
 def update_initial_configs(indir: pathlib.Path):
-    for filename in tqdm(indir.glob("*.pkl")):
+    for filename in tqdm(list(indir.glob("*.pkl"))):
         bak = filename.parent / (filename.name + '.bak')
         shutil.copy(filename, bak)
         with filename.open('rb') as file:

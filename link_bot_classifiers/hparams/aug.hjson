@@ -1,7 +1,7 @@
 {
   augmentation: {
-    type: v3
-    on_invalid_aug: "drop"  # one of [drop, original]
+    type: v5
+    on_invalid_aug: "original"  # one of [drop, original]
     invariance_model: /media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint
   }
 }

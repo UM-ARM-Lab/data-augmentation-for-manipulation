@@ -1,157 +1,32 @@
 import pathlib
-from dataclasses import dataclass
 from typing import Dict, List
 
-import pyjacobian_follower
 import tensorflow as tf
 import tensorflow_probability as tfp
 import transformations
 
 import rospy
-import sdf_tools.utils_3d
-from arm_robots.robot import MoveitEnabledRobot
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
-from geometry_msgs.msg import Point
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
+from link_bot_classifiers.aug_opt_env1 import opt_new_env_augmentation
+from link_bot_classifiers.aug_opt_ik import AugOptIk
+from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik
+from link_bot_classifiers.aug_opt_v3 import opt_object_augmentation3
+from link_bot_classifiers.aug_opt_v5 import opt_object_augmentation5
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
 from link_bot_data.dataset_utils import add_new, add_predicted, deserialize_scene_msg
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg, \
-    occupied_voxels_to_points, subtract, binary_or, batch_point_to_idx
+from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg
 from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-from moonshine.geometry import transform_points_3d, pairwise_squared_distances, transformation_params_to_matrices, \
-    transformation_jacobian, homogeneous
-from moonshine.moonshine_utils import reduce_mean_no_nan, repeat, to_list_of_strings, possibly_none_concat, \
-    repeat_tensor
+from moonshine.geometry import transform_points_3d
+from moonshine.moonshine_utils import to_list_of_strings, possibly_none_concat
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
-from moveit_msgs.msg import RobotState, PlanningScene
 from sensor_msgs.msg import JointState
-
-
-def debug_aug():
-    return rospy.get_param("DEBUG_AUG", False)
-
-
-def debug_aug_sgd():
-    return rospy.get_param("DEBUG_AUG_SGD", False)
-
-
-def debug_ik():
-    return rospy.get_param("DEBUG_IK", False)
-
-
-@dataclass
-class MinDists:
-    attract: tf.Tensor
-    repel: tf.Tensor
-    robot_repel: tf.Tensor
-
-
-@dataclass
-class EnvPoints:
-    full: tf.Tensor
-    sparse: tf.Tensor
-
-
-@dataclass
-class EnvOptDebugVars:
-    nearest_attract_env_points: tf.Tensor
-    nearest_repel_points: tf.Tensor
-    nearest_robot_repel_points: tf.Tensor
-
-
-def subsample_points(points, fraction):
-    """
-
-    Args:
-        points: [n, 3]
-        fraction: from 0.0 to 1.0
-
-    Returns:
-
-    """
-    n_take_every = int(1 / fraction)
-    return points[::n_take_every]
-
-
-class BioIKSolver:
-
-    def __init__(self, robot: MoveitEnabledRobot, group_name='both_arms', position_only=True):
-        self.position_only = position_only
-        self.robot = robot
-        self.group_name = group_name
-        self.j = robot.jacobian_follower
-        self.ik_params = pyjacobian_follower.IkParams(rng_dist=0.1, max_collision_check_attempts=100)
-        if self.group_name == 'both_arms':
-            self.tip_names = ['left_tool', 'right_tool']
-        else:
-            raise NotImplementedError()
-
-    def solve(self, scene_msg: List[PlanningScene],
-              joint_names,
-              default_robot_positions,
-              batch_size: int,
-              left_target_position=None,
-              right_target_position=None,
-              left_target_pose=None,
-              right_target_pose=None):
-        """
-
-        Args:
-            scene_msg: [b] list of PlanningScene
-            left_target_position:  [b,3], xyz
-            right_target_position: [b,3], xyz
-            left_target_pose:  [b,7] euler xyz, quat xyzw
-            right_target_pose: [b,7] euler xyz, quat xyzw
-
-        Returns:
-
-        """
-        robot_state_b: RobotState
-        joint_positions = []
-        reached = []
-
-        def _pose_tensor_to_point(_positions):
-            raise NotImplementedError()
-
-        def _position_tensor_to_point(_positions):
-            return Point(*_positions.numpy())
-
-        for b in range(batch_size):
-            scene_msg_b = scene_msg[b]
-
-            default_robot_state_b = RobotState()
-            default_robot_state_b.joint_state.position = default_robot_positions[b].numpy().tolist()
-            default_robot_state_b.joint_state.name = joint_names
-            scene_msg_b.robot_state.joint_state.position = default_robot_positions[b].numpy().tolist()
-            scene_msg_b.robot_state.joint_state.name = joint_names
-            if self.position_only:
-                points_b = [_position_tensor_to_point(left_target_position[b]),
-                            _position_tensor_to_point(right_target_position[b])]
-
-                robot_state_b = self.j.compute_collision_free_point_ik(default_robot_state_b, points_b, self.group_name,
-                                                                       self.tip_names,
-                                                                       scene_msg_b, self.ik_params)
-            else:
-                poses_b = [left_target_pose[b], right_target_pose[b]]
-                robot_state_b = self.j.compute_collision_free_pose_ik(default_robot_state_b, poses_b, self.group_name,
-                                                                      self.tip_names, scene_msg_b, self.ik_params)
-
-            reached.append(robot_state_b is not None)
-            if robot_state_b is None:
-                joint_position_b = default_robot_state_b.joint_state.position
-            else:
-                joint_position_b = robot_state_b.joint_state.position
-            joint_positions.append(tf.convert_to_tensor(joint_position_b, dtype=tf.float32))
-
-        joint_positions = tf.stack(joint_positions, axis=0)
-        reached = tf.stack(reached, axis=0)
-        return joint_positions, reached
 
 
 class AugmentationOptimization:
@@ -176,7 +51,7 @@ class AugmentationOptimization:
         self.debug = debug
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
-        self.ik_solver = BioIKSolver(scenario.robot)
+        self.ik_solver = AugOptIk(scenario.robot)
 
         self.robot_subsample = 0.5
         self.env_subsample = 0.25
@@ -190,10 +65,9 @@ class AugmentationOptimization:
         self.barrier_cut_off = 0.06  # stop repelling loss after this (squared) distance (meters)
         self.barrier_epsilon = 0.01
         self.grad_clip = 0.25  # max dist step the env aug update can take
-        self.repel_weight = 1.0
         self.invariance_weight = 0.05
         self.ground_penetration_weight = 1.0
-        self.bbox_weight = 0.1
+        self.bbox_weight = 0.05
         self.robot_base_penetration_weight = 1.0
 
         if self.do_augmentation():
@@ -202,19 +76,22 @@ class AugmentationOptimization:
                 pass
             elif self.aug_type in ['optimization2', 'v3']:
                 ######## v3
-                self.barrier_upper_lim = tf.square(0.06)
+                self.barrier_upper_lim = tf.square(0.05)
                 self.barrier_scale = 0.1
                 self.step_size = 1.0
                 self.attract_weight = 10.0
+                self.repel_weight = 0.7
                 self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
             elif self.aug_type in ['v5']:
                 self.step_size = 2.0
                 self.attract_weight = 2.0
+                self.repel_weight = 1.0
                 self.sdf_grad_scale = 0.02
             else:
                 raise NotImplementedError(self.aug_type)
 
-            self.opt = tf.keras.optimizers.SGD(self.step_size)
+            self.lr = tf.keras.optimizers.schedules.ExponentialDecay(self.step_size, 10, 0.95)
+            self.opt = tf.keras.optimizers.SGD(self.lr)
 
             # Precompute this for speed
             self.barrier_epsilon = 0.01
@@ -252,13 +129,14 @@ class AugmentationOptimization:
         # actually identical.
         new_env_0 = {k: v[0] for k, v in new_env.items()}
         if self.aug_type in ['optimization2', 'v3']:
-            aug_f = self.opt_object_augmentation3
+            aug_f = opt_object_augmentation3
         elif self.aug_type in ['v5']:
-            aug_f = self.opt_object_augmentation5
+            aug_f = opt_object_augmentation5
         else:
             raise NotImplementedError()
         inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, local_env_aug_fix_deltas = \
-            aug_f(inputs,
+            aug_f(self,
+                  inputs,
                   inputs_aug,
                   new_env_0,
                   object_points,
@@ -416,15 +294,16 @@ class AugmentationOptimization:
                 # stepper.step()
 
         new_env = self.get_new_env(inputs)
-        env_aug_valid, local_env_aug = self.opt_new_env_augmentation(inputs_aug,
-                                                                     new_env,
-                                                                     object_points_aug,
-                                                                     robot_points_aug,
-                                                                     object_points_occupancy,
-                                                                     None,
-                                                                     res,
-                                                                     local_origin_point_aug,
-                                                                     batch_size)
+        env_aug_valid, local_env_aug = opt_new_env_augmentation(self,
+                                                                inputs_aug,
+                                                                new_env,
+                                                                object_points_aug,
+                                                                robot_points_aug,
+                                                                object_points_occupancy,
+                                                                None,
+                                                                res,
+                                                                local_origin_point_aug,
+                                                                batch_size)
 
         if debug_aug():
             stepper = RvizSimpleStepper()
@@ -520,605 +399,19 @@ class AugmentationOptimization:
                                                        self.local_env_helper.w,
                                                        self.local_env_helper.c)
 
-    def opt_object_augmentation3(self,
-                                 inputs: Dict,
-                                 inputs_aug: Dict,
-                                 new_env: Dict,
-                                 obj_points,
-                                 object_points_occupancy,
-                                 res,
-                                 batch_size,
-                                 time):
-        # viz new env
-        if debug_aug():
-            for b in debug_viz_batch_indices(batch_size):
-                env_new_dict = {
-                    'env': new_env['env'].numpy(),
-                    'res': res[b].numpy(),
-                }
-                msg = environment_to_vg_msg(env_new_dict, frame='new_env_aug_vg', stamp=rospy.Time(0))
-                self.debug.env_aug_pub1.publish(msg)
-
-                send_voxelgrid_tf_origin_point_res(self.broadcaster,
-                                                   origin_point=new_env['origin_point'],
-                                                   res=res[b],
-                                                   frame='new_env_aug_vg')
-                # stepper.step()
-
+    def sample_initial_transforms(self, batch_size):
         # Sample an initial random object transformation. This can be the same across the batch
-        initial_transformation_params = self.scenario.sample_object_augmentation_variables(1000, self.seed)
+        n_sample = 1000
+        good_enough_percentile = 0.1
+        good_enough_n = int(n_sample * good_enough_percentile)
+        initial_transformation_params = self.scenario.sample_object_augmentation_variables(n_sample, self.seed)
         # pick the most valid transforms, via the learned object state augmentation validity model
         predicted_errors = self.invariance_model_wrapper.evaluate(initial_transformation_params)
-        best_transformation_idx = tf.argmin(predicted_errors)
-        best_transformation_params = tf.gather(initial_transformation_params, best_transformation_idx)
-        initial_transformation_params = repeat_tensor(best_transformation_params, batch_size, 0, True)
-
-        # optimization loop
-        obj_transforms = tf.Variable(initial_transformation_params)  # [x,y,z,roll,pitch,yaw]
-        variables = [obj_transforms]
-        for i in range(self.max_steps):
-            with tf.profiler.experimental.Trace('one_step_loop', i=i):
-                with tf.GradientTape() as tape:
-                    # obj_points is the set of points that define the object state, ie. the swept rope points
-                    # to compute the object state constraints loss we need to transform this during each forward pass
-                    # we also need to call apply_object_augmentation* at the end
-                    # to update the rest of the "state" which is
-                    # input to the network
-                    transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
-                    obj_points_aug = transform_points_3d(transformation_matrices[:, None], obj_points)
-
-                    env_points_full = occupied_voxels_to_points(new_env['env'], new_env['res'], new_env['origin_point'])
-                    env_points_sparse = subsample_points(env_points_full, self.env_subsample)
-
-                    # compute repel and attract loss between the environment points and the obj_points_aug
-                    attract_mask = object_points_occupancy  # assumed to already be either 0.0 or 1.0
-                    dists = pairwise_squared_distances(env_points_sparse, obj_points_aug)
-                    min_dist = tf.reduce_min(dists, axis=1)
-                    min_dist_indices = tf.argmin(dists, axis=1)
-                    nearest_env_points = tf.gather(env_points_sparse, min_dist_indices)
-
-                    attract_loss = min_dist * self.attract_weight
-                    repel_loss = self.barrier_func(min_dist) * self.repel_weight
-
-                    attract_repel_loss_per_point = attract_mask * attract_loss + (1 - attract_mask) * repel_loss
-
-                    invariance_loss = self.invariance_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
-
-                    bbox_loss = self.bbox_loss(obj_points_aug, new_env['extent'])
-
-                    losses = [
-                        tf.reduce_mean(attract_repel_loss_per_point, axis=-1),
-                        bbox_loss,
-                        invariance_loss,
-                    ]
-                    losses_sum = tf.add_n(losses)
-                    loss = tf.reduce_mean(losses_sum)
-
-                gradients = tape.gradient(loss, variables)
-
-            if debug_aug_sgd():
-                stepper = RvizSimpleStepper()
-                scale = 0.005
-                for b in debug_viz_batch_indices(batch_size):
-                    repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), -1)
-                    attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), -1)
-
-                    attract_points = tf.gather(obj_points[b], attract_indices).numpy()
-                    repel_points = tf.gather(obj_points[b], repel_indices).numpy()
-                    attract_points_aug = tf.gather(obj_points_aug[b], attract_indices).numpy()
-                    repel_points_aug = tf.gather(obj_points_aug[b], repel_indices).numpy()
-                    nearest_attract_env_points = tf.gather(nearest_env_points[b], attract_indices).numpy()
-                    nearest_repel_env_points = tf.gather(nearest_env_points[b], repel_indices).numpy()
-
-                    self.scenario.plot_points_rviz(attract_points, label='attract', color='g', scale=scale)
-                    self.scenario.plot_points_rviz(repel_points, label='repel', color='r', scale=scale)
-                    self.scenario.plot_points_rviz(attract_points_aug, label='attract_aug', color='g', scale=scale)
-                    self.scenario.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=scale)
-
-                    self.scenario.plot_lines_rviz(nearest_attract_env_points, attract_points_aug,
-                                                  label='attract_correspondence', color='g')
-                    self.scenario.plot_lines_rviz(nearest_repel_env_points, repel_points_aug,
-                                                  label='repel_correspondence', color='r')
-                    # stepper.step()
-
-            # check termination criteria
-            squared_res_expanded = tf.square(res)[:, None]
-            attract_satisfied = tf.cast(min_dist < squared_res_expanded, tf.float32)
-            repel_satisfied = tf.cast(min_dist > squared_res_expanded, tf.float32)
-            constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
-            constraints_satisfied = tf.reduce_all(tf.cast(constraints_satisfied, tf.bool), axis=-1)
-
-            grad_norm = tf.linalg.norm(gradients[0], axis=-1)
-            step_size_i = grad_norm * self.step_size
-            can_terminate = self.can_terminate(constraints_satisfied, step_size_i)
-            can_terminate = tf.reduce_all(can_terminate)
-            if can_terminate:
-                break
-
-            clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
-            self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
-
-        # this updates other representations of state/action that are fed into the network
-        _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
-            transformation_matrices,
-            tf.zeros([batch_size, 1, 3], dtype=tf.float32),
-            inputs,
-            batch_size,
-            time)
-        inputs_aug.update(object_aug_update)
-
-        if debug_aug_sgd():
-            for b in debug_viz_batch_indices(batch_size):
-                self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
-                self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
-
-        new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
-        local_env_aug, _ = self.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
-        # NOTE: after local optimization, enforce the constraint
-        #  one way would be to force voxels with attract points are on and voxels with repel points are off
-        #  another would be to "give up" and use the un-augmented datapoint
-
-        local_env_aug_fixed = []
-        local_env_aug_fix_deltas = []
-        for b in range(batch_size):
-            attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), axis=1)
-            repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), axis=1)
-            attract_points_aug = tf.gather(obj_points_aug[b], attract_indices)
-            repel_points_aug = tf.gather(obj_points_aug[b], repel_indices)
-            attract_vg = self.points_to_voxel_grid_res_origin_point(attract_points_aug, res[b],
-                                                                    local_origin_point_aug[b])
-            repel_vg = self.points_to_voxel_grid_res_origin_point(repel_points_aug, res[b], local_origin_point_aug[b])
-            # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
-            local_env_aug_fixed_b = subtract(binary_or(local_env_aug[b], attract_vg), repel_vg)
-            local_env_aug_fix_delta = tf.reduce_sum(tf.abs(local_env_aug_fixed_b - local_env_aug[b]))
-            local_env_aug_fix_deltas.append(local_env_aug_fix_delta)
-            local_env_aug_fixed.append(local_env_aug_fixed_b)
-        local_env_aug_fixed = tf.stack(local_env_aug_fixed, axis=0)
-        local_env_aug_fix_deltas = tf.stack(local_env_aug_fix_deltas, axis=0)
-        self.local_env_aug_fix_delta = possibly_none_concat(self.local_env_aug_fix_delta, local_env_aug_fix_deltas,
-                                                            axis=0)
-
-        return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug_fixed, local_env_aug_fix_deltas
-
-    def opt_object_augmentation5(self,
-                                 inputs: Dict,
-                                 inputs_aug: Dict,
-                                 new_env: Dict,
-                                 obj_points,
-                                 object_points_occupancy,
-                                 res,
-                                 batch_size,
-                                 time):
-        # viz new env
-        if debug_aug():
-            for b in debug_viz_batch_indices(batch_size):
-                env_new_dict = {
-                    'env': new_env['env'].numpy(),
-                    'res': res[b].numpy(),
-                }
-                msg = environment_to_vg_msg(env_new_dict, frame='new_env_aug_vg', stamp=rospy.Time(0))
-                self.debug.env_aug_pub1.publish(msg)
-
-                send_voxelgrid_tf_origin_point_res(self.broadcaster,
-                                                   origin_point=new_env['origin_point'],
-                                                   res=res[b],
-                                                   frame='new_env_aug_vg')
-                # stepper.step()
-
-        # Sample an initial random object transformation. This can be the same across the batch
-        initial_transformation_params = self.scenario.sample_object_augmentation_variables(1000, self.seed)
-        # pick the most valid transforms, via the learned object state augmentation validity model
-        predicted_errors = self.invariance_model_wrapper.evaluate(initial_transformation_params)
-        best_transformation_idx = tf.argmin(predicted_errors)
-        best_transformation_params = tf.gather(initial_transformation_params, best_transformation_idx)
-        initial_transformation_params = repeat_tensor(best_transformation_params, batch_size, 0, True)
-
-        if 'sdf' in new_env and 'sdf_grad' in new_env:
-            sdf_no_clipped = new_env['sdf']
-            sdf_grad_no_clipped = new_env['sdf_grad']
-        else:
-            sdf_no_clipped, sdf_grad_no_clipped = sdf_tools.utils_3d.compute_sdf_and_gradient(new_env['env'],
-                                                                                              new_env['res'],
-                                                                                              new_env['origin_point'])
-        sdf_no_clipped = tf.convert_to_tensor(sdf_no_clipped)
-        sdf_grad_no_clipped = tf.convert_to_tensor(sdf_grad_no_clipped)
-        repel_grad_mask = tf.cast(sdf_no_clipped < self.barrier_cut_off, tf.float32)
-        repel_sdf_grad = sdf_grad_no_clipped * tf.expand_dims(repel_grad_mask, -1)
-        attract_grad_mask = tf.cast(sdf_no_clipped > 0, tf.float32)
-        attract_sdf_grad = sdf_grad_no_clipped * tf.expand_dims(attract_grad_mask, -1)
-
-        # optimization loop
-        obj_transforms = tf.Variable(initial_transformation_params)  # [x,y,z,roll,pitch,yaw]
-        variables = [obj_transforms]
-        for i in range(self.max_steps):
-            with tf.profiler.experimental.Trace('one_step_loop', i=i):
-                with tf.GradientTape() as tape:
-                    # obj_points is the set of points that define the object state, ie. the swept rope points
-                    # to compute the object state constraints loss we need to transform this during each forward pass
-                    # we also need to call apply_object_augmentation* at the end
-                    # to update the rest of the "state" which is input to the network
-                    transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
-                    to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
-                    obj_points_local_frame = obj_points - to_local_frame
-                    obj_points_aug_local_frame = transform_points_3d(transformation_matrices[:, None],
-                                                                     obj_points_local_frame)
-                    obj_points_aug = obj_points_aug_local_frame + to_local_frame
-
-                    invariance_loss = self.invariance_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
-
-                    bbox_loss = self.bbox_loss(obj_points_aug, new_env['extent'])
-
-                    losses = [
-                        bbox_loss,
-                        invariance_loss,
-                    ]
-                    losses_sum = tf.add_n(losses)
-                    loss = tf.reduce_mean(losses_sum)
-
-                gradients = tape.gradient(loss, variables)
-
-                # compute repel and attract gradient via the SDF
-                attract_mask = object_points_occupancy  # assumed to already be either 0.0 or 1.0
-                obj_point_indices_aug = batch_point_to_idx(obj_points_aug, new_env['res'],
-                                                           new_env['origin_point'][None, None])
-                oob = tf.logical_or(obj_point_indices_aug < 0,
-                                    obj_point_indices_aug > tf.convert_to_tensor(new_env['env'].shape, tf.int64)[
-                                        None, None])
-                oob = tf.reduce_any(oob, axis=-1)
-                sdf_dist = tf.gather_nd(sdf_no_clipped, obj_point_indices_aug)  # will be zero if index OOB
-                obj_attract_sdf_grad = tf.gather_nd(attract_sdf_grad,
-                                                    obj_point_indices_aug)  # will be zero if index OOB
-                obj_repel_sdf_grad = tf.gather_nd(repel_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
-                attract_grad = obj_attract_sdf_grad * tf.expand_dims(attract_mask, -1) * self.attract_weight
-                repel_grad = -obj_repel_sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.repel_weight
-                attract_repel_dpoint = (attract_grad + repel_grad) * self.sdf_grad_scale  # [b,n,3]
-
-                # Compute the jacobian of the transformation
-                jacobian = transformation_jacobian(obj_transforms)[:, None]  # [b,1,6,4,4]
-                to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
-                obj_points_local_frame = obj_points - to_local_frame  # [b,n,3]
-                obj_points_local_frame_h = homogeneous(obj_points_local_frame)[:, :, None, :, None]  # [b,1,4,1]
-                dpoint_dvariables_h = tf.squeeze(tf.matmul(jacobian, obj_points_local_frame_h))  # [b,6]
-                dpoint_dvariables = tf.transpose(dpoint_dvariables_h[:, :, :, :3], [0, 1, 3, 2])  # [b,3,6]
-                # chain rule
-                attract_repel_sdf_grad = tf.einsum('bni,bnij->bnj', attract_repel_dpoint, dpoint_dvariables)  # [b,n,6]
-                attract_repel_sdf_grad = tf.reduce_mean(attract_repel_sdf_grad, axis=1)
-
-                # combine with the gradient for the other aspects of the loss, those computed by tf.gradient
-                gradients = [gradients[0] + attract_repel_sdf_grad]
-
-            if debug_aug_sgd():
-                stepper = RvizSimpleStepper()
-                scale = 0.005
-                for b in debug_viz_batch_indices(batch_size):
-                    repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), -1)
-                    attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), -1)
-
-                    attract_points = tf.gather(obj_points[b], attract_indices).numpy()
-                    repel_points = tf.gather(obj_points[b], repel_indices).numpy()
-                    attract_points_aug = tf.gather(obj_points_aug[b], attract_indices).numpy()
-                    repel_points_aug = tf.gather(obj_points_aug[b], repel_indices).numpy()
-
-                    self.scenario.plot_points_rviz(attract_points, label='attract', color='g', scale=scale)
-                    self.scenario.plot_points_rviz(repel_points, label='repel', color='r', scale=scale)
-                    self.scenario.plot_points_rviz(attract_points_aug, label='attract_aug', color='g', scale=scale)
-                    self.scenario.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=scale)
-
-                    attract_grad_b = -tf.gather(obj_attract_sdf_grad[b], attract_indices, axis=0) * 0.02
-                    repel_sdf_dist = tf.gather(sdf_dist[b], repel_indices, axis=0)
-                    repel_oob = tf.gather(oob[b], repel_indices, axis=0)
-                    repel_sdf_grad_b = tf.gather(obj_repel_sdf_grad[b], repel_indices, axis=0)
-                    repel_close = tf.logical_and(repel_sdf_dist < self.barrier_cut_off, tf.logical_not(repel_oob))
-                    repel_close_indices = tf.squeeze(tf.where(repel_close), axis=-1)
-                    repel_close_grad_b = tf.gather(repel_sdf_grad_b, repel_close_indices, axis=0) * 0.02
-                    repel_close_points_aug = tf.gather(repel_points_aug, repel_close_indices)
-                    self.scenario.delete_arrows_rviz(label='attract_sdf_grad')
-                    self.scenario.delete_arrows_rviz(label='repel_sdf_grad')
-                    self.scenario.plot_arrows_rviz(attract_points_aug, attract_grad_b, label='attract_sdf_grad',
-                                                   color='g', scale=0.5)
-                    self.scenario.plot_arrows_rviz(repel_close_points_aug, repel_close_grad_b, label='repel_sdf_grad',
-                                                   color='r', scale=0.5)
-                    # stepper.step()
-
-            # check termination criteria
-            squared_res_expanded = tf.square(res)[:, None]
-            attract_satisfied = tf.cast(sdf_dist < squared_res_expanded, tf.float32)
-            repel_satisfied = tf.cast(sdf_dist > squared_res_expanded, tf.float32)
-            constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
-            constraints_satisfied = tf.reduce_all(tf.cast(constraints_satisfied, tf.bool), axis=-1)
-
-            grad_norm = tf.linalg.norm(gradients[0], axis=-1)
-            step_size_i = grad_norm * self.step_size
-            can_terminate = self.can_terminate(constraints_satisfied, step_size_i)
-            can_terminate = tf.reduce_all(can_terminate)
-            if can_terminate:
-                break
-
-            clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
-            self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
-
-        # this updates other representations of state/action that are fed into the network
-        _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
-            transformation_matrices,
-            to_local_frame,
-            inputs,
-            batch_size,
-            time)
-        inputs_aug.update(object_aug_update)
-
-        if debug_aug_sgd():
-            for b in debug_viz_batch_indices(batch_size):
-                self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
-                self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
-
-        new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
-        local_env_aug, _ = self.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
-        # NOTE: after local optimization, enforce the constraint
-        #  one way would be to force voxels with attract points are on and voxels with repel points are off
-        #  another would be to "give up" and use the un-augmented datapoint
-
-        local_env_aug_fixed = []
-        local_env_aug_fix_deltas = []
-        for b in range(batch_size):
-            attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), axis=1)
-            repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), axis=1)
-            attract_points_aug = tf.gather(obj_points_aug[b], attract_indices)
-            repel_points_aug = tf.gather(obj_points_aug[b], repel_indices)
-            attract_vg = self.points_to_voxel_grid_res_origin_point(attract_points_aug, res[b],
-                                                                    local_origin_point_aug[b])
-            repel_vg = self.points_to_voxel_grid_res_origin_point(repel_points_aug, res[b], local_origin_point_aug[b])
-            # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
-            local_env_aug_fixed_b = subtract(binary_or(local_env_aug[b], attract_vg), repel_vg)
-            local_env_aug_fix_delta = tf.reduce_sum(tf.abs(local_env_aug_fixed_b - local_env_aug[b]))
-            local_env_aug_fix_deltas.append(local_env_aug_fix_delta)
-            local_env_aug_fixed.append(local_env_aug_fixed_b)
-        local_env_aug_fixed = tf.stack(local_env_aug_fixed, axis=0)
-        local_env_aug_fix_deltas = tf.stack(local_env_aug_fix_deltas, axis=0)
-        self.local_env_aug_fix_delta = possibly_none_concat(self.local_env_aug_fix_delta, local_env_aug_fix_deltas,
-                                                            axis=0)
-
-        return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug_fixed, local_env_aug_fix_deltas
-
-    def opt_new_env_augmentation(self,
-                                 inputs_aug: Dict,
-                                 new_env: Dict,
-                                 object_points_aug,
-                                 robot_points_aug,
-                                 object_points_occupancy,
-                                 robot_points_occupancy,  # might be used in the future
-                                 res,
-                                 local_origin_point_aug,
-                                 batch_size):
-        """
-
-        Args:
-            new_env: [b, h, w, c]
-            object_points_aug: [b, n, 3], in same frame as local_origin_point_aug (i.e. robot or world frame)
-                    The set of points in the swept volume of the object, possibly augmented
-            robot_points_aug: [b, n, 3], in same frame as local_origin_point_aug (i.e. robot or world frame)
-                    The set of points in the swept volume of the robot, possibly augmented
-            object_points_occupancy: [b, n]
-            robot_points_occupancy: [b, n]
-            res: [b]
-            local_origin_point_aug: [b, 3]
-            batch_size: int
-
-        Returns: [b, h, w, c]
-
-        """
-        local_env_new_center = self.sample_local_env_position(new_env, batch_size)
-        local_env_new, local_env_new_origin_point = self.local_env_helper.get(local_env_new_center, new_env, batch_size)
-        # viz new env
-        if debug_aug():
-            for b in debug_viz_batch_indices(batch_size):
-                self.debug.send_position_transform(local_env_new_center[b], 'local_env_new_center')
-
-                send_voxelgrid_tf_origin_point_res(self.broadcaster,
-                                                   origin_point=local_env_new_origin_point[b],
-                                                   res=res[b],
-                                                   frame='local_env_new_vg')
-
-                bbox_msg = grid_to_bbox(rows=self.local_env_helper.h,
-                                        cols=self.local_env_helper.w,
-                                        channels=self.local_env_helper.c,
-                                        resolution=res[b].numpy())
-                bbox_msg.header.frame_id = 'local_env_new_vg'
-
-                self.debug.local_env_new_bbox_pub.publish(bbox_msg)
-
-                env_new_dict = {
-                    'env': new_env['env'][b].numpy(),
-                    'res': res[b].numpy(),
-                }
-                msg = environment_to_vg_msg(env_new_dict, frame='new_env_aug_vg', stamp=rospy.Time(0))
-                self.debug.env_aug_pub1.publish(msg)
-
-                send_voxelgrid_tf_origin_point_res(self.broadcaster,
-                                                   origin_point=new_env['origin_point'][b],
-                                                   res=res[b],
-                                                   frame='new_env_aug_vg')
-
-                # Show sample new local environment, in the frame of the original local env, the one we're augmenting
-                local_env_new_dict = {
-                    'env': local_env_new[b].numpy(),
-                    'res': res[b].numpy(),
-                }
-                msg = environment_to_vg_msg(local_env_new_dict, frame='local_env_aug_vg', stamp=rospy.Time(0))
-                self.debug.env_aug_pub2.publish(msg)
-
-                send_voxelgrid_tf_origin_point_res(self.broadcaster,
-                                                   origin_point=local_origin_point_aug[b],
-                                                   res=res[b],
-                                                   frame='local_env_aug_vg')
-
-                # stepper.step()
-
-        if debug_aug_sgd():
-            stepper = RvizSimpleStepper()
-
-        local_env_aug = []
-        env_aug_valid = []
-
-        translation_b = tf.Variable(tf.zeros(3, dtype=tf.float32), dtype=tf.float32)
-        for b in range(batch_size):
-            with tf.profiler.experimental.Trace('one_batch_loop', b=b):
-                r_b = res[b]
-                o_b = local_origin_point_aug[b]
-                object_points_b = object_points_aug[b]
-                robot_points_b = robot_points_aug[b]
-                # NOTE: sub-sample because to speed up and avoid OOM.
-                #  Unfortunately this also makes our no-robot-inside-env constraint approximate
-                robot_points_b_sparse = subsample_points(robot_points_b, self.robot_subsample)
-                object_occupancy_b = object_points_occupancy[b]
-                env_points_b_initial_full = occupied_voxels_to_points(local_env_new[b], r_b, o_b)
-                env_points_b_initial_sparse = subsample_points(env_points_b_initial_full, self.env_subsample)
-                env_points_b_initial = EnvPoints(env_points_b_initial_full, env_points_b_initial_sparse)
-                env_points_b = env_points_b_initial
-
-                initial_is_attract_indices = tf.squeeze(tf.where(object_occupancy_b > 0.5), 1)
-                initial_attract_points_b = tf.gather(object_points_b, initial_is_attract_indices)
-                if tf.size(initial_is_attract_indices) == 0:
-                    initial_translation_b = tf.zeros(3)
-                else:
-                    env_points_b_initial_mean = tf.reduce_mean(env_points_b_initial_full, axis=0)
-                    initial_attract_points_b_mean = tf.reduce_mean(initial_attract_points_b, axis=0)
-                    initial_translation_b = initial_attract_points_b_mean - env_points_b_initial_mean
-
-                translation_b.assign(initial_translation_b)
-                variables = [translation_b]
-
-                hard_constraints_satisfied_b = False
-
-                is_attract_indices = tf.squeeze(tf.where(object_occupancy_b > 0.5), 1)
-                attract_points_b = tf.gather(object_points_b, is_attract_indices)
-
-                is_repel_indices = tf.squeeze(tf.where(object_occupancy_b < 0.5), 1)
-                repel_points_b = tf.gather(object_points_b, is_repel_indices)
-                for i in range(self.max_steps):
-                    with tf.profiler.experimental.Trace('one_step_loop', b=b, i=i):
-                        if tf.size(env_points_b_initial_full) == 0:
-                            hard_constraints_satisfied_b = True
-                            break
-
-                        with tf.GradientTape() as tape:
-                            loss, min_dists, dbg, env_points_b = self.env_opt_forward(env_points_b_initial,
-                                                                                      translation_b,
-                                                                                      attract_points_b,
-                                                                                      repel_points_b,
-                                                                                      robot_points_b_sparse)
-
-                        gradients = tape.gradient(loss, variables)
-
-                        clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
-                        self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
-
-                        if debug_aug_sgd():
-                            repel_close_indices = tf.squeeze(tf.where(min_dists.repel < self.barrier_cut_off),
-                                                             axis=-1)
-                            robot_repel_close_indices = tf.squeeze(
-                                tf.where(min_dists.robot_repel < self.barrier_cut_off),
-                                axis=-1)
-                            nearest_repel_points_where_close = tf.gather(dbg.nearest_repel_points, repel_close_indices)
-                            nearest_robot_repel_points_where_close = tf.gather(dbg.nearest_robot_repel_points,
-                                                                               robot_repel_close_indices)
-                            env_points_b_where_close = tf.gather(env_points_b.sparse, repel_close_indices)
-                            env_points_b_where_close_to_robot = tf.gather(env_points_b.sparse,
-                                                                          robot_repel_close_indices)
-                            if b in debug_viz_batch_indices(batch_size):
-                                t_for_robot_viz = 0
-                                state_b_i = {
-                                    'joint_names':     inputs_aug['joint_names'][b, t_for_robot_viz],
-                                    'joint_positions': inputs_aug[add_predicted('joint_positions')][b, t_for_robot_viz],
-                                }
-                                self.scenario.plot_state_rviz(state_b_i, label='aug_opt')
-                                self.scenario.plot_points_rviz(env_points_b.sparse, label='icp', color='grey',
-                                                               scale=0.005)
-                                self.scenario.plot_lines_rviz(dbg.nearest_attract_env_points, attract_points_b,
-                                                              label='attract_correspondence', color='g')
-                                self.scenario.plot_lines_rviz(nearest_repel_points_where_close,
-                                                              env_points_b_where_close,
-                                                              label='repel_correspondence', color='r')
-                                self.scenario.plot_lines_rviz(nearest_robot_repel_points_where_close,
-                                                              env_points_b_where_close_to_robot,
-                                                              label='robot_repel_correspondence', color='orange')
-                                # stepper.step()
-
-                        squared_res = tf.square(res[b])
-                        hard_repel_constraint_satisfied_b = tf.reduce_min(min_dists.repel) > squared_res
-                        hard_robot_repel_constraint_satisfied_b = tf.reduce_min(min_dists.robot_repel) > squared_res
-                        hard_attract_constraint_satisfied_b = tf.reduce_max(min_dists.attract) < squared_res
-
-                        hard_constraints_satisfied_b = tf.reduce_all([hard_repel_constraint_satisfied_b,
-                                                                      hard_robot_repel_constraint_satisfied_b,
-                                                                      hard_attract_constraint_satisfied_b])
-                        grad_norm = tf.linalg.norm(gradients)
-                        step_size_b_i = grad_norm * self.step_size
-                        if debug_aug_sgd():
-                            if b in debug_viz_batch_indices(batch_size):
-                                print(step_size_b_i, self.step_size_threshold, hard_constraints_satisfied_b)
-
-                        can_terminate = self.can_terminate(hard_constraints_satisfied_b, step_size_b_i)
-                        if can_terminate.numpy():
-                            break
-
-                local_env_aug_b = self.points_to_voxel_grid_res_origin_point(env_points_b.full, r_b, o_b)
-
-                # NOTE: after local optimization, enforce the constraint
-                #  one way would be to force voxels with attract points are on and voxels with repel points are off
-                #  another would be to "give up" and use the un-augmented datapoint
-                attract_vg_b = self.points_to_voxel_grid_res_origin_point(attract_points_b, r_b, o_b)
-                repel_vg_b = self.points_to_voxel_grid_res_origin_point(repel_points_b, r_b, o_b)
-                # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
-                local_env_aug_b = subtract(binary_or(local_env_aug_b, attract_vg_b), repel_vg_b)
-
-                local_env_aug.append(local_env_aug_b)
-                env_aug_valid.append(hard_constraints_satisfied_b)
-
-        local_env_aug = tf.stack(local_env_aug)
-        env_aug_valid = tf.cast(tf.stack(env_aug_valid), tf.float32)
-
-        return env_aug_valid, local_env_aug
-
-    def env_opt_forward(self,
-                        env_points_b_initial: EnvPoints,
-                        translation_b,
-                        attract_points_b,
-                        repel_points_b,
-                        robot_points_b_sparse):
-        env_points_b_sparse = env_points_b_initial.sparse + translation_b  # this expression must be inside the tape
-        env_points_b = env_points_b_initial.full + translation_b
-
-        # NOTE: these are SQUARED distances!
-        attract_dists_b = pairwise_squared_distances(env_points_b_sparse, attract_points_b)
-        min_attract_dist_indices_b = tf.argmin(attract_dists_b, axis=0, name='attract_argmin')
-        min_attract_dist_b = tf.reduce_min(attract_dists_b, axis=0)
-        nearest_attract_env_points = tf.gather(env_points_b_sparse, min_attract_dist_indices_b)
-        attract_loss = reduce_mean_no_nan(min_attract_dist_b)
-
-        repel_dists_b = pairwise_squared_distances(env_points_b_sparse, repel_points_b)
-        min_repel_dist_indices_b = tf.argmin(repel_dists_b, axis=1, name='repel_argmin')
-        min_repel_dist_b = tf.reduce_min(repel_dists_b, axis=1)
-        nearest_repel_points = tf.gather(repel_points_b, min_repel_dist_indices_b)
-        repel_loss = reduce_mean_no_nan(self.barrier_func(min_repel_dist_b))
-
-        robot_repel_dists_b = pairwise_squared_distances(env_points_b_sparse, robot_points_b_sparse)
-        min_robot_repel_dist_b = tf.reduce_min(robot_repel_dists_b, axis=1)
-        min_robot_repel_dist_indices_b = tf.argmin(robot_repel_dists_b, axis=1, name='robot_repel_argmin')
-        nearest_robot_repel_points = tf.gather(robot_points_b_sparse, min_robot_repel_dist_indices_b)
-        robot_repel_loss = tf.reduce_mean(self.barrier_func(min_robot_repel_dist_b))
-
-        loss = attract_loss * self.attract_weight + repel_loss + robot_repel_loss
-
-        min_dists = MinDists(min_attract_dist_b, min_repel_dist_b, min_robot_repel_dist_b)
-        env_opt_debug_vars = EnvOptDebugVars(nearest_attract_env_points, nearest_repel_points,
-                                             nearest_robot_repel_points)
-        env_points_b = EnvPoints(env_points_b, env_points_b_sparse)
-        return (
-            loss,
-            min_dists,
-            env_opt_debug_vars,
-            env_points_b,
-        )
+        _, top_indices_oversampled = tf.math.top_k(predicted_errors, k=good_enough_n)
+        top_indices_oversampled = tf.random.shuffle(top_indices_oversampled, seed=0)
+        top_indices = top_indices_oversampled[:batch_size]
+        initial_transformation_params = tf.gather(initial_transformation_params, top_indices, axis=0)
+        return initial_transformation_params
 
     def can_terminate(self, constraints_satisfied, step_size):
         can_terminate = tf.logical_or(step_size < self.step_size_threshold, constraints_satisfied)
@@ -1288,5 +581,5 @@ class AugmentationOptimization:
         upper_extent = extent[None, None, :, 1]
         lower_extent_loss = tf.maximum(0, obj_points_aug - upper_extent)
         upper_extent_loss = tf.maximum(0, lower_extent - obj_points_aug)
-        bbox_loss = tf.reduce_sum(tf.reduce_sum(lower_extent_loss + upper_extent_loss, axis=-1), axis=-1)
+        bbox_loss = tf.reduce_sum(lower_extent_loss + upper_extent_loss, axis=-1)
         return self.bbox_weight * bbox_loss
