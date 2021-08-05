@@ -182,7 +182,7 @@ class AugmentationOptimization:
         self.env_subsample = 0.25
         self.num_object_interp = 5  # must be >=2
         self.num_robot_interp = 3  # must be >=2
-        self.max_steps = 40
+        self.max_steps = 100
         self.seed_int = 0 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.gen = tf.random.Generator.from_seed(self.seed_int)
         self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
@@ -191,7 +191,7 @@ class AugmentationOptimization:
         self.barrier_epsilon = 0.01
         self.grad_clip = 0.25  # max dist step the env aug update can take
         self.repel_weight = 1.0
-        self.invariance_weight = 0.1
+        self.invariance_weight = 0.05
         self.ground_penetration_weight = 1.0
         self.bbox_weight = 0.1
         self.robot_base_penetration_weight = 1.0
@@ -204,7 +204,7 @@ class AugmentationOptimization:
                 ######## v3
                 self.barrier_upper_lim = tf.square(0.06)
                 self.barrier_scale = 0.1
-                self.step_size = 5.0
+                self.step_size = 1.0
                 self.attract_weight = 10.0
                 self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
             elif self.aug_type in ['v5']:
@@ -531,7 +531,7 @@ class AugmentationOptimization:
                                  time):
         # viz new env
         if debug_aug():
-            for b in debug_viz_batch_indices(self.batch_size):
+            for b in debug_viz_batch_indices(batch_size):
                 env_new_dict = {
                     'env': new_env['env'].numpy(),
                     'res': res[b].numpy(),
@@ -590,7 +590,6 @@ class AugmentationOptimization:
                         tf.reduce_mean(attract_repel_loss_per_point, axis=-1),
                         bbox_loss,
                         invariance_loss,
-
                     ]
                     losses_sum = tf.add_n(losses)
                     loss = tf.reduce_mean(losses_sum)
@@ -692,7 +691,7 @@ class AugmentationOptimization:
                                  time):
         # viz new env
         if debug_aug():
-            for b in debug_viz_batch_indices(self.batch_size):
+            for b in debug_viz_batch_indices(batch_size):
                 env_new_dict = {
                     'env': new_env['env'].numpy(),
                     'res': res[b].numpy(),
@@ -911,7 +910,7 @@ class AugmentationOptimization:
         local_env_new, local_env_new_origin_point = self.local_env_helper.get(local_env_new_center, new_env, batch_size)
         # viz new env
         if debug_aug():
-            for b in debug_viz_batch_indices(self.batch_size):
+            for b in debug_viz_batch_indices(batch_size):
                 self.debug.send_position_transform(local_env_new_center[b], 'local_env_new_center')
 
                 send_voxelgrid_tf_origin_point_res(self.broadcaster,
