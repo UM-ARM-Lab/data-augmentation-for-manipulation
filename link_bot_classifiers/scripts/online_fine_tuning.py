@@ -2,6 +2,7 @@
 import argparse
 import logging
 import pathlib
+import subprocess
 import time
 
 import numpy as np
@@ -9,6 +10,7 @@ import tensorflow as tf
 from colorama import Fore
 
 from arc_utilities import ros_init
+from link_bot_classifiers.eval_proxy_datasets import eval_proxy_datasets
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_pycommon.args import int_tuple_arg
 from moonshine.filepath_tools import load_hjson
@@ -79,30 +81,36 @@ def main():
     checkpoint_dir = pathlib.Path(f"/media/shared/cl_trials/val_floating_boxes{args.fb}")
     checkpoint = list(checkpoint_dir.iterdir())[-1] / 'best_checkpoint'
 
-    fine_tune_classifier(train_dataset_dirs=dataset_dirs,
-                         val_dataset_dirs=val_dataset_dirs,
-                         checkpoint=checkpoint,
-                         log=f"{args.log}_fb2car_online_{'aug' if args.aug else ''}-{args.fb}-{args.seed}",
-                         batch_size=args.batch_size,
-                         early_stopping=(not args.save_inputs),
-                         epochs=args.epochs,
-                         validate_first=validate_first,
-                         take=args.take,
-                         skip=args.skip,
-                         seed=args.seed,
-                         model_hparams_update=model_hparams_update,
-                         val_every_n_batches=None,
-                         mid_epoch_val_batches=None,
-                         learning_rate=learning_rate,
-                         fine_tune_conv=fine_tune_conv,
-                         fine_tune_lstm=fine_tune_lstm,
-                         fine_tune_dense=fine_tune_dense,
-                         fine_tune_output=fine_tune_output,
-                         augmentation_config_dir=pretransfer_config_dir,
-                         profile=args.profile,
-                         val_take=args.val_take,
-                         save_inputs=args.save_inputs,
-                         )
+    trial_path = fine_tune_classifier(train_dataset_dirs=dataset_dirs,
+                                      val_dataset_dirs=val_dataset_dirs,
+                                      checkpoint=checkpoint,
+                                      log=f"{args.log}_fb2car_online_{'aug' if args.aug else ''}-{args.fb}-{args.seed}",
+                                      batch_size=args.batch_size,
+                                      early_stopping=(not args.save_inputs),
+                                      epochs=args.epochs,
+                                      validate_first=validate_first,
+                                      take=args.take,
+                                      skip=args.skip,
+                                      seed=args.seed,
+                                      model_hparams_update=model_hparams_update,
+                                      val_every_n_batches=None,
+                                      mid_epoch_val_batches=None,
+                                      learning_rate=learning_rate,
+                                      fine_tune_conv=fine_tune_conv,
+                                      fine_tune_lstm=fine_tune_lstm,
+                                      fine_tune_dense=fine_tune_dense,
+                                      fine_tune_output=fine_tune_output,
+                                      augmentation_config_dir=pretransfer_config_dir,
+                                      profile=args.profile,
+                                      val_take=args.val_take,
+                                      save_inputs=args.save_inputs,
+                                      )
+
+    copy_dest = pathlib.Path("/media/shared/cl_trials/")
+    subprocess.run(["cp", "-r", trial_path.parent, copy_dest])
+    dest_path = copy_dest / trial_path.parent.name / trial_path.name / 'best_checkpoint'
+
+    eval_proxy_datasets(checkpoints=[dest_path], debug=args.debug)
 
 
 if __name__ == '__main__':

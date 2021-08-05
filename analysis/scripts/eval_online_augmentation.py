@@ -68,8 +68,12 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
     improvement_across_ft_seed = improvement.groupby('fine_tuned_from').agg("mean")
 
     print(Fore.CYAN + f"All Results {proxy_dataset_path}, {metric_name}" + Fore.RESET)
+
+    def _m(m):
+        return getattr(improvement_across_ft_seed, m)()
+
     print(improvement_across_ft_seed.round(3))
-    print('MEAN:', improvement_across_ft_seed.mean())
+    print(f"Improvement: {_m('mean'):.4f} {_m('std'):.4f} {_m('count'):d}")
 
     p = scipy.stats.ttest_1samp(improvement_across_ft_seed, 0).pvalue
     flag = '!' if p < 0.01 else ''

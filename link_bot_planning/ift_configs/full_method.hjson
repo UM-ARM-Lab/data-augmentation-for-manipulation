@@ -6,6 +6,7 @@
     fine_tune_dense: false
     fine_tune_lstm: false
     fine_tune_output: true
+    augmentation_config_dir: /media/shared/pretransfer_initial_configs/car3/
     epochs: 25
   }
   fine_tune_recovery: null

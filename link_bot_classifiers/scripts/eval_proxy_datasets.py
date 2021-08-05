@@ -9,6 +9,7 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers import train_test_classifier
+from link_bot_classifiers.eval_proxy_datasets import eval_proxy_datasets
 from link_bot_classifiers.train_test_classifier import add_eval_args
 
 node_name = f"eval_proxy_datasets_{int(time())}"
@@ -25,12 +26,7 @@ def main():
 
     args = parser.parse_args()
 
-    dataset_dirs = [
-        pathlib.Path("/media/shared/classifier_data/car_no_classifier_eval/"),
-        pathlib.Path("/media/shared/classifier_data/car_heuristic_classifier_eval2/"),
-        pathlib.Path("/media/shared/classifier_data/val_car_feasible_1614981888+op2/"),
-    ]
-    train_test_classifier.eval_n_main(dataset_dirs=dataset_dirs, **vars(args))
+    eval_proxy_datasets(**vars(args))
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import functools
+import pathlib
 from operator import ior, iand
 
 import pandas as pd
@@ -91,18 +92,16 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
 def filter_df_for_experiment(df, classifier_contains: str):
     df = df.loc[df['mode'] == 'all']
     offline_ft_dataset = '/media/shared/classifier_data/val_floating_boxes_1622170084+fix-op'
-    v4_car_aug = functools.reduce(iand, [
+    aug_cond = functools.reduce(iand, [
         df['classifier'].str.contains(classifier_contains),
         (df['fine_tuning_dataset_dirs'] == offline_ft_dataset),
     ])
-    no_aug = functools.reduce(ior, [
-        df['classifier'].str.contains('val_floating_boxes1'),
-        df['classifier'].str.contains('val_floating_boxes2'),
-        df['classifier'].str.contains('val_floating_boxes3'),
-        # df['classifier'].str.contains('val_floating_boxes4'),
-    ])
+    aug_df = df.loc[aug_cond]
+    comparable_no_aug_classifiers = aug_df['fine_tuned_from'].map(lambda c: pathlib.Path(c).parts[4]).unique().tolist()
+    comparable_no_aug_classifiers_cond = [df['classifier'].str.contains(c) for c in comparable_no_aug_classifiers]
+    no_aug = functools.reduce(ior, comparable_no_aug_classifiers_cond)
     car_baseline = df['classifier'].str.contains('val_car_new*')
-    df = df.loc[v4_car_aug | no_aug | car_baseline]
+    df = df.loc[aug_cond | no_aug | car_baseline]
     return df
 
 

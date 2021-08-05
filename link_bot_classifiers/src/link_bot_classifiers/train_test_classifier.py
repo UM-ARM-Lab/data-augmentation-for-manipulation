@@ -828,7 +828,6 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
 
 
 def add_eval_args(p):
-    p.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='all')
     p.add_argument('--balance', action='store_true')
     p.add_argument('--batch-size', type=int, default=128)
     p.add_argument('--debug', action='store_true')

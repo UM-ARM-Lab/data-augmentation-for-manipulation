@@ -1,4 +1,4 @@
-SHOW_ALL = False
+SHOW_ALL = True
 DEBUG_VIZ_B = 0
 
 
