@@ -108,21 +108,7 @@ def opt_object_augmentation3(self,
                                               label='repel_correspondence', color='r')
                 # stepper.step()
 
-        # check termination criteria
-        box_constraint_satisfied = tf.reduce_all(bbox_loss_batch == 0, axis=-1)
-        squared_res_expanded = tf.square(res)[:, None]
-        attract_satisfied = tf.cast(min_dist < squared_res_expanded, tf.float32)
-        repel_satisfied = tf.cast(min_dist > squared_res_expanded, tf.float32)
-        constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
-        constraints_satisfied = tf.reduce_all([
-            tf.reduce_all(tf.cast(constraints_satisfied, tf.bool), axis=-1),
-            box_constraint_satisfied,
-        ])
-
-        grad_norm = tf.linalg.norm(gradients[0], axis=-1)
-        step_size_i = grad_norm * self.lr(i)
-        can_terminate = self.can_terminate(constraints_satisfied, step_size_i)
-        can_terminate = tf.reduce_all(can_terminate)
+        can_terminate = self.can_terminate(i, bbox_loss_batch, attract_mask, res, min_dist, gradients)
         if can_terminate:
             break
 

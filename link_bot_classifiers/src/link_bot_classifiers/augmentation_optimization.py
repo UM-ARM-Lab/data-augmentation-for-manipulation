@@ -65,7 +65,6 @@ class AugmentationOptimization:
         self.barrier_cut_off = 0.06  # stop repelling loss after this (squared) distance (meters)
         self.barrier_epsilon = 0.01
         self.grad_clip = 0.25  # max dist step the env aug update can take
-        self.invariance_weight = 0.05
         self.ground_penetration_weight = 1.0
         self.bbox_weight = 0.05
         self.robot_base_penetration_weight = 1.0
@@ -76,17 +75,19 @@ class AugmentationOptimization:
                 pass
             elif self.aug_type in ['optimization2', 'v3']:
                 ######## v3
+                self.invariance_weight = 0.1
                 self.barrier_upper_lim = tf.square(0.05)
                 self.barrier_scale = 0.1
                 self.step_size = 1.0
                 self.attract_weight = 10.0
-                self.repel_weight = 0.7
+                self.repel_weight = 1.0
                 self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
             elif self.aug_type in ['v5']:
-                self.step_size = 2.0
-                self.attract_weight = 2.0
+                self.invariance_weight = 0.01
+                self.step_size = 1.5
+                self.attract_weight = 10.0
                 self.repel_weight = 1.0
-                self.sdf_grad_scale = 0.02
+                self.sdf_grad_scale = 0.2
             else:
                 raise NotImplementedError(self.aug_type)
 
@@ -144,13 +145,14 @@ class AugmentationOptimization:
                   res,
                   batch_size,
                   time)
+        is_env_aug_valid = tf.cast(local_env_aug_fix_deltas < 20, tf.float32)
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,
             'joint_names':                    inputs['joint_names'],
         })
 
-        is_valid = is_ik_valid
+        is_valid = is_ik_valid * is_env_aug_valid
         self.is_valids = possibly_none_concat(self.is_valids, is_valid, axis=0)
 
         if debug_aug():
@@ -413,8 +415,22 @@ class AugmentationOptimization:
         initial_transformation_params = tf.gather(initial_transformation_params, top_indices, axis=0)
         return initial_transformation_params
 
-    def can_terminate(self, constraints_satisfied, step_size):
-        can_terminate = tf.logical_or(step_size < self.step_size_threshold, constraints_satisfied)
+    def can_terminate(self, step, bbox_loss_batch, attract_mask, res, min_dist, gradients):
+        # check termination criteria
+        box_constraint_satisfied = tf.reduce_all(bbox_loss_batch == 0, axis=-1)
+        squared_res_expanded = tf.square(res)[:, None]
+        attract_satisfied = tf.cast(min_dist < squared_res_expanded, tf.float32)
+        repel_satisfied = tf.cast(min_dist > squared_res_expanded, tf.float32)
+        constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
+        constraints_satisfied = tf.reduce_all([
+            tf.reduce_all(tf.cast(constraints_satisfied, tf.bool), axis=-1),
+            box_constraint_satisfied,
+        ])
+
+        grad_norm = tf.linalg.norm(gradients[0], axis=-1)
+        step_size_i = grad_norm * self.lr(step)
+        can_terminate = tf.logical_or(step_size_i < self.step_size_threshold, constraints_satisfied)
+        can_terminate = tf.reduce_all(can_terminate)
         return can_terminate
 
     def clip_env_aug_grad(self, gradients, variables):
