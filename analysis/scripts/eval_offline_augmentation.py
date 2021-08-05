@@ -71,17 +71,36 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
     aug_baseline_all.set_index(groupby, inplace=True)
     aug_baseline_all_dropped = aug_baseline_all.droplevel(l)
     aug_baseline_all_dropped = aug_baseline_all_dropped[metric_name]
+
+    car_baseline_all = df_p.loc[df_p['classifier'].str.contains('val_car_new') & (df_p['do_augmentation'] == 0)]
+    car_baseline_all.set_index(groupby, inplace=True)
+    car_baseline_all_dropped = car_baseline_all.droplevel(l)
+    car_baseline_all_dropped = car_baseline_all_dropped[metric_name]
+    car_baseline_all_dropped = car_baseline_all_dropped.mean()
+
     improvement = aug_baseline_all_dropped - no_aug_baseline_all_dropped
+    possible_improvement = car_baseline_all_dropped - no_aug_baseline_all_dropped
 
     print(Fore.CYAN + f"All Results {proxy_dataset_path}, {metric_name}" + Fore.RESET)
-    drop_for_display = [
-        'classifier_source_env',
-        'dataset_dirs',
-        # 'balance',
-        'mode'
-    ]
-    print(improvement.round(3).droplevel(drop_for_display).reset_index())
-    print(f'Improvement: {improvement.mean():.4f} {improvement.std():.4f} {improvement.count():d}')
+
+    def print_stats(values, name):
+        drop_for_display = [
+            'classifier_source_env',
+            'dataset_dirs',
+            # 'balance',
+            'mode'
+        ]
+        print(values.round(3).droplevel(drop_for_display).reset_index())
+        stats_and_formats = [
+            (values.mean(), '{:.4f}'),
+            (values.std(), '{:.4f}'),
+            (values.count(), '{:d}'),
+        ]
+        stats_formatted = [fmt.format(v) for v, fmt in stats_and_formats]
+        print(Fore.GREEN + f"{name}: " + ' '.join(stats_formatted) + Fore.RESET)
+
+    print_stats(improvement, "improvement")
+    print_stats(possible_improvement, "estimated possible improvement")
 
     p = scipy.stats.ttest_1samp(improvement, 0).pvalue
     flag = '!' if p < 0.01 else ''

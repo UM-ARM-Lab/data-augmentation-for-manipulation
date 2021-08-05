@@ -64,16 +64,34 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
     aug_baseline_all.set_index(groupby, inplace=True)
     aug_baseline_all_dropped = aug_baseline_all.droplevel(l)
     aug_baseline_all_dropped = aug_baseline_all_dropped[metric_name]
+
+    car_baseline_all = df_p.loc[df_p['classifier'].str.contains('val_car_new') & (df_p['do_augmentation'] == 0)]
+    car_baseline_all.set_index(groupby, inplace=True)
+    car_baseline_all_dropped = car_baseline_all.droplevel(l)
+    car_baseline_all_dropped = car_baseline_all_dropped[metric_name]
+    car_baseline_all_dropped = car_baseline_all_dropped.mean()
+
     improvement = aug_baseline_all_dropped - no_aug_baseline_all_dropped
+    possible_improvement = car_baseline_all_dropped - no_aug_baseline_all_dropped
+    # gap_percent = improvement / possible_improvement
     improvement_across_ft_seed = improvement.groupby('fine_tuned_from').agg("mean")
+    possible_improvement_across_ft_seed = possible_improvement.groupby('fine_tuned_from').agg("mean")
+    # gap_percent_across_ft_seed = gap_percent.groupby('fine_tuned_from').agg("mean")
 
     print(Fore.CYAN + f"All Results {proxy_dataset_path}, {metric_name}" + Fore.RESET)
 
-    def _m(m):
-        return getattr(improvement_across_ft_seed, m)()
+    def print_stats(values, name):
+        print(values.round(3))
+        stats_and_formats = [
+            (values.mean(), '{:.4f}'),
+            (values.std(), '{:.4f}'),
+            (values.count(), '{:d}'),
+        ]
+        stats_formatted = [fmt.format(v) for v, fmt in stats_and_formats]
+        print(Fore.GREEN + f"{name}: " + ' '.join(stats_formatted) + Fore.RESET)
 
-    print(improvement_across_ft_seed.round(3))
-    print(f"Improvement: {_m('mean'):.4f} {_m('std'):.4f} {_m('count'):d}")
+    print_stats(improvement_across_ft_seed, "improvement")
+    print_stats(possible_improvement_across_ft_seed, "estimated possible improvement")
 
     p = scipy.stats.ttest_1samp(improvement_across_ft_seed, 0).pvalue
     flag = '!' if p < 0.01 else ''
@@ -96,8 +114,8 @@ def filter_df_for_experiment(df, classifier_contains: str):
                )
               & (df['do_augmentation'] == 0.0) & (df['fine_tuning_take'] == 100)
               & (df['fine_tuning_dataset_dirs'] == online_ft_dataset))
-
-    df = df.loc[reduce(iand, cond) | no_aug]
+    car_baseline = df['classifier'].str.contains('val_car_new*')
+    df = df.loc[reduce(iand, cond) | no_aug | car_baseline]
     return df
 
 
