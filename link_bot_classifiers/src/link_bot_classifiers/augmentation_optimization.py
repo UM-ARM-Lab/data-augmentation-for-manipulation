@@ -146,6 +146,7 @@ class AugmentationOptimization:
                   batch_size,
                   time)
         is_env_aug_valid = tf.cast(local_env_aug_fix_deltas < 20, tf.float32)
+        print(inputs_aug[add_predicted('rope')][0, 0, :5])
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,

@@ -53,7 +53,7 @@ class NewBaseDataset:
         assert self.n_prefetch > 0
         for idx, filenames_i in enumerate(self.filenames):
             if isinstance(filenames_i, list):
-                examples_i = list(self.loader.pool.imap_unordered(load_single, filenames_i))
+                examples_i = list(self.loader.pool.map(load_single, filenames_i))
                 example = batch_examples_dicts(examples_i)
             else:
                 example = load_single(filenames_i)
