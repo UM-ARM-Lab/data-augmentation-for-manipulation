@@ -15,7 +15,7 @@ class AugOptIk:
         self.robot = robot
         self.group_name = group_name
         self.j = robot.jacobian_follower
-        self.ik_params = pyjacobian_follower.IkParams(rng_dist=0.1, max_collision_check_attempts=100)
+        self.ik_params = pyjacobian_follower.IkParams(rng_dist=0.0, max_collision_check_attempts=1)
         if self.group_name == 'both_arms':
             self.tip_names = ['left_tool', 'right_tool']
         else:
