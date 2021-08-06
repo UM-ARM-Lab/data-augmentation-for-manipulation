@@ -39,8 +39,55 @@ def opt_object_augmentation5(self,
                                                frame='new_env_aug_vg')
             # stepper.step()
 
-    initial_transformation_params = self.sample_initial_transforms(batch_size)
+    obj_transforms = opt_object_transform(batch_size, new_env, obj_points, object_points_occupancy, res, self)
+    transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
+    obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
 
+    # this updates other representations of state/action that are fed into the network
+    _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
+        transformation_matrices,
+        to_local_frame,
+        inputs,
+        batch_size,
+        time)
+    inputs_aug.update(object_aug_update)
+
+    if debug_aug_sgd():
+        for b in debug_viz_batch_indices(batch_size):
+            self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
+            self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
+
+    new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
+    local_env_aug, _ = self.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
+    # NOTE: after local optimization, enforce the constraint
+    #  one way would be to force voxels with attract points are on and voxels with repel points are off
+    #  another would be to "give up" and use the un-augmented datapoint
+
+    local_env_aug_fixed = []
+    local_env_aug_fix_deltas = []
+    for b in range(batch_size):
+        attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), axis=1)
+        repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), axis=1)
+        attract_points_aug = tf.gather(obj_points_aug[b], attract_indices)
+        repel_points_aug = tf.gather(obj_points_aug[b], repel_indices)
+        attract_vg = self.points_to_voxel_grid_res_origin_point(attract_points_aug, res[b],
+                                                                local_origin_point_aug[b])
+        repel_vg = self.points_to_voxel_grid_res_origin_point(repel_points_aug, res[b], local_origin_point_aug[b])
+        # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
+        local_env_aug_fixed_b = subtract(binary_or(local_env_aug[b], attract_vg), repel_vg)
+        local_env_aug_fix_delta = tf.reduce_sum(tf.abs(local_env_aug_fixed_b - local_env_aug[b]))
+        local_env_aug_fix_deltas.append(local_env_aug_fix_delta)
+        local_env_aug_fixed.append(local_env_aug_fixed_b)
+    local_env_aug_fixed = tf.stack(local_env_aug_fixed, axis=0)
+    local_env_aug_fix_deltas = tf.stack(local_env_aug_fix_deltas, axis=0)
+    self.local_env_aug_fix_delta = possibly_none_concat(self.local_env_aug_fix_delta, local_env_aug_fix_deltas,
+                                                        axis=0)
+
+    return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug_fixed, local_env_aug_fix_deltas
+
+
+def opt_object_transform(batch_size, new_env, obj_points, object_points_occupancy, res, self):
+    initial_transformation_params = self.sample_initial_transforms(batch_size)
     if 'sdf' in new_env and 'sdf_grad' in new_env:
         sdf_no_clipped = new_env['sdf']
         sdf_grad_no_clipped = new_env['sdf_grad']
@@ -55,7 +102,6 @@ def opt_object_augmentation5(self,
     repel_sdf_grad = sdf_grad_no_clipped * tf.expand_dims(repel_grad_mask, -1)
     attract_grad_mask = tf.cast(sdf_no_clipped > 0, tf.float32)
     attract_sdf_grad = sdf_grad_no_clipped * tf.expand_dims(attract_grad_mask, -1)
-
     # optimization loop
     obj_transforms = tf.Variable(initial_transformation_params)  # [x,y,z,roll,pitch,yaw]
     variables = [obj_transforms]
@@ -67,11 +113,7 @@ def opt_object_augmentation5(self,
                 # we also need to call apply_object_augmentation* at the end
                 # to update the rest of the "state" which is input to the network
                 transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
-                to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
-                obj_points_local_frame = obj_points - to_local_frame
-                obj_points_aug_local_frame = transform_points_3d(transformation_matrices[:, None],
-                                                                 obj_points_local_frame)
-                obj_points_aug = obj_points_aug_local_frame + to_local_frame
+                obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
 
                 invariance_loss = self.invariance_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
 
@@ -105,7 +147,6 @@ def opt_object_augmentation5(self,
 
             # Compute the jacobian of the transformation
             jacobian = transformation_jacobian(obj_transforms)[:, None]  # [b,1,6,4,4]
-            to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
             obj_points_local_frame = obj_points - to_local_frame  # [b,n,3]
             obj_points_local_frame_h = homogeneous(obj_points_local_frame)[:, :, None, :, None]  # [b,1,4,1]
             dpoint_dvariables_h = tf.squeeze(tf.matmul(jacobian, obj_points_local_frame_h), axis=-1)  # [b,6]
@@ -156,45 +197,13 @@ def opt_object_augmentation5(self,
 
         clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
         self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
+    return obj_transforms
 
-    # this updates other representations of state/action that are fed into the network
-    _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
-        transformation_matrices,
-        to_local_frame,
-        inputs,
-        batch_size,
-        time)
-    inputs_aug.update(object_aug_update)
 
-    if debug_aug_sgd():
-        for b in debug_viz_batch_indices(batch_size):
-            self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
-            self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
-
-    new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
-    local_env_aug, _ = self.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
-    # NOTE: after local optimization, enforce the constraint
-    #  one way would be to force voxels with attract points are on and voxels with repel points are off
-    #  another would be to "give up" and use the un-augmented datapoint
-
-    local_env_aug_fixed = []
-    local_env_aug_fix_deltas = []
-    for b in range(batch_size):
-        attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), axis=1)
-        repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), axis=1)
-        attract_points_aug = tf.gather(obj_points_aug[b], attract_indices)
-        repel_points_aug = tf.gather(obj_points_aug[b], repel_indices)
-        attract_vg = self.points_to_voxel_grid_res_origin_point(attract_points_aug, res[b],
-                                                                local_origin_point_aug[b])
-        repel_vg = self.points_to_voxel_grid_res_origin_point(repel_points_aug, res[b], local_origin_point_aug[b])
-        # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
-        local_env_aug_fixed_b = subtract(binary_or(local_env_aug[b], attract_vg), repel_vg)
-        local_env_aug_fix_delta = tf.reduce_sum(tf.abs(local_env_aug_fixed_b - local_env_aug[b]))
-        local_env_aug_fix_deltas.append(local_env_aug_fix_delta)
-        local_env_aug_fixed.append(local_env_aug_fixed_b)
-    local_env_aug_fixed = tf.stack(local_env_aug_fixed, axis=0)
-    local_env_aug_fix_deltas = tf.stack(local_env_aug_fix_deltas, axis=0)
-    self.local_env_aug_fix_delta = possibly_none_concat(self.local_env_aug_fix_delta, local_env_aug_fix_deltas,
-                                                        axis=0)
-
-    return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug_fixed, local_env_aug_fix_deltas
+def transformation_obj_points(obj_points, transformation_matrices):
+    to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
+    obj_points_local_frame = obj_points - to_local_frame
+    obj_points_aug_local_frame = transform_points_3d(transformation_matrices[:, None],
+                                                     obj_points_local_frame)
+    obj_points_aug = obj_points_aug_local_frame + to_local_frame
+    return obj_points_aug, to_local_frame

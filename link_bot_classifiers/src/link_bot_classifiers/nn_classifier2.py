@@ -9,7 +9,7 @@ from tensorflow.keras.metrics import Mean
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 import rospy
-from link_bot_classifiers.augmentation_optimization import AugmentationOptimization
+from link_bot_classifiers.aug_opt import AugmentationOptimization
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
 # noinspection PyUnresolvedReferences

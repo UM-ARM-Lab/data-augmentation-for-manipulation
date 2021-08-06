@@ -9,7 +9,7 @@ from tensorflow.python.keras.metrics import Metric
 
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
-from link_bot_classifiers.augmentation_optimization import AugmentationOptimization
+from link_bot_classifiers.aug_opt import AugmentationOptimization
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
