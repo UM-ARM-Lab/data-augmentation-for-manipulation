@@ -66,7 +66,6 @@ class AugmentationOptimization:
         self.barrier_epsilon = 0.01
         self.grad_clip = 0.25  # max dist step the env aug update can take
         self.ground_penetration_weight = 1.0
-        self.bbox_weight = 0.05
         self.robot_base_penetration_weight = 1.0
 
         if self.do_augmentation():
@@ -75,14 +74,16 @@ class AugmentationOptimization:
                 pass
             elif self.aug_type in ['optimization2', 'v3']:
                 ######## v3
+                self.bbox_weight = 0.1
                 self.invariance_weight = 0.1
-                self.barrier_upper_lim = tf.square(0.05)
+                self.barrier_upper_lim = tf.square(0.06)
                 self.barrier_scale = 0.1
                 self.step_size = 1.0
                 self.attract_weight = 10.0
                 self.repel_weight = 1.0
                 self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
             elif self.aug_type in ['v5']:
+                self.bbox_weight = 0.05
                 self.invariance_weight = 0.01
                 self.step_size = 1.5
                 self.attract_weight = 10.0

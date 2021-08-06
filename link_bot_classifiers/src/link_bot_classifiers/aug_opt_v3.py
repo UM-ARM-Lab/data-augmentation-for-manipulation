@@ -9,7 +9,7 @@ from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_t
     occupied_voxels_to_points, subtract, binary_or
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transformation_params_to_matrices, transform_points_3d, pairwise_squared_distances
-from moonshine.moonshine_utils import repeat, possibly_none_concat
+from moonshine.moonshine_utils import repeat, possibly_none_concat, repeat_tensor
 
 
 def opt_object_augmentation3(self,
@@ -37,7 +37,13 @@ def opt_object_augmentation3(self,
                                                frame='new_env_aug_vg')
             # stepper.step()
 
-    initial_transformation_params = self.sample_initial_transforms(batch_size)
+    # Sample an initial random object transformation. This can be the same across the batch
+    initial_transformation_params = self.scenario.sample_object_augmentation_variables(1000, self.seed)
+    # pick the most valid transforms, via the learned object state augmentation validity model
+    predicted_errors = self.invariance_model_wrapper.evaluate(initial_transformation_params)
+    best_transformation_idx = tf.argmin(predicted_errors)
+    best_transformation_params = tf.gather(initial_transformation_params, best_transformation_idx)
+    initial_transformation_params = repeat_tensor(best_transformation_params, batch_size, 0, True)
 
     # optimization loop
     obj_transforms = tf.Variable(initial_transformation_params)  # [x,y,z,roll,pitch,yaw]
@@ -50,6 +56,7 @@ def opt_object_augmentation3(self,
                 # we also need to call apply_object_augmentation* at the end
                 # to update the rest of the "state" which is
                 # input to the network
+                print(obj_transforms[0, 0])
                 transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
                 obj_points_aug = transform_points_3d(transformation_matrices[:, None], obj_points)
 
@@ -70,7 +77,7 @@ def opt_object_augmentation3(self,
 
                 invariance_loss = self.invariance_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
 
-                bbox_loss_batch = self.bbox_loss(obj_points_aug, new_env['extent'])
+                bbox_loss_batch = bbox_loss_v3(self, obj_points_aug)
                 bbox_loss = tf.reduce_sum(bbox_loss_batch, axis=-1)
 
                 losses = [
@@ -156,3 +163,13 @@ def opt_object_augmentation3(self,
                                                         axis=0)
 
     return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug_fixed, local_env_aug_fix_deltas
+
+
+def bbox_loss_v3(self, obj_points_aug):
+    # FIXME: hardcoded
+    lower_extent = tf.constant([-0.6, 0.20, -0.4], tf.float32)
+    upper_extent = tf.constant([0.6, 1.2, 1], tf.float32)
+    lower_extent_loss = tf.maximum(0, obj_points_aug - upper_extent)
+    upper_extent_loss = tf.maximum(0, lower_extent - obj_points_aug)
+    bbox_loss = tf.reduce_sum(lower_extent_loss + upper_extent_loss, axis=-1)
+    return self.bbox_weight * bbox_loss
