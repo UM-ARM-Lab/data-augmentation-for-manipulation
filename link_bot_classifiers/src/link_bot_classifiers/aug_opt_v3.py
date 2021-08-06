@@ -56,7 +56,6 @@ def opt_object_augmentation3(self,
                 # we also need to call apply_object_augmentation* at the end
                 # to update the rest of the "state" which is
                 # input to the network
-                print(obj_transforms[0, 0])
                 transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
                 obj_points_aug = transform_points_3d(transformation_matrices[:, None], obj_points)
 
