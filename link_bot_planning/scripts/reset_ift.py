@@ -14,15 +14,21 @@ def main():
 
     args = parser.parse_args()
 
-    rm_tree(args.results_dir / 'classifier_datasets')
-    rm_tree(args.results_dir / 'planning_results')
-    rm_tree(args.results_dir / 'training_logdir')
+    subdirs_to_remove = ['classifier_datasets', 'training_logdir', 'planning_results']
+    for s in subdirs_to_remove:
+        d = args.results_dir / s
+        if d.exists():
+            rm_tree(d)
 
     logfilename = args.results_dir / 'logfile.hjson'
     log = load_hjson(logfilename)
+    keys_to_remove = []
     for k in log.keys():
         if 'iteration ' in k:
-            log.pop(k)
+            keys_to_remove.append(k)
+
+    for k in keys_to_remove:
+        log.pop(k)
 
     with logfilename.open('w') as f:
         hjson.dump(log, f)
