@@ -3,6 +3,7 @@ from typing import List
 
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
+from link_bot_data.dataset_utils import compute_batch_size_for_n_examples
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 
@@ -85,3 +86,11 @@ def guess_dataset_size(dataset_dir: pathlib.Path):
         return n_examples
     else:
         raise NotImplementedError(format)
+
+
+def compute_batch_size(dataset_dirs: List[pathlib.Path], max_batch_size: int):
+    total_examples = 0
+    for dataset_dir in dataset_dirs:
+        # assumes validation is smaller than or the same size as train
+        total_examples += guess_dataset_size(dataset_dir)
+    return compute_batch_size_for_n_examples(total_examples, max_batch_size)

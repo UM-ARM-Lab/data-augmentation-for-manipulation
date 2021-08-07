@@ -13,7 +13,6 @@ from colorama import Fore
 
 import genpy
 from arc_utilities.filesystem_utils import mkdir_and_ask
-from link_bot_data.load_dataset import guess_dataset_size
 from link_bot_data.ros_msg_serialization import ros_msg_to_bytes_tensor, bytes_to_ros_msg
 from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
@@ -587,14 +586,6 @@ def train_test_split_counts(n: int, val_split: int = DEFAULT_VAL_SPLIT, test_spl
 def compute_batch_size_for_n_examples(total_examples: int, max_batch_size: int):
     batch_size = min(max(1, int(total_examples / 2)), max_batch_size)
     return batch_size
-
-
-def compute_batch_size(dataset_dirs: List[pathlib.Path], max_batch_size: int):
-    total_examples = 0
-    for dataset_dir in dataset_dirs:
-        # assumes validation is smaller than or the same size as train
-        total_examples += guess_dataset_size(dataset_dir)
-    return compute_batch_size_for_n_examples(total_examples, max_batch_size)
 
 
 def merge_hparams_dicts(dataset_dirs, verbose: int = 0):
