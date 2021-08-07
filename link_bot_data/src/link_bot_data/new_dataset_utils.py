@@ -46,4 +46,5 @@ def load_metadata(metadata_filename):
             metadata = pickle.load(f)
     else:
         raise NotImplementedError()
+    metadata['filename'] = metadata_filename.stem
     return metadata

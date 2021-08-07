@@ -8,6 +8,8 @@ from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 
 
 def get_dynamics_dataset_loader(dataset_dirs: List[pathlib.Path], **kwargs):
+    if isinstance(dataset_dirs, pathlib.Path):
+        dataset_dirs = [dataset_dirs]
     d_for_checking_type = dataset_dirs[0]
     for e in d_for_checking_type.iterdir():
         if e.is_file():
@@ -26,6 +28,8 @@ def get_dynamics_dataset_loader(dataset_dirs: List[pathlib.Path], **kwargs):
 
 
 def get_classifier_dataset_loader(dataset_dirs: List[pathlib.Path], **kwargs):
+    if isinstance(dataset_dirs, pathlib.Path):
+        dataset_dirs = [dataset_dirs]
     d_for_checking_type = dataset_dirs[0]
     for e in d_for_checking_type.iterdir():
         if e.is_file():
@@ -67,3 +71,17 @@ def guess_dataset_format(dataset_dir: pathlib.Path):
                     elif 'pkl' in sub_e.as_posix():
                         return 'pkl'
     return 'pkl'
+
+
+def guess_dataset_size(dataset_dir: pathlib.Path):
+    format = guess_dataset_format(dataset_dir)
+    if format == 'tfrecord':
+        d = dataset_dir / 'val'
+        if d.is_dir():
+            n_examples = len(list(d.glob("*.tfrecords")))
+            return n_examples
+    elif format == 'pkl':
+        n_examples = len(list(dataset_dir.glob("*.pkl")))
+        return n_examples
+    else:
+        raise NotImplementedError(format)

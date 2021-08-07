@@ -13,6 +13,7 @@
   planner_params_update: {
     termination_criteria:
     {
+      max_attempts: 100
     }
   }
   results_to_classifier_dataset: {

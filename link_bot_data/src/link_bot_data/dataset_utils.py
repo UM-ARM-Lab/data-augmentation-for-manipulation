@@ -13,6 +13,7 @@ from colorama import Fore
 
 import genpy
 from arc_utilities.filesystem_utils import mkdir_and_ask
+from link_bot_data.load_dataset import guess_dataset_size
 from link_bot_data.ros_msg_serialization import ros_msg_to_bytes_tensor, bytes_to_ros_msg
 from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
@@ -591,11 +592,8 @@ def compute_batch_size_for_n_examples(total_examples: int, max_batch_size: int):
 def compute_batch_size(dataset_dirs: List[pathlib.Path], max_batch_size: int):
     total_examples = 0
     for dataset_dir in dataset_dirs:
-        # assumes validation is smaller than train
-        d = dataset_dir / 'val'
-        if d.is_dir():
-            n_examples = len(list(d.glob("*.tfrecords")))
-            total_examples += n_examples
+        # assumes validation is smaller than or the same size as train
+        total_examples += guess_dataset_size(dataset_dir)
     return compute_batch_size_for_n_examples(total_examples, max_batch_size)
 
 
