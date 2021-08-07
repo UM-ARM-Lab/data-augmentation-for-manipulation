@@ -365,6 +365,21 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                         w: int,
                                         c: int,
                                         ):
+        """
+
+        Args:
+            m: [b, 4, 4]
+            to_local_frame: [b, 1, 3]  the 1 can also be equal to time
+            inputs:
+            batch_size:
+            time:
+            h:
+            w:
+            c:
+
+        Returns:
+
+        """
         # apply those to the rope and grippers
         rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
         left_gripper_point = inputs[add_predicted('left_gripper')]

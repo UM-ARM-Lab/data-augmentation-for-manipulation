@@ -466,7 +466,7 @@ class ResultsToClassifierDataset:
                 predicted_recovery_after_states, _ = self.fwd_model.propagate(environment=environment,
                                                                               start_state=recovery_before_state,
                                                                               actions=[recovery_action])
-                predicted_recovery_after_state = predicted_recovery_after_states[0]
+                predicted_recovery_after_state = predicted_recovery_after_states[1]
                 recovery_before_state['stdev'] = tf.zeros(1)
                 predicted_states = [recovery_before_state, predicted_recovery_after_state]
             else:

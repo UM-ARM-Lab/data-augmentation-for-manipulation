@@ -230,6 +230,7 @@ def eval_n_main(dataset_dirs: List[pathlib.Path],
                 scenario: Optional[ScenarioWithVisualization] = None,
                 **kwargs):
     for dataset_dir in dataset_dirs:
+        print(Fore.GREEN + dataset_dir.name + Fore.RESET)
         dataset_loader, dataset = setup_eval_dataset(scenario=scenario, dataset_dirs=[dataset_dir], mode=mode,
                                                      balance=balance, take=take, threshold=threshold,
                                                      use_gt_rope=use_gt_rope, batch_size=batch_size)

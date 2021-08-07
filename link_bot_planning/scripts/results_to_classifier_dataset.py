@@ -5,6 +5,7 @@ import pathlib
 from arc_utilities import ros_init
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_pycommon.args import int_set_arg, BooleanOptionalAction
+from state_space_dynamics.dynamics_utils import load_generic_model
 
 
 @ros_init.with_ros("results_to_dataset")
@@ -23,12 +24,15 @@ def main():
 
     args = parser.parse_args()
 
+    fwd_model = load_generic_model(pathlib.Path("/media/shared/dy_trials/gt_rope_w_robot_ensemble/none"))
+
     r = ResultsToClassifierDataset(results_dir=args.results_dir,
                                    outdir=args.outdir,
                                    labeling_params=args.labeling_params,
                                    trial_indices=args.trials,
                                    visualize=args.visualize,
                                    save_format=args.save_format,
+                                   fwd_model=fwd_model,
                                    full_tree=args.full_tree,
                                    regenerate=args.regenerate,
                                    only_rejected_transitions=args.only_rejected_transitions,
