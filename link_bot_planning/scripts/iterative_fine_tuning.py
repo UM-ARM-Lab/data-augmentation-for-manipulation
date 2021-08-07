@@ -46,8 +46,9 @@ from colorama import Fore, Style
 
 import rospy
 from arc_utilities import ros_init
-from link_bot_data.dataset_utils import make_unique_outdir, compute_batch_size, tf_write_example, add_predicted, \
+from link_bot_data.dataset_utils import make_unique_outdir, tf_write_example, add_predicted, \
     replaced_true_with_predicted
+from link_bot_data.load_dataset import compute_batch_size
 from link_bot_planning.planning_evaluation import load_planner_params, EvaluatePlanning
 from link_bot_pycommon.args import run_subparsers
 from link_bot_pycommon.job_chunking import JobChunker
