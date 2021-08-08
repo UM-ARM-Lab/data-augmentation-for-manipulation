@@ -1,4 +1,5 @@
 import pathlib
+from functools import lru_cache
 from typing import Dict, Optional, List, Callable
 
 import numpy as np
@@ -22,8 +23,25 @@ def check_numerics(x, msg: Optional[str] = "found infs or nans!"):
         tf.debugging.check_numerics(x, msg)
 
 
+def get_common_dicts(examples):
+    e_common = {}
+    keys = set()
+    for k in examples[0].keys():
+        k_is_common = True
+        for e in examples[1:]:
+            if k not in e:
+                k_is_common = False
+        if k_is_common:
+            keys.add(k)
+    for k in keys:
+        # examples[0] must have k, because k is in all examples
+        e_common[k] = examples[0][k]
+
+    return e_common
+
+
 def batch_examples_dicts(examples: List):
-    e_check = examples[0]
+    e_check = get_common_dicts(examples)
     examples_batch = {}
     for k in e_check.keys():
         v_check = e_check[k]
