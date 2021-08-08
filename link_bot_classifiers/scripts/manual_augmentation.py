@@ -3,8 +3,8 @@ import argparse
 import pathlib
 from copy import deepcopy
 
-import hjson
 import tensorflow as tf
+from tqdm import tqdm
 
 import ros_numpy
 import rospy
@@ -14,11 +14,13 @@ from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_data.visualization import plot_classifier_state_t
 from link_bot_pycommon.basic_3d_pose_marker import Basic3DPoseInteractiveMarker
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
+from link_bot_pycommon.serialization import my_hdump
+from moonshine.filepath_tools import load_hjson
+from moonshine.indexing import index_state_action_with_metadata
 from moonshine.moonshine_utils import remove_batch
 from peter_msgs.msg import AnimationControl
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
-
 
 done = False
 
@@ -63,12 +65,26 @@ def main():
 
     def viz(e, label, color):
         plot_classifier_state_t(s, keys, e, t=0, label=label + '_0', color=color)
+        s_for_a_t, a_t = index_state_action_with_metadata(e,
+                                                          state_keys=dataset_loader.predicted_state_keys,
+                                                          state_metadata_keys=dataset_loader.state_metadata_keys,
+                                                          action_keys=dataset_loader.action_keys,
+                                                          t=0)
+        s.plot_action_rviz(s_for_a_t, a_t, label=label)
         plot_classifier_state_t(s, keys, e, t=1, label=label + '_1', color=adjust_lightness(color, 0.8))
 
-    manual_transforms = {}
+    if outfile.exists():
+        manual_transforms = load_hjson(outfile)
+    else:
+        manual_transforms = {}
+
     dataset = dataset_loader.get_datasets(mode='all')
-    for example in dataset:
+    for example in tqdm(dataset):
         example_filename = example['filename']
+
+        if example_filename in manual_transforms:
+            print(f"Found existing transforms for {example_filename}. Skipping")
+            continue
 
         original_rope_points = tf.reshape(example['rope'], [2, -1, 3])
         current_rope_points = original_rope_points
@@ -105,15 +121,16 @@ def main():
                 object_aug_update = remove_batch(object_aug_update)
                 example_viz.update(object_aug_update)
 
-                # viz(example, 'original', 'red')
+                viz(example, 'original', 'red')
                 s.plot_environment_rviz(example)
-                # viz(example_viz, 'aug', 'blue')
+                viz(example_viz, 'aug', 'blue')
+                rospy.sleep(0.05)
 
             possible_transformation_matrices.append(transformation_matrix.numpy())
         manual_transforms[example_filename] = possible_transformation_matrices
 
-    with outfile.open("w") as file:
-        hjson.dump(manual_transforms, file)
+        with outfile.open("w") as file:
+            my_hdump(manual_transforms, file)
 
 
 if __name__ == '__main__':
