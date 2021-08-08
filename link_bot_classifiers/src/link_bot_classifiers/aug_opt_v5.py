@@ -4,12 +4,12 @@ import tensorflow as tf
 
 import rospy
 import sdf_tools.utils_3d
-from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd
+from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transformation_obj_points
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_tf_origin_point_res, \
     subtract, binary_or, batch_point_to_idx
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-from moonshine.geometry import transformation_params_to_matrices, transform_points_3d, transformation_jacobian, \
+from moonshine.geometry import transformation_params_to_matrices, transformation_jacobian, \
     homogeneous
 from moonshine.moonshine_utils import repeat, possibly_none_concat
 
@@ -198,12 +198,3 @@ def opt_object_transform(batch_size, new_env, obj_points, object_points_occupanc
         clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
         self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
     return obj_transforms
-
-
-def transformation_obj_points(obj_points, transformation_matrices):
-    to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
-    obj_points_local_frame = obj_points - to_local_frame
-    obj_points_aug_local_frame = transform_points_3d(transformation_matrices[:, None],
-                                                     obj_points_local_frame)
-    obj_points_aug = obj_points_aug_local_frame + to_local_frame
-    return obj_points_aug, to_local_frame

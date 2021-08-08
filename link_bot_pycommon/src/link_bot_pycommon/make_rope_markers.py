@@ -112,4 +112,9 @@ def make_rope_marker(rope_points, frame_id, label, idx, color: ColorRGBA, s=0.02
     first_point_text.color.g = 1.0
     first_point_text.color.b = 1.0
     first_point_text.color.a = color.a
-    return [points_marker, lines, midpoint_sphere, first_point_text]
+    return [
+        points_marker,
+        lines,
+        midpoint_sphere,
+        first_point_text
+    ]

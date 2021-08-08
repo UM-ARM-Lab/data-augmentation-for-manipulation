@@ -9,6 +9,7 @@ from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import vector_to_points_2d
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.indexing import index_time_with_metadata, index_state_action_with_metadata
+from moonshine.moonshine_utils import numpify
 from std_msgs.msg import Float32
 
 
@@ -146,3 +147,37 @@ def try_adding_aco(state: Dict, example: Dict):
         state['attached_collision_objects'] = example['scene_msg'].robot_state.attached_collision_objects
     except Exception:
         pass
+
+
+def plot_classifier_state_b_t(scenario, state_keys, input_dict, b, t, label: str, color='red'):
+    state_t = numpify({k: input_dict[add_predicted(k)][b, t] for k in state_keys})
+    state_t['joint_names'] = input_dict['joint_names'][b, t]
+    scenario.plot_state_rviz(state_t, label=label, color=color)
+
+    if 'is_close' in input_dict:
+        scenario.plot_is_close(input_dict['is_close'][b, 1])
+    else:
+        scenario.plot_is_close(None)
+
+    if 'error' in input_dict:
+        error_t = input_dict['error'][b, 1]
+        scenario.plot_error_rviz(error_t)
+    else:
+        scenario.plot_error_rviz(-999)
+
+
+def plot_classifier_state_t(scenario, state_keys, input_dict, t, label: str, color='red'):
+    state_t = numpify({k: input_dict[add_predicted(k)][t] for k in state_keys})
+    state_t['joint_names'] = input_dict['joint_names'][t]
+    scenario.plot_state_rviz(state_t, label=label, color=color)
+
+    if 'is_close' in input_dict:
+        scenario.plot_is_close(input_dict['is_close'][1])
+    else:
+        scenario.plot_is_close(None)
+
+    if 'error' in input_dict:
+        error_t = input_dict['error'][1]
+        scenario.plot_error_rviz(error_t)
+    else:
+        scenario.plot_error_rviz(-999)

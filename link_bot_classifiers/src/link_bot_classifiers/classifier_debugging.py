@@ -4,6 +4,7 @@ import numpy as np
 
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import add_predicted
+from link_bot_data.visualization import plot_classifier_state_b_t
 from link_bot_pycommon.grid_utils import vox_to_voxelgrid_stamped
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import to_list_of_strings, numpify
@@ -53,20 +54,7 @@ class ClassifierDebugging:
         self.scenario.robot.display_robot_traj(display_traj_msg, label=label, color=color)
 
     def plot_state_rviz(self, input_dict, b, t, label: str, color='red'):
-        state_t = numpify({k: input_dict[add_predicted(k)][b, t] for k in self.state_keys})
-        state_t['joint_names'] = input_dict['joint_names'][b, t]
-        self.scenario.plot_state_rviz(state_t, label=label, color=color)
-
-        if 'is_close' in input_dict:
-            self.scenario.plot_is_close(input_dict['is_close'][b, 1])
-        else:
-            self.scenario.plot_is_close(None)
-
-        if 'error' in input_dict:
-            error_t = input_dict['error'][b, 1]
-            self.scenario.plot_error_rviz(error_t)
-        else:
-            self.scenario.plot_error_rviz(-999)
+        plot_classifier_state_b_t(self.scenario, self.state_keys, input_dict, b=b, t=t, label=label, color=color)
 
     def send_position_transform(self, p, child: str):
         self.scenario.tf.send_transform(p, [0, 0, 0, 1], 'world', child=child, is_static=False)

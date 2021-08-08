@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import numpy as np
 
 from typing import Callable, Optional
 
@@ -39,6 +40,7 @@ def make_interactive_marker(name: str,
     imarker = InteractiveMarker()
     imarker.header.frame_id = "world"
     imarker.pose.position = position
+    imarker.pose.orientation.w = 1
     imarker.scale = 0.1
 
     imarker.name = name
@@ -50,9 +52,10 @@ def make_interactive_marker(name: str,
 
     imarker.controls[0].interaction_mode = InteractiveMarkerControl.MOVE_ROTATE_3D
 
+    q = np.sqrt(2) / 2
     control = InteractiveMarkerControl()
-    control.orientation.w = 1
-    control.orientation.x = 1
+    control.orientation.w = q
+    control.orientation.x = q
     control.orientation.y = 0
     control.orientation.z = 0
     control.name = "rotate_x"
@@ -60,8 +63,8 @@ def make_interactive_marker(name: str,
     imarker.controls.append(control)
 
     control = InteractiveMarkerControl()
-    control.orientation.w = 1
-    control.orientation.x = 1
+    control.orientation.w = q
+    control.orientation.x = q
     control.orientation.y = 0
     control.orientation.z = 0
     control.name = "move_x"
@@ -69,37 +72,37 @@ def make_interactive_marker(name: str,
     imarker.controls.append(control)
 
     control = InteractiveMarkerControl()
-    control.orientation.w = 1
+    control.orientation.w = q
     control.orientation.x = 0
-    control.orientation.y = 1
+    control.orientation.y = q
     control.orientation.z = 0
     control.name = "rotate_z"
     control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
     imarker.controls.append(control)
 
     control = InteractiveMarkerControl()
-    control.orientation.w = 1
+    control.orientation.w = q
     control.orientation.x = 0
-    control.orientation.y = 1
+    control.orientation.y = q
     control.orientation.z = 0
     control.name = "move_z"
     control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
     imarker.controls.append(control)
 
     control = InteractiveMarkerControl()
-    control.orientation.w = 1
+    control.orientation.w = q
     control.orientation.x = 0
     control.orientation.y = 0
-    control.orientation.z = 1
+    control.orientation.z = q
     control.name = "rotate_y"
     control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
     imarker.controls.append(control)
 
     control = InteractiveMarkerControl()
-    control.orientation.w = 1
+    control.orientation.w = q
     control.orientation.x = 0
     control.orientation.y = 0
-    control.orientation.z = 1
+    control.orientation.z = q
     control.name = "move_y"
     control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
     imarker.controls.append(control)
@@ -126,7 +129,7 @@ class Basic3DPoseInteractiveMarker:
             else:
                 raise NotImplementedError()
 
-        self.marker_name = 'imarker'
+        self.marker_name = 'my_imarker'
         self.imarker = make_interactive_marker(self.marker_name, position, make_marker)
         self.server.insert(self.imarker, self.on_feedback)
 

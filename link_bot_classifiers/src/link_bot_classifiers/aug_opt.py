@@ -10,6 +10,7 @@ from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.aug_opt_env1 import opt_new_env_augmentation
 from link_bot_classifiers.aug_opt_ik import AugOptIk
+from link_bot_classifiers.aug_opt_manual import opt_object_manual
 from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik
 from link_bot_classifiers.aug_opt_v3 import opt_object_augmentation3
 from link_bot_classifiers.aug_opt_v5 import opt_object_augmentation5
@@ -89,6 +90,8 @@ class AugmentationOptimization:
                 self.attract_weight = 10.0
                 self.repel_weight = 1.0
                 self.sdf_grad_scale = 0.2
+            elif self.aug_type in ['manual']:
+                self.step_size = 1.0
             else:
                 raise NotImplementedError(self.aug_type)
 
@@ -112,7 +115,7 @@ class AugmentationOptimization:
                                   time):
         if self.aug_type == 'optimization':
             return self.augmentation_optimization1(inputs, batch_size, time)
-        elif self.aug_type in ['optimization2', 'v3', 'v5']:
+        elif self.aug_type in ['optimization2', 'v3', 'v5', 'manual']:
             return self.augmentation_optimization2(inputs, batch_size, time)
         else:
             raise NotImplementedError(self.aug_type)
@@ -134,6 +137,8 @@ class AugmentationOptimization:
             aug_f = opt_object_augmentation3
         elif self.aug_type in ['v5']:
             aug_f = opt_object_augmentation5
+        elif self.aug_type in ['manual']:
+            aug_f = opt_object_manual
         else:
             raise NotImplementedError()
         inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, local_env_aug_fix_deltas = \
