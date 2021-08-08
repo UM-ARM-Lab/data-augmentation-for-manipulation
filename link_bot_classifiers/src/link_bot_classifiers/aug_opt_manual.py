@@ -76,7 +76,8 @@ def get_manual_transforms(inputs: Dict, manual_transforms_filename: pathlib.Path
     for k in inputs['filename']:
         k_str = k.numpy().decode("utf-8")
         possible_transformation_matrices = manual_transforms[k_str]
-        transformation_matrix = np.choose(possible_transformation_matrices)
+        rand_idx = np.random.choice(range(len(possible_transformation_matrices)))
+        transformation_matrix = possible_transformation_matrices[rand_idx]
         transformation_matrices.append(transformation_matrix)
     transformation_matrices = tf.constant(transformation_matrices, dtype=tf.float32)
     return transformation_matrices
