@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 
 import rospy
 from arc_utilities import ros_init
-from link_bot_classifiers.pd_distances_utils import format_distances, get_first_non_none, space_to_idx, \
+from link_bot_classifiers.pd_distances_utils import format_distances, get_first, space_to_idx, \
     compute_diversity, compute_plausibility
 from link_bot_classifiers.visualize_classifier_dataset import viz_compare_examples
 from link_bot_pycommon.get_scenario import get_scenario
@@ -41,7 +41,7 @@ def main():
         v = RvizAnimationController(n_time_steps=aug_examples_matrix.shape[0])
         while not v.done:
             i = v.t()
-            max_j, aug_example = get_first_non_none(aug_examples_matrix[i])
+            max_j, aug_example = get_first(aug_examples_matrix[i])
             if max_j == -1:
                 print("no close examples")
             else:
@@ -58,7 +58,7 @@ def main():
         v = RvizAnimationController(n_time_steps=aug_examples_matrix.shape[1])
         while not v.done:
             j = v.t()
-            max_i, data_example = get_first_non_none(data_examples_matrix[:, j])
+            max_i, data_example = get_first(data_examples_matrix[:, j])
             if max_i == -1:
                 print("no close examples")
             else:
@@ -73,7 +73,7 @@ def main():
             v.step()
     elif args.display_type == 'plausibility_all':
         for i in range(aug_examples_matrix.shape[0]):
-            max_j, aug_example = get_first_non_none(aug_examples_matrix[i])
+            max_j, aug_example = get_first(aug_examples_matrix[i])
             if max_j == -1:
                 print("no close examples")
                 continue
@@ -93,7 +93,7 @@ def main():
                 v.step()
     elif args.display_type == 'diversity_all':
         for j in range(aug_examples_matrix.shape[1]):
-            max_i, data_example = get_first_non_none(data_examples_matrix[:, j])
+            max_i, data_example = get_first(data_examples_matrix[:, j])
             if max_i == -1:
                 print("no close examples")
                 continue

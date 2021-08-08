@@ -14,8 +14,8 @@ weights = np.array([
     10.0,
 ])
 too_far = np.array([
-    1.5,
-    1.5,
+    1.0,
+    1.0,
     25.0,
     25.0,
     0.05,
@@ -108,7 +108,7 @@ def format_distances(results_dir: pathlib.Path, space_idx: int):
     return aug_examples_matrix, data_examples_matrix, distances_matrix
 
 
-def get_first_non_none(m):
+def get_first(m):
     for i, m_i in enumerate(m):
         if m_i is not None:
             return i, m_i
