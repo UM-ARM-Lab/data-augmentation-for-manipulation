@@ -16,8 +16,8 @@ weights = np.array([
 too_far = np.array([
     1.0,
     1.0,
-    25.0,
-    25.0,
+    20.0,
+    20.0,
     0.05,
 ])
 joints_weights = np.array([

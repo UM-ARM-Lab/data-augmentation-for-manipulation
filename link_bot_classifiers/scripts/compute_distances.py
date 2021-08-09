@@ -84,7 +84,7 @@ def worker(inputs):
         'data_example': data_example,
     }
 
-    if not tf.reduce_any(d > too_far):
+    if tf.reduce_any(d < too_far):
         outfilename = dirname / f'{i}-{j}.pkl.gz'
         dump_gzipped_pickle(to_save, outfilename)
     return d.numpy().tolist()
