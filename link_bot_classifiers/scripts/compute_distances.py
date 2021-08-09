@@ -5,6 +5,7 @@ from multiprocessing import Pool
 from typing import Dict
 
 import tensorflow as tf
+from colorama import Fore
 from tensorflow_graphics.nn.loss.chamfer_distance import evaluate
 from tqdm import tqdm
 
@@ -115,7 +116,15 @@ def main():
     name = f"{aug_name}-{data_name}"
     if args.debug:
         name = 'debug-' + name
-    dirname = pathlib.Path('results') / name
+        dirname = pathlib.Path('results') / name
+    else:
+        dirname = pathlib.Path('/media/shared/distances') / name
+    if dirname.exists():
+        k = input(f"Output directory {dirname.as_posix()} exists, overwrite?")
+        if k not in ['y', 'Y']:
+            print(Fore.RED + "Aborting" + Fore.RESET)
+            return
+
     dirname.mkdir(exist_ok=True)
     logfilename = dirname / 'logfile.hjson'
     print(dirname)
