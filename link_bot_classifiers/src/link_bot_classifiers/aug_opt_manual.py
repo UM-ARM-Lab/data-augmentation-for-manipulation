@@ -5,16 +5,10 @@ import numpy as np
 import tensorflow as tf
 
 import rospy
-import sdf_tools.utils_3d
 from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transformation_obj_points
-from link_bot_classifiers.aug_opt_v5 import opt_object_transform
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_tf_origin_point_res, \
-    subtract, binary_or, batch_point_to_idx
-from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
+from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_tf_origin_point_res
 from moonshine.filepath_tools import load_hjson
-from moonshine.geometry import transformation_params_to_matrices, transform_points_3d, transformation_jacobian, \
-    homogeneous
 from moonshine.moonshine_utils import repeat, possibly_none_concat
 
 
@@ -76,6 +70,8 @@ def get_manual_transforms(inputs: Dict, manual_transforms_filename: pathlib.Path
     for k in inputs['filename']:
         k_str = k.numpy().decode("utf-8")
         possible_transformation_matrices = manual_transforms[k_str]
+        no_transformation = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=np.float32)
+        possible_transformation_matrices.append(no_transformation)
         rand_idx = np.random.choice(range(len(possible_transformation_matrices)))
         transformation_matrix = possible_transformation_matrices[rand_idx]
         transformation_matrices.append(transformation_matrix)
