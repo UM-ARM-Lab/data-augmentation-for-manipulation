@@ -58,7 +58,6 @@ class AugmentationOptimization:
         self.env_subsample = 0.25
         self.num_object_interp = 5  # must be >=2
         self.num_robot_interp = 3  # must be >=2
-        self.max_steps = 100
         self.seed_int = 0 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.gen = tf.random.Generator.from_seed(self.seed_int)
         self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
@@ -83,6 +82,7 @@ class AugmentationOptimization:
                 self.attract_weight = 10.0
                 self.repel_weight = 1.0
                 self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
+                self.max_steps = 40
             elif self.aug_type in ['v5']:
                 self.bbox_weight = 0.05
                 self.invariance_weight = 0.01
@@ -90,6 +90,7 @@ class AugmentationOptimization:
                 self.attract_weight = 10.0
                 self.repel_weight = 1.0
                 self.sdf_grad_scale = 0.2
+                self.max_steps = 100
             elif self.aug_type in ['manual']:
                 self.step_size = 1.0
             else:
