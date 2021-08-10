@@ -99,7 +99,7 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
         print(Fore.GREEN + f"{name}: " + ' '.join(stats_formatted) + Fore.RESET)
 
     print_stats(improvement, "improvement")
-    print_stats(possible_improvement, "estimated possible improvement")
+    print(f"estimated possible improvement {possible_improvement:.4f}")
 
     p = scipy.stats.ttest_1samp(improvement, 0).pvalue
     flag = '!' if p < 0.01 else ''
