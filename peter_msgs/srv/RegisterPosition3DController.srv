@@ -1,5 +1,6 @@
 string scoped_link_name
 string controller_type
+bool position_only
 float64 kp_pos
 float64 kp_vel
 float64 max_force

@@ -1,0 +1,8 @@
+string scoped_link_name
+geometry_msgs/Pose pose  # in gazebo world frame
+float32 timeout_s
+float32 speed_mps
+float32 speed_rps  # radians/second
+float64 tolerance_m
+float64 tolerance_rad
+---

@@ -2,4 +2,5 @@ string scoped_link_name
 string frame_id
 float32 timeout_s
 float32 speed_mps
+float32 speed_rps
 ---

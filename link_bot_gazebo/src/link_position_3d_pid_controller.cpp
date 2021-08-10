@@ -7,12 +7,13 @@ namespace gazebo
 
 LinkPosition3dPIDController::LinkPosition3dPIDController(char const *plugin_name,
                                                          physics::LinkPtr link,
+                                                         bool position_only,
                                                          double const kp_pos,
                                                          double const kp_vel,
                                                          double const max_force,
                                                          double const max_vel,
                                                          bool const grav_comp) :
-    BaseLinkPositionController(plugin_name, link, "pid"),
+    BaseLinkPositionController(plugin_name, link, "pid", position_only),
     kP_pos_(kp_pos),
     kP_vel_(kp_vel),
     max_force_(max_force),
@@ -37,7 +38,7 @@ LinkPosition3dPIDController::LinkPosition3dPIDController(char const *plugin_name
   vel_pid_ = common::PID(kP_vel_, 0, kD_vel_, 0, 0, max_force_, -max_force_);
 }
 
-void LinkPosition3dPIDController::Update(ignition::math::Vector3d const &setpoint)
+void LinkPosition3dPIDController::Update(ignition::math::Pose3d const &setpoint)
 {
   if (!link_)
   {
@@ -47,10 +48,13 @@ void LinkPosition3dPIDController::Update(ignition::math::Vector3d const &setpoin
 
   auto const dt = link_->GetWorld()->Physics()->GetMaxStepSize();
 
-  auto const pos = link_->WorldPose().Pos();
+  auto const pose = link_->WorldPose();
+  auto const pos = pose.Pos();
+  auto const rot = pose.Rot();
   auto const vel_ = link_->WorldLinearVel();
+  auto const angular_vel_ = link_->WorldAngularVel();
 
-  pos_error_ = pos - setpoint;
+  pos_error_ = pos - setpoint.Pos();
   auto target_vel = pos_error_.Normalized() * pos_pid_.Update(pos_error_.Length(), dt);
   target_vel.X(ignition::math::clamp(target_vel.X(), -speed_mps_, speed_mps_));
   target_vel.Y(ignition::math::clamp(target_vel.Y(), -speed_mps_, speed_mps_));

@@ -1,4 +1,5 @@
 string[] scoped_link_names
 float64 timeout_s
 float64 tolerance_m
+float64 tolerance_rad
 ---

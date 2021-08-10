@@ -107,6 +107,7 @@ class RopeDraggingScenario(ScenarioWithVisualization):
     def on_before_get_state_or_execute_action(self):
         self.pos3d.register(RegisterPosition3DControllerRequest(scoped_link_name=self.ROPE_LINK_NAME,
                                                                 controller_type='pid',
+                                                                position_only=True,
                                                                 kp_vel=10.0,
                                                                 kp_pos=10.0,
                                                                 max_force=10.0,
@@ -115,6 +116,7 @@ class RopeDraggingScenario(ScenarioWithVisualization):
     def register_movable_object(self, scoped_link_name):
         self.pos3d.register(RegisterPosition3DControllerRequest(scoped_link_name=scoped_link_name,
                                                                 controller_type='pid',
+                                                                position_only=True,
                                                                 kp_pos=50.0,
                                                                 kp_vel=1000.0,
                                                                 max_force=50.0,

@@ -31,11 +31,13 @@ add_service_files(
         GetJointState.srv
         GetOverstretching.srv
         GetPosition3D.srv
+        GetPose3D.srv
         GetRopeState.srv
         GetVizOptions.srv
         GrippersTrajectory.srv
         LinkBotReset.srv
         LinkBotState.srv
+        Pose3DAction.srv
         Position3DAction.srv
         Position3DFollow.srv
         Position3DEnable.srv

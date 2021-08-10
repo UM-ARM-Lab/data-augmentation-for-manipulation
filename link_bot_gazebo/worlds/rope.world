@@ -12,6 +12,9 @@
         </scene>
 
         <physics type="ode">
+            <max_step_size>0.01</max_step_size>
+            <real_time_factor>1</real_time_factor>
+            <real_time_update_rate>20</real_time_update_rate>
             <ode>
                 <solver>
                     <thread_position_correction>0</thread_position_correction>
@@ -41,7 +44,8 @@
         <!-- The Rope -->
         <include>
             <pose>0.8 -0.6 1.0 0 0 1.5707</pose>
-            <uri>model://rope_3d</uri>
+<!--            <uri>model://rope_3d</uri>-->
+            <uri>model://stiff_rope</uri>
         </include>
     </world>
 </sdf>

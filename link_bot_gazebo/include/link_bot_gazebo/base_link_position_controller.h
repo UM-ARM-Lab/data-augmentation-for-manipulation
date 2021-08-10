@@ -5,6 +5,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <peter_msgs/Position3DActionRequest.h>
+#include <peter_msgs/Pose3DActionRequest.h>
 
 #include <geometry_msgs/Point.h>
 #include <gazebo/physics/World.hh>
@@ -16,11 +17,11 @@ namespace gazebo
 class BaseLinkPositionController
 {
  public:
-  BaseLinkPositionController(char const *plugin_name, physics::LinkPtr link, std::string const type);
+  BaseLinkPositionController(char const *plugin_name, physics::LinkPtr link, std::string const type, bool position_only);
 
   void OnUpdate();
 
-  virtual void Update(ignition::math::Vector3d const &setpoint) = 0;
+  virtual void Update(ignition::math::Pose3d const &setpoint) = 0;
 
   virtual void OnStop();
 
@@ -28,9 +29,11 @@ class BaseLinkPositionController
 
   void OnFollow(std::string const &frame_id);
 
+  void SetPose(peter_msgs::Pose3DActionRequest action);
+
   void Set(peter_msgs::Position3DActionRequest action);
 
-  [[nodiscard]] virtual std::optional<ignition::math::Vector3d> Get() const;
+  [[nodiscard]] virtual std::optional<ignition::math::Pose3d> Get() const;
 
   char const *plugin_name_;
   physics::LinkPtr const link_;
@@ -42,9 +45,11 @@ class BaseLinkPositionController
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
 
-  ignition::math::Vector3d setpoint_;
+  ignition::math::Pose3d setpoint_;
+  bool position_only_;
   double timeout_s_ = 0;
   double speed_mps_ = 0;
+  double speed_rps_ = 0;
 
   const std::string type;
 };

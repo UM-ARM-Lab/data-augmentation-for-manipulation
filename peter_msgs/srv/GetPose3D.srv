@@ -1,0 +1,6 @@
+string scoped_link_name
+---
+geometry_msgs/Pose pose  # in world frame
+bool enabled
+bool success
+

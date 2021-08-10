@@ -8,7 +8,8 @@ class Position3D:
         self.register_controller_srv = rospy.ServiceProxy("/position_3d_plugin/register", RegisterPosition3DController)
         self.follow_srv = rospy.ServiceProxy("/position_3d_plugin/follow", Position3DFollow)
         self.enable_srv = rospy.ServiceProxy("/position_3d_plugin/enable", Position3DEnable)
-        self.set_srv = rospy.ServiceProxy("/position_3d_plugin/set", Position3DAction)
+        self.set_srv = rospy.ServiceProxy("/position_3d_plugin/position_set", Position3DAction)
+        self.pose_set_srv = rospy.ServiceProxy("/position_3d_plugin/pose_set", Pose3DAction)
         self.move_srv = rospy.ServiceProxy("/position_3d_plugin/move", Position3DAction)
         self.wait_srv = rospy.ServiceProxy("/position_3d_plugin/wait", Position3DWait)
         self.get_srv = rospy.ServiceProxy("/position_3d_plugin/get", GetPosition3D)
@@ -26,8 +27,14 @@ class Position3D:
     def enable(self, msg: Position3DEnableRequest) -> Position3DEnableResponse:
         return self.enable_srv(msg)
 
-    def set(self, msg: Position3DActionRequest) -> Position3DActionResponse:
+    def position_set(self, msg: Position3DActionRequest) -> Position3DActionResponse:
         return self.set_srv(msg)
+
+    def set(self, msg: Position3DActionRequest) -> Position3DActionResponse:
+        return self.position_set(msg)
+
+    def pose_set(self, msg: Pose3DActionRequest) -> Pose3DActionResponse:
+        return self.pose_set_srv(msg)
 
     def move(self, msg: Position3DActionRequest) -> Position3DActionResponse:
         return self.move_srv(msg)

@@ -20,13 +20,14 @@ class LinkPosition3dPIDController : public BaseLinkPositionController
  public:
   LinkPosition3dPIDController(char const *plugin_name,
                               physics::LinkPtr link,
+                              bool position_only,
                               double kp_pos,
                               double kp_vel,
                               double max_force,
                               double max_vel,
                               bool grav_comp);
 
-  void Update(ignition::math::Vector3d const &setpoint) override;
+  void Update(ignition::math::Pose3d const &setpoint) override;
 
   double kP_pos_;
   double kP_vel_;
