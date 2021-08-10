@@ -4,6 +4,7 @@ import pathlib
 from typing import Optional
 
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 import tabulate
 
@@ -33,7 +34,7 @@ def metrics_main(args):
     table_specs = load_table_specs(args.tables_config, table_format)
 
     lineplot(df, 'ift_iteration', 'success', 'Success Rate', outdir)
-    lineplot(df, 'ift_iteration', 'success', 'Success Rate (rolling)', outdir, window=5)
+    lineplot(df, 'ift_iteration', 'success', 'Success Rate (rolling)', outdir, window=15)
     lineplot(df, 'ift_iteration', 'task_error', 'Task Error', outdir)
     lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=5)
     lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=5, hue='seed')
@@ -46,7 +47,8 @@ def metrics_main(args):
     df['combined_error'] = task_error + normalized_model_error * 0.5
     lineplot(df, 'ift_iteration', 'combined_error', 'Combined Error (rolling)', outdir, window=5, hue='seed')
 
-    plt.show()
+    if not args.no_plot:
+        plt.show()
 
     generate_tables(df, outdir, table_specs)
 
@@ -71,6 +73,8 @@ def lineplot(df, x: str, metric: str, title: str, outdir: pathlib.Path, window: 
 
 @ros_init.with_ros("analyse_ift_results")
 def main():
+    pd.options.display.max_rows = 999
+
     parser = argparse.ArgumentParser()
     parser.add_argument('results_dirs', help='results directory', type=pathlib.Path, nargs='+')
     parser.add_argument('--tables-config', type=pathlib.Path,

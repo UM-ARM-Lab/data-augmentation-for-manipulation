@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+import shutil
 from copy import deepcopy
 
 import tensorflow as tf
@@ -38,13 +39,15 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("classifier_dataset_dir", type=pathlib.Path)
-    parser.add_argument("--n", "-n", type=int, help='number of augmentations per example', default=2)
+    parser.add_argument("--n", "-n", type=int, help='number of augmentations per example', default=9)
 
     args = parser.parse_args()
 
     done_sub = rospy.Subscriber('/rviz_anim/control', AnimationControl, done_cb)
 
     outfile = args.classifier_dataset_dir / 'manual_transforms.hjson'
+    outfile_backup = args.classifier_dataset_dir / 'manual_transforms.hjson.bak'
+    shutil.copy(outfile, outfile_backup)
 
     def make_marker(scale: float):
         marker = Marker(type=Marker.SPHERE)
@@ -82,10 +85,6 @@ def main():
     for example in tqdm(dataset):
         example_filename = example['filename']
 
-        if example_filename in manual_transforms:
-            print(f"Found existing transforms for {example_filename}. Skipping")
-            continue
-
         original_rope_points = tf.reshape(example['rope'], [2, -1, 3])
         current_rope_points = original_rope_points
         rope_point = example['rope'][0, 0:3]
@@ -95,9 +94,11 @@ def main():
         world_to_original = tf.convert_to_tensor(ros_numpy.numpify(initial_pose), tf.float32)
         im.set_pose(initial_pose)
 
-        possible_transformation_matrices = []
         batch_size = 1
         for i in range(args.n):
+            if example_filename in manual_transforms and len(manual_transforms[example_filename]) > i:
+                print(f"Skipping {example_filename}, {i}")
+                continue
 
             transformation_matrix = None
             done = False
@@ -126,11 +127,10 @@ def main():
                 viz(example_viz, 'aug', 'blue')
                 rospy.sleep(0.05)
 
-            possible_transformation_matrices.append(transformation_matrix.numpy())
-        manual_transforms[example_filename] = possible_transformation_matrices
+            manual_transforms[example_filename].append(transformation_matrix.numpy())
 
-        with outfile.open("w") as file:
-            my_hdump(manual_transforms, file)
+            with outfile.open("w") as file:
+                my_hdump(manual_transforms, file)
 
 
 if __name__ == '__main__':
