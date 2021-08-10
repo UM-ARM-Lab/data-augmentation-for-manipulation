@@ -7,7 +7,7 @@ link_length = length/n_links
 link_mass = mass/n_links
 omega = 0.0
 joint_damping = 0.01
-joint_friction = 1.0 %>
+joint_friction = 1000000.0 %>
 <sdf version="1.6">
     <model name="stiff_rope">
         <allow_auto_disable>true</allow_auto_disable>
@@ -149,7 +149,6 @@ joint_friction = 1.0 %>
             <physics>
                 <ode>
                     <cfm>0.0005</cfm>
-                    <implicit_spring_damper>1</implicit_spring_damper>
                 </ode>
             </physics>
         </joint>
@@ -214,7 +213,6 @@ joint_friction = 1.0 %>
             <physics>
                 <ode>
                     <cfm>0.01</cfm>
-                    <implicit_spring_damper>1</implicit_spring_damper>
                 </ode>
             </physics>
         </joint>
@@ -277,7 +275,6 @@ joint_friction = 1.0 %>
             <physics>
                 <ode>
                     <cfm>0.01</cfm>
-                    <implicit_spring_damper>1</implicit_spring_damper>
                 </ode>
             </physics>
         </joint>
