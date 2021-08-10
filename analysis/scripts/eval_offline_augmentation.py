@@ -13,6 +13,22 @@ from analysis.proxy_datasets import proxy_datasets_dict
 from link_bot_data import dynamodb_utils
 from link_bot_pycommon.pandas_utils import df_where
 
+proxy_dataset_name = 'car1'
+groupby = [
+    "do_augmentation",
+    'fine_tuned_from',
+    "fine_tuning_take",
+    "classifier_source_env",
+    "dataset_dirs",
+    "mode",
+    'original_training_seed',
+    # "balance",
+    "fine_tuning_dataset_dirs",
+    'on_invalid_aug',
+]
+
+cld = '/media/shared/classifier_data/'
+
 
 def main():
     pd.options.display.max_colwidth = 100
@@ -25,32 +41,20 @@ def main():
 
     df = filter_df_for_experiment(df, args.contains)
 
+    print("Classifiers:")
+    proxy_dataset_path = cld + proxy_datasets_dict[proxy_dataset_name]['ras']
+    df_p = df_where(df, 'dataset_dirs', proxy_dataset_path)
+    print('\n'.join(df_p['classifier'].sort_values().values))
+    print()
+
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='ras')
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='ncs')
     test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name='hrs')
 
 
 def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
-    proxy_dataset_name = 'car1'
-    groupby = [
-        "do_augmentation",
-        'fine_tuned_from',
-        "fine_tuning_take",
-        "classifier_source_env",
-        "dataset_dirs",
-        "mode",
-        'original_training_seed',
-        # "balance",
-        "fine_tuning_dataset_dirs",
-        'on_invalid_aug',
-    ]
-
-    cld = '/media/shared/classifier_data/'
     proxy_dataset_path = cld + proxy_datasets_dict[proxy_dataset_name][proxy_metric_name]
     df_p = df_where(df, 'dataset_dirs', proxy_dataset_path)
-
-    print("Classifiers:")
-    print('\n'.join(df_p['classifier'].sort_values().values))
 
     metric_name = 'accuracy on negatives'
     # drop things which are the thing we expect to differ between baseline and our method?
