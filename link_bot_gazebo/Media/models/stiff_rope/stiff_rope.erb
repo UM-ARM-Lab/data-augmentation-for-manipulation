@@ -206,10 +206,24 @@ joint_friction = 1000000.0 %>
 
             <self_collide>1</self_collide>
         </link>
-        <joint name="left_gripper_joint" type="fixed">
+        <joint name="left_gripper_joint" type="universal">
             <child>left_gripper</child>
             <parent>rope_link_1</parent>
             <pose>0 0 0 0 0 0</pose>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <dynamics>
+                    <damping><%=joint_damping%></damping>
+                    <friction>1.0</friction>
+                </dynamics>
+            </axis>
+            <axis2>
+                <xyz>0 1 0</xyz>
+                <dynamics>
+                    <damping><%=joint_damping%></damping>
+                    <friction>1.0</friction>
+                </dynamics>
+            </axis2>
             <physics>
                 <ode>
                     <cfm>0.01</cfm>
@@ -268,10 +282,24 @@ joint_friction = 1000000.0 %>
             </visual>
             <self_collide>1</self_collide>
         </link>
-        <joint name="right_gripper_joint" type="fixed">
+        <joint name="right_gripper_joint" type="universal">
             <parent>rope_link_<%=n_links%></parent>
             <child>right_gripper</child>
             <pose>0 0 0 0 0 0</pose>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <dynamics>
+                    <damping><%=joint_damping%></damping>
+                    <friction>1.0</friction>
+                </dynamics>
+            </axis>
+            <axis2>
+                <xyz>0 1 0</xyz>
+                <dynamics>
+                    <damping><%=joint_damping%></damping>
+                    <friction>1.0</friction>
+                </dynamics>
+            </axis2>
             <physics>
                 <ode>
                     <cfm>0.01</cfm>

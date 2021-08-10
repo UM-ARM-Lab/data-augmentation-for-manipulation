@@ -14,18 +14,18 @@ from tf.transformations import quaternion_from_euler
 def main():
     pos3d = Position3D()
 
-    ROPE_NAMESPACE = 'stiff_rope'
+    ROPE_NAMESPACE = 'rope_3d'
 
     register_left_req = RegisterPosition3DControllerRequest()
     register_left_req.scoped_link_name = gz_scope(ROPE_NAMESPACE, "left_gripper")
     register_left_req.controller_type = "kinematic"
     register_left_req.position_only = False
     pos3d.register(register_left_req)
-    # register_right_req = RegisterPosition3DControllerRequest()
-    # register_right_req.scoped_link_name = gz_scope(ROPE_NAMESPACE, "right_gripper")
-    # register_right_req.controller_type = "kinematic"
-    # register_right_req.position_only = False
-    # pos3d.register(register_right_req)
+    register_right_req = RegisterPosition3DControllerRequest()
+    register_right_req.scoped_link_name = gz_scope(ROPE_NAMESPACE, "right_gripper")
+    register_right_req.controller_type = "kinematic"
+    register_right_req.position_only = True
+    pos3d.register(register_right_req)
 
     def move(x=0, y=0, z=0, roll=0, pitch=0, yaw=0):
         right_orientation = ros_numpy.msgify(Quaternion, quaternion_from_euler(roll, pitch, yaw))
@@ -41,16 +41,16 @@ def main():
                                         scoped_link_name=gz_scope(ROPE_NAMESPACE, 'right_gripper'),
                                         pose=Pose(position=Point(x, y + 0.3, z), orientation=right_orientation))
         pos3d.pose_set(left_req)
-        # pos3d.pose_set(right_req)
+        pos3d.pose_set(right_req)
 
         wait_req = Position3DWaitRequest()
         wait_req.timeout_s = 60.0
         wait_req.scoped_link_names.append(gz_scope(ROPE_NAMESPACE, 'left_gripper'))
-        # wait_req.scoped_link_names.append(gz_scope(ROPE_NAMESPACE, 'right_gripper'))
+        wait_req.scoped_link_names.append(gz_scope(ROPE_NAMESPACE, 'right_gripper'))
         pos3d.wait(wait_req)
 
     move(pitch=-np.pi)
-    move(pitch=-0.0)
+    move(x=-1.0)
 
 
 if __name__ == "__main__":
