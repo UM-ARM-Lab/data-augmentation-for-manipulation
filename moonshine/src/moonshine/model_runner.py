@@ -25,7 +25,8 @@ class ModelRunner:
                  save_every_n_minutes: int = 20,
                  verbose: int = 0,
                  validate_first=False,
-                 batch_metadata=None,
+                 train_batch_metadata=None,
+                 val_batch_metadata=None,
                  early_stopping=False,
                  profile: Optional[Tuple[int]] = None,
                  **kwargs,
@@ -45,10 +46,14 @@ class ModelRunner:
         self.latest_minute = 0
         self.verbose = verbose
         self.validate_first = validate_first
-        if batch_metadata is None:
-            self.batch_metadata = {}
+        if train_batch_metadata is None:
+            self.train_batch_metadata = {}
         else:
-            self.batch_metadata = batch_metadata
+            self.train_batch_metadata = train_batch_metadata
+        if val_batch_metadata is None:
+            self.val_batch_metadata = {}
+        else:
+            self.val_batch_metadata = val_batch_metadata
 
         self.group_name = self.trial_path.parts[-2]
 
@@ -138,7 +143,7 @@ class ModelRunner:
 
         for batch_idx, train_batch in enumerate(progressbar(train_dataset, widgets=mywidgets)):
             self.model.scenario.heartbeat()
-            train_batch.update(self.batch_metadata)
+            train_batch.update(self.train_batch_metadata)
             self.latest_ckpt.step.assign_add(1)
 
             for v in train_metrics.values():
@@ -178,7 +183,7 @@ class ModelRunner:
 
         for i, val_batch in enumerate(val_dataset.take(self.mid_epoch_val_batches)):
             self.model.scenario.heartbeat()
-            val_batch.update(self.batch_metadata)
+            val_batch.update(self.val_batch_metadata)
             _ = self.model.val_step(val_batch, val_metrics)
 
         self.write_val_summary({k: m.result() for k, m in val_metrics.items()})
@@ -189,7 +194,7 @@ class ModelRunner:
             v.reset_states()
 
         for val_batch in val_dataset:
-            val_batch.update(self.batch_metadata)
+            val_batch.update(self.val_batch_metadata)
             yield val_batch, self.model.val_step(val_batch, val_metrics)
 
     def val_epoch(self, val_dataset, val_metrics):
@@ -203,7 +208,7 @@ class ModelRunner:
 
         for batch_idx, val_batch in enumerate(val_gen):
             self.model.scenario.heartbeat()
-            val_batch.update(self.batch_metadata)
+            val_batch.update(self.val_batch_metadata)
 
             p = self.prof.start(batch_idx=batch_idx, epoch=1)
             with tf.profiler.experimental.Trace('TraceContext', graph_type='val', batch_idx=batch_idx):
