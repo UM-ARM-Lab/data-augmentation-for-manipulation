@@ -1,6 +1,7 @@
 #pragma once
 
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/Pose.h>
 
 #include <gazebo/physics/Joint.hh>
 #include <gazebo/physics/Link.hh>
