@@ -11,6 +11,8 @@ from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_t
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import repeat, possibly_none_concat
 
+rng = np.random.RandomState(0)
+
 
 def opt_object_manual(self,
                       inputs: Dict,
@@ -39,7 +41,7 @@ def opt_object_manual(self,
 
     manual_transforms_filename = pathlib.Path(
         "/media/shared/ift/v3-revert-debugging-1-1_1628263205_69ac9955d3/classifier_datasets/iteration_0000_dataset/manual_transforms.hjson")
-    transformation_matrices = get_manual_transforms(inputs, manual_transforms_filename)
+    transformation_matrices = get_manual_transforms(inputs, manual_transforms_filename, rng)
     obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
 
     # this updates other representations of state/action that are fed into the network
@@ -64,7 +66,7 @@ def opt_object_manual(self,
     return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, local_env_aug_fix_deltas
 
 
-def get_manual_transforms(inputs: Dict, manual_transforms_filename: pathlib.Path):
+def get_manual_transforms(inputs: Dict, manual_transforms_filename: pathlib.Path, rng):
     manual_transforms = load_hjson(manual_transforms_filename)
     transformation_matrices = []
     for k in inputs['filename']:
@@ -72,7 +74,7 @@ def get_manual_transforms(inputs: Dict, manual_transforms_filename: pathlib.Path
         possible_transformation_matrices = manual_transforms[k_str]
         no_transformation = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=np.float32)
         possible_transformation_matrices.append(no_transformation)
-        rand_idx = np.random.choice(range(len(possible_transformation_matrices)))
+        rand_idx = rng.choice(range(len(possible_transformation_matrices)))
         transformation_matrix = possible_transformation_matrices[rand_idx]
         transformation_matrices.append(transformation_matrix)
     transformation_matrices = tf.constant(transformation_matrices, dtype=tf.float32)
