@@ -138,7 +138,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          mid_epoch_val_batches=mid_epoch_val_batches,
                          save_every_n_minutes=save_every_n_minutes,
                          validate_first=validate_first,
-                         batch_metadata=train_dataset.batch_metadata)
+                         train_batch_metadata=train_dataset_loader.batch_metadata,
+                         val_batch_metadata=val_dataset_loader.batch_metadata)
     train_tf_dataset, val_tf_dataset = setup_dataset_loaders(model_hparams, batch_size, train_dataset, val_dataset,
                                                              seed, take)
 
@@ -251,7 +252,8 @@ def eval_n_main(dataset_dirs: List[pathlib.Path],
                                  checkpoint=checkpoint,
                                  trial_path=trial_path,
                                  key_metric=AccuracyCheckpointMetric,
-                                 batch_metadata=dataset_loader.batch_metadata,
+                                 train_batch_metadata=dataset_loader.batch_metadata,
+                                 val_batch_metadata=dataset_loader.batch_metadata,
                                  verbose=-1)
 
             val_metrics = model.create_metrics()
@@ -301,7 +303,8 @@ def eval_setup(balance,
                          checkpoint=checkpoint,
                          trial_path=trial_path,
                          key_metric=AccuracyCheckpointMetric,
-                         batch_metadata=dataset_loader.batch_metadata,
+                         train_batch_metadata=dataset_loader.batch_metadata,
+                         val_batch_metadata=dataset_loader.batch_metadata,
                          **kwargs)
     return model, runner, dataset
 
