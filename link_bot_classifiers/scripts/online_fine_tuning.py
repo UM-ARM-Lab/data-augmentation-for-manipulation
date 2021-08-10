@@ -30,6 +30,7 @@ def main():
     parser.add_argument('fb', type=int)
     parser.add_argument('seed', type=int)
     parser.add_argument('--aug', action='store_true')
+    parser.add_argument('--ft-dataset-dir', type=pathlib.Path)
     parser.add_argument('--batch-size', type=int, default=24)
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--epochs', type=int, default=100)
@@ -42,7 +43,12 @@ def main():
 
     args = parser.parse_args()
 
-    dataset_dirs = [pathlib.Path("/media/shared/classifier_data/val_car_feasible_1614981888+op2/")]
+    if args.ft_dataset_dir is not None:
+        ft_dataset_dir = args.ft_dataset_dir
+    else:
+        ft_dataset_dir = pathlib.Path("/media/shared/classifier_data/val_car_feasible_1614981888+op2/")
+    dataset_dirs = [ft_dataset_dir]
+    print(f"Fine tuning on {ft_dataset_dir.as_posix()}")
     val_dataset_dirs = [pathlib.Path("/media/shared/classifier_data/val_car_feasible_1614981888+op2/")]
 
     print(Fore.GREEN + f'Take = {args.take}' + Fore.RESET)
