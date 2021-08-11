@@ -4,6 +4,7 @@ from typing import Dict, List
 import tensorflow as tf
 import tensorflow_probability as tfp
 import transformations
+from pyjacobian_follower import IkParams
 
 import rospy
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
@@ -52,7 +53,9 @@ class AugmentationOptimization:
         self.debug = debug
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
-        self.ik_solver = AugOptIk(scenario.robot)
+        ik_params = IkParams(rng_dist=self.hparams.get("rand_dist", 0.1),
+                             max_collision_check_attempts=self.hparams.get("max_collision_check_attempts", 1))
+        self.ik_solver = AugOptIk(scenario.robot, ik_params=ik_params)
 
         self.robot_subsample = 0.5
         self.env_subsample = 0.25
@@ -178,8 +181,8 @@ class AugmentationOptimization:
                                                    res[b],
                                                    frame='local_env_aug_vg')
 
-                self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug', color='blue')
-                self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug', color='blue')
+                self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug_before', color='blue')
+                self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug_after', color='blue')
                 self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
                 # stepper.step()  # FINAL AUG (not necessarily what the network sees, only if valid)
                 # print(env_aug_valid[b], object_aug_valid[b])
@@ -582,6 +585,7 @@ class AugmentationOptimization:
             reached.append(reached_end_b)
         reached = tf.stack(reached, axis=0)
         joint_positions_aug = tf.stack(joint_positions_aug, axis=0)
+        print(is_ik_valid, reached)
         is_ik_valid = tf.cast(tf.logical_and(is_ik_valid, reached), tf.float32)
 
         if debug_ik():

@@ -6,6 +6,7 @@ import tensorflow as tf
 
 import rospy
 from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transformation_obj_points
+from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_tf_origin_point_res
 from moonshine.filepath_tools import load_hjson
@@ -42,7 +43,9 @@ def opt_object_manual(self,
     manual_transforms_filename = pathlib.Path(
         "/media/shared/ift/v3-revert-debugging-1-1_1628263205_69ac9955d3/classifier_datasets/iteration_0000_dataset/manual_transforms.hjson")
     transformation_matrices = get_manual_transforms(inputs, manual_transforms_filename, rng)
-    obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
+    obj_points_aug, _ = transformation_obj_points(obj_points, transformation_matrices)
+    rope_points = tf.reshape(inputs[add_predicted('rope')], [2, -1, 3])
+    to_local_frame = rope_points[0, 0][None, None]
 
     # this updates other representations of state/action that are fed into the network
     _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(

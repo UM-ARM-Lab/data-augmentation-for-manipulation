@@ -20,6 +20,15 @@ metrics_funcs = FuncListRegistrar()
 
 
 @metrics_funcs
+def starts_with_recovery(_: ExperimentScenario, __: Dict, trial_datum: Dict):
+    try:
+        first_step = trial_datum['steps'][0]
+        return first_step['type'] == 'executed_recovery'
+    except Exception:
+        return False
+
+
+@metrics_funcs
 def num_recovery_actions(_: ExperimentScenario, __: Dict, trial_datum: Dict):
     count = 0
     for step in trial_datum['steps']:
@@ -72,6 +81,7 @@ def is_fine_tuned(_: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     except RuntimeError:
         return None
 
+
 @metrics_funcs
 def timeout(_: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     return trial_metadata['planner_params']['termination_criteria']['timeout']
@@ -114,6 +124,14 @@ def planning_time(_: ExperimentScenario, __: Dict, trial_datum: Dict):
     for step in trial_datum['steps']:
         _planning_time += step['planning_result'].time
     return _planning_time
+
+
+@metrics_funcs
+def max_planning_time(_: ExperimentScenario, __: Dict, trial_datum: Dict):
+    planning_times = []
+    for step in trial_datum['steps']:
+        planning_times.append(step['planning_result'].time)
+    return max(planning_times)
 
 
 @metrics_funcs

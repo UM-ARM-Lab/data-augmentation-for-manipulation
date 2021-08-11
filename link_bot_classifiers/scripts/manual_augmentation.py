@@ -86,7 +86,6 @@ def main():
         example_filename = example['filename']
 
         original_rope_points = tf.reshape(example['rope'], [2, -1, 3])
-        current_rope_points = original_rope_points
         rope_point = example['rope'][0, 0:3]
 
         initial_pose = Pose(position=ros_numpy.msgify(Point, rope_point))
@@ -104,7 +103,7 @@ def main():
             done = False
             example_viz = deepcopy(example)
             while not done:
-                to_local_frame = current_rope_points[0, 0][None, None]
+                to_local_frame = original_rope_points[0, 0][None, None]
 
                 im_pose = im.get_pose()
                 marker_to_world = tf.convert_to_tensor(ros_numpy.numpify(im_pose), tf.float32)

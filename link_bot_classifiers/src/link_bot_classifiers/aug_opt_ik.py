@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Optional
 
-import pyjacobian_follower
+from pyjacobian_follower import IkParams
 import tensorflow as tf
 
 from arm_robots.robot import MoveitEnabledRobot
@@ -10,12 +10,18 @@ from moveit_msgs.msg import PlanningScene, RobotState
 
 class AugOptIk:
 
-    def __init__(self, robot: MoveitEnabledRobot, group_name='both_arms', position_only=True):
+    def __init__(self, robot: MoveitEnabledRobot,
+                 group_name: str = 'both_arms',
+                 position_only: bool = True,
+                 ik_params: Optional[IkParams] = None):
         self.position_only = position_only
         self.robot = robot
         self.group_name = group_name
         self.j = robot.jacobian_follower
-        self.ik_params = pyjacobian_follower.IkParams(rng_dist=0.0, max_collision_check_attempts=1)
+        if ik_params is None:
+            self.ik_params = IkParams(rng_dist=0.1, max_collision_check_attempts=100)
+        else:
+            self.ik_params = ik_params
         if self.group_name == 'both_arms':
             self.tip_names = ['left_tool', 'right_tool']
         else:

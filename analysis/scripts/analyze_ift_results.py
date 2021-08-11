@@ -39,12 +39,16 @@ def metrics_main(args):
     lineplot(df, 'ift_iteration', 'task_error', 'Task Error', outdir)
     lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=w)
     lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=w, hue='seed')
+    lineplot(df, 'ift_iteration', 'planning_time', 'Planning Time', outdir)
+    lineplot(df, 'ift_iteration', 'planning_time', 'Planning Time (rolling)', outdir, window=w)
     lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error', outdir)
     lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error (rolling)', outdir, window=w)
+    lineplot(df, 'ift_iteration', 'starts_with_recovery', 'SWR', outdir)
+    lineplot(df, 'ift_iteration', 'starts_with_recovery', 'SWR (rolling)', outdir, window=w)
 
     df = df.copy()
     task_error = df['task_error'].rolling(window=w, min_periods=1).agg('mean')
-    normalized_model_error = df['normalized_model_error'].rolling(window=w, min_periods=1).agg('mean')
+    normalized_model_error = df['normalized_model_error'].rolling(window=w, min_periods=w).agg('mean')
     df['combined_error'] = task_error + normalized_model_error * 0.5
     lineplot(df, 'ift_iteration', 'combined_error', 'Combined Error (rolling)', outdir, window=w, hue='seed')
 
@@ -56,7 +60,7 @@ def metrics_main(args):
 
 def lineplot(df, x: str, metric: str, title: str, outdir: pathlib.Path, window: int = 1, hue: Optional[str] = None):
     df = df.copy()
-    df[metric] = df[metric].rolling(window=window, min_periods=1).agg('mean')
+    df[metric] = df[metric].rolling(window=window, min_periods=window).agg('mean')
     plt.figure()
     ax = sns.lineplot(
         data=df,
