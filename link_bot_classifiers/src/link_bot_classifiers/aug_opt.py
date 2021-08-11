@@ -585,7 +585,6 @@ class AugmentationOptimization:
             reached.append(reached_end_b)
         reached = tf.stack(reached, axis=0)
         joint_positions_aug = tf.stack(joint_positions_aug, axis=0)
-        print(is_ik_valid, reached)
         is_ik_valid = tf.cast(tf.logical_and(is_ik_valid, reached), tf.float32)
 
         if debug_ik():
