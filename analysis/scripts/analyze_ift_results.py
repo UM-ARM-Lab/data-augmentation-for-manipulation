@@ -33,19 +33,20 @@ def metrics_main(args):
 
     table_specs = load_table_specs(args.tables_config, table_format)
 
+    w = 20
     lineplot(df, 'ift_iteration', 'success', 'Success Rate', outdir)
-    lineplot(df, 'ift_iteration', 'success', 'Success Rate (rolling)', outdir, window=15)
+    lineplot(df, 'ift_iteration', 'success', 'Success Rate (rolling)', outdir, window=w)
     lineplot(df, 'ift_iteration', 'task_error', 'Task Error', outdir)
-    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=5)
-    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=5, hue='seed')
+    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=w)
+    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=w, hue='seed')
     lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error', outdir)
-    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error (rolling)', outdir, window=5)
+    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error (rolling)', outdir, window=w)
 
     df = df.copy()
-    task_error = df['task_error'].rolling(window=5, min_periods=1).agg('mean')
-    normalized_model_error = df['normalized_model_error'].rolling(window=5, min_periods=1).agg('mean')
+    task_error = df['task_error'].rolling(window=w, min_periods=1).agg('mean')
+    normalized_model_error = df['normalized_model_error'].rolling(window=w, min_periods=1).agg('mean')
     df['combined_error'] = task_error + normalized_model_error * 0.5
-    lineplot(df, 'ift_iteration', 'combined_error', 'Combined Error (rolling)', outdir, window=5, hue='seed')
+    lineplot(df, 'ift_iteration', 'combined_error', 'Combined Error (rolling)', outdir, window=w, hue='seed')
 
     if not args.no_plot:
         plt.show()
