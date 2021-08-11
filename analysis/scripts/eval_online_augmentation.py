@@ -94,26 +94,31 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
         stats_formatted = [fmt.format(v) for v, fmt in stats_and_formats]
         print(Fore.GREEN + f"{name}: " + ' '.join(stats_formatted) + Fore.RESET)
 
+    print(Fore.CYAN + "No Aug" + Fore.RESET)
+    print(aug_baseline_all_dropped)
+    print(Fore.CYAN + "Aug" + Fore.RESET)
+    print(no_aug_baseline_all_dropped)
     print_stats(improvement_across_ft_seed, "improvement")
-    print_stats(possible_improvement_across_ft_seed, "estimated possible improvement")
 
     p = scipy.stats.ttest_1samp(improvement_across_ft_seed, 0).pvalue
     flag = '!' if p < 0.01 else ''
     print(Fore.CYAN + f'p-value for improvement {flag}{p:0.4f}' + Fore.RESET)
     print()
 
+    print_stats(possible_improvement_across_ft_seed, "estimated possible improvement")
+
 
 def filter_df_for_experiment(df, classifier_contains: str):
     df = df.loc[df['mode'] == 'all']
     # online_ft_dataset = '/media/shared/classifier_data/val_car_feasible_1614981888+op2'
-    online_ft_dataset = '/media/shared/classifier_data/val_car_feasible_1614981888+op2'
+    online_ft_dataset = '/media/shared/ift/v3-revert-debugging-1-1_1628263205_69ac9955d3/classifier_datasets/iteration_0000_dataset'
     cond = [
         df['classifier'].str.contains(classifier_contains),
         (df['fine_tuning_take'] == 100),
         (df['fine_tuning_dataset_dirs'] == online_ft_dataset),
     ]
-    no_aug = ((df['classifier'].str.contains('fb2car_online100_baseline1')
-               | df['classifier'].str.contains('fb2car_online100_baseline2')
+    no_aug = ((df['classifier'].str.contains('ift_online_no_aug_fb2car_online')
+               # | df['classifier'].str.contains('fb2car_online100_baseline2')
                # | df['classifier'].str.contains('fb2car_online100_baseline3')
                # | df['classifier'].str.contains('fb2car_online100_baseline4')
                )
