@@ -20,7 +20,7 @@ def brief_row_stats(metric_data):
 
 
 def dict_to_pvalue_table(data_dict: Dict,
-                         table_format: str = 'fancy_grid',
+                         table_format: str = 'simple_grid',
                          fmt: str = '{:5.3f}',
                          title: Optional[str] = ''):
     """
