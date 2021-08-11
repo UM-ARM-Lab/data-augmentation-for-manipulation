@@ -53,9 +53,6 @@ class AugmentationOptimization:
         self.debug = debug
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
-        ik_params = IkParams(rng_dist=self.hparams.get("rand_dist", 0.1),
-                             max_collision_check_attempts=self.hparams.get("max_collision_check_attempts", 1))
-        self.ik_solver = AugOptIk(scenario.robot, ik_params=ik_params)
 
         self.robot_subsample = 0.5
         self.env_subsample = 0.25
@@ -70,8 +67,13 @@ class AugmentationOptimization:
         self.grad_clip = 0.25  # max dist step the env aug update can take
         self.ground_penetration_weight = 1.0
         self.robot_base_penetration_weight = 1.0
+        self.ik_solver = None
 
         if self.do_augmentation():
+            ik_params = IkParams(rng_dist=self.hparams.get("rand_dist", 0.1),
+                                 max_collision_check_attempts=self.hparams.get("max_collision_check_attempts", 1))
+            self.ik_solver = AugOptIk(scenario.robot, ik_params=ik_params)
+
             self.aug_type = self.hparams['type']
             if self.aug_type == 'optimization':
                 pass
