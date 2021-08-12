@@ -19,6 +19,11 @@ def remove_uninformative_parts_of_paths(s: str):
         'ift',
         'planning_results',
         'classifier_data',
+        'cl_trials',
+    ]
+    suffixes = [
+        '/',
+        'best_checkpoint',
     ]
     no_prefixes_left = False
     while not no_prefixes_left:
@@ -27,6 +32,13 @@ def remove_uninformative_parts_of_paths(s: str):
             if s.startswith(prefix):
                 no_prefixes_left = False
                 s = s.lstrip(prefix)
+    no_suffixes_left = False
+    while not no_suffixes_left:
+        no_suffixes_left = True
+        for suffix in suffixes:
+            if s.startswith(suffix):
+                no_suffixes_left = False
+                s = s.rstrip(suffix)
     return s
 
 

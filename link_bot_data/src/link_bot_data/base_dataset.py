@@ -77,6 +77,12 @@ class SizedTFDataset:
             return SizedTFDataset(dataset, self.records[count:], size=self.size - count)
         return self
 
+    def shard(self, shard: int):
+        if shard is not None:
+            dataset = self.dataset.shard(shard)
+            return SizedTFDataset(dataset, self.records[::shard], size=int(self.size // shard))
+        return self
+
     def take(self, count: int):
         if count is not None:
             dataset = self.dataset.take(count)

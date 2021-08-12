@@ -84,6 +84,7 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
     improvement = aug_baseline_all_dropped - no_aug_baseline_all_dropped
     possible_improvement = car_baseline_all_dropped.mean() - no_aug_baseline_all_dropped.mean()
 
+    print()
     print(Fore.CYAN + f"All Results {proxy_dataset_path}, {metric_name}" + Fore.RESET)
 
     def print_stats(values, name):

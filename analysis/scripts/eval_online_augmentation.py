@@ -8,6 +8,7 @@ from dynamo_pandas import get_df
 import scipy.stats
 
 from analysis.proxy_datasets import proxy_datasets_dict
+from analysis.results_tables import remove_uninformative_parts_of_paths
 from link_bot_data import dynamodb_utils
 from link_bot_pycommon.pandas_utils import df_where
 import pandas as pd
@@ -31,7 +32,11 @@ cld = '/media/shared/classifier_data/'
 
 
 def main():
-    pd.options.display.max_colwidth = 100
+    # pd.set_option('display.max_rows', 500)
+    # pd.set_option('display.max_columns', 500)
+    # pd.set_option('display.width', 1000)
+    pd.options.display.width = 0
+
     parser = argparse.ArgumentParser()
     parser.add_argument('contains', type=str, help="includes classifiers with 'contains' in their name")
     parser.add_argument('--debug')
@@ -80,7 +85,6 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
     # gap_percent = improvement / possible_improvement
     improvement_across_ft_seed = improvement.groupby('fine_tuned_from').agg("mean")
     possible_improvement_across_ft_seed = possible_improvement.groupby('fine_tuned_from').agg("mean")
-    # gap_percent_across_ft_seed = gap_percent.groupby('fine_tuned_from').agg("mean")
 
     print(Fore.CYAN + f"All Results {proxy_dataset_path}, {metric_name}" + Fore.RESET)
 
@@ -94,11 +98,16 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
         stats_formatted = [fmt.format(v) for v, fmt in stats_and_formats]
         print(Fore.GREEN + f"{name}: " + ' '.join(stats_formatted) + Fore.RESET)
 
-    print(Fore.CYAN + "No Aug" + Fore.RESET)
-    ll = ['dataset_dirs', 'classifier_source_env', 'mode', 'original_training_seed']
-    print(aug_baseline_all_dropped.droplevel(ll).sort_index())
     print(Fore.CYAN + "Aug" + Fore.RESET)
-    print(no_aug_baseline_all_dropped.droplevel(ll).sort_index())
+    ll = ['dataset_dirs', 'classifier_source_env', 'mode', 'original_training_seed']
+    aug = aug_baseline_all_dropped.droplevel(ll).sort_index().round(3).reset_index()
+    aug['fine_tuned_from'] = aug['fine_tuned_from'].apply(remove_uninformative_parts_of_paths)
+    print(aug)
+    print(Fore.CYAN + "No Aug" + Fore.RESET)
+    no_aug = no_aug_baseline_all_dropped.droplevel(ll).sort_index().round(3).reset_index()
+    no_aug['fine_tuned_from'] = no_aug['fine_tuned_from'].apply(remove_uninformative_parts_of_paths)
+    print(no_aug)
+
     print_stats(improvement_across_ft_seed, "improvement")
 
     p = scipy.stats.ttest_1samp(improvement_across_ft_seed, 0).pvalue
@@ -107,6 +116,7 @@ def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
     print()
 
     print_stats(possible_improvement_across_ft_seed, "estimated possible improvement")
+    print()
 
 
 def filter_df_for_experiment(df, classifier_contains: str):
