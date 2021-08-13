@@ -69,7 +69,7 @@ def lineplot(df, x: str, metric: str, title: str, outdir: pathlib.Path, window: 
         hue=hue,
         palette='colorblind',
         estimator='mean',
-        ci='sd',
+        ci=90,
     ).set_title(title)
     outfilename = outdir / f'{title}.png'
     plt.savefig(outfilename)

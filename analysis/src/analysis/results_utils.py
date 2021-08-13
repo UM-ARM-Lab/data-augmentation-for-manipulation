@@ -1,4 +1,5 @@
 import logging
+import os
 import pathlib
 import re
 from typing import Dict, Optional, List, Union
@@ -368,20 +369,11 @@ def get_all_results_subdirs(dirs: Union[pathlib.Path, List[pathlib.Path]]):
         dirs = [dirs]
 
     results_subdirs = []
-    for d_i in dirs:
-        if is_metrics_dir(d_i):
-            results_subdirs.append(d_i)
-
-        for d in d_i.iterdir():
-            if d.is_dir():
-                if is_metrics_dir(d):
-                    results_subdirs.append(d)
-                else:
-                    results_subdirs.extend(get_all_results_subdirs(d))
+    for dir in dirs:
+        for (root, dirs, files) in os.walk(dir.as_posix()):
+            for f in files:
+                if '_metrics.pkl.gz' in f:
+                    results_subdirs.append(pathlib.Path(root))
+                    break
 
     return results_subdirs
-
-
-def is_metrics_dir(d):
-    data_filenames = list(d.glob("*_metrics.pkl.gz"))
-    return len(data_filenames) > 0
