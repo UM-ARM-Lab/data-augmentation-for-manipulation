@@ -11,6 +11,7 @@ import tabulate
 from analysis.analyze_results import load_table_specs, load_planning_results, generate_tables
 from analysis.results_utils import get_all_results_subdirs
 from arc_utilities import ros_init
+from link_bot_pycommon.pandas_utils import rlast
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -59,7 +60,7 @@ def metrics_main(args):
 
 
 def lineplot(df, x: str, metric: str, title: str, outdir: pathlib.Path, window: int = 1, hue: Optional[str] = None):
-    z = df.reset_index().groupby('used_augmentation').rolling(window).agg('mean')
+    z = df.reset_index().groupby('used_augmentation').rolling(window).agg({metric: 'mean', 'ift_iteration': rlast})
     plt.figure()
     ax = sns.lineplot(
         data=z,

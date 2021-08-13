@@ -100,21 +100,21 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model_class = link_bot_classifiers.get_model.get_model(model_hparams['model_class'])
 
     # set load_true_states=True when debugging
-    train_dataset = get_classifier_dataset_loader(dataset_dirs=dataset_dirs,
-                                                  load_true_states=True,
-                                                  use_gt_rope=use_gt_rope,
-                                                  threshold=threshold,
-                                                  )
-    val_dataset = get_classifier_dataset_loader(dataset_dirs=dataset_dirs,
-                                                load_true_states=True,
-                                                use_gt_rope=use_gt_rope,
-                                                threshold=threshold,
-                                                )
+    train_dataset_loader = get_classifier_dataset_loader(dataset_dirs=dataset_dirs,
+                                                         load_true_states=True,
+                                                         use_gt_rope=use_gt_rope,
+                                                         threshold=threshold,
+                                                         )
+    val_dataset_loader = get_classifier_dataset_loader(dataset_dirs=dataset_dirs,
+                                                       load_true_states=True,
+                                                       use_gt_rope=use_gt_rope,
+                                                       threshold=threshold,
+                                                       )
 
-    model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))
+    model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset_loader, use_gt_rope))
     if threshold is not None:
         model_hparams['labeling_params']['threshold'] = threshold
-    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.get_scenario())
+    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.get_scenario())
 
     checkpoint_name, trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)
 
@@ -138,12 +138,17 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          mid_epoch_val_batches=mid_epoch_val_batches,
                          save_every_n_minutes=save_every_n_minutes,
                          validate_first=validate_first,
+                         val_every_n_batches=val_every_n_batches,
                          train_batch_metadata=train_dataset_loader.batch_metadata,
                          val_batch_metadata=val_dataset_loader.batch_metadata)
-    train_tf_dataset, val_tf_dataset = setup_dataset_loaders(model_hparams, batch_size, train_dataset, val_dataset,
-                                                             seed, take)
+    train_dataset, val_dataset = setup_dataset_loaders(model_hparams,
+                                                       batch_size,
+                                                       train_dataset_loader,
+                                                       val_dataset_loader,
+                                                       seed,
+                                                       take)
 
-    final_val_metrics = runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
+    final_val_metrics = runner.train(train_dataset, val_dataset, num_epochs=epochs)
 
     return trial_path, final_val_metrics
 

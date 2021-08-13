@@ -11,3 +11,6 @@ def df_append(df: pd.DataFrame, row: List) -> pd.DataFrame:
     s = pd.Series(row, index=df.columns)
     df = df.append(s, ignore_index=True)
     return df
+
+def rlast(rolling):
+    return rolling.values[-1]
