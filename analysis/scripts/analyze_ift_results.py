@@ -33,24 +33,24 @@ def metrics_main(args):
 
     table_specs = load_table_specs(args.tables_config, table_format)
 
-    w = 20
-    lineplot(df, 'ift_iteration', 'success', 'Success Rate', outdir)
-    lineplot(df, 'ift_iteration', 'success', 'Success Rate (rolling)', outdir, window=w)
-    lineplot(df, 'ift_iteration', 'task_error', 'Task Error', outdir)
-    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=w)
-    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=w, hue='seed')
-    lineplot(df, 'ift_iteration', 'planning_time', 'Planning Time', outdir)
-    lineplot(df, 'ift_iteration', 'planning_time', 'Planning Time (rolling)', outdir, window=w)
-    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error', outdir)
-    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error (rolling)', outdir, window=w)
-    lineplot(df, 'ift_iteration', 'starts_with_recovery', 'SWR', outdir)
-    lineplot(df, 'ift_iteration', 'starts_with_recovery', 'SWR (rolling)', outdir, window=w)
+    df = df.groupby(['ift_iteration', 'used_augmentation']).agg('mean')
 
-    df = df.copy()
-    task_error = df['task_error'].rolling(window=w, min_periods=1).agg('mean')
-    normalized_model_error = df['normalized_model_error'].rolling(window=w, min_periods=w).agg('mean')
-    df['combined_error'] = task_error + normalized_model_error * 0.5
-    lineplot(df, 'ift_iteration', 'combined_error', 'Combined Error (rolling)', outdir, window=w, hue='seed')
+    w = 10
+    x = lineplot(df, 'ift_iteration', 'success', 'Success Rate', outdir, hue='used_augmentation')
+    x.set_ylim(0, 1)
+    plt.savefig(outdir / f'success_rate.png')
+    x = lineplot(df, 'ift_iteration', 'success', 'Success Rate (rolling)', outdir, window=w, hue='used_augmentation')
+    x.set_ylim(0, 1)
+    plt.savefig(outdir / f'success_rate_rolling.png')
+    lineplot(df, 'ift_iteration', 'task_error', 'Task Error', outdir, hue='used_augmentation')
+    lineplot(df, 'ift_iteration', 'task_error', 'Task Error (rolling)', outdir, window=w, hue='used_augmentation')
+    lineplot(df, 'ift_iteration', 'planning_time', 'Planning Time', outdir, hue='used_augmentation')
+    lineplot(df, 'ift_iteration', 'planning_time', 'Planning Time (rolling)', outdir, window=w, hue='used_augmentation')
+    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error', outdir, hue='used_augmentation')
+    lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error (rolling)', outdir, window=w,
+             hue='used_augmentation')
+    lineplot(df, 'ift_iteration', 'starts_with_recovery', 'SWR', outdir, hue='used_augmentation')
+    lineplot(df, 'ift_iteration', 'starts_with_recovery', 'SWR (rolling)', outdir, window=w, hue='used_augmentation')
 
     if not args.no_plot:
         plt.show()
@@ -59,20 +59,18 @@ def metrics_main(args):
 
 
 def lineplot(df, x: str, metric: str, title: str, outdir: pathlib.Path, window: int = 1, hue: Optional[str] = None):
-    df = df.copy()
-    df[metric] = df[metric].rolling(window=window, min_periods=window).agg('mean')
+    z = df.reset_index().groupby('used_augmentation').rolling(window).agg('mean')
     plt.figure()
     ax = sns.lineplot(
-        data=df,
+        data=z,
         x=x,
         y=metric,
         hue=hue,
         palette='colorblind',
         estimator='mean',
-        ci=90,
-    ).set_title(title)
-    outfilename = outdir / f'{title}.png'
-    plt.savefig(outfilename)
+        ci=80,
+    )
+    ax.set_title(title)
     return ax
 
 
@@ -97,6 +95,8 @@ def main():
     args = parser.parse_args()
 
     plt.style.use(args.style)
+    plt.rcParams['figure.figsize'] = (20, 10)
+    sns.set(rc={'figure.figsize': (7, 4)})
 
     metrics_main(args)
 

@@ -20,6 +20,32 @@ metrics_funcs = FuncListRegistrar()
 
 
 @metrics_funcs
+def used_augmentation(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
+    try:
+        classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
+        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        if 'augmentation' in classifier_hparams:
+            return True
+        return False
+    except RuntimeError:
+        return False
+
+
+@metrics_funcs
+def augmentation_type(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
+    try:
+        classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
+        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        if 'augmentation' in classifier_hparams:
+            aug_params = classifier_hparams['augmentation']
+            aug_type_str = f"{aug_params['type']}-{aug_params['on_invalid_aug']}"
+            return aug_type_str
+        return None
+    except RuntimeError:
+        return None
+
+
+@metrics_funcs
 def starts_with_recovery(_: ExperimentScenario, __: Dict, trial_datum: Dict):
     try:
         first_step = trial_datum['steps'][0]
