@@ -75,8 +75,11 @@ def load_examples(results_dir, k):
         else:
             name = f'{i}-{j}.pkl.gz'
             results_filename = results_dir / name
-            result = load_gzipped_pickle(results_filename)[k]
-            return result
+            if results_filename.exists():
+                _result = load_gzipped_pickle(results_filename)[k]
+            else:
+                _result = None
+            return _result
 
     return _load_examples
 
@@ -135,22 +138,45 @@ def distance_to_score(d):
     #     return 1 / d
 
 
-def compute_diversity(distances_matrix):
+def compute_diversity(distances_matrix, aug_examples_matrix, data_examples_matrix):
     diversities = []
     for j in range(distances_matrix.shape[1]):
         distances_for_data_j = distances_matrix[:, j]
-        best_idx = np.argmin(distances_for_data_j)
+
+        sorted_i = np.argsort(distances_for_data_j)
+        best_idx = sorted_i[0]
+        for i in sorted_i:
+            data_e = data_examples_matrix[i, j]
+            aug_e = aug_examples_matrix[i, j]
+            if data_e is not None and aug_e is not None:
+                data_label = data_e['is_close'][1]
+                aug_label = aug_e['is_close'][1]
+                if data_label == aug_label:
+                    best_idx = i
+                    break
         best_d = distances_for_data_j[best_idx]
         diversity = distance_to_score(best_d)
         diversities.append(diversity)
     return np.array(diversities)
 
 
-def compute_plausibility(distances_matrix):
+def compute_plausibility(distances_matrix, aug_examples_matrix, data_examples_matrix):
     plausibilities = []
     for i in range(distances_matrix.shape[0]):
         distances_for_aug_i = distances_matrix[i]
-        best_idx = np.argmin(distances_for_aug_i)
+
+        sorted_j = np.argsort(distances_for_aug_i)
+        best_idx = sorted_j[0]
+        for j in sorted_j:
+            data_e = data_examples_matrix[i, j]
+            aug_e = aug_examples_matrix[i, j]
+            if data_e is not None and aug_e is not None:
+                data_label = data_e['is_close'][1]
+                aug_label = aug_e['is_close'][1]
+                if data_label == aug_label:
+                    best_idx = j
+                    break
+
         best_d = distances_for_aug_i[best_idx]
         plausibility = distance_to_score(best_d)
         plausibilities.append(plausibility)

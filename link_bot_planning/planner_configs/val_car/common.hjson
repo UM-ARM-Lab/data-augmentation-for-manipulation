@@ -37,6 +37,7 @@
   environment_randomization: {
       nominal_poses: {
         car_engine2: { }
+        car_engine3: { }
         car_platform: { }
         car_front: { }
         car_hood: { }

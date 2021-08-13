@@ -23,7 +23,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('results_dir', type=pathlib.Path)
     parser.add_argument('display_type',
-                        choices=['both', 'plausibility', 'diversity', 'plausibility_all', 'diversity_all'])
+                        choices=['both',
+                                 'plausibility',
+                                 'diversity',
+                                 'diversity_negatives',
+                                 'plausibility_all',
+                                 'diversity_all'])
     parser.add_argument('space', choices=['rope', 'robot', 'env'])
 
     args = parser.parse_args()
@@ -36,6 +41,25 @@ def main():
 
     aug_examples_matrix, data_examples_matrix, distances_matrix = format_distances(results_dir=args.results_dir,
                                                                                    space_idx=space_idx)
+
+    def viz_diversity_examples(v: RvizAnimationController):
+        while not v.done:
+            j = v.t()
+            max_i, data_example = get_first(data_examples_matrix[:, j])
+            label = data_example['is_close'][1]
+            if max_i == -1:
+                print("no close examples")
+            else:
+                distances_for_data_j = distances_matrix[:, j]
+                best_idx = np.argmin(distances_for_data_j)
+                aug_example = aug_examples_matrix[best_idx, j]
+                aug_label = aug_example['is_close'][1]
+                best_d = distances_for_data_j[best_idx]
+                print(f"{j} {best_d:.3f} data_label={label.numpy()} aug_label={aug_label.numpy()}")
+                viz_compare_examples(s, aug_example, data_example, aug_env_pub, data_env_pub)
+                if aug_example is not None and data_example is not None:
+                    s.plot_error_rviz(best_d)
+            v.step()
 
     if args.display_type == 'plausibility':
         v = RvizAnimationController(n_time_steps=aug_examples_matrix.shape[0])
@@ -54,23 +78,17 @@ def main():
                 if aug_example is not None and data_example is not None:
                     s.plot_error_rviz(best_d)
             v.step()
+    elif args.display_type == 'diversity_negatives':
+        data_is_negative_indices = []
+        for j, r in enumerate(data_examples_matrix[0]):
+            if r is not None:
+                if r['is_close'][1] == 0:
+                    data_is_negative_indices.append(j)
+        v = RvizAnimationController(time_steps=data_is_negative_indices)
+        viz_diversity_examples(v)
     elif args.display_type == 'diversity':
         v = RvizAnimationController(n_time_steps=aug_examples_matrix.shape[1])
-        while not v.done:
-            j = v.t()
-            max_i, data_example = get_first(data_examples_matrix[:, j])
-            if max_i == -1:
-                print("no close examples")
-            else:
-                distances_for_data_j = distances_matrix[:, j]
-                best_idx = np.argmin(distances_for_data_j)
-                aug_example = aug_examples_matrix[best_idx, j]
-                best_d = distances_for_data_j[best_idx]
-                print(j, best_d)
-                viz_compare_examples(s, aug_example, data_example, aug_env_pub, data_env_pub)
-                if aug_example is not None and data_example is not None:
-                    s.plot_error_rviz(best_d)
-            v.step()
+        viz_diversity_examples(v)
     elif args.display_type == 'plausibility_all':
         for i in range(aug_examples_matrix.shape[0]):
             max_j, aug_example = get_first(aug_examples_matrix[i])

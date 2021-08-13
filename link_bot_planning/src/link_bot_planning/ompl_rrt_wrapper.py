@@ -2,8 +2,6 @@ import time
 import warnings
 from typing import Dict, List, Tuple
 
-import halo
-
 from arc_utilities.algorithms import zip_repeat_shorter
 from link_bot_pycommon.spinners import SynchronousSpinner
 
@@ -286,7 +284,7 @@ class OmplRRTWrapper(MyPlanner):
             random_color = cm.Dark2(self.control_sampler_rng.uniform(0, 1))
             self.visualize_propogation_color = random_color
 
-        classifier_probabilities = accept_probabilities.get('NNClassifierWrapper', None)
+        classifier_probabilities = accept_probabilities.get('NNClassifier2Wrapper', None)
         if classifier_probabilities is not None:
             assert classifier_probabilities.size == 1
             classifier_probability = classifier_probabilities[0]

@@ -49,10 +49,11 @@ def main():
         plausibilities = []
         diversities = []
         for distances_file in args.distances:
-            _, _, distances_matrix = format_distances(results_dir=distances_file, space_idx=space_idx)
+            aug_examples_matrix, data_examples_matrix, distances_matrix = format_distances(results_dir=distances_file,
+                                                                                           space_idx=space_idx)
             distances_matrices.append(distances_matrix)
-            diversities.append(compute_diversity(distances_matrix))
-            plausibilities.append(compute_plausibility(distances_matrix))
+            diversities.append(compute_diversity(distances_matrix, aug_examples_matrix, data_examples_matrix))
+            plausibilities.append(compute_plausibility(distances_matrix, aug_examples_matrix, data_examples_matrix))
 
         print(Fore.GREEN + 'Diversity' + Fore.RESET)
         diversities_dict = {}
