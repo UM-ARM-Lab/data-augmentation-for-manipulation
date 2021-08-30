@@ -85,6 +85,7 @@ class IterativeFineTuning:
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
         self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
+        self.test_scenes_indices = self.log.get('test_scenes_indices', None)
         self.verbose = -1
         self.tpi = self.ift_config['trials_per_iteration']
         self.classifier_labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
@@ -111,7 +112,10 @@ class IterativeFineTuning:
         self.trials_directory = self.outdir / 'training_logdir'
         self.planning_results_root_dir = self.outdir / 'planning_results'
 
-        all_trial_indices = list(get_all_scene_indices(self.test_scenes_dir))
+        if self.test_scenes_indices is None:
+            all_trial_indices = list(get_all_scene_indices(self.test_scenes_dir))
+        else:
+            all_trial_indices = self.test_scenes_indices
         trials_generator_type = self.ift_config['trials_generator_type']
         if trials_generator_type == 'cycle':
             self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices), self.tpi)
