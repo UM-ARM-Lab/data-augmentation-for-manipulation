@@ -118,8 +118,9 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             'uuid':           uuid.uuid4(),
         }
         trial_data.update(extra_trial_data)
-        data_filename = self.outdir / planning_trial_name(trial_idx)
-        dump_gzipped_pickle(trial_data, data_filename)
+        data_filename = planning_trial_name(trial_idx)
+        full_data_filename = self.outdir / data_filename
+        dump_gzipped_pickle(trial_data, full_data_filename)
 
         if self.record:
             # TODO: maybe make this happen async?
