@@ -146,7 +146,7 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
         rospy.loginfo(Fore.LIGHTBLUE_EX + f"[{self.outdir.name}] " + Fore.RESET + ', '.join(update_msg))
 
         jobkey = self.jobkey(trial_idx)
-        self.job_chunker.store_result(jobkey, {'data_filename': data_filename.as_posix()})
+        self.job_chunker.store_result(jobkey, {'data_filename': data_filename})
 
     @staticmethod
     def jobkey(trial_idx):
