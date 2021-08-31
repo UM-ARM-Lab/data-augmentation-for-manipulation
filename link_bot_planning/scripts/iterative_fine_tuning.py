@@ -244,7 +244,6 @@ class IterativeFineTuning:
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('classifier dataset')
         new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
-            new_dataset_dir = self.outdir / new_dataset_dir
             print("Updating Classifier Dataset")
             [p.suspend() for p in self.gazebo_processes]
 
@@ -265,6 +264,8 @@ class IterativeFineTuning:
             r.run()
             new_dataset_dir_rel = new_dataset_dir.relative_to(self.outdir)
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir_rel.as_posix())
+        else:
+            new_dataset_dir = self.outdir / new_dataset_dir
         return new_dataset_dir
 
     def update_recovery_datasets(self, iteration_data: IterationData, planning_results_dir):
@@ -272,7 +273,6 @@ class IterativeFineTuning:
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('recovery dataset')
         new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
-            new_dataset_dir = self.outdir / new_dataset_dir
             print("Updating Recovery Dataset")
             [p.suspend() for p in self.gazebo_processes]
 
@@ -292,6 +292,8 @@ class IterativeFineTuning:
             r.run()
             new_dataset_dir_rel = new_dataset_dir.relative_to(self.outdir)
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir_rel.as_posix())
+        else:
+            new_dataset_dir = self.outdir / new_dataset_dir
         return new_dataset_dir
 
     def fine_tune(self, iteration_data: IterationData):
@@ -325,6 +327,8 @@ class IterativeFineTuning:
                 **self.ift_config['fine_tune_classifier'])
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir_rel.as_posix())
+        else:
+            new_latest_checkpoint_dir = self.outdir / new_latest_checkpoint_dir
         return new_latest_checkpoint_dir
 
     def fine_tune_recovery(self, iteration_data: IterationData):
@@ -348,6 +352,8 @@ class IterativeFineTuning:
                 **self.ift_config['fine_tune_recovery'])
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir_rel.as_posix())
+        else:
+            new_latest_checkpoint_dir = self.outdir / new_latest_checkpoint_dir
         return new_latest_checkpoint_dir
 
 
