@@ -350,9 +350,7 @@ class IterativeFineTuning:
 
 
 def setup_ift(args):
-    # from_env = input("from: ")
-    # to_env = input("to: ")
-    from_env = 'floating boxes'
+    from_env = 'untrained'
     to_env = 'car3'
 
     # setup
