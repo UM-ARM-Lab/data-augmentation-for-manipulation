@@ -194,10 +194,12 @@ class IterativeFineTuning:
         planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
         if planning_results_dir is None:
             planning_results_dir = self.planning_results_root_dir / f'iteration_{i:04d}_planning'
-            latest_classifier_checkpoint = iteration_data.latest_classifier_checkpoint_dir / checkpoint_suffix
+            latest_classifier_checkpoint_rel = iteration_data.latest_classifier_checkpoint_dir / checkpoint_suffix
+            latest_classifier_checkpoint = self.outdir / latest_classifier_checkpoint_rel
             planner_params = self.initial_planner_params.copy()
             if iteration_data.latest_recovery_checkpoint_dir is not None:
-                latest_recovery_checkpoint = iteration_data.latest_recovery_checkpoint_dir / 'best_checkpoint'
+                latest_recovery_checkpoint_rel = iteration_data.latest_recovery_checkpoint_dir / 'best_checkpoint'
+                latest_recovery_checkpoint = self.outdir / latest_recovery_checkpoint_rel
                 planner_params['recovery']['recovery_model_dir'] = latest_recovery_checkpoint
             planner_params['classifier_model_dir'] = [
                 latest_classifier_checkpoint,
