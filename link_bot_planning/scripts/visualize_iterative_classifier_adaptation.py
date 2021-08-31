@@ -48,7 +48,7 @@ def get_data(scenario: ScenarioWithVisualization,
              classifier_iteration_idx: int,
              mode: str):
     classifier_datasets_dir = ift_dir / 'classifier_datasets'
-    classifiers_dir = ift_dir / 'classifier_training_logdir'
+    classifiers_dir = ift_dir / 'training_logdir'
 
     iteration_dataset_dir = get_named_item_in_dir(classifier_datasets_dir, classifier_iteration_idx)
 
@@ -128,7 +128,7 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
 
     rviz_stepper = RvizAnimationController(iterations)
 
-    dataset_dir_for_viz = pathlib.Path(log['iteration 0']['classifier dataset']['new_dataset_dir'])
+    dataset_dir_for_viz = ift_dir / pathlib.Path(log['iteration 0']['classifier dataset']['new_dataset_dir'])
     dataset_for_viz = ClassifierDatasetLoader([dataset_dir_for_viz], load_true_states=True, scenario=scenario)
     metadata = dataset_for_viz.scenario_metadata
     state_metadata_keys = dataset_for_viz.state_metadata_keys
@@ -182,6 +182,7 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
                 t1_marker_idx = next(g)
                 label = 'predicted'
                 color = 'blue' if example['is_close'][1] else 'red'
+                data
                 scenario.plot_state_rviz(pred, label=label, color=color, idx=t0_marker_idx)
                 scenario.plot_state_rviz(pred_next, label=label, color=color, idx=t1_marker_idx)
                 scenario.plot_action_rviz(pred, action, label=label, color='k', idx=t0_marker_idx)
@@ -191,6 +192,13 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
 
 def get_data_cached(classifier_cache, ift_dir, iteration_idx, planning_data_cache, planning_iteration_dirs, scenario,
                     mode):
+    if len(classifier_cache) > 50:
+        last_entry = list(classifier_cache.keys())[-1]
+        classifier_cache.pop(last_entry)
+    if len(planning_data_cache) > 50:
+        last_entry = list(planning_data_cache.keys())[-1]
+        planning_data_cache.pop(last_entry)
+
     dataset_iteration_idx = iteration_idx
     classifier_iteration_idx = iteration_idx
     if iteration_idx in planning_data_cache:
@@ -199,6 +207,7 @@ def get_data_cached(classifier_cache, ift_dir, iteration_idx, planning_data_cach
         planning_iteration_dir = get_named_item_in_dir(planning_iteration_dirs, iteration_idx)
         planning_iteration_data = load_gzipped_pickle(next(planning_iteration_dir.glob("*.pkl.gz")))
         planning_data_cache[iteration_idx] = planning_iteration_data
+
     if dataset_iteration_idx in classifier_cache and classifier_iteration_idx in classifier_cache[
         dataset_iteration_idx]:
         data = classifier_cache[dataset_iteration_idx][classifier_iteration_idx]
@@ -207,6 +216,7 @@ def get_data_cached(classifier_cache, ift_dir, iteration_idx, planning_data_cach
         if dataset_iteration_idx not in classifier_cache:
             classifier_cache[dataset_iteration_idx] = {}
         classifier_cache[dataset_iteration_idx][classifier_iteration_idx] = data
+
     return data, planning_iteration_data
 
 

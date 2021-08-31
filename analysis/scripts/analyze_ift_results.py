@@ -56,7 +56,7 @@ def metrics_main(args):
     if not args.no_plot:
         plt.show()
 
-    generate_tables(df, outdir, table_specs)
+    # generate_tables(df, outdir, table_specs)
 
 
 def lineplot(df, x: str, metric: str, title: str, outdir: pathlib.Path, window: int = 1, hue: Optional[str] = None):

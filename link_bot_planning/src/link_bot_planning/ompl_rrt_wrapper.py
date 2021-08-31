@@ -50,7 +50,6 @@ class OmplRRTWrapper(MyPlanner):
         self.state_sampler_rng = np.random.RandomState(0)
         self.goal_sampler_rng = np.random.RandomState(0)
         self.control_sampler_rng = np.random.RandomState(0)
-        self.misc_rng = np.random.RandomState(0)
         self.scenario = scenario
         self.sps = SharedPlanningStateOMPL()
         self.scenario_ompl = get_ompl_scenario(self.scenario,
@@ -118,7 +117,6 @@ class OmplRRTWrapper(MyPlanner):
         self.min_dist_to_goal = 10000
 
         self.state_sampler_rng.seed(seed)
-        self.misc_rng.seed(seed)
         self.goal_sampler_rng.seed(seed)
         self.control_sampler_rng.seed(seed)
 
