@@ -549,6 +549,7 @@ def setup_ift(args):
         'nickname':                      args.nickname,
         'planner_params':                initial_planner_params,
         'test_scenes_dir':               args.test_scenes_dir.as_posix(),
+        'test_scenes_indices':           args.test_scenes_indice,
         'initial_classifier_checkpoint': args.classifier_checkpoint.as_posix(),
         'initial_recovery_checkpoint':   initial_recovery_checkpoint,
         'from_env':                      from_env,
@@ -598,6 +599,7 @@ def main():
     setup_parser.add_argument("--recovery-checkpoint", type=pathlib.Path, help='recovery checkpoint to setup from',
                               default='/media/shared/recovery_trials/random')
     setup_parser.add_argument("--test-scenes-dir", type=pathlib.Path, default='test_scenes/swap_straps_no_recovery3')
+    setup_parser.add_argument("--test-scenes-indices", type=int_set_arg)
     setup_parser.set_defaults(func=setup_ift)
 
     run_parser.add_argument("logfile", type=pathlib.Path)

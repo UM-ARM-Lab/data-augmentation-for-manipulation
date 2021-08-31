@@ -2,10 +2,11 @@
   trials_per_iteration: 1
   trials_generator_type: random
   fine_tune_classifier: {
-    fine_tune_conv: false
-    fine_tune_dense: false
-    fine_tune_lstm: false
+    fine_tune_conv: true
+    fine_tune_dense: true
+    fine_tune_lstm: true
     fine_tune_output: true
+    learning_rate: 0.001
     augmentation_config_dir: /media/shared/pretransfer_initial_configs/car3/
     epochs: 25
   }
