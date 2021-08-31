@@ -322,7 +322,6 @@ class IterativeFineTuning:
                 batch_size=adaptive_batch_size,
                 verbose=self.verbose,
                 validate_first=True,
-                early_stopping=True,
                 model_hparams_update=self.ift_config['labeling_params_update'],
                 **self.ift_config['fine_tune_classifier'])
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
@@ -347,7 +346,6 @@ class IterativeFineTuning:
                 trials_directory=self.trials_directory,
                 batch_size=adaptive_batch_size,
                 verbose=self.verbose,
-                early_stopping=True,
                 validate_first=True,
                 **self.ift_config['fine_tune_recovery'])
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
