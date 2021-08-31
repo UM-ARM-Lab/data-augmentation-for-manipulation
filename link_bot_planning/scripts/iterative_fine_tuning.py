@@ -194,12 +194,10 @@ class IterativeFineTuning:
         planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
         if planning_results_dir is None:
             planning_results_dir = self.planning_results_root_dir / f'iteration_{i:04d}_planning'
-            latest_classifier_checkpoint_rel = iteration_data.latest_classifier_checkpoint_dir / checkpoint_suffix
-            latest_classifier_checkpoint = self.outdir / latest_classifier_checkpoint_rel
+            latest_classifier_checkpoint = iteration_data.latest_classifier_checkpoint_dir / checkpoint_suffix
             planner_params = self.initial_planner_params.copy()
             if iteration_data.latest_recovery_checkpoint_dir is not None:
-                latest_recovery_checkpoint_rel = iteration_data.latest_recovery_checkpoint_dir / 'best_checkpoint'
-                latest_recovery_checkpoint = self.outdir / latest_recovery_checkpoint_rel
+                latest_recovery_checkpoint = iteration_data.latest_recovery_checkpoint_dir / 'best_checkpoint'
                 planner_params['recovery']['recovery_model_dir'] = latest_recovery_checkpoint
             planner_params['classifier_model_dir'] = [
                 latest_classifier_checkpoint,
@@ -244,7 +242,7 @@ class IterativeFineTuning:
     def update_classifier_datasets(self, iteration_data: IterationData, planning_results_dir):
         i = iteration_data.iteration
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('classifier dataset')
-        new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
+        new_dataset_dir = self.outdir / pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
             print("Updating Classifier Dataset")
             [p.suspend() for p in self.gazebo_processes]
@@ -271,7 +269,7 @@ class IterativeFineTuning:
     def update_recovery_datasets(self, iteration_data: IterationData, planning_results_dir):
         i = iteration_data.iteration
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('recovery dataset')
-        new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
+        new_dataset_dir = self.outdir / pathify(dataset_chunker.get_result('new_dataset_dir'))
         if new_dataset_dir is None:
             print("Updating Recovery Dataset")
             [p.suspend() for p in self.gazebo_processes]
@@ -306,7 +304,7 @@ class IterativeFineTuning:
         i = iteration_data.iteration
         latest_checkpoint = iteration_data.latest_classifier_checkpoint_dir / self.checkpoint_suffix
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune classifier')
-        new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
+        new_latest_checkpoint_dir = self.outdir / pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
             [p.suspend() for p in self.gazebo_processes]
 
@@ -331,7 +329,7 @@ class IterativeFineTuning:
         i = iteration_data.iteration
         latest_checkpoint = iteration_data.latest_recovery_checkpoint_dir / self.checkpoint_suffix
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune recovery')
-        new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
+        new_latest_checkpoint_dir = self.outdir / pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
             [p.suspend() for p in self.gazebo_processes]
 
