@@ -12,7 +12,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>rospy</depend>
-  <depend>cdcpd_ros</depend>
+  <depend>cdcpd</depend>
   <depend>link_bot_data</depend>
 
 </package>
