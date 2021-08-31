@@ -86,7 +86,7 @@ class IterativeFineTuning:
         self.initial_planner_params = nested_dict_update(self.initial_planner_params,
                                                          self.ift_config.get('planner_params_update', {}))
         self.pretraining_config = self.ift_config.get('pretraining', {})
-        self.checkpoint_suffix = 'best_checkpoint'
+        self.checkpoint_suffix = 'latest_checkpoint'
 
         if timeout is not None:
             rospy.loginfo(f"Overriding with timeout {timeout}")
