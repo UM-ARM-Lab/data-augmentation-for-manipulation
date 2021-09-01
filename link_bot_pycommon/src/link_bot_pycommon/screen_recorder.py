@@ -5,7 +5,6 @@ from threading import Thread
 
 import cv2
 import numpy as np
-import pyautogui
 import imageio
 from mss import mss
 
