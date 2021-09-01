@@ -1,3 +1,4 @@
+import logging
 import pathlib
 from itertools import cycle
 from typing import Dict, Optional, List, Callable
@@ -16,6 +17,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_time
 
+logger = logging.getLogger(__file__)
 
 class NewClassifierDataset(NewBaseDataset):
 
@@ -49,12 +51,17 @@ class NewClassifierDataset(NewBaseDataset):
         is_far_indices, = np.where(np.logical_not(is_close))  # returns a tuple of length 1
         positive_filenames = np.take(self.filenames, is_close_indices).tolist()
         negative_filenames = np.take(self.filenames, is_far_indices).tolist()
-        if len(positive_filenames) == 0:
+
+        if len(self.filenames) == 0:
+            print("Empty Dataset! balancing is meaningless")
+            return self.filenames
+        elif len(positive_filenames) == 0:
             print("No positive examples! Not balancing")
             return self.filenames
-        if len(negative_filenames) == 0:
+        elif len(negative_filenames) == 0:
             print("No negative examples! Not balancing")
             return self.filenames
+
         if len(positive_filenames) < len(negative_filenames):
             balanced_filenames = list(interleave(cycle(positive_filenames), negative_filenames))
         else:
@@ -116,7 +123,8 @@ class NewClassifierDatasetLoader(NewBaseDatasetLoader):
                      do_not_process=UNUSED_COMPAT,
                      slow=UNUSED_COMPAT):
         filenames = get_filenames(self.dataset_dirs, mode)
-        assert len(filenames) > 0
+        if len(filenames) == 0:
+            logger.warning("No filenames, dataset will be empty.")
         dataset = NewClassifierDataset(self, filenames, mode)
         if shuffle:
             dataset = dataset.shuffle()

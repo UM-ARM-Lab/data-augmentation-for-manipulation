@@ -117,7 +117,7 @@ class ResultsToRecoveryDataset:
         t0 = perf_counter()
         last_t = t0
         total_examples = 0
-        for trial_idx, datum in results_utils.trials_generator(self.results_dir, self.trial_indices):
+        for trial_idx, datum, _ in results_utils.trials_generator(self.results_dir, self.trial_indices):
             self.scenario.heartbeat()
 
             if job_chunker.has_result(str(trial_idx)) and not self.regenerate:

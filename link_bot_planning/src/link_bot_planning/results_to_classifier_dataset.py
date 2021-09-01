@@ -158,7 +158,7 @@ class ResultsToClassifierDataset:
         job_chunker = JobChunker(logfilename)
 
         total_examples = 0
-        for trial_idx, datum in results_utils.trials_generator(self.results_dir, self.trial_indices):
+        for trial_idx, datum, _ in results_utils.trials_generator(self.results_dir, self.trial_indices):
             self.scenario.heartbeat()
 
             if job_chunker.has_result(str(trial_idx)) and not self.regenerate:
@@ -203,7 +203,7 @@ class ResultsToClassifierDataset:
 
         enough_trials_msg = f"moving to next trial, already got {self.max_examples_per_trial} examples from this trial"
         total_examples = 0
-        for trial_idx, datum in results_utils.trials_generator(self.results_dir, self.trial_indices):
+        for trial_idx, datum, _ in results_utils.trials_generator(self.results_dir, self.trial_indices):
             if job_chunker.has_result(str(trial_idx)) and not self.regenerate:
                 rospy.loginfo(f"Found existing classifier data for trial {trial_idx}")
                 continue

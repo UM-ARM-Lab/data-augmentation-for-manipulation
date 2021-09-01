@@ -16,6 +16,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.grid_utils import extent_res_to_origin_point
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from link_bot_pycommon.screen_recorder import ScreenRecorder
 from link_bot_pycommon.serialization import load_gzipped_pickle, my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_params, load_json_or_hjson
@@ -218,9 +219,9 @@ def trials_generator(results_dir: pathlib.Path, trials: Optional[List[int]] = No
             filenames.append((trial_idx, results_dir / planning_trial_name(trial_idx)))
 
     sorted_filenames = sorted(filenames)
-    for trial_idx, results_filename in sorted_filenames:
-        datum = load_gzipped_pickle(results_filename)
-        yield trial_idx, datum
+    for trial_idx, datum_filename in sorted_filenames:
+        datum = load_gzipped_pickle(datum_filename)
+        yield trial_idx, datum, datum_filename
 
 
 def list_numbered_files(results_dir, pattern, extension):
@@ -293,7 +294,11 @@ def plot_steps(scenario: ScenarioWithVisualization,
                metadata: Dict,
                fallback_labeing_params: Dict,
                verbose: int,
-               full_plan: bool):
+               full_plan: bool,
+               screen_recorder: Optional[ScreenRecorder]= None):
+    if screen_recorder is not None:
+        screen_recorder.start()
+
     planner_params = metadata['planner_params']
     goal_threshold = get_goal_threshold(planner_params)
 
@@ -362,6 +367,9 @@ def plot_steps(scenario: ScenarioWithVisualization,
         scenario.plot_goal_rviz(goal, goal_threshold, actually_at_goal)
 
         anim.step()
+
+    if screen_recorder is not None:
+        screen_recorder.stop()
 
 
 def get_all_results_subdirs(dirs: Union[pathlib.Path, List[pathlib.Path]]):

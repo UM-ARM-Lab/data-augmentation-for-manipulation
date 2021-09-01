@@ -34,7 +34,7 @@ def main():
     else:
         threshold = args.threshold
 
-    for trial_idx, datum in results_utils.trials_generator(args.results_dir, args.trials):
+    for trial_idx, datum, datum_filename in results_utils.trials_generator(args.results_dir, args.trials):
         trial_status = datum['trial_status']
         should_skip = (args.only_timeouts and trial_status == TrialStatus.Reached or
                        args.only_reached and trial_status != TrialStatus.Reached)
@@ -42,7 +42,7 @@ def main():
             continue
 
         print(f"trial {trial_idx}, status {trial_status}")
-        plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose, args.full_plan)
+        plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose, args.full_plan, datum_filename)
 
 
 if __name__ == '__main__':
