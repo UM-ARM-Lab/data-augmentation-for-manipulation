@@ -85,3 +85,12 @@ class JobChunker:
 
     def is_done(self, done_key='done'):
         return done_key in self.log and self.log[done_key]
+
+    def load_or_prompt(self, k):
+        v = self.get_result(k)
+        if v is None:
+            v = input(f"{k}:")
+
+        self.store_result(k, v)
+
+        return v

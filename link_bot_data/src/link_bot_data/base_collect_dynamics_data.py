@@ -112,8 +112,12 @@ class BaseDataCollector:
     def collect_data(self,
                      n_trajs: int,
                      nickname: str,
+                     root: Optional[pathlib.Path] = None,
                      ):
-        outdir = pathlib.Path('fwd_model_data') / nickname
+        if root is None:
+            outdir = pathlib.Path('fwd_model_data') / nickname
+        else:
+            outdir = root / nickname
         full_output_directory = make_unique_outdir(outdir, n_trajs)
 
         full_output_directory.mkdir(exist_ok=True)

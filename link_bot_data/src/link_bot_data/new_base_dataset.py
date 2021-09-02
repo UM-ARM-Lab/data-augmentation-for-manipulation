@@ -67,6 +67,9 @@ class NewBaseDataset:
         return len(self.filenames)
 
     def batch(self, batch_size: int, drop_remainder: bool = False):
+        if batch_size is None:
+            return self.__class__(self.loader, self.filenames, self.mode, self._post_process, self.n_prefetch)
+
         filenames_batched = list(batch_sequence(self.filenames, batch_size, drop_remainder))
 
         def _include_batch_size(example: Dict):

@@ -228,7 +228,7 @@ def evaluate_planning(planner_params: Dict,
 
 def evaluate_multiple_planning(outdir: pathlib.Path,
                                planners_params: List[Tuple[str, Dict]],
-                               logfile_name: Optional[str] = None,
+                               logfile_name: Optional = None,
                                use_gt_rope: bool = True,
                                trials: Optional[List[int]] = None,
                                start_idx: int = 0,
