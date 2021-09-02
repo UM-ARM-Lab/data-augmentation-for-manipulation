@@ -41,7 +41,7 @@ class RandomActionsBaseline:
         self.n_trajs = int(self.job_chunker.load_or_prompt('n_trajs'))
         labeling_params_filename = pathlib.Path(self.job_chunker.load_or_prompt('labeling_params_filename'))
         self.labeling_params = load_hjson(labeling_params_filename)
-        self.max_planning_trials = self.job_chunker.load_or_prompt('max_planning_trials')
+        self.max_planning_trials = int(self.job_chunker.load_or_prompt('max_planning_trials'))
         self.planner_params_filename = pathlib.Path(self.job_chunker.load_or_prompt('planner_params_filename'))
         self.test_scenes_dir = pathlib.Path(self.job_chunker.load_or_prompt('test_scenes_dir'))
 
