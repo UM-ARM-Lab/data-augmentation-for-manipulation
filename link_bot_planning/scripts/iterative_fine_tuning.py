@@ -307,7 +307,7 @@ class IterativeFineTuning:
     def fine_tune_classifier(self, iteration_data: IterationData):
         i = iteration_data.iteration
         if self.ift_config.get('full_retrain_classifier', False):
-            latest_checkpoint = pathify(self.log['initial_classifier_checkpoint'])
+            latest_checkpoint = pathify(self.log['initial_classifier_checkpoint']) / 'best_checkpoint'
         else:
             latest_checkpoint = iteration_data.latest_classifier_checkpoint_dir / self.checkpoint_suffix
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune classifier')
