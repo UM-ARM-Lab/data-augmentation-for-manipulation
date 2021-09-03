@@ -49,11 +49,11 @@ def get_data(scenario: ScenarioWithVisualization,
              mode: str):
     classifier_datasets_dir = ift_dir / 'classifier_datasets'
     classifiers_dir = ift_dir / 'training_logdir'
+    log = load_hjson(ift_dir / 'logfile.hjson')
 
     iteration_dataset_dir = get_named_item_in_dir(classifier_datasets_dir, classifier_iteration_idx)
 
     if classifier_iteration_idx == 0:
-        log = load_hjson(ift_dir / 'logfile.hjson')
         initial_classifier_dir = log['initial_classifier_checkpoint']
         pretraining_log = log.get("pretraining", None)
         if pretraining_log is None:
@@ -68,7 +68,7 @@ def get_data(scenario: ScenarioWithVisualization,
         checkpoint = get_named_item_in_dir(classifiers_dir, classifier_iteration_idx - 1)
         checkpoint = next(checkpoint.iterdir())
 
-    checkpoint = checkpoint / 'best_checkpoint'
+    checkpoint = checkpoint / log['ift_config']['checkpoint_suffix']
     return eval_classifier_no_batch(scenario, checkpoint, iteration_dataset_dir, mode)
 
 

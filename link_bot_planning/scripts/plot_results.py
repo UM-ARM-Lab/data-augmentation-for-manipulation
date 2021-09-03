@@ -42,7 +42,7 @@ def main():
             continue
 
         print(f"trial {trial_idx}, status {trial_status}")
-        plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose, args.full_plan, datum_filename)
+        plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose, args.full_plan)
 
 
 if __name__ == '__main__':
