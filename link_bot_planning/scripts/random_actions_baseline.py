@@ -123,10 +123,11 @@ class RandomActionsBaseline:
     def learn_classifier(self, classifier_dataset_dirs, i: int):
         classifiers_module_path = pathlib.Path(r.get_path('link_bot_classifiers'))
         classifier_hparams = classifiers_module_path / 'hparams' / 'classifier' / 'nn_classifier2.hjson'
+        trials_dir = self.logdir / 'classifiers'
         trial_path, final_val_metrics = train_test_classifier.train_main(dataset_dirs=classifier_dataset_dirs,
                                                                          model_hparams=classifier_hparams,
                                                                          log=n(i),
-                                                                         trials_directory=self.logdir,
+                                                                         trials_directory=trials_dir,
                                                                          checkpoint=None,
                                                                          batch_size=32,
                                                                          epochs=10,
@@ -145,7 +146,9 @@ class RandomActionsBaseline:
         trials = trials[:self.max_planning_trials]
 
         outdir = self.logdir / 'planning_results' / n(i)
+        planning_logfile_name = outdir / 'logfile.hjson'
         outdir = evaluate_multiple_planning(outdir=outdir,
+                                            logfile_name=planning_logfile_name,
                                             planners_params=planner_params_tuples,
                                             trials=trials,
                                             test_scenes_dir=self.test_scenes_dir,
