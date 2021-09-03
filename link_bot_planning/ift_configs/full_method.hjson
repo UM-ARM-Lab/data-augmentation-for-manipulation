@@ -1,4 +1,5 @@
 {
+  full_retrain_classifier: true
   trials_per_iteration: 1
   trials_generator_type: random
   fine_tune_classifier: {
