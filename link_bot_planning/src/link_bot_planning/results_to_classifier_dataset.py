@@ -234,15 +234,6 @@ class ResultsToClassifierDataset:
     def result_datum_to_classifier_dataset(self, datum: Dict):
         for t, transition in enumerate(self.get_transitions(datum)):
             environment, (before_state_pred, before_state), action, (after_state_pred, after_state), _ = transition
-            if self.visualize:
-                self.visualize_example(action=action,
-                                       after_state=after_state,
-                                       before_state=before_state,
-                                       before_state_predicted={add_predicted(k): v for k, v in
-                                                               before_state_pred.items()},
-                                       after_state_predicted={add_predicted(k): v for k, v in after_state_pred.items()},
-                                       environment=environment)
-
             yield from self.generate_example(
                 environment=environment,
                 action=action,
@@ -338,14 +329,6 @@ class ResultsToClassifierDataset:
         if self.only_rejected_transitions and after_state_pred['num_diverged'].squeeze() != 1:
             return
 
-        if self.visualize:
-            self.visualize_example(action=action,
-                                   after_state=after_state,
-                                   before_state=before_state,
-                                   before_state_predicted=before_state_pred,
-                                   after_state_predicted=after_state_pred,
-                                   environment=environment)
-
         classifier_horizon = 2  # this script only handles this case
         example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
         example_states_pred = sequence_of_dicts_to_dict_of_tensors([before_state_pred, after_state_pred])
@@ -385,6 +368,14 @@ class ResultsToClassifierDataset:
         test_shape = valid_out_examples_batched['time_idx'].shape[0]
         if test_shape == 1:
             valid_out_example = remove_batch(valid_out_examples_batched)
+
+            if self.visualize:
+                self.visualize_example(action=action,
+                                       after_state=after_state,
+                                       before_state=before_state,
+                                       before_state_predicted=before_state_pred,
+                                       after_state_predicted=after_state_pred,
+                                       environment=environment)
 
             yield valid_out_example  # yield here is more convenient than returning example/None
         elif test_shape > 1:
