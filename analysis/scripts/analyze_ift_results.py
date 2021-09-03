@@ -50,8 +50,6 @@ def metrics_main(args):
     lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error', outdir, hue='used_augmentation')
     lineplot(df, 'ift_iteration', 'normalized_model_error', 'Normalized Model Error (rolling)', outdir, window=w,
              hue='used_augmentation')
-    lineplot(df, 'ift_iteration', 'starts_with_recovery', 'SWR', outdir, hue='used_augmentation')
-    lineplot(df, 'ift_iteration', 'starts_with_recovery', 'SWR (rolling)', outdir, window=w, hue='used_augmentation')
 
     if not args.no_plot:
         plt.show()

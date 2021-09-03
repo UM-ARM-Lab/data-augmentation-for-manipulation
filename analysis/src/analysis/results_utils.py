@@ -103,6 +103,10 @@ def get_paths(datum: Dict, verbose: int = 0, full_path: bool = True):
         return
 
     types = []
+    actions = None
+    actual_states = None
+    predicted_states = None
+    e = None
     for step_idx, step in enumerate(steps):
         e = step['planning_query'].environment
 
@@ -132,20 +136,23 @@ def get_paths(datum: Dict, verbose: int = 0, full_path: bool = True):
         predicted_states = numpify(predicted_states)
 
         types = [step['type']] * len(actions)
+        j = range(len(actions) + 1)
         if full_path:
-            full_path_for_step = zip_repeat_shorter(actions, actual_states, predicted_states, types)
+            full_path_for_step = zip_repeat_shorter(actions, actual_states, predicted_states, types, j)
             yield from [(e, *p_t) for p_t in full_path_for_step]
         else:
-            path_for_step = zip(actions, actual_states, predicted_states, types)
+            actions_last_rep = actions + [actions[-1]]
+            types_last_rep = types + [types[-1]]
+            path_for_step = zip(actions_last_rep, actual_states, predicted_states, types_last_rep, j)
             yield from [(e, *p_t) for p_t in path_for_step]
 
     # but do add the actual final states
     # e will be whatever the environment from the last step was
     if len(actions) > 0 and actions[0] is not None:
-        yield e, actions[-1], actual_states[-1], predicted_states[-1], types[-1]
+        yield e, actions[-1], actual_states[-1], predicted_states[-1], types[-1], -1
 
     if len(types) > 0:
-        yield e, actions[-1], datum['end_state'], predicted_states[-1], types[-1]
+        yield e, actions[-1], datum['end_state'], predicted_states[-1], types[-1], -1
 
 
 def get_recovery_transitions(datum: Dict):
@@ -155,8 +162,8 @@ def get_recovery_transitions(datum: Dict):
         next(next_paths)
 
         for before, after in zip(paths, next_paths):
-            e, action, before_state, _, before_type = before
-            _, _, after_state, _, _ = after
+            e, action, before_state, _, before_type, _ = before
+            _, _, after_state, _, _, _ = after
             if before_type == 'executed_recovery':
                 yield e, action, before_state, after_state, before_type
 
@@ -295,7 +302,7 @@ def plot_steps(scenario: ScenarioWithVisualization,
                fallback_labeing_params: Dict,
                verbose: int,
                full_plan: bool,
-               screen_recorder: Optional[ScreenRecorder]= None):
+               screen_recorder: Optional[ScreenRecorder] = None):
     if screen_recorder is not None:
         screen_recorder.start()
 
@@ -338,13 +345,16 @@ def plot_steps(scenario: ScenarioWithVisualization,
     scenario.reset_planning_viz()
     while not anim.done:
         t = anim.t()
-        e_t, a_t, s_t, s_t_pred, type_t = paths[t]
+        e_t, a_t, s_t, s_t_pred, type_t, j_t = paths[t]
+
+        state_color = '#ff0000aa' if j_t != 0 else '#ffffffaa'
+
         if 'scene_msg' in e_t and 'attached_collision_objects' not in s_t:
             s_t['attached_collision_objects'] = e_t['scene_msg'].robot_state.attached_collision_objects
         if 'origin_point' not in e_t:
             e_t['origin_point'] = extent_res_to_origin_point(e_t['extent'], e_t['res'])
         scenario.plot_environment_rviz(e_t)
-        scenario.plot_state_rviz(s_t, label='actual', color='#ff0000aa')
+        scenario.plot_state_rviz(s_t, label='actual', color=state_color)
         c = '#0000ffaa'
         if t < anim.max_t:
             action_color = _type_action_color(type_t)

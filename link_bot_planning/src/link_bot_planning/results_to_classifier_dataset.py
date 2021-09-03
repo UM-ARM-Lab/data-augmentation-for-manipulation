@@ -171,7 +171,7 @@ class ResultsToClassifierDataset:
 
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
             try:
-                examples_gen = self.result_datum_to_dynamics_dataset(datum)
+                examples_gen = self.result_datum_to_classifier_dataset(datum)
                 for example in progressbar(examples_gen):
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
@@ -231,7 +231,7 @@ class ResultsToClassifierDataset:
             job_chunker.store_result(trial_idx, {'trial':              trial_idx,
                                                  'examples for trial': example_idx_for_trial})
 
-    def result_datum_to_dynamics_dataset(self, datum: Dict):
+    def result_datum_to_classifier_dataset(self, datum: Dict):
         for t, transition in enumerate(self.get_transitions(datum)):
             environment, (before_state_pred, before_state), action, (after_state_pred, after_state), _ = transition
             if self.visualize:
