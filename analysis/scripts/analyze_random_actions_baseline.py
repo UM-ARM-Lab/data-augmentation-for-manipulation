@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-from typing import Optional
+import re
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
 from analysis.analyze_results import planning_results
+from analysis.results_figures import lineplot
 from arc_utilities import ros_init
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -15,32 +16,37 @@ limit_gpu_mem(0.1)
 
 
 def metrics_main(args):
-    outdir, df, table_specs = planning_results(args.results_dirs, args.regenerate, args.latex)
+    outdir, df, _ = planning_results(args.results_dirs, args.regenerate, args.latex)
 
-    iter_key = 'ift_iteration'
-    df = df.groupby([iter_key, 'used_augmentation']).agg('mean')
+    # turn classifier_dataset into an iter number
+    def _dataset_dir_to_iter(p):
+        p = pathlib.Path(p)
+        for part in p.parts:
+            m = re.match(r'iter_(\d+)', part)
+            if m:
+                i = int(m.group(1))
+                return i
+        return -1
+
+    iter_key = 'classifier_dataset_iter'
+    df[iter_key] = df['classifier_dataset'].map(_dataset_dir_to_iter)
+
+    df = df.groupby([iter_key]).agg('mean').reset_index()
 
     w = 10
-    x = lineplot(df, iter_key, 'success', 'Success Rate', outdir, hue='used_augmentation')
+    x = lineplot(df, iter_key, 'success', 'Success Rate', iter_key)
     x.set_ylim(0, 1)
     plt.savefig(outdir / f'success_rate.png')
-    x = lineplot(df, iter_key, 'success', 'Success Rate (rolling)', outdir, window=w, hue='used_augmentation')
-    x.set_ylim(0, 1)
-    plt.savefig(outdir / f'success_rate_rolling.png')
-    lineplot(df, iter_key, 'task_error', 'Task Error', outdir, hue='used_augmentation')
-    lineplot(df, iter_key, 'task_error', 'Task Error (rolling)', outdir, window=w, hue='used_augmentation')
-    lineplot(df, iter_key, 'planning_time', 'Planning Time', outdir, hue='used_augmentation')
-    lineplot(df, iter_key, 'planning_time', 'Planning Time (rolling)', outdir, window=w, hue='used_augmentation')
-    lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error', outdir, hue='used_augmentation')
-    lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error (rolling)', outdir, window=w,
-             hue='used_augmentation')
+    lineplot(df, iter_key, 'task_error', 'Task Error', iter_key)
+    lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error', iter_key)
 
     if not args.no_plot:
         plt.show()
 
     # generate_tables(df, outdir, table_specs)
 
-@ros_init.with_ros("analyse_ift_results")
+
+@ros_init.with_ros("analyse_random_actions_baseline")
 def main():
     pd.options.display.max_rows = 999
 

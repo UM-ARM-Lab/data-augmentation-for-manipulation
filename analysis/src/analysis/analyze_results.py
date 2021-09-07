@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import List, Dict, Optional
 
 import pandas as pd
+import tabulate
 from tqdm import tqdm
 
 from analysis.figspec import DEFAULT_AXES_NAMES, FigSpec, TableSpec
@@ -14,6 +15,7 @@ from analysis.results_metrics import metrics_funcs, load_analysis_hjson
 from analysis.results_metrics import metrics_names
 # noinspection PyUnresolvedReferences
 from analysis.results_tables import *
+from analysis.results_utils import get_all_results_subdirs
 from link_bot_pycommon.get_scenario import get_scenario_cached
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import load_gzipped_pickle
@@ -175,3 +177,26 @@ def generate_tables(df: pd.DataFrame, outdir: Optional[pathlib.Path], table_spec
             for spec in table_specs:
                 tables_outfile.write(spec.table.table)
                 tables_outfile.write('\n\n\n')
+
+
+def planning_results(results_dirs, regenerate=False, latex=False, tables_config=None):
+    # The default for where we write results
+    outdir = results_dirs[0]
+
+    print(f"Writing analysis to {outdir}")
+
+    if latex:
+        table_format = 'latex_raw'
+    else:
+        table_format = tabulate.simple_separated_format("\t")
+
+    results_dirs = get_all_results_subdirs(results_dirs)
+    df = load_planning_results(results_dirs, regenerate=regenerate)
+    df.to_csv("/media/shared/analysis/tmp_results.csv")
+
+    if tables_config is not None:
+        table_specs = load_table_specs(tables_config, table_format)
+    else:
+        table_specs = None
+
+    return outdir, df, table_specs

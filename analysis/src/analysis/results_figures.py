@@ -1,6 +1,7 @@
 import pathlib
+import seaborn as sns
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ import pandas as pd
 from colorama import Fore
 
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation
+from link_bot_pycommon.pandas_utils import rlast
 
 colors_cache = {}
 
@@ -220,6 +222,28 @@ def my_rolling(window: int = 10):
 
 def shifted_cumsum(x):
     return x.cumsum() - x.first()
+
+
+def lineplot(df,
+             x: str,
+             metric: str,
+             title: str,
+             iter_key: str,
+             window: int = 1,
+             hue: Optional[str] = None):
+    df = df.rolling(window).agg({metric: 'mean', iter_key: rlast})
+    plt.figure()
+    ax = sns.lineplot(
+        data=df,
+        x=x,
+        y=metric,
+        hue=hue,
+        palette='colorblind',
+        estimator='mean',
+        ci=80,
+    )
+    ax.set_title(title)
+    return ax
 
 
 __all__ = [

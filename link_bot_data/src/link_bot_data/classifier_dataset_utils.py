@@ -98,6 +98,7 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
     classifier_dataset_hparams['state_metadata_keys'] = dataset_loader.state_metadata_keys
     classifier_dataset_hparams['predicted_state_keys'] = fwd_models.state_keys
     classifier_dataset_hparams['action_keys'] = dataset_loader.action_keys
+    classifier_dataset_hparams['scene_name'] = 'placeholder-scene-name'
     classifier_dataset_hparams['start-at'] = start_at
     classifier_dataset_hparams['stop-at'] = stop_at
     my_hdump(classifier_dataset_hparams, new_hparams_filename.open("w"), indent=2)

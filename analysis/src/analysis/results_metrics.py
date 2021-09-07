@@ -10,7 +10,7 @@ from arc_utilities.algorithms import nested_dict_update
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.func_list_registrar import FuncListRegistrar
-from link_bot_pycommon.pycommon import has_keys
+from link_bot_pycommon.pycommon import has_keys, paths_from_json
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import numpify
 
@@ -253,6 +253,18 @@ def classifier_name(scenario: ExperimentScenario, trial_metadata: Dict, trial_da
         raise RuntimeError(f"Could not guess the classifier name:\n{c}")
 
     return classifier_name_
+
+
+@metrics_funcs
+def classifier_dataset(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    try:
+        classifier_model_dirs = paths_from_json(trial_metadata['planner_params']['classifier_model_dir'])
+        for representative_classifier_model_dir in classifier_model_dirs:
+            if 'checkpoint' in representative_classifier_model_dir.as_posix():
+                return representative_classifier_model_dir
+        return "no-learned-classifiers"
+    except RuntimeError:
+        return None
 
 
 @metrics_funcs

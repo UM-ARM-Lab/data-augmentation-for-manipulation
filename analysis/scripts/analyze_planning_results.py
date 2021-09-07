@@ -5,7 +5,7 @@ import pathlib
 import matplotlib.pyplot as plt
 import tabulate
 
-from analysis.analyze_results import load_table_specs, load_planning_results, generate_tables
+from analysis.analyze_results import load_table_specs, load_planning_results, generate_tables, planning_results
 from analysis.results_utils import get_all_results_subdirs
 from arc_utilities import ros_init
 from moonshine.gpu_config import limit_gpu_mem
@@ -14,23 +14,11 @@ limit_gpu_mem(0.1)
 
 
 def metrics_main(args):
-    # The default for where we write results
-    out_dir = args.results_dirs[0]
-
-    print(f"Writing analysis to {out_dir}")
-
-    if args.latex:
-        table_format = 'latex_raw'
-    else:
-        table_format = tabulate.simple_separated_format("\t")
-
-    results_dirs = get_all_results_subdirs(args.results_dirs)
-    df = load_planning_results(results_dirs, regenerate=args.regenerate)
-    df.to_csv("/media/shared/analysis/tmp_results.csv")
+    outdir, df, table_format = planning_results(args.results_dirs, args.regenerate, args.latex)
 
     table_specs = load_table_specs(args.tables_config, table_format)
 
-    generate_tables(df, out_dir, table_specs)
+    generate_tables(df, outdir, table_specs)
 
 
 @ros_init.with_ros("analyse_planning_results")
