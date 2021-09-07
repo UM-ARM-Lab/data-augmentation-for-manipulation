@@ -7,8 +7,18 @@ import pathlib
 import tensorflow as tf
 
 from arc_utilities import ros_init
-from link_bot_classifiers.train_test_classifier import viz_main
+from link_bot_classifiers.train_test_classifier import ClassifierEvaluationFilter
 from link_bot_pycommon.job_chunking import JobChunker
+
+
+def is_mistake(example, predictions):
+    is_close = example['is_close'][1:]
+    probabilities = predictions['probabilities']
+
+    is_predicted_close = tf.squeeze(probabilities > 0.5, axis=-1)
+    is_close = tf.squeeze(tf.cast(is_close, tf.bool), axis=-1)
+
+    return not tf.equal(is_predicted_close, is_close)
 
 
 @ros_init.with_ros("mistakes_over_time")
@@ -35,12 +45,13 @@ def main():
         key = str(classifier_i)
         count = sub.get_result(key)
         if count is None:
-            count = viz_main(dataset_dirs=[dataset_dir],
-                             checkpoint=checkpoint,
-                             mode='all',
-                             batch_size=1,
-                             only_errors=True,
-                             show_progressbar=False)
+            evaluation = ClassifierEvaluationFilter(dataset_dirs=[dataset_dir],
+                                                    checkpoint=checkpoint,
+                                                    mode='all',
+                                                    should_keep_example=is_mistake,
+                                                    show_progressbar=False)
+
+            count = len(list(evaluation))
             sub.store_result(key, count)
         mistakes.append(count)
         print(mistakes)

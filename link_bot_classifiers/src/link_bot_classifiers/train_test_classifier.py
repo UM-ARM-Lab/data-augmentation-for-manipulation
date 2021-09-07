@@ -543,24 +543,8 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              **kwargs):
     count = 0
 
-    view = ClassifierEvaluation(dataset_dirs=dataset_dirs,
-                                checkpoint=checkpoint,
-                                mode=mode,
-                                batch_size=batch_size,
-                                start_at=start_at,
-                                use_gt_rope=use_gt_rope,
-                                threshold=threshold,
-                                **kwargs)
-
-    for batch_idx, example, predictions in view:
+    def _should_keep_example(example, prediction):
         labels = tf.expand_dims(example['is_close'][:, 1:], axis=2)
-
-        probabilities = predictions['probabilities']
-
-        # Visualization
-        example.pop("time")
-        actual_batch_size = example.pop("batch_size")
-        example.pop('scene_msg')
         decisions = tf.squeeze(probabilities > 0.5, axis=-1)
         labels = tf.squeeze(tf.cast(labels, tf.bool), axis=-1)
         classifier_is_correct = tf.equal(decisions, labels)
@@ -570,31 +554,46 @@ def viz_main(dataset_dirs: List[pathlib.Path],
         is_fn = tf.logical_and(labels, tf.logical_not(decisions))
         is_negative = tf.logical_not(labels)
         is_positive = labels
+
+        # if the classifier is correct at all time steps, ignore
+        if only_negative:
+            if not tf.reduce_all(is_negative[b]):
+                return False
+        if only_positive:
+            if not tf.reduce_all(is_positive[b]):
+                return False
+        if only_tp:
+            if not tf.reduce_all(is_tp[b]):
+                return False
+        if only_tn:
+            if not tf.reduce_all(is_tn[b]):
+                return False
+        if only_fp:
+            if not tf.reduce_all(is_fp[b]):
+                return False
+        if only_fn:
+            if not tf.reduce_all(is_fn[b]):
+                return False
+        if only_errors:
+            if tf.reduce_all(classifier_is_correct[b]):
+                return False
+        return True
+
+    view = ClassifierEvaluationFilter(dataset_dirs=dataset_dirs,
+                                      checkpoint=checkpoint,
+                                      mode='all',
+                                      should_keep_example=_should_keep_example,
+                                      show_progressbar=False)
+
+    for batch_idx, example, predictions in view:
+        probabilities = predictions['probabilities']
+
+        # Visualization
+        example.pop("time")
+        actual_batch_size = example.pop("batch_size")
+        example.pop('scene_msg')
         for b in range(actual_batch_size):
             example_b = index_dict_of_batched_tensors_tf(example, b)
-
-            # if the classifier is correct at all time steps, ignore
-            if only_negative:
-                if not tf.reduce_all(is_negative[b]):
-                    continue
-            if only_positive:
-                if not tf.reduce_all(is_positive[b]):
-                    continue
-            if only_tp:
-                if not tf.reduce_all(is_tp[b]):
-                    continue
-            if only_tn:
-                if not tf.reduce_all(is_tn[b]):
-                    continue
-            if only_fp:
-                if not tf.reduce_all(is_fp[b]):
-                    continue
-            if only_fn:
-                if not tf.reduce_all(is_fn[b]):
-                    continue
-            if only_errors:
-                if tf.reduce_all(classifier_is_correct[b]):
-                    continue
 
             count += 1
 
