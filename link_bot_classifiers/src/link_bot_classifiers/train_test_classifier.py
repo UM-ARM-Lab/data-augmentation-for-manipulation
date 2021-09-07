@@ -450,7 +450,9 @@ class ClassifierEvaluation:
                  use_gt_rope: bool = True,
                  take: int = None,
                  threshold: Optional[float] = None,
+                 show_progressbar: Optional[bool] = True,
                  **kwargs):
+        self.show_progressbar = show_progressbar
         self.start_at = start_at
         trials_directory = pathlib.Path('trials').absolute()
         trial_path = checkpoint.parent.absolute()
@@ -473,7 +475,11 @@ class ClassifierEvaluation:
         self.scenario = self.dataset_loader.get_scenario()
 
     def __iter__(self):
-        for batch_idx, example in enumerate(progressbar(self.dataset, widgets=mywidgets)):
+        if self.show_progressbar:
+            gen = progressbar(self.dataset, widgets=mywidgets)
+        else:
+            gen = self.dataset
+        for batch_idx, example in enumerate(gen):
             if batch_idx < self.start_at:
                 continue
 
@@ -524,14 +530,14 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              checkpoint: pathlib.Path,
              mode: str,
              batch_size: int,
-             start_at: int,
-             only_errors: bool,
-             only_fp: bool,
-             only_fn: bool,
-             only_tp: bool,
-             only_tn: bool,
-             only_negative: bool,
-             only_positive: bool,
+             start_at: int = 0,
+             only_errors: bool = False,
+             only_fp: bool = False,
+             only_fn: bool = False,
+             only_tp: bool = False,
+             only_tn: bool = False,
+             only_negative: bool = False,
+             only_positive: bool = False,
              use_gt_rope: bool = True,
              threshold: Optional[float] = None,
              **kwargs):
@@ -617,6 +623,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
             anim.play(example_b)
 
     print(count)
+    return count
 
 
 def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
