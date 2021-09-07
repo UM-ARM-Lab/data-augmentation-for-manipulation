@@ -1,14 +1,13 @@
 #include <merrrt_visualization/rviz_animation_controller.h>
 #include <peter_msgs/AnimationControl.h>
 #include <peter_msgs/GetAnimControllerState.h>
-#include <peter_msgs/GetFloat32.h>
 #include <std_msgs/Empty.h>
 
 #include <QApplication>
 #include <QCheckBox>
 #include <QDoubleSpinBox>
-#include <QMainWindow>
 #include <QPushButton>
+#include <QSettings>
 #include <iostream>
 
 #define create_service_options(type, name, bind) \
@@ -30,8 +29,7 @@ RVizAnimationController::RVizAnimationController(QWidget *parent) : rviz::Panel(
   connect(ui.step_number_lineedit, &QLineEdit::returnPressed, this, &RVizAnimationController::StepNumberChanged);
   connect(this, &RVizAnimationController::setStepText, ui.step_number_lineedit, &QLineEdit::setText,
           Qt::QueuedConnection);
-  connect(this, &RVizAnimationController::setMaxText, ui.max_step_number_label, &QLabel::setText,
-          Qt::QueuedConnection);
+  connect(this, &RVizAnimationController::setMaxText, ui.max_step_number_label, &QLabel::setText, Qt::QueuedConnection);
 
   command_pub_ = ros_node_.advertise<peter_msgs::AnimationControl>("rviz_anim/control", 10);
 
@@ -164,6 +162,32 @@ void RVizAnimationController::QueueThread() {
   while (ros_node_.ok()) {
     queue_.callAvailable(ros::WallDuration(timeout));
   }
+}
+
+void RVizAnimationController::load(const rviz::Config &config) {
+  rviz::Panel::load(config);
+
+  bool loop;
+  if (config.mapGetBool("loop", &loop)) {
+    ui.loop_checkbox->setChecked(loop);
+  }
+
+  float period;
+  if (config.mapGetFloat("period", &period)) {
+    ui.period_spinbox->setValue(period);
+  }
+
+  bool auto_play;
+  if (config.mapGetBool("auto_play", &auto_play)) {
+    ui.auto_play_checkbox->setChecked(auto_play);
+  }
+}
+
+void RVizAnimationController::save(rviz::Config config) const {
+  rviz::Panel::save(config);
+  config.mapSetValue("auto_play", ui.auto_play_checkbox->isChecked());
+  config.mapSetValue("loop", ui.loop_checkbox->isChecked());
+  config.mapSetValue("period", ui.period_spinbox->value());
 }
 
 }  // namespace merrrt_visualization

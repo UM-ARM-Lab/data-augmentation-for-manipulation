@@ -22,6 +22,9 @@ class RVizAnimationController : public rviz::Panel {
 
   virtual ~RVizAnimationController();
 
+  void load(const rviz::Config &config) override;
+  void save(rviz::Config config) const override;
+
   void TimeCallback(const std_msgs::Int64::ConstPtr &msg);
 
   void MaxTimeCallback(const std_msgs::Int64::ConstPtr &msg);
