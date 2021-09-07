@@ -460,11 +460,17 @@ class ClassifierEvaluation:
                                                         trials_directory=trials_directory)
 
         # Dataset
-        self.dataset_loader = get_classifier_dataset_loader(dataset_dirs,
-                                                            load_true_states=True,
-                                                            use_gt_rope=use_gt_rope,
-                                                            threshold=threshold)
-        self.dataset = self.dataset_loader.get_datasets(mode=mode)
+        if 'dataset_loader' in kwargs:
+            self.dataset_loader = kwargs["dataset_loader"]
+        else:
+            self.dataset_loader = get_classifier_dataset_loader(dataset_dirs,
+                                                                load_true_states=True,
+                                                                use_gt_rope=use_gt_rope,
+                                                                threshold=threshold)
+        if 'dataset' in kwargs:
+            self.dataset = kwargs["dataset"]
+        else:
+            self.dataset = self.dataset_loader.get_datasets(mode=mode)
 
         # Iterate
         self.dataset = self.dataset.batch(batch_size, drop_remainder=False)

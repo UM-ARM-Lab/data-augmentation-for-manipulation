@@ -8,6 +8,7 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers.train_test_classifier import ClassifierEvaluationFilter
+from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_pycommon.job_chunking import JobChunker
 
 
@@ -37,6 +38,9 @@ def main():
     c = JobChunker(logfile_name=root / 'mistakes_over_time.hjson')
     sub = c.sub_chunker(str(args.dataset_i))
 
+    dataset_loader = get_classifier_dataset_loader([dataset_dir])
+    dataset = dataset_loader.get_datasets(mode='all')
+
     mistakes = []
     for classifier_i in range(args.dataset_i, 200):
         checkpoint_dir = root / 'training_logdir' / f'iteration_{classifier_i:04d}_classifier_training_logdir'
@@ -49,6 +53,8 @@ def main():
                                                     checkpoint=checkpoint,
                                                     mode='all',
                                                     should_keep_example=is_mistake,
+                                                    dataset=dataset,
+                                                    dataset_loader=dataset_loader,
                                                     show_progressbar=False)
 
             count = len(list(evaluation))
