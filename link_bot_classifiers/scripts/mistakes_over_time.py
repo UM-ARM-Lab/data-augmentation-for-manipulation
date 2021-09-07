@@ -9,6 +9,7 @@ import tensorflow as tf
 from arc_utilities import ros_init
 from link_bot_classifiers.train_test_classifier import ClassifierEvaluationFilter
 from link_bot_data.load_dataset import get_classifier_dataset_loader
+from link_bot_pycommon.args import int_set_arg
 from link_bot_pycommon.job_chunking import JobChunker
 
 
@@ -27,40 +28,48 @@ def main():
     tf.get_logger().setLevel(logging.ERROR)
     parser = argparse.ArgumentParser()
     parser.add_argument('ift_dir', type=pathlib.Path)
-    parser.add_argument('dataset_i', type=int)
+    parser.add_argument('--dataset-i', type=int_set_arg)
 
     args = parser.parse_args()
 
     root = args.ift_dir
 
-    dataset_dir = root / 'classifier_datasets' / f'iteration_{args.dataset_i:04d}_dataset'
+    n = len(list((root / 'training_logdir').iterdir()))
 
-    c = JobChunker(logfile_name=root / 'mistakes_over_time.hjson')
-    sub = c.sub_chunker(str(args.dataset_i))
+    if args.dataset_i is None:
+        dataset_is = range(0, n)
+    else:
+        dataset_is = args.dataset_i
 
-    dataset_loader = get_classifier_dataset_loader([dataset_dir])
-    dataset = dataset_loader.get_datasets(mode='all')
+    for dataset_i in dataset_is:
+        dataset_dir = root / 'classifier_datasets' / f'iteration_{dataset_i:04d}_dataset'
 
-    mistakes = []
-    for classifier_i in range(args.dataset_i, 200):
-        checkpoint_dir = root / 'training_logdir' / f'iteration_{classifier_i:04d}_classifier_training_logdir'
-        checkpoint = list(checkpoint_dir.iterdir())[0] / 'latest_checkpoint'
+        c = JobChunker(logfile_name=root / 'mistakes_over_time.hjson')
+        sub = c.sub_chunker(str(dataset_i))
 
-        key = str(classifier_i)
-        count = sub.get_result(key)
-        if count is None:
-            evaluation = ClassifierEvaluationFilter(dataset_dirs=[dataset_dir],
-                                                    checkpoint=checkpoint,
-                                                    mode='all',
-                                                    should_keep_example=is_mistake,
-                                                    dataset=dataset,
-                                                    dataset_loader=dataset_loader,
-                                                    show_progressbar=False)
+        dataset_loader = get_classifier_dataset_loader([dataset_dir])
+        dataset = dataset_loader.get_datasets(mode='all')
 
-            count = len(list(evaluation))
-            sub.store_result(key, count)
-        mistakes.append(count)
-        print(mistakes)
+        mistakes = []
+        for classifier_i in range(dataset_i, n):
+            checkpoint_dir = root / 'training_logdir' / f'iteration_{classifier_i:04d}_classifier_training_logdir'
+            checkpoint = list(checkpoint_dir.iterdir())[0] / 'latest_checkpoint'
+
+            key = str(classifier_i)
+            count = sub.get_result(key)
+            if count is None:
+                evaluation = ClassifierEvaluationFilter(dataset_dirs=[dataset_dir],
+                                                        checkpoint=checkpoint,
+                                                        mode='all',
+                                                        should_keep_example=is_mistake,
+                                                        dataset=dataset,
+                                                        dataset_loader=dataset_loader,
+                                                        show_progressbar=False)
+
+                count = len(list(evaluation))
+                sub.store_result(key, count)
+            mistakes.append(count)
+            print(mistakes)
 
 
 if __name__ == '__main__':
