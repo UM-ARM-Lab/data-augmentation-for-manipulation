@@ -6,44 +6,58 @@ import re
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from dynamo_pandas import get_df
 
 from analysis.analyze_results import planning_results
 from analysis.results_figures import lineplot
 from arc_utilities import ros_init
+from link_bot_data import dynamodb_utils
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
 
 
+def dataset_dir_to_iter(p):
+    p = pathlib.Path(p)
+    for part in p.parts:
+        m = re.match(r'iter_(\d+)', part)
+        if m:
+            i = int(m.group(1))
+            return i
+    return -1
+
+
 def metrics_main(args):
-    outdir, df, _ = planning_results(args.results_dirs, args.regenerate, args.latex)
+    outdir, df, _ = planning_results([args.results_dir], args.regenerate, args.latex)
 
     # turn classifier_dataset into an iter number
-    def _dataset_dir_to_iter(p):
-        p = pathlib.Path(p)
-        for part in p.parts:
-            m = re.match(r'iter_(\d+)', part)
-            if m:
-                i = int(m.group(1))
-                return i
-        return -1
 
     iter_key = 'classifier_dataset_iter'
-    df[iter_key] = df['classifier_dataset'].map(_dataset_dir_to_iter)
+    df[iter_key] = df['classifier_dataset'].map(dataset_dir_to_iter)
 
     df = df.groupby([iter_key]).agg('mean').reset_index()
 
-    w = 10
-    x = lineplot(df, iter_key, 'success', 'Success Rate', iter_key)
+    x = lineplot(df, iter_key, 'success', 'Success Rate')
     x.set_ylim(0, 1)
     plt.savefig(outdir / f'success_rate.png')
-    lineplot(df, iter_key, 'task_error', 'Task Error', iter_key)
-    lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error', iter_key)
+    lineplot(df, iter_key, 'task_error', 'Task Error')
+    lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error')
+
+    classifier_analysis(iter_key, args.results_dir)
 
     if not args.no_plot:
         plt.show()
 
-    # generate_tables(df, outdir, table_specs)
+
+def classifier_analysis(iter_key, root):
+    df = get_df(table=dynamodb_utils.classifier_table())
+
+    df = df.loc[df['classifier'].str.contains(root.as_posix()) | df['classifier'].str.contains('untrained-1')]
+    df[iter_key] = df['classifier'].map(dataset_dir_to_iter)
+    df[iter_key] = df[iter_key].map(lambda i: i + 1)
+
+    lineplot(df, iter_key, 'accuracy', "Accuracy on 100k Dataset")
+    lineplot(df, iter_key, 'accuracy on negatives', "Specificity on 100k Dataset")
 
 
 @ros_init.with_ros("analyse_random_actions_baseline")
@@ -51,7 +65,7 @@ def main():
     pd.options.display.max_rows = 999
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('results_dirs', help='results directory', type=pathlib.Path, nargs='+')
+    parser.add_argument('results_dir', help='results directory', type=pathlib.Path)
     parser.add_argument('--tables-config', type=pathlib.Path,
                         default=pathlib.Path("tables_configs/planning_evaluation.hjson"))
     parser.add_argument('--analysis-params', type=pathlib.Path,

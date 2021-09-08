@@ -228,10 +228,9 @@ def lineplot(df,
              x: str,
              metric: str,
              title: str,
-             iter_key: str,
              window: int = 1,
              hue: Optional[str] = None):
-    df = df.rolling(window).agg({metric: 'mean', iter_key: rlast})
+    df = df.rolling(window).agg({metric: 'mean', x: rlast})
     plt.figure()
     ax = sns.lineplot(
         data=df,

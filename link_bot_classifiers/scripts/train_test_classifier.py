@@ -110,6 +110,7 @@ def main():
     eval_n_parser = subparsers.add_parser('eval_n')
     eval_n_parser.add_argument('--dataset-dirs', type=pathlib.Path, nargs='+', required=True)
     eval_n_parser.add_argument('--checkpoints', type=pathlib.Path, nargs='+', required=True)
+    eval_n_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='all')
     add_eval_args(eval_n_parser)
     eval_n_parser.set_defaults(func=eval_n_main)
 
