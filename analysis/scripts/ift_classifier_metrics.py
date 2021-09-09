@@ -34,9 +34,9 @@ def main():
     is_first_iter_cl = df['classifier'].str.contains('untrained-1')
     df = df.loc[is_iter_cl | is_first_iter_cl]
 
-    plot_proxy_dataset_metric(df.copy(), 'hrs', 'accuracy on negatives', 'Specificity on HRS')
-    plot_proxy_dataset_metric(df.copy(), 'ncs', 'accuracy on negatives', 'Specificity on NCS')
-    plot_proxy_dataset_metric(df.copy(), 'ras', 'accuracy', 'Specificity on RAS')
+    plot_proxy_dataset_metric(df, 'hrs', 'accuracy on negatives', 'Specificity on HRS')
+    plot_proxy_dataset_metric(df, 'ncs', 'accuracy on negatives', 'Specificity on NCS')
+    plot_proxy_dataset_metric(df, 'ras', 'accuracy', 'Accuracy on RAS')
 
     plot_mistakes_over_time(args.results_dir)
     plt.show()
@@ -46,10 +46,13 @@ def plot_proxy_dataset_metric(df, proxy_dataset_type: str, metric_name: str, tit
     proxy_dataset_name = 'car1'
     proxy_dataset_path = proxy_datasets_dict[proxy_dataset_name][proxy_dataset_type]
     df = df.loc[df['dataset_dirs'] == proxy_dataset_path]
+    # without this copy, there is a chained indexing warning
+    df = df.copy()
     iter_key = 'ift_iteration'
-    df[iter_key] = df['classifier'].map(classifier_name_to_iter)
+    iter_value = df['classifier'].map(classifier_name_to_iter)
+    df[iter_key] = iter_value
+
     lineplot(df, iter_key, metric_name, title)
-    return df, iter_key
 
 
 def plot_mistakes_over_time(results_dir):

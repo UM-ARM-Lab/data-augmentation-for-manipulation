@@ -410,6 +410,8 @@ def dataset_dir_to_iter(p):
 def classifier_name_to_iter(p):
     p = pathlib.Path(p)
     for part in p.parts:
+        if 'untrained-1' in part:
+            return 0
         m = re.match(r'iteration_(\d+)_classifier_training_logdir', part)
         if m:
             i = int(m.group(1))
