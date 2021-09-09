@@ -111,11 +111,7 @@ def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool = F
             data_gen = tqdm(data_filenames, desc='results files') if progressbar else data_filenames
             for data_filename in data_gen:
                 datum = load_gzipped_pickle(data_filename)
-                # try:
                 row = make_row(datum, data_filename, metadata, scenario)
-                # except:
-                #     logger.error(data_filename)
-                #     continue
 
                 data.append(row)
             df_i = pd.DataFrame(data)

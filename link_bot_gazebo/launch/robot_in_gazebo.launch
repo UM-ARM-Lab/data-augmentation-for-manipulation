@@ -69,11 +69,6 @@
               args="-urdf -model $(arg robot_name) -param robot_description"/>
     </group>
     <group if="$(arg use_val)">
-        <!-- uploads robot description and setups up other parameters -->
-        <include file="$(find hdt_michigan_moveit)/launch/planning_context.launch">
-            <arg name="load_robot_description" value="true"/>
-        </include>
-
         <!-- start the controllers -->
         <include file="$(find hdt_michigan_control)/launch/hdt_michigan_control_gazebo.launch">
             <arg name="robot_namespace" value="$(arg robot_name)"/>

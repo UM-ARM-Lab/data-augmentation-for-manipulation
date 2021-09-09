@@ -230,10 +230,13 @@ def lineplot(df,
              title: str,
              window: int = 1,
              hue: Optional[str] = None):
-    df = df.rolling(window).agg({metric: 'mean', x: rlast})
+    agg = {metric: 'mean', x: rlast}
+    if hue is not None:
+        agg[hue] = rlast
+    z = df.rolling(window).agg(agg)
     plt.figure()
     ax = sns.lineplot(
-        data=df,
+        data=z,
         x=x,
         y=metric,
         hue=hue,
