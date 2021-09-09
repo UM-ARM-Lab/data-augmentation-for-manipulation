@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import re
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -10,21 +9,12 @@ from dynamo_pandas import get_df
 
 from analysis.analyze_results import planning_results
 from analysis.results_figures import lineplot
+from analysis.results_utils import dataset_dir_to_iter
 from arc_utilities import ros_init
 from link_bot_data import dynamodb_utils
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
-
-
-def dataset_dir_to_iter(p):
-    p = pathlib.Path(p)
-    for part in p.parts:
-        m = re.match(r'iter_(\d+)', part)
-        if m:
-            i = int(m.group(1))
-            return i
-    return -1
 
 
 def metrics_main(args):

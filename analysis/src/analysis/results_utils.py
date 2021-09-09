@@ -395,3 +395,23 @@ def get_all_results_subdirs(dirs: Union[pathlib.Path, List[pathlib.Path]]):
                     break
 
     return results_subdirs
+
+
+def dataset_dir_to_iter(p):
+    p = pathlib.Path(p)
+    for part in p.parts:
+        m = re.match(r'iter_(\d+)', part)
+        if m:
+            i = int(m.group(1))
+            return i
+    return -1
+
+
+def classifier_name_to_iter(p):
+    p = pathlib.Path(p)
+    for part in p.parts:
+        m = re.match(r'iteration_(\d+)_classifier_training_logdir', part)
+        if m:
+            i = int(m.group(1))
+            return i
+    return -1

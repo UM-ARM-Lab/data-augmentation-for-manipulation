@@ -28,8 +28,6 @@ groupby = [
     'on_invalid_aug',
 ]
 
-cld = '/media/shared/classifier_data/'
-
 
 def main():
     # pd.set_option('display.max_rows', 500)
@@ -47,7 +45,7 @@ def main():
     df = filter_df_for_experiment(df, args.contains)
 
     print("Classifiers:")
-    proxy_dataset_path = cld + proxy_datasets_dict[proxy_dataset_name]['ras']
+    proxy_dataset_path = proxy_datasets_dict[proxy_dataset_name]['ras']
     df_p = df_where(df, 'dataset_dirs', proxy_dataset_path)
     print('\n'.join(df_p['classifier'].sort_values().values))
     print()
@@ -58,7 +56,7 @@ def main():
 
 
 def test_improvement_of_aug_on_car_for_metric(df, proxy_metric_name):
-    proxy_dataset_path = cld + proxy_datasets_dict[proxy_dataset_name][proxy_metric_name]
+    proxy_dataset_path = proxy_datasets_dict[proxy_dataset_name][proxy_metric_name]
     df_p = df_where(df, 'dataset_dirs', proxy_dataset_path)
 
     metric_name = 'accuracy on negatives'
