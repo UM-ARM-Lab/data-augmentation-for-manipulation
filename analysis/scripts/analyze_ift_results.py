@@ -19,7 +19,7 @@ def metrics_main(args):
     outdir, df, table_specs = planning_results(args.results_dirs, args.regenerate, args.latex)
 
     iter_key = 'ift_iteration'
-    df = df.groupby([iter_key, 'used_augmentation']).agg('mean').reset_index()
+    df = df.groupby([iter_key, 'used_augmentation', 'seed']).agg('mean').reset_index(iter_key)
 
     w = 10
     x = lineplot(df, iter_key, 'success', 'Success Rate', hue='used_augmentation')

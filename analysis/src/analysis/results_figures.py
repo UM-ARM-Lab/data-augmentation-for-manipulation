@@ -231,9 +231,7 @@ def lineplot(df,
              window: int = 1,
              hue: Optional[str] = None):
     agg = {metric: 'mean', x: rlast}
-    if hue is not None:
-        agg[hue] = rlast
-    z = df.rolling(window).agg(agg)
+    z = df.groupby(hue).rolling(window).agg(agg)
     plt.figure()
     ax = sns.lineplot(
         data=z,
