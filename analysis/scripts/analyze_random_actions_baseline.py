@@ -25,7 +25,7 @@ def metrics_main(args):
     iter_key = 'classifier_dataset_iter'
     df[iter_key] = df['classifier_dataset'].map(dataset_dir_to_iter)
 
-    df = df.groupby([iter_key]).agg('mean').reset_index()
+    df = df.groupby([iter_key]).agg('mean').reset_index(iter_key)
 
     x = lineplot(df, iter_key, 'success', 'Success Rate')
     x.set_ylim(0, 1)
