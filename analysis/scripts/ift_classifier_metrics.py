@@ -34,11 +34,17 @@ def main():
     is_first_iter_cl = df['classifier'].str.contains('untrained-1')
     df = df.loc[is_iter_cl | is_first_iter_cl]
 
+    outdir = args.results_dir
+
     plot_proxy_dataset_metric(df, 'hrs', 'accuracy on negatives', 'Specificity on HRS')
+    plt.savefig(outdir / 'spec_hrs.png')
     plot_proxy_dataset_metric(df, 'ncs', 'accuracy on negatives', 'Specificity on NCS')
+    plt.savefig(outdir / 'spec_ncs.png')
     plot_proxy_dataset_metric(df, 'ras', 'accuracy', 'Accuracy on RAS')
+    plt.savefig(outdir / 'acc_ras.png')
 
     plot_mistakes_over_time(args.results_dir)
+    plt.savefig(outdir / 'mistakes.png')
     plt.show()
 
 
