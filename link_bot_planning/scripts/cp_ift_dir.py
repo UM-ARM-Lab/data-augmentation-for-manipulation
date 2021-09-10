@@ -23,7 +23,7 @@ def main():
 
     args = parser.parse_args()
 
-    tmpdir = f'~\/.tmp_{args.src.name}'
+    tmpdir = f'~/.tmp_{args.src.name}'
     shutil.copytree(args.src.as_posix(), tmpdir, dirs_exist_ok=True)
 
     src_pattern = '\/'.join(args.src.parts)
