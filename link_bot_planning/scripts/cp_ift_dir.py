@@ -23,18 +23,22 @@ def main():
 
     args = parser.parse_args()
 
-    dest = args.dest / args.src.name
-    dest_str = dest.as_posix()
-    shutil.copytree(args.src.as_posix(), dest_str, dirs_exist_ok=True)
+    tmpdir = f'~\/.tmp_{args.src.name}'
+    shutil.copytree(args.src.as_posix(), tmpdir, dirs_exist_ok=True)
 
     src_pattern = '\/'.join(args.src.parts)
+
+    dest = args.dest / args.src.name
     dest_pattern = '\/'.join(dest.parts)[1:]
 
-    for dirpath, dirnames, filenames in tqdm(os.walk(dest_str)):
+    for dirpath, dirnames, filenames in tqdm(os.walk(tmpdir)):
         for filename in filenames:
             if is_valid_filename(filename):
                 command = ['sed', '-i', f's/{src_pattern}/{dest_pattern}/g', filename]
                 subprocess.run(command, cwd=dirpath, stdout=subprocess.DEVNULL)
+
+    dest_str = dest.as_posix()
+    shutil.copytree(tmpdir, dest_str, dirs_exist_ok=True)
 
 
 if __name__ == '__main__':
