@@ -34,7 +34,7 @@ def main():
         for filename in filenames:
             if is_valid_filename(filename):
                 command = ['sed', '-i', f's/{src_pattern}/{dest_pattern}/g', filename]
-                subprocess.run(command, cwd=dirpath)
+                subprocess.run(command, cwd=dirpath, stdout=subprocess.DEVNULL)
 
 
 if __name__ == '__main__':
