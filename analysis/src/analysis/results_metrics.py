@@ -4,6 +4,7 @@ from typing import Dict, Optional
 
 import numpy as np
 import rospkg
+from colorama import Fore
 
 from analysis.results_utils import get_paths, classifier_params_from_planner_params, try_load_classifier_params
 from arc_utilities.algorithms import nested_dict_update
@@ -17,6 +18,15 @@ from moonshine.moonshine_utils import numpify
 logger = logging.getLogger(__file__)
 
 metrics_funcs = FuncListRegistrar()
+
+
+@metrics_funcs
+def ift_uuid(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
+    default_value = 'no_ift_uuid'
+    uuid = trial_metadata.get('ift_uuid', default_value)
+    if uuid == default_value:
+        print(Fore.YELLOW + default_value + Fore.RESET)
+    return uuid
 
 
 @metrics_funcs

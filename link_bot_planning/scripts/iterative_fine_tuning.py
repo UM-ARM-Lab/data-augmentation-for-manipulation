@@ -7,6 +7,7 @@ import warnings
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Dict, List
+from uuid import uuid4
 
 import numpy as np
 from more_itertools import chunked
@@ -69,6 +70,7 @@ class IterativeFineTuning:
         self.on_exception = on_exception
         self.log = log
         self.ift_config = self.log['ift_config']
+        self.ift_uuid = self.log['ift_uuid']
         self.initial_planner_params = pathify(self.log['planner_params'])
         self.log_full_tree = False
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
@@ -212,8 +214,10 @@ class IterativeFineTuning:
             self.planner.classifier_models = classifier_models
 
             seed = self.log.get('seed', 0)
+            # Use this to pass more info into the results metadata.hjson
             metadata_update = {
                 'ift_iteration': iteration_data.iteration,
+                'ift_uuid': self.ift_uuid,
             }
             runner = EvaluatePlanning(planner=self.planner,
                                       service_provider=self.service_provider,
@@ -389,6 +393,7 @@ def setup_ift(args):
         'to_env':                        to_env,
         'ift_config':                    ift_config,
         'seed':                          args.seed,
+        'ift_uuid':                          uuid4(),
     }
     with logfile_name.open("w") as logfile:
         hjson.dump(log, logfile)

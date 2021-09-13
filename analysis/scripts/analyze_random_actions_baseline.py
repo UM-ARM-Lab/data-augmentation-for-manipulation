@@ -20,8 +20,6 @@ limit_gpu_mem(0.1)
 def metrics_main(args):
     outdir, df, _ = planning_results([args.results_dir], args.regenerate, args.latex)
 
-    # turn classifier_dataset into an iter number
-
     iter_key = 'classifier_dataset_iter'
     df[iter_key] = df['classifier_dataset'].map(dataset_dir_to_iter)
 
