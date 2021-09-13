@@ -217,7 +217,8 @@ class IterativeFineTuning:
             # Use this to pass more info into the results metadata.hjson
             metadata_update = {
                 'ift_iteration': iteration_data.iteration,
-                'ift_uuid': self.ift_uuid,
+                'ift_uuid':      self.ift_uuid,
+                'ift_config':    self.ift_config,
             }
             runner = EvaluatePlanning(planner=self.planner,
                                       service_provider=self.service_provider,
@@ -393,7 +394,7 @@ def setup_ift(args):
         'to_env':                        to_env,
         'ift_config':                    ift_config,
         'seed':                          args.seed,
-        'ift_uuid':                          uuid4(),
+        'ift_uuid':                      uuid4(),
     }
     with logfile_name.open("w") as logfile:
         hjson.dump(log, logfile)

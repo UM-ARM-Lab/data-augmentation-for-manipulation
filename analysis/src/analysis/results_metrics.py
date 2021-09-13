@@ -22,6 +22,11 @@ metrics_funcs = FuncListRegistrar()
 
 
 @metrics_funcs
+def full_retrain(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
+    return trial_metadata.get('full_retrain_classifier', False)
+
+
+@metrics_funcs
 def ift_uuid(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
     default_value = 'no_ift_uuid'
     uuid = trial_metadata.get('ift_uuid', default_value)

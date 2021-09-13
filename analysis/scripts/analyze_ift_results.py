@@ -22,39 +22,39 @@ def metrics_main(args):
 
     z = df.groupby([iter_key, 'used_augmentation', 'seed', 'ift_uuid']).agg('mean').reset_index(iter_key)
     x = lineplot(z, iter_key, 'success', 'Success Rate [all separate] (rolling)', window=w, hue='ift_uuid')
-    x.set_xlim(-0.01, 100.01)
+    # x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
 
     z2 = df.groupby([iter_key]).agg('mean').reset_index(iter_key)
     x = lineplot(z2, iter_key, 'success', 'Success Rate [all combined] (rolling)', window=w)
-    x.set_xlim(-0.01, 100.01)
+    # x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
 
     z3 = df.groupby([iter_key, 'used_augmentation', 'seed']).agg('mean').reset_index(iter_key)
 
     x = lineplot(z3, iter_key, 'success', 'Success Rate', hue='used_augmentation')
-    x.set_xlim(-0.01, 100.01)
+    # x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate.png')
 
     x = lineplot(z3, iter_key, 'success', 'Success Rate (rolling)', window=w, hue='used_augmentation')
-    x.set_xlim(-0.01, 100.01)
+    # x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate_rolling.png')
 
     x = lineplot(z3, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
-    x.set_xlim(-0.01, 100.01)
+    # x.set_xlim(-0.01, 100.01)
 
     x = lineplot(z3, iter_key, 'task_error', 'Task Error (rolling)', window=w, hue='used_augmentation')
-    x.set_xlim(-0.01, 100.01)
+    # x.set_xlim(-0.01, 100.01)
 
     x = lineplot(z3, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
-    x.set_xlim(-0.01, 100.01)
+    # x.set_xlim(-0.01, 100.01)
     plt.savefig(outdir / f'normalized_model_error.png')
 
     x = lineplot(z3, iter_key, 'normalized_model_error', 'Normalized Model Error (rolling)', window=w,
                  hue='used_augmentation')
-    x.set_xlim(-0.01, 100.01)
+    # x.set_xlim(-0.01, 100.01)
     plt.savefig(outdir / f'normalized_model_error_rolling.png')
 
     if not args.no_plot:
