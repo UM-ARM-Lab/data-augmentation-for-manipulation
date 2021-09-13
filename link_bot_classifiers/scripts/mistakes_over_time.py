@@ -42,6 +42,7 @@ def main():
         dataset_is = args.dataset_i
 
     for dataset_i in dataset_is:
+        print(dataset_i)
         dataset_dir = root / 'classifier_datasets' / f'iteration_{dataset_i:04d}_dataset'
 
         c = JobChunker(logfile_name=root / 'mistakes_over_time.hjson')
