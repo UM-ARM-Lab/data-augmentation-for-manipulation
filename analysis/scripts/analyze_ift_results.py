@@ -26,7 +26,7 @@ def metrics_main(args):
     x.set_ylim(-0.01, 1.01)
 
     z2 = df.groupby([iter_key]).agg('mean').reset_index(iter_key)
-    x = lineplot(z2, iter_key, 'success', 'Success Rate [all combined] (rolling)', window=w, hue='ift_uuid')
+    x = lineplot(z2, iter_key, 'success', 'Success Rate [all combined] (rolling)', window=w)
     x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
 

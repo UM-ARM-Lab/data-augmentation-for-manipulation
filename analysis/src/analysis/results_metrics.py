@@ -6,6 +6,7 @@ import numpy as np
 import rospkg
 from colorama import Fore
 
+import rospy
 from analysis.results_utils import get_paths, classifier_params_from_planner_params, try_load_classifier_params
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
@@ -25,7 +26,7 @@ def ift_uuid(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
     default_value = 'no_ift_uuid'
     uuid = trial_metadata.get('ift_uuid', default_value)
     if uuid == default_value:
-        print(Fore.YELLOW + default_value + Fore.RESET)
+        rospy.logwarn_throttle(5, Fore.YELLOW + default_value + Fore.RESET)
     return uuid
 
 
@@ -215,6 +216,11 @@ def any_solved(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: 
 @metrics_funcs
 def num_trials(_: ExperimentScenario, __: Dict, ___: Dict):
     return 1
+
+
+@metrics_funcs
+def num_actions(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    return len(list(get_paths(trial_datum)))
 
 
 @metrics_funcs
