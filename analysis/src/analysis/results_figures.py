@@ -1,12 +1,12 @@
 import pathlib
-import seaborn as sns
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from colorama import Fore
 
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout, adjust_lightness, get_rotation
@@ -216,10 +216,6 @@ class LineBoxPlot(LinePlot):
                         showfliers=False)
 
 
-def my_rolling(window: int = 10):
-    return lambda x: x.rolling(window=window, min_periods=0).mean()
-
-
 def shifted_cumsum(x):
     return x.cumsum() - x.first()
 
@@ -228,22 +224,17 @@ def lineplot(df,
              x: str,
              metric: str,
              title: str,
-             window: int = 1,
-             hue: Optional[str] = None):
-    agg = {metric: 'mean', x: rlast}
-    if hue is not None:
-        z = df.groupby(hue).rolling(window).agg(agg)
-    else:
-        z = df.rolling(window).agg(agg)
+             hue: str = None):
     plt.figure()
     ax = sns.lineplot(
-        data=z,
+        data=df,
         x=x,
         y=metric,
         hue=hue,
+        style=hue,
         palette='colorblind',
+        ci=100,
         estimator='mean',
-        ci=80,
     )
     ax.set_title(title)
     return ax
@@ -256,6 +247,5 @@ __all__ = [
     'LinePlot',
     'MyFigure',
     'ViolinPlot',
-    'my_rolling',
     'shifted_cumsum',
 ]

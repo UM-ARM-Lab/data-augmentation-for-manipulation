@@ -9,6 +9,7 @@ import seaborn as sns
 from analysis.analyze_results import planning_results
 from analysis.results_figures import lineplot
 from arc_utilities import ros_init
+from link_bot_pycommon.pandas_utils import rlast
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -20,41 +21,47 @@ def metrics_main(args):
     w = 10
     iter_key = 'ift_iteration'
 
-    z = df.groupby([iter_key, 'used_augmentation', 'seed', 'ift_uuid']).agg('mean').reset_index(iter_key)
-    x = lineplot(z, iter_key, 'success', 'Success Rate [all separate] (rolling)', window=w, hue='ift_uuid')
-    # x.set_xlim(-0.01, 100.01)
+    z2 = df.groupby(iter_key).agg('mean').rolling(w).agg('mean')  # groupby iter_key also sorts by default
+    x = lineplot(z2, iter_key, 'success', 'Success Rate [all combined] (rolling)')
+    x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
 
-    z2 = df.groupby([iter_key]).agg('mean').reset_index(iter_key)
-    x = lineplot(z2, iter_key, 'success', 'Success Rate [all combined] (rolling)', window=w)
-    # x.set_xlim(-0.01, 100.01)
+    x = lineplot(df, iter_key, 'success', 'Success Rate (separate)', hue='ift_uuid')
+    x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
 
-    z3 = df.groupby([iter_key, 'used_augmentation', 'seed']).agg('mean').reset_index(iter_key)
-
-    x = lineplot(z3, iter_key, 'success', 'Success Rate', hue='used_augmentation')
-    # x.set_xlim(-0.01, 100.01)
+    x = lineplot(df, iter_key, 'success', 'Success Rate', hue='used_augmentation')
+    x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate.png')
 
-    x = lineplot(z3, iter_key, 'success', 'Success Rate (rolling)', window=w, hue='used_augmentation')
-    # x.set_xlim(-0.01, 100.01)
+    z3 = df.sort_values(iter_key).groupby('ift_uuid').rolling(w).agg({'success': 'mean', iter_key: rlast})
+    x = lineplot(z3, iter_key, 'success', 'Success Rate (rolling, separate)', hue='ift_uuid')
+    x.set_xlim(-0.01, 100.01)
+    x.set_ylim(-0.01, 1.01)
+
+    z_r = df.sort_values(iter_key).groupby('ift_uuid').rolling(w).agg('mean')
+    z_r = z_r.loc[(z_r['used_augmentation'] != 0.0) | (z_r['used_augmentation'] != 1.0)]
+
+    z = df.sort_values(iter_key).groupby([iter_key, 'ift_uuid']).agg('mean')
+
+    x = lineplot(z, iter_key, 'success', 'Success Rate (rolling)', hue='used_augmentation')
+    x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate_rolling.png')
 
-    x = lineplot(z3, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
-    # x.set_xlim(-0.01, 100.01)
+    x = lineplot(z, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
+    x.set_xlim(-0.01, 100.01)
 
-    x = lineplot(z3, iter_key, 'task_error', 'Task Error (rolling)', window=w, hue='used_augmentation')
-    # x.set_xlim(-0.01, 100.01)
+    x = lineplot(z_r, iter_key, 'task_error', 'Task Error (rolling)', hue='used_augmentation')
+    x.set_xlim(-0.01, 100.01)
 
-    x = lineplot(z3, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
-    # x.set_xlim(-0.01, 100.01)
+    x = lineplot(z, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
+    x.set_xlim(-0.01, 100.01)
     plt.savefig(outdir / f'normalized_model_error.png')
 
-    x = lineplot(z3, iter_key, 'normalized_model_error', 'Normalized Model Error (rolling)', window=w,
-                 hue='used_augmentation')
-    # x.set_xlim(-0.01, 100.01)
+    x = lineplot(z_r, iter_key, 'normalized_model_error', 'Normalized Model Error (rolling)', hue='used_augmentation')
+    x.set_xlim(-0.01, 100.01)
     plt.savefig(outdir / f'normalized_model_error_rolling.png')
 
     if not args.no_plot:

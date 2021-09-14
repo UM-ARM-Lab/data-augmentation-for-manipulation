@@ -23,7 +23,7 @@ metrics_funcs = FuncListRegistrar()
 
 @metrics_funcs
 def full_retrain(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
-    return trial_metadata.get('full_retrain_classifier', False)
+    return has_keys(trial_metadata, ['ift_config', 'full_retrain_classifier'])
 
 
 @metrics_funcs
