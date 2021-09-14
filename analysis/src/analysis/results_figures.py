@@ -224,14 +224,16 @@ def lineplot(df,
              x: str,
              metric: str,
              title: str,
-             hue: str = None):
+             hue: str = None,
+             style: str = None,
+             ):
     plt.figure()
     ax = sns.lineplot(
         data=df,
         x=x,
         y=metric,
         hue=hue,
-        style=hue,
+        style=style,
         palette='colorblind',
         ci=100,
         estimator='mean',

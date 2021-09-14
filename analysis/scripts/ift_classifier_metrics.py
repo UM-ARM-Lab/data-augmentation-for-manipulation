@@ -30,21 +30,23 @@ def main():
     plt.style.use('slides')
 
     df = get_df(table=dynamodb_utils.classifier_table())
-    is_iter_cl = df['classifier'].str.contains('untrained-aug-all-data.*latest_checkpoint')
+    results_name = args.results_dir.name
+    is_iter_cl = df['classifier'].str.contains(f'{results_name}.*latest_checkpoint')
     is_first_iter_cl = df['classifier'].str.contains('untrained-1')
-    df = df.loc[is_iter_cl | is_first_iter_cl]
+    z = df.loc[is_iter_cl | is_first_iter_cl]
 
     outdir = args.results_dir
 
-    plot_proxy_dataset_metric(df, 'hrs', 'accuracy on negatives', 'Specificity on HRS')
+    plot_proxy_dataset_metric(z, 'hrs', 'accuracy on negatives', 'Specificity on HRS')
     plt.savefig(outdir / 'spec_hrs.png')
-    plot_proxy_dataset_metric(df, 'ncs', 'accuracy on negatives', 'Specificity on NCS')
+    plot_proxy_dataset_metric(z, 'ncs', 'accuracy on negatives', 'Specificity on NCS')
     plt.savefig(outdir / 'spec_ncs.png')
-    plot_proxy_dataset_metric(df, 'ras', 'accuracy', 'Accuracy on RAS')
+    plot_proxy_dataset_metric(z, 'ras', 'accuracy', 'Accuracy on RAS')
     plt.savefig(outdir / 'acc_ras.png')
 
-    plot_mistakes_over_time(args.results_dir)
-    plt.savefig(outdir / 'mistakes.png')
+    # plot_mistakes_over_time(args.results_dir)
+    # plt.savefig(outdir / 'mistakes.png')
+
     plt.show()
 
 

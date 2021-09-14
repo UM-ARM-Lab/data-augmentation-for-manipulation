@@ -31,6 +31,7 @@ def metrics_main(args):
         'success':                'mean',
         'task_error':             'mean',
         'normalized_model_error': 'mean',
+        'full_retrain':           'mean',
         'used_augmentation':      rlast,
         iter_key:                 rlast,
     }
@@ -43,18 +44,23 @@ def metrics_main(args):
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate.png')
 
-    x = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling)', hue='used_augmentation')
+    x = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling1)', hue='used_augmentation', style='full_retrain')
     x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
-    plt.savefig(outdir / f'success_rate_rolling.png')
+    plt.savefig(outdir / f'success_rate_rolling1.png')
 
-    x = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid')
+    x = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling2)', hue='full_retrain')
+    x.set_xlim(-0.01, 100.01)
+    x.set_ylim(-0.01, 1.01)
+    plt.savefig(outdir / f'success_rate_rolling2.png')
+
+    x = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid', style='full_retrain')
     x.set_xlim(-0.01, 100.01)
 
     x = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
     x.set_xlim(-0.01, 100.01)
 
-    x = lineplot(df_r, iter_key, 'task_error', 'Task Error (rolling)', hue='used_augmentation')
+    x = lineplot(df_r, iter_key, 'task_error', 'Task Error (rolling)', hue='used_augmentation', style='full_retrain')
     x.set_xlim(-0.01, 100.01)
 
     x = lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
