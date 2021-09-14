@@ -26,41 +26,39 @@ def metrics_main(args):
     x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
 
-    x = lineplot(df, iter_key, 'success', 'Success Rate (separate)', hue='ift_uuid')
-    x.set_xlim(-0.01, 100.01)
-    x.set_ylim(-0.01, 1.01)
+    # compute rolling average per run
+    agg = {
+        'success':                'mean',
+        'task_error':             'mean',
+        'normalized_model_error': 'mean',
+        'used_augmentation':      rlast,
+        iter_key:                 rlast,
+    }
+    df_r = df.sort_values(iter_key).groupby('ift_uuid').rolling(w).agg(agg)
+    # hack for the fact that for iter=0 used_augmentation is always 0, even on runs where augmentation is used.
+    df_r = df_r.loc[(df_r['used_augmentation'] == 0.0) | (df_r['used_augmentation'] == 1.0)]
 
     x = lineplot(df, iter_key, 'success', 'Success Rate', hue='used_augmentation')
     x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate.png')
 
-    z3 = df.sort_values(iter_key).groupby('ift_uuid').rolling(w).agg({'success': 'mean', iter_key: rlast})
-    x = lineplot(z3, iter_key, 'success', 'Success Rate (rolling, separate)', hue='ift_uuid')
-    x.set_xlim(-0.01, 100.01)
-    x.set_ylim(-0.01, 1.01)
-
-    z_r = df.sort_values(iter_key).groupby('ift_uuid').rolling(w).agg('mean')
-    z_r = z_r.loc[(z_r['used_augmentation'] != 0.0) | (z_r['used_augmentation'] != 1.0)]
-
-    z = df.sort_values(iter_key).groupby([iter_key, 'ift_uuid']).agg('mean')
-
-    x = lineplot(z, iter_key, 'success', 'Success Rate (rolling)', hue='used_augmentation')
+    x = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling)', hue='used_augmentation')
     x.set_xlim(-0.01, 100.01)
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate_rolling.png')
 
-    x = lineplot(z, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
+    x = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
     x.set_xlim(-0.01, 100.01)
 
-    x = lineplot(z_r, iter_key, 'task_error', 'Task Error (rolling)', hue='used_augmentation')
+    x = lineplot(df_r, iter_key, 'task_error', 'Task Error (rolling)', hue='used_augmentation')
     x.set_xlim(-0.01, 100.01)
 
-    x = lineplot(z, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
+    x = lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
     x.set_xlim(-0.01, 100.01)
     plt.savefig(outdir / f'normalized_model_error.png')
 
-    x = lineplot(z_r, iter_key, 'normalized_model_error', 'Normalized Model Error (rolling)', hue='used_augmentation')
+    x = lineplot(df_r, iter_key, 'normalized_model_error', 'Normalized Model Error (rolling)', hue='used_augmentation')
     x.set_xlim(-0.01, 100.01)
     plt.savefig(outdir / f'normalized_model_error_rolling.png')
 
