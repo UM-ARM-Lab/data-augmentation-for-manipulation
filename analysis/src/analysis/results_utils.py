@@ -59,18 +59,23 @@ def classifier_params_from_planner_params(planner_params):
     return classifier_hparams
 
 
-def try_load_classifier_params(representative_classifier_model_dir):
-    try:
-        classifier_hparams = load_params(representative_classifier_model_dir.parent)
-    except RuntimeError:
+def try_load_classifier_params(representative_classifier_model_dir, parent=pathlib.Path('.')):
+    p1 = representative_classifier_model_dir.parent
+    p2 = pathlib.Path(*p1.parts[2:])
+    p3 = pathlib.Path('/media/shared/ift') / p2
+    paths_to_try = [
+        p1,
+        pathlib.Path('/media/shared/') / representative_classifier_model_dir.parent,
+        p3,
+        parent / p1,
+    ]
+    for path_to_try in paths_to_try:
         try:
-            classifier_hparams = load_params(
-                pathlib.Path('/media/shared/') / representative_classifier_model_dir.parent)
+            classifier_hparams = load_params(path_to_try)
+            return classifier_hparams
         except RuntimeError:
-            p1 = representative_classifier_model_dir.parent
-            p2 = pathlib.Path(*p1.parts[2:])
-            classifier_hparams = load_params(pathlib.Path('/media/shared/ift') / p2)
-    return classifier_hparams
+            pass
+    return None
 
 
 def classifer_dataset_params_from_planner_params(planner_params: Dict):

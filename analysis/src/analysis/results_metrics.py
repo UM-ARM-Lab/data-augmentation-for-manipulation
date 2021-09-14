@@ -7,7 +7,7 @@ import rospkg
 from colorama import Fore
 
 import rospy
-from analysis.results_utils import get_paths, classifier_params_from_planner_params, try_load_classifier_params
+from analysis.results_utils import get_paths, try_load_classifier_params
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -22,12 +22,12 @@ metrics_funcs = FuncListRegistrar()
 
 
 @metrics_funcs
-def full_retrain(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
+def full_retrain(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     return has_keys(trial_metadata, ['ift_config', 'full_retrain_classifier'])
 
 
 @metrics_funcs
-def ift_uuid(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
+def ift_uuid(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     default_value = 'no_ift_uuid'
     uuid = trial_metadata.get('ift_uuid', default_value)
     if uuid == default_value:
@@ -36,22 +36,23 @@ def ift_uuid(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
 
 
 @metrics_funcs
-def used_augmentation(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
+def used_augmentation(path: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     try:
         classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
-        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        classifier_hparams = try_load_classifier_params(classifier_model_dir, path.parent.parent.parent)
         if 'augmentation' in classifier_hparams:
             return True
         return False
     except RuntimeError:
+        print("error!")
         return False
 
 
 @metrics_funcs
-def augmentation_type(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
+def augmentation_type(path: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     try:
         classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
-        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        classifier_hparams = try_load_classifier_params(classifier_model_dir, path.parent.parent.parent)
         if 'augmentation' in classifier_hparams:
             aug_params = classifier_hparams['augmentation']
             aug_type_str = f"{aug_params['type']}-{aug_params['on_invalid_aug']}"
@@ -62,7 +63,7 @@ def augmentation_type(_: ExperimentScenario, trial_metadata: Dict, __: Dict):
 
 
 @metrics_funcs
-def starts_with_recovery(_: ExperimentScenario, __: Dict, trial_datum: Dict):
+def starts_with_recovery(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
     try:
         first_step = trial_datum['steps'][0]
         return first_step['type'] == 'executed_recovery'
@@ -71,7 +72,7 @@ def starts_with_recovery(_: ExperimentScenario, __: Dict, trial_datum: Dict):
 
 
 @metrics_funcs
-def num_recovery_actions(_: ExperimentScenario, __: Dict, trial_datum: Dict):
+def num_recovery_actions(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
     count = 0
     for step in trial_datum['steps']:
         if step['type'] == 'executed_recovery':
@@ -80,13 +81,13 @@ def num_recovery_actions(_: ExperimentScenario, __: Dict, trial_datum: Dict):
 
 
 @metrics_funcs
-def num_steps(_: ExperimentScenario, __: Dict, trial_datum: Dict):
+def num_steps(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
     paths = list(get_paths(trial_datum))
     return len(paths)
 
 
 @metrics_funcs
-def cumulative_task_error(scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
+def cumulative_task_error(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
     goal = trial_datum['goal']
     cumulative_error = 0
     for _, _, actual_state_t, _, _, _ in get_paths(trial_datum):
@@ -95,7 +96,7 @@ def cumulative_task_error(scenario: ExperimentScenario, __: Dict, trial_datum: D
 
 
 @metrics_funcs
-def cumulative_planning_error(scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
+def cumulative_planning_error(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
     goal = trial_datum['goal']
     cumulative_error = 0
     for _, _, actual_state_t, _, _, _ in get_paths(trial_datum, full_path=True):
@@ -104,7 +105,7 @@ def cumulative_planning_error(scenario: ExperimentScenario, __: Dict, trial_datu
 
 
 @metrics_funcs
-def task_error(scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
+def task_error(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
     goal = trial_datum['goal']
     final_actual_state = trial_datum['end_state']
     final_execution_to_goal_error = scenario.distance_to_goal(final_actual_state, goal)
@@ -112,10 +113,10 @@ def task_error(scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
 
 
 @metrics_funcs
-def is_fine_tuned(_: ExperimentScenario, trial_metadata: Dict, ___: Dict):
+def is_fine_tuned(path: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     try:
         classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
-        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        classifier_hparams = try_load_classifier_params(classifier_model_dir, path.parent.parent.parent)
         for k in list(classifier_hparams.keys()):
             if 'fine_tune' in k:
                 return True
@@ -125,24 +126,24 @@ def is_fine_tuned(_: ExperimentScenario, trial_metadata: Dict, ___: Dict):
 
 
 @metrics_funcs
-def timeout(_: ExperimentScenario, trial_metadata: Dict, ___: Dict):
+def timeout(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     return trial_metadata['planner_params']['termination_criteria']['timeout']
 
 
 @metrics_funcs
-def stop_on_error(_: ExperimentScenario, trial_metadata: Dict, ___: Dict):
+def stop_on_error(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     soe = has_keys(trial_metadata, ['planner_params', 'stop_on_error_above'], 999)
     return soe < 1
 
 
 @metrics_funcs
-def success(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
-    final_execution_to_goal_error = task_error(scenario, trial_metadata, trial_datum)
+def success(path: pathlib.Path, scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    final_execution_to_goal_error = task_error(path, scenario, trial_metadata, trial_datum)
     return int(final_execution_to_goal_error < trial_metadata['planner_params']['goal_params']['threshold'])
 
 
 @metrics_funcs
-def recovery_success(_: ExperimentScenario, __: Dict, trial_datum: Dict):
+def recovery_success(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
     recovery_started = False
     recoveries_finished = 0
     recoveries_started = 0
@@ -161,7 +162,7 @@ def recovery_success(_: ExperimentScenario, __: Dict, trial_datum: Dict):
 
 
 @metrics_funcs
-def planning_time(_: ExperimentScenario, __: Dict, trial_datum: Dict):
+def planning_time(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
     _planning_time = 0
     for step in trial_datum['steps']:
         _planning_time += step['planning_result'].time
@@ -169,7 +170,7 @@ def planning_time(_: ExperimentScenario, __: Dict, trial_datum: Dict):
 
 
 @metrics_funcs
-def max_planning_time(_: ExperimentScenario, __: Dict, trial_datum: Dict):
+def max_planning_time(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
     planning_times = []
     for step in trial_datum['steps']:
         planning_times.append(step['planning_result'].time)
@@ -177,7 +178,7 @@ def max_planning_time(_: ExperimentScenario, __: Dict, trial_datum: Dict):
 
 
 @metrics_funcs
-def mean_progagation_time(_: ExperimentScenario, __: Dict, trial_datum: Dict):
+def mean_progagation_time(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
     progagation_times = []
     # average across all the planning results in the trial
     for step in trial_datum['steps']:
@@ -193,13 +194,13 @@ def mean_progagation_time(_: ExperimentScenario, __: Dict, trial_datum: Dict):
 
 
 @metrics_funcs
-def total_time(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
-    total_time = trial_datum['total_time']
-    return total_time
+def total_time(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
+    _total_time = trial_datum['total_time']
+    return _total_time
 
 
 @metrics_funcs
-def num_planning_attempts(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+def num_planning_attempts(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
     attempts = 0
     for step in trial_datum['steps']:
         if step['type'] == 'executed_plan':
@@ -208,7 +209,7 @@ def num_planning_attempts(scenario: ExperimentScenario, trial_metadata: Dict, tr
 
 
 @metrics_funcs
-def any_solved(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+def any_solved(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
     solved = False
     for step in trial_datum['steps']:
         if step['type'] == 'executed_plan':
@@ -219,17 +220,17 @@ def any_solved(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: 
 
 
 @metrics_funcs
-def num_trials(_: ExperimentScenario, __: Dict, ___: Dict):
+def num_trials(_: pathlib.Path, __: ExperimentScenario, ___: Dict, ____: Dict):
     return 1
 
 
 @metrics_funcs
-def num_actions(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+def num_actions(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: Dict):
     return len(list(get_paths(trial_datum)))
 
 
 @metrics_funcs
-def normalized_model_error(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+def normalized_model_error(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
     total_model_error = 0.0
     n_total_actions = 0
     for _, _, actual_state_t, planned_state_t, type_t, _ in get_paths(trial_datum):
@@ -243,7 +244,7 @@ def normalized_model_error(scenario: ExperimentScenario, trial_metadata: Dict, t
 
 
 @metrics_funcs
-def recovery_name(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+def recovery_name(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     r = trial_metadata['planner_params']['recovery']
     use_recovery = r.get('use_recovery', False)
     if not use_recovery:
@@ -253,7 +254,7 @@ def recovery_name(scenario: ExperimentScenario, trial_metadata: Dict, trial_datu
 
 
 @metrics_funcs
-def classifier_name(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+def classifier_name(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     c = trial_metadata['planner_params']['classifier_model_dir']
     found = False
     classifier_name_ = None
@@ -277,7 +278,7 @@ def classifier_name(scenario: ExperimentScenario, trial_metadata: Dict, trial_da
 
 
 @metrics_funcs
-def classifier_dataset(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+def classifier_dataset(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     try:
         classifier_model_dirs = paths_from_json(trial_metadata['planner_params']['classifier_model_dir'])
         for representative_classifier_model_dir in classifier_model_dirs:
@@ -289,10 +290,11 @@ def classifier_dataset(scenario: ExperimentScenario, trial_metadata: Dict, trial
 
 
 @metrics_funcs
-def classifier_source_env(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+def classifier_source_env(path: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     try:
-        cl_params = classifier_params_from_planner_params(trial_metadata['planner_params'])
-        scene_name = has_keys(cl_params, ['classifier_dataset_hparams', 'scene_name'], None)
+        classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
+        classifier_hparams = try_load_classifier_params(classifier_model_dir, path.parent.parent.parent)
+        scene_name = has_keys(classifier_hparams, ['classifier_dataset_hparams', 'scene_name'], None)
         if scene_name is None:
             print(f"Missing scene_name for {trial_metadata['planner_params']['classifier_model_dir'][0]}")
             return "no-scene-name"
@@ -303,7 +305,7 @@ def classifier_source_env(scenario: ExperimentScenario, trial_metadata: Dict, tr
 
 
 @metrics_funcs
-def target_env(scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+def target_env(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     return pathlib.Path(trial_metadata['test_scenes_dir']).name
 
 

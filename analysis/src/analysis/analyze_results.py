@@ -128,7 +128,7 @@ def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool = F
 
 
 def make_row(datum: Dict, data_filename: pathlib.Path, metadata: Dict, scenario: ScenarioWithVisualization):
-    metrics_values = [metric_func(scenario, metadata, datum) for metric_func in metrics_funcs]
+    metrics_values = [metric_func(data_filename, scenario, metadata, datum) for metric_func in metrics_funcs]
     trial_idx = datum['trial_idx']
     try:
         seed_guess = datum['steps'][0]['planning_query'].seed - 100000 * trial_idx
