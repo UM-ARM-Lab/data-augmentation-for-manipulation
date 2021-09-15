@@ -38,8 +38,7 @@ def ift_uuid(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___:
 @metrics_funcs
 def used_augmentation(path: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     try:
-        classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
-        classifier_hparams = try_load_classifier_params(classifier_model_dir, path.parent.parent.parent)
+        classifier_hparams = trial_metadata_to_classifier_hparams(path, trial_metadata)
         if 'augmentation' in classifier_hparams:
             return True
         return False
@@ -51,8 +50,7 @@ def used_augmentation(path: pathlib.Path, __: ExperimentScenario, trial_metadata
 @metrics_funcs
 def augmentation_type(path: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     try:
-        classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
-        classifier_hparams = try_load_classifier_params(classifier_model_dir, path.parent.parent.parent)
+        classifier_hparams = trial_metadata_to_classifier_hparams(path, trial_metadata)
         if 'augmentation' in classifier_hparams:
             aug_params = classifier_hparams['augmentation']
             aug_type_str = f"{aug_params['type']}-{aug_params['on_invalid_aug']}"
@@ -115,8 +113,7 @@ def task_error(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_da
 @metrics_funcs
 def is_fine_tuned(path: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     try:
-        classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
-        classifier_hparams = try_load_classifier_params(classifier_model_dir, path.parent.parent.parent)
+        classifier_hparams = trial_metadata_to_classifier_hparams(path, trial_metadata)
         for k in list(classifier_hparams.keys()):
             if 'fine_tune' in k:
                 return True
@@ -292,8 +289,7 @@ def classifier_dataset(_: pathlib.Path, __: ExperimentScenario, trial_metadata: 
 @metrics_funcs
 def classifier_source_env(path: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     try:
-        classifier_model_dir = pathlib.Path(trial_metadata['planner_params']['classifier_model_dir'][0])
-        classifier_hparams = try_load_classifier_params(classifier_model_dir, path.parent.parent.parent)
+        classifier_hparams = trial_metadata_to_classifier_hparams(path, trial_metadata)
         scene_name = has_keys(classifier_hparams, ['classifier_dataset_hparams', 'scene_name'], None)
         if scene_name is None:
             print(f"Missing scene_name for {trial_metadata['planner_params']['classifier_model_dir'][0]}")
@@ -324,6 +320,15 @@ def load_analysis_hjson(analysis_params_filename: pathlib.Path):
     analysis_params_common_filename = analysis_dir / analysis_params_filename
     analysis_params = load_hjson(analysis_params_common_filename)
     return analysis_params
+
+
+def trial_metadata_to_classifier_hparams(path, trial_metadata):
+    classifier_model_dir = trial_metadata['planner_params']['classifier_model_dir']
+    if isinstance(classifier_model_dir, list):
+        classifier_model_dir = classifier_model_dir[0]
+    classifier_model_dir = pathlib.Path(classifier_model_dir)
+    classifier_hparams = try_load_classifier_params(classifier_model_dir, path.parent.parent.parent)
+    return classifier_hparams
 
 
 metrics_names = [func.__name__ for func in metrics_funcs]

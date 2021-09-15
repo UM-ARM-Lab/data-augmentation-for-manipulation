@@ -7,6 +7,7 @@ import boto3
 from analysis.results_utils import try_load_classifier_params
 from link_bot_data import dynamodb_utils
 from link_bot_data.dynamodb_utils import update_classifier_db
+from link_bot_pycommon.pycommon import has_keys
 
 
 def add_fine_tuning_dataset_dirs(item):
@@ -167,6 +168,21 @@ def add_on_invalid_aug(item):
         return True, 'NULL', k
 
 
+def add_ift_uuid(item):
+    k = 'ift_uuid'
+    if "S" in item['classifier']:
+        classifier_model_dir = pathlib.Path(item['classifier']["S"])
+        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        if classifier_hparams is None:
+            return True, 'NULL', k
+        v = classifier_hparams.get(k, None)
+        if v is None:
+            return True, 'NULL', k
+        return v, "S", k
+    else:
+        return True, 'NULL', k
+
+
 def add_fine_tuned_from(item):
     k = 'fine_tuned_from'
     if "S" in item['fine_tuning_dataset_dirs']:
@@ -176,6 +192,21 @@ def add_fine_tuned_from(item):
         if v is None:
             return 'unknown', "S", k
         return v, "S", k
+    else:
+        return True, 'NULL', k
+
+
+def add_full_retrain(item):
+    k = 'full_retrain'
+    if "S" in item['classifier']:
+        classifier_model_dir = pathlib.Path(item['classifier']["S"])
+        classifier_hparams = try_load_classifier_params(classifier_model_dir)
+        if classifier_hparams is None:
+            return True, 'NULL', k
+        v = has_keys(classifier_hparams, ['ift_config', 'full_retrain_classifier'])
+        if v is None:
+            return True, 'NULL', k
+        return v, "BOOL", k
     else:
         return True, 'NULL', k
 
@@ -194,8 +225,7 @@ def main():
     #     print("Aborting")
     #     return
 
-    update_classifier_db(client, table, rename_classifier_model_dir)
-    # update_classifier_db(client, table, add_fine_tuned_from)
+    update_classifier_db(client, table, add_full_retrain)
 
 
 if __name__ == '__main__':

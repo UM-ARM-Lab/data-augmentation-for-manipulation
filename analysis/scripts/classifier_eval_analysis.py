@@ -8,6 +8,7 @@ from dynamo_pandas import get_df
 
 from analysis.analyze_results import load_table_specs, generate_tables
 from link_bot_data import dynamodb_utils
+from link_bot_data.dynamodb_utils import get_classifier_df
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
     parser.add_argument('--latex')
     args = parser.parse_args()
 
-    df = get_df(table=dynamodb_utils.classifier_table(args.debug))
+    df = get_classifier_df()
     df = df.loc[df['mode'] == 'all']
 
     if args.latex:

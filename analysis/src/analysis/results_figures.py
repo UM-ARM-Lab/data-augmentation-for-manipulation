@@ -226,8 +226,8 @@ def lineplot(df,
              title: str,
              hue: str = None,
              style: str = None,
-             ):
-    plt.figure()
+             figsize=None):
+    fig = plt.figure(figsize=figsize)
     ax = sns.lineplot(
         data=df,
         x=x,
@@ -239,7 +239,7 @@ def lineplot(df,
         estimator='mean',
     )
     ax.set_title(title)
-    return ax
+    return fig, ax
 
 
 __all__ = [

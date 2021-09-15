@@ -1,6 +1,8 @@
 from typing import Callable
 
 from colorama import Fore
+from dynamo_pandas import get_df
+from halo import halo
 
 primary_key = 'uuid'
 
@@ -27,8 +29,23 @@ def update_item(client, dtype, item, k, table, v):
 
 
 def update_classifier_db(client, table, f: Callable):
-    for item in client.scan(TableName=table)['Items']:
-        result = f(item)
-        if result is not None:
-            v, dtype, k = result
-            update_item(client, dtype, item, k, table, v)
+    response = client.scan(TableName=table)
+    while True:
+        items = response["Items"]
+
+        for item in items:
+            result = f(item)
+            if result is not None:
+                v, dtype, k = result
+                update_item(client, dtype, item, k, table, v)
+
+        if "LastEvaluatedKey" not in response:
+            break
+        key = response["LastEvaluatedKey"]
+        response = client.scan(TableName=table, ExclusiveStartKey=key)
+
+
+@halo.Halo("getting classifier df")
+def get_classifier_df(debug=False):
+    df = get_df(table=classifier_table(debug))
+    return df

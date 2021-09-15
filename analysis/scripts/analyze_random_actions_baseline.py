@@ -12,6 +12,7 @@ from analysis.results_figures import lineplot
 from analysis.results_utils import dataset_dir_to_iter
 from arc_utilities import ros_init
 from link_bot_data import dynamodb_utils
+from link_bot_data.dynamodb_utils import get_classifier_df
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -25,11 +26,13 @@ def metrics_main(args):
 
     df = df.groupby([iter_key]).agg('mean').reset_index(iter_key)
 
-    x = lineplot(df, iter_key, 'success', 'Success Rate')
+    fig, x = lineplot(df, iter_key, 'success', 'Success Rate')
     x.set_ylim(0, 1)
     plt.savefig(outdir / f'success_rate.png')
     lineplot(df, iter_key, 'task_error', 'Task Error')
+    plt.savefig(outdir / f'task_error.png')
     lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error')
+    plt.savefig(outdir / f'nme.png')
 
     classifier_analysis(iter_key, args.results_dir)
 
@@ -38,7 +41,7 @@ def metrics_main(args):
 
 
 def classifier_analysis(iter_key, root):
-    df = get_df(table=dynamodb_utils.classifier_table())
+    df = get_classifier_df()
 
     df = df.loc[df['classifier'].str.contains(root.as_posix()) | df['classifier'].str.contains('untrained-1')]
     df[iter_key] = df['classifier'].map(dataset_dir_to_iter)

@@ -70,11 +70,9 @@ def try_load_classifier_params(representative_classifier_model_dir, parent=pathl
         parent / p1,
     ]
     for path_to_try in paths_to_try:
-        try:
+        if path_to_try.exists():
             classifier_hparams = load_params(path_to_try)
             return classifier_hparams
-        except RuntimeError:
-            pass
     return None
 
 

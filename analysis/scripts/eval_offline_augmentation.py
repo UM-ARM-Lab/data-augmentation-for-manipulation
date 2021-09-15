@@ -11,6 +11,7 @@ from dynamo_pandas import get_df
 
 from analysis.proxy_datasets import proxy_datasets_dict
 from link_bot_data import dynamodb_utils
+from link_bot_data.dynamodb_utils import get_classifier_df
 from link_bot_pycommon.pandas_utils import df_where
 
 proxy_dataset_name = 'car1'
@@ -35,7 +36,7 @@ def main():
     parser.add_argument('--debug')
     args = parser.parse_args()
 
-    df = get_df(table=dynamodb_utils.classifier_table(args.debug))
+    df = get_classifier_df(args.debug)
 
     df = filter_df_for_experiment(df, args.contains)
 

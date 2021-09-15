@@ -8,6 +8,7 @@ from dynamo_pandas import get_df
 from analysis.analyze_results import generate_tables, make_table_specs
 from analysis.results_utils import try_load_classifier_params
 from link_bot_data import dynamodb_utils
+from link_bot_data.dynamodb_utils import get_classifier_df
 from link_bot_pycommon.pandas_utils import df_where
 
 
@@ -113,7 +114,7 @@ def main():
     else:
         table_format = tabulate.simple_separated_format("\t")
 
-    df = get_df(table=dynamodb_utils.classifier_table(args.debug))
+    df = get_classifier_df(args.debug)
 
     df = filter_df_for_experiment(df)
 
