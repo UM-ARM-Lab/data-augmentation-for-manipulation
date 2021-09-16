@@ -80,7 +80,10 @@ def plot_proxy_dataset_metric(df, proxy_dataset_type: str, metric_name: str, tit
         iter_key:            rlast,
     }
     df = df.loc[~df['full_retrain'].isna()]
+    z = df.loc[(df['full_retrain'] == 1.0) & (df['do_augmentation'] == 0.0)]
+    h=z.sort_values(iter_key).rolling(10).agg(agg)
     df_r = df.sort_values(iter_key).groupby(['full_retrain', 'do_augmentation']).rolling(10).agg(agg)
+    z = df.sort_values(iter_key).groupby(['full_retrain', 'do_augmentation']).first()
 
     # fig, ax = lineplot(df_r, iter_key, metric_name, title + ' (rolling)', figsize=(10, 7), hue='full_retrain')
     # ax.set_xlim(0, 100)

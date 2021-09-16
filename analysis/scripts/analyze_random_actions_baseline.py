@@ -5,13 +5,11 @@ import pathlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from dynamo_pandas import get_df
 
 from analysis.analyze_results import planning_results
 from analysis.results_figures import lineplot
 from analysis.results_utils import dataset_dir_to_iter
 from arc_utilities import ros_init
-from link_bot_data import dynamodb_utils
 from link_bot_data.dynamodb_utils import get_classifier_df
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -47,8 +45,16 @@ def classifier_analysis(iter_key, root):
     df[iter_key] = df['classifier'].map(dataset_dir_to_iter)
     df[iter_key] = df[iter_key].map(lambda i: i + 1)
 
-    lineplot(df, iter_key, 'accuracy', "Accuracy on 100k Dataset")
-    lineplot(df, iter_key, 'accuracy on negatives', "Specificity on 100k Dataset")
+    def plot_eval(dataset_name):
+        df_for_dataset = df.loc[df['dataset_dirs'].str.contains(dataset_name)]
+        lineplot(df_for_dataset, iter_key, 'accuracy', f"Accuracy on {dataset_name} Dataset")
+        plt.savefig(root / f"{dataset_name}-accuracy.png")
+        lineplot(df_for_dataset, iter_key, 'accuracy on negatives', f"Specificity on {dataset_name} Dataset")
+        plt.savefig(root / f"{dataset_name}-specificity.png")
+
+    plot_eval('val_car_bigger_hooks1_1625783230')
+    plot_eval('proxy_car_bigger_hooks_heuristic.neg-hand-chosen-1')
+    plot_eval('proxy_car_bigger_hooks_heuristic$')  # $ means end of line, to disambiguate
 
 
 @ros_init.with_ros("analyse_random_actions_baseline")

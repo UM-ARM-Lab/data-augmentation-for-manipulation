@@ -139,7 +139,11 @@ class RandomActionsBaseline:
         chunker.save()
 
         planner_params = load_planner_params(self.planner_params_filename)
-        planner_params["classifier_model_dir"] = classifier_model_dir
+        planner_params["classifier_model_dir"] = [
+            classifier_model_dir,
+            '/media/shared/cl_trials/new_feasibility_baseline/none',
+        ]
+
         planner_params_tuples = [('random_actions_baseline', planner_params)]
 
         trials = list(get_all_scene_indices(self.test_scenes_dir))

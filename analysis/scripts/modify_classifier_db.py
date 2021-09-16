@@ -6,7 +6,7 @@ import boto3
 
 from analysis.results_utils import try_load_classifier_params
 from link_bot_data import dynamodb_utils
-from link_bot_data.dynamodb_utils import update_classifier_db
+from link_bot_data.dynamodb_utils import update_classifier_db, remove_duplicates_in_classifier_db
 from link_bot_pycommon.pycommon import has_keys
 
 
@@ -225,7 +225,8 @@ def main():
     #     print("Aborting")
     #     return
 
-    update_classifier_db(client, table, add_full_retrain)
+    # update_classifier_db(client, table, add_full_retrain)
+    remove_duplicates_in_classifier_db(client, table)
 
 
 if __name__ == '__main__':

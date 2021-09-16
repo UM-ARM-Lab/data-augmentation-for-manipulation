@@ -4,7 +4,7 @@ import pathlib
 
 from arc_utilities import ros_init
 from analysis import results_utils
-from analysis.results_utils import classifier_params_from_planner_params, plot_steps
+from analysis.results_utils import classifier_params_from_planner_params, plot_steps, get_all_results_subdirs
 from link_bot_planning.plan_and_execute import TrialStatus
 from link_bot_pycommon.args import int_set_arg
 
@@ -22,11 +22,8 @@ def main():
 
     args = parser.parse_args()
 
-    try:
-        scenario, metadata = results_utils.get_scenario_and_metadata(args.results_dir)
-    except RuntimeError:
-        args.results_dir = next(args.results_dir.iterdir())
-        scenario, metadata = results_utils.get_scenario_and_metadata(args.results_dir)
+    results_dir = get_all_results_subdirs(args.results_dir)[0]
+    scenario, metadata = results_utils.get_scenario_and_metadata(results_dir)
 
     classifier_params = classifier_params_from_planner_params(metadata['planner_params'])
     if args.threshold is None:
@@ -34,7 +31,7 @@ def main():
     else:
         threshold = args.threshold
 
-    for trial_idx, datum, datum_filename in results_utils.trials_generator(args.results_dir, args.trials):
+    for trial_idx, datum, datum_filename in results_utils.trials_generator(results_dir, args.trials):
         trial_status = datum['trial_status']
         should_skip = (args.only_timeouts and trial_status == TrialStatus.Reached or
                        args.only_reached and trial_status != TrialStatus.Reached)

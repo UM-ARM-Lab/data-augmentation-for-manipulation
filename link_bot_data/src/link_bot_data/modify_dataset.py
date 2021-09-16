@@ -66,20 +66,24 @@ def filter_dataset(dataset_dir: pathlib.Path,
                    save_format: str,
                    hparams_update: Optional[Dict] = None,
                    do_not_process: bool = True,
-                   slow: bool = False):
+                   slow: bool = False,
+                   start_at: int = 0):
     total_count = 0
     for full_output_directory, i, example in dataset_generator_all_modes(dataset_dir, dataset, outdir, hparams_update,
                                                                          do_not_process, slow):
+        if i < start_at:
+            continue
         if should_keep(dataset, example):
             total_count += 1
-            for k in dataset.scenario_metadata.keys():
-                example.pop(k)
+            if hasattr(dataset, 'scenario_metadata'):
+                for k in dataset.scenario_metadata.keys():
+                    example.pop(k)
             write_example(full_output_directory, example, total_count, save_format)
     print(Fore.GREEN + f"Kept {total_count} examples")
 
 
 def dataset_generator_all_modes(dataset_dir: pathlib.Path,
-                                dataset,
+                                dataset_loader,
                                 outdir: pathlib.Path,
                                 hparams_update: Optional[Dict] = None,
                                 do_not_process: bool = True,
@@ -90,11 +94,11 @@ def dataset_generator_all_modes(dataset_dir: pathlib.Path,
     modify_hparams(dataset_dir, outdir, hparams_update)
 
     for mode in ['train', 'test', 'val']:
-        tf_dataset = dataset.get_datasets(mode=mode, shuffle=False, do_not_process=do_not_process, slow=slow)
+        dataset = dataset_loader.get_datasets(mode=mode, shuffle=False, do_not_process=do_not_process, slow=slow)
         full_output_directory = outdir / mode
         full_output_directory.mkdir(parents=True, exist_ok=True)
 
-        for i, example in enumerate(progressbar(tf_dataset, widgets=mywidgets)):
+        for i, example in enumerate(progressbar(dataset, widgets=mywidgets)):
             yield full_output_directory, i, example
 
 
