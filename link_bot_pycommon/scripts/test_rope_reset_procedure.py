@@ -18,6 +18,8 @@ def main():
 
     s.randomize_environment(env_rng, params)
 
+    s.robot.disconnect()
+
 
 if __name__ == '__main__':
     main()
