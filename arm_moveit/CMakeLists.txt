@@ -28,6 +28,9 @@ target_include_directories(robot_points_generator SYSTEM PUBLIC ${catkin_INCLUDE
 target_link_libraries(robot_points_generator PUBLIC ${catkin_LIBRARIES})
 target_compile_options(robot_points_generator PUBLIC ${FLAGS})
 
+add_executable(motion_planning_tutorial src/motion_planning_tutorial.cpp)
+target_link_libraries(motion_planning_tutorial PUBLIC ${catkin_LIBRARIES} robot_points_generator)
+
 add_executable(robot_points_generator_node src/robot_points_generator_node.cpp)
 target_link_libraries(robot_points_generator_node PUBLIC ${catkin_LIBRARIES} robot_points_generator)
 
