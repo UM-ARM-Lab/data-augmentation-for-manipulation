@@ -45,15 +45,19 @@ def n(i, n_examples):
 
 def binary_search(n):
     q = [(0, n)]
+    yield 0
+    yield n
     while len(q) > 0:
         low, high = q.pop(0)
         mid = (high + low) // 2
-        yield mid
+        if mid != 0 and mid != n:
+            yield mid
         if high - low > 1:
             q.append((low, mid - 1))
             q.append((mid + 1, high))
         elif high - low == 1:
-            yield high
+            if high != 0 and high != n:
+                yield high
 
 
 class RandomActionsBaseline:
