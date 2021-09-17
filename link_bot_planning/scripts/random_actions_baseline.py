@@ -3,6 +3,7 @@ import argparse
 import logging
 import pathlib
 import shutil
+from multiprocessing import Pool
 
 import rospkg
 import tensorflow as tf
@@ -18,6 +19,20 @@ from link_bot_planning.planning_evaluation import evaluate_multiple_planning, lo
 from link_bot_planning.test_scenes import get_all_scene_indices
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.pycommon import pathify
+
+
+def copy(classifier_dataset_i_dir: pathlib.Path, filename: pathlib.Path):
+    out_filename = classifier_dataset_i_dir / filename.name
+    if not out_filename.exists():
+        shutil.copy(filename.as_posix(), out_filename.as_posix())
+
+
+def copy_dataset_files(args):
+    classifier_dataset_i_dir, filename = args
+    copy(classifier_dataset_i_dir, filename)
+    gz_filename = filename.parent / (filename.name + '.gz')
+    copy(classifier_dataset_i_dir, gz_filename)
+
 
 r = rospkg.RosPack()
 
@@ -62,16 +77,15 @@ class RandomActionsBaseline:
         gazebo_processes = get_gazebo_processes()
 
         full_dataset_n_examples = len(self.full_classifier_dataset)
-        full_dataset_n_examples = 100
+        resolution = 1000
 
-        resolution = 10
         n_batches = full_dataset_n_examples // resolution
         iterations = list(binary_search(n_batches))
         for i, j in enumerate(iterations):
             n_examples = resolution * j
             print(Fore.GREEN + f'Iteration {i}/{len(iterations)}, {n_examples} examples' + Fore.RESET)
 
-            iter_chunker = self.job_chunker.sub_chunker(str(i))
+            iter_chunker = self.job_chunker.sub_chunker(n(i, n_examples))
 
             # take n_examples from the full dataset, make a copy of it
             # this is inefficient in terms of disc space but it makes the code/analysis easier
@@ -146,16 +160,13 @@ class RandomActionsBaseline:
         classifier_dataset_i_dir.mkdir(parents=True, exist_ok=True)
         parent = classifier_dataset_i.filenames[0].parent
 
-        def _copy(_filename):
-            _out_filename = classifier_dataset_i_dir / _filename.name
-            if not _out_filename.exists():
-                shutil.copy(_filename.as_posix(), _out_filename.as_posix())
+        copy(classifier_dataset_i_dir, parent / 'hparams.hjson')
 
-        _copy(parent / 'hparams.hjson')
-        for filename in tqdm(classifier_dataset_i.filenames, 'copying dataset files...'):
-            _copy(filename)
-            gz_filename = filename.parent / (filename.name + '.gz')
-            _copy(gz_filename)
+        desc = "copying dataset files..."
+        args = [(classifier_dataset_i_dir, filename) for filename in classifier_dataset_i.filenames]
+        n = len(classifier_dataset_i.filenames)
+        with Pool() as p:
+            _ = list(tqdm(p.map(copy_dataset_files, args), desc=desc, total=n))
 
         split_dataset(classifier_dataset_i_dir)
 
