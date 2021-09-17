@@ -162,9 +162,8 @@ class RandomActionsBaseline:
         classifier_dataset_i = self.full_classifier_dataset.take(n_examples)
         classifier_dataset_i_dir = self.logdir / 'classifier_datasets' / f"iteration_{i:04d}_examples_{n_examples:09d}"
         classifier_dataset_i_dir.mkdir(parents=True, exist_ok=True)
-        parent = classifier_dataset_i.filenames[0].parent
 
-        copy(classifier_dataset_i_dir, parent / 'hparams.hjson')
+        copy(classifier_dataset_i_dir, self.full_classifier_dataset_dir / 'hparams.hjson')
 
         desc = "copying dataset files..."
         args = [(classifier_dataset_i_dir, filename) for filename in classifier_dataset_i.filenames]
