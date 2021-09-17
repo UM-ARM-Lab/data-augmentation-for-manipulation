@@ -166,7 +166,7 @@ class RandomActionsBaseline:
         args = [(classifier_dataset_i_dir, filename) for filename in classifier_dataset_i.filenames]
         n = len(classifier_dataset_i.filenames)
         with Pool() as p:
-            _ = list(tqdm(p.map(copy_dataset_files, args), desc=desc, total=n))
+            _ = list(tqdm(p.imap_unordered(copy_dataset_files, args), desc=desc, total=n))
 
         split_dataset(classifier_dataset_i_dir)
 
