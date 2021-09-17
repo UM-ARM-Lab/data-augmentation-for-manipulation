@@ -51,6 +51,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         return []
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
+        self.robot.set_left_gripper(1.0)
         self.robot.plan_to_joint_config(self.reset_move_group, dict(params['real_val_rope_reset_joint_config']))
 
         while True:

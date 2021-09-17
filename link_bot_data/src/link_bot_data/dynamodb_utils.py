@@ -59,6 +59,41 @@ def update_classifier_db(client, table, f: Callable):
             update_item(client, dtype, item, k, table, v)
 
 
+def classifier_rows_are_close(item, item2):
+    ignore_these_keys = ['uuid', 'time']
+    for k, v1 in item.items():
+        if k in ignore_these_keys:
+            continue
+        if k not in item2:
+            return False
+
+        v2 = item2[k]
+        if 'NULL' in v1 and 'NULL' in v2:
+            continue
+        elif 'NULL' in v1:
+            return False
+        elif 'NULL' in v2:
+            return False
+
+        if 'S' in v1:
+            v1 = v1['S']
+            v2 = v2['S']
+            if v1 != v2:
+                return False
+        elif 'N' in v1:
+            v1 = float(v1['N'])
+            v2 = float(v2['N'])
+            if abs(v1 - v2) > 0.001:
+                return False
+        elif 'BOOL' in v1:
+            v1 = bool(v1['BOOL'])
+            v2 = bool(v2['BOOL'])
+            if v1 != v2:
+                return False
+
+    return True
+
+
 def remove_duplicates_in_classifier_db(client, table):
     for item in read_classifier_db_generator(client, table):
         uuid1 = item['uuid']['S']
@@ -69,7 +104,8 @@ def remove_duplicates_in_classifier_db(client, table):
             if uuid1 == uuid2:
                 continue
             item2.pop('uuid')
-            if item == item2:
+            if classifier_rows_are_close(item, item2):
+                print(uuid1, uuid2)
                 delete_item(client, table, uuid2)
 
 
