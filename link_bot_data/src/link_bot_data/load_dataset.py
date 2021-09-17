@@ -45,7 +45,8 @@ def get_classifier_dataset_loader(dataset_dirs: List[pathlib.Path], **kwargs):
                         return ClassifierDatasetLoader(dataset_dirs, **kwargs)
                     elif 'pkl' in sub_e.as_posix():
                         return NewClassifierDatasetLoader(dataset_dirs, **kwargs)
-    raise NotImplementedError()
+
+    return NewClassifierDatasetLoader(dataset_dirs, **kwargs)
 
 
 def guess_dataset_loader(dataset_dir: pathlib.Path, **kwargs):
