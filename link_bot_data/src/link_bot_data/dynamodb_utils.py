@@ -104,9 +104,13 @@ def remove_duplicates_in_classifier_db(client, table):
             if uuid1 == uuid2:
                 continue
             item2.pop('uuid')
-            if classifier_rows_are_close(item, item2):
+            try:
+                if classifier_rows_are_close(item, item2):
+                    print(uuid1, uuid2)
+                    delete_item(client, table, uuid2)
+            except Exception:
                 print(uuid1, uuid2)
-                delete_item(client, table, uuid2)
+                pass
 
 
 @halo.Halo("getting classifier df")

@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Dict
 
 import numpy as np
@@ -14,7 +15,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('hdt_michigan')
-        self.my_closed = 0.015
+        self.my_closed = -0.11
         self.get_joint_state = GetJointState(self.robot)
         self.get_cdcpd_state = GetCdcpdState(self.tf)
 
@@ -52,7 +53,12 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         self.robot.set_left_gripper(1.0)
-        self.robot.plan_to_joint_config(self.reset_move_group, dict(params['real_val_rope_reset_joint_config']))
+        tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
+        self.robot.store_current_tool_orientations(tool_names)
+        up_and_away_position = np.array([0.5, -0.25, 1.5])
+        self.robot.follow_jacobian_to_position(group_name='right_side',
+                                               tool_names=[self.robot.right_tool_name],
+                                               points=[[up_and_away_position]])
 
         while True:
             # find rope point from rope tracking
@@ -61,8 +67,10 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             # rope_point_to_grasp = sensed_rope_state[0]
 
             # FIXME: just debugging
-            rope_point_to_pre_grasp = ros_numpy.numpify(self.robot.get_link_pose(self.robot.right_tool_name).position)
-            rope_point_to_pre_grasp[2] = 0.3
+            rope_point_to_pre_grasp = deepcopy(up_and_away_position)
+            rope_point_to_pre_grasp[2] -= 0.8
+            print(up_and_away_position)
+            print(rope_point_to_pre_grasp)
 
             # go a little past...
             rope_point_to_pre_grasp = rope_point_to_pre_grasp + np.array([0.08, -0.08, 0.05])
@@ -74,13 +82,11 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             self.robot.set_left_gripper(1.0)
 
             # move to pre-grasp config
-            tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
-            self.robot.store_current_tool_orientations(tool_names)
             self.robot.follow_jacobian_to_position(group_name='both_arms',
                                                    tool_names=tool_names,
                                                    points=[[rope_point_to_pre_grasp], [right_position]])
 
-            self.robot.set_left_gripper(0.173)
+            self.robot.set_left_gripper(0.15)
             # move "backwards"
             self.robot.follow_jacobian_to_position(group_name='both_arms',
                                                    tool_names=tool_names,

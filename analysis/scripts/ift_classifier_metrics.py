@@ -74,25 +74,30 @@ def plot_proxy_dataset_metric(df, proxy_dataset_type: str, metric_name: str, tit
 
     # NOTE: something is wrong with the rolling calculations here I think... some lines don't start at 9
     agg = {
-        'full_retrain':      'mean',
+        'full_retrain':    'mean',
         'do_augmentation': rlast,
-        metric_name:         'mean',
-        iter_key:            rlast,
+        metric_name:       'mean',
+        iter_key:          rlast,
     }
     df = df.loc[~df['full_retrain'].isna()]
-    z = df.loc[(df['full_retrain'] == 1.0) & (df['do_augmentation'] == 0.0)]
-    h=z.sort_values(iter_key).rolling(10).agg(agg)
-    df_r = df.sort_values(iter_key).groupby(['full_retrain', 'do_augmentation']).rolling(10).agg(agg)
+    df_r = df.groupby(['full_retrain', 'do_augmentation', iter_key]).agg({
+        metric_name:       'mean',
+        iter_key: rlast,
+    }).groupby(['full_retrain', 'do_augmentation']).rolling(10).agg({
+        metric_name:       'mean',
+        iter_key: rlast,
+    })
+
+    fig, ax = lineplot(df_r, iter_key, metric_name, title + ' (rolling)', figsize=(10, 7), hue='full_retrain',
+                       style='do_augmentation')
+    ax.set_xlim(0, 100)
+    ax.set_ylim(-0.01, 1.01)
 
     fig, ax = lineplot(df_r, iter_key, metric_name, title + ' (rolling)', figsize=(10, 7), hue='full_retrain')
     ax.set_xlim(0, 100)
     ax.set_ylim(-0.01, 1.01)
 
     fig, ax = lineplot(df_r, iter_key, metric_name, title + ' (rolling)', figsize=(10, 7), hue='do_augmentation')
-    ax.set_xlim(0, 100)
-    ax.set_ylim(-0.01, 1.01)
-
-    fig, ax = lineplot(df_r, iter_key, metric_name, title + ' (rolling)', figsize=(10, 7), hue='full_retrain', style='do_augmentation')
     ax.set_xlim(0, 100)
     ax.set_ylim(-0.01, 1.01)
 
