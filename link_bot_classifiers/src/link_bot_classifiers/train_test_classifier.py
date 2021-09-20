@@ -330,7 +330,7 @@ def put_eval_in_database(val_metrics,
         kwargs = {}
 
     classifier_hparams = try_load_classifier_params(checkpoint)
-    classifier_source_env = classifier_hparams['classifier_dataset_hparams']['scene_name']
+    classifier_source_env = classifier_hparams['classifier_dataset_hparams'].get('scene_name', 'car')
     original_training_seed = classifier_hparams['seed']
     fine_tuning_seed = classifier_hparams.get('fine_tuning_seed', None)
     fine_tuning_take = classifier_hparams.get('fine_tuning_take', None)
