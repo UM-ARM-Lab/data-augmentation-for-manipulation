@@ -19,7 +19,7 @@ def load_generic_model(path: pathlib.Path,
     # we use the first model and assume they all have the same hparams
     _, params = load_trial(path.parent.absolute())
     if scenario is None:
-        scenario_name = params['scenario']
+        scenario_name = params['dataset_hparams']['scenario']
         scenario = get_scenario(scenario_name)
     model_type = params['model_class']
     if model_type == 'rnn':
@@ -48,5 +48,3 @@ def local_env_size_for_classifier(classifier_dir: pathlib.Path):
     return (classifier_params["local_env_h_rows"],
             classifier_params["local_env_w_cols"],
             classifier_params["local_env_c_channels"])
-
-

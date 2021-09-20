@@ -394,7 +394,7 @@ def setup_ift(args):
         'to_env':                        to_env,
         'ift_config':                    ift_config,
         'seed':                          args.seed,
-        'ift_uuid':                      uuid4(),
+        'ift_uuid':                      str(uuid4()),
     }
     with logfile_name.open("w") as logfile:
         hjson.dump(log, logfile)
