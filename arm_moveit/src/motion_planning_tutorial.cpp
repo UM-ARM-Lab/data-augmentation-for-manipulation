@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
   spinner.start();
   ros::NodeHandle nh;
 
-  std::string const group_name = "both_arms";
+  std::string const group_name = "left_side";
 
   auto robot_model_loader = std::make_shared<robot_model_loader::RobotModelLoader>("hdt_michigan/robot_description");
   auto psm = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(robot_model_loader);

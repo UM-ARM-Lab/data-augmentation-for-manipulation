@@ -144,16 +144,24 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             req.goal_constraints.append(joint_goal_constraints)
             #  - right tool maintains orientation the whole time
             right_ee_orientation_path_constraint = OrientationConstraint()
+            right_ee_orientation_path_constraint.header.frame_id = 'robot_root'
+            right_ee_orientation_path_constraint.link_name = 'right_tool'
+            right_ee_orientation_path_constraint.weight = 1.0
+            right_ee_orientation_path_constraint.orientation = ros_numpy.msgify(Quaternion, left_tool_orientation)
+            right_ee_orientation_path_constraint.absolute_x_axis_tolerance = 0.1
+            right_ee_orientation_path_constraint.absolute_y_axis_tolerance = 0.1
+            right_ee_orientation_path_constraint.absolute_z_axis_tolerance = 0.1
+            right_ee_orientation_path_constraint.parameterization = OrientationConstraint.XYZ_EULER_ANGLES
             req.path_constraints.orientation_constraints.append(right_ee_orientation_path_constraint)
             #  - left tool maintains orientation the whole time
-            left_ee_orientation_path_constraint = OrientationConstraint()
-            req.path_constraints.orientation_constraints.append(left_ee_orientation_path_constraint)
+            # left_ee_orientation_path_constraint = OrientationConstraint()
+            # req.path_constraints.orientation_constraints.append(left_ee_orientation_path_constraint)
 
             res: GetMotionPlanResponse = self.plan_srv(req)
             if res.motion_plan_response.error_code.val != MoveItErrorCodes.SUCCESS:
                 print("Error!")
-
-            self.robot.display_robot_traj(res.motion_plan_response.trajectory, "traj")
+            else:
+                self.robot.display_robot_traj(res.motion_plan_response.trajectory, "traj")
 
             # self.robot.plan_to_joint_config("both_arms", ik_sln)
 

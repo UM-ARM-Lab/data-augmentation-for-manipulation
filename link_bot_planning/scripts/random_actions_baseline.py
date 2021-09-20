@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from arc_utilities import ros_init
 from link_bot_classifiers import train_test_classifier
+from link_bot_classifiers.eval_proxy_datasets import eval_proxy_datasets
 from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_data.split_dataset import split_dataset
 from link_bot_gazebo.gazebo_services import get_gazebo_processes
@@ -107,15 +108,22 @@ class RandomActionsBaseline:
                 print(classifier_model_dir)
                 iter_chunker.store_result('classifier_model_dir', classifier_model_dir.as_posix())
 
+            classifier_checkpoint = classifier_model_dir / 'best_checkpoint'
+
             # evaluate that classifier in planning
             planning_outdir = pathify(iter_chunker.get_result('planning_outdir'))
             if planning_outdir is None:
                 [p.resume() for p in gazebo_processes]
-                classifier_checkpoint = classifier_model_dir / 'best_checkpoint'
                 planning_outdir = self.planning_evaluation(iter_chunker, classifier_checkpoint, i, n_examples)
                 [p.suspend() for p in gazebo_processes]
                 print(planning_outdir)
                 iter_chunker.store_result('planning_outdir', planning_outdir.as_posix())
+
+            # evaluate that classifier on the proxy datasets
+            proxy_dataset_eval_done = iter_chunker.get_result('proxy_dataset_eval_done')
+            if proxy_dataset_eval_done is None:
+                proxy_dataset_eval_done = self.proxy_dataset_eval(classifier_checkpoint, i, n_examples)
+                iter_chunker.store_result('proxy_dataset_eval_done', proxy_dataset_eval_done)
 
     def learn_classifier(self, classifier_dataset_dir, i: int, n_examples: int):
         classifiers_module_path = pathlib.Path(r.get_path('link_bot_classifiers'))
@@ -174,6 +182,11 @@ class RandomActionsBaseline:
         split_dataset(classifier_dataset_i_dir)
 
         return classifier_dataset_i_dir
+
+    def proxy_dataset_eval(self, classifier_checkpoint: pathlib.Path, i: int, n_examples: int):
+        print(f"[Iter {i} N Examples {n_examples}]: Evaluating {classifier_checkpoint.as_posix()}")
+        eval_proxy_datasets([classifier_checkpoint])
+        return True
 
 
 @ros_init.with_ros("random_actions_baseline")
