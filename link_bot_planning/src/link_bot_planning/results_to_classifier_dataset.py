@@ -117,7 +117,7 @@ class ResultsToClassifierDataset:
         classifier_params = classifier_params_from_planner_params(planner_params)
         try:
             phase2_dataset_params = dynamics_dataset_params_from_classifier_params(classifier_params)
-        except KeyError:
+        except (KeyError, IndexError):
             # this happens when you run the planner without any of the learned classifiers
             fwd_model_hparams = fwd_model_params_from_planner_params(planner_params)
             phase2_dataset_params = {
