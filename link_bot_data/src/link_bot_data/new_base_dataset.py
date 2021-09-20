@@ -73,7 +73,7 @@ class NewBaseDataset:
         filenames_batched = list(batch_sequence(self.filenames, batch_size, drop_remainder))
 
         def _include_batch_size(example: Dict):
-            actual_batch_size = len(list(example.values())[0])
+            actual_batch_size = len(example['rope'])
             example['batch_size'] = actual_batch_size
             return example
 
