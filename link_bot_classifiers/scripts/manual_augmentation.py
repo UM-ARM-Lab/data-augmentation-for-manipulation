@@ -43,11 +43,12 @@ def main():
 
     args = parser.parse_args()
 
-    done_sub = rospy.Subscriber('/rviz_anim/control', AnimationControl, done_cb)
+    _ = rospy.Subscriber('/rviz_anim/control', AnimationControl, done_cb)
 
     outfile = args.classifier_dataset_dir / 'manual_transforms.hjson'
     outfile_backup = args.classifier_dataset_dir / 'manual_transforms.hjson.bak'
-    shutil.copy(outfile, outfile_backup)
+    if outfile.exists():
+        shutil.copy(outfile, outfile_backup)
 
     def make_marker(scale: float):
         marker = Marker(type=Marker.SPHERE)
@@ -84,6 +85,8 @@ def main():
     dataset = dataset_loader.get_datasets(mode='all')
     for example in tqdm(dataset):
         example_filename = example['filename']
+        if example_filename not in manual_transforms:
+            manual_transforms[example_filename] = []
 
         original_rope_points = tf.reshape(example['rope'], [2, -1, 3])
         rope_point = example['rope'][0, 0:3]
@@ -95,7 +98,7 @@ def main():
 
         batch_size = 1
         for i in range(args.n):
-            if example_filename in manual_transforms and len(manual_transforms[example_filename]) > i:
+            if len(manual_transforms[example_filename]) > i:
                 print(f"Skipping {example_filename}, {i}")
                 continue
 
@@ -130,6 +133,7 @@ def main():
 
             with outfile.open("w") as file:
                 my_hdump(manual_transforms, file)
+            print(f"saved {example_filename} {i}/{args.n}")
 
 
 if __name__ == '__main__':
