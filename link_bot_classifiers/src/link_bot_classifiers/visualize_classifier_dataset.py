@@ -182,25 +182,27 @@ def viz_compare_examples(s: ScenarioWithVisualization,
                          aug_example: Dict,
                          data_example: Dict,
                          aug_env_pub: rospy.Publisher,
-                         data_env_pub: rospy.Publisher):
+                         data_env_pub: rospy.Publisher,
+                         use_predicted: bool = False):
     if aug_example is not None:
-        viz_compare_example(s, aug_example, 'aug', aug_env_pub, color='#aa2222')
+        viz_compare_example(s, aug_example, 'aug', aug_env_pub, color='#aa2222', use_predicted=use_predicted)
     if data_example is not None:
-        viz_compare_example(s, data_example, 'data', data_env_pub, color='#2222aa')
+        viz_compare_example(s, data_example, 'data', data_env_pub, color='#2222aa', use_predicted=use_predicted)
 
 
 def viz_compare_example(s: ScenarioWithVisualization,
                         e: Dict,
                         label: str,
                         env_pub: rospy.Publisher,
-                        color):
+                        color,
+                        use_predicted: bool = False):
     state_before = {
-        'rope':            e['rope'][0],
+        'rope':            e[add_predicted('rope') if use_predicted else 'rope'][0],
         'joint_positions': e['joint_positions'][0],
         'joint_names':     e['joint_names'][0],
     }
     state_after = {
-        'rope':            e['rope'][1],
+        'rope':            e[add_predicted('rope') if use_predicted else 'rope'][1],
         'joint_positions': e['joint_positions'][1],
         'joint_names':     e['joint_names'][0],
     }
@@ -224,3 +226,4 @@ def viz_compare_example(s: ScenarioWithVisualization,
                                                   env['res'],
                                                   frame=frame)
     s.tf.send_transform(env['origin_point'], [0, 0, 0, 1], 'world', child='origin_point')
+    s.plot_is_close(e['is_close'][1])
