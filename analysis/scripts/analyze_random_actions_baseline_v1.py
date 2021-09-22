@@ -41,20 +41,23 @@ def metrics_main(args):
 def classifier_analysis(iter_key, root):
     df = get_classifier_df()
 
-    df = df.loc[df['classifier'].str.contains(root.as_posix()) | df['classifier'].str.contains('untrained-1')]
-    df[iter_key] = df['classifier'].map(dataset_dir_to_iter)
-    df[iter_key] = df[iter_key].map(lambda i: i + 1)
+    z = df.loc[df['classifier'].str.contains(root.as_posix())]
+    z = z.copy()
+    z[iter_key] = z['classifier'].map(dataset_dir_to_num_examples)
 
     def plot_eval(dataset_name):
-        df_for_dataset = df.loc[df['dataset_dirs'].str.contains(dataset_name)]
-        lineplot(df_for_dataset, iter_key, 'accuracy', f"Accuracy on {dataset_name} Dataset")
+        z_for_dataset = z.loc[z['dataset_dirs'].str.contains(dataset_name)]
+        lineplot(z_for_dataset, iter_key, 'accuracy', f"Accuracy on {dataset_name} Dataset")
+        plt.ylim(-0.01, 1.01)
         plt.savefig(root / f"{dataset_name}-accuracy.png")
-        lineplot(df_for_dataset, iter_key, 'accuracy on negatives', f"Specificity on {dataset_name} Dataset")
+        lineplot(z_for_dataset, iter_key, 'accuracy on negatives', f"Specificity on {dataset_name} Dataset")
+        plt.ylim(-0.01, 1.01)
         plt.savefig(root / f"{dataset_name}-specificity.png")
 
-    plot_eval('val_car_bigger_hooks1_1625783230')
+    plot_eval('val_car_feasible_1614981888')
+    plot_eval('car_no_classifier_eval')
+    plot_eval('car_heuristic_classifier_eval')
     plot_eval('proxy_car_bigger_hooks_heuristic.neg-hand-chosen-1')
-    plot_eval('proxy_car_bigger_hooks_heuristic$')  # $ means end of line, to disambiguate
 
 
 @ros_init.with_ros("analyse_random_actions_baseline")

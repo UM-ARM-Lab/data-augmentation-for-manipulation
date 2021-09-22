@@ -74,6 +74,16 @@ class RandomActionsBaseline:
         self.max_planning_trials = int(self.job_chunker.load_or_prompt('max_planning_trials'))
         self.planner_params_filename = pathlib.Path(self.job_chunker.load_or_prompt('planner_params_filename'))
         self.test_scenes_dir = pathlib.Path(self.job_chunker.load_or_prompt('test_scenes_dir'))
+        self.proxy_dataset_dirs = [
+            pathlib.Path("/media/shared/classifier_data/car_no_classifier_eval/"),
+            pathlib.Path("/media/shared/classifier_data/car_heuristic_classifier_eval2/"),
+            pathlib.Path("/media/shared/classifier_data/val_car_feasible_1614981888+op2/"),
+            # pathlib.Path('/media/shared/classifier_data/val_car_bigger_hooks1_1625783230'),
+            # pathlib.Path('/media/shared/classifier_data/proxy_car_bigger_hooks_heuristic'),
+            # pathlib.Path('/media/shared/classifier_data/proxy_car_bigger_hooks_no_classifier'),
+            # pathlib.Path('/media/shared/classifier_data/proxy_car_bigger_hooks_heuristic+neg-hand-chosen-1'),
+        ]
+        self.job_chunker.store_result('proxy_dataset_dirs', self.proxy_dataset_dirs)
 
         self.full_classifier_dataset_loader = get_classifier_dataset_loader([self.full_classifier_dataset_dir])
         self.full_classifier_dataset = self.full_classifier_dataset_loader.get_datasets(mode='all')
@@ -185,7 +195,7 @@ class RandomActionsBaseline:
 
     def proxy_dataset_eval(self, classifier_checkpoint: pathlib.Path, i: int, n_examples: int):
         print(f"[Iter {i} N Examples {n_examples}]: Evaluating {classifier_checkpoint.as_posix()}")
-        eval_proxy_datasets([classifier_checkpoint])
+        eval_proxy_datasets([classifier_checkpoint], dataset_dirs=self.proxy_dataset_dirs)
         return True
 
 
