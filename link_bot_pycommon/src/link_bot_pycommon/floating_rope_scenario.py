@@ -656,16 +656,6 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         # model_error = tf.reduce_mean(tf.linalg.norm(labeling_points - labeling_predicted_points, axis=-1), axis=-1)
         return model_error
 
-    def compute_label(self, actual: Dict, predicted: Dict, labeling_params: Dict):
-        # NOTE: this should be using the same distance metric as the planning, which should also be the same as the labeling
-        # done when making the classifier dataset
-        actual_rope = np.array(actual["rope"])
-        predicted_rope = np.array(predicted["rope"])
-        model_error = np.linalg.norm(actual_rope - predicted_rope)
-        threshold = labeling_params['threshold']
-        is_close = model_error < threshold
-        return is_close
-
     def plot_goal_rviz(self, goal: Dict, goal_threshold: float, actually_at_goal: Optional[bool] = None):
         if actually_at_goal:
             r = 0.4
