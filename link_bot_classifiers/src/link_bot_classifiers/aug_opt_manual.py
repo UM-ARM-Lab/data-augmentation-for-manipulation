@@ -40,8 +40,11 @@ def opt_object_manual(self,
                                                frame='new_env_aug_vg')
             # stepper.step()
 
-    manual_transforms_filename = pathlib.Path(
-        "/media/shared/ift/v3-revert-debugging-1-1_1628263205_69ac9955d3/classifier_datasets/iteration_0000_dataset/manual_transforms.hjson")
+    # manual_transforms_filename = pathlib.Path(
+    #     "/media/shared/ift/v3-revert-debugging-1-1_1628263205_69ac9955d3/classifier_datasets/iteration_0000_dataset/manual_transforms.hjson")
+    guess_filename = pathlib.Path(inputs['full_filename'][0].numpy().decode("utf-8"))
+    guess_dataset_dir = guess_filename.parent
+    manual_transforms_filename = guess_dataset_dir / 'manual_transforms.hjson'
     transformation_matrices = get_manual_transforms(inputs, manual_transforms_filename, rng)
     obj_points_aug, _ = transformation_obj_points(obj_points, transformation_matrices)
     rope_points = tf.reshape(inputs[add_predicted('rope')], [2, -1, 3])
