@@ -9,17 +9,21 @@ from moonshine.filepath_tools import load_hjson
 weights = np.array([
     1.0,
     1.0,
+    1.0,
+    1.0,
     0.1,
     0.1,
     10.0,
-])
+], np.float32)
 too_far = np.array([
+    1.0,
+    1.0,
     1.0,
     1.0,
     20.0,
     20.0,
     0.05,
-])
+], np.float32)
 joints_weights = np.array([
     10.0,
     10.0,
@@ -41,7 +45,7 @@ joints_weights = np.array([
     0.1,
     0.1,
     0.1,
-])
+], np.float32)
 
 
 def _stem(p):
@@ -49,7 +53,16 @@ def _stem(p):
 
 
 def load_examples(results_dir, k):
-    def _load_examples(i, j):
+    def _load_examples(i: int, j: int):
+        _name = f'{i}-{j}.pkl.gz'
+        _results_filename = results_dir / _name
+        if _results_filename.exists():
+            _result = load_gzipped_pickle(_results_filename)[k]
+        else:
+            _result = None
+        return _result
+
+    def _load_examples_complicated(i, j):
         if isinstance(i, np.ndarray):
             results = []
             for _i in i:
@@ -119,12 +132,14 @@ def get_first(m):
 
 
 def space_to_idx(space):
-    if space == 'rope':
+    if space == 'pred_rope':
         space_idx = 0
+    elif space == 'rope':
+        space_idx = 2
     elif space == 'robot':
-        space_idx = 3
-    elif space == 'env':
         space_idx = 4
+    elif space == 'env':
+        space_idx = 5
     else:
         raise NotImplementedError(space)
     return space_idx
