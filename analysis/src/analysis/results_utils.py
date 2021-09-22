@@ -299,6 +299,9 @@ def get_goal_threshold(planner_params):
     return goal_threshold
 
 
+# debugging_idx = 0
+
+
 def plot_steps(scenario: ScenarioWithVisualization,
                datum: Dict,
                metadata: Dict,
@@ -306,6 +309,8 @@ def plot_steps(scenario: ScenarioWithVisualization,
                verbose: int,
                full_plan: bool,
                screen_recorder: Optional[ScreenRecorder] = None):
+    # global debugging_idx
+    # debugging_idx += 1000
     if screen_recorder is not None:
         screen_recorder.start()
 
@@ -357,15 +362,18 @@ def plot_steps(scenario: ScenarioWithVisualization,
         if 'origin_point' not in e_t:
             e_t['origin_point'] = extent_res_to_origin_point(e_t['extent'], e_t['res'])
         scenario.plot_environment_rviz(e_t)
+        # scenario.plot_state_rviz(s_t, label='actual', color=state_color, idx=debugging_idx + t)
         scenario.plot_state_rviz(s_t, label='actual', color=state_color)
         c = '#0000ffaa'
         if t < anim.max_t:
             action_color = _type_action_color(type_t)
+            # scenario.plot_action_rviz(s_t, a_t, color=action_color, idx=debugging_idx + t)
             scenario.plot_action_rviz(s_t, a_t, color=action_color)
 
         if s_t_pred is not None:
             if 'scene_msg' in e_t and 'attached_collision_objects' not in s_t_pred:
                 s_t_pred['attached_collision_objects'] = e_t['scene_msg'].robot_state.attached_collision_objects
+            # scenario.plot_state_rviz(s_t_pred, label='predicted', color=c, idx=debugging_idx + t)
             scenario.plot_state_rviz(s_t_pred, label='predicted', color=c)
             is_close = scenario.compute_label(s_t, s_t_pred, labeling_params)
             scenario.plot_is_close(is_close)
@@ -400,10 +408,20 @@ def get_all_results_subdirs(dirs: Union[pathlib.Path, List[pathlib.Path]]):
     return results_subdirs
 
 
+def dataset_dir_to_num_examples(p):
+    p = pathlib.Path(p)
+    for part in p.parts:
+        m = re.match(r'.*examples_(\d+)', part)
+        if m:
+            i = int(m.group(1))
+            return i
+    return -1
+
+
 def dataset_dir_to_iter(p):
     p = pathlib.Path(p)
     for part in p.parts:
-        m = re.match(r'iter_(\d+)', part)
+        m = re.match(r'iter.*?_(\d+)', part)
         if m:
             i = int(m.group(1))
             return i

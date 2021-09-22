@@ -10,7 +10,7 @@ from tensorflow_graphics.nn.loss.chamfer_distance import evaluate
 from tqdm import tqdm
 
 from link_bot_classifiers.pd_distances_utils import weights, too_far, joints_weights
-from link_bot_data.dataset_utils import batch_sequence
+from link_bot_data.dataset_utils import batch_sequence, add_predicted
 from link_bot_pycommon.grid_utils import occupied_voxels_to_points
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.my_periodic_timer import MyPeriodicTimer
@@ -36,6 +36,9 @@ def cd_env_dist(aug_env,
 
 
 def compute_distance(aug_example: Dict, data_example: Dict):
+    pred_aug_rope = aug_example[add_predicted('rope')]
+    pred_aug_rope_before = pred_aug_rope[0]
+    pred_aug_rope_after = pred_aug_rope[1]
     aug_rope = aug_example['rope']
     aug_rope_before = aug_rope[0]
     aug_rope_after = aug_rope[1]
@@ -43,6 +46,9 @@ def compute_distance(aug_example: Dict, data_example: Dict):
     aug_joint_positions_before = aug_joint_positions[0]
     aug_joint_positions_after = aug_joint_positions[1]
     aug_env = aug_example['env']
+    pred_data_rope = data_example[add_predicted('rope')]
+    pred_data_rope_before = pred_data_rope[0]
+    pred_data_rope_after = pred_data_rope[1]
     data_rope = data_example['rope']
     data_rope_before = data_rope[0]
     data_rope_after = data_rope[1]
@@ -53,6 +59,9 @@ def compute_distance(aug_example: Dict, data_example: Dict):
 
     rope_before_dist = tf.linalg.norm(aug_rope_before - data_rope_before)
     rope_after_dist = tf.linalg.norm(aug_rope_after - data_rope_after)
+
+    pred_rope_before_dist = tf.linalg.norm(pred_aug_rope_before - pred_data_rope_before)
+    pred_rope_after_dist = tf.linalg.norm(pred_aug_rope_after - pred_data_rope_after)
 
     joint_positions_before_difference = aug_joint_positions_before - data_joint_positions_before
     joint_positions_before_difference_weighted = joint_positions_before_difference * joints_weights
@@ -65,6 +74,8 @@ def compute_distance(aug_example: Dict, data_example: Dict):
                            data_env, data_example['res'], data_example['origin_point'])
 
     distances = tf.stack([
+        pred_rope_before_dist,
+        pred_rope_after_dist,
         rope_before_dist,
         rope_after_dist,
         joint_positions_before_dist,

@@ -54,6 +54,9 @@ def metrics_main(args):
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate_rolling2.png')
 
+    fig, x = lineplot(df, iter_key, 'any_solved', 'Any Solved (separate)', hue='ift_uuid', style='full_retrain')
+    plt.savefig(outdir / f'any_solved.png')
+
     fig, x = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid', style='full_retrain')
     x.set_xlim(-0.01, 100.01)
 
