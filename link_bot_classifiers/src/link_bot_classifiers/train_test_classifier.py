@@ -518,7 +518,7 @@ class ClassifierEvaluationFilter:
         self.take_after_filter = take_after_filter
         self.should_keep_example = should_keep_example
         self.scenario = self.view.scenario
-        self.dataset = self.view.dataset_loader
+        self.dataset_loader = self.view.dataset_loader
         self.model = self.view.model
 
     def __iter__(self):
@@ -527,7 +527,7 @@ class ClassifierEvaluationFilter:
             if self.take_after_filter is not None and count >= self.take_after_filter:
                 return
 
-            if self.should_keep_example(remove_batch(example), predictions):
+            if self.should_keep_example(remove_batch(example), remove_batch(predictions)):
                 yield batch_idx, example, predictions
                 count += 1
 
@@ -550,9 +550,10 @@ def viz_main(dataset_dirs: List[pathlib.Path],
     count = 0
 
     def _should_keep_example(example, prediction):
-        labels = tf.expand_dims(example['is_close'][:, 1:], axis=2)
-        decisions = tf.squeeze(probabilities > 0.5, axis=-1)
-        labels = tf.squeeze(tf.cast(labels, tf.bool), axis=-1)
+        labels = example['is_close'][1]
+        probabilities = prediction['probabilities'][0][0]
+        decisions = probabilities > 0.5
+        labels = tf.cast(labels, tf.bool)
         classifier_is_correct = tf.equal(decisions, labels)
         is_tp = tf.logical_and(labels, decisions)
         is_tn = tf.logical_and(tf.logical_not(labels), tf.logical_not(decisions))
@@ -563,25 +564,25 @@ def viz_main(dataset_dirs: List[pathlib.Path],
 
         # if the classifier is correct at all time steps, ignore
         if only_negative:
-            if not tf.reduce_all(is_negative[b]):
+            if not tf.reduce_all(is_negative):
                 return False
         if only_positive:
-            if not tf.reduce_all(is_positive[b]):
+            if not tf.reduce_all(is_positive):
                 return False
         if only_tp:
-            if not tf.reduce_all(is_tp[b]):
+            if not tf.reduce_all(is_tp):
                 return False
         if only_tn:
-            if not tf.reduce_all(is_tn[b]):
+            if not tf.reduce_all(is_tn):
                 return False
         if only_fp:
-            if not tf.reduce_all(is_fp[b]):
+            if not tf.reduce_all(is_fp):
                 return False
         if only_fn:
-            if not tf.reduce_all(is_fn[b]):
+            if not tf.reduce_all(is_fn):
                 return False
         if only_errors:
-            if tf.reduce_all(classifier_is_correct[b]):
+            if tf.reduce_all(classifier_is_correct):
                 return False
         return True
 
@@ -592,8 +593,6 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                                       show_progressbar=False)
 
     for batch_idx, example, predictions in view:
-        probabilities = predictions['probabilities']
-
         # Visualization
         example.pop("time")
         actual_batch_size = example.pop("batch_size")
