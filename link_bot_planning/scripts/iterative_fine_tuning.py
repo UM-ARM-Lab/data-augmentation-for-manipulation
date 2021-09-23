@@ -58,10 +58,10 @@ class IterativeFineTuning:
 
     def __init__(self,
                  log: Dict,
-                 no_execution: bool,
-                 timeout: int,
                  on_exception: str,
                  logfile_name: pathlib.Path,
+                 no_execution: bool = True,
+                 timeout: int = None,
                  ):
         self.no_execution = no_execution
         self.on_exception = on_exception
@@ -366,20 +366,22 @@ def ift_main(args):
     to_env = 'car3'
 
     logfile_name = args.outdir / 'logfile.hjson'
-    args.outdir.mkdir(exists_ok=True, parents=True)
-    rospy.loginfo(Fore.YELLOW + "Created output directory: {}".format(args.outdir))
+    args.outdir.mkdir(exist_ok=True, parents=True)
+    rospy.loginfo(Fore.YELLOW + "Output directory: {}".format(args.outdir))
 
     job_chunker = JobChunker(logfile_name)
 
     ift_config_filename = pathlib.Path(job_chunker.load_or_prompt('ift_config_filename'))
     default_checkpoint = '/media/shared/cl_trials/untrained-1/August_13_17-03-09_45c09348d1'
     classifier_checkpoint = pathlib.Path(job_chunker.load_or_default('classifier_checkpoint', default_checkpoint))
-    seed = pathlib.Path(job_chunker.load_or_prompt('seed'))
+    seed = int(job_chunker.load_or_prompt('seed'))
     planner_params_filename = pathlib.Path(
-        job_chunker.load_or_default('planner_params_filename', 'planner_params/val_car/random_recovery.hjson'))
+        job_chunker.load_or_default('planner_params_filename', 'planner_configs/val_car/random_recovery.hjson'))
     test_scenes_dir = pathlib.Path(
         job_chunker.load_or_default('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
-    test_scenes_indices = pathlib.Path(job_chunker.load_or_default('test_scenes_indices', None))
+    test_scenes_indices = job_chunker.load_or_default('test_scenes_indices', None)
+    if test_scenes_indices is not None:
+        test_scenes_indices = pathlib.Path(test_scenes_indices)
 
     ift_config = load_hjson(ift_config_filename)
     initial_planner_params = load_planner_params(planner_params_filename)
@@ -399,9 +401,7 @@ def ift_main(args):
     }
 
     ift = IterativeFineTuning(log=log,
-                              logfile_name=args.logfile,
-                              no_execution=args.no_execution,
-                              timeout=args.timeout,
+                              logfile_name=logfile_name,
                               on_exception=args.on_exception,
                               )
     ift.run(n_iters=args.n_iters)
@@ -416,7 +416,7 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("otudir", type=pathlib.Path, help='outdir to put results in')
+    parser.add_argument("outdir", type=pathlib.Path, help='outdir to put results in')
     parser.add_argument("--n-iters", '-n', type=int, help='number of iterations of fine tuning', default=100)
     parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
 
