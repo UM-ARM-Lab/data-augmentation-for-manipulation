@@ -6,7 +6,7 @@ import pathlib
 import warnings
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Dict, List
+from typing import List
 from uuid import uuid4
 
 import numpy as np
@@ -57,23 +57,60 @@ class IterationData:
 class IterativeFineTuning:
 
     def __init__(self,
-                 log: Dict,
+                 outdir: pathlib.Path,
                  on_exception: str,
-                 logfile_name: pathlib.Path,
                  no_execution: bool = True,
                  timeout: int = None,
                  ):
+        self.outdir = outdir
+
+        logfile_name = outdir / 'logfile.hjson'
+        self.outdir.mkdir(exist_ok=True, parents=True)
+        rospy.loginfo(Fore.YELLOW + "Output directory: {}".format(self.outdir))
+
+        self.job_chunker = JobChunker(logfile_name)
+
+        ift_config_filename = pathlib.Path(self.job_chunker.load_or_prompt('ift_config_filename'))
+        default_checkpoint = '/media/shared/cl_trials/untrained-1/August_13_17-03-09_45c09348d1'
+        classifier_checkpoint = pathlib.Path(
+            self.job_chunker.load_or_default('classifier_checkpoint', default_checkpoint))
+        seed = int(self.job_chunker.load_or_prompt('seed'))
+        planner_params_filename = pathlib.Path(
+            self.job_chunker.load_or_default('planner_params_filename',
+                                             'planner_configs/val_car/random_recovery.hjson'))
+        test_scenes_dir = pathlib.Path(
+            self.job_chunker.load_or_default('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
+        test_scenes_indices = pathify(self.job_chunker.load_or_default('test_scenes_indices', None))
+
+        ift_config = load_hjson(ift_config_filename)
+        initial_planner_params = load_planner_params(planner_params_filename)
+
+        from_env = 'untrained'
+        to_env = 'car3'
+        self.job_chunker.store_results({
+            'nickname':                      self.outdir.name,
+            'planner_params':                initial_planner_params,
+            'test_scenes_dir':               test_scenes_dir.as_posix(),
+            'test_scenes_indices':           test_scenes_indices,
+            'initial_classifier_checkpoint': classifier_checkpoint.as_posix(),
+            'initial_recovery_checkpoint':   None,
+            'from_env':                      from_env,
+            'to_env':                        to_env,
+            'ift_config':                    ift_config,
+            'seed':                          seed,
+            'ift_uuid':                      str(uuid4()),
+        })
+
         self.no_execution = no_execution
         self.on_exception = on_exception
-        self.log = log
-        self.ift_config = self.log['ift_config']
-        self.ift_uuid = self.log['ift_uuid']
-        self.initial_planner_params = pathify(self.log['planner_params'])
+        self.ift_config = self.job_chunker.get_result('ift_config')
+        self.ift_uuid = self.job_chunker.get_result('ift_uuid')
+        self.initial_planner_params = pathify(self.job_chunker.get_result('planner_params'))
         self.log_full_tree = False
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
-        self.test_scenes_dir = pathlib.Path(self.log['test_scenes_dir'])
-        self.test_scenes_indices = self.log.get('test_scenes_indices', None)
+        self.test_scenes_dir = pathlib.Path(self.job_chunker.get_result('test_scenes_dir'))
+        self.test_scenes_indices = self.job_chunker.get_result('test_scenes_indices', None)
         self.verbose = -1
         self.tpi = self.ift_config['trials_per_iteration']
         self.classifier_labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
@@ -95,9 +132,6 @@ class IterativeFineTuning:
 
         self.gazebo_processes = get_gazebo_processes()
 
-        self.outdir = logfile_name.parent
-
-        self.job_chunker = JobChunker(logfile_name=logfile_name)
         self.trials_directory = self.outdir / 'training_logdir'
         self.planning_results_root_dir = self.outdir / 'planning_results'
 
@@ -110,7 +144,7 @@ class IterativeFineTuning:
             self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices), self.tpi)
         elif trials_generator_type == 'random':
             def _random():
-                rng = np.random.RandomState(self.log.get('seed', 0))
+                rng = np.random.RandomState(self.job_chunker.get_result('seed'))
                 while True:
                     yield rng.choice(all_trial_indices, size=self.tpi, replace=False)
 
@@ -137,8 +171,8 @@ class IterativeFineTuning:
                                    scenario=self.scenario)
 
     def run(self, n_iters: int):
-        initial_classifier_checkpoint = pathify(self.log['initial_classifier_checkpoint'])
-        initial_recovery_checkpoint = pathify(self.log['initial_recovery_checkpoint'])
+        initial_classifier_checkpoint = pathify(self.job_chunker.get_result('initial_classifier_checkpoint'))
+        initial_recovery_checkpoint = pathify(self.job_chunker.get_result('initial_recovery_checkpoint'))
 
         # NOTE: should I append the pretraining datasets to this? Possibly...
         fine_tuning_classifier_dataset_dirs = []
@@ -210,7 +244,7 @@ class IterativeFineTuning:
             classifier_models = load_classifier(planner_params, self.scenario)
             self.planner.classifier_models = classifier_models
 
-            seed = self.log.get('seed', 0)
+            seed = self.job_chunker.get_result('seed')
             # Use this to pass more info into the results metadata.hjson
             metadata_update = {
                 'ift_iteration': iteration_data.iteration,
@@ -310,7 +344,8 @@ class IterativeFineTuning:
     def fine_tune_classifier(self, iteration_data: IterationData):
         i = iteration_data.iteration
         if self.ift_config.get('full_retrain_classifier', False):
-            latest_checkpoint = pathify(self.log['initial_classifier_checkpoint']) / 'best_checkpoint'
+            latest_checkpoint = pathify(
+                self.job_chunker.get_result('initial_classifier_checkpoint')) / 'best_checkpoint'
         else:
             latest_checkpoint = iteration_data.latest_classifier_checkpoint_dir / self.checkpoint_suffix
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune classifier')
@@ -361,52 +396,6 @@ class IterativeFineTuning:
         return new_latest_checkpoint_dir
 
 
-def ift_main(args):
-    from_env = 'untrained'
-    to_env = 'car3'
-
-    logfile_name = args.outdir / 'logfile.hjson'
-    args.outdir.mkdir(exist_ok=True, parents=True)
-    rospy.loginfo(Fore.YELLOW + "Output directory: {}".format(args.outdir))
-
-    job_chunker = JobChunker(logfile_name)
-
-    ift_config_filename = pathlib.Path(job_chunker.load_or_prompt('ift_config_filename'))
-    default_checkpoint = '/media/shared/cl_trials/untrained-1/August_13_17-03-09_45c09348d1'
-    classifier_checkpoint = pathlib.Path(job_chunker.load_or_default('classifier_checkpoint', default_checkpoint))
-    seed = int(job_chunker.load_or_prompt('seed'))
-    planner_params_filename = pathlib.Path(
-        job_chunker.load_or_default('planner_params_filename', 'planner_configs/val_car/random_recovery.hjson'))
-    test_scenes_dir = pathlib.Path(
-        job_chunker.load_or_default('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
-    test_scenes_indices = job_chunker.load_or_default('test_scenes_indices', None)
-    if test_scenes_indices is not None:
-        test_scenes_indices = pathlib.Path(test_scenes_indices)
-
-    ift_config = load_hjson(ift_config_filename)
-    initial_planner_params = load_planner_params(planner_params_filename)
-
-    log = {
-        'nickname':                      args.outdir.name,
-        'planner_params':                initial_planner_params,
-        'test_scenes_dir':               test_scenes_dir.as_posix(),
-        'test_scenes_indices':           test_scenes_indices,
-        'initial_classifier_checkpoint': classifier_checkpoint.as_posix(),
-        'initial_recovery_checkpoint':   None,
-        'from_env':                      from_env,
-        'to_env':                        to_env,
-        'ift_config':                    ift_config,
-        'seed':                          seed,
-        'ift_uuid':                      str(uuid4()),
-    }
-
-    ift = IterativeFineTuning(log=log,
-                              logfile_name=logfile_name,
-                              on_exception=args.on_exception,
-                              )
-    ift.run(n_iters=args.n_iters)
-
-
 @ros_init.with_ros("iterative_fine_tuning")
 def main():
     colorama.init(autoreset=True)
@@ -422,7 +411,8 @@ def main():
 
     args = parser.parse_args()
 
-    ift_main(args)
+    ift = IterativeFineTuning(args.outdir, on_exception=args.on_exception)
+    ift.run(n_iters=args.n_iters)
 
 
 if __name__ == '__main__':
