@@ -57,6 +57,11 @@ class JobChunker:
         if save:
             self.save()
 
+    def store_results(self, update_dict: Dict, save=True):
+        self.log.update(update_dict)
+        if save:
+            self.save()
+
     def save(self):
         write_logfile(self.root_log, self.logfile_name, serializer=self.serializer)
 

@@ -86,6 +86,9 @@ class IterativeFineTuning:
         self.test_scenes_indices = pathify(self.job_chunker.load_prompt('test_scenes_indices', None))
 
         self.ift_config = load_hjson(ift_config_filename)
+        self.checkpoint_suffix = 'latest_checkpoint'
+        self.ift_config['checkpoint_suffix'] = self.checkpoint_suffix
+        self.job_chunker.store_results(self.ift_config)
         self.initial_planner_params = load_planner_params(planner_params_filename)
 
         self.job_chunker.store_result('from_env', 'untrained')
@@ -93,10 +96,8 @@ class IterativeFineTuning:
 
         self.ift_uuid = uuid4()
         self.job_chunker.store_result('ift_uuid', str(self.ift_uuid))
-        self.log_full_tree = False
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
-        self.verbose = -1
         self.tpi = self.ift_config['trials_per_iteration']
         self.classifier_labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
         self.classifier_labeling_params = nested_dict_update(self.classifier_labeling_params,
@@ -107,8 +108,9 @@ class IterativeFineTuning:
         self.initial_planner_params = nested_dict_update(self.initial_planner_params,
                                                          self.ift_config.get('planner_params_update', {}))
         self.pretraining_config = self.ift_config.get('pretraining', {})
-        self.checkpoint_suffix = 'latest_checkpoint'
-        self.ift_config['checkpoint_suffix'] = self.checkpoint_suffix
+
+        self.log_full_tree = False
+        self.verbose = -1
 
         if timeout is not None:
             rospy.loginfo(f"Overriding with timeout {timeout}")
