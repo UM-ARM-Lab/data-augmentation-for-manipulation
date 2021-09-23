@@ -360,7 +360,7 @@ class OmplRRTWrapper(MyPlanner):
         planning_time = time.time() - t0
 
         mean_propagate_time = float(np.mean(self.progagate_dts))
-        if self.verbose >= 0:
+        if self.verbose >= 1:
             print(f"\nMean Propagate Time = {mean_propagate_time:.4f}s")
 
         # handle results and cleanup
