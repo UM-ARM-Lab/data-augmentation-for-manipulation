@@ -66,6 +66,8 @@ class IterativeFineTuning:
         self.outdir = outdir
         self.no_execution = no_execution
         self.on_exception = on_exception
+        self.log_full_tree = False
+        self.verbose = -1
 
         logfile_name = outdir / 'logfile.hjson'
         self.outdir.mkdir(exist_ok=True, parents=True)
@@ -74,11 +76,11 @@ class IterativeFineTuning:
         self.job_chunker = JobChunker(logfile_name)
 
         ift_config_filename = pathify(self.job_chunker.load_prompt('ift_config_filename'))
+        self.seed = int(self.job_chunker.load_prompt('seed'))
         default_classifier_checkpoint = '/media/shared/cl_trials/untrained-1/August_13_17-03-09_45c09348d1'
         self.initial_classifier_checkpoint = pathify(
             self.job_chunker.load_prompt('initial_classifier_checkpoint', default_classifier_checkpoint))
         self.initial_recovery_checkpoint = pathify(self.job_chunker.load_prompt('initial_recovery_checkpoint', None))
-        self.seed = int(self.job_chunker.load_prompt('seed'))
         planner_params_filename = pathify(
             self.job_chunker.load_prompt('planner_params_filename', 'planner_configs/val_car/random_recovery.hjson'))
         self.test_scenes_dir = pathify(
@@ -108,9 +110,6 @@ class IterativeFineTuning:
         self.initial_planner_params = nested_dict_update(self.initial_planner_params,
                                                          self.ift_config.get('planner_params_update', {}))
         self.pretraining_config = self.ift_config.get('pretraining', {})
-
-        self.log_full_tree = False
-        self.verbose = -1
 
         if timeout is not None:
             rospy.loginfo(f"Overriding with timeout {timeout}")
