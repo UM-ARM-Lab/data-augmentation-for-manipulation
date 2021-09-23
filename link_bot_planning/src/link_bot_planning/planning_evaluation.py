@@ -162,7 +162,6 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
 
     def on_complete(self):
         self.job_chunker.store_result('planning_results_dir', self.outdir.as_posix())
-        self.job_chunker.done()
 
 
 def evaluate_planning(planner_params: Dict,
