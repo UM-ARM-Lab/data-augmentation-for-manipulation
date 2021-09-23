@@ -71,6 +71,12 @@ def int_range_arg(v):
     raise argparse.ArgumentTypeError(f"invalid int range {v}")
 
 
+def int_setify(v):
+    if v is None:
+        return None
+    return int_set_arg(v)
+
+
 def int_set_arg(v):
     """
     :param v: either a single int, or a range like 3-8 (both ends inclusive), or a csv list of ints

@@ -23,6 +23,7 @@ from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.results_to_recovery_dataset import ResultsToRecoveryDataset
 from link_bot_planning.test_scenes import get_all_scene_indices
+from link_bot_pycommon.args import int_setify
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.pycommon import pathify, deal_with_exceptions
 from moonshine.gpu_config import limit_gpu_mem
@@ -85,7 +86,7 @@ class IterativeFineTuning:
             self.job_chunker.load_prompt('planner_params_filename', 'planner_configs/val_car/random_recovery.hjson'))
         self.test_scenes_dir = pathify(
             self.job_chunker.load_prompt('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
-        self.test_scenes_indices = pathify(self.job_chunker.load_prompt('test_scenes_indices', None))
+        self.test_scenes_indices = int_setify(self.job_chunker.load_prompt('test_scenes_indices', None))
 
         self.ift_config = load_hjson(ift_config_filename)
         self.checkpoint_suffix = 'latest_checkpoint'
