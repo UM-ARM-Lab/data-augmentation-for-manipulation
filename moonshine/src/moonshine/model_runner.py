@@ -6,7 +6,6 @@ import tensorflow as tf
 from colorama import Fore, Style
 from progressbar import progressbar
 
-import link_bot_pycommon.pycommon
 from link_bot_data.progressbar_widgets import mywidgets
 from moonshine.metrics import LossCheckpointMetric
 from moonshine.my_keras_model import MyKerasModel
@@ -58,8 +57,8 @@ class ModelRunner:
 
         self.group_name = self.trial_path.parts[-2]
 
-        self.val_summary_writer = tf.summary.create_file_writer(link_bot_pycommon.pycommon.as_posix())
-        self.train_logdir = link_bot_pycommon.pycommon.as_posix()
+        self.val_summary_writer = tf.summary.create_file_writer((self.trial_path / "logs/1_val").as_posix())
+        self.train_logdir = (self.trial_path / "logs/2_train").as_posix()
         self.train_summary_writer = tf.summary.create_file_writer(self.train_logdir)
 
         self.prof = TFProfilerHelper(profile, self.train_logdir)
@@ -78,10 +77,10 @@ class ModelRunner:
         self.latest_checkpoint_path = self.trial_path / "latest_checkpoint"
         self.best_checkpoint_path = self.trial_path / "best_checkpoint"
         self.latest_checkpoint_manager = tf.train.CheckpointManager(self.latest_ckpt,
-                                                                    link_bot_pycommon.pycommon.as_posix(),
+                                                                    self.latest_checkpoint_path.as_posix(),
                                                                     max_to_keep=1)
         self.best_checkpoint_manager = tf.train.CheckpointManager(self.best_ckpt,
-                                                                  link_bot_pycommon.pycommon.as_posix(),
+                                                                  self.best_checkpoint_path.as_posix(),
                                                                   max_to_keep=1)
 
         if self.checkpoint is not None:

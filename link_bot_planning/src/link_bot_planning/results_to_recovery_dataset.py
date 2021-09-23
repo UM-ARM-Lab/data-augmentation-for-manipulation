@@ -7,7 +7,6 @@ import tensorflow as tf
 from colorama import Fore
 from matplotlib import cm
 
-import link_bot_pycommon.pycommon
 import rospy
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers import classifier_utils
@@ -72,7 +71,7 @@ class ResultsToRecoveryDataset:
         fwd_model_dir = pathify(self.planner_params_for_results['fwd_model_dir'])
         classifier_model_dir = pathify(self.planner_params_for_results['classifier_model_dir'])[0]
         # we assume index [0] is the learned classifier, this assert tries to catch this
-        print(f"Using classifier model {link_bot_pycommon.pycommon.as_posix()}")
+        print(f"Using classifier model {classifier_model_dir.as_posix()}")
         self.fwd_model = dynamics_utils.load_generic_model(fwd_model_dir, self.scenario)
         self.classifier = classifier_utils.load_generic_model(classifier_model_dir, self.scenario)
 

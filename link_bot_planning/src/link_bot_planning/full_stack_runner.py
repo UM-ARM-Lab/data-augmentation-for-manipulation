@@ -6,7 +6,6 @@ import hjson
 import rospkg
 from colorama import Fore
 
-import link_bot_pycommon.pycommon
 import rospy
 from link_bot_classifiers import train_test_classifier, train_test_recovery
 from link_bot_data.base_collect_dynamics_data import TfDataCollector
@@ -239,7 +238,7 @@ class FullStackRunner:
                                                                       use_gt_rope=self.use_gt_rope,
                                                                       labeling_params=labeling_params,
                                                                       outdir=outdir)
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + recovery_dataset_dir.as_posix())
         return {
             'recovery_dataset_dir': recovery_dataset_dir,
         }
@@ -262,7 +261,7 @@ class FullStackRunner:
                                                     batch_size=batch_size,
                                                     epochs=epochs,
                                                     seed=seed)
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + trial_path.as_posix())
         return {
             'model_dir': trial_path,
         }
@@ -318,7 +317,7 @@ class FullStackRunner:
         if self.launch:
             self.service_provider.kill()
 
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + outdir.as_posix())
         return outdir
 
     def make_planners_params(self,
@@ -360,20 +359,20 @@ def run_steps(fsr, full_stack_params, included_steps, log):
         log['collect_dynamics_data_1'] = collect_dynamics_data_1_out
         with logfile_name.open("w") as logfile:
             hjson.dump(log, logfile, cls=MyHjsonEncoder)
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + logfile_name.as_posix())
     if 'collect_dynamics_data_2' not in log and (
             included_steps is None or 'collect_dynamics_data_2' in included_steps):
         collect_dynamics_data_2_out = fsr.collect_dynamics_data_2(log, seed)
         log['collect_dynamics_data_2'] = collect_dynamics_data_2_out
         with logfile_name.open("w") as logfile:
             hjson.dump(log, logfile, cls=MyHjsonEncoder)
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + logfile_name.as_posix())
     if 'learn_dynamics' not in log and (included_steps is None or 'learn_dynamics' in included_steps):
         learn_dynamics_out = fsr.learn_dynamics(log, seed)
         log['learn_dynamics'] = learn_dynamics_out
         with logfile_name.open("w") as logfile:
             hjson.dump(log, logfile, cls=MyHjsonEncoder)
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + logfile_name.as_posix())
     #
     # if 'learn_full_dynamics' not in log and (included_steps is None or 'learn_full_dynamics' in included_steps):
     #     learn_full_dynamics_out = fsr.learn_full_dynamics(log, seed)
@@ -386,28 +385,28 @@ def run_steps(fsr, full_stack_params, included_steps, log):
         log['make_classifier_dataset'] = make_classifier_dataset_out
         with logfile_name.open("w") as logfile:
             hjson.dump(log, logfile, cls=MyHjsonEncoder)
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + logfile_name.as_posix())
     if 'learn_classifier' not in log and (included_steps is None or 'learn_classifier' in included_steps):
         learn_classifier_out = fsr.learn_classifier(log, seed)
         log['learn_classifier'] = learn_classifier_out
         with logfile_name.open("w") as logfile:
             hjson.dump(log, logfile, cls=MyHjsonEncoder)
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + logfile_name.as_posix())
     if 'make_recovery_dataset' not in log and (included_steps is None or 'make_recovery_datastet' in included_steps):
         make_recovery_dataset_out = fsr.make_recovery_dataset(log, seed)
         log['make_recovery_dataset'] = make_recovery_dataset_out
         with logfile_name.open("w") as logfile:
             hjson.dump(log, logfile, cls=MyHjsonEncoder)
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + logfile_name.as_posix())
     if 'learn_recovery' not in log and (included_steps is None or 'learn_recovery' in included_steps):
         learn_recovery_out = fsr.learn_recovery(log, seed)
         log['learn_recovery'] = learn_recovery_out
         with logfile_name.open("w") as logfile:
             hjson.dump(log, logfile, cls=MyHjsonEncoder)
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + logfile_name.as_posix())
     if 'planning_evaluation' not in log and (included_steps is None or 'planning_evaluation' in included_steps):
         planning_evaluation_out = fsr.evaluate_multiple_planning(log, seed)
         log['planning_evaluation'] = planning_evaluation_out
         with logfile_name.open("w") as logfile:
             hjson.dump(log, logfile, cls=MyHjsonEncoder)
-        rospy.loginfo(Fore.GREEN + link_bot_pycommon.pycommon.as_posix())
+        rospy.loginfo(Fore.GREEN + logfile_name.as_posix())

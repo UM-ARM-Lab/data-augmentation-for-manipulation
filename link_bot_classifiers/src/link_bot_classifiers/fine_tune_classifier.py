@@ -4,7 +4,6 @@ from typing import List, Optional, Dict
 
 import link_bot_classifiers
 import link_bot_classifiers.get_model
-import link_bot_pycommon.pycommon
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.add_augmentation_configs import add_augmentation_configs_to_dataset
 from link_bot_classifiers.train_test_classifier import setup_datasets
@@ -146,7 +145,7 @@ def fine_tune_classifier_from_datasets(train_dataset,
 
     if save_inputs:
         model.save_inputs_path = trial_path / 'saved_inputs'
-        print(link_bot_pycommon.pycommon.as_posix())
+        print(model.save_inputs_path.as_posix())
 
     if augmentation_config_dir is not None:
         train_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_dataset, batch_size)

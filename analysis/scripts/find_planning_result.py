@@ -3,7 +3,6 @@
 import argparse
 import pathlib
 
-import link_bot_pycommon.pycommon
 from analysis.analyze_results import load_planning_results
 from analysis.results_utils import get_all_results_subdirs
 
@@ -29,7 +28,7 @@ def main():
         except Exception:
             df = load_planning_results([d], regenerate=True)
         if query_fun(df.loc[0]):
-            print(link_bot_pycommon.pycommon.as_posix())
+            print(d.as_posix())
 
 
 if __name__ == '__main__':

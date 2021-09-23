@@ -11,7 +11,6 @@ import numpy as np
 import tensorflow as tf
 from colorama import Fore
 
-import link_bot_pycommon.pycommon
 from arc_utilities import ros_init, dict_tools
 from link_bot_classifiers import train_test_classifier
 from link_bot_classifiers.constants import thresholds, seeds
@@ -183,7 +182,7 @@ def generate_outputs(args, classifier_hparams_filename, log, output_filename, ou
         output_str = my_hdumps(outputs)
         print(Fore.GREEN + "Results:")
         print(output_str)
-        print(Fore.GREEN + f"Saved {link_bot_pycommon.pycommon.as_posix()}")
+        print(Fore.GREEN + f"Saved {output_filename.as_posix()}")
         with output_filename.open("w") as output_file:
             output_file.write(output_str)
 

@@ -6,7 +6,6 @@ from time import sleep, time
 import colorama
 
 import actionlib
-import link_bot_pycommon.pycommon
 import rosbag
 import rospy
 from arm_video_recorder.srv import TriggerVideoRecording, TriggerVideoRecordingRequest
@@ -29,7 +28,7 @@ def main():
     start_msg = TriggerVideoRecordingRequest()
     parent_dir = args.bagfile.parent
     filename = f"trajectory_playback-{int(time())}.avi"
-    full_filename = link_bot_pycommon.pycommon.as_posix()
+    full_filename = (parent_dir / filename).absolute().as_posix()
     if not args.no_video:
         start_msg.record = True
         start_msg.filename = full_filename

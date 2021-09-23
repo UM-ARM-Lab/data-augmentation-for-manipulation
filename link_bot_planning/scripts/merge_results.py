@@ -6,7 +6,6 @@ import shutil
 import colorama
 import hjson
 
-import link_bot_pycommon.pycommon
 from moonshine.filepath_tools import load_hjson
 
 
@@ -31,7 +30,7 @@ def main():
         new_path = args.outdir / metadata_filename
         # log this operation in the params!
         hparams = load_hjson(path)
-        hparams['created_by_merging'] = hparams.get('created_by_merging', []) + [link_bot_pycommon.pycommon.as_posix()]
+        hparams['created_by_merging'] = hparams.get('created_by_merging', []) + [args.indir.as_posix()]
         hjson.dump(hparams, new_path.open('w'), indent=2)
         print(path, '-->', new_path)
 
@@ -48,7 +47,7 @@ def main():
         traj_idx += 1
         print(path, '-->', new_path)
         if new_path.exists():
-            print(f"refusing to override existing file {link_bot_pycommon.pycommon.as_posix()}")
+            print(f"refusing to override existing file {new_path.as_posix()}")
         else:
             if not args.dry_run:
                 shutil.copyfile(path, new_path)

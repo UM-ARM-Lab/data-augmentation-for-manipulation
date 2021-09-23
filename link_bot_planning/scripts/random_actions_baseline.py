@@ -10,7 +10,6 @@ import tensorflow as tf
 from colorama import Fore
 from tqdm import tqdm
 
-import link_bot_pycommon.pycommon
 from arc_utilities import ros_init
 from link_bot_classifiers import train_test_classifier
 from link_bot_classifiers.eval_proxy_datasets import eval_proxy_datasets
@@ -71,10 +70,10 @@ class RandomActionsBaseline:
         self.job_chunker = JobChunker(self.logfilename)
         self.job_chunker.store_result('logfilename', self.logfilename.as_posix())
 
-        self.full_classifier_dataset_dir = pathlib.Path(self.job_chunker.load_prompt('full_classifier_dataset_dir'))
-        self.max_planning_trials = int(self.job_chunker.load_prompt('max_planning_trials'))
-        self.planner_params_filename = pathlib.Path(self.job_chunker.load_prompt('planner_params_filename'))
-        self.test_scenes_dir = pathlib.Path(self.job_chunker.load_prompt('test_scenes_dir'))
+        self.full_classifier_dataset_dir = pathlib.Path(self.job_chunker.load_or_prompt('full_classifier_dataset_dir'))
+        self.max_planning_trials = int(self.job_chunker.load_or_prompt('max_planning_trials'))
+        self.planner_params_filename = pathlib.Path(self.job_chunker.load_or_prompt('planner_params_filename'))
+        self.test_scenes_dir = pathlib.Path(self.job_chunker.load_or_prompt('test_scenes_dir'))
         self.proxy_dataset_dirs = [
             pathlib.Path("/media/shared/classifier_data/car_no_classifier_eval/"),
             pathlib.Path("/media/shared/classifier_data/car_heuristic_classifier_eval2/"),
@@ -117,7 +116,7 @@ class RandomActionsBaseline:
                 [p.suspend() for p in gazebo_processes]
                 classifier_model_dir = self.learn_classifier(classifier_dataset_i_dir, i, n_examples)
                 print(classifier_model_dir)
-                iter_chunker.store_result('classifier_model_dir', link_bot_pycommon.pycommon.as_posix())
+                iter_chunker.store_result('classifier_model_dir', classifier_model_dir.as_posix())
 
             classifier_checkpoint = classifier_model_dir / 'best_checkpoint'
 
@@ -128,7 +127,7 @@ class RandomActionsBaseline:
                 planning_outdir = self.planning_evaluation(iter_chunker, classifier_checkpoint, i, n_examples)
                 [p.suspend() for p in gazebo_processes]
                 print(planning_outdir)
-                iter_chunker.store_result('planning_outdir', link_bot_pycommon.pycommon.as_posix())
+                iter_chunker.store_result('planning_outdir', planning_outdir.as_posix())
 
             # evaluate that classifier on the proxy datasets
             proxy_dataset_eval_done = iter_chunker.get_result('proxy_dataset_eval_done')

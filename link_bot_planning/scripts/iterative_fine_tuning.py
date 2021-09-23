@@ -12,7 +12,6 @@ from uuid import uuid4
 import numpy as np
 from more_itertools import chunked
 
-import link_bot_pycommon.pycommon
 from analysis.results_utils import list_all_planning_results_trials
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
@@ -352,7 +351,7 @@ class IterativeFineTuning:
                 model_hparams_update=self.ift_config['labeling_params_update'],
                 **self.ift_config['fine_tune_classifier'])
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
-            fine_tune_chunker.store_result('new_latest_checkpoint_dir', link_bot_pycommon.pycommon.as_posix())
+            fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir_rel.as_posix())
         else:
             new_latest_checkpoint_dir = self.outdir / new_latest_checkpoint_dir
         return new_latest_checkpoint_dir
@@ -376,7 +375,7 @@ class IterativeFineTuning:
                 validate_first=True,
                 **self.ift_config['fine_tune_recovery'])
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
-            fine_tune_chunker.store_result('new_latest_checkpoint_dir', link_bot_pycommon.pycommon.as_posix())
+            fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir_rel.as_posix())
         else:
             new_latest_checkpoint_dir = self.outdir / new_latest_checkpoint_dir
         return new_latest_checkpoint_dir

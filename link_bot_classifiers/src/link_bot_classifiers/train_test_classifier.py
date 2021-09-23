@@ -14,7 +14,6 @@ from progressbar import progressbar
 
 import link_bot_classifiers
 import link_bot_classifiers.get_model
-import link_bot_pycommon.pycommon
 import ros_numpy
 import rospy
 from analysis.results_utils import try_load_classifier_params
@@ -354,8 +353,8 @@ def put_eval_in_database(val_metrics,
     item = {
         'uuid':                     str(uuid.uuid4()),
         'time':                     str(int(time())),
-        'classifier':               link_bot_pycommon.pycommon.as_posix(),
-        'dataset_dirs':             ','.join([link_bot_pycommon.pycommon.as_posix() for d in dataset_dirs]),
+        'classifier':               checkpoint.as_posix(),
+        'dataset_dirs':             ','.join([d.as_posix() for d in dataset_dirs]),
         'balance':                  balance,
         'threshold':                threshold,
         'use_gt_rope':              use_gt_rope,

@@ -8,7 +8,6 @@ import hjson
 import numpy as np
 from more_itertools import interleave
 
-import link_bot_pycommon.pycommon
 from link_bot_data.dataset_utils import add_predicted, add_label
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader, NewBaseDataset
 from link_bot_data.new_dataset_utils import UNUSED_COMPAT, get_filenames, load_metadata
@@ -83,7 +82,7 @@ class NewClassifierDataset(NewBaseDataset):
             else:
                 balanced_filenames = self._balance()
                 balance_info[self.mode] = {}
-                balance_info[self.mode][str(self.loader.threshold)] = [link_bot_pycommon.pycommon.as_posix() for f in balanced_filenames]
+                balance_info[self.mode][str(self.loader.threshold)] = [f.as_posix() for f in balanced_filenames]
                 with balance_filename.open("w") as bf:
                     hjson.dump(balance_info, bf)
 
