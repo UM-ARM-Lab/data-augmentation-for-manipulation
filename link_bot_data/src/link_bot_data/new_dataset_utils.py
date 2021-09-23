@@ -1,6 +1,7 @@
 import pathlib
 import pickle
 
+import link_bot_pycommon.pycommon
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson
 
@@ -47,5 +48,5 @@ def load_metadata(metadata_filename):
     else:
         raise NotImplementedError()
     metadata['filename'] = metadata_filename.stem
-    metadata['full_filename'] = metadata_filename.as_posix()
+    metadata['full_filename'] = link_bot_pycommon.pycommon.as_posix()
     return metadata

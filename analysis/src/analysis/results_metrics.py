@@ -6,6 +6,7 @@ import numpy as np
 import rospkg
 from colorama import Fore
 
+import link_bot_pycommon.pycommon
 import rospy
 from analysis.results_utils import get_paths, try_load_classifier_params
 from arc_utilities.algorithms import nested_dict_update
@@ -279,7 +280,7 @@ def classifier_dataset(_: pathlib.Path, __: ExperimentScenario, trial_metadata: 
     try:
         classifier_model_dirs = paths_from_json(trial_metadata['planner_params']['classifier_model_dir'])
         for representative_classifier_model_dir in classifier_model_dirs:
-            if 'checkpoint' in representative_classifier_model_dir.as_posix():
+            if 'checkpoint' in link_bot_pycommon.pycommon.as_posix():
                 return representative_classifier_model_dir
         return "no-learned-classifiers"
     except RuntimeError:

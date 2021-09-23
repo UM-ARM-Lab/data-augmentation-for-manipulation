@@ -272,7 +272,7 @@ def paths_from_json(model_dirs):
 
 def paths_to_json(model_dirs: Union[List[pathlib.Path], pathlib.Path]) -> Union[List[str], str, None]:
     if isinstance(model_dirs, list):
-        return [p.as_posix() for p in model_dirs]
+        return [as_posix() for p in model_dirs]
     elif isinstance(model_dirs, pathlib.Path):
         return model_dirs.as_posix()
     elif isinstance(model_dirs, str):
@@ -468,3 +468,9 @@ def unordered_pairs(x):
     for i in range(len(x) - 1):
         for j in range(i + 1, len(x)):
             yield x[i], x[j]
+
+
+def as_posix(p: Optional[pathlib.Path]):
+    if p is None:
+        return None
+    return p.as_posix()

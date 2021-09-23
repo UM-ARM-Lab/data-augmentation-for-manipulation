@@ -8,6 +8,8 @@ import numpy as np
 import imageio
 from mss import mss
 
+import link_bot_pycommon.pycommon
+
 
 def record(parent):
     images = []
@@ -26,7 +28,7 @@ def record(parent):
             frame = np.array(img)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = cv2.putText(frame,
-                                text=full_filename.as_posix(),
+                                text=link_bot_pycommon.pycommon.as_posix(),
                                 org=(5, 20),
                                 fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                                 fontScale=0.4,

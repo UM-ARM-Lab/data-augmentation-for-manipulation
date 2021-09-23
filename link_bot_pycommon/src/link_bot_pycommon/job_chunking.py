@@ -57,11 +57,6 @@ class JobChunker:
         if save:
             self.save()
 
-    def store_results(self, update_dict: Dict, save=True):
-        self.log.update(update_dict)
-        if save:
-            self.save()
-
     def save(self):
         write_logfile(self.root_log, self.logfile_name, serializer=self.serializer)
 
@@ -84,27 +79,34 @@ class JobChunker:
     def get(self, key: str):
         return self.log[key]
 
-    def done(self, done_key='done'):
-        self.log[done_key] = True
-        self.save()
+    def load_prompt(self, key, *args):
+        """
+        Loads the value of key from the logfile, or prompts the user if it's not found.
+        If you provide a second argument, it will be used as a default.
+        Default is returned if key is not in the logfile, and the user enters nothing (simply presses enter)
+        Args:
+            key: string
+            *args: an optional default arg
 
-    def is_done(self, done_key='done'):
-        return done_key in self.log and self.log[done_key]
+        Returns:
+            the value
 
-    def load_or_prompt(self, k):
-        v = self.get_result(k)
-        if v is None:
-            v = input(f"{k}: ")
+        """
+        has_default = False
+        default = None
+        if len(args) == 1:
+            default = args[0]
+            has_default = True
 
-        self.store_result(k, v)
-
-        return v
-
-    def load_or_prompt_with_default(self, key: str, default):
         if key in self.log:
             return self.log[key]
-        v = input(f"{key} [{default}]: ")
-        if v == '':
-            v = default
+
+        if has_default:
+            v = input(f"{key} [{default}]: ")
+            if v == '':
+                v = default
+        else:
+            v = input(f"{key}: ")
+
         self.store_result(key, v)
         return v

@@ -9,6 +9,7 @@ import transformations
 from colorama import Fore
 from progressbar import progressbar
 
+import link_bot_pycommon.pycommon
 from arc_utilities import ros_init
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from learn_invariance.transform_link_states import transform_link_states
@@ -53,11 +54,11 @@ def main():
     full_output_directory = make_unique_outdir(args.outdir)
 
     full_output_directory.mkdir(exist_ok=True)
-    print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)
+    print(Fore.GREEN + link_bot_pycommon.pycommon.as_posix() + Fore.RESET)
 
     scenario_name = "floating_rope"
     hparams = {
-        'made_from': args.dataset.as_posix(),
+        'made_from': link_bot_pycommon.pycommon.as_posix(),
         'scenario':  scenario_name,
     }
     save_hparams(hparams, full_output_directory)

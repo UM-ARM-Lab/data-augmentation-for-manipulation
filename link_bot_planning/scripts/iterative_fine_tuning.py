@@ -12,6 +12,7 @@ from uuid import uuid4
 import numpy as np
 from more_itertools import chunked
 
+import link_bot_pycommon.pycommon
 from analysis.results_utils import list_all_planning_results_trials
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
@@ -63,6 +64,8 @@ class IterativeFineTuning:
                  timeout: int = None,
                  ):
         self.outdir = outdir
+        self.no_execution = no_execution
+        self.on_exception = on_exception
 
         logfile_name = outdir / 'logfile.hjson'
         self.outdir.mkdir(exist_ok=True, parents=True)
@@ -70,47 +73,29 @@ class IterativeFineTuning:
 
         self.job_chunker = JobChunker(logfile_name)
 
-        ift_config_filename = pathlib.Path(self.job_chunker.load_or_prompt('ift_config_filename'))
-        default_checkpoint = '/media/shared/cl_trials/untrained-1/August_13_17-03-09_45c09348d1'
-        classifier_checkpoint = pathlib.Path(
-            self.job_chunker.load_or_prompt_with_default('classifier_checkpoint', default_checkpoint))
-        seed = int(self.job_chunker.load_or_prompt('seed'))
-        planner_params_filename = pathlib.Path(
-            self.job_chunker.load_or_prompt_with_default('planner_params_filename',
-                                             'planner_configs/val_car/random_recovery.hjson'))
-        test_scenes_dir = pathlib.Path(
-            self.job_chunker.load_or_prompt_with_default('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
-        test_scenes_indices = pathify(self.job_chunker.load_or_prompt_with_default('test_scenes_indices', None))
+        ift_config_filename = pathify(self.job_chunker.load_prompt('ift_config_filename'))
+        default_classifier_checkpoint = '/media/shared/cl_trials/untrained-1/August_13_17-03-09_45c09348d1'
+        self.initial_classifier_checkpoint = pathify(
+            self.job_chunker.load_prompt('initial_classifier_checkpoint', default_classifier_checkpoint))
+        self.initial_recovery_checkpoint = pathify(self.job_chunker.load_prompt('initial_recovery_checkpoint', None))
+        self.seed = int(self.job_chunker.load_prompt('seed'))
+        planner_params_filename = pathify(
+            self.job_chunker.load_prompt('planner_params_filename', 'planner_configs/val_car/random_recovery.hjson'))
+        self.test_scenes_dir = pathify(
+            self.job_chunker.load_prompt('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
+        self.test_scenes_indices = pathify(self.job_chunker.load_prompt('test_scenes_indices', None))
 
-        ift_config = load_hjson(ift_config_filename)
-        initial_planner_params = load_planner_params(planner_params_filename)
+        self.ift_config = load_hjson(ift_config_filename)
+        self.initial_planner_params = load_planner_params(planner_params_filename)
 
-        from_env = 'untrained'
-        to_env = 'car3'
-        self.job_chunker.store_results({
-            'nickname':                      self.outdir.name,
-            'planner_params':                initial_planner_params,
-            'test_scenes_dir':               test_scenes_dir.as_posix(),
-            'test_scenes_indices':           test_scenes_indices,
-            'initial_classifier_checkpoint': classifier_checkpoint.as_posix(),
-            'initial_recovery_checkpoint':   None,
-            'from_env':                      from_env,
-            'to_env':                        to_env,
-            'ift_config':                    ift_config,
-            'seed':                          seed,
-            'ift_uuid':                      str(uuid4()),
-        })
+        self.job_chunker.store_result('from_env', 'untrained')
+        self.job_chunker.store_result('to_env', 'car3')
 
-        self.no_execution = no_execution
-        self.on_exception = on_exception
-        self.ift_config = self.job_chunker.get_result('ift_config')
-        self.ift_uuid = self.job_chunker.get_result('ift_uuid')
-        self.initial_planner_params = pathify(self.job_chunker.get_result('planner_params'))
+        self.ift_uuid = uuid4()
+        self.job_chunker.store_result('ift_uuid', str(self.ift_uuid))
         self.log_full_tree = False
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
-        self.test_scenes_dir = pathlib.Path(self.job_chunker.get_result('test_scenes_dir'))
-        self.test_scenes_indices = self.job_chunker.get_result('test_scenes_indices', None)
         self.verbose = -1
         self.tpi = self.ift_config['trials_per_iteration']
         self.classifier_labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
@@ -144,7 +129,7 @@ class IterativeFineTuning:
             self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices), self.tpi)
         elif trials_generator_type == 'random':
             def _random():
-                rng = np.random.RandomState(self.job_chunker.get_result('seed'))
+                rng = np.random.RandomState(self.seed)
                 while True:
                     yield rng.choice(all_trial_indices, size=self.tpi, replace=False)
 
@@ -244,7 +229,6 @@ class IterativeFineTuning:
             classifier_models = load_classifier(planner_params, self.scenario)
             self.planner.classifier_models = classifier_models
 
-            seed = self.job_chunker.get_result('seed')
             # Use this to pass more info into the results metadata.hjson
             metadata_update = {
                 'ift_iteration': iteration_data.iteration,
@@ -259,7 +243,7 @@ class IterativeFineTuning:
                                       outdir=planning_results_dir,
                                       trials=trials,
                                       test_scenes_dir=self.test_scenes_dir,
-                                      seed=seed,
+                                      seed=self.seed,
                                       metadata_update=metadata_update)
 
             deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)
@@ -366,7 +350,7 @@ class IterativeFineTuning:
                 model_hparams_update=self.ift_config['labeling_params_update'],
                 **self.ift_config['fine_tune_classifier'])
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
-            fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir_rel.as_posix())
+            fine_tune_chunker.store_result('new_latest_checkpoint_dir', link_bot_pycommon.pycommon.as_posix())
         else:
             new_latest_checkpoint_dir = self.outdir / new_latest_checkpoint_dir
         return new_latest_checkpoint_dir
@@ -390,7 +374,7 @@ class IterativeFineTuning:
                 validate_first=True,
                 **self.ift_config['fine_tune_recovery'])
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
-            fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir_rel.as_posix())
+            fine_tune_chunker.store_result('new_latest_checkpoint_dir', link_bot_pycommon.pycommon.as_posix())
         else:
             new_latest_checkpoint_dir = self.outdir / new_latest_checkpoint_dir
         return new_latest_checkpoint_dir

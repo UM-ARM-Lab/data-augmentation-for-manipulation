@@ -8,6 +8,7 @@ import colorama
 import numpy as np
 import tensorflow as tf
 
+import link_bot_pycommon.pycommon
 import rospy
 from arc_utilities import ros_init
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
@@ -232,8 +233,8 @@ def main():
 
     n_incorrect = count - n_correct
 
-    print(args.dataset_dirs[0].as_posix())
-    print(args.checkpoint.as_posix())
+    print(link_bot_pycommon.pycommon.as_posix())
+    print(link_bot_pycommon.pycommon.as_posix())
     print_percentage("% labeled 0", labeled_0, count)
     print_percentage("% correct (accuracy)", n_correct, count)
     print_percentage('% FP', fp, count)

@@ -5,6 +5,7 @@ import pickle
 
 import pyrobot_points_generator
 
+import link_bot_pycommon.pycommon
 import rospy
 from arc_utilities import ros_init
 
@@ -22,7 +23,7 @@ def main():
     args.outdir.mkdir(exist_ok=True, parents=True)
     outfilename = args.outdir / 'robot_points.pkl'
     if outfilename.exists():
-        q = input(f"File {outfilename.as_posix()} already exist, do you want to overwrite? [Y/n]")
+        q = input(f"File {link_bot_pycommon.pycommon.as_posix()} already exist, do you want to overwrite? [Y/n]")
         if q == 'n':
             return
 
@@ -47,7 +48,7 @@ def main():
 
     with outfilename.open("wb") as outfile:
         pickle.dump(data, outfile)
-    print(f"Wrote {outfilename.as_posix()}")
+    print(f"Wrote {link_bot_pycommon.pycommon.as_posix()}")
 
 
 if __name__ == "__main__":

@@ -7,6 +7,8 @@ import subprocess
 
 from tqdm import tqdm
 
+import link_bot_pycommon.pycommon
+
 
 def is_valid_filename(filename):
     return any([
@@ -24,7 +26,7 @@ def main():
     args = parser.parse_args()
 
     tmpdir = os.path.expanduser(f'~/.tmp_{args.src.name}')
-    shutil.copytree(args.src.as_posix(), tmpdir, dirs_exist_ok=True)
+    shutil.copytree(link_bot_pycommon.pycommon.as_posix(), tmpdir, dirs_exist_ok=True)
 
     src_pattern = '\/'.join(args.src.parts)
 
@@ -37,7 +39,7 @@ def main():
                 command = ['sed', '-i', f's/{src_pattern}/{dest_pattern}/g', filename]
                 subprocess.run(command, cwd=dirpath, stdout=subprocess.DEVNULL)
 
-    dest_str = dest.as_posix()
+    dest_str = link_bot_pycommon.pycommon.as_posix()
     shutil.copytree(tmpdir, dest_str, dirs_exist_ok=True)
 
 

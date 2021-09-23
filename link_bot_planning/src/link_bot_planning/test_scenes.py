@@ -5,6 +5,7 @@ from typing import Optional
 
 import numpy as np
 
+import link_bot_pycommon.pycommon
 import rosbag
 import rospy
 from gazebo_msgs.msg import LinkStates
@@ -82,9 +83,9 @@ class TestScene:
 
         if not force:
             if out_scene_file.exists():
-                raise RuntimeError(f"file {out_scene_file.as_posix()} exists!")
+                raise RuntimeError(f"file {link_bot_pycommon.pycommon.as_posix()} exists!")
             if out_goal_file.exists():
-                raise RuntimeError(f"file {out_goal_file.as_posix()} exists!")
+                raise RuntimeError(f"file {link_bot_pycommon.pycommon.as_posix()} exists!")
 
         self.idx = new_idx
         self.save(force=force)
@@ -94,7 +95,7 @@ class TestScene:
         scene_filename = make_scene_filename(self.root, self.idx)
         goal_filename.unlink(missing_ok=False)
         scene_filename.unlink(missing_ok=False)
-        print(f"Removed {goal_filename.as_posix()} and {scene_filename.as_posix()}")
+        print(f"Removed {link_bot_pycommon.pycommon.as_posix()} and {link_bot_pycommon.pycommon.as_posix()}")
 
 
 def save_test_scene(joint_state: JointState,

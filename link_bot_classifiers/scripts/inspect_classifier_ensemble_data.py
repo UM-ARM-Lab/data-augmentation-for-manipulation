@@ -4,6 +4,8 @@ import pathlib
 import matplotlib.pyplot as plt
 import numpy as np
 
+import link_bot_pycommon.pycommon
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -19,8 +21,8 @@ def main():
 
     violin_handles = []
     for infile in args.infile:
-        name = infile.parent.as_posix().replace("/", '-')
-        stdevs = np.load(infile.as_posix())
+        name = link_bot_pycommon.pycommon.as_posix().replace("/", '-')
+        stdevs = np.load(link_bot_pycommon.pycommon.as_posix())
         names.append(name)
         all_stdevs.append(stdevs)
 

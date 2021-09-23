@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+import link_bot_pycommon.pycommon
 from analysis.analyze_results import planning_results
 from analysis.results_figures import lineplot
 from analysis.results_utils import dataset_dir_to_iter, dataset_dir_to_num_examples
@@ -41,7 +42,7 @@ def metrics_main(args):
 def classifier_analysis(iter_key, root):
     df = get_classifier_df()
 
-    z = df.loc[df['classifier'].str.contains(root.as_posix())]
+    z = df.loc[df['classifier'].str.contains(link_bot_pycommon.pycommon.as_posix())]
     z = z.copy()
     z[iter_key] = z['classifier'].map(dataset_dir_to_num_examples)
 

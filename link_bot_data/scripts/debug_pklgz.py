@@ -5,6 +5,7 @@ from pprint import pprint
 
 from colorama import Fore
 
+import link_bot_pycommon.pycommon
 from link_bot_pycommon.serialization import load_gzipped_pickle
 
 
@@ -16,7 +17,7 @@ def main():
 
     for e in args.indir.iterdir():
         if e.is_file() and 'pkl.gz' in e.name:
-            print(Fore.GREEN + e.as_posix() + Fore.RESET)
+            print(Fore.GREEN + link_bot_pycommon.pycommon.as_posix() + Fore.RESET)
             d = load_gzipped_pickle(e)
             pprint(d)
             return

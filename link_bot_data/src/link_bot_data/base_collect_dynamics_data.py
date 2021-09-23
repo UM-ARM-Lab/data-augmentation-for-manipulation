@@ -6,6 +6,7 @@ import numpy as np
 from colorama import Fore
 from progressbar import progressbar
 
+import link_bot_pycommon.pycommon
 import rospy
 from arm_robots.robot import RobotPlanningError
 from link_bot_data.dataset_utils import make_unique_outdir, tf_write_example, pkl_write_example
@@ -121,7 +122,7 @@ class BaseDataCollector:
         full_output_directory = make_unique_outdir(outdir, n_trajs)
 
         full_output_directory.mkdir(exist_ok=True)
-        print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)
+        print(Fore.GREEN + link_bot_pycommon.pycommon.as_posix() + Fore.RESET)
 
         self.scenario.randomization_initialization(self.params)
         self.scenario.on_before_data_collection(self.params)
@@ -159,7 +160,7 @@ class BaseDataCollector:
 
         self.scenario.on_after_data_collection(self.params)
 
-        print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)
+        print(Fore.GREEN + link_bot_pycommon.pycommon.as_posix() + Fore.RESET)
 
         self.service_provider.pause()
 

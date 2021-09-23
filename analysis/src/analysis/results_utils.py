@@ -7,6 +7,7 @@ from typing import Dict, Optional, List, Union
 import hjson
 from colorama import Fore
 
+import link_bot_pycommon.pycommon
 import rospy
 from arc_utilities.algorithms import zip_repeat_shorter
 from link_bot_planning.my_planner import PlanningResult, PlanningQuery
@@ -238,7 +239,7 @@ def list_numbered_files(results_dir, pattern, extension):
     globbed_filenames = results_dir.glob(f"*.{extension}")
     filenames = []
     for filename in globbed_filenames:
-        m = re.fullmatch(pattern + extension, filename.as_posix())
+        m = re.fullmatch(pattern + extension, link_bot_pycommon.pycommon.as_posix())
         trial_idx = int(m.group(1))
         filenames.append((trial_idx, filename))
     return sorted(filenames)
