@@ -73,14 +73,14 @@ class IterativeFineTuning:
         ift_config_filename = pathlib.Path(self.job_chunker.load_or_prompt('ift_config_filename'))
         default_checkpoint = '/media/shared/cl_trials/untrained-1/August_13_17-03-09_45c09348d1'
         classifier_checkpoint = pathlib.Path(
-            self.job_chunker.load_or_default('classifier_checkpoint', default_checkpoint))
+            self.job_chunker.load_or_prompt_with_default('classifier_checkpoint', default_checkpoint))
         seed = int(self.job_chunker.load_or_prompt('seed'))
         planner_params_filename = pathlib.Path(
-            self.job_chunker.load_or_default('planner_params_filename',
+            self.job_chunker.load_or_prompt_with_default('planner_params_filename',
                                              'planner_configs/val_car/random_recovery.hjson'))
         test_scenes_dir = pathlib.Path(
-            self.job_chunker.load_or_default('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
-        test_scenes_indices = pathify(self.job_chunker.load_or_default('test_scenes_indices', None))
+            self.job_chunker.load_or_prompt_with_default('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
+        test_scenes_indices = pathify(self.job_chunker.load_or_prompt_with_default('test_scenes_indices', None))
 
         ift_config = load_hjson(ift_config_filename)
         initial_planner_params = load_planner_params(planner_params_filename)

@@ -94,14 +94,17 @@ class JobChunker:
     def load_or_prompt(self, k):
         v = self.get_result(k)
         if v is None:
-            v = input(f"{k}:")
+            v = input(f"{k}: ")
 
         self.store_result(k, v)
 
         return v
 
-    def load_or_default(self, key: str, default):
+    def load_or_prompt_with_default(self, key: str, default):
         if key in self.log:
             return self.log[key]
-        self.store_result(key, default)
-        return default
+        v = input(f"{key} [{default}]: ")
+        if v == '':
+            v = default
+        self.store_result(key, v)
+        return v
