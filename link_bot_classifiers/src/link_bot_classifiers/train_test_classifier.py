@@ -20,6 +20,7 @@ from analysis.results_utils import try_load_classifier_params
 from geometry_msgs.msg import Point
 from link_bot_classifiers import classifier_utils
 from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
+from link_bot_classifiers.add_augmentation_configs import add_augmentation_configs_to_dataset
 from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data import dynamodb_utils
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
@@ -95,6 +96,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                take: Optional[int] = None,
                no_validate: bool = False,
                trials_directory: Optional[pathlib.Path] = pathlib.Path("./trials").absolute(),
+               augmentation_config_dir: Optional[pathlib.Path] = None,
                **kwargs):
     model_hparams = load_hjson(model_hparams)
     model_class = link_bot_classifiers.get_model.get_model(model_hparams['model_class'])
@@ -147,6 +149,9 @@ def train_main(dataset_dirs: List[pathlib.Path],
                                                        val_dataset_loader,
                                                        seed,
                                                        take)
+
+    if augmentation_config_dir is not None:
+        train_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_dataset, batch_size)
 
     final_val_metrics = runner.train(train_dataset, val_dataset, num_epochs=epochs)
 

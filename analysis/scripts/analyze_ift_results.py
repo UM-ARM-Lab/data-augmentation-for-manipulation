@@ -19,6 +19,8 @@ def metrics_main(args):
     outdir, df, table_specs = planning_results(args.results_dirs, args.regenerate, args.latex)
 
     w = 10
+    max_iter = 200
+    x_max = max_iter + 0.01
     iter_key = 'ift_iteration'
 
     z2 = df.groupby(iter_key).agg('mean').rolling(w).agg('mean')  # groupby iter_key also sorts by default
@@ -40,17 +42,17 @@ def metrics_main(args):
     df_r = df_r.loc[(df_r['used_augmentation'] == 0.0) | (df_r['used_augmentation'] == 1.0)]
 
     fig, x = lineplot(df, iter_key, 'success', 'Success Rate', hue='used_augmentation')
-    x.set_xlim(-0.01, 100.01)
+    x.set_xlim(-0.01, x_max)
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate.png')
 
     fig, x = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling1)', hue='used_augmentation', style='full_retrain')
-    x.set_xlim(-0.01, 100.01)
+    x.set_xlim(-0.01, x_max)
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate_rolling1.png')
 
     fig, x = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling2)', hue='full_retrain')
-    x.set_xlim(-0.01, 100.01)
+    x.set_xlim(-0.01, x_max)
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate_rolling2.png')
 
@@ -58,20 +60,20 @@ def metrics_main(args):
     plt.savefig(outdir / f'any_solved.png')
 
     fig, x = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid', style='full_retrain')
-    x.set_xlim(-0.01, 100.01)
+    x.set_xlim(-0.01, x_max)
 
     fig, x = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
-    x.set_xlim(-0.01, 100.01)
+    x.set_xlim(-0.01, x_max)
 
     fig, x = lineplot(df_r, iter_key, 'task_error', 'Task Error (rolling)', hue='used_augmentation', style='full_retrain')
-    x.set_xlim(-0.01, 100.01)
+    x.set_xlim(-0.01, x_max)
 
     fig, x = lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
-    x.set_xlim(-0.01, 100.01)
+    x.set_xlim(-0.01, x_max)
     plt.savefig(outdir / f'normalized_model_error.png')
 
     fig, x = lineplot(df_r, iter_key, 'normalized_model_error', 'Normalized Model Error (rolling)', hue='used_augmentation')
-    x.set_xlim(-0.01, 100.01)
+    x.set_xlim(-0.01, x_max)
     plt.savefig(outdir / f'normalized_model_error_rolling.png')
 
     if not args.no_plot:

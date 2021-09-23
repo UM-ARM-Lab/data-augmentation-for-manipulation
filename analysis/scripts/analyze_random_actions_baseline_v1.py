@@ -48,10 +48,10 @@ def classifier_analysis(iter_key, root):
     def plot_eval(dataset_name):
         z_for_dataset = z.loc[z['dataset_dirs'].str.contains(dataset_name)]
         lineplot(z_for_dataset, iter_key, 'accuracy', f"Accuracy on {dataset_name} Dataset")
-        plt.ylim(-0.01, 1.01)
+        plt.ylim(0.5, 1.01)
         plt.savefig(root / f"{dataset_name}-accuracy.png")
         lineplot(z_for_dataset, iter_key, 'accuracy on negatives', f"Specificity on {dataset_name} Dataset")
-        plt.ylim(-0.01, 1.01)
+        plt.ylim(0.5, 1.01)
         plt.savefig(root / f"{dataset_name}-specificity.png")
 
     plot_eval('val_car_feasible_1614981888')

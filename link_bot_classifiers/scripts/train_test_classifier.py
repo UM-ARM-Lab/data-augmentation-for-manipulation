@@ -82,6 +82,7 @@ def main():
                               help='report validation every this many epochs', default=1)
     train_parser.add_argument('--seed', type=int, default=None)
     train_parser.add_argument('--threshold', type=float, default=None)
+    train_parser.add_argument('--augmentation-config-dir', type=pathlib.Path, help='dir of pkl files with state/env')
     train_parser.set_defaults(func=train_main)
 
     train_n_parser = subparsers.add_parser('train_n')

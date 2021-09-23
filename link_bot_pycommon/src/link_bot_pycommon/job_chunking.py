@@ -94,3 +94,6 @@ class JobChunker:
         self.store_result(k, v)
 
         return v
+
+    def load_or_default(self, key: str, default):
+        return self.log.get(key, default)

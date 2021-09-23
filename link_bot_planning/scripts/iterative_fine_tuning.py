@@ -31,16 +31,13 @@ with warnings.catch_warnings():
     from ompl import util as ou
 
 import colorama
-import hjson
 import tensorflow as tf
 from colorama import Fore, Style
 
 import rospy
 from arc_utilities import ros_init
-from link_bot_data.dataset_utils import make_unique_outdir
 from link_bot_data.load_dataset import compute_batch_size
 from link_bot_planning.planning_evaluation import load_planner_params, EvaluatePlanning
-from link_bot_pycommon.args import run_subparsers, int_set_arg
 from link_bot_pycommon.job_chunking import JobChunker
 from moonshine.filepath_tools import load_hjson
 
@@ -364,46 +361,43 @@ class IterativeFineTuning:
         return new_latest_checkpoint_dir
 
 
-def setup_ift(args):
+def ift_main(args):
     from_env = 'untrained'
     to_env = 'car3'
 
-    # setup
-    outdir = make_unique_outdir(pathlib.Path('results') / 'iterative_fine_tuning' / f"{args.nickname}")
-    rospy.loginfo(Fore.YELLOW + "Created output directory: {}".format(outdir))
+    logfile_name = args.outdir / 'logfile.hjson'
+    args.outdir.mkdir(exists_ok=True, parents=True)
+    rospy.loginfo(Fore.YELLOW + "Created output directory: {}".format(args.outdir))
 
-    ift_config = load_hjson(args.ift_config)
+    job_chunker = JobChunker(logfile_name)
 
-    initial_planner_params = load_planner_params(args.planner_params)
+    ift_config_filename = pathlib.Path(job_chunker.load_or_prompt('ift_config_filename'))
+    default_checkpoint = '/media/shared/cl_trials/untrained-1/August_13_17-03-09_45c09348d1'
+    classifier_checkpoint = pathlib.Path(job_chunker.load_or_default('classifier_checkpoint', default_checkpoint))
+    seed = pathlib.Path(job_chunker.load_or_prompt('seed'))
+    planner_params_filename = pathlib.Path(
+        job_chunker.load_or_default('planner_params_filename', 'planner_params/val_car/random_recovery.hjson'))
+    test_scenes_dir = pathlib.Path(
+        job_chunker.load_or_default('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
+    test_scenes_indices = pathlib.Path(job_chunker.load_or_default('test_scenes_indices', None))
 
-    if args.recovery_checkpoint.as_posix() == 'none':
-        initial_recovery_checkpoint = None
-    else:
-        initial_recovery_checkpoint = args.recovery_checkpoint.as_posix()
-    print(initial_recovery_checkpoint)
+    ift_config = load_hjson(ift_config_filename)
+    initial_planner_params = load_planner_params(planner_params_filename)
 
-    logfile_name = outdir / 'logfile.hjson'
     log = {
-        'nickname':                      args.nickname,
+        'nickname':                      args.outdir.name,
         'planner_params':                initial_planner_params,
-        'test_scenes_dir':               args.test_scenes_dir.as_posix(),
-        'test_scenes_indices':           args.test_scenes_indices,
-        'initial_classifier_checkpoint': args.classifier_checkpoint.as_posix(),
-        'initial_recovery_checkpoint':   initial_recovery_checkpoint,
+        'test_scenes_dir':               test_scenes_dir.as_posix(),
+        'test_scenes_indices':           test_scenes_indices,
+        'initial_classifier_checkpoint': classifier_checkpoint.as_posix(),
+        'initial_recovery_checkpoint':   None,
         'from_env':                      from_env,
         'to_env':                        to_env,
         'ift_config':                    ift_config,
-        'seed':                          args.seed,
+        'seed':                          seed,
         'ift_uuid':                      str(uuid4()),
     }
-    with logfile_name.open("w") as logfile:
-        hjson.dump(log, logfile)
-    print(logfile_name.as_posix())
 
-
-# @notifyme.notify()
-def ift_main(args):
-    log = load_hjson(args.logfile)
     ift = IterativeFineTuning(log=log,
                               logfile_name=args.logfile,
                               no_execution=args.no_execution,
@@ -411,11 +405,6 @@ def ift_main(args):
                               on_exception=args.on_exception,
                               )
     ift.run(n_iters=args.n_iters)
-    # profiling_logdir = args.logfile.parent
-    # tf.profiler.experimental.start(profiling_logdir.as_posix())
-    # with tf.profiler.experimental.Trace("TraceContext"):
-    #    ift.run(n_iters=args.n_iters)
-    # tf.profiler.experimental.stop()
 
 
 @ros_init.with_ros("iterative_fine_tuning")
@@ -426,30 +415,14 @@ def main():
     tf.autograph.set_verbosity(0)
 
     parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers()
-    setup_parser = subparsers.add_parser('setup')
-    run_parser = subparsers.add_parser('run')
 
-    setup_parser.add_argument("ift_config", type=pathlib.Path, help='hjson file from ift_config/')
-    setup_parser.add_argument('planner_params', type=pathlib.Path, help='hjson file from planner_configs/')
-    setup_parser.add_argument("classifier_checkpoint", type=pathlib.Path, help='classifier checkpoint to setup from')
-    setup_parser.add_argument("nickname", type=str, help='used in making the output directory')
-    setup_parser.add_argument("seed", type=int, help='an additional seed for testing randomness')
-    setup_parser.add_argument("--recovery-checkpoint", type=pathlib.Path, help='recovery checkpoint to setup from',
-                              default='/media/shared/recovery_trials/random')
-    setup_parser.add_argument("--test-scenes-dir", type=pathlib.Path, default='test_scenes/swap_straps_no_recovery3')
-    setup_parser.add_argument("--test-scenes-indices", type=int_set_arg)
-    setup_parser.set_defaults(func=setup_ift)
+    parser.add_argument("otudir", type=pathlib.Path, help='outdir to put results in')
+    parser.add_argument("--n-iters", '-n', type=int, help='number of iterations of fine tuning', default=100)
+    parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
 
-    run_parser.add_argument("logfile", type=pathlib.Path)
-    run_parser.add_argument("--n-iters", '-n', type=int, help='number of iterations of fine tuning', default=100)
-    run_parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
-    run_parser.add_argument("--no-execution", action="store_true", help='no execution')
-    run_parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
-    run_parser.set_defaults(func=ift_main)
+    args = parser.parse_args()
 
-    # deal_with_exceptions(how_to_handle='retry', function=run_subparsers(parser))
-    run_subparsers(parser)
+    ift_main(args)
 
 
 if __name__ == '__main__':

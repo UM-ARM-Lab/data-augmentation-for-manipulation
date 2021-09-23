@@ -1,0 +1,30 @@
+{
+  full_retrain_classifier: true
+  trials_per_iteration: 1
+  trials_generator_type: random
+  fine_tune_classifier: {
+    fine_tune_conv: true
+    fine_tune_dense: true
+    fine_tune_lstm: true
+    fine_tune_output: true
+    learning_rate: 0.001
+    epochs: 25
+    early_stopping: false
+  }
+  fine_tune_recovery: null
+  planner_params_update: {
+    termination_criteria:
+    {
+    }
+  }
+  results_to_classifier_dataset: {
+    val_split: 0.0
+    test_split: 0.0
+  }
+  results_to_recovery_dataset: null
+  labeling_params_update: {
+  }
+  pretraining: {
+    use_pretraining: false
+  }
+}
