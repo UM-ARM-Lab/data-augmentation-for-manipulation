@@ -4,9 +4,8 @@ from typing import Optional, Tuple
 
 import tensorflow as tf
 from colorama import Fore, Style
-from progressbar import progressbar
+from tqdm import tqdm
 
-from link_bot_data.progressbar_widgets import mywidgets
 from moonshine.metrics import LossCheckpointMetric
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.tf_profiler_helper import TFProfilerHelper
@@ -141,7 +140,7 @@ class ModelRunner:
     def train_epoch(self, train_dataset, val_dataset, train_metrics, val_metrics):
         t0 = time.time()
 
-        for batch_idx, train_batch in enumerate(progressbar(train_dataset, widgets=mywidgets)):
+        for batch_idx, train_batch in enumerate(tqdm(train_dataset)):
             self.model.scenario.heartbeat()
             train_batch.update(self.train_batch_metadata)
             self.latest_ckpt.step.assign_add(1)
@@ -202,7 +201,7 @@ class ModelRunner:
             v.reset_states()
 
         if self.verbose >= -1:
-            val_gen = progressbar(val_dataset, widgets=mywidgets)
+            val_gen = tqdm(val_dataset)
         else:
             val_gen = val_dataset
 

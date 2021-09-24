@@ -12,17 +12,34 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from moonshine.moonshine_utils import batch_examples_dicts
 
 
+def default_get_filenames(filenames):
+    for filename in filenames:
+        yield filename
+
+
 class NewBaseDataset:
 
-    def __init__(self, loader, filenames: List, mode, post_process: Optional[List[Callable]] = None, n_prefetch=2):
+    def __init__(self,
+                 loader,
+                 filenames: List,
+                 mode,
+                 n_prefetch=2,
+                 post_process: Optional[List[Callable]] = None,
+                 process_filenames: Optional[List[Callable]] = None,
+                 ):
         self.loader = loader
         self.mode = mode
         self.filenames = filenames
+        self.n_prefetch = n_prefetch
         if post_process is None:
             self._post_process = []
         else:
             self._post_process = post_process
-        self.n_prefetch = n_prefetch
+
+        if process_filenames is None:
+            self._process_filenames = []
+        else:
+            self._process_filenames = process_filenames
 
     def __iter__(self):
         if self.n_prefetch is None or self.n_prefetch == 0:
@@ -31,7 +48,7 @@ class NewBaseDataset:
             generator = self.iter_multiprocessing()
 
         for example in generator:
-            # NOTE: I don't like this, it's inconsistent about calling post_process with batched/non-batched inputs
+            # NOTE: This post_process with both batched/non-batched inputs which is annoying
             example = self.loader.post_process(example)
             for p in self._post_process:
                 example = p(example)
@@ -40,7 +57,8 @@ class NewBaseDataset:
 
     def iter_serial(self):
         print("Using slow, serial iteration")
-        for filenames in self.filenames:
+
+        for filenames in self.process_filenames():
             if isinstance(filenames, list):
                 examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
                 example = batch_examples_dicts(examples_i)
@@ -51,13 +69,20 @@ class NewBaseDataset:
 
     def iter_multiprocessing(self):
         assert self.n_prefetch > 0
-        for idx, filenames_i in enumerate(self.filenames):
+
+        for idx, filenames_i in enumerate(self.process_filenames()):
             if isinstance(filenames_i, list):
                 examples_i = list(self.loader.pool.map(load_single, filenames_i))
                 example = batch_examples_dicts(examples_i)
             else:
                 example = load_single(filenames_i)
             yield example
+
+    def process_filenames(self):
+        filenames_list = self.filenames
+        for p in self._process_filenames:
+            filenames_list = p(filenames_list)
+        return filenames_list
 
     def get_example(self, idx: int):
         filename = self.filenames[idx]
@@ -68,38 +93,58 @@ class NewBaseDataset:
 
     def batch(self, batch_size: int, drop_remainder: bool = False):
         if batch_size is None:
-            return self.__class__(self.loader, self.filenames, self.mode, self._post_process, self.n_prefetch)
+            return self
 
-        filenames_batched = list(batch_sequence(self.filenames, batch_size, drop_remainder))
+        def _batch_filenames(filenames):
+            return list(batch_sequence(filenames, batch_size, drop_remainder))
 
         def _include_batch_size(example: Dict):
             actual_batch_size = len(example['rope'])
             example['batch_size'] = actual_batch_size
             return example
 
-        # use self.__class__ here so that derived dataset classes return instances of themselves not the base class
-        batched = self.__class__(self.loader, filenames_batched, self.mode, self._post_process, self.n_prefetch)
-        return batched.map(_include_batch_size)
+        self._process_filenames.append(_batch_filenames)
+        self._post_process.append(_include_batch_size)
+        return self
 
-    def shuffle(self, buffer_size=UNUSED_COMPAT, seed: Optional[int] = 0, reshuffle_each_iteration=UNUSED_COMPAT):
-        # FIXME: actually implementing this would be nice
-        shuffled_filenames = self.filenames.copy()
-        rng = np.random.RandomState(seed)
-        rng.shuffle(shuffled_filenames)
-        return self.__class__(self.loader, shuffled_filenames, self.mode, self._post_process, self.n_prefetch)
+    def shuffle(self, buffer_size=UNUSED_COMPAT, seed: Optional[int] = 0, reshuffle_each_iteration=True):
+        if not reshuffle_each_iteration:
+            rng = np.random.RandomState(seed)
+        else:
+            rng = np.random.RandomState()
+
+        def _shuffle_filenames(filenames):
+            shuffled_filenames = filenames.copy()
+            rng.shuffle(shuffled_filenames)
+            return shuffled_filenames
+
+        self._process_filenames.append(_shuffle_filenames)
+        return self
 
     def skip(self, skip: int):
-        return self.__class__(self.loader, self.filenames[skip:], self.mode, self._post_process, self.n_prefetch)
+        def _skip(filenames: List[pathlib.Path]):
+            return filenames[skip:]
+
+        self._process_filenames.append(_skip)
+        return self
 
     def shard(self, shard: int):
-        return self.__class__(self.loader, self.filenames[::shard], self.mode, self._post_process, self.n_prefetch)
+        def _shard(filenames: List[pathlib.Path]):
+            return filenames[::shard]
+
+        self._process_filenames.append(_shard)
+        return self
 
     def take(self, take: int):
-        return self.__class__(self.loader, self.filenames[:take], self.mode, self._post_process, self.n_prefetch)
+        def _take(filenames):
+            return filenames[:take]
+
+        self._process_filenames.append(_take)
+        return self
 
     def map(self, _post_process: Callable):
-        return self.__class__(self.loader, self.filenames, self.mode, self._post_process + [_post_process],
-                              self.n_prefetch)
+        self._post_process.append(_post_process)
+        return self
 
     def serial(self):
         self.n_prefetch = 0
