@@ -24,18 +24,23 @@ from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
 
 done = False
+skip = False
 
 
 def done_cb(msg: AnimationControl):
     global done
+    global skip
 
     if msg.command == AnimationControl.DONE:
         done = True
+    if msg.command == AnimationControl.STEP_FORWARD:
+        skip = True
 
 
 @ros_init.with_ros("manual_augmentation")
 def main():
     global done
+    global skip
 
     parser = argparse.ArgumentParser()
     parser.add_argument("classifier_dataset_dir", type=pathlib.Path)
@@ -104,8 +109,9 @@ def main():
 
             transformation_matrix = None
             done = False
+            skip = False
             example_viz = deepcopy(example)
-            while not done:
+            while not done and not skip:
                 to_local_frame = original_rope_points[0, 0][None, None]
 
                 im_pose = im.get_pose()
@@ -129,11 +135,15 @@ def main():
                 viz(example_viz, 'aug', 'blue')
                 rospy.sleep(0.05)
 
-            manual_transforms[example_filename].append(transformation_matrix.numpy())
+            if not skip:
+                manual_transforms[example_filename].append(transformation_matrix.numpy())
+            else:
+                print(f"skipping the rest of {example_filename}...")
+                break
 
             with outfile.open("w") as file:
                 my_hdump(manual_transforms, file)
-            print(f"saved {example_filename} {i}/{args.n}")
+            print(f"saved {example_filename} {len(manual_transforms[example_filename])}/{args.n}")
 
 
 if __name__ == '__main__':

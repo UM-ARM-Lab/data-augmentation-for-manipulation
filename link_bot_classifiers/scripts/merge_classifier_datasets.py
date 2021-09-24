@@ -10,7 +10,7 @@ from arc_utilities import ros_init
 from link_bot_data.dataset_utils import train_test_split_counts, write_example
 from link_bot_data.load_dataset import get_classifier_dataset_loader, guess_dataset_format
 from link_bot_data.progressbar_widgets import mywidgets
-from link_bot_pycommon.pycommon import approx_range_split_counts
+from moonshine.filepath_tools import load_hjson
 
 
 @ros_init.with_ros("merge_classifier_datasets")
@@ -51,6 +51,19 @@ def main():
     print(f"N Total Examples: {n_out}")
 
     modes_counts = train_test_split_counts(n_out, val_split=0, test_split=0)
+
+    combined_manual_transforms = {}
+    total_count = 0
+    for d in datasets:
+        manual_transforms_filename = d.dataset_dirs[0] / 'manual_transforms.hjson'
+        manual_transforms = load_hjson(manual_transforms_filename)
+        for transforms in manual_transforms.values():
+            new_example_name = f'example_{total_count:08d}'
+            combined_manual_transforms[new_example_name] = transforms
+            total_count += 1
+    combined_manual_transforms_filename = args.outdir / 'manual_transforms.hjson'
+    with combined_manual_transforms_filename.open("w") as f:
+        hjson.dump(combined_manual_transforms, f)
 
     total_count = 0
     modes = ['train', 'val', 'test']
