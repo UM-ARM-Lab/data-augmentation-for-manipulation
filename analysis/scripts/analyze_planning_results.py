@@ -3,10 +3,9 @@ import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
-import tabulate
+import seaborn as sns
 
-from analysis.analyze_results import load_table_specs, load_planning_results, generate_tables, planning_results
-from analysis.results_utils import get_all_results_subdirs
+from analysis.analyze_results import planning_results
 from arc_utilities import ros_init
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -16,9 +15,31 @@ limit_gpu_mem(0.1)
 def metrics_main(args):
     outdir, df, table_format = planning_results(args.results_dirs, args.regenerate, args.latex)
 
-    table_specs = load_table_specs(args.tables_config, table_format)
+    fig, ax = plt.subplots(figsize=(12, 8))
+    sns.violinplot(
+        ax=ax,
+        data=df,
+        x='method_name',
+        y='task_error',
+        linewidth=5,
+    )
+    ax.set_title('Task Error')
+    plt.savefig(outdir / 'task_error.png')
 
-    generate_tables(df, outdir, table_specs)
+    fig, ax = plt.subplots(figsize=(12, 8))
+    sns.barplot(
+        ax=ax,
+        data=df,
+        x='method_name',
+        y='success',
+        linewidth=5,
+        ci=None,
+    )
+    ax.set_title('Success')
+    ax.set_ylim(-0.01, 1.01)
+    plt.savefig(outdir / 'success.png')
+
+    plt.show()
 
 
 @ros_init.with_ros("analyse_planning_results")
