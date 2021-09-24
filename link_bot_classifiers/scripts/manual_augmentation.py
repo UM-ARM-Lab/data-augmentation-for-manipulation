@@ -24,23 +24,28 @@ from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
 
 done = False
-skip = False
+skip_fwd = False
+skip_bwd = False
 
 
 def done_cb(msg: AnimationControl):
     global done
-    global skip
+    global skip_fwd
+    global skip_bwd
 
     if msg.command == AnimationControl.DONE:
         done = True
     if msg.command == AnimationControl.STEP_FORWARD:
-        skip = True
+        skip_fwd = True
+    if msg.command == AnimationControl.STEP_BACKWARD:
+        skip_bwd = True
 
 
 @ros_init.with_ros("manual_augmentation")
 def main():
     global done
-    global skip
+    global skip_fwd
+    global skip_bwd
 
     parser = argparse.ArgumentParser()
     parser.add_argument("classifier_dataset_dir", type=pathlib.Path)
@@ -88,7 +93,11 @@ def main():
         manual_transforms = {}
 
     dataset = dataset_loader.get_datasets(mode='all')
-    for example in tqdm(dataset):
+    dataset = list(dataset)
+    example_idx = 0
+    while example_idx < len(dataset):
+        example = dataset[example_idx]
+
         example_filename = example['filename']
         if example_filename not in manual_transforms:
             manual_transforms[example_filename] = []
@@ -109,9 +118,10 @@ def main():
 
             transformation_matrix = None
             done = False
-            skip = False
+            skip_fwd = False
+            skip_bwd = False
             example_viz = deepcopy(example)
-            while not done and not skip:
+            while not done and not skip_fwd and not skip_bwd:
                 to_local_frame = original_rope_points[0, 0][None, None]
 
                 im_pose = im.get_pose()
@@ -135,15 +145,20 @@ def main():
                 viz(example_viz, 'aug', 'blue')
                 rospy.sleep(0.05)
 
-            if not skip:
-                manual_transforms[example_filename].append(transformation_matrix.numpy())
-            else:
+            if skip_fwd:
                 print(f"skipping the rest of {example_filename}...")
                 break
+            elif skip_bwd:
+                print(f"Going back...")
+                example_idx -= 2
+                break
+            else:
+                manual_transforms[example_filename].append(transformation_matrix.numpy())
 
             with outfile.open("w") as file:
                 my_hdump(manual_transforms, file)
             print(f"saved {example_filename} {len(manual_transforms[example_filename])}/{args.n}")
+        example_idx += 1
 
 
 if __name__ == '__main__':
