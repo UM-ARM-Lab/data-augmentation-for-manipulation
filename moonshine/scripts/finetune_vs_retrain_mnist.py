@@ -157,7 +157,7 @@ def plot_results(root, chunker):
 def main():
     tf.get_logger().setLevel(logging.ERROR)
 
-    root = pathlib.Path('/mnt/shared/finetune_vs_restrain_mnist')
+    root = pathlib.Path('/media/shared/finetune_vs_restrain_mnist')
     # root = pathlib.Path('results/finetune_vs_restrain_mnist')
     root.mkdir(exist_ok=True, parents=True)
     df_filename = root / 'df.pkl'
