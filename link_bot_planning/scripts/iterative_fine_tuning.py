@@ -96,7 +96,7 @@ class IterativeFineTuning:
         self.job_chunker.store_result('from_env', 'untrained')
         self.job_chunker.store_result('to_env', 'car3')
 
-        self.ift_uuid = self.job_chunker.get_result('ift_uuid', uuid4())
+        self.ift_uuid = self.job_chunker.get_result('ift_uuid', str(uuid4()))
 
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
