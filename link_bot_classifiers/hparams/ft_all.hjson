@@ -3,4 +3,5 @@
   fine_tune_lstm: true
   fine_tune_dense: true
   fine_tune_output: true
+  learning_rate: 0.001
 }

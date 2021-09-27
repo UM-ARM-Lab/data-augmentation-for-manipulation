@@ -20,11 +20,6 @@ def process_filenames(filenames, process_funcs):
     return filenames_list
 
 
-@lru_cache
-def cached_len(filenames, process_funcs):
-    return len(process_filenames(filenames, process_funcs))
-
-
 def default_get_filenames(filenames):
     for filename in filenames:
         yield filename
@@ -96,7 +91,7 @@ class NewBaseDataset:
         return load_single(filename)
 
     def __len__(self):
-        return cached_len(self.filenames, self._process_filenames)
+        return len(process_filenames(self.filenames, self._process_filenames))
 
     def batch(self, batch_size: int, drop_remainder: bool = False):
         if batch_size is None:

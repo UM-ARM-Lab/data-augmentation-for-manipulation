@@ -27,7 +27,6 @@ def visualize_dataset(args, dataset_loader):
     print_dict(dataset.get_example(0))
     print('*' * 100)
 
-    dataset = dataset.batch(1)
     dataset = dataset.take(args.take)
     dataset = dataset.shard(args.shard)
 
@@ -56,7 +55,6 @@ def visualize_dataset(args, dataset_loader):
             continue
 
         deserialize_scene_msg(example)
-        example = remove_batch(example)
 
         is_close = example['is_close'].numpy().squeeze()
 
@@ -152,8 +150,7 @@ def compare_examples_from_datasets(args, classifier_dataset1, classifier_dataset
     tf_dataset2 = tf_dataset2.batch(1)
 
     datasets = tf_dataset1.zip(tf_dataset2)
-    for i, (example1, example2) in enumerate(
-            progressbar(datasets, widgets=mywidgets)):
+    for i, (example1, example2) in enumerate(progressbar(datasets, widgets=mywidgets)):
         print(i, args.example_indices)
 
         example1 = remove_batch(example1)
