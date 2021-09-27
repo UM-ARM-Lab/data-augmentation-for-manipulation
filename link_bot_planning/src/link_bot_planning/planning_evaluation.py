@@ -244,8 +244,9 @@ def evaluate_multiple_planning(outdir: pathlib.Path,
     ou.setLogLevel(ou.LOG_ERROR)
 
     if logfile_name is None:
-        logfile_name = pathlib.Path(tempfile.gettempdir()) / f'planning-evaluation-log-file-{time()}'
+        logfile_name = outdir / f'logfile.hjson'
 
+    print(f'logfile: {logfile_name}')
     job_chunker = JobChunker(logfile_name=logfile_name)
 
     rospy.loginfo(Fore.CYAN + "common output directory: {}".format(outdir))
