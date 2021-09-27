@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+import pickle
+
+import pandas as pd
+import numpy as np
 import logging
 import pathlib
 from typing import Optional
@@ -7,9 +11,10 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 
 from link_bot_pycommon.job_chunking import JobChunker
+from link_bot_pycommon.pkl_df_job_chunker import DfJobChunker
 
-resolution = 100_000
-max_examples = 1_000_000
+max_examples = 60_000
+m_steps = 10
 n_epochs = 10
 
 
@@ -18,7 +23,9 @@ def normalize_img(image, label):
     return tf.cast(image, tf.float32) / 255., label
 
 
-def train_mnist(n_take: int, prefix: str, checkpoint: Optional[str] = None):
+def train_mnist(n_take: int, prefix: str, seed: int, checkpoint: Optional[str] = None):
+    tf.random.set_seed(seed)
+
     (ds_train, ds_test), ds_info = tfds.load(
         'mnist',
         split=['train', 'test'],
@@ -32,7 +39,7 @@ def train_mnist(n_take: int, prefix: str, checkpoint: Optional[str] = None):
     ds_train = ds_train.take(n_take)
 
     ds_train = ds_train.cache()
-    ds_train = ds_train.shuffle(ds_info.splits['train'].num_examples)
+    ds_train = ds_train.shuffle(ds_info.splits['train'].num_examples, seed=seed)
     ds_train = ds_train.batch(128)
     ds_train = ds_train.prefetch(tf.data.experimental.AUTOTUNE)
     ds_test = ds_test.map(normalize_img)
@@ -69,18 +76,34 @@ def train_mnist(n_take: int, prefix: str, checkpoint: Optional[str] = None):
 
 
 def fine_tune(job_chunker):
-    checkpoint = None
-    for n_take in range(resolution, max_examples, resolution):
-        if job_chunker.get_result(str(n_take)) is None:
-            checkpoint, final_validation_accuracy = train_mnist(n_take, 'fine_tune', checkpoint=checkpoint)
-            job_chunker.store_result(str(n_take), final_validation_accuracy)
+    for seed in range(10):
+        checkpoint = None
+        for n_take in np.linspace(100, max_examples, m_steps):
+            n_take = int(n_take)
+            index = {'seed': seed, 'n_take': n_take}
+            if not job_chunker.has(index):
+                checkpoint, final_validation_accuracy = train_mnist(n_take,
+                                                                    'fine_tune',
+                                                                    checkpoint=checkpoint,
+                                                                    seed=seed)
+                job_chunker.append({
+                    'seed':                      seed,
+                    'n_take':                    n_take,
+                    'final_validation_accuracy': final_validation_accuracy,
+                })
 
 
 def retrain(job_chunker):
-    for n_take in range(resolution, max_examples, resolution):
-        if job_chunker.get_result(str(n_take)) is None:
-            _, final_validation_accuracy = train_mnist(n_take, 'retrain', checkpoint=None)
-            job_chunker.store_result(str(n_take), final_validation_accuracy)
+    for seed in range(10):
+        for n_take in np.linspace(100, max_examples, m_steps):
+            n_take = int(n_take)
+            k = f"{seed}_{n_take}"
+            if job_chunker.get_result(k) is None:
+                _, final_validation_accuracy = train_mnist(n_take,
+                                                           'retrain',
+                                                           checkpoint=None,
+                                                           seed=seed)
+                job_chunker.store_result(k)
 
 
 def plot_results(root, finetune_chunker, retrain_chunker):
@@ -107,14 +130,17 @@ def main():
 
     root = pathlib.Path('results/finetune_vs_restrain_mnist')
     root.mkdir(exist_ok=True, parents=True)
-    job_chunker = JobChunker(root / 'logfile.hjson')
-    finetune_chunker = job_chunker.sub_chunker('fine_tune')
-    retrain_chunker = job_chunker.sub_chunker('retrain')
+    df_filename = root / 'df.pkl'
+    chunker = DfJobChunker(df_filename)
 
-    fine_tune(finetune_chunker)
-    retrain(retrain_chunker)
+    # job_chunker = JobChunker(root / 'logfile.hjson')
+    # finetune_chunker = job_chunker.sub_chunker('fine_tune')
+    # retrain_chunker = job_chunker.sub_chunker('retrain')
 
-    plot_results(root, finetune_chunker, retrain_chunker)
+    fine_tune(chunker)
+    retrain(chunker)
+
+    plot_results(root, chunker)
 
 
 if __name__ == '__main__':
