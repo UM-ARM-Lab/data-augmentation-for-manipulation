@@ -19,13 +19,13 @@ def metrics_main(args):
     outdir, df, table_specs = planning_results(args.results_dirs, args.regenerate, args.latex)
 
     w = 10
-    max_iter = 200
+    max_iter = 100
     x_max = max_iter + 0.01
     iter_key = 'ift_iteration'
 
     z2 = df.groupby(iter_key).agg('mean').rolling(w).agg('mean')  # groupby iter_key also sorts by default
     fig, x = lineplot(z2, iter_key, 'success', 'Success Rate [all combined] (rolling)')
-    x.set_xlim(-0.01, 100.01)
+    x.set_xlim(-0.01, x_max)
     x.set_ylim(-0.01, 1.01)
 
     # compute rolling average per run

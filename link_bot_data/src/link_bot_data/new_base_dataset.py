@@ -1,4 +1,5 @@
 import pathlib
+from functools import lru_cache
 from multiprocessing import get_context
 from typing import List, Dict, Optional, Callable
 
@@ -10,6 +11,18 @@ from link_bot_data.new_dataset_utils import get_filenames, UNUSED_COMPAT, load_s
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import batch_examples_dicts
+
+
+def process_filenames(filenames, process_funcs):
+    filenames_list = filenames
+    for p in process_funcs:
+        filenames_list = p(filenames_list)
+    return filenames_list
+
+
+@lru_cache
+def cached_len(filenames, process_funcs):
+    return len(process_filenames(filenames, process_funcs))
 
 
 def default_get_filenames(filenames):
@@ -58,7 +71,7 @@ class NewBaseDataset:
     def iter_serial(self):
         print("Using slow, serial iteration")
 
-        for filenames in self.process_filenames():
+        for filenames in self.process_filenames(self.filenames, self._process_filenames):
             if isinstance(filenames, list):
                 examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
                 example = batch_examples_dicts(examples_i)
@@ -70,7 +83,7 @@ class NewBaseDataset:
     def iter_multiprocessing(self):
         assert self.n_prefetch > 0
 
-        for idx, filenames_i in enumerate(self.process_filenames()):
+        for idx, filenames_i in enumerate(self.process_filenames(self.filenames, self._process_filenames)):
             if isinstance(filenames_i, list):
                 examples_i = list(self.loader.pool.map(load_single, filenames_i))
                 example = batch_examples_dicts(examples_i)
@@ -78,18 +91,12 @@ class NewBaseDataset:
                 example = load_single(filenames_i)
             yield example
 
-    def process_filenames(self):
-        filenames_list = self.filenames
-        for p in self._process_filenames:
-            filenames_list = p(filenames_list)
-        return filenames_list
-
     def get_example(self, idx: int):
         filename = self.filenames[idx]
         return load_single(filename)
 
     def __len__(self):
-        return len(self.filenames)
+        return cached_len(self.filenames, self._process_filenames)
 
     def batch(self, batch_size: int, drop_remainder: bool = False):
         if batch_size is None:

@@ -65,8 +65,27 @@ class JobChunker:
     def save(self):
         write_logfile(self.root_log, self.logfile_name, serializer=self.serializer)
 
-    def get_result(self, key: str):
-        return self.log.get(key, None)
+    def get_result(self, key: str, *args):
+        """
+
+        Args: If a second arg is given it will be treated as a default. The default is if key is not in log.
+          If the default is returned, it is also stored so in the future it will be saved in the log.
+            key:
+            *args: an optional default value
+
+        Returns:
+
+        """
+        v = self.log.get(key, None)
+        if len(args) == 1:
+            default = args[0]
+            if v is None:
+                self.store_result(key, default)
+                return default
+            else:
+                return v
+        else:
+            return v
 
     def has_result(self, key: str):
         return key in self.log
