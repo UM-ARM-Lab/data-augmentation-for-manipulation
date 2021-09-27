@@ -1,21 +1,20 @@
 #!/usr/bin/env python
-import pickle
 
-import pandas as pd
-import numpy as np
 import logging
 import pathlib
 from typing import Optional
 
+import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.pkl_df_job_chunker import DfJobChunker
 
+min_examples = 100
 max_examples = 60_000
-m_steps = 10
+m_steps = 20
 n_epochs = 10
+n_seeds = 3
 
 
 def normalize_img(image, label):
@@ -58,7 +57,6 @@ def train_mnist(n_take: int, prefix: str, seed: int, checkpoint: Optional[str] =
     )
 
     if checkpoint is not None:
-        print(f'restoring {checkpoint}')
         model = tf.keras.models.load_model(checkpoint)
 
     history = model.fit(
@@ -69,6 +67,7 @@ def train_mnist(n_take: int, prefix: str, seed: int, checkpoint: Optional[str] =
     )
 
     new_checkpoint = f'results/{prefix}_{n_take}'
+    print(f'{new_checkpoint} {n_take} {seed}')
     model.save(new_checkpoint)
 
     final_validation_accuracy = history.history['val_sparse_categorical_accuracy'][-1]
@@ -76,49 +75,52 @@ def train_mnist(n_take: int, prefix: str, seed: int, checkpoint: Optional[str] =
 
 
 def fine_tune(job_chunker):
-    for seed in range(10):
+    prefix = 'fine_tune'
+    for seed in range(n_seeds):
         checkpoint = None
-        for n_take in np.linspace(100, max_examples, m_steps):
+        for n_take in np.linspace(min_examples, max_examples, m_steps):
             n_take = int(n_take)
-            index = {'seed': seed, 'n_take': n_take}
-            if not job_chunker.has(index):
+            row = {'seed': seed, 'n_take': n_take, 'prefix': prefix}
+            if not job_chunker.has(row):
                 checkpoint, final_validation_accuracy = train_mnist(n_take,
-                                                                    'fine_tune',
+                                                                    prefix=prefix,
                                                                     checkpoint=checkpoint,
                                                                     seed=seed)
-                job_chunker.append({
-                    'seed':                      seed,
-                    'n_take':                    n_take,
-                    'final_validation_accuracy': final_validation_accuracy,
-                })
+                row['final_validation_accuracy'] = final_validation_accuracy
+                job_chunker.append(row)
 
 
 def retrain(job_chunker):
-    for seed in range(10):
-        for n_take in np.linspace(100, max_examples, m_steps):
+    prefix = 'retrain'
+    for seed in range(n_seeds):
+        for n_take in np.linspace(min_examples, max_examples, m_steps):
             n_take = int(n_take)
-            k = f"{seed}_{n_take}"
-            if job_chunker.get_result(k) is None:
+            row = {'seed': seed, 'n_take': n_take, 'prefix': prefix}
+            if not job_chunker.has(row):
                 _, final_validation_accuracy = train_mnist(n_take,
-                                                           'retrain',
+                                                           prefix=prefix,
                                                            checkpoint=None,
                                                            seed=seed)
-                job_chunker.store_result(k)
+                row['final_validation_accuracy'] = final_validation_accuracy
+                job_chunker.append(row)
 
 
-def plot_results(root, finetune_chunker, retrain_chunker):
+def plot_results(root, chunker):
     import matplotlib.pyplot as plt
+    import seaborn as sns
     fig = plt.figure()
     ax = plt.gca()
-    x = [int(i) for i in finetune_chunker.log.keys()]
-    ft_y = list(finetune_chunker.log.values())
-    rt_y = list(retrain_chunker.log.values())
-    ax.plot(x, ft_y, label='fine tune')
-    ax.plot(x, rt_y, label='retrain')
+    sns.lineplot(ax=ax,
+                 data=chunker.df,
+                 x='n_take',
+                 y='final_validation_accuracy',
+                 hue='prefix',
+                 ci=100,
+                 palette='colorblind',
+                 )
     ax.set_xlabel("# training examples")
     ax.set_ylabel("validation accuracy")
     ax.set_title("Retraining vs Fine-Tuning: Online MNIST Classification")
-    ax.legend()
 
     fig.savefig((root / 'comparison.png').as_posix())
 
@@ -132,10 +134,6 @@ def main():
     root.mkdir(exist_ok=True, parents=True)
     df_filename = root / 'df.pkl'
     chunker = DfJobChunker(df_filename)
-
-    # job_chunker = JobChunker(root / 'logfile.hjson')
-    # finetune_chunker = job_chunker.sub_chunker('fine_tune')
-    # retrain_chunker = job_chunker.sub_chunker('retrain')
 
     fine_tune(chunker)
     retrain(chunker)

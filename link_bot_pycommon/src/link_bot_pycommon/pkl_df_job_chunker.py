@@ -32,5 +32,7 @@ class DfJobChunker:
             return False
         conditions = []
         for k, v in row.items():
+            if k not in self.df.columns:
+                return False
             conditions.append(self.df[k] == v)
         return reduce(operator.iand, conditions).any()
