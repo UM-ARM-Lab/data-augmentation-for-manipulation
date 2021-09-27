@@ -34,10 +34,15 @@ def main():
     parser.add_argument('--no-use-gt-rope', action='store_true', help='use ground truth rope state')
     parser.add_argument('--classifier', type=pathlib.Path)
     parser.add_argument('--recovery', type=pathlib.Path)
+    parser.add_argument('--continue-from', type=pathlib.Path)
 
     args = parser.parse_args()
 
-    root = make_unique_outdir(pathlib.Path('results') / f"{args.nickname}-planning-evaluation")
+    if args.continue_from is not None:
+        print(f"Ignoring nickname {args.nickname}")
+        root = args.continue_from
+    else:
+        root = make_unique_outdir(pathlib.Path('results') / f"{args.nickname}-planning-evaluation")
 
     planner_params = load_planner_params(args.planner_params)
     planner_params['method_name'] = args.nickname
