@@ -75,16 +75,16 @@ class IterativeFineTuning:
 
         self.job_chunker = JobChunker(logfile_name)
 
-        ift_config_filename = pathify(self.job_chunker.load_prompt('ift_config_filename'))
+        ift_config_filename = pathify(self.job_chunker.load_prompt_filename('ift_config_filename'))
         self.seed = int(self.job_chunker.load_prompt('seed'))
         default_classifier_checkpoint = '/media/shared/cl_trials/untrained-1/August_13_17-03-09_45c09348d1'
         self.initial_classifier_checkpoint = pathify(
-            self.job_chunker.load_prompt('initial_classifier_checkpoint', default_classifier_checkpoint))
+            self.job_chunker.load_prompt_filename('initial_classifier_checkpoint', default_classifier_checkpoint))
         self.initial_recovery_checkpoint = pathify(self.job_chunker.load_prompt('initial_recovery_checkpoint', None))
         planner_params_filename = pathify(
-            self.job_chunker.load_prompt('planner_params_filename', 'planner_configs/val_car/random_recovery.hjson'))
+            self.job_chunker.load_prompt_filename('planner_params_filename', 'planner_configs/val_car/random_recovery.hjson'))
         self.test_scenes_dir = pathify(
-            self.job_chunker.load_prompt('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
+            self.job_chunker.load_prompt_filename('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
         self.test_scenes_indices = int_setify(self.job_chunker.load_prompt('test_scenes_indices', None))
 
         self.ift_config = load_hjson(ift_config_filename)

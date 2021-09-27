@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional
 import hjson
 
 from link_bot_pycommon.serialization import MyHJsonSerializer
+from link_bot_pycommon.tab_complete_path import tab_complete_path
 
 
 def guess_mode_for_serializer(mode, serializer):
@@ -103,7 +104,10 @@ class JobChunker:
     def get(self, key: str):
         return self.log[key]
 
-    def load_prompt(self, key, *args):
+    def load_prompt_filename(self, key, *args):
+        return self.load_prompt(key, *args, input_func=tab_complete_path)
+
+    def load_prompt(self, key, *args, input_func=input):
         """
         Loads the value of key from the logfile, or prompts the user if it's not found.
         If you provide a second argument, it will be used as a default.
@@ -126,11 +130,11 @@ class JobChunker:
             return self.log[key]
 
         if has_default:
-            v = input(f"{key} [{default}]: ")
+            v = input_func(f"{key} [{default}]: ")
             if v == '':
                 v = default
         else:
-            v = input(f"{key}: ")
+            v = input_func(f"{key}: ")
 
         self.store_result(key, v)
         return v
