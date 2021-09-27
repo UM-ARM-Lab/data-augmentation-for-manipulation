@@ -71,7 +71,7 @@ class NewBaseDataset:
     def iter_serial(self):
         print("Using slow, serial iteration")
 
-        for filenames in self.process_filenames(self.filenames, self._process_filenames):
+        for filenames in process_filenames(self.filenames, self._process_filenames):
             if isinstance(filenames, list):
                 examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
                 example = batch_examples_dicts(examples_i)
@@ -83,7 +83,7 @@ class NewBaseDataset:
     def iter_multiprocessing(self):
         assert self.n_prefetch > 0
 
-        for idx, filenames_i in enumerate(self.process_filenames(self.filenames, self._process_filenames)):
+        for idx, filenames_i in enumerate(process_filenames(self.filenames, self._process_filenames)):
             if isinstance(filenames_i, list):
                 examples_i = list(self.loader.pool.map(load_single, filenames_i))
                 example = batch_examples_dicts(examples_i)
