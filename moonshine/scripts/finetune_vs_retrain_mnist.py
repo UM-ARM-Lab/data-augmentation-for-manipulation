@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import logging
 import pathlib
 from typing import Optional
@@ -12,9 +11,37 @@ from link_bot_pycommon.pkl_df_job_chunker import DfJobChunker
 
 min_examples = 100
 max_examples = 60_000
-m_steps = 20
+m_steps = 100
 n_epochs = 10
-n_seeds = 3
+n_seeds = 10
+
+
+def get_n_takes():
+    return np.linspace(min_examples, max_examples, m_steps)
+    # return [
+    #     100,
+    #     150,
+    #     200,
+    #     250,
+    #     300,
+    #     350,
+    #     400,
+    #     500,
+    #     600,
+    #     700,
+    #     800,
+    #     900,
+    #     1000,
+    #     1200,
+    #     1400,
+    #     2000,
+    #     3000,
+    #     4000,
+    #     10_000,
+    #     20_000,
+    #     30_000,
+    #     40_000,
+    # ]
 
 
 def normalize_img(image, label):
@@ -78,7 +105,7 @@ def fine_tune(job_chunker):
     prefix = 'fine_tune'
     for seed in range(n_seeds):
         checkpoint = None
-        for n_take in np.linspace(min_examples, max_examples, m_steps):
+        for n_take in get_n_takes():
             n_take = int(n_take)
             row = {'seed': seed, 'n_take': n_take, 'prefix': prefix}
             if not job_chunker.has(row):
@@ -93,7 +120,7 @@ def fine_tune(job_chunker):
 def retrain(job_chunker):
     prefix = 'retrain'
     for seed in range(n_seeds):
-        for n_take in np.linspace(min_examples, max_examples, m_steps):
+        for n_take in get_n_takes():
             n_take = int(n_take)
             row = {'seed': seed, 'n_take': n_take, 'prefix': prefix}
             if not job_chunker.has(row):
@@ -122,7 +149,7 @@ def plot_results(root, chunker):
     ax.set_ylabel("validation accuracy")
     ax.set_title("Retraining vs Fine-Tuning: Online MNIST Classification")
 
-    fig.savefig((root / 'comparison.png').as_posix())
+    fig.savefig((root / 'comparison.png').as_posix(), dpi=300)
 
     plt.show()
 
@@ -130,7 +157,8 @@ def plot_results(root, chunker):
 def main():
     tf.get_logger().setLevel(logging.ERROR)
 
-    root = pathlib.Path('results/finetune_vs_restrain_mnist')
+    root = pathlib.Path('/mnt/shared/finetune_vs_restrain_mnist')
+    # root = pathlib.Path('results/finetune_vs_restrain_mnist')
     root.mkdir(exist_ok=True, parents=True)
     df_filename = root / 'df.pkl'
     chunker = DfJobChunker(df_filename)

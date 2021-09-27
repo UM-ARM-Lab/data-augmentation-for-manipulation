@@ -48,10 +48,13 @@ class RvizAnimationController:
         self.update_state_periodically = rospy.Timer(rospy.Duration(nsecs=100_000_000), self.update_state)
 
     def update_state(self, _):
-        state_res = self.get_state_srv(GetAnimControllerStateRequest())
-        self.auto_play = state_res.state.auto_play
-        self.loop = state_res.state.loop
-        self.period = state_res.state.period
+        try:
+            state_res = self.get_state_srv(GetAnimControllerStateRequest())
+            self.auto_play = state_res.state.auto_play
+            self.loop = state_res.state.loop
+            self.period = state_res.state.period
+        except rospy.ServiceException:
+            pass
 
     def on_control(self, msg: AnimationControl):
         if msg.command == AnimationControl.STEP_BACKWARD:
