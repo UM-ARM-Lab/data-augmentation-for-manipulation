@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from analysis.analyze_results import planning_results
+from analysis.results_figures import violinplot
 from arc_utilities import ros_init
 from moonshine.gpu_config import limit_gpu_mem
 
@@ -15,16 +16,8 @@ limit_gpu_mem(0.1)
 def metrics_main(args):
     outdir, df, table_format = planning_results(args.results_dirs, args.regenerate, args.latex)
 
-    fig, ax = plt.subplots(figsize=(12, 8))
-    sns.violinplot(
-        ax=ax,
-        data=df,
-        x='method_name',
-        y='task_error',
-        linewidth=5,
-    )
-    ax.set_title('Task Error')
-    plt.savefig(outdir / 'task_error.png')
+    violinplot(df, outdir, 'method_name', 'task_error', "Task Error")
+    violinplot(df, outdir, 'method_name', 'normalized_model_error', 'Normalized Model Error')
 
     fig, ax = plt.subplots(figsize=(12, 8))
     sns.barplot(

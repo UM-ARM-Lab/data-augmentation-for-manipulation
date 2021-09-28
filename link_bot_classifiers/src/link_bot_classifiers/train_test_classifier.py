@@ -12,6 +12,7 @@ from colorama import Fore
 from dynamo_pandas.transactions import put_item
 from progressbar import progressbar
 
+import analysis.results_figures
 import link_bot_classifiers
 import link_bot_classifiers.get_model
 import ros_numpy
@@ -742,7 +743,7 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
 
     plt.figure()
     ax2 = plt.gca()
-    ax2.violinplot(classifier_ensemble_stdevs)
+    analysis.results_figures.violinplot(classifier_ensemble_stdevs)
     ax2.set_xlabel("density")
     ax2.set_ylabel("classifier uncertainty")
 

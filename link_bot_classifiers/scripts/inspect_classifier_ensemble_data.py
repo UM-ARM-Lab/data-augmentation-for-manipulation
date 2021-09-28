@@ -4,6 +4,8 @@ import pathlib
 import matplotlib.pyplot as plt
 import numpy as np
 
+import analysis.results_figures
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -30,7 +32,7 @@ def main():
         ax1.set_xlabel("ensemble stdev")
         ax1.set_ylabel("count")
 
-        v = ax2.violinplot(stdevs)
+        v = analysis.results_figures.violinplot(stdevs)
         violin_handles.append(v["bodies"][0])
         ax2.set_xlabel("density")
         ax2.set_ylabel("classifier uncertainty")
