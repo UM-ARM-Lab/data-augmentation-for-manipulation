@@ -52,10 +52,12 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
                  extra_end_conditions: Optional[List[Callable]] = None,
                  metadata_update: Optional[Dict] = None,
                  seed: int = 0,
+                 recovery_seed: int = 0,
                  ):
         super().__init__(planner, trials=trials, verbose=verbose, planner_params=planner_params,
                          service_provider=service_provider, no_execution=no_execution, use_gt_rope=use_gt_rope,
-                         test_scenes_dir=test_scenes_dir, seed=seed, extra_end_conditions=extra_end_conditions)
+                         test_scenes_dir=test_scenes_dir, seed=seed, extra_end_conditions=extra_end_conditions,
+                         recovery_seed=recovery_seed)
         self.record = record
         self.outdir = outdir
         self.job_chunker = job_chunker
@@ -175,6 +177,7 @@ def evaluate_planning(planner_params: Dict,
                       timeout: Optional[int] = None,
                       test_scenes_dir: Optional[pathlib.Path] = None,
                       seed: int = 0,
+                      recovery_seed: int = 0,
                       log_full_tree: bool = True,
                       how_to_handle: str = 'retry',
                       ):
@@ -213,6 +216,7 @@ def evaluate_planning(planner_params: Dict,
                               no_execution=no_execution,
                               test_scenes_dir=test_scenes_dir,
                               seed=seed,
+                              recovery_seed=recovery_seed,
                               )
 
     def _on_exception():

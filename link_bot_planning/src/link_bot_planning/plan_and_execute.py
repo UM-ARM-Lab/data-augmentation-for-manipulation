@@ -125,7 +125,8 @@ class PlanAndExecute:
                  trials: Optional[List[int]] = None,
                  test_scenes_dir: Optional[pathlib.Path] = None,
                  extra_end_conditions: Optional[List[Callable]] = None,
-                 seed: int = 0):
+                 seed: int = 0,
+                 recovery_seed: int = 0):
         self.use_gt_rope = use_gt_rope
         self.planner = planner
         self.scenario = self.planner.scenario
@@ -136,7 +137,7 @@ class PlanAndExecute:
         self.no_execution = no_execution
         self.env_rng = np.random.RandomState(0)
         self.goal_rng = np.random.RandomState(0)
-        self.recovery_rng = np.random.RandomState(0)
+        self.recovery_rng = np.random.RandomState(recovery_seed)
         self.seed = seed
         self.test_scenes_dir = test_scenes_dir
         self.extra_end_conditions = extra_end_conditions

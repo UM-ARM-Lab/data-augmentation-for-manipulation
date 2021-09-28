@@ -82,7 +82,8 @@ class IterativeFineTuning:
             self.job_chunker.load_prompt_filename('initial_classifier_checkpoint', default_classifier_checkpoint))
         self.initial_recovery_checkpoint = pathify(self.job_chunker.load_prompt('initial_recovery_checkpoint', None))
         planner_params_filename = pathify(
-            self.job_chunker.load_prompt_filename('planner_params_filename', 'planner_configs/val_car/random_recovery.hjson'))
+            self.job_chunker.load_prompt_filename('planner_params_filename',
+                                                  'planner_configs/val_car/random_recovery.hjson'))
         self.test_scenes_dir = pathify(
             self.job_chunker.load_prompt_filename('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
         self.test_scenes_indices = int_setify(self.job_chunker.load_prompt('test_scenes_indices', None))
@@ -236,6 +237,9 @@ class IterativeFineTuning:
                 'ift_uuid':      self.ift_uuid,
                 'ift_config':    self.ift_config,
             }
+            # NOTE: this way "random" recovery is a different random at each iteration
+            #  but a consistent random when the script is run multiple times
+            recovery_seed = self.seed + i
             runner = EvaluatePlanning(planner=self.planner,
                                       service_provider=self.service_provider,
                                       job_chunker=planning_chunker,
@@ -245,6 +249,7 @@ class IterativeFineTuning:
                                       trials=trials,
                                       test_scenes_dir=self.test_scenes_dir,
                                       seed=self.seed,
+                                      recovery_seed=recovery_seed,
                                       metadata_update=metadata_update)
 
             deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)

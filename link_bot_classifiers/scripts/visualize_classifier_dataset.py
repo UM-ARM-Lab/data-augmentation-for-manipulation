@@ -23,7 +23,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
     parser.add_argument('--display-type', choices=['just_count', '3d', 'stdev'], default='3d')
-    parser.add_argument('--mode', choices=['train', 'val', 'test', 'all'], default='train')
+    parser.add_argument('--mode', choices=['train', 'val', 'test', 'all'], default='all')
     parser.add_argument('--shuffle', action='store_true')
     parser.add_argument('--shard', type=int)
     parser.add_argument('--save', action='store_true')
