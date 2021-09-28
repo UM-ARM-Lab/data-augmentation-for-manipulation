@@ -98,12 +98,14 @@ class AugmentationOptimization:
                 self.sdf_grad_scale = 0.2
                 self.max_steps = 100
             elif self.aug_type in ['v6']:
+                sdf_grad_scale = 0.2
+                # weights for the different terms in the objective
+                self.attract_weight = 10.0 * sdf_grad_scale
+                self.repel_weight = 1.0 * sdf_grad_scale
                 self.bbox_weight = 0.05
                 self.invariance_weight = 0.01
+                # hyperparameters of the optimization loop
                 self.step_size = 1.5
-                self.attract_weight = 10.0
-                self.repel_weight = 1.0
-                self.sdf_grad_scale = 0.2
                 self.max_steps = 100
             elif self.aug_type in ['manual']:
                 self.step_size = 1.0

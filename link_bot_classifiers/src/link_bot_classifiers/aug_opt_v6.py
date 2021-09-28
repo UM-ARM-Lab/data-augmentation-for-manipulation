@@ -11,7 +11,7 @@ from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_t
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transformation_params_to_matrices, transformation_jacobian, \
     homogeneous
-from moonshine.moonshine_utils import repeat, possibly_none_concat
+from moonshine.moonshine_utils import repeat, possibly_none_concat, repeat_tensor
 
 
 def opt_object_augmentation6(self,
@@ -87,7 +87,12 @@ def opt_object_augmentation6(self,
 
 
 def opt_object_transform(batch_size, new_env, obj_points, object_points_occupancy, res, self):
-    initial_transformation_params = self.sample_initial_transforms(batch_size)
+    initial_transformation_params = initial_identity_transforms(batch_size)
+    target_transformation_params = self.sample_initial_transforms(batch_size)
+
+    # should not actually be subtract obviously...
+    aug_direction ??? = target_transformation_params - initial_transformation_params
+
     if 'sdf' in new_env and 'sdf_grad' in new_env:
         sdf_no_clipped = new_env['sdf']
         sdf_grad_no_clipped = new_env['sdf_grad']
@@ -96,6 +101,7 @@ def opt_object_transform(batch_size, new_env, obj_points, object_points_occupanc
         sdf_no_clipped, sdf_grad_no_clipped = sdf_tools.utils_3d.compute_sdf_and_gradient(new_env['env'],
                                                                                           new_env['res'],
                                                                                           new_env['origin_point'])
+
     sdf_no_clipped = tf.convert_to_tensor(sdf_no_clipped)
     sdf_grad_no_clipped = tf.convert_to_tensor(sdf_grad_no_clipped)
     repel_grad_mask = tf.cast(sdf_no_clipped < self.barrier_cut_off, tf.float32)
@@ -143,7 +149,7 @@ def opt_object_transform(batch_size, new_env, obj_points, object_points_occupanc
             obj_repel_sdf_grad = tf.gather_nd(repel_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
             attract_grad = obj_attract_sdf_grad * tf.expand_dims(attract_mask, -1) * self.attract_weight
             repel_grad = -obj_repel_sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.repel_weight
-            attract_repel_dpoint = (attract_grad + repel_grad) * self.sdf_grad_scale  # [b,n,3]
+            attract_repel_dpoint = (attract_grad + repel_grad)  # [b,n,3]
 
             # Compute the jacobian of the transformation
             jacobian = transformation_jacobian(obj_transforms)[:, None]  # [b,1,6,4,4]
@@ -189,6 +195,7 @@ def opt_object_transform(batch_size, new_env, obj_points, object_points_occupanc
                                                color='g', scale=0.5)
                 self.scenario.plot_arrows_rviz(repel_close_points_aug, repel_close_grad_b, label='repel_sdf_grad',
                                                color='r', scale=0.5)
+                rospy.sleep(0.1)
                 # stepper.step()
 
         can_terminate = self.can_terminate(i, bbox_loss_batch, attract_mask, res, sdf_dist, gradients)
@@ -198,3 +205,10 @@ def opt_object_transform(batch_size, new_env, obj_points, object_points_occupanc
         clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
         self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
     return obj_transforms
+
+
+def initial_identity_transforms(batch_size):
+    identity = tf.concat((tf.concat((tf.eye(3), tf.zeros([3, 1])), axis=1), [[0, 0, 0, 1.]]), axis=0)
+    return repeat_tensor(identity, batch_size, 0, new_axis=True)
+
+
