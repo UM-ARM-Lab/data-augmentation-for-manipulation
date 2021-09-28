@@ -13,7 +13,7 @@ from link_bot_pycommon.pkl_df_job_chunker import DfJobChunker
 min_examples = 100
 max_examples = 60_000
 m_steps = 100
-n_epochs = 10
+n_epochs = 20
 n_seeds = 10
 
 
@@ -50,7 +50,7 @@ def normalize_img(image, label):
     return tf.cast(image, tf.float32) / 255., label
 
 
-def train_mnist(n_take: int, prefix: str, seed: int, checkpoint: Optional[str] = None):
+def train_mnist(root, n_take: int, prefix: str, seed: int, checkpoint: Optional[str] = None):
     tf.random.set_seed(seed)
 
     (ds_train, ds_test), ds_info = tfds.load(
@@ -94,7 +94,7 @@ def train_mnist(n_take: int, prefix: str, seed: int, checkpoint: Optional[str] =
         verbose=False,
     )
 
-    new_checkpoint = f'results/{prefix}_{n_take}'
+    new_checkpoint = (root / f'{prefix}_{n_take}').as_posix()
     print(f'{new_checkpoint} {n_take} {seed}')
     model.save(new_checkpoint)
 
@@ -102,7 +102,7 @@ def train_mnist(n_take: int, prefix: str, seed: int, checkpoint: Optional[str] =
     return new_checkpoint, final_validation_accuracy
 
 
-def fine_tune(job_chunker):
+def fine_tune(root, job_chunker):
     prefix = 'fine_tune'
     for seed in range(n_seeds):
         checkpoint = None
@@ -110,7 +110,8 @@ def fine_tune(job_chunker):
             n_take = int(n_take)
             row = {'seed': seed, 'n_take': n_take, 'prefix': prefix}
             if not job_chunker.has(row):
-                checkpoint, final_validation_accuracy = train_mnist(n_take,
+                checkpoint, final_validation_accuracy = train_mnist(root,
+                                                                    n_take,
                                                                     prefix=prefix,
                                                                     checkpoint=checkpoint,
                                                                     seed=seed)
@@ -118,14 +119,15 @@ def fine_tune(job_chunker):
                 job_chunker.append(row)
 
 
-def retrain(job_chunker):
+def retrain(root, job_chunker):
     prefix = 'retrain'
     for seed in range(n_seeds):
         for n_take in get_n_takes():
             n_take = int(n_take)
             row = {'seed': seed, 'n_take': n_take, 'prefix': prefix}
             if not job_chunker.has(row):
-                _, final_validation_accuracy = train_mnist(n_take,
+                _, final_validation_accuracy = train_mnist(root,
+                                                           n_take,
                                                            prefix=prefix,
                                                            checkpoint=None,
                                                            seed=seed)
@@ -163,13 +165,14 @@ def main():
     tf.get_logger().setLevel(logging.ERROR)
 
     root = pathlib.Path('/media/shared/finetune_vs_restrain_mnist')
+    root = root / f'{n_epochs:=}'
     root.mkdir(exist_ok=True, parents=True)
     df_filename = root / 'df.pkl'
     chunker = DfJobChunker(df_filename)
 
     if not args.only_plot:
-        fine_tune(chunker)
-        retrain(chunker)
+        fine_tune(root, chunker)
+        retrain(root, chunker)
 
     plot_results(root, chunker)
 
