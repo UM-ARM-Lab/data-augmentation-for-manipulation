@@ -1,30 +1,22 @@
-from time import sleep
-
 import tensorflow as tf
 
 import rospy
-from link_bot_classifiers.iterative_projection import iterative_projection
+from link_bot_classifiers.iterative_projection import iterative_projection, BaseProjectOpt
 from visualization_msgs.msg import Marker
 
 
-class ProjectOpt:
+class ProjectOpt(BaseProjectOpt):
     def __init__(self):
-        self.opt = None
-        self.x_var = None
-        self.variables = None
+        super().__init__(opt=tf.optimizers.Adam(0.05))
 
-    def init(self, x_init):
-        self.opt = tf.optimizers.Adam(0.05)
-        self.x_var = tf.Variable(x_init)
-        self.variables = [self.x_var]
-
-    def step(self, _, x):
+    def step(self, _, x_var: tf.Variable):
+        variables = [x_var]
         with tf.GradientTape() as tape:
-            loss = tf.square(self.x_var[1])
-        gradients = tape.gradient(loss, self.variables)
-        self.opt.apply_gradients(grads_and_vars=zip(gradients, self.variables))
-        x_out = tf.convert_to_tensor(self.x_var)
-        return x_out
+            loss = tf.square(x_var[1])
+        gradients = tape.gradient(loss, variables)
+        self.opt.apply_gradients(grads_and_vars=zip(gradients, variables))
+        x_out = tf.convert_to_tensor(x_var)
+        return x_out, False, []
 
 
 def main():
@@ -35,9 +27,9 @@ def main():
     target_pub = rospy.Publisher('target', Marker, queue_size=10)
 
     def step_x_towards_target(target, x):
-        return 0.05 * (target - x)
+        return x + 0.05 * (target - x), []
 
-    def viz_func(i, x, initial_value, target):
+    def viz_func(_, x, initial_value, target, __):
         s = 0.05
         initial_value_msg = Marker()
         initial_value_msg.header.frame_id = 'world'
@@ -89,7 +81,7 @@ def main():
                          n=100,
                          m=50,
                          m_last=100,
-                         step_x_towards_target=step_x_towards_target,
+                         step_towards_target=step_x_towards_target,
                          project_opt=ProjectOpt(),
                          viz_func=viz_func)
 

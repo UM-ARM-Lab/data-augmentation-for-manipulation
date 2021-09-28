@@ -53,6 +53,16 @@ def subsample_points(points, fraction):
 
 
 def transformation_obj_points(obj_points, transformation_matrices):
+    """
+
+    Args:
+        obj_points:
+        transformation_matrices: considered to in the frame of the obj_points,
+            which is defined as the same orientation as the world but with the position being the center of obj_points
+
+    Returns:
+
+    """
     to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
     obj_points_local_frame = obj_points - to_local_frame
     obj_points_aug_local_frame = transform_points_3d(transformation_matrices[:, None],
