@@ -15,6 +15,7 @@ from link_bot_classifiers.aug_opt_manual import opt_object_manual
 from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik
 from link_bot_classifiers.aug_opt_v3 import opt_object_augmentation3
 from link_bot_classifiers.aug_opt_v5 import opt_object_augmentation5
+from link_bot_classifiers.aug_opt_v6 import opt_object_augmentation6
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
@@ -96,6 +97,14 @@ class AugmentationOptimization:
                 self.repel_weight = 1.0
                 self.sdf_grad_scale = 0.2
                 self.max_steps = 100
+            elif self.aug_type in ['v6']:
+                self.bbox_weight = 0.05
+                self.invariance_weight = 0.01
+                self.step_size = 1.5
+                self.attract_weight = 10.0
+                self.repel_weight = 1.0
+                self.sdf_grad_scale = 0.2
+                self.max_steps = 100
             elif self.aug_type in ['manual']:
                 self.step_size = 1.0
             else:
@@ -121,7 +130,7 @@ class AugmentationOptimization:
                                   time):
         if self.aug_type == 'optimization':
             return self.augmentation_optimization1(inputs, batch_size, time)
-        elif self.aug_type in ['optimization2', 'v3', 'v5', 'manual']:
+        elif self.aug_type in ['optimization2', 'v3', 'v6', 'v5', 'manual']:
             return self.augmentation_optimization2(inputs, batch_size, time)
         else:
             raise NotImplementedError(self.aug_type)
@@ -143,6 +152,8 @@ class AugmentationOptimization:
             aug_f = opt_object_augmentation3
         elif self.aug_type in ['v5']:
             aug_f = opt_object_augmentation5
+        elif self.aug_type in ['v6']:
+            aug_f = opt_object_augmentation6
         elif self.aug_type in ['manual']:
             aug_f = opt_object_manual
         else:

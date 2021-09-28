@@ -97,6 +97,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                ensemble_idx: Optional[int] = None,
                take: Optional[int] = None,
                no_validate: bool = False,
+               save_inputs: bool = False,
                trials_directory: Optional[pathlib.Path] = pathlib.Path("./trials").absolute(),
                augmentation_config_dir: Optional[pathlib.Path] = None,
                **kwargs):
@@ -132,6 +133,10 @@ def train_main(dataset_dirs: List[pathlib.Path],
         val_every_n_batches = 500
         save_every_n_minutes = 20
         validate_first = True
+
+    if save_inputs:
+        model.save_inputs_path = trial_path / 'saved_inputs'
+        print(model.save_inputs_path.as_posix())
 
     runner = ModelRunner(model=model,
                          training=True,

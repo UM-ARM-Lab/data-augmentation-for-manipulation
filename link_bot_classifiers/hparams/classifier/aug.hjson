@@ -35,7 +35,7 @@
   negative_label_weight: 0.50
   include_robot_geometry: true
   augmentation: {
-    type: manual
+    type: v6
     rand_dist: 0.1
     max_collision_check_attempts: 100
     on_invalid_aug: "original"  # one of [drop, original]
