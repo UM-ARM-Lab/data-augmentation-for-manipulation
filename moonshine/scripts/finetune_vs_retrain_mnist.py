@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import logging
 import pathlib
 from typing import Optional
@@ -155,16 +156,20 @@ def plot_results(root, chunker):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--only-plot', action='store_true')
+    args = parser.parse_args()
+
     tf.get_logger().setLevel(logging.ERROR)
 
     root = pathlib.Path('/media/shared/finetune_vs_restrain_mnist')
-    # root = pathlib.Path('results/finetune_vs_restrain_mnist')
     root.mkdir(exist_ok=True, parents=True)
     df_filename = root / 'df.pkl'
     chunker = DfJobChunker(df_filename)
 
-    fine_tune(chunker)
-    retrain(chunker)
+    if not args.only_plot:
+        fine_tune(chunker)
+        retrain(chunker)
 
     plot_results(root, chunker)
 
