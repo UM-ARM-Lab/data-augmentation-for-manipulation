@@ -22,8 +22,8 @@ def update_arrow(lines, xs, ys, us, vs):
     lines[2].set_data(xys3[0], xys3[1])
 
 
-def rviz_arrow(position: np.ndarray,
-               target_position: np.ndarray,
+def rviz_arrow(position,
+               target_position,
                label: str = 'arrow',
                **kwargs):
     idx = kwargs.get("idx", 0)

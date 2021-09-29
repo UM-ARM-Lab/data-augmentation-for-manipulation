@@ -346,8 +346,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def sample_object_augmentation_variables(self, batch_size: int, seed: tfp.util.SeedStream):
         # NOTE: lots of hidden hyper-parameters here :(
         zeros = tf.zeros([batch_size, 6], dtype=tf.float32)
-        trans_scale = 0.25
-        rot_scale = 0.15
+        trans_scale = 0.15
+        rot_scale = 0.05
         scale = tf.constant([trans_scale, trans_scale, trans_scale, rot_scale, rot_scale, rot_scale], dtype=tf.float32)
         lim = tf.constant([0.5, 0.5, 0.5, np.pi, np.pi, np.pi], dtype=tf.float32)
         distribution = tfp.distributions.TruncatedNormal(zeros, scale=scale, low=-lim, high=lim)

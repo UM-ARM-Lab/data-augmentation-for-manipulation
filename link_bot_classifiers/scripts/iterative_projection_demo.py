@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 import rospy
@@ -28,6 +29,9 @@ def main():
 
     def step_x_towards_target(target, x):
         return x + 0.05 * (target - x), []
+
+    def x_distance(x1, x2):
+        return np.linalg.norm(x2 - x1)
 
     def viz_func(_, x, initial_value, target, __):
         s = 0.05
@@ -83,6 +87,8 @@ def main():
                          m_last=100,
                          step_towards_target=step_x_towards_target,
                          project_opt=ProjectOpt(),
+                         x_distance=x_distance,
+                         not_progressing_threshold=0.001,
                          viz_func=viz_func)
 
 

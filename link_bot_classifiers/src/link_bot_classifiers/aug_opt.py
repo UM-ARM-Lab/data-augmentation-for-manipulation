@@ -105,7 +105,7 @@ class AugmentationOptimization:
                 self.bbox_weight = 0.0
                 self.invariance_weight = 0.0
                 # hyperparameters of the optimization loop
-                self.step_size = 0.1
+                self.step_size = 0.2
                 self.max_steps = 100
             elif self.aug_type in ['manual']:
                 self.step_size = 1.0
