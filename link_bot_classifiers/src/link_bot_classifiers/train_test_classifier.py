@@ -59,7 +59,8 @@ def setup_dataset_loaders(model_hparams,
                           val_dataset_loader,
                           seed,
                           take: Optional[int] = None):
-    train_dataset = train_dataset_loader.get_datasets(mode='train', shuffle=True)
+    print("FIXME!!!! turn shuffling back on")
+    train_dataset = train_dataset_loader.get_datasets(mode='train', shuffle=False)
     val_dataset = val_dataset_loader.get_datasets(mode='val', shuffle=True)
 
     train_dataset, val_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, take)
@@ -71,10 +72,10 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, 
     if val_take == -1 and train_take is not None:
         val_take = train_take
 
-    if 'shuffle_buffer_size' in model_hparams:
-        train_dataset = train_dataset.shuffle(model_hparams['shuffle_buffer_size'],
-                                              reshuffle_each_iteration=True,
-                                              seed=seed)
+    # if 'shuffle_buffer_size' in model_hparams:
+    #     train_dataset = train_dataset.shuffle(model_hparams['shuffle_buffer_size'],
+    #                                           reshuffle_each_iteration=True,
+    #                                           seed=seed)
     train_dataset = train_dataset.balance()
     train_dataset = train_dataset.take(train_take)
     train_dataset = train_dataset.batch(batch_size, drop_remainder=False)

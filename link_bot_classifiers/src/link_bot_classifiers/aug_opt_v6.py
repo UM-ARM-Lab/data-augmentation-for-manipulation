@@ -19,6 +19,8 @@ from visualization_msgs.msg import Marker
 
 n_outer_iters = 10
 not_progressing_threshold = 0.001
+loss_threshold = 0.001
+max_env_violations = 8
 
 
 class AugV6ProjOpt(BaseProjectOpt):
@@ -32,7 +34,7 @@ class AugV6ProjOpt(BaseProjectOpt):
         self.object_points_occupancy = object_points_occupancy
 
         # More hyperparameters
-        self.step_toward_target_fraction = 0.1
+        self.step_toward_target_fraction = 1 / n_outer_iters
         self.lr_decay = 0.90
         self.lr_decay_steps = 10
 
@@ -271,15 +273,16 @@ def opt_object_augmentation6(aug_opt,
     target_transformation_params = sample_target_transform_params(obj_points, new_env, batch_size, aug_opt.seed)
     project_opt = AugV6ProjOpt(aug_opt=aug_opt, new_env=new_env, res=res, batch_size=batch_size, obj_points=obj_points,
                                object_points_occupancy=object_points_occupancy)
-    obj_transforms = iterative_projection(initial_value=initial_transformation_params,
-                                          target=target_transformation_params,
-                                          n=n_outer_iters,
-                                          m=aug_opt.max_steps,
-                                          step_towards_target=project_opt.step_towards_target,
-                                          project_opt=project_opt,
-                                          x_distance=project_opt.distance,
-                                          not_progressing_threshold=not_progressing_threshold,
-                                          viz_func=project_opt.viz_func)
+    obj_transforms, viz_vars = iterative_projection(initial_value=initial_transformation_params,
+                                                    target=target_transformation_params,
+                                                    n=n_outer_iters,
+                                                    m=aug_opt.max_steps,
+                                                    step_towards_target=project_opt.step_towards_target,
+                                                    project_opt=project_opt,
+                                                    x_distance=project_opt.distance,
+                                                    not_progressing_threshold=not_progressing_threshold,
+                                                    viz_func=project_opt.viz_func)
+    _, __, sdf_dist, ___, ____, ______ = viz_vars
 
     transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
     obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
@@ -293,7 +296,7 @@ def opt_object_augmentation6(aug_opt,
         time)
     inputs_aug.update(object_aug_update)
 
-    if debug_aug_sgd():
+    if debug_aug():
         for b in debug_viz_batch_indices(batch_size):
             aug_opt.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
             aug_opt.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
@@ -301,7 +304,23 @@ def opt_object_augmentation6(aug_opt,
     new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
     local_env_aug, _ = aug_opt.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
 
-    return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, None
+    is_valid = check_is_valid(aug_opt, obj_points_aug, new_env, object_points_occupancy, res, sdf_dist)
+
+    return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, is_valid
+
+
+def check_is_valid(aug_opt, obj_points_aug, new_env, attract_mask, res, sdf_dist):
+    bbox_loss_batch = aug_opt.bbox_loss(obj_points_aug, new_env['extent'])
+    bbox_constraint_satisfied = tf.cast(tf.reduce_sum(bbox_loss_batch, axis=-1) == 0, tf.float32)
+    squared_res_expanded = tf.square(res)[:, None]
+    attract_satisfied = tf.cast(sdf_dist < squared_res_expanded, tf.float32)
+    repel_satisfied = tf.cast(sdf_dist > squared_res_expanded, tf.float32)
+    env_constraints_satisfied_ = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
+    num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=1)
+    env_constraints_satisfied = tf.cast(num_env_constraints_violated < max_env_violations, tf.float32)
+
+    constraints_satisfied = env_constraints_satisfied * bbox_constraint_satisfied
+    return constraints_satisfied
 
 
 def sample_target_transform_params(obj_points, new_env, batch_size, seed: tfp.util.SeedStream):

@@ -1,4 +1,5 @@
 from typing import Callable
+
 import tensorflow as tf
 
 
@@ -55,4 +56,4 @@ def iterative_projection(initial_value,
         if not_progressing:
             break
 
-    return x
+    return x, viz_vars

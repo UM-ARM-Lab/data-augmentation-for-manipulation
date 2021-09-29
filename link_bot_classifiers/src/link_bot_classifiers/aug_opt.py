@@ -106,7 +106,7 @@ class AugmentationOptimization:
                 self.invariance_weight = 0.0
                 # hyperparameters of the optimization loop
                 self.step_size = 0.2
-                self.max_steps = 100
+                self.max_steps = 25
             elif self.aug_type in ['manual']:
                 self.step_size = 1.0
             else:
@@ -160,7 +160,7 @@ class AugmentationOptimization:
             aug_f = opt_object_manual
         else:
             raise NotImplementedError()
-        inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, local_env_aug_fix_deltas = \
+        inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, is_obj_aug_valid = \
             aug_f(self,
                   inputs,
                   inputs_aug,
@@ -170,24 +170,18 @@ class AugmentationOptimization:
                   res,
                   batch_size,
                   time)
-        if local_env_aug_fix_deltas is None:
-            is_env_aug_valid = tf.ones(batch_size, tf.float32)
-        else:
-            is_env_aug_valid = tf.cast(local_env_aug_fix_deltas < 20, tf.float32)
-
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,
             'joint_names':                    inputs['joint_names'],
         })
 
-        is_valid = is_ik_valid * is_env_aug_valid
+        is_valid = is_ik_valid * is_obj_aug_valid
         self.is_valids = possibly_none_concat(self.is_valids, is_valid, axis=0)
 
         if debug_aug():
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
-                print(bool(is_valid[b].numpy()))
                 _aug_dict = {
                     'env':          local_env_aug[b].numpy(),
                     'origin_point': local_origin_point_aug[b].numpy(),
@@ -231,7 +225,7 @@ class AugmentationOptimization:
         else:
             raise NotImplementedError(on_invalid_aug)
 
-        return inputs_aug, local_env_aug, local_origin_point_aug, local_env_aug_fix_deltas
+        return inputs_aug, local_env_aug, local_origin_point_aug
 
     def drop_if_invalid(self, is_valid, batch_size,
                         _, inputs_aug,

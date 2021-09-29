@@ -142,10 +142,8 @@ class NNClassifier(MyKerasModel):
 
         if training and self.aug.do_augmentation():
             # returns a copy, does NOT modify inputs in-place
-            inputs, local_env, local_origin_point, env_delta = self.aug.augmentation_optimization(inputs, batch_size,
-                                                                                                  time)
+            inputs, local_env, local_origin_point = self.aug.augmentation_optimization(inputs, batch_size, time)
         else:
-            env_delta = None
             local_env, local_origin_point = self.aug.get_local_env(inputs, batch_size)
 
         if training and self.save_inputs_path is not None:
@@ -153,9 +151,7 @@ class NNClassifier(MyKerasModel):
             for b in range(batch_size):
                 save_filename = self.save_inputs_path / f'example_{self.save_idx}.pkl.gz'
                 self.save_idx += 1
-                env_delta_b = env_delta[b] if env_delta is not None else None
                 inputs_save = {
-                    'env_delta':       env_delta_b,
                     'rope':            inputs[add_predicted('rope')][b],
                     'joint_positions': inputs[add_predicted('joint_positions')][b],
                     'joint_names':     inputs['joint_names'][b],
