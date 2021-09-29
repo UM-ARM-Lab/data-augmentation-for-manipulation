@@ -57,8 +57,8 @@ class AugmentationOptimization:
 
         self.robot_subsample = 0.5
         self.env_subsample = 0.25
-        self.num_object_interp = 5  # must be >=2
-        self.num_robot_interp = 3  # must be >=2
+        self.num_object_interp = 2  # must be >=2
+        self.num_robot_interp = 2  # must be >=2
         self.seed_int = 0 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.gen = tf.random.Generator.from_seed(self.seed_int)
         self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
@@ -170,7 +170,11 @@ class AugmentationOptimization:
                   res,
                   batch_size,
                   time)
-        is_env_aug_valid = tf.cast(local_env_aug_fix_deltas < 20, tf.float32)
+        if local_env_aug_fix_deltas is None:
+            is_env_aug_valid = tf.ones(batch_size, tf.float32)
+        else:
+            is_env_aug_valid = tf.cast(local_env_aug_fix_deltas < 20, tf.float32)
+
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,

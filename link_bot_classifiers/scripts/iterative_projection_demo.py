@@ -8,14 +8,17 @@ from visualization_msgs.msg import Marker
 
 class ProjectOpt(BaseProjectOpt):
     def __init__(self):
-        super().__init__(opt=tf.optimizers.Adam(0.05))
+        super().__init__()
 
-    def step(self, _, x_var: tf.Variable):
+    def make_opt(self):
+        return tf.optimizers.Adam(0.05)
+
+    def step(self, _, opt, x_var: tf.Variable):
         variables = [x_var]
         with tf.GradientTape() as tape:
             loss = tf.square(x_var[1])
         gradients = tape.gradient(loss, variables)
-        self.opt.apply_gradients(grads_and_vars=zip(gradients, variables))
+        opt.apply_gradients(grads_and_vars=zip(gradients, variables))
         x_out = tf.convert_to_tensor(x_var)
         return x_out, False, []
 
@@ -84,7 +87,6 @@ def main():
                          target=tf.convert_to_tensor([1, 1], tf.float32),
                          n=100,
                          m=50,
-                         m_last=100,
                          step_towards_target=step_x_towards_target,
                          project_opt=ProjectOpt(),
                          x_distance=x_distance,

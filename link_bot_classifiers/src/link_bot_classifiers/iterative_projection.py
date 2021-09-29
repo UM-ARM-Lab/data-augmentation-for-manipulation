@@ -3,14 +3,14 @@ import tensorflow as tf
 
 
 class BaseProjectOpt:
-    def __init__(self, opt):
-        self.opt = opt
+    def __init__(self):
+        self.opt = None
         self.x_var = None
 
-    def init(self, x_init):
-        pass
+    def make_opt(self):
+        return tf.optimizers.Adam()
 
-    def step(self, _, x_var: tf.Variable):
+    def step(self, i: int, opt, x_var: tf.Variable):
         raise NotImplementedError()
 
 
@@ -32,17 +32,20 @@ def iterative_projection(initial_value,
         x, viz_vars = step_towards_target(target, x)
         viz_func(i, x, initial_value, target, viz_vars)
 
-        project_opt.init(x)
+        opt = project_opt.make_opt()
 
-        # we might want to spend more iterations satisfying the constraints on the final iteration
-        if i == n - 1 and m_last is not None:
-            _m = m_last
+        # we might want to spend more iterations satisfying the constraints on the final step
+        if i == n - 1:
+            if m_last is not None:
+                _m = m_last
+            else:
+                _m = m * 2  # by default spend twice as many iters on the final step
         else:
             _m = m
 
         x_var = tf.Variable(x)
         for j in range(_m):
-            x, can_terminate, viz_vars = project_opt.step(j, x_var)
+            x, can_terminate, viz_vars = project_opt.step(j, opt, x_var)
             viz_func(i, x, initial_value, target, viz_vars)
             if can_terminate:
                 break

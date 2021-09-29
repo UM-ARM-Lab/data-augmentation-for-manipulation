@@ -244,7 +244,7 @@ class NNClassifier(MyKerasModel):
             'fn/total':                FalseNegativeOverallRate(),
             'aug_validity_rate':       BinaryRate(),
             'local_env_aug_fix_delta': Mean(),
-            'class_balance':                 Mean(),
+            'class_balance':           Mean(),
         }
 
     def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
@@ -260,9 +260,11 @@ class NNClassifier(MyKerasModel):
         metrics['accuracy on negatives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['accuracy on positives'].update_state(y_true=labels, y_pred=probabilities)
         metrics['class_balance'].update_state(labels)
-        if self.aug.do_augmentation() and self.aug.is_valids is not None:
-            metrics['aug_validity_rate'].update_state(self.aug.is_valids)
-            metrics['local_env_aug_fix_delta'].update_state(self.aug.local_env_aug_fix_delta)
+        if self.aug.do_augmentation():
+            if self.aug.is_valids is not None:
+                metrics['aug_validity_rate'].update_state(self.aug.is_valids)
+            if self.aug.local_env_aug_fix_delta is not None:
+                metrics['local_env_aug_fix_delta'].update_state(self.aug.local_env_aug_fix_delta)
 
     def conv_encoder(self, voxel_grids, batch_size, time):
         conv_outputs_array = tf.TensorArray(tf.float32, size=0, dynamic_size=True)

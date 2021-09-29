@@ -9,30 +9,32 @@ from link_bot_classifiers.iterative_projection import iterative_projection, Base
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_tf_origin_point_res, \
-    subtract, binary_or, batch_point_to_idx
+    batch_point_to_idx
 from moonshine.geometry import transformation_params_to_matrices, transformation_jacobian, \
-    homogeneous
-from moonshine.moonshine_utils import repeat, possibly_none_concat
+    homogeneous, quat_dist
+from moonshine.moonshine_utils import repeat
 from sdf_tools import utils_3d
 from tf import transformations
 from visualization_msgs.msg import Marker
 
-
-def quat_dist(quat1, quat2):
-    return 1 - tf.square(tf.reduce_sum(quat1 * quat2))
+n_outer_iters = 10
+not_progressing_threshold = 0.001
 
 
 class AugV6ProjOpt(BaseProjectOpt):
     def __init__(self, aug_opt, new_env, res, batch_size, obj_points, object_points_occupancy):
-        lr = tf.keras.optimizers.schedules.ExponentialDecay(aug_opt.step_size, 10, 0.95)
-        opt = tf.keras.optimizers.SGD(lr)
-        super().__init__(opt=opt)
+        super().__init__()
         self.aug_opt = aug_opt
         self.new_env = new_env
         self.res = res
         self.batch_size = batch_size
         self.obj_points = obj_points
         self.object_points_occupancy = object_points_occupancy
+
+        # More hyperparameters
+        self.step_toward_target_fraction = 0.1
+        self.lr_decay = 0.90
+        self.lr_decay_steps = 10
 
         self.aug_dir_pub = rospy.Publisher('aug_dir', Marker, queue_size=10)
 
@@ -51,6 +53,11 @@ class AugV6ProjOpt(BaseProjectOpt):
         self.repel_sdf_grad = sdf_grad_no_clipped * tf.expand_dims(repel_grad_mask, -1)
         attract_grad_mask = tf.cast(sdf_no_clipped > 0, tf.float32)
         self.attract_sdf_grad = sdf_grad_no_clipped * tf.expand_dims(attract_grad_mask, -1)
+
+    def make_opt(self):
+        lr = tf.keras.optimizers.schedules.ExponentialDecay(self.aug_opt.step_size, self.lr_decay_steps, self.lr_decay)
+        opt = tf.keras.optimizers.SGD(lr)
+        return opt
 
     def forward(self, tape, obj_transforms):
         with tape:
@@ -72,7 +79,7 @@ class AugV6ProjOpt(BaseProjectOpt):
 
         return obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, obj_point_indices_aug, obj_points_aug, to_local_frame
 
-    def step(self, i: int, obj_transforms: tf.Variable):
+    def step(self, i: int, opt, obj_transforms: tf.Variable):
         tape = tf.GradientTape()
 
         viz_vars = self.forward(tape, obj_transforms)
@@ -115,7 +122,7 @@ class AugV6ProjOpt(BaseProjectOpt):
         gradients = [gradients[0] + attract_repel_sdf_grad]
 
         clipped_grads_and_vars = self.aug_opt.clip_env_aug_grad(gradients, variables)
-        self.opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
+        opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
         can_terminate = self.aug_opt.can_terminate(i, bbox_loss_batch, attract_mask, self.res, sdf_dist, gradients)
 
         x_out = tf.convert_to_tensor(obj_transforms)
@@ -123,18 +130,18 @@ class AugV6ProjOpt(BaseProjectOpt):
         return x_out, can_terminate, viz_vars
 
     def step_towards_target(self, target, obj_transforms):
-        fraction = 0.1
         euler_interp = []
         trans_interp = []
+        # TODO: batch this
         for b in range(self.batch_size):
             x_b = obj_transforms[b].numpy()
             target_b = target[b].numpy()
             q1_b = transformations.quaternion_from_euler(*x_b[3:])
             q2_b = transformations.quaternion_from_euler(*target_b[3:])
-            q_interp_b = transformations.quaternion_slerp(q1_b, q2_b, fraction)
+            q_interp_b = transformations.quaternion_slerp(q1_b, q2_b, self.step_toward_target_fraction)
             trans1_b = x_b[:3]
             trans2_b = target_b[:3]
-            trans_interp_b = trans1_b + (trans2_b - trans1_b) * fraction
+            trans_interp_b = trans1_b + (trans2_b - trans1_b) * self.step_toward_target_fraction
             euler_interp_b = transformations.euler_from_quaternion(q_interp_b)
             euler_interp.append(tf.convert_to_tensor(euler_interp_b, tf.float32))
             trans_interp.append(trans_interp_b)
@@ -148,6 +155,7 @@ class AugV6ProjOpt(BaseProjectOpt):
 
     def distance(self, transforms1, transforms2):
         distances = []
+        # TODO: batch this
         for b in range(self.batch_size):
             transforms1_b = transforms1[b]
             transforms2_b = transforms2[b]
@@ -265,13 +273,12 @@ def opt_object_augmentation6(aug_opt,
                                object_points_occupancy=object_points_occupancy)
     obj_transforms = iterative_projection(initial_value=initial_transformation_params,
                                           target=target_transformation_params,
-                                          n=10,
+                                          n=n_outer_iters,
                                           m=aug_opt.max_steps,
-                                          m_last=aug_opt.max_steps * 2,
                                           step_towards_target=project_opt.step_towards_target,
                                           project_opt=project_opt,
                                           x_distance=project_opt.distance,
-                                          not_progressing_threshold=0.001,
+                                          not_progressing_threshold=not_progressing_threshold,
                                           viz_func=project_opt.viz_func)
 
     transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
@@ -294,30 +301,7 @@ def opt_object_augmentation6(aug_opt,
     new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
     local_env_aug, _ = aug_opt.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
 
-    # NOTE: after local optimization, enforce the constraint
-    #  one way would be to force voxels with attract points are on and voxels with repel points are off
-    #  another would be to "give up" and use the un-augmented datapoint
-    local_env_aug_fixed = []
-    local_env_aug_fix_deltas = []
-    for b in range(batch_size):
-        attract_indices = tf.squeeze(tf.where(object_points_occupancy[b]), axis=1)
-        repel_indices = tf.squeeze(tf.where(1 - object_points_occupancy[b]), axis=1)
-        attract_points_aug = tf.gather(obj_points_aug[b], attract_indices)
-        repel_points_aug = tf.gather(obj_points_aug[b], repel_indices)
-        attract_vg = aug_opt.points_to_voxel_grid_res_origin_point(attract_points_aug, res[b],
-                                                                   local_origin_point_aug[b])
-        repel_vg = aug_opt.points_to_voxel_grid_res_origin_point(repel_points_aug, res[b], local_origin_point_aug[b])
-        # NOTE: the order of operators here is arbitrary, it gives different output, but I doubt it matters
-        local_env_aug_fixed_b = subtract(binary_or(local_env_aug[b], attract_vg), repel_vg)
-        local_env_aug_fix_delta = tf.reduce_sum(tf.abs(local_env_aug_fixed_b - local_env_aug[b]))
-        local_env_aug_fix_deltas.append(local_env_aug_fix_delta)
-        local_env_aug_fixed.append(local_env_aug_fixed_b)
-    local_env_aug_fixed = tf.stack(local_env_aug_fixed, axis=0)
-    local_env_aug_fix_deltas = tf.stack(local_env_aug_fix_deltas, axis=0)
-    aug_opt.local_env_aug_fix_delta = possibly_none_concat(aug_opt.local_env_aug_fix_delta, local_env_aug_fix_deltas,
-                                                           axis=0)
-
-    return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug_fixed, local_env_aug_fix_deltas
+    return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, None
 
 
 def sample_target_transform_params(obj_points, new_env, batch_size, seed: tfp.util.SeedStream):

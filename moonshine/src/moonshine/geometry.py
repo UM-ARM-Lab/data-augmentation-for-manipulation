@@ -259,3 +259,7 @@ def transformation_jacobian(params):
     ])
     jacobian = tf.transpose(jacobian, [3, 0, 1, 2])
     return jacobian
+
+
+def quat_dist(quat1, quat2):
+    return 1 - tf.square(tf.reduce_sum(quat1 * quat2))
