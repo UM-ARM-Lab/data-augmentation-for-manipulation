@@ -17,7 +17,7 @@ from sdf_tools import utils_3d
 from tf import transformations
 from visualization_msgs.msg import Marker
 
-n_outer_iters = 10
+n_outer_iters = 20
 delta_min_dist_threshold = 0.055
 not_progressing_threshold = 0.001
 loss_threshold = 0.001
