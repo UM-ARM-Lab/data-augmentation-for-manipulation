@@ -8,7 +8,7 @@
     fine_tune_lstm: true
     fine_tune_output: true
     learning_rate: 0.001
-    epochs: 25
+    epochs: 5
     early_stopping: false
   }
   fine_tune_recovery: null
