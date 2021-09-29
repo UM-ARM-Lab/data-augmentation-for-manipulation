@@ -100,7 +100,7 @@ class AugmentationOptimization:
             elif self.aug_type in ['v6']:
                 sdf_grad_scale = 0.2
                 # weights for the different terms in the objective
-                self.attract_weight = 10.0 * sdf_grad_scale
+                self.attract_weight = 15.0 * sdf_grad_scale
                 self.repel_weight = 1.0 * sdf_grad_scale
                 self.bbox_weight = 0.0
                 self.invariance_weight = 0.0
@@ -180,7 +180,6 @@ class AugmentationOptimization:
         self.is_valids = possibly_none_concat(self.is_valids, is_valid, axis=0)
 
         if debug_aug():
-            stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 _aug_dict = {
                     'env':          local_env_aug[b].numpy(),
@@ -197,8 +196,6 @@ class AugmentationOptimization:
                 self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug_before', color='blue')
                 self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug_after', color='blue')
                 self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
-                # stepper.step()  # FINAL AUG (not necessarily what the network sees, only if valid)
-                # print(env_aug_valid[b], object_aug_valid[b])
 
         on_invalid_aug = self.hparams.get('on_invalid_aug', 'original')
         if on_invalid_aug == 'original':
@@ -276,7 +273,6 @@ class AugmentationOptimization:
 
         # this was just updated by apply_state_augmentation
         if debug_aug():
-            stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
                 debug_i = tf.squeeze(tf.where(1 - object_points_occupancy[b]), -1)
@@ -299,7 +295,6 @@ class AugmentationOptimization:
                 bbox_msg.header.frame_id = 'local_env_aug_vg'
 
                 self.debug.aug_bbox_pub.publish(bbox_msg)
-                # stepper.step()
 
         object_points_aug = transform_points_3d(object_transforms[:, None], object_points)
         robot_points_aug = self.compute_swept_robot_points(inputs_aug, batch_size)
@@ -316,7 +311,6 @@ class AugmentationOptimization:
 
                 robot_points_aug_b = robot_points_aug[b]
                 self.scenario.plot_points_rviz(robot_points_aug_b.numpy(), label='robot_aug', color='m', scale=0.005)
-                # stepper.step()
 
         new_env = self.get_new_env(inputs)
         env_aug_valid, local_env_aug = opt_new_env_augmentation(self,
@@ -331,7 +325,6 @@ class AugmentationOptimization:
                                                                 batch_size)
 
         if debug_aug():
-            stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 _aug_dict = {
                     'env':          local_env_aug[b].numpy(),
@@ -348,7 +341,6 @@ class AugmentationOptimization:
                 self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug', color='blue')
                 self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug', color='blue')
                 self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
-                # stepper.step()  # FINAL AUG (not necessarily what the network sees, only if valid)
 
                 print(env_aug_valid[b], object_aug_valid[b])
 

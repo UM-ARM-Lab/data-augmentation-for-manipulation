@@ -24,6 +24,13 @@ loss_threshold = 0.001
 max_env_violations = 8
 
 
+def delta_min_dist_loss(sdf_dist, sdf_dist_aug):
+    min_dist = tf.reduce_min(sdf_dist, axis=1)
+    min_dist_aug = tf.reduce_min(sdf_dist_aug, axis=1)
+    delta_min_dist = tf.abs(min_dist - min_dist_aug)
+    return delta_min_dist
+
+
 class AugV6ProjOpt(BaseProjectOpt):
     def __init__(self, aug_opt, new_env, res, batch_size, obj_points, object_points_occupancy):
         super().__init__()
@@ -73,20 +80,25 @@ class AugV6ProjOpt(BaseProjectOpt):
             obj_points_aug, to_local_frame = transformation_obj_points(self.obj_points, transformation_matrices)
 
         # compute repel and attract gradient via the SDF
+        obj_point_indices = batch_point_to_idx(self.obj_points,
+                                               self.new_env['res'],
+                                               self.new_env['origin_point'][None, None])
+        sdf_dist = tf.gather_nd(self.new_env['sdf'], obj_point_indices)  # will be zero if index OOB
+
         obj_point_indices_aug = batch_point_to_idx(obj_points_aug, self.new_env['res'],
                                                    self.new_env['origin_point'][None, None])
-        sdf_dist = tf.gather_nd(self.sdf_no_clipped, obj_point_indices_aug)  # will be zero if index OOB
+        sdf_dist_aug = tf.gather_nd(self.sdf_no_clipped, obj_point_indices_aug)  # will be zero if index OOB
         obj_attract_sdf_grad = tf.gather_nd(self.attract_sdf_grad,
                                             obj_point_indices_aug)  # will be zero if index OOB
         obj_repel_sdf_grad = tf.gather_nd(self.repel_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
 
-        return obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, obj_point_indices_aug, obj_points_aug, to_local_frame
+        return obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame
 
     def step(self, i: int, opt, obj_transforms: tf.Variable):
         tape = tf.GradientTape()
 
         viz_vars = self.forward(tape, obj_transforms)
-        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, obj_point_indices_aug, obj_points_aug, to_local_frame = viz_vars
+        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame = viz_vars
 
         with tape:
             invariance_loss = self.aug_opt.invariance_weight * self.aug_opt.invariance_model_wrapper.evaluate(
@@ -95,7 +107,10 @@ class AugV6ProjOpt(BaseProjectOpt):
             bbox_loss_batch = self.aug_opt.bbox_loss(obj_points_aug, self.new_env['extent'])
             bbox_loss = tf.reduce_sum(bbox_loss_batch, axis=-1)
 
+            delta_min_dist = delta_min_dist_loss(sdf_dist_aug, sdf_dist_aug)
+
             losses = [
+                delta_min_dist,
                 bbox_loss,
                 invariance_loss,
             ]
@@ -126,7 +141,7 @@ class AugV6ProjOpt(BaseProjectOpt):
 
         clipped_grads_and_vars = self.aug_opt.clip_env_aug_grad(gradients, variables)
         opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
-        can_terminate = self.aug_opt.can_terminate(i, bbox_loss_batch, attract_mask, self.res, sdf_dist, gradients)
+        can_terminate = self.aug_opt.can_terminate(i, bbox_loss_batch, attract_mask, self.res, sdf_dist_aug, gradients)
 
         x_out = tf.convert_to_tensor(obj_transforms)
 
@@ -176,7 +191,7 @@ class AugV6ProjOpt(BaseProjectOpt):
         return max_distance
 
     def viz_func(self, i, obj_transforms, initial_value, target, viz_vars):
-        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, obj_point_indices_aug, obj_points_aug, to_local_frame = viz_vars
+        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame = viz_vars
 
         shape = tf.convert_to_tensor(self.new_env['env'].shape, tf.int64)[None, None]
         oob = tf.logical_or(obj_point_indices_aug < 0,
@@ -214,7 +229,7 @@ class AugV6ProjOpt(BaseProjectOpt):
                 self.aug_opt.scenario.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=scale)
 
                 attract_grad_b = -tf.gather(obj_attract_sdf_grad[b], attract_indices, axis=0) * 0.02
-                repel_sdf_dist = tf.gather(sdf_dist[b], repel_indices, axis=0)
+                repel_sdf_dist = tf.gather(sdf_dist_aug[b], repel_indices, axis=0)
                 repel_oob = tf.gather(oob[b], repel_indices, axis=0)
                 repel_sdf_grad_b = tf.gather(obj_repel_sdf_grad[b], repel_indices, axis=0)
                 repel_close = tf.logical_and(repel_sdf_dist < self.aug_opt.barrier_cut_off, tf.logical_not(repel_oob))
@@ -269,9 +284,6 @@ def opt_object_augmentation6(aug_opt,
                                                res=res[b],
                                                frame='new_env_aug_vg')
 
-    obj_point_indices = batch_point_to_idx(obj_points, new_env['res'], new_env['origin_point'][None, None])
-    sdf_dist = tf.gather_nd(new_env['sdf'], obj_point_indices)  # will be zero if index OOB
-
     initial_transformation_params = initial_identity_params(batch_size)
     target_transformation_params = sample_target_transform_params(obj_points, new_env, batch_size, aug_opt.seed)
     project_opt = AugV6ProjOpt(aug_opt=aug_opt, new_env=new_env, res=res, batch_size=batch_size, obj_points=obj_points,
@@ -285,7 +297,7 @@ def opt_object_augmentation6(aug_opt,
                                                     x_distance=project_opt.distance,
                                                     not_progressing_threshold=not_progressing_threshold,
                                                     viz_func=project_opt.viz_func)
-    _, __, sdf_dist_aug, ___, ____, ______ = viz_vars
+    _, __, sdf_dist, sdf_dist_aug, ___, ____, ______ = viz_vars
 
     transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
     obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
