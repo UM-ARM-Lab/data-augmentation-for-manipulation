@@ -1,5 +1,5 @@
 {
-  full_retrain_classifier: true
+  full_retrain_classifier: false
   trials_per_iteration: 1
   trials_generator_type: random
   fine_tune_classifier: {
@@ -25,7 +25,7 @@
   results_to_recovery_dataset: null
   labeling_params_update: {
     augmentation: {
-      type: v3
+      type: v6
       on_invalid_aug: "original"  # one of [drop, original]
       invariance_model: /media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint
     }
