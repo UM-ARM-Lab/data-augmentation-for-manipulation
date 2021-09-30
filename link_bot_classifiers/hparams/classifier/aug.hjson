@@ -40,12 +40,13 @@
     bbox_weight: 0.05
     delta_min_dist_weight: 0.5
     invariance_weight: 0.1
+    invariance_threshold: 0.1
     sdf_grad_scale: 0.2
     # hyperparameters of the optimization loop
     delta_min_dist_threshold: 0.055
     loss_threshold: 0.001
     lr_decay: 0.90
-    lr_decay_steps: 8
+    lr_decay_steps: 7
     max_steps: 100
     n_outer_iters: 25
     not_progressing_threshold: 0.001

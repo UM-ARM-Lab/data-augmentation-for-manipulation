@@ -46,7 +46,7 @@ class AugV6ProjOpt(BaseProjectOpt):
         self.object_points_occupancy = object_points_occupancy
 
         # More hyperparameters
-        self.step_toward_target_fraction = 1 / self.aug_opt.hparams['n_outer_iters']
+        self.step_toward_target_fraction = 1 / self.aug_opt.hparams['n_outer_iters'] * 0
         self.lr_decay = 0.90
         self.lr_decay_steps = 10
         self.attract_weight = 15.0 * self.aug_opt.hparams['sdf_grad_scale']
@@ -117,6 +117,7 @@ class AugV6ProjOpt(BaseProjectOpt):
 
         with tape:
             invariance_loss = self.aug_opt.invariance_model_wrapper.evaluate(obj_transforms)
+            invariance_loss = tf.maximum(self.aug_opt.hparams['invariance_threshold'], invariance_loss)
             invariance_loss = self.aug_opt.hparams['invariance_weight'] * invariance_loss
 
             bbox_loss_batch = self.aug_opt.bbox_loss(obj_points_aug, self.new_env['extent'])
