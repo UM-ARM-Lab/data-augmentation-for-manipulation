@@ -13,6 +13,8 @@ from link_bot_classifiers.train_test_classifier import add_eval_args
 from link_bot_pycommon.args import run_subparsers, int_tuple_arg
 from moonshine.gpu_config import limit_gpu_mem
 
+limit_gpu_mem(None)
+
 
 def train_main(args):
     if args.seed is None:

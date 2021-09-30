@@ -4,7 +4,8 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import rospy
-from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transformation_obj_points
+from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transformation_obj_points, \
+    check_env_constraints, pick_best_params, initial_identity_params
 from link_bot_classifiers.iterative_projection import iterative_projection, BaseProjectOpt
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
@@ -17,7 +18,7 @@ from sdf_tools import utils_3d
 from tf import transformations
 from visualization_msgs.msg import Marker
 
-n_outer_iters = 20
+n_outer_iters = 25
 delta_min_dist_threshold = 0.055
 not_progressing_threshold = 0.001
 loss_threshold = 0.001
@@ -285,7 +286,8 @@ def opt_object_augmentation6(aug_opt,
                                                frame='new_env_aug_vg')
 
     initial_transformation_params = initial_identity_params(batch_size)
-    target_transformation_params = sample_target_transform_params(obj_points, new_env, batch_size, aug_opt.seed)
+    target_transformation_params = sample_target_transform_params(aug_opt, obj_points, new_env, batch_size,
+                                                                  aug_opt.seed, good_enough_percentile=1.0)
     project_opt = AugV6ProjOpt(aug_opt=aug_opt, new_env=new_env, res=res, batch_size=batch_size, obj_points=obj_points,
                                object_points_occupancy=object_points_occupancy)
     obj_transforms, viz_vars = iterative_projection(initial_value=initial_transformation_params,
@@ -327,10 +329,7 @@ def opt_object_augmentation6(aug_opt,
 def check_is_valid(aug_opt, obj_points_aug, new_env, attract_mask, res, sdf_dist, sdf_dist_aug):
     bbox_loss_batch = aug_opt.bbox_loss(obj_points_aug, new_env['extent'])
     bbox_constraint_satisfied = tf.cast(tf.reduce_sum(bbox_loss_batch, axis=-1) == 0, tf.float32)
-    squared_res_expanded = tf.square(res)[:, None]
-    attract_satisfied = tf.cast(sdf_dist_aug < squared_res_expanded, tf.float32)
-    repel_satisfied = tf.cast(sdf_dist_aug > squared_res_expanded, tf.float32)
-    env_constraints_satisfied_ = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
+    env_constraints_satisfied_ = check_env_constraints(attract_mask, sdf_dist_aug, res)
     num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=1)
     env_constraints_satisfied = tf.cast(num_env_constraints_violated < max_env_violations, tf.float32)
 
@@ -343,17 +342,27 @@ def check_is_valid(aug_opt, obj_points_aug, new_env, attract_mask, res, sdf_dist
     return constraints_satisfied
 
 
-def sample_target_transform_params(obj_points, new_env, batch_size, seed: tfp.util.SeedStream):
-    to_local_frame = tf.reduce_mean(obj_points, axis=1)
+def sample_target_transform_params(aug_opt, obj_points, new_env, batch_size, seed: tfp.util.SeedStream,
+                                   good_enough_percentile=0.1):
+    n_samples = int(1 / good_enough_percentile) * batch_size
+
     extent = tf.reshape(new_env['extent'], [3, 2])
-    low = extent[None, :, 0]
-    high = extent[None, :, 1]
-    distribution = tfp.distributions.Uniform(low=low, high=high)
-    target_world_frame = distribution.sample(seed=seed())
+    trans_low = extent[:, 0]
+    trans_high = extent[:, 1]
+    trans_distribution = tfp.distributions.Uniform(low=trans_low, high=trans_high)
+
+    euler_low = tf.ones([3]) * -0.5
+    euler_high = tf.ones([3]) * 0.5
+    euler_distribution = tfp.distributions.Uniform(low=euler_low, high=euler_high)
+
+    target_world_frame = trans_distribution.sample(sample_shape=n_samples, seed=seed())
+    to_local_frame = tf.reduce_mean(obj_points, axis=1)
     trans_target = target_world_frame - to_local_frame
-    target_params = tf.concat([trans_target, tf.zeros([batch_size, 3])], 1)
-    return target_params
 
+    euler_target = euler_distribution.sample(sample_shape=n_samples, seed=seed())
 
-def initial_identity_params(batch_size):
-    return tf.zeros([batch_size, 6], tf.float32)
+    target_params = tf.concat([trans_target, euler_target], 1)
+
+    # pick the most valid transforms, via the learned object state augmentation validity model
+    best_target_params = pick_best_params(aug_opt, batch_size, target_params)
+    return best_target_params

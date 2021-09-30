@@ -69,3 +69,24 @@ def transformation_obj_points(obj_points, transformation_matrices):
                                                      obj_points_local_frame)
     obj_points_aug = obj_points_aug_local_frame + to_local_frame
     return obj_points_aug, to_local_frame
+
+
+def check_env_constraints(attract_mask, min_dist, res):
+    half_res_expanded = res[:, None] / 2
+    attract_satisfied = tf.cast(min_dist < half_res_expanded, tf.float32)
+    repel_satisfied = tf.cast(min_dist > half_res_expanded, tf.float32)
+    constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
+    return constraints_satisfied
+
+
+def pick_best_params(aug_opt, batch_size, sampled_params):
+    predicted_errors = aug_opt.invariance_model_wrapper.evaluate(sampled_params)
+    _, best_indices_all = tf.math.top_k(-predicted_errors, tf.cast(batch_size, tf.int32), sorted=False)
+    best_indices_shuffled = tf.random.shuffle(best_indices_all, seed=0)
+    best_indices = best_indices_shuffled[:batch_size]
+    best_params = tf.gather(sampled_params, best_indices, axis=0)
+    return best_params
+
+
+def initial_identity_params(batch_size):
+    return tf.zeros([batch_size, 6], tf.float32)
