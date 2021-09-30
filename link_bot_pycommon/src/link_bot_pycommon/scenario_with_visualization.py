@@ -365,6 +365,16 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
         self.point_pub.publish(msg)
 
+    def plot_arrow_rviz(self, position, direction, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+        msg = MarkerArray()
+        msg.markers.append(rviz_arrow(position,
+                                      position + direction,
+                                      frame_id=frame_id,
+                                      idx=100 * id,
+                                      label=label,
+                                      **kwargs))
+        self.arrows_pub.publish(msg)
+
     def plot_arrows_rviz(self, positions, directions, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
         msg = MarkerArray()
         for i, (position, direction) in enumerate(zip(positions, directions)):

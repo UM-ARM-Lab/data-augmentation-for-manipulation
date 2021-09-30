@@ -36,8 +36,27 @@
   include_robot_geometry: true
   augmentation: {
     type: v6
+    # weights for the different terms in the objective
+    bbox_weight: 0.0
+    delta_min_dist_weight: 0.5
+    invariance_weight: 0.0
+    sdf_grad_scale: 0.0
+    # hyperparameters of the optimization loop
+    delta_min_dist_threshold: 0.055
+    loss_threshold: 0.001
+    lr_decay: 0.90
+    lr_decay_steps: 8
+    max_steps: 100
+    n_outer_iters: 25
+    not_progressing_threshold: 0.001
+    step_size: 0.3
+    # hparams for the final check of the constraints
+    max_env_violations: 8
+    # IK hparams
     rand_dist: 0.1
     max_collision_check_attempts: 100
+    # misc
+    good_enough_percentile: 1.0
     on_invalid_aug: "original"  # one of [drop, original]
     invariance_model: /media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint
   }

@@ -18,12 +18,6 @@ from sdf_tools import utils_3d
 from tf import transformations
 from visualization_msgs.msg import Marker
 
-n_outer_iters = 25
-delta_min_dist_threshold = 0.055
-not_progressing_threshold = 0.001
-loss_threshold = 0.001
-max_env_violations = 8
-
 
 def delta_min_dist_loss(sdf_dist, sdf_dist_aug):
     min_dist = tf.reduce_min(sdf_dist, axis=1)
@@ -32,41 +26,54 @@ def delta_min_dist_loss(sdf_dist, sdf_dist_aug):
     return delta_min_dist
 
 
+def dpoint_to_dparams(dpoint, dpoint_dparams):
+    dparams = tf.einsum('bni,bnij->bnj', dpoint, dpoint_dparams)  # [b,n,6]
+    dparams = tf.reduce_mean(dparams, axis=1)
+    return dparams
+
+
 class AugV6ProjOpt(BaseProjectOpt):
     def __init__(self, aug_opt, new_env, res, batch_size, obj_points, object_points_occupancy):
         super().__init__()
         self.aug_opt = aug_opt
         self.new_env = new_env
+        self.new_res = self.new_env['res']
+        self.new_origin_point = self.new_env['origin_point']
+        self.new_origin_point_expanded = self.new_env['origin_point']
         self.res = res
         self.batch_size = batch_size
         self.obj_points = obj_points
         self.object_points_occupancy = object_points_occupancy
 
         # More hyperparameters
-        self.step_toward_target_fraction = 1 / n_outer_iters
+        self.step_toward_target_fraction = 1 / self.aug_opt.hparams['n_outer_iters']
         self.lr_decay = 0.90
         self.lr_decay_steps = 10
+        self.attract_weight = 15.0 * self.aug_opt.hparams['sdf_grad_scale']
+        self.repel_weight = 1.0 * self.aug_opt.hparams['sdf_grad_scale']
 
         self.aug_dir_pub = rospy.Publisher('aug_dir', Marker, queue_size=10)
 
         if 'sdf' in self.new_env and 'sdf_grad' in self.new_env:
-            sdf_no_clipped = self.new_env['sdf']
-            sdf_grad_no_clipped = self.new_env['sdf_grad']
+            sdf = self.new_env['sdf']
+            sdf_grad = self.new_env['sdf_grad']
         else:
             print("Computing SDF online, very slow!")
-            sdf_no_clipped, sdf_grad_no_clipped = utils_3d.compute_sdf_and_gradient(self.new_env['env'],
-                                                                                    self.new_env['res'],
-                                                                                    self.new_env['origin_point'])
+            sdf, sdf_grad = utils_3d.compute_sdf_and_gradient(self.new_env['env'],
+                                                              self.new_res,
+                                                              self.new_origin_point)
 
-        self.sdf_no_clipped = tf.convert_to_tensor(sdf_no_clipped)
-        sdf_grad_no_clipped = tf.convert_to_tensor(sdf_grad_no_clipped)
-        repel_grad_mask = tf.cast(sdf_no_clipped < self.aug_opt.barrier_cut_off, tf.float32)
-        self.repel_sdf_grad = sdf_grad_no_clipped * tf.expand_dims(repel_grad_mask, -1)
-        attract_grad_mask = tf.cast(sdf_no_clipped > 0, tf.float32)
-        self.attract_sdf_grad = sdf_grad_no_clipped * tf.expand_dims(attract_grad_mask, -1)
+        self.sdf = tf.convert_to_tensor(sdf)
+        self.sdf_grad = tf.convert_to_tensor(sdf_grad)
+        repel_grad_mask = tf.cast(sdf < self.aug_opt.barrier_cut_off, tf.float32)
+        self.repel_sdf_grad = self.sdf_grad * tf.expand_dims(repel_grad_mask, -1)
+        attract_grad_mask = tf.cast(sdf > 0, tf.float32)
+        self.attract_sdf_grad = self.sdf_grad * tf.expand_dims(attract_grad_mask, -1)
 
     def make_opt(self):
-        lr = tf.keras.optimizers.schedules.ExponentialDecay(self.aug_opt.step_size, self.lr_decay_steps, self.lr_decay)
+        lr = tf.keras.optimizers.schedules.ExponentialDecay(self.aug_opt.hparams['step_size'],
+                                                            self.aug_opt.hparams['lr_decay_steps'],
+                                                            self.aug_opt.hparams['lr_decay'])
         opt = tf.keras.optimizers.SGD(lr)
         return opt
 
@@ -81,37 +88,41 @@ class AugV6ProjOpt(BaseProjectOpt):
             obj_points_aug, to_local_frame = transformation_obj_points(self.obj_points, transformation_matrices)
 
         # compute repel and attract gradient via the SDF
-        obj_point_indices = batch_point_to_idx(self.obj_points,
-                                               self.new_env['res'],
-                                               self.new_env['origin_point'][None, None])
+        obj_point_indices = batch_point_to_idx(self.obj_points, self.new_res, self.new_origin_point_expanded)
         sdf_dist = tf.gather_nd(self.new_env['sdf'], obj_point_indices)  # will be zero if index OOB
 
-        obj_point_indices_aug = batch_point_to_idx(obj_points_aug, self.new_env['res'],
-                                                   self.new_env['origin_point'][None, None])
-        sdf_dist_aug = tf.gather_nd(self.sdf_no_clipped, obj_point_indices_aug)  # will be zero if index OOB
+        obj_point_indices_aug = batch_point_to_idx(obj_points_aug, self.new_res, self.new_origin_point_expanded)
+        sdf_dist_aug = tf.gather_nd(self.sdf, obj_point_indices_aug)  # will be zero if index OOB
         obj_attract_sdf_grad = tf.gather_nd(self.attract_sdf_grad,
                                             obj_point_indices_aug)  # will be zero if index OOB
         obj_repel_sdf_grad = tf.gather_nd(self.repel_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
 
-        return obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame
+        # and also the grad for preserving the min dist
+        min_dist = tf.reduce_min(sdf_dist, axis=1)
+        min_dist_aug = tf.reduce_min(sdf_dist_aug, axis=1)
+        min_dist_aug_idx = tf.argmin(sdf_dist_aug, axis=1)
+        delta_min_dist = min_dist - min_dist_aug
+        min_dist_points_aug = tf.gather(obj_points_aug, min_dist_aug_idx, axis=1, batch_dims=1)
+        min_dist_indices_aug = batch_point_to_idx(min_dist_points_aug, self.new_res, self.new_origin_point_expanded)
+        delta_min_dist_grad_dpoint = -tf.gather_nd(self.sdf_grad, min_dist_indices_aug) * delta_min_dist[:, None]
+        delta_min_dist_grad_dpoint = delta_min_dist_grad_dpoint * self.aug_opt.hparams['delta_min_dist_weight']
 
-    def step(self, i: int, opt, obj_transforms: tf.Variable):
+        return obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx
+
+    def step(self, _: int, opt, obj_transforms: tf.Variable):
         tape = tf.GradientTape()
 
         viz_vars = self.forward(tape, obj_transforms)
-        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame = viz_vars
+        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx = viz_vars
 
         with tape:
-            invariance_loss = self.aug_opt.invariance_weight * self.aug_opt.invariance_model_wrapper.evaluate(
-                obj_transforms)
+            invariance_loss = self.aug_opt.invariance_model_wrapper.evaluate(obj_transforms)
+            invariance_loss = self.aug_opt.hparams['invariance_weight'] * invariance_loss
 
             bbox_loss_batch = self.aug_opt.bbox_loss(obj_points_aug, self.new_env['extent'])
             bbox_loss = tf.reduce_sum(bbox_loss_batch, axis=-1)
 
-            delta_min_dist = delta_min_dist_loss(sdf_dist_aug, sdf_dist_aug)
-
             losses = [
-                delta_min_dist,
                 bbox_loss,
                 invariance_loss,
             ]
@@ -119,30 +130,32 @@ class AugV6ProjOpt(BaseProjectOpt):
             loss = tf.reduce_mean(losses_sum)
 
         attract_mask = self.object_points_occupancy  # assumed to already be either 0.0 or 1.0
-        attract_grad = obj_attract_sdf_grad * tf.expand_dims(attract_mask, -1) * self.aug_opt.attract_weight
-        repel_grad = -obj_repel_sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.aug_opt.repel_weight
+        attract_grad = obj_attract_sdf_grad * tf.expand_dims(attract_mask, -1) * self.attract_weight
+        repel_grad = -obj_repel_sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.repel_weight
         attract_repel_dpoint = (attract_grad + repel_grad)  # [b,n,3]
 
         # Compute the jacobian of the transformation
         jacobian = transformation_jacobian(obj_transforms)[:, None]  # [b,1,6,4,4]
         obj_points_local_frame = self.obj_points - to_local_frame  # [b,n,3]
         obj_points_local_frame_h = homogeneous(obj_points_local_frame)[:, :, None, :, None]  # [b,1,4,1]
-        dpoint_dvariables_h = tf.squeeze(tf.matmul(jacobian, obj_points_local_frame_h), axis=-1)  # [b,6]
-        dpoint_dvariables = tf.transpose(dpoint_dvariables_h[:, :, :, :3], [0, 1, 3, 2])  # [b,3,6]
+        dpoint_dparams_h = tf.squeeze(tf.matmul(jacobian, obj_points_local_frame_h), axis=-1)  # [b,6]
+        dpoint_dparams = tf.transpose(dpoint_dparams_h[:, :, :, :3], [0, 1, 3, 2])  # [b,3,6]
 
         # chain rule
-        attract_repel_sdf_grad = tf.einsum('bni,bnij->bnj', attract_repel_dpoint, dpoint_dvariables)  # [b,n,6]
-        attract_repel_sdf_grad = tf.reduce_mean(attract_repel_sdf_grad, axis=1)
+        attract_repel_sdf_grad = dpoint_to_dparams(attract_repel_dpoint, dpoint_dparams)
+        dpoint_dparams_for_min_point = tf.gather(dpoint_dparams, min_dist_aug_idx, axis=1, batch_dims=1)
+        delta_min_dist_grad_dparams = tf.einsum('bi,bij->bj', delta_min_dist_grad_dpoint, dpoint_dparams_for_min_point)
 
         variables = [obj_transforms]
-        gradients = tape.gradient(loss, variables)
+        tape_gradients = tape.gradient(loss, variables)
 
         # combine with the gradient for the other aspects of the loss, those computed by tf.gradient
-        gradients = [gradients[0] + attract_repel_sdf_grad]
+        gradients = [tape_gradients[0] + attract_repel_sdf_grad + delta_min_dist_grad_dparams]
 
         clipped_grads_and_vars = self.aug_opt.clip_env_aug_grad(gradients, variables)
         opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
-        can_terminate = self.aug_opt.can_terminate(i, bbox_loss_batch, attract_mask, self.res, sdf_dist_aug, gradients)
+        lr = opt._decayed_lr(tf.float32)
+        can_terminate = self.aug_opt.can_terminate(lr, gradients)
 
         x_out = tf.convert_to_tensor(obj_transforms)
 
@@ -191,8 +204,8 @@ class AugV6ProjOpt(BaseProjectOpt):
         max_distance = tf.reduce_max(distances)
         return max_distance
 
-    def viz_func(self, i, obj_transforms, initial_value, target, viz_vars):
-        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame = viz_vars
+    def viz_func(self, i, obj_transforms, _, target, viz_vars):
+        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx = viz_vars
 
         shape = tf.convert_to_tensor(self.new_env['env'].shape, tf.int64)[None, None]
         oob = tf.logical_or(obj_point_indices_aug < 0,
@@ -244,6 +257,11 @@ class AugV6ProjOpt(BaseProjectOpt):
                 self.aug_opt.scenario.plot_arrows_rviz(repel_close_points_aug, repel_close_grad_b,
                                                        label='repel_sdf_grad',
                                                        color='r', scale=0.5)
+
+                delta_min_dist_points_b = min_dist_points_aug[b].numpy()
+                delta_min_dist_grad_b = delta_min_dist_grad_dpoint[b].numpy()
+                self.aug_opt.scenario.plot_arrow_rviz(delta_min_dist_points_b, delta_min_dist_grad_b,
+                                                      label='delta_min_dist_grad', color='pink', scale=0.5)
                 # rospy.sleep(0.1)
 
     def plot_transform(self, transform_params, frame_id):
@@ -286,20 +304,21 @@ def opt_object_augmentation6(aug_opt,
                                                frame='new_env_aug_vg')
 
     initial_transformation_params = initial_identity_params(batch_size)
-    target_transformation_params = sample_target_transform_params(aug_opt, obj_points, new_env, batch_size,
-                                                                  aug_opt.seed, good_enough_percentile=1.0)
+    target_transformation_params = sample_target_transform_params(aug_opt, obj_points, new_env, batch_size)
     project_opt = AugV6ProjOpt(aug_opt=aug_opt, new_env=new_env, res=res, batch_size=batch_size, obj_points=obj_points,
                                object_points_occupancy=object_points_occupancy)
+    not_progressing_threshold = aug_opt.hparams['not_progressing_threshold']
     obj_transforms, viz_vars = iterative_projection(initial_value=initial_transformation_params,
                                                     target=target_transformation_params,
-                                                    n=n_outer_iters,
-                                                    m=aug_opt.max_steps,
+                                                    n=aug_opt.hparams['n_outer_iters'],
+                                                    m=aug_opt.hparams['max_steps'],
                                                     step_towards_target=project_opt.step_towards_target,
                                                     project_opt=project_opt,
                                                     x_distance=project_opt.distance,
                                                     not_progressing_threshold=not_progressing_threshold,
                                                     viz_func=project_opt.viz_func)
-    _, __, sdf_dist, sdf_dist_aug, ___, ____, ______ = viz_vars
+    sdf_dist = viz_vars[2]
+    sdf_dist_aug = viz_vars[3]
 
     transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
     obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
@@ -329,21 +348,23 @@ def opt_object_augmentation6(aug_opt,
 def check_is_valid(aug_opt, obj_points_aug, new_env, attract_mask, res, sdf_dist, sdf_dist_aug):
     bbox_loss_batch = aug_opt.bbox_loss(obj_points_aug, new_env['extent'])
     bbox_constraint_satisfied = tf.cast(tf.reduce_sum(bbox_loss_batch, axis=-1) == 0, tf.float32)
+
     env_constraints_satisfied_ = check_env_constraints(attract_mask, sdf_dist_aug, res)
     num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=1)
-    env_constraints_satisfied = tf.cast(num_env_constraints_violated < max_env_violations, tf.float32)
+    env_constraints_satisfied = tf.cast(num_env_constraints_violated < aug_opt.hparams['max_env_violations'],
+                                        tf.float32)
 
     min_dist = tf.reduce_min(sdf_dist, axis=1)
     min_dist_aug = tf.reduce_min(sdf_dist_aug, axis=1)
     delta_min_dist = tf.abs(min_dist - min_dist_aug)
-    delta_min_dist_satisfied = tf.cast(delta_min_dist < delta_min_dist_threshold, tf.float32)
+    delta_min_dist_satisfied = tf.cast(delta_min_dist < aug_opt.hparams['delta_min_dist_threshold'], tf.float32)
 
     constraints_satisfied = env_constraints_satisfied * bbox_constraint_satisfied * delta_min_dist_satisfied
     return constraints_satisfied
 
 
-def sample_target_transform_params(aug_opt, obj_points, new_env, batch_size, seed: tfp.util.SeedStream,
-                                   good_enough_percentile=0.1):
+def sample_target_transform_params(aug_opt, obj_points, new_env, batch_size):
+    good_enough_percentile = aug_opt.hparams['good_enough_percentile']
     n_samples = int(1 / good_enough_percentile) * batch_size
 
     extent = tf.reshape(new_env['extent'], [3, 2])
@@ -355,11 +376,11 @@ def sample_target_transform_params(aug_opt, obj_points, new_env, batch_size, see
     euler_high = tf.ones([3]) * 0.5
     euler_distribution = tfp.distributions.Uniform(low=euler_low, high=euler_high)
 
-    target_world_frame = trans_distribution.sample(sample_shape=n_samples, seed=seed())
+    target_world_frame = trans_distribution.sample(sample_shape=n_samples, seed=aug_opt.seed())
     to_local_frame = tf.reduce_mean(obj_points, axis=1)
     trans_target = target_world_frame - to_local_frame
 
-    euler_target = euler_distribution.sample(sample_shape=n_samples, seed=seed())
+    euler_target = euler_distribution.sample(sample_shape=n_samples, seed=aug_opt.seed())
 
     target_params = tf.concat([trans_target, euler_target], 1)
 

@@ -71,6 +71,11 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, 
     if val_take == -1 and train_take is not None:
         val_take = train_take
 
+    print("PUT SHUFFLING BACK IN!!!!!!")
+    print("PUT SHUFFLING BACK IN!!!!!!")
+    print("PUT SHUFFLING BACK IN!!!!!!")
+    print("PUT SHUFFLING BACK IN!!!!!!")
+    print("PUT SHUFFLING BACK IN!!!!!!")
     # if 'shuffle_buffer_size' in model_hparams:
     #     train_dataset = train_dataset.shuffle(model_hparams['shuffle_buffer_size'],
     #                                           reshuffle_each_iteration=True,

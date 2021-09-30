@@ -11,7 +11,7 @@ from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.aug_opt_ik import AugOptIk
 from link_bot_classifiers.aug_opt_manual import opt_object_manual
-from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik, check_env_constraints, pick_best_params
+from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik, pick_best_params
 from link_bot_classifiers.aug_opt_v3 import opt_object_augmentation3
 from link_bot_classifiers.aug_opt_v5 import opt_object_augmentation5
 from link_bot_classifiers.aug_opt_v6 import opt_object_augmentation6
@@ -55,7 +55,7 @@ class AugmentationOptimization:
         self.env_subsample = 0.25
         self.num_object_interp = 2  # must be >=2
         self.num_robot_interp = 2  # must be >=2
-        self.seed_int = 0 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
+        self.seed_int = 4 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.gen = tf.random.Generator.from_seed(self.seed_int)
         self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
         self.step_size_threshold = 0.0003  # stopping criteria, how far the env moved (meters)
@@ -72,44 +72,6 @@ class AugmentationOptimization:
             self.ik_solver = AugOptIk(scenario.robot, ik_params=ik_params)
 
             self.aug_type = self.hparams['type']
-            if self.aug_type == 'optimization':
-                pass
-            elif self.aug_type in ['optimization2', 'v3']:
-                ######## v3
-                self.bbox_weight = 0.1
-                self.invariance_weight = 0.1
-                self.barrier_upper_lim = tf.square(0.06)
-                self.barrier_scale = 0.1
-                self.step_size = 1.0
-                self.attract_weight = 10.0
-                self.repel_weight = 1.0
-                self.log_cutoff = tf.math.log(self.barrier_scale * self.barrier_upper_lim + self.barrier_epsilon)
-                self.max_steps = 40
-            elif self.aug_type in ['v5']:
-                self.bbox_weight = 0.05
-                self.invariance_weight = 0.01
-                self.step_size = 1.5
-                self.attract_weight = 10.0
-                self.repel_weight = 1.0
-                self.sdf_grad_scale = 0.2
-                self.max_steps = 100
-            elif self.aug_type in ['v6']:
-                sdf_grad_scale = 0.2
-                # weights for the different terms in the objective
-                self.attract_weight = 15.0 * sdf_grad_scale
-                self.repel_weight = 1.0 * sdf_grad_scale
-                self.bbox_weight = 0.05
-                self.invariance_weight = 0.01
-                # hyperparameters of the optimization loop
-                self.step_size = 0.3
-                self.max_steps = 100
-            elif self.aug_type in ['manual']:
-                self.step_size = 1.0
-            else:
-                raise NotImplementedError(self.aug_type)
-
-            self.lr = tf.keras.optimizers.schedules.ExponentialDecay(self.step_size, 10, 0.95)
-            self.opt = tf.keras.optimizers.SGD(self.lr)
 
             # Precompute this for speed
             self.barrier_epsilon = 0.01
@@ -305,25 +267,17 @@ class AugmentationOptimization:
         initial_transformation_params = pick_best_params(self, batch_size, initial_transformation_params)
         return initial_transformation_params
 
-    def can_terminate(self, step, bbox_loss_batch, attract_mask, res, min_dist, gradients):
-        # check termination criteria
-        box_constraint_satisfied = tf.reduce_all(bbox_loss_batch == 0, axis=-1)
-        constraints_satisfied = check_env_constraints(attract_mask, min_dist, res)
-        constraints_satisfied = tf.reduce_all([
-            tf.reduce_all(tf.cast(constraints_satisfied, tf.bool), axis=-1),
-            box_constraint_satisfied,
-        ])
-
+    def can_terminate(self, lr, gradients):
         grad_norm = tf.linalg.norm(gradients[0], axis=-1)
-        step_size_i = grad_norm * self.lr(step)
-        can_terminate = tf.logical_or(step_size_i < self.step_size_threshold, constraints_satisfied)
+        step_size_i = grad_norm * lr
+        can_terminate = step_size_i < self.step_size_threshold
         can_terminate = tf.reduce_all(can_terminate)
         return can_terminate
 
     def clip_env_aug_grad(self, gradients, variables):
         def _clip(g):
             # we want grad_clip to be as close to in meters as possible, so here we scale by step size
-            c = self.grad_clip / self.step_size
+            c = self.grad_clip / self.hparams['step_size']
             return tf.clip_by_value(g, -c, c)
 
         return [(_clip(g), v) for (g, v) in zip(gradients, variables)]
@@ -485,4 +439,4 @@ class AugmentationOptimization:
         lower_extent_loss = tf.maximum(0, obj_points_aug - upper_extent)
         upper_extent_loss = tf.maximum(0, lower_extent - obj_points_aug)
         bbox_loss = tf.reduce_sum(lower_extent_loss + upper_extent_loss, axis=-1)
-        return self.bbox_weight * bbox_loss
+        return self.hparams['bbox_weight'] * bbox_loss
