@@ -12,7 +12,6 @@ from colorama import Fore
 from dynamo_pandas.transactions import put_item
 from progressbar import progressbar
 
-import analysis.results_figures
 import link_bot_classifiers
 import link_bot_classifiers.get_model
 import ros_numpy
@@ -20,8 +19,8 @@ import rospy
 from analysis.results_utils import try_load_classifier_params
 from geometry_msgs.msg import Point
 from link_bot_classifiers import classifier_utils
-from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
 from link_bot_classifiers.add_augmentation_configs import add_augmentation_configs_to_dataset
+from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
 from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data import dynamodb_utils
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
@@ -748,7 +747,8 @@ def eval_ensemble_main(dataset_dir: pathlib.Path,
 
     plt.figure()
     ax2 = plt.gca()
-    analysis.results_figures.violinplot(classifier_ensemble_stdevs)
+    from analysis import results_figures
+    results_figures.violinplot(classifier_ensemble_stdevs)
     ax2.set_xlabel("density")
     ax2.set_ylabel("classifier uncertainty")
 
