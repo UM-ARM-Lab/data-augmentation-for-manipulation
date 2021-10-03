@@ -220,20 +220,28 @@ class OmplRRTWrapper(MyPlanner):
                                                               actions=actions)
 
             assert p_accepts_for_model.ndim == 1
+
+            accept_probabilities[classifier.name] = p_accepts_for_model
+
             # NOTE: Here is where we decide whether to accept a transition or not.
             #  you could do this with a simple threshold, or by saying p(accept) is a function of classifier output
             accept_type = self.params.get('accept_type', 'strict')
             if accept_type == 'strict':
                 accepts = p_accepts_for_model > self.params['accept_threshold']
+                accept = np.all(accepts)
+                if not accept:
+                    brea1
             elif accept_type == 'probabilistic':
-                r = self.accept_rng.randn()
-                accepts = (r < p_accepts_for_model)
+                # https://arxiv.org/pdf/2001.11051.pdf, see Algorithm 1
+                accepts = p_accepts_for_model > self.params['accept_threshold']
+                accept = np.all(accepts)
+                if not accept:
+                    r = self.accept_rng.uniform(0, 1)
+                    accept = (r < self.params['probabilistic_accept_k'])
+                    if not accept:
+                        break
             else:
                 raise NotImplementedError(f"invalid {accept_type:=}")
-            accept = np.all(accepts)
-            accept_probabilities[classifier.name] = p_accepts_for_model
-            if not accept:
-                break
 
         return accept, accept_probabilities
 

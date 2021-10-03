@@ -46,10 +46,8 @@ GAZEBO_PIDS_FILENAME = pathlib.Path("~/.gazebo_pids").expanduser()
 
 @halo.Halo("Getting gazebo processes")
 def get_gazebo_processes():
+    pids = get_gazebo_pids()
     processes = []
-    for proc in psutil.process_iter(['name']):
-        if proc.info['name'] == 'gzserver':
-            processes.append(proc)
-        elif proc.info['name'] == 'gzclient':
-            processes.append(proc)
+    for pid in pids:
+        processes.append(psutil.Process(pid))
     return processes
