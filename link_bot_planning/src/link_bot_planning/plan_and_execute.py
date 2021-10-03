@@ -17,7 +17,7 @@ from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers import recovery_policy_utils
 from link_bot_data import dataset_utils
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
-from link_bot_gazebo.gazebo_services import get_gazebo_processes
+from link_bot_gazebo.gazebo_utils import get_gazebo_processes
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, SetupInfo
 from link_bot_planning.test_scenes import get_all_scenes
 from link_bot_pycommon.base_services import BaseServices

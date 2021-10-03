@@ -17,7 +17,7 @@ from arc_utilities.algorithms import nested_dict_update
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_classifiers.fine_tune_recovery import fine_tune_recovery
 from link_bot_gazebo import gazebo_services
-from link_bot_gazebo.gazebo_services import get_gazebo_processes
+from link_bot_gazebo.gazebo_utils import get_gazebo_processes
 from link_bot_planning.get_planner import get_planner, load_classifier
 from link_bot_planning.results_to_classifier_dataset import ResultsToClassifierDataset
 from link_bot_planning.results_to_recovery_dataset import ResultsToRecoveryDataset

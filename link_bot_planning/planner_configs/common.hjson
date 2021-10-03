@@ -1,4 +1,5 @@
 {
+  accept_type: probabilistic
   scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
   filter_model_dir: [
     filter_trials/none/none

@@ -47,6 +47,7 @@ class OmplRRTWrapper(MyPlanner):
         self.params = planner_params
         self.action_params = action_params
         # These RNGs get re-seeded before planning, don't bother changing these values
+        self.accept_rng = np.random.RandomState(0)
         self.state_sampler_rng = np.random.RandomState(0)
         self.goal_sampler_rng = np.random.RandomState(0)
         self.control_sampler_rng = np.random.RandomState(0)
@@ -116,6 +117,7 @@ class OmplRRTWrapper(MyPlanner):
         self.closest_state_to_goal = None
         self.min_dist_to_goal = 10000
 
+        self.accept_rng.seed(seed)
         self.state_sampler_rng.seed(seed)
         self.goal_sampler_rng.seed(seed)
         self.control_sampler_rng.seed(seed)
@@ -218,7 +220,16 @@ class OmplRRTWrapper(MyPlanner):
                                                               actions=actions)
 
             assert p_accepts_for_model.ndim == 1
-            accepts = p_accepts_for_model > self.params['accept_threshold']
+            # NOTE: Here is where we decide whether to accept a transition or not.
+            #  you could do this with a simple threshold, or by saying p(accept) is a function of classifier output
+            accept_type = self.params.get('accept_type', 'strict')
+            if accept_type == 'strict':
+                accepts = p_accepts_for_model > self.params['accept_threshold']
+            elif accept_type == 'probabilistic':
+                r = self.accept_rng.randn()
+                accepts = (r < p_accepts_for_model)
+            else:
+                raise NotImplementedError(f"invalid {accept_type:=}")
             accept = np.all(accepts)
             accept_probabilities[classifier.name] = p_accepts_for_model
             if not accept:

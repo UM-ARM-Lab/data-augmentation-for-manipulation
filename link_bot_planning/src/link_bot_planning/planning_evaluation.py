@@ -9,7 +9,7 @@ from typing import Optional, Dict, List, Tuple, Callable
 import numpy as np
 from colorama import Fore
 
-from link_bot_gazebo.gazebo_services import get_gazebo_processes
+from link_bot_gazebo.gazebo_utils import get_gazebo_processes
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)

@@ -15,7 +15,7 @@ from link_bot_classifiers import train_test_classifier
 from link_bot_classifiers.eval_proxy_datasets import eval_proxy_datasets
 from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_data.split_dataset import split_dataset
-from link_bot_gazebo.gazebo_services import get_gazebo_processes
+from link_bot_gazebo.gazebo_utils import get_gazebo_processes
 from link_bot_planning.planning_evaluation import evaluate_multiple_planning, load_planner_params
 from link_bot_planning.test_scenes import get_all_scene_indices
 from link_bot_pycommon.job_chunking import JobChunker

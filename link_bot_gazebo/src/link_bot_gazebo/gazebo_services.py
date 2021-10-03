@@ -1,8 +1,6 @@
 import pathlib
 from typing import Optional, List
 
-import halo
-import psutil
 import rospkg
 
 import ros_numpy
@@ -114,17 +112,6 @@ class GazeboServices(BaseServices):
 
 def gz_scope(*args):
     return "::".join(args)
-
-
-@halo.Halo("Getting gazebo processes")
-def get_gazebo_processes():
-    processes = []
-    for proc in psutil.process_iter(['name']):
-        if proc.info['name'] == 'gzserver':
-            processes.append(proc)
-        elif proc.info['name'] == 'gzclient':
-            processes.append(proc)
-    return processes
 
 
 def restore_gazebo(gz, link_states, s):
