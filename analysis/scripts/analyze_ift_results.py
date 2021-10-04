@@ -33,7 +33,6 @@ def metrics_main(args):
         'success':                'mean',
         'task_error':             'mean',
         'normalized_model_error': 'mean',
-        'full_retrain':           'mean',
         'used_augmentation':      rlast,
         iter_key:                 rlast,
     }
@@ -46,27 +45,23 @@ def metrics_main(args):
     x.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / f'success_rate.png')
 
-    fig, x = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling1)', hue='used_augmentation', style='full_retrain')
+    fig, x = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling1)', hue='used_augmentation')
     x.set_xlim(-0.01, x_max)
     x.set_ylim(-0.01, 1.01)
-    plt.savefig(outdir / f'success_rate_rolling1.png')
+    plt.savefig(outdir / f'success_rate_rolling.png')
 
-    fig, x = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling2)', hue='full_retrain')
-    x.set_xlim(-0.01, x_max)
-    x.set_ylim(-0.01, 1.01)
-    plt.savefig(outdir / f'success_rate_rolling2.png')
-
-    fig, x = lineplot(df, iter_key, 'any_solved', 'Any Solved (separate)', hue='ift_uuid', style='full_retrain')
+    fig, x = lineplot(df, iter_key, 'any_solved', 'Any Solved (separate)', hue='ift_uuid')
     plt.savefig(outdir / f'any_solved.png')
 
-    fig, x = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid', style='full_retrain')
+    fig, x = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid')
     x.set_xlim(-0.01, x_max)
 
     fig, x = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
     x.set_xlim(-0.01, x_max)
 
-    fig, x = lineplot(df_r, iter_key, 'task_error', 'Task Error (rolling)', hue='used_augmentation', style='full_retrain')
+    fig, x = lineplot(df_r, iter_key, 'task_error', 'Task Error (rolling)', hue='used_augmentation')
     x.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'task_error_rolling.png')
 
     fig, x = lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
     x.set_xlim(-0.01, x_max)

@@ -14,7 +14,7 @@ limit_gpu_mem(0.1)
 
 
 def metrics_main(args):
-    outdir, df, table_format = planning_results(args.results_dirs, args.regenerate, args.latex)
+    outdir, df, table_format = planning_results(args.results_dirs, args.regenerate)
 
     violinplot(df, outdir, 'method_name', 'task_error', "Task Error")
     violinplot(df, outdir, 'method_name', 'normalized_model_error', 'Normalized Model Error')
@@ -32,24 +32,16 @@ def metrics_main(args):
     ax.set_ylim(-0.01, 1.01)
     plt.savefig(outdir / 'success.png')
 
-    plt.show()
+    if not args.no_plot:
+        plt.show()
 
 
 @ros_init.with_ros("analyse_planning_results")
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('results_dirs', help='results directory', type=pathlib.Path, nargs='+')
-    parser.add_argument('--figures-config', type=pathlib.Path,
-                        default=pathlib.Path("figures_configs/planning_evaluation.hjson"))
-    parser.add_argument('--tables-config', type=pathlib.Path,
-                        default=pathlib.Path("tables_configs/factors.hjson"))
-    parser.add_argument('--analysis-params', type=pathlib.Path,
-                        default=pathlib.Path("analysis_params/env_across_methods.json"))
     parser.add_argument('--no-plot', action='store_true')
-    parser.add_argument('--latex', action='store_true')
-    parser.add_argument('--order', action='store_true')
     parser.add_argument('--regenerate', action='store_true')
-    parser.add_argument('--debug', action='store_true', help='will only run on a few examples to speed up debugging')
     parser.add_argument('--style', default='slides')
     parser.set_defaults(func=metrics_main)
 

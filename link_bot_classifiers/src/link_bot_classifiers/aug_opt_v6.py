@@ -70,6 +70,11 @@ class AugV6ProjOpt(BaseProjectOpt):
         attract_grad_mask = tf.cast(sdf > 0, tf.float32)
         self.attract_sdf_grad = self.sdf_grad * tf.expand_dims(attract_grad_mask, -1)
 
+        # precompute stuff
+        self.obj_point_indices = batch_point_to_idx(self.obj_points, self.new_res, self.new_origin_point_expanded)
+        self.sdf_dist = tf.gather_nd(self.new_env['sdf'], self.obj_point_indices)  # will be zero if index OOB
+        self.min_dist = tf.reduce_min(self.sdf_dist, axis=1)
+
     def make_opt(self):
         lr = tf.keras.optimizers.schedules.ExponentialDecay(self.aug_opt.hparams['step_size'],
                                                             self.aug_opt.hparams['lr_decay_steps'],
@@ -77,6 +82,7 @@ class AugV6ProjOpt(BaseProjectOpt):
         opt = tf.keras.optimizers.SGD(lr)
         return opt
 
+    # @profile
     def forward(self, tape, obj_transforms):
         with tape:
             # obj_points is the set of points that define the object state, ie. the swept rope points.
@@ -88,32 +94,28 @@ class AugV6ProjOpt(BaseProjectOpt):
             obj_points_aug, to_local_frame = transformation_obj_points(self.obj_points, transformation_matrices)
 
         # compute repel and attract gradient via the SDF
-        obj_point_indices = batch_point_to_idx(self.obj_points, self.new_res, self.new_origin_point_expanded)
-        sdf_dist = tf.gather_nd(self.new_env['sdf'], obj_point_indices)  # will be zero if index OOB
 
         obj_point_indices_aug = batch_point_to_idx(obj_points_aug, self.new_res, self.new_origin_point_expanded)
         sdf_dist_aug = tf.gather_nd(self.sdf, obj_point_indices_aug)  # will be zero if index OOB
-        obj_attract_sdf_grad = tf.gather_nd(self.attract_sdf_grad,
-                                            obj_point_indices_aug)  # will be zero if index OOB
+        obj_attract_sdf_grad = tf.gather_nd(self.attract_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
         obj_repel_sdf_grad = tf.gather_nd(self.repel_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
 
         # and also the grad for preserving the min dist
-        min_dist = tf.reduce_min(sdf_dist, axis=1)
         min_dist_aug = tf.reduce_min(sdf_dist_aug, axis=1)
         min_dist_aug_idx = tf.argmin(sdf_dist_aug, axis=1)
-        delta_min_dist = min_dist - min_dist_aug
+        delta_min_dist = self.min_dist - min_dist_aug
         min_dist_points_aug = tf.gather(obj_points_aug, min_dist_aug_idx, axis=1, batch_dims=1)
         min_dist_indices_aug = batch_point_to_idx(min_dist_points_aug, self.new_res, self.new_origin_point_expanded)
         delta_min_dist_grad_dpoint = -tf.gather_nd(self.sdf_grad, min_dist_indices_aug) * delta_min_dist[:, None]
         delta_min_dist_grad_dpoint = delta_min_dist_grad_dpoint * self.aug_opt.hparams['delta_min_dist_weight']
 
-        return obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx
+        return obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx
 
     def step(self, _: int, opt, obj_transforms: tf.Variable):
         tape = tf.GradientTape()
 
         viz_vars = self.forward(tape, obj_transforms)
-        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx = viz_vars
+        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx = viz_vars
 
         with tape:
             invariance_loss = self.aug_opt.invariance_model_wrapper.evaluate(obj_transforms)
@@ -206,7 +208,7 @@ class AugV6ProjOpt(BaseProjectOpt):
         return max_distance
 
     def viz_func(self, i, obj_transforms, _, target, viz_vars):
-        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx = viz_vars
+        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx = viz_vars
 
         shape = tf.convert_to_tensor(self.new_env['env'].shape, tf.int64)[None, None]
         oob = tf.logical_or(obj_point_indices_aug < 0,
@@ -318,8 +320,7 @@ def opt_object_augmentation6(aug_opt,
                                                     x_distance=project_opt.distance,
                                                     not_progressing_threshold=not_progressing_threshold,
                                                     viz_func=project_opt.viz_func)
-    sdf_dist = viz_vars[2]
-    sdf_dist_aug = viz_vars[3]
+    sdf_dist_aug = viz_vars[2]
 
     transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
     obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
@@ -341,7 +342,8 @@ def opt_object_augmentation6(aug_opt,
     new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
     local_env_aug, _ = aug_opt.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
 
-    is_valid = check_is_valid(aug_opt, obj_points_aug, new_env, object_points_occupancy, res, sdf_dist, sdf_dist_aug)
+    is_valid = check_is_valid(aug_opt, obj_points_aug, new_env, object_points_occupancy, res, project_opt.sdf_dist,
+                              sdf_dist_aug)
 
     return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, is_valid
 

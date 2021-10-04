@@ -8,7 +8,7 @@ from colorama import Style, Fore
 from arc_utilities import ros_init
 from analysis import results_utils
 from analysis.results_utils import classifier_params_from_planner_params, plot_steps
-from link_bot_planning.plan_and_execute import TrialStatus
+from link_bot_planning.trial_result import TrialStatus
 from link_bot_pycommon.screen_recorder import ScreenRecorder
 from moonshine.gpu_config import limit_gpu_mem
 

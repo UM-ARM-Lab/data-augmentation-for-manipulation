@@ -5,7 +5,7 @@ import pathlib
 from arc_utilities import ros_init
 from analysis import results_utils
 from analysis.results_utils import classifier_params_from_planner_params, plot_steps, get_all_results_subdirs
-from link_bot_planning.plan_and_execute import TrialStatus
+from link_bot_planning.trial_result import TrialStatus
 from link_bot_pycommon.args import int_set_arg
 
 

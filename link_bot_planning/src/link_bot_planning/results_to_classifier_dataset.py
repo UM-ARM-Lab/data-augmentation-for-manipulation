@@ -19,7 +19,7 @@ from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.split_dataset import split_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree, PlanningResult
-from link_bot_planning.plan_and_execute import ExecutionResult
+from link_bot_planning.trial_result import ExecutionResult
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator

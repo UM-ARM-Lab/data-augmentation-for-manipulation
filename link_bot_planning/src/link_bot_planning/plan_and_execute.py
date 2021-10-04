@@ -2,8 +2,6 @@
 import pathlib
 import pickle
 import time
-from dataclasses import dataclass
-from enum import Enum
 from typing import Dict, List, Optional, Callable
 
 import numpy as np
@@ -20,38 +18,13 @@ from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_gazebo.gazebo_utils import get_gazebo_processes
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, SetupInfo
 from link_bot_planning.test_scenes import get_all_scenes
+from link_bot_planning.trial_result import TrialStatus, ExecutionResult
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.pycommon import has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.spinners import SynchronousSpinner
 from moonshine.moonshine_utils import numpify, remove_batch, add_batch
-
-
-class TrialStatus(Enum):
-    Reached = "reached"
-    Timeout = "timeout"
-    NotProgressingNoRecovery = "not_progressing_no_recovery"
-
-
-@dataclass
-class ExecutionResult:
-    path: List[Dict]
-    end_trial: bool
-    stopped: bool
-    end_t: int
-
-
-@dataclass
-class TrialResult:
-    setup_info: SetupInfo
-    planning_queries: List[PlanningQuery]
-    total_time: float
-    trial_status: TrialStatus
-    trial_idx: int
-    goal: Dict
-    steps: int
-    end_state: Dict
 
 
 def execute_actions(

@@ -10,8 +10,7 @@ from colorama import Fore
 import rospy
 from arc_utilities.algorithms import zip_repeat_shorter
 from link_bot_planning.my_planner import PlanningResult, PlanningQuery
-from link_bot_planning.plan_and_execute import ExecutionResult
-from link_bot_planning.planning_evaluation import planning_trial_name
+from link_bot_planning.trial_result import ExecutionResult, planning_trial_name
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.grid_utils import extent_res_to_origin_point
 from link_bot_pycommon.pycommon import paths_from_json

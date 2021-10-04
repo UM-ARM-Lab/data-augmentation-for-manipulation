@@ -44,7 +44,6 @@ class NNClassifier(MyKerasModel):
 
         # define network structure from hparams
         self.classifier_dataset_hparams = self.hparams['classifier_dataset_hparams']
-        self.dynamics_dataset_hparams = self.classifier_dataset_hparams['fwd_model_hparams']['dynamics_dataset_hparams']
         self.true_state_keys = self.classifier_dataset_hparams['true_state_keys']
         self.pred_state_keys = [add_predicted(k) for k in self.classifier_dataset_hparams['predicted_state_keys']]
         self.pred_state_keys.append(add_predicted('stdev'))

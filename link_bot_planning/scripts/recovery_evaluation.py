@@ -8,7 +8,7 @@ import tensorflow as tf
 
 from analysis import results_metrics
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus, PlanningQuery
-from link_bot_planning.plan_and_execute import ExecutionResult
+from link_bot_planning.trial_result import ExecutionResult
 from link_bot_planning.timeout_or_not_progressing import EvalRecoveryPTC
 from link_bot_pycommon.serialization import load_gzipped_pickle
 

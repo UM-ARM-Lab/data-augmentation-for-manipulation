@@ -1,6 +1,5 @@
 import pathlib
 import socket
-import tempfile
 import uuid
 import warnings
 from time import time, sleep
@@ -10,6 +9,7 @@ import numpy as np
 from colorama import Fore
 
 from link_bot_gazebo.gazebo_utils import get_gazebo_processes
+from link_bot_planning.trial_result import planning_trial_name
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -29,10 +29,6 @@ from link_bot_pycommon.pycommon import deal_with_exceptions
 from link_bot_pycommon.serialization import dump_gzipped_pickle, my_hdump
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import numpify
-
-
-def planning_trial_name(trial_idx: int):
-    return f'{trial_idx}_metrics.pkl.gz'
 
 
 class EvaluatePlanning(plan_and_execute.PlanAndExecute):
