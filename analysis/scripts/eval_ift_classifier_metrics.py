@@ -2,16 +2,15 @@
 import argparse
 import pathlib
 
-import pandas as pd
 from colorama import Fore
 
+from arc_utilities import ros_init
 from link_bot_classifiers.eval_proxy_datasets import eval_proxy_datasets
 from moonshine.filepath_tools import load_hjson
 
 
+@ros_init.with_ros("eval_ift_classifier_metrics")
 def main():
-    pd.options.display.max_rows = 999
-
     parser = argparse.ArgumentParser()
     parser.add_argument('ift_dirs', type=pathlib.Path, nargs='+')
 
