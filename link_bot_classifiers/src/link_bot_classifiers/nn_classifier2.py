@@ -40,7 +40,6 @@ class NNClassifier(MyKerasModel):
     def __init__(self, hparams: Dict, batch_size: int, scenario: ScenarioWithVisualization, verbose: int = 0):
         super().__init__(hparams, batch_size, verbose)
         self.scenario = scenario
-        self.broadcaster = self.scenario.tf.tf_broadcaster
 
         # define network structure from hparams
         self.classifier_dataset_hparams = self.hparams['classifier_dataset_hparams']
@@ -310,7 +309,8 @@ class NNClassifier(MyKerasModel):
         for b in debug_viz_batch_indices(self.batch_size):
             if local_origin_point is not None:
                 self.debug.send_position_transform(local_origin_point[b], 'local_origin_point')
-                send_voxelgrid_tf_origin_point_res(self.broadcaster,
+
+                send_voxelgrid_tf_origin_point_res(self.scenario.tf.tf_broadcaster,
                                                    origin_point=local_origin_point[b],
                                                    res=inputs['res'][b],
                                                    frame='local_env_vg')
