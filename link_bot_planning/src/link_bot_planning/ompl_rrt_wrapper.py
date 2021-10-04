@@ -230,7 +230,7 @@ class OmplRRTWrapper(MyPlanner):
                 accepts = p_accepts_for_model > self.params['accept_threshold']
                 accept = np.all(accepts)
                 if not accept:
-                    brea1
+                    break
             elif accept_type == 'probabilistic':
                 # https://arxiv.org/pdf/2001.11051.pdf, see Algorithm 1
                 accepts = p_accepts_for_model > self.params['accept_threshold']
