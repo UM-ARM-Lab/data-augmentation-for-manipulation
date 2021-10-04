@@ -436,7 +436,7 @@ class AugmentationOptimization:
         extent = tf.reshape(extent, [3, 2])
         lower_extent = extent[None, None, :, 0]
         upper_extent = extent[None, None, :, 1]
-        lower_extent_loss = tf.maximum(0, obj_points_aug - upper_extent)
-        upper_extent_loss = tf.maximum(0, lower_extent - obj_points_aug)
+        lower_extent_loss = tf.maximum(0., obj_points_aug - upper_extent)
+        upper_extent_loss = tf.maximum(0., lower_extent - obj_points_aug)
         bbox_loss = tf.reduce_sum(lower_extent_loss + upper_extent_loss, axis=-1)
         return self.hparams['bbox_weight'] * bbox_loss

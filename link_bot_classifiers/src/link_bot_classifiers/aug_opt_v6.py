@@ -4,7 +4,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import rospy
-from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transformation_obj_points, \
+from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transform_obj_points, \
     check_env_constraints, pick_best_params, initial_identity_params
 from link_bot_classifiers.iterative_projection import iterative_projection, BaseProjectOpt
 from link_bot_data.rviz_arrow import rviz_arrow
@@ -82,7 +82,6 @@ class AugV6ProjOpt(BaseProjectOpt):
         opt = tf.keras.optimizers.SGD(lr)
         return opt
 
-    # @profile
     def forward(self, tape, obj_transforms):
         with tape:
             # obj_points is the set of points that define the object state, ie. the swept rope points.
@@ -91,7 +90,7 @@ class AugV6ProjOpt(BaseProjectOpt):
             # we also need to call apply_object_augmentation* at the end
             # to update the rest of the "state" which is input to the network
             transformation_matrices = transformation_params_to_matrices(obj_transforms, self.batch_size)
-            obj_points_aug, to_local_frame = transformation_obj_points(self.obj_points, transformation_matrices)
+            obj_points_aug, to_local_frame = transform_obj_points(self.obj_points, transformation_matrices)
 
         # compute repel and attract gradient via the SDF
 
@@ -160,7 +159,7 @@ class AugV6ProjOpt(BaseProjectOpt):
         lr = opt._decayed_lr(tf.float32)
         can_terminate = self.aug_opt.can_terminate(lr, gradients)
 
-        x_out = tf.convert_to_tensor(obj_transforms)
+        x_out = tf.identity(obj_transforms)
 
         return x_out, can_terminate, viz_vars
 
@@ -319,11 +318,12 @@ def opt_object_augmentation6(aug_opt,
                                                     project_opt=project_opt,
                                                     x_distance=project_opt.distance,
                                                     not_progressing_threshold=not_progressing_threshold,
-                                                    viz_func=project_opt.viz_func)
+                                                    viz_func=project_opt.viz_func,
+                                                    viz=debug_aug())
     sdf_dist_aug = viz_vars[2]
 
     transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
-    obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
+    obj_points_aug, to_local_frame = transform_obj_points(obj_points, transformation_matrices)
 
     # this updates other representations of state/action that are fed into the network
     _, object_aug_update, local_origin_point_aug, local_center_aug = aug_opt.apply_object_augmentation_no_ik(

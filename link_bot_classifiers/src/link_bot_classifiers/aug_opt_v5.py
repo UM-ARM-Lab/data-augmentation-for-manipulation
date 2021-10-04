@@ -4,7 +4,7 @@ import tensorflow as tf
 
 import rospy
 import sdf_tools.utils_3d
-from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transformation_obj_points
+from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transform_obj_points
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_tf_origin_point_res, \
     subtract, binary_or, batch_point_to_idx
@@ -41,7 +41,7 @@ def opt_object_augmentation5(self,
 
     obj_transforms = opt_object_transform(batch_size, new_env, obj_points, object_points_occupancy, res, self)
     transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
-    obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
+    obj_points_aug, to_local_frame = transform_obj_points(obj_points, transformation_matrices)
 
     # this updates other representations of state/action that are fed into the network
     _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
@@ -113,7 +113,7 @@ def opt_object_transform(batch_size, new_env, obj_points, object_points_occupanc
                 # we also need to call apply_object_augmentation* at the end
                 # to update the rest of the "state" which is input to the network
                 transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
-                obj_points_aug, to_local_frame = transformation_obj_points(obj_points, transformation_matrices)
+                obj_points_aug, to_local_frame = transform_obj_points(obj_points, transformation_matrices)
 
                 invariance_loss = self.invariance_weight * self.invariance_model_wrapper.evaluate(obj_transforms)
 

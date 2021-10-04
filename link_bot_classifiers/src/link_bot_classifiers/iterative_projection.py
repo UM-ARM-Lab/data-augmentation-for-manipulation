@@ -25,13 +25,15 @@ def iterative_projection(initial_value,
                          x_distance: Callable,
                          not_progressing_threshold: float,
                          m_last=None,
+                         viz: bool = True,
                          ):
     x = initial_value
     for i in range(n):
         x_old = tf.identity(x)  # make a copy
 
         x, viz_vars = step_towards_target(target, x)
-        viz_func(i, x, initial_value, target, viz_vars)
+        if viz:
+            viz_func(i, x, initial_value, target, viz_vars)
 
         opt = project_opt.make_opt()
 
@@ -47,7 +49,8 @@ def iterative_projection(initial_value,
         x_var = tf.Variable(x)
         for j in range(_m):
             x, can_terminate, viz_vars = project_opt.step(j, opt, x_var)
-            viz_func(i, x, initial_value, target, viz_vars)
+            if viz:
+                viz_func(i, x, initial_value, target, viz_vars)
             if can_terminate:
                 break
 
