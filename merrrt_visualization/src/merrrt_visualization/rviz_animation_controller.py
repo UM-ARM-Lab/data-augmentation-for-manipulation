@@ -5,7 +5,6 @@ import halo
 import numpy as np
 
 import rospy
-from moonshine.moonshine_utils import numpify
 from peter_msgs.msg import AnimationControl
 from peter_msgs.srv import GetAnimControllerStateRequest, GetAnimControllerState
 from std_msgs.msg import Int64
@@ -190,7 +189,7 @@ class RvizAnimation:
         self.n_time_steps = n_time_steps
 
     def play(self, example: Any):
-        example = numpify(example)
+        print("Warning: you may need to call numpify!")
         for init_func in self.init_funcs:
             init_func(self.myobj, example)
 
