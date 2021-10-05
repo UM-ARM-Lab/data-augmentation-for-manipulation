@@ -35,15 +35,13 @@
   negative_label_weight: 0.50
   include_robot_geometry: true
   augmentation: {
-    type: v6
     # weights for the different terms in the objective
     bbox_weight: 0.05
     delta_min_dist_weight: 0.25
     invariance_weight: 1.0
-    invariance_threshold: 0.1
+    invariance_threshold: 0.1  # loss than this much model error is tolerable and incurs no cost
+
     # hyperparameters of the optimization loop
-    delta_min_dist_threshold: 0.055
-    loss_threshold: 0.001
     lr_decay: 0.95
     lr_decay_steps: 1
     max_steps: 25
@@ -53,13 +51,17 @@
     not_progressing_threshold: 0.001
     step_size_threshold: 0.0003
     step_size: 0.3
-    # hparams for the final check of the constraints
+
+    # for the final check of the constraints
     max_env_violations: 8
-    # IK hparams
+    delta_min_dist_threshold: 0.055
+
+    # IK
     rand_dist: 0.1
     max_collision_check_attempts: 100
+
     # misc
-    good_enough_percentile: 1.0
+    good_enough_percentile: 1.0  # 1 accept all target transforms, 0.1 means use the top 10%
     invariance_model: /media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint
   }
 }
