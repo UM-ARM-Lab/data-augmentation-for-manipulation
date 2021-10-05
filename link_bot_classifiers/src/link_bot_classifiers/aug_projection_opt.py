@@ -42,8 +42,6 @@ class AugProjOpt(BaseProjectOpt):
         self.step_toward_target_fraction = 1 / self.aug_opt.hparams['n_outer_iters']
         self.lr_decay = 0.90
         self.lr_decay_steps = 10
-        self.attract_weight = 15.0 * self.aug_opt.hparams['sdf_grad_scale']
-        self.repel_weight = 1.0 * self.aug_opt.hparams['sdf_grad_scale']
 
         self.aug_dir_pub = rospy.Publisher('aug_dir', Marker, queue_size=10)
 
