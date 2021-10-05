@@ -163,7 +163,7 @@ class AugmentationOptimization:
                                                    frame='new_env_aug_vg')
 
         initial_transformation_params = initial_identity_params(batch_size)
-        target_transformation_params = self.sample_target_transform_params(obj_points, new_env, batch_size)
+        target_transformation_params = self.sample_target_transform_params(batch_size)
         project_opt = AugProjOpt(aug_opt=self,
                                  new_env=new_env,
                                  res=res,
@@ -171,16 +171,16 @@ class AugmentationOptimization:
                                  obj_points=obj_points,
                                  object_points_occupancy=object_points_occupancy)
         not_progressing_threshold = self.hparams['not_progressing_threshold']
-        obj_transforms, _ = iterative_projection(initial_value=initial_transformation_params,
-                                                 target=target_transformation_params,
-                                                 n=self.hparams['n_outer_iters'],
-                                                 m=self.hparams['max_steps'],
-                                                 step_towards_target=project_opt.step_towards_target,
-                                                 project_opt=project_opt,
-                                                 x_distance=project_opt.distance,
-                                                 not_progressing_threshold=not_progressing_threshold,
-                                                 viz_func=project_opt.viz_func,
-                                                 viz=debug_aug())
+        obj_transforms, viz_vars = iterative_projection(initial_value=initial_transformation_params,
+                                                        target=target_transformation_params,
+                                                        n=self.hparams['n_outer_iters'],
+                                                        m=self.hparams['max_steps'],
+                                                        step_towards_target=project_opt.step_towards_target,
+                                                        project_opt=project_opt,
+                                                        x_distance=project_opt.distance,
+                                                        not_progressing_threshold=not_progressing_threshold,
+                                                        viz_func=project_opt.viz_func,
+                                                        viz=debug_aug())
 
         transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
         obj_points_aug, to_local_frame = transform_obj_points(obj_points, transformation_matrices)
@@ -202,8 +202,8 @@ class AugmentationOptimization:
         new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
         local_env_aug, _ = self.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
 
-        is_valid = self.check_is_valid(obj_points_aug, new_env, object_points_occupancy, res, project_opt.sdf,
-                                       )
+        is_valid = self.check_is_valid(obj_points_aug, new_env, object_points_occupancy, res, project_opt.obj_sdf,
+                                       viz_vars.sdf_aug)
 
         return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, is_valid
 
@@ -224,14 +224,12 @@ class AugmentationOptimization:
         constraints_satisfied = env_constraints_satisfied * bbox_constraint_satisfied * delta_min_dist_satisfied
         return constraints_satisfied
 
-    def sample_target_transform_params(self, obj_points, new_env, batch_size):
+    def sample_target_transform_params(self, batch_size):
         good_enough_percentile = self.hparams['good_enough_percentile']
         n_samples = int(1 / good_enough_percentile) * batch_size
 
-        extent = tf.reshape(new_env['extent'], [3, 2])
-        trans_low = extent[:, 0]
-        trans_high = extent[:, 1]
-        trans_distribution = tfp.distributions.Uniform(low=trans_low, high=trans_high)
+        trans_lim = tf.ones([3]) * self.hparams['target_trans_lim']
+        trans_distribution = tfp.distributions.Uniform(low=trans_lim, high=trans_lim)
 
         # NOTE: by restricting the sample of euler angles to < pi/2 we can ensure that the representation is unique.
         #  (see https://www.cs.cmu.edu/~cga/dynopt/readings/Rmetric.pdf) which allows us to use a simple distance euler
@@ -240,10 +238,7 @@ class AugmentationOptimization:
         euler_high = tf.ones([3]) * pi / 2
         euler_distribution = tfp.distributions.Uniform(low=euler_low, high=euler_high)
 
-        target_world_frame = trans_distribution.sample(sample_shape=n_samples, seed=self.seed())
-        to_local_frame = tf.reduce_mean(obj_points, axis=1)
-        trans_target = target_world_frame - to_local_frame
-
+        trans_target = trans_distribution.sample(sample_shape=n_samples, seed=self.seed())
         euler_target = euler_distribution.sample(sample_shape=n_samples, seed=self.seed())
 
         target_params = tf.concat([trans_target, euler_target], 1)

@@ -39,16 +39,17 @@
     # weights for the different terms in the objective
     bbox_weight: 0.05
     delta_min_dist_weight: 0.5
-    invariance_weight: 0.1
+    invariance_weight: 1.0
     invariance_threshold: 0.1
     sdf_grad_scale: 0.2
     # hyperparameters of the optimization loop
     delta_min_dist_threshold: 0.055
     loss_threshold: 0.001
-    lr_decay: 0.90
-    lr_decay_steps: 4
-    max_steps: 50
-    n_outer_iters: 25
+    lr_decay: 0.95
+    lr_decay_steps: 1
+    max_steps: 25
+    n_outer_iters: 5
+    target_trans_lim: 0.25
     not_progressing_threshold: 0.001
     step_size_threshold: 0.0003
     step_size: 0.3

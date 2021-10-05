@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import tensorflow as tf
 
 import rospy
@@ -10,6 +12,17 @@ from moonshine.geometry import transformation_params_to_matrices, transformation
 from sdf_tools import utils_3d
 from tf import transformations
 from visualization_msgs.msg import Marker
+
+
+@dataclass
+class VizVars:
+    obj_points_aug: tf.Tensor
+    to_local_frame: tf.Tensor
+    min_dist_points_aug: tf.Tensor
+    delta_min_dist_grad_dpoint: tf.Tensor
+    min_dist_aug_idx: tf.Tensor
+    attract_repel_dpoint: tf.Tensor
+    sdf_aug: tf.Tensor
 
 
 class AugProjOpt(BaseProjectOpt):
@@ -85,20 +98,25 @@ class AugProjOpt(BaseProjectOpt):
         delta_min_dist_grad_dpoint = -tf.gather_nd(self.sdf_grad, min_dist_indices_aug) * delta_min_dist[:, None]
         delta_min_dist_grad_dpoint = delta_min_dist_grad_dpoint * self.aug_opt.hparams['delta_min_dist_weight']
 
-        return obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx, attract_repel_dpoint
+        return VizVars(obj_points_aug=obj_points_aug,
+                       to_local_frame=to_local_frame,
+                       min_dist_points_aug=min_dist_points_aug,
+                       delta_min_dist_grad_dpoint=delta_min_dist_grad_dpoint,
+                       min_dist_aug_idx=min_dist_aug_idx,
+                       attract_repel_dpoint=attract_repel_dpoint,
+                       sdf_aug=sdf_aug)
 
     def step(self, _: int, opt, obj_transforms: tf.Variable):
         tape = tf.GradientTape()
 
-        viz_vars = self.forward(tape, obj_transforms)
-        obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx, attract_repel_dpoint = viz_vars
+        v = self.forward(tape, obj_transforms)
 
         with tape:
             invariance_loss = self.aug_opt.invariance_model_wrapper.evaluate(obj_transforms)
             invariance_loss = tf.maximum(self.aug_opt.hparams['invariance_threshold'], invariance_loss)
             invariance_loss = self.aug_opt.hparams['invariance_weight'] * invariance_loss
 
-            bbox_loss_batch = self.aug_opt.bbox_loss(obj_points_aug, self.new_env['extent'])
+            bbox_loss_batch = self.aug_opt.bbox_loss(v.obj_points_aug, self.new_env['extent'])
             bbox_loss = tf.reduce_sum(bbox_loss_batch, axis=-1)
 
             losses = [
@@ -110,15 +128,16 @@ class AugProjOpt(BaseProjectOpt):
 
         # Compute the jacobian of the transformation
         jacobian = transformation_jacobian(obj_transforms)[:, None]  # [b,1,6,4,4]
-        obj_points_local_frame = self.obj_points - to_local_frame  # [b,n,3]
+        obj_points_local_frame = self.obj_points - v.to_local_frame  # [b,n,3]
         obj_points_local_frame_h = homogeneous(obj_points_local_frame)[:, :, None, :, None]  # [b,1,4,1]
         dpoint_dparams_h = tf.squeeze(tf.matmul(jacobian, obj_points_local_frame_h), axis=-1)  # [b,6]
         dpoint_dparams = tf.transpose(dpoint_dparams_h[:, :, :, :3], [0, 1, 3, 2])  # [b,3,6]
 
         # chain rule
-        attract_repel_sdf_grad = dpoint_to_dparams(attract_repel_dpoint, dpoint_dparams)
-        dpoint_dparams_for_min_point = tf.gather(dpoint_dparams, min_dist_aug_idx, axis=1, batch_dims=1)
-        delta_min_dist_grad_dparams = tf.einsum('bi,bij->bj', delta_min_dist_grad_dpoint, dpoint_dparams_for_min_point)
+        attract_repel_sdf_grad = dpoint_to_dparams(v.attract_repel_dpoint, dpoint_dparams)
+        dpoint_dparams_for_min_point = tf.gather(dpoint_dparams, v.min_dist_aug_idx, axis=1, batch_dims=1)
+        delta_min_dist_grad_dparams = tf.einsum('bi,bij->bj', v.delta_min_dist_grad_dpoint,
+                                                dpoint_dparams_for_min_point)
 
         variables = [obj_transforms]
         tape_gradients = tape.gradient(loss, variables)
@@ -133,7 +152,7 @@ class AugProjOpt(BaseProjectOpt):
 
         x_out = tf.identity(obj_transforms)
 
-        return x_out, can_terminate, viz_vars
+        return x_out, can_terminate, v
 
     def can_terminate(self, lr, gradients):
         grad_norm = tf.linalg.norm(gradients[0], axis=-1)
@@ -161,15 +180,14 @@ class AugProjOpt(BaseProjectOpt):
         max_distance = tf.reduce_max(distances)
         return max_distance
 
-    def viz_func(self, i, obj_transforms, _, target, viz_vars):
-        obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx, attract_repel_dpoint = viz_vars
+    def viz_func(self, i, obj_transforms, _, target, v: VizVars):
         scale = 0.005
         s = self.aug_opt.scenario
         for b in debug_viz_batch_indices(self.batch_size):
             target_b = target[b]
             obj_transforms_b = obj_transforms[b]
 
-            local_pos_b = to_local_frame[b, 0].numpy()
+            local_pos_b = v.to_local_frame[b, 0].numpy()
             target_pos_b = target_b[:3].numpy()
             self.aug_opt.debug.send_position_transform(local_pos_b, 'initial_local_frame')
             self.plot_transform(obj_transforms_b, 'aug_opt_current')
@@ -184,15 +202,15 @@ class AugProjOpt(BaseProjectOpt):
 
             attract_points = tf.gather(self.obj_points[b], attract_indices).numpy()
             repel_points = tf.gather(self.obj_points[b], repel_indices).numpy()
-            attract_points_aug = tf.gather(obj_points_aug[b], attract_indices).numpy()
-            repel_points_aug = tf.gather(obj_points_aug[b], repel_indices).numpy()
+            attract_points_aug = tf.gather(v.obj_points_aug[b], attract_indices).numpy()
+            repel_points_aug = tf.gather(v.obj_points_aug[b], repel_indices).numpy()
 
             s.plot_points_rviz(attract_points, label='attract', color='g', scale=scale)
             s.plot_points_rviz(repel_points, label='repel', color='r', scale=scale)
             s.plot_points_rviz(attract_points_aug, label='attract_aug', color='g', scale=scale)
             s.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=scale)
 
-            attract_repel_dpoint_b = attract_repel_dpoint[b]
+            attract_repel_dpoint_b = v.attract_repel_dpoint[b]
             attract_grad_b = -tf.gather(attract_repel_dpoint_b, attract_indices, axis=0) * 0.02
             repel_grad_b = -tf.gather(attract_repel_dpoint_b, repel_indices, axis=0) * 0.02
             s.delete_arrows_rviz(label='attract_sdf_grad')
@@ -200,8 +218,8 @@ class AugProjOpt(BaseProjectOpt):
             s.plot_arrows_rviz(attract_points_aug, attract_grad_b, label='attract_sdf_grad', color='g', scale=0.5)
             s.plot_arrows_rviz(repel_points_aug, repel_grad_b, label='repel_sdf_grad', color='r', scale=0.5)
 
-            delta_min_dist_points_b = min_dist_points_aug[b].numpy()
-            delta_min_dist_grad_b = delta_min_dist_grad_dpoint[b].numpy()
+            delta_min_dist_points_b = v.min_dist_points_aug[b].numpy()
+            delta_min_dist_grad_b = -v.delta_min_dist_grad_dpoint[b].numpy()
             s.plot_arrow_rviz(delta_min_dist_points_b, delta_min_dist_grad_b, label='delta_min_dist_grad', color='pink',
                               scale=0.5)
 

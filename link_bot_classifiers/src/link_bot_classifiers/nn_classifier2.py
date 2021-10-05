@@ -122,7 +122,6 @@ class NNClassifier(MyKerasModel):
             self.scenario.delete_lines_rviz(label='attract')
             self.scenario.delete_lines_rviz(label='repel')
 
-            stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 env_b = {
                     'env':          inputs['env'][b],
@@ -134,9 +133,6 @@ class NNClassifier(MyKerasModel):
                 self.delete_state_action_markers('aug')
                 origin_point_b = inputs['origin_point'][b].numpy().tolist()
                 self.debug.send_position_transform(origin_point_b, 'origin_point')
-                # stepper.step()  # INPUT
-
-            # self.debug_viz_inputs(inputs, None, time)
 
         if training and self.aug.do_augmentation():
             # returns a copy, does NOT modify inputs in-place

@@ -34,6 +34,8 @@ RVizAnimationController::RVizAnimationController(QWidget *parent) : rviz::Panel(
   connect(ui.namespace_lineedit, &QLineEdit::textChanged, this, &RVizAnimationController::TopicEdited,
           Qt::QueuedConnection);
 
+  TopicEdited(ui.namespace_lineedit->text());
+
   ros_queue_thread_ = std::thread([this] { QueueThread(); });
 }
 
