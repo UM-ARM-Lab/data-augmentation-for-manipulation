@@ -1,3 +1,5 @@
+from math import pi
+
 import numpy as np
 import tensorflow as tf
 
@@ -268,3 +270,8 @@ def transformation_jacobian(params):
 
 def quat_dist(quat1, quat2):
     return 1 - tf.square(tf.reduce_sum(quat1 * quat2))
+
+
+def euler_angle_diff(euler1, euler2):
+    abs_diff = tf.abs(euler1 - euler2)
+    return tf.minimum(abs_diff, 2 * pi - abs_diff)

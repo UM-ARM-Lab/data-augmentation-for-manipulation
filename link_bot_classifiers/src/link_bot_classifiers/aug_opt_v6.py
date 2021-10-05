@@ -6,7 +6,7 @@ from link_bot_classifiers.iterative_projection import BaseProjectOpt
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_point_to_idx
-from moonshine.geometry import transformation_params_to_matrices, transformation_jacobian, homogeneous, quat_dist
+from moonshine.geometry import transformation_params_to_matrices, transformation_jacobian, homogeneous, euler_angle_diff
 from sdf_tools import utils_3d
 from tf import transformations
 from visualization_msgs.msg import Marker
@@ -143,46 +143,22 @@ class AugProjOpt(BaseProjectOpt):
 
         return x_out, can_terminate, viz_vars
 
-    def step_towards_target(self, target, obj_transforms):
-        euler_interp = []
-        trans_interp = []
-        # TODO: batch this
-        for b in range(self.batch_size):
-            x_b = obj_transforms[b].numpy()
-            target_b = target[b].numpy()
-            q1_b = transformations.quaternion_from_euler(*x_b[3:])
-            q2_b = transformations.quaternion_from_euler(*target_b[3:])
-            q_interp_b = transformations.quaternion_slerp(q1_b, q2_b, self.step_toward_target_fraction)
-            trans1_b = x_b[:3]
-            trans2_b = target_b[:3]
-            trans_interp_b = trans1_b + (trans2_b - trans1_b) * self.step_toward_target_fraction
-            euler_interp_b = transformations.euler_from_quaternion(q_interp_b)
-            euler_interp.append(tf.convert_to_tensor(euler_interp_b, tf.float32))
-            trans_interp.append(trans_interp_b)
-        euler_interp = tf.stack(euler_interp, axis=0)
-        trans_interp = tf.stack(trans_interp, axis=0)
-        x_interp = tf.concat((trans_interp, euler_interp), axis=1)
-
+    def step_towards_target(self, target_transforms, obj_transforms):
+        # NOTE: although interpolating euler angles can be problematic or unintuitive,
+        #  we have ensured the differences are <pi/2. So it should be ok
+        x_interp = obj_transforms + (target_transforms - obj_transforms) * self.step_toward_target_fraction
         tape = tf.GradientTape()
         viz_vars = self.forward(tape, x_interp)
         return x_interp, viz_vars
 
     def distance(self, transforms1, transforms2):
-        distances = []
-        # TODO: batch this
-        for b in range(self.batch_size):
-            transforms1_b = transforms1[b]
-            transforms2_b = transforms2[b]
-            euler1_b = transforms1_b[3:]
-            euler2_b = transforms2_b[3:]
-            quat1_b = transformations.quaternion_from_euler(*euler1_b.numpy())
-            quat2_b = transformations.quaternion_from_euler(*euler2_b.numpy())
-            quat_dist_b = tf.cast(quat_dist(quat1_b, quat2_b), tf.float32)
-            trans1_b = transforms1_b[:3]
-            trans2_b = transforms2_b[:3]
-            trans_dist_b = tf.linalg.norm(trans1_b - trans2_b)
-            distance_b = quat_dist_b + trans_dist_b
-            distances.append(distance_b)
+        trans1 = transforms1[:, :3]
+        trans2 = transforms2[:, :3]
+        euler1 = transforms1[:, 3:]
+        euler2 = transforms2[:, 3:]
+        euler_dist = tf.linalg.norm(euler_angle_diff(euler1, euler2), axis=-1)
+        trans_dist = tf.linalg.norm(trans1 - trans2, axis=-1)
+        distances = trans_dist + euler_dist
         max_distance = tf.reduce_max(distances)
         return max_distance
 
@@ -244,7 +220,6 @@ class AugProjOpt(BaseProjectOpt):
                 delta_min_dist_grad_b = delta_min_dist_grad_dpoint[b].numpy()
                 self.aug_opt.scenario.plot_arrow_rviz(delta_min_dist_points_b, delta_min_dist_grad_b,
                                                       label='delta_min_dist_grad', color='pink', scale=0.5)
-                # rospy.sleep(0.1)
 
     def plot_transform(self, transform_params, frame_id):
         """

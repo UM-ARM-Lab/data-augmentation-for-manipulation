@@ -1,4 +1,5 @@
 import pathlib
+from math import pi
 from typing import Dict, List
 
 import tensorflow as tf
@@ -235,8 +236,11 @@ class AugmentationOptimization:
         trans_high = extent[:, 1]
         trans_distribution = tfp.distributions.Uniform(low=trans_low, high=trans_high)
 
-        euler_low = tf.ones([3]) * -0.5
-        euler_high = tf.ones([3]) * 0.5
+        # NOTE: by restricting the sample of euler angles to < pi/2 we can ensure that the representation is unique.
+        #  (see https://www.cs.cmu.edu/~cga/dynopt/readings/Rmetric.pdf) which allows us to use a simple distance euler
+        #  function between two sets of euler angles.
+        euler_low = tf.ones([3]) * -pi / 2
+        euler_high = tf.ones([3]) * pi / 2
         euler_distribution = tfp.distributions.Uniform(low=euler_low, high=euler_high)
 
         target_world_frame = trans_distribution.sample(sample_shape=n_samples, seed=self.seed())
