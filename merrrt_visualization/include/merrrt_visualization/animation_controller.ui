@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1140</width>
+    <width>1269</width>
     <height>38</height>
    </rect>
   </property>
@@ -191,9 +191,9 @@
     </widget>
    </item>
    <item>
-    <widget class="QCheckBox" name="auto_next_checkbox">
+    <widget class="QCheckBox" name="done_after_playing_checkbox">
      <property name="text">
-      <string>auto next</string>
+      <string>done after playing</string>
      </property>
     </widget>
    </item>

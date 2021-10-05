@@ -23,7 +23,7 @@ RVizAnimationController::RVizAnimationController(QWidget *parent) : rviz::Panel(
   connect(ui.pause_button, &QPushButton::clicked, this, &RVizAnimationController::PauseClicked);
   connect(ui.done_button, &QPushButton::clicked, this, &RVizAnimationController::DoneClicked);
   connect(ui.loop_checkbox, &QCheckBox::toggled, this, &RVizAnimationController::LoopToggled);
-  connect(ui.auto_next_checkbox, &QCheckBox::toggled, this, &RVizAnimationController::AutoNextToggled);
+  connect(ui.done_after_playing_checkbox, &QCheckBox::toggled, this, &RVizAnimationController::AutoNextToggled);
   connect(ui.auto_play_checkbox, &QCheckBox::toggled, this, &RVizAnimationController::AutoPlayToggled);
   connect(ui.period_spinbox, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
           &RVizAnimationController::PeriodChanged);
@@ -55,7 +55,7 @@ void RVizAnimationController::TopicEdited(const QString &text) {
                                peter_msgs::GetAnimControllerStateResponse &res) {
     (void)req;  // unused
     res.state.auto_play = ui.auto_play_checkbox->isChecked();
-    res.state.auto_next = ui.auto_next_checkbox->isChecked();
+    res.state.done_after_playing = ui.done_after_playing_checkbox->isChecked();
     res.state.loop = ui.loop_checkbox->isChecked();
     res.state.period = static_cast<float>(ui.period_spinbox->value());
     return true;
@@ -143,7 +143,7 @@ void RVizAnimationController::LoopToggled() {
 void RVizAnimationController::AutoNextToggled() {
   peter_msgs::AnimationControl cmd;
   cmd.state.auto_play = ui.auto_play_checkbox->isChecked();
-  cmd.command = peter_msgs::AnimationControl::SET_AUTO_PLAY;
+  cmd.command = peter_msgs::AnimationControl::SET_DONE_AFTER_PLAYING;
   command_pub_.publish(cmd);
 }
 

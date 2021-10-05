@@ -8,7 +8,7 @@ int64 SET_LOOP = 6
 int64 SET_AUTO_PLAY = 7
 int64 SET_PERIOD = 8
 int64 SET_IDX = 9
-int64 SET_AUTO_NEXT = 10
+int64 SET_DONE_AFTER_PLAYING = 10
 
 int64 command  # you must set this!
 AnimControllerState state
