@@ -50,6 +50,7 @@
     max_steps: 25
     n_outer_iters: 5
     target_trans_lim: 0.25
+    target_euler_lim: 0.5
     not_progressing_threshold: 0.001
     step_size_threshold: 0.0003
     step_size: 0.3

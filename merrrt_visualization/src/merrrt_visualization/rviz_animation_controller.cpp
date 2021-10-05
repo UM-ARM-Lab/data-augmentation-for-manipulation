@@ -55,6 +55,7 @@ void RVizAnimationController::TopicEdited(const QString &text) {
                                peter_msgs::GetAnimControllerStateResponse &res) {
     (void)req;  // unused
     res.state.auto_play = ui.auto_play_checkbox->isChecked();
+    res.state.auto_next = ui.auto_next_checkbox->isChecked();
     res.state.loop = ui.loop_checkbox->isChecked();
     res.state.period = static_cast<float>(ui.period_spinbox->value());
     return true;

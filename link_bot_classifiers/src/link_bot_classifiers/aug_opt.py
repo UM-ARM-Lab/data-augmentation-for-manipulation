@@ -229,14 +229,13 @@ class AugmentationOptimization:
         n_samples = int(1 / good_enough_percentile) * batch_size
 
         trans_lim = tf.ones([3]) * self.hparams['target_trans_lim']
-        trans_distribution = tfp.distributions.Uniform(low=trans_lim, high=trans_lim)
+        trans_distribution = tfp.distributions.Uniform(low=-trans_lim, high=trans_lim)
 
         # NOTE: by restricting the sample of euler angles to < pi/2 we can ensure that the representation is unique.
         #  (see https://www.cs.cmu.edu/~cga/dynopt/readings/Rmetric.pdf) which allows us to use a simple distance euler
         #  function between two sets of euler angles.
-        euler_low = tf.ones([3]) * -pi / 2
-        euler_high = tf.ones([3]) * pi / 2
-        euler_distribution = tfp.distributions.Uniform(low=euler_low, high=euler_high)
+        euler_lim = tf.ones([3]) * self.hparams['target_euler_lim']
+        euler_distribution = tfp.distributions.Uniform(low=-euler_lim, high=euler_lim)
 
         trans_target = trans_distribution.sample(sample_shape=n_samples, seed=self.seed())
         euler_target = euler_distribution.sample(sample_shape=n_samples, seed=self.seed())
