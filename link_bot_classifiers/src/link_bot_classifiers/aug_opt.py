@@ -9,9 +9,11 @@ import rospy
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.aug_opt_ik import AugOptIk
-from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik
-from link_bot_classifiers.aug_opt_v6 import opt_object_augmentation6
+from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik, check_env_constraints, pick_best_params, \
+    initial_identity_params, transform_obj_points
+from link_bot_classifiers.aug_opt_v6 import AugProjOpt
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
+from link_bot_classifiers.iterative_projection import iterative_projection
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
 from link_bot_data.dataset_utils import add_new, add_predicted, deserialize_scene_msg
@@ -19,7 +21,8 @@ from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg
 from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.moonshine_utils import to_list_of_strings, possibly_none_concat
+from moonshine.geometry import transformation_params_to_matrices
+from moonshine.moonshine_utils import to_list_of_strings, possibly_none_concat, repeat
 from sensor_msgs.msg import JointState
 
 
@@ -93,15 +96,14 @@ class AugmentationOptimization:
         # actually identical.
         new_env_0 = {k: v[0] for k, v in new_env.items()}
         inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, is_obj_aug_valid = \
-            opt_object_augmentation6(self,
-                                     inputs,
-                                     inputs_aug,
-                                     new_env_0,
-                                     object_points,
-                                     object_points_occupancy,
-                                     res,
-                                     batch_size,
-                                     time)
+            self.opt_object_augmentation6(inputs,
+                                          inputs_aug,
+                                          new_env_0,
+                                          object_points,
+                                          object_points_occupancy,
+                                          res,
+                                          batch_size,
+                                          time)
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,
@@ -136,6 +138,118 @@ class AugmentationOptimization:
                                                                                          local_origin_point,
                                                                                          local_origin_point_aug)
         return inputs_aug, local_env_aug, local_origin_point_aug
+
+    def opt_object_augmentation6(self,
+                                 inputs: Dict,
+                                 inputs_aug: Dict,
+                                 new_env: Dict,
+                                 obj_points,
+                                 object_points_occupancy,
+                                 res,
+                                 batch_size,
+                                 time):
+        # viz new env
+        if debug_aug():
+            for b in debug_viz_batch_indices(batch_size):
+                env_new_dict = {
+                    'env': new_env['env'].numpy(),
+                    'res': res[b].numpy(),
+                }
+                msg = environment_to_vg_msg(env_new_dict, frame='new_env_aug_vg', stamp=rospy.Time(0))
+                self.debug.env_aug_pub1.publish(msg)
+
+                send_voxelgrid_tf_origin_point_res(self.broadcaster,
+                                                   origin_point=new_env['origin_point'],
+                                                   res=res[b],
+                                                   frame='new_env_aug_vg')
+
+        initial_transformation_params = initial_identity_params(batch_size)
+        target_transformation_params = self.sample_target_transform_params(obj_points, new_env, batch_size)
+        project_opt = AugProjOpt(aug_opt=self,
+                                 new_env=new_env,
+                                 res=res,
+                                 batch_size=batch_size,
+                                 obj_points=obj_points,
+                                 object_points_occupancy=object_points_occupancy)
+        not_progressing_threshold = self.hparams['not_progressing_threshold']
+        obj_transforms, viz_vars = iterative_projection(initial_value=initial_transformation_params,
+                                                        target=target_transformation_params,
+                                                        n=self.hparams['n_outer_iters'],
+                                                        m=self.hparams['max_steps'],
+                                                        step_towards_target=project_opt.step_towards_target,
+                                                        project_opt=project_opt,
+                                                        x_distance=project_opt.distance,
+                                                        not_progressing_threshold=not_progressing_threshold,
+                                                        viz_func=project_opt.viz_func,
+                                                        viz=debug_aug())
+        sdf_dist_aug = viz_vars[2]
+
+        transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
+        obj_points_aug, to_local_frame = transform_obj_points(obj_points, transformation_matrices)
+
+        # this updates other representations of state/action that are fed into the network
+        _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
+            transformation_matrices,
+            to_local_frame,
+            inputs,
+            batch_size,
+            time)
+        inputs_aug.update(object_aug_update)
+
+        if debug_aug():
+            for b in debug_viz_batch_indices(batch_size):
+                self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
+                self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
+
+        new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
+        local_env_aug, _ = self.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
+
+        is_valid = self.check_is_valid(obj_points_aug, new_env, object_points_occupancy, res, project_opt.sdf_dist,
+                                       sdf_dist_aug)
+
+        return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, is_valid
+
+    def check_is_valid(self, obj_points_aug, new_env, attract_mask, res, sdf_dist, sdf_dist_aug):
+        bbox_loss_batch = self.bbox_loss(obj_points_aug, new_env['extent'])
+        bbox_constraint_satisfied = tf.cast(tf.reduce_sum(bbox_loss_batch, axis=-1) == 0, tf.float32)
+
+        env_constraints_satisfied_ = check_env_constraints(attract_mask, sdf_dist_aug, res)
+        num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=1)
+        env_constraints_satisfied = tf.cast(num_env_constraints_violated < self.hparams['max_env_violations'],
+                                            tf.float32)
+
+        min_dist = tf.reduce_min(sdf_dist, axis=1)
+        min_dist_aug = tf.reduce_min(sdf_dist_aug, axis=1)
+        delta_min_dist = tf.abs(min_dist - min_dist_aug)
+        delta_min_dist_satisfied = tf.cast(delta_min_dist < self.hparams['delta_min_dist_threshold'], tf.float32)
+
+        constraints_satisfied = env_constraints_satisfied * bbox_constraint_satisfied * delta_min_dist_satisfied
+        return constraints_satisfied
+
+    def sample_target_transform_params(self, obj_points, new_env, batch_size):
+        good_enough_percentile = self.hparams['good_enough_percentile']
+        n_samples = int(1 / good_enough_percentile) * batch_size
+
+        extent = tf.reshape(new_env['extent'], [3, 2])
+        trans_low = extent[:, 0]
+        trans_high = extent[:, 1]
+        trans_distribution = tfp.distributions.Uniform(low=trans_low, high=trans_high)
+
+        euler_low = tf.ones([3]) * -0.5
+        euler_high = tf.ones([3]) * 0.5
+        euler_distribution = tfp.distributions.Uniform(low=euler_low, high=euler_high)
+
+        target_world_frame = trans_distribution.sample(sample_shape=n_samples, seed=self.seed())
+        to_local_frame = tf.reduce_mean(obj_points, axis=1)
+        trans_target = target_world_frame - to_local_frame
+
+        euler_target = euler_distribution.sample(sample_shape=n_samples, seed=self.seed())
+
+        target_params = tf.concat([trans_target, euler_target], 1)
+
+        # pick the most valid transforms, via the learned object state augmentation validity model
+        best_target_params = pick_best_params(self, batch_size, target_params)
+        return best_target_params
 
     def use_original_if_invalid(self,
                                 is_valid,

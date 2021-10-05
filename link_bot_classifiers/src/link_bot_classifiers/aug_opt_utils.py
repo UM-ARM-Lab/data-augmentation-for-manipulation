@@ -90,3 +90,16 @@ def pick_best_params(aug_opt, batch_size, sampled_params):
 
 def initial_identity_params(batch_size):
     return tf.zeros([batch_size, 6], tf.float32)
+
+
+def delta_min_dist_loss(sdf_dist, sdf_dist_aug):
+    min_dist = tf.reduce_min(sdf_dist, axis=1)
+    min_dist_aug = tf.reduce_min(sdf_dist_aug, axis=1)
+    delta_min_dist = tf.abs(min_dist - min_dist_aug)
+    return delta_min_dist
+
+
+def dpoint_to_dparams(dpoint, dpoint_dparams):
+    dparams = tf.einsum('bni,bnij->bnj', dpoint, dpoint_dparams)  # [b,n,6]
+    dparams = tf.reduce_mean(dparams, axis=1)
+    return dparams
