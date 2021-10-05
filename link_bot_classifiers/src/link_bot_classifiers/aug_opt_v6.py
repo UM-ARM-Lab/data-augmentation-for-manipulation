@@ -1,19 +1,12 @@
-from typing import Dict
-
 import tensorflow as tf
-import tensorflow_probability as tfp
 
 import rospy
-from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transform_obj_points, \
-    check_env_constraints, pick_best_params, initial_identity_params, dpoint_to_dparams
-from link_bot_classifiers.iterative_projection import iterative_projection, BaseProjectOpt
+from link_bot_classifiers.aug_opt_utils import debug_aug_sgd, transform_obj_points, dpoint_to_dparams
+from link_bot_classifiers.iterative_projection import BaseProjectOpt
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_tf_origin_point_res, \
-    batch_point_to_idx
-from moonshine.geometry import transformation_params_to_matrices, transformation_jacobian, \
-    homogeneous, quat_dist
-from moonshine.moonshine_utils import repeat
+from link_bot_pycommon.grid_utils import batch_point_to_idx
+from moonshine.geometry import transformation_params_to_matrices, transformation_jacobian, homogeneous, quat_dist
 from sdf_tools import utils_3d
 from tf import transformations
 from visualization_msgs.msg import Marker
@@ -266,4 +259,3 @@ class AugProjOpt(BaseProjectOpt):
         target_euler_b = transform_params[3:].numpy()
         target_q_b = transformations.quaternion_from_euler(*target_euler_b)
         self.aug_opt.scenario.tf.send_transform(target_pos_b, target_q_b, 'initial_local_frame', frame_id, False)
-
