@@ -7,22 +7,23 @@ import numpy as np
 import rospy
 from peter_msgs.msg import AnimationControl
 from peter_msgs.srv import GetAnimControllerStateRequest, GetAnimControllerState
+from rosgraph.names import ns_join
 from std_msgs.msg import Int64
 
 
 class RvizAnimationController:
 
-    def __init__(self, time_steps=None, n_time_steps: int = None):
+    def __init__(self, time_steps=None, n_time_steps: int = None, ns: str = 'rviz_anim'):
         if time_steps is None and n_time_steps is None:
             raise ValueError("you have to pass either n_time_steps or time_steps")
         if time_steps is not None:
             self.time_steps = np.array(time_steps, dtype=np.int64)
         if n_time_steps is not None:
             self.time_steps = np.arange(n_time_steps, dtype=np.int64)
-        self.command_sub = rospy.Subscriber("/rviz_anim/control", AnimationControl, self.on_control)
-        self.time_pub = rospy.Publisher("/rviz_anim/time", Int64, queue_size=10)
-        self.max_time_pub = rospy.Publisher("/rviz_anim/max_time", Int64, queue_size=10)
-        get_srv_name = "/rviz_anim/get_state"
+        self.command_sub = rospy.Subscriber(ns_join(ns, "control"), AnimationControl, self.on_control)
+        self.time_pub = rospy.Publisher(ns_join(ns, "time"), Int64, queue_size=10)
+        self.max_time_pub = rospy.Publisher(ns_join(ns, "max_time"), Int64, queue_size=10)
+        get_srv_name = ns_join(ns, "get_state")
         self.get_state_srv = rospy.ServiceProxy(get_srv_name, GetAnimControllerState)
 
         rospy.logdebug(f"waiting for {get_srv_name}")
@@ -156,8 +157,8 @@ class RvizAnimationController:
 
 class RvizSimpleStepper:
 
-    def __init__(self):
-        self.command_sub = rospy.Subscriber("/rviz_anim/control", AnimationControl, self.on_control)
+    def __init__(self, ns='rviz_anim'):
+        self.command_sub = rospy.Subscriber(ns_join(ns, "control"), AnimationControl, self.on_control)
         self.should_step = False
         self.play = False
 
@@ -185,18 +186,20 @@ class RvizAnimation:
                  myobj,
                  n_time_steps: int,
                  init_funcs: List[Callable],
-                 t_funcs: List[Callable]):
+                 t_funcs: List[Callable],
+                 ns='rviz_anim'):
         self.myobj = myobj
         self.init_funcs = init_funcs
         self.t_funcs = t_funcs
         self.n_time_steps = n_time_steps
+        self.ns = ns
 
     def play(self, example: Any):
         print("Warning: you may need to call numpify!")
         for init_func in self.init_funcs:
             init_func(self.myobj, example)
 
-        controller = RvizAnimationController(n_time_steps=self.n_time_steps)
+        controller = RvizAnimationController(n_time_steps=self.n_time_steps, ns=self.ns)
         while not controller.done:
             t = controller.t()
 
