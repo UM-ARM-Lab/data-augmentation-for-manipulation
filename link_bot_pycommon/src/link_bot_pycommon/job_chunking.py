@@ -101,8 +101,8 @@ class JobChunker:
         sub_chunker = JobChunker(self.logfile_name, root_log=self.root_log, log=self.log[key])
         return sub_chunker
 
-    def get(self, key: str):
-        return self.log[key]
+    def get(self, key: str, *args):
+        return self.get_result(key, *args)
 
     def load_prompt_filename(self, key, *args):
         return self.load_prompt(key, *args, input_func=tab_complete_path)

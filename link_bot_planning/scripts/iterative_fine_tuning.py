@@ -88,29 +88,31 @@ class IterativeFineTuning:
             self.job_chunker.load_prompt_filename('test_scenes_dir', 'test_scenes/swap_straps_no_recovery3'))
         self.test_scenes_indices = int_setify(self.job_chunker.load_prompt('test_scenes_indices', None))
 
-        self.ift_config = load_hjson(ift_config_filename)
+        if not self.job_chunker.has_result('labeling_params_update'):
+            ift_config = load_hjson(ift_config_filename)
+            self.job_chunker.store_results(ift_config)
+
         self.checkpoint_suffix = 'latest_checkpoint'
-        self.ift_config['checkpoint_suffix'] = self.checkpoint_suffix
-        self.job_chunker.store_results(self.ift_config)
+        self.job_chunker.store_result('checkpoint_suffix', self.checkpoint_suffix)
         self.initial_planner_params = load_planner_params(planner_params_filename)
 
         self.job_chunker.store_result('from_env', 'untrained')
         self.job_chunker.store_result('to_env', 'car3')
 
-        self.ift_uuid = self.job_chunker.get_result('ift_uuid', str(uuid4()))
+        self.ift_uuid = self.job_chunker.get('ift_uuid', str(uuid4()))
 
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
-        self.tpi = int(self.ift_config['trials_per_iteration'])
+        self.tpi = int(self.job_chunker.get('trials_per_iteration'))
         self.classifier_labeling_params = load_hjson(pathlib.Path('labeling_params/classifier/dual.hjson'))
         self.classifier_labeling_params = nested_dict_update(self.classifier_labeling_params,
-                                                             self.ift_config.get('labeling_params_update', {}))
+                                                             self.job_chunker.get('labeling_params_update', {}))
         self.recovery_labeling_params = load_hjson(pathlib.Path('labeling_params/recovery/dual.json'))
         self.recovery_labeling_params = nested_dict_update(self.recovery_labeling_params,
-                                                           self.ift_config.get('labeling_params_update', {}))
+                                                           self.job_chunker.get('labeling_params_update', {}))
         self.initial_planner_params = nested_dict_update(self.initial_planner_params,
-                                                         self.ift_config.get('planner_params_update', {}))
-        self.pretraining_config = self.ift_config.get('pretraining', {})
+                                                         self.job_chunker.get('planner_params_update', {}))
+        self.pretraining_config = self.job_chunker.get('pretraining', {})
 
         if timeout is not None:
             rospy.loginfo(f"Overriding with timeout {timeout}")
@@ -126,7 +128,7 @@ class IterativeFineTuning:
             all_trial_indices = list(get_all_scene_indices(self.test_scenes_dir))
         else:
             all_trial_indices = self.test_scenes_indices
-        trials_generator_type = self.ift_config['trials_generator_type']
+        trials_generator_type = self.job_chunker.get('trials_generator_type')
         if trials_generator_type == 'cycle':
             self.trial_indices_generator = chunked(itertools.cycle(all_trial_indices), self.tpi)
         elif trials_generator_type == 'random':
@@ -158,8 +160,8 @@ class IterativeFineTuning:
                                    scenario=self.scenario)
 
     def run(self, n_iters: int):
-        initial_classifier_checkpoint = pathify(self.job_chunker.get_result('initial_classifier_checkpoint'))
-        initial_recovery_checkpoint = pathify(self.job_chunker.get_result('initial_recovery_checkpoint'))
+        initial_classifier_checkpoint = pathify(self.job_chunker.get('initial_classifier_checkpoint'))
+        initial_recovery_checkpoint = pathify(self.job_chunker.get('initial_recovery_checkpoint'))
 
         # NOTE: should I append the pretraining datasets to this? Possibly...
         fine_tuning_classifier_dataset_dirs = []
@@ -170,7 +172,7 @@ class IterativeFineTuning:
         for iteration_idx in range(n_iters):
             jobkey = f"iteration {iteration_idx}"
             iteration_chunker = self.job_chunker.sub_chunker(jobkey)
-            iteration_start_time = iteration_chunker.get_result('start_time')
+            iteration_start_time = iteration_chunker.get('start_time')
             if iteration_start_time is None:
                 iteration_start_time = perf_counter()
                 iteration_chunker.store_result('start_time', iteration_start_time)
@@ -195,7 +197,7 @@ class IterativeFineTuning:
             # these variables will be used to create the new IterationData
             latest_classifier_checkpoint_dir, latest_recovery_checkpoint_dir = self.fine_tune(iteration_data)
 
-            iteration_end_time = iteration_chunker.get_result('end_time')
+            iteration_end_time = iteration_chunker.get('end_time')
             if iteration_end_time is None:
                 iteration_end_time = perf_counter()
                 iteration_chunker.store_result('end_time', iteration_end_time)
@@ -212,7 +214,7 @@ class IterativeFineTuning:
 
         trials = next(self.trial_indices_generator)
         planning_chunker = iteration_data.iteration_chunker.sub_chunker('planning')
-        planning_results_dir = pathify(planning_chunker.get_result('planning_results_dir'))
+        planning_results_dir = pathify(planning_chunker.get('planning_results_dir'))
         if planning_results_dir is None:
             planning_results_dir = self.planning_results_root_dir / f'iteration_{i:04d}_planning'
             latest_classifier_checkpoint = iteration_data.latest_classifier_checkpoint_dir / checkpoint_suffix
@@ -235,7 +237,7 @@ class IterativeFineTuning:
             metadata_update = {
                 'ift_iteration': iteration_data.iteration,
                 'ift_uuid':      self.ift_uuid,
-                'ift_config':    self.ift_config,
+                'ift_config':    self.job_chunker.log,
             }
             # NOTE: this way "random" recovery is a different random at each iteration
             #  but a consistent random when the script is run multiple times
@@ -260,7 +262,7 @@ class IterativeFineTuning:
 
     def update_datasets(self, iteration_data: IterationData, planning_results_dir):
         new_classifier_dataset_dir = self.update_classifier_datasets(iteration_data, planning_results_dir)
-        if self.ift_config['fine_tune_recovery'] is None:
+        if self.job_chunker.get('fine_tune_recovery') is None:
             new_recovery_dataset_dir = None
         else:
             new_recovery_dataset_dir = self.update_recovery_datasets(iteration_data, planning_results_dir)
@@ -269,14 +271,14 @@ class IterativeFineTuning:
     def update_classifier_datasets(self, iteration_data: IterationData, planning_results_dir):
         i = iteration_data.iteration
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('classifier dataset')
-        new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
+        new_dataset_dir = pathify(dataset_chunker.get('new_dataset_dir'))
         if new_dataset_dir is None:
             print("Updating Classifier Dataset")
             [p.suspend() for p in self.gazebo_processes]
 
             new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i:04d}_dataset'
             trial_indices = None
-            max_trials = self.ift_config['results_to_classifier_dataset'].get('max_trials', None)
+            max_trials = self.job_chunker.get('results_to_classifier_dataset').get('max_trials', None)
             if max_trials is not None:
                 print(Fore.GREEN + f"Using only {max_trials}/{self.tpi} trials for learning" + Fore.RESET)
                 filenames = list_all_planning_results_trials(planning_results_dir)
@@ -287,7 +289,7 @@ class IterativeFineTuning:
                                            verbose=self.verbose,
                                            trial_indices=trial_indices,
                                            fwd_model=self.planner.fwd_model,
-                                           **self.ift_config['results_to_classifier_dataset'])
+                                           **self.job_chunker.get('results_to_classifier_dataset'))
             r.run()
             new_dataset_dir_rel = new_dataset_dir.relative_to(self.outdir)
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir_rel.as_posix())
@@ -298,14 +300,14 @@ class IterativeFineTuning:
     def update_recovery_datasets(self, iteration_data: IterationData, planning_results_dir):
         i = iteration_data.iteration
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('recovery dataset')
-        new_dataset_dir = pathify(dataset_chunker.get_result('new_dataset_dir'))
+        new_dataset_dir = pathify(dataset_chunker.get('new_dataset_dir'))
         if new_dataset_dir is None:
             print("Updating Recovery Dataset")
             [p.suspend() for p in self.gazebo_processes]
 
             new_dataset_dir = self.outdir / 'recovery_datasets' / f'iteration_{i:04d}_dataset'
             trial_indices = None
-            max_trials = self.ift_config['results_to_recovery_dataset'].get('max_trials', None)
+            max_trials = self.job_chunker.get('results_to_recovery_dataset').get('max_trials', None)
             if max_trials is not None:
                 print(Fore.GREEN + f"Using only {max_trials}/{self.tpi} trials for learning" + Fore.RESET)
                 filenames = list_all_planning_results_trials(planning_results_dir)
@@ -315,7 +317,7 @@ class IterativeFineTuning:
                                          labeling_params=self.recovery_labeling_params,
                                          verbose=self.verbose,
                                          trial_indices=trial_indices,
-                                         **self.ift_config['results_to_recovery_dataset'])
+                                         **self.job_chunker.get('results_to_recovery_dataset'))
             r.run()
             new_dataset_dir_rel = new_dataset_dir.relative_to(self.outdir)
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir_rel.as_posix())
@@ -325,7 +327,7 @@ class IterativeFineTuning:
 
     def fine_tune(self, iteration_data: IterationData):
         classifier_checkpoint_dir = self.fine_tune_classifier(iteration_data)
-        if self.ift_config['fine_tune_recovery'] is None:
+        if self.job_chunker.get('fine_tune_recovery') is None:
             recovery_checkpoint_dir = iteration_data.latest_recovery_checkpoint_dir
         else:
             recovery_checkpoint_dir = self.fine_tune_recovery(iteration_data)
@@ -333,13 +335,13 @@ class IterativeFineTuning:
 
     def fine_tune_classifier(self, iteration_data: IterationData):
         i = iteration_data.iteration
-        if self.ift_config.get('full_retrain_classifier', False):
+        if self.job_chunker.get('full_retrain_classifier', False):
             latest_checkpoint = pathify(
-                self.job_chunker.get_result('initial_classifier_checkpoint')) / 'best_checkpoint'
+                self.job_chunker.get('initial_classifier_checkpoint')) / 'best_checkpoint'
         else:
             latest_checkpoint = iteration_data.latest_classifier_checkpoint_dir / self.checkpoint_suffix
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune classifier')
-        new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
+        new_latest_checkpoint_dir = pathify(fine_tune_chunker.get('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
             [p.suspend() for p in self.gazebo_processes]
 
@@ -353,8 +355,8 @@ class IterativeFineTuning:
                 batch_size=adaptive_batch_size,
                 verbose=self.verbose,
                 validate_first=True,
-                model_hparams_update=self.ift_config['labeling_params_update'],
-                **self.ift_config['fine_tune_classifier'])
+                model_hparams_update=self.job_chunker.get('labeling_params_update'),
+                **self.job_chunker.get('fine_tune_classifier'))
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir_rel.as_posix())
         else:
@@ -365,7 +367,7 @@ class IterativeFineTuning:
         i = iteration_data.iteration
         latest_checkpoint = iteration_data.latest_recovery_checkpoint_dir / self.checkpoint_suffix
         fine_tune_chunker = iteration_data.iteration_chunker.sub_chunker('fine tune recovery')
-        new_latest_checkpoint_dir = pathify(fine_tune_chunker.get_result('new_latest_checkpoint_dir'))
+        new_latest_checkpoint_dir = pathify(fine_tune_chunker.get('new_latest_checkpoint_dir'))
         if new_latest_checkpoint_dir is None:
             [p.suspend() for p in self.gazebo_processes]
 
@@ -378,7 +380,7 @@ class IterativeFineTuning:
                 batch_size=adaptive_batch_size,
                 verbose=self.verbose,
                 validate_first=True,
-                **self.ift_config['fine_tune_recovery'])
+                **self.job_chunker.get('fine_tune_recovery'))
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir_rel.as_posix())
         else:
