@@ -143,7 +143,7 @@ class AugProjOpt(BaseProjectOpt):
         # combine with the gradient for the other aspects of the loss, those computed by tf.gradient
         gradients = [tape_gradients[0] + attract_repel_sdf_grad + delta_min_dist_grad_dparams]
 
-        clipped_grads_and_vars = self.aug_opt.clip_env_aug_grad(gradients, variables)
+        clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
         opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
         lr = opt._decayed_lr(tf.float32)
         can_terminate = self.can_terminate(lr, gradients)
@@ -151,6 +151,14 @@ class AugProjOpt(BaseProjectOpt):
         x_out = tf.identity(obj_transforms)
 
         return x_out, can_terminate, v
+
+    def clip_env_aug_grad(self, gradients, variables):
+        def _clip(g):
+            # we want grad_clip to be as close to in meters as possible, so here we scale by step size
+            c = self.aug_opt.hparams['grad_clip'] / self.aug_opt.hparams['step_size']
+            return tf.clip_by_value(g, -c, c)
+
+        return [(_clip(g), v) for (g, v) in zip(gradients, variables)]
 
     def can_terminate(self, lr, gradients):
         grad_norm = tf.linalg.norm(gradients[0], axis=-1)

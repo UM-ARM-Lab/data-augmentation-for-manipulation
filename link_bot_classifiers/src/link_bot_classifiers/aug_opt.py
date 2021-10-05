@@ -1,5 +1,4 @@
 import pathlib
-from math import pi
 from typing import Dict, List
 
 import tensorflow as tf
@@ -50,28 +49,15 @@ class AugmentationOptimization:
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
 
-        self.robot_subsample = 0.5
-        self.env_subsample = 0.25
-        self.num_object_interp = 2  # must be >=2
-        self.num_robot_interp = 2  # must be >=2
         self.seed_int = 4 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.gen = tf.random.Generator.from_seed(self.seed_int)
         self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
-        self.barrier_epsilon = 0.01
-        self.grad_clip = 0.25  # max dist step the env aug update can take
-        self.ground_penetration_weight = 1.0
-        self.robot_base_penetration_weight = 1.0
         self.ik_solver = None
 
         if self.do_augmentation():
             ik_params = IkParams(rng_dist=self.hparams.get("rand_dist", 0.1),
                                  max_collision_check_attempts=self.hparams.get("max_collision_check_attempts", 1))
             self.ik_solver = AugOptIk(scenario.robot, ik_params=ik_params)
-
-            self.aug_type = self.hparams['type']
-
-            # Precompute this for speed
-            self.barrier_epsilon = 0.01
 
             invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
             self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
@@ -301,14 +287,6 @@ class AugmentationOptimization:
                                                              self.local_env_helper.w,
                                                              self.local_env_helper.c)
 
-    def clip_env_aug_grad(self, gradients, variables):
-        def _clip(g):
-            # we want grad_clip to be as close to in meters as possible, so here we scale by step size
-            c = self.grad_clip / self.hparams['step_size']
-            return tf.clip_by_value(g, -c, c)
-
-        return [(_clip(g), v) for (g, v) in zip(gradients, variables)]
-
     def get_new_env(self, example):
         if add_new('env') not in example:
             example[add_new('env')] = example['env']
@@ -346,7 +324,7 @@ class AugmentationOptimization:
         object_points_1 = {k: _make_points(k, 1) for k in points_state_keys}
 
         def _linspace(k):
-            return tf.linspace(object_points_0[k], object_points_1[k], self.num_object_interp, axis=1)
+            return tf.linspace(object_points_0[k], object_points_1[k], self.hparams['num_object_interp'], axis=1)
 
         swept_object_points = tf.concat([_linspace(k) for k in points_state_keys], axis=2)
         swept_object_points = tf.reshape(swept_object_points, [batch_size, -1, 3])
