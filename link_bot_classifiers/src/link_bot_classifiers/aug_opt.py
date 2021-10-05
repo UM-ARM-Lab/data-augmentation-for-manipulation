@@ -3,17 +3,13 @@ from typing import Dict, List
 
 import tensorflow as tf
 import tensorflow_probability as tfp
-import transformations
 from pyjacobian_follower import IkParams
 
 import rospy
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.aug_opt_ik import AugOptIk
-from link_bot_classifiers.aug_opt_manual import opt_object_manual
-from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik, pick_best_params
-from link_bot_classifiers.aug_opt_v3 import opt_object_augmentation3
-from link_bot_classifiers.aug_opt_v5 import opt_object_augmentation5
+from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik
 from link_bot_classifiers.aug_opt_v6 import opt_object_augmentation6
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
@@ -24,7 +20,6 @@ from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_
 from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import to_list_of_strings, possibly_none_concat
-from moonshine.raster_3d import points_to_voxel_grid_res_origin_point
 from sensor_msgs.msg import JointState
 
 
@@ -88,12 +83,6 @@ class AugmentationOptimization:
                                   inputs: Dict,
                                   batch_size,
                                   time):
-        return self.augmentation_optimization2(inputs, batch_size, time)
-
-    def augmentation_optimization2(self,
-                                   inputs: Dict,
-                                   batch_size,
-                                   time):
         _setup = self.setup(inputs, batch_size)
         inputs_aug, res, object_points, object_points_occupancy, local_env, local_origin_point = _setup
 
@@ -103,26 +92,16 @@ class AugmentationOptimization:
         # new environment. Furthermore, in most cases we test with only one new environment, in which case this is
         # actually identical.
         new_env_0 = {k: v[0] for k, v in new_env.items()}
-        if self.aug_type in ['optimization2', 'v3']:
-            aug_f = opt_object_augmentation3
-        elif self.aug_type in ['v5']:
-            aug_f = opt_object_augmentation5
-        elif self.aug_type in ['v6']:
-            aug_f = opt_object_augmentation6
-        elif self.aug_type in ['manual']:
-            aug_f = opt_object_manual
-        else:
-            raise NotImplementedError()
         inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, is_obj_aug_valid = \
-            aug_f(self,
-                  inputs,
-                  inputs_aug,
-                  new_env_0,
-                  object_points,
-                  object_points_occupancy,
-                  res,
-                  batch_size,
-                  time)
+            opt_object_augmentation6(self,
+                                     inputs,
+                                     inputs_aug,
+                                     new_env_0,
+                                     object_points,
+                                     object_points_occupancy,
+                                     res,
+                                     batch_size,
+                                     time)
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,
@@ -150,52 +129,23 @@ class AugmentationOptimization:
                 self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug_after', color='blue')
                 self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
 
-        on_invalid_aug = self.hparams.get('on_invalid_aug', 'original')
-        if on_invalid_aug == 'original':
-            inputs_aug, local_env_aug, local_origin_point_aug = self.use_original_if_invalid(is_valid, batch_size,
-                                                                                             inputs,
-                                                                                             inputs_aug, local_env,
-                                                                                             local_env_aug,
-                                                                                             local_origin_point,
-                                                                                             local_origin_point_aug)
-        elif on_invalid_aug == 'drop':
-            if tf.reduce_any(tf.cast(is_valid, tf.bool)):
-                inputs_aug, local_env_aug, local_origin_point_aug = self.drop_if_invalid(is_valid, batch_size,
-                                                                                         None, inputs_aug,
-                                                                                         None, local_env_aug,
-                                                                                         None, local_origin_point_aug)
-            else:
-                print("All augmentations in the batch are invalid!")
-                inputs_aug, local_env_aug, local_origin_point_aug = self.use_original_if_invalid(is_valid, batch_size,
-                                                                                                 inputs, inputs_aug,
-                                                                                                 local_env,
-                                                                                                 local_env_aug,
-                                                                                                 local_origin_point,
-                                                                                                 local_origin_point_aug)
-        else:
-            raise NotImplementedError(on_invalid_aug)
-
+        inputs_aug, local_env_aug, local_origin_point_aug = self.use_original_if_invalid(is_valid, batch_size,
+                                                                                         inputs,
+                                                                                         inputs_aug, local_env,
+                                                                                         local_env_aug,
+                                                                                         local_origin_point,
+                                                                                         local_origin_point_aug)
         return inputs_aug, local_env_aug, local_origin_point_aug
 
-    def drop_if_invalid(self, is_valid, batch_size,
-                        _, inputs_aug,
-                        __, local_env_aug,
-                        ___, local_origin_point_aug):
-        valid_indices = tf.squeeze(tf.where(is_valid), axis=-1)
-        n_tile = tf.cast(tf.cast(batch_size, tf.int64) / tf.cast(tf.size(valid_indices), tf.int64), tf.int64) + 1
-        repeated_indices = tf.tile(valid_indices, [n_tile])[:batch_size]  # ex: [0,19,22], 8 --> [0,19,22,0,19,22,0,19]
-        inputs_aug_valid = {}
-        for k, v in inputs_aug.items():
-            if k in ['batch_size', 'time']:
-                inputs_aug_valid[k] = v
-            else:
-                inputs_aug_valid[k] = tf.gather(v, repeated_indices, axis=0)
-        local_env_aug = tf.gather(local_env_aug, repeated_indices, axis=0)
-        local_origin_point_aug = tf.gather(local_origin_point_aug, repeated_indices, axis=0)
-        return inputs_aug_valid, local_env_aug, local_origin_point_aug
-
-    def use_original_if_invalid(self, is_valid, batch_size, inputs, inputs_aug, local_env, local_env_aug,
-                                local_origin_point, local_origin_point_aug):
+    def use_original_if_invalid(self,
+                                is_valid,
+                                batch_size,
+                                inputs,
+                                inputs_aug,
+                                local_env,
+                                local_env_aug,
+                                local_origin_point,
+                                local_origin_point_aug):
         # FIXME: this is hacky
         keys_aug = [add_predicted('joint_positions')]
         keys_aug += self.action_keys
@@ -232,14 +182,6 @@ class AugmentationOptimization:
         object_points_occupancy = lookup_points_in_vg(object_points, local_env, res, local_origin_point, batch_size)
         return inputs_aug, res, object_points, object_points_occupancy, local_env, local_origin_point
 
-    def sample_object_transformations(self, batch_size):
-        n_sample = 1000
-        transformation_params = self.scenario.sample_object_augmentation_variables(n_sample, self.seed)
-        best_transformation_params = pick_best_params(self, batch_size, transformation_params)
-        transformation_matrices = [transformations.compose_matrix(translate=p[:3], angles=p[3:]) for p in
-                                   best_transformation_params]
-        return tf.cast(transformation_matrices, tf.float32)
-
     def apply_object_augmentation_no_ik(self, transformation_matrices, to_local_frame, inputs, batch_size, time):
         return self.scenario.apply_object_augmentation_no_ik(transformation_matrices,
                                                              to_local_frame,
@@ -249,23 +191,6 @@ class AugmentationOptimization:
                                                              self.local_env_helper.h,
                                                              self.local_env_helper.w,
                                                              self.local_env_helper.c)
-
-    def apply_object_augmentation(self, transformation_matrices, inputs, batch_size, time):
-        return self.scenario.apply_object_augmentation(transformation_matrices,
-                                                       inputs,
-                                                       batch_size,
-                                                       time,
-                                                       self.local_env_helper.h,
-                                                       self.local_env_helper.w,
-                                                       self.local_env_helper.c)
-
-    def sample_initial_transforms(self, batch_size):
-        # Sample an initial random object transformation. This can be the same across the batch
-        n_sample = 1000
-        initial_transformation_params = self.scenario.sample_object_augmentation_variables(n_sample, self.seed)
-        # pick the most valid transforms, via the learned object state augmentation validity model
-        initial_transformation_params = pick_best_params(self, batch_size, initial_transformation_params)
-        return initial_transformation_params
 
     def can_terminate(self, lr, gradients):
         grad_norm = tf.linalg.norm(gradients[0], axis=-1)
@@ -281,19 +206,6 @@ class AugmentationOptimization:
             return tf.clip_by_value(g, -c, c)
 
         return [(_clip(g), v) for (g, v) in zip(gradients, variables)]
-
-    def barrier_func(self, min_dists_b):
-        z = tf.math.log(self.barrier_scale * min_dists_b + self.barrier_epsilon)
-        # of course this additive term doesn't affect the gradient, but it makes hyper-parameters more interpretable
-        return tf.maximum(-z, -self.log_cutoff) + self.log_cutoff
-
-    def points_to_voxel_grid_res_origin_point(self, points, res, origin_point):
-        return points_to_voxel_grid_res_origin_point(points,
-                                                     res,
-                                                     origin_point,
-                                                     self.local_env_helper.h,
-                                                     self.local_env_helper.w,
-                                                     self.local_env_helper.c)
 
     def get_new_env(self, example):
         if add_new('env') not in example:
@@ -315,25 +227,8 @@ class AugmentationOptimization:
             new_env['sdf_grad'] = example[add_new('sdf_grad')]
         return new_env
 
-    def sample_local_env_position(self, example, batch_size):
-        # NOTE: for my specific implementation of state_to_local_env_pose,
-        #  sampling random states and calling state_to_local_env_pose is equivalent to sampling a point in the extent
-        extent = tf.reshape(example['extent'], [batch_size, 3, 2])
-        extent_lower = tf.gather(extent, 0, axis=-1)
-        extent_upper = tf.gather(extent, 1, axis=-1)
-        local_env_center = self.gen.uniform([batch_size, 3], extent_lower, extent_upper)
-
-        return local_env_center
-
     def do_augmentation(self):
         return self.hparams is not None
-
-    def compute_swept_robot_points(self, inputs, batch_size):
-        robot_points_0 = self.vg_info.make_robot_points_batched(batch_size, inputs, 0)
-        robot_points_1 = self.vg_info.make_robot_points_batched(batch_size, inputs, 1)
-        robot_points = tf.linspace(robot_points_0, robot_points_1, self.num_robot_interp, axis=1)
-        robot_points = tf.reshape(robot_points, [batch_size, -1, 3])
-        return robot_points
 
     def compute_swept_object_points(self, inputs):
         points_state_keys = [add_predicted(k) for k in self.points_state_keys]
@@ -421,16 +316,6 @@ class AugmentationOptimization:
         if debug_ik():
             print(f"valid % = {tf.reduce_mean(is_ik_valid)}")
         return joint_positions_aug, is_ik_valid
-
-    def ground_penetration_loss(self, obj_points_aug):
-        obj_points_aug_z = obj_points_aug[:, :, 2]
-        ground_z = -0.415  # FIXME: hardcoded, copied from the gazebo world file
-        return self.ground_penetration_weight * tf.maximum(0, ground_z - obj_points_aug_z)
-
-    def robot_base_penetration_loss(self, obj_points_aug):
-        obj_points_aug_y = obj_points_aug[:, :, 1]
-        base_y = 0.15  # FIXME: hardcoded
-        return self.robot_base_penetration_weight * tf.maximum(0, base_y - obj_points_aug_y)
 
     def bbox_loss(self, obj_points_aug, extent):
         extent = tf.reshape(extent, [3, 2])
