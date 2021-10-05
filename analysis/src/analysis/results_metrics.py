@@ -123,6 +123,11 @@ def is_fine_tuned(path: pathlib.Path, __: ExperimentScenario, trial_metadata: Di
 
 
 @metrics_funcs
+def accept_type(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
+    return trial_metadata['planner_params']['accept_type']
+
+
+@metrics_funcs
 def timeout(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     return trial_metadata['planner_params']['termination_criteria']['timeout']
 

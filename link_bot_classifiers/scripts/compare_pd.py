@@ -1,35 +1,18 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-from typing import List
 
 import numpy as np
-from IPython.utils.text import long_substr
 from colorama import Fore
 
 from arc_utilities import ros_init
 from link_bot_classifiers.pd_distances_utils import format_distances, space_to_idx, \
     compute_plausibility, compute_diversity
 from link_bot_pycommon.metric_utils import dict_to_pvalue_table
+from link_bot_pycommon.string_utils import make_useful_names
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(None)
-
-
-def shorten(name):
-    return name.replace('-', '').replace('_', '').replace('/', '').replace(' ', '')
-
-
-def make_useful_names(names: List[str]):
-    useful_names = names.copy()
-    while True:
-        s = long_substr(useful_names)
-        s = s.lstrip('-_')
-        if len(s) <= 1:
-            break
-        useful_names = [n.replace(s, '') for n in useful_names]
-    useful_names = [n.strip('-_') for n in useful_names]
-    return useful_names
 
 
 @ros_init.with_ros("compare_pd")

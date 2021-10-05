@@ -38,8 +38,27 @@ def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None
         data=df,
         x=x,
         y=y,
+        palette='colorblind',
         hue=hue,
         linewidth=4,
     )
     ax.set_title(title)
     plt.savefig(outdir / f'{y}.png')
+    return fig, ax
+
+
+def barplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None):
+    fig, ax = plt.subplots(figsize=(12, 8))
+    sns.barplot(
+        ax=ax,
+        data=df,
+        x=x,
+        y=y,
+        palette='colorblind',
+        linewidth=5,
+        ci=100,
+        hue=hue,
+    )
+    ax.set_title(title)
+    plt.savefig(outdir / f'{x}-vs-{y}.png')
+    return fig, ax

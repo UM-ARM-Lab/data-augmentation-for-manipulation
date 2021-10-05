@@ -3,34 +3,34 @@ import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 from analysis.analyze_results import planning_results
-from analysis.results_figures import violinplot
+from analysis.results_figures import violinplot, barplot
 from arc_utilities import ros_init
+from link_bot_pycommon.string_utils import shorten
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
 
 
-def metrics_main(args):
+def analyze_planning_results(args):
     outdir, df, table_format = planning_results(args.results_dirs, args.regenerate)
 
-    violinplot(df, outdir, 'method_name', 'task_error', "Task Error")
-    violinplot(df, outdir, 'method_name', 'normalized_model_error', 'Normalized Model Error')
+    def _shorten(c):
+        return shorten(c.split('/')[0])[:16]
 
-    fig, ax = plt.subplots(figsize=(12, 8))
-    sns.barplot(
-        ax=ax,
-        data=df,
-        x='method_name',
-        y='success',
-        linewidth=5,
-        ci=None,
-    )
-    ax.set_title('Success')
+    df['x_name'] = df['classifier_name'].map(_shorten) + '-' + df['accept_type']
+
+    violinplot(df, outdir, 'x_name', 'task_error', "Task Error")
+    violinplot(df, outdir, 'x_name', 'normalized_model_error', 'Normalized Model Error')
+
+    z = df.groupby("method_name").agg({
+        'success': 'mean',
+        'accept_type': 'first',
+        'x_name': 'first',
+    })
+    _, ax = barplot(z, outdir, x='x_name', y='success', title='Success', hue='accept_type')
     ax.set_ylim(-0.01, 1.01)
-    plt.savefig(outdir / 'success.png')
 
     if not args.no_plot:
         plt.show()
@@ -43,17 +43,13 @@ def main():
     parser.add_argument('--no-plot', action='store_true')
     parser.add_argument('--regenerate', action='store_true')
     parser.add_argument('--style', default='slides')
-    parser.set_defaults(func=metrics_main)
 
     args = parser.parse_args()
 
     plt.style.use(args.style)
 
-    metrics_main(args)
+    analyze_planning_results(args)
 
 
 if __name__ == '__main__':
-    import numpy as np
-
-    np.seterr(all='raise')  # DEBUGGING
     main()

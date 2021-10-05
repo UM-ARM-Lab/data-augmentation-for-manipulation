@@ -5,7 +5,6 @@ import halo
 import numpy as np
 
 import rospy
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from moonshine.moonshine_utils import numpify
 from peter_msgs.msg import AnimationControl
 from peter_msgs.srv import GetAnimControllerStateRequest, GetAnimControllerState
@@ -181,11 +180,11 @@ class RvizSimpleStepper:
 class RvizAnimation:
 
     def __init__(self,
-                 scenario: ExperimentScenario,
+                 myobj,
                  n_time_steps: int,
                  init_funcs: List[Callable],
                  t_funcs: List[Callable]):
-        self.scenario = scenario
+        self.myobj = myobj
         self.init_funcs = init_funcs
         self.t_funcs = t_funcs
         self.n_time_steps = n_time_steps
@@ -193,13 +192,13 @@ class RvizAnimation:
     def play(self, example: Any):
         example = numpify(example)
         for init_func in self.init_funcs:
-            init_func(self.scenario, example)
+            init_func(self.myobj, example)
 
         controller = RvizAnimationController(n_time_steps=self.n_time_steps)
         while not controller.done:
             t = controller.t()
 
             for t_func in self.t_funcs:
-                t_func(self.scenario, example, t)
+                t_func(self.myobj, example, t)
 
             controller.step()
