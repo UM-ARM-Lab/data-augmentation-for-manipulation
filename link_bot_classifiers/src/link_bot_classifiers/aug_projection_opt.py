@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 import rospy
-from link_bot_classifiers.aug_opt_utils import debug_aug_sgd, transform_obj_points, dpoint_to_dparams
+from link_bot_classifiers.aug_opt_utils import transform_obj_points, dpoint_to_dparams
 from link_bot_classifiers.iterative_projection import BaseProjectOpt
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
@@ -23,7 +23,7 @@ class AugProjOpt(BaseProjectOpt):
         self.res = res
         self.batch_size = batch_size
         self.obj_points = obj_points
-        self.object_points_occupancy = object_points_occupancy
+        self.obj_occupancy = object_points_occupancy
 
         # More hyperparameters
         self.step_toward_target_fraction = 1 / self.aug_opt.hparams['n_outer_iters']
@@ -45,15 +45,11 @@ class AugProjOpt(BaseProjectOpt):
 
         self.sdf = tf.convert_to_tensor(sdf)
         self.sdf_grad = tf.convert_to_tensor(sdf_grad)
-        repel_grad_mask = tf.cast(sdf < self.aug_opt.barrier_cut_off, tf.float32)
-        self.repel_sdf_grad = self.sdf_grad * tf.expand_dims(repel_grad_mask, -1)
-        attract_grad_mask = tf.cast(sdf > 0, tf.float32)
-        self.attract_sdf_grad = self.sdf_grad * tf.expand_dims(attract_grad_mask, -1)
 
         # precompute stuff
         self.obj_point_indices = batch_point_to_idx(self.obj_points, self.new_res, self.new_origin_point_expanded)
-        self.sdf_dist = tf.gather_nd(self.new_env['sdf'], self.obj_point_indices)  # will be zero if index OOB
-        self.min_dist = tf.reduce_min(self.sdf_dist, axis=1)
+        self.obj_sdf = tf.gather_nd(self.new_env['sdf'], self.obj_point_indices)  # will be zero if index OOB
+        self.min_dist = tf.reduce_min(self.obj_sdf, axis=1)
 
     def make_opt(self):
         lr = tf.keras.optimizers.schedules.ExponentialDecay(self.aug_opt.hparams['step_size'],
@@ -73,28 +69,29 @@ class AugProjOpt(BaseProjectOpt):
             obj_points_aug, to_local_frame = transform_obj_points(self.obj_points, transformation_matrices)
 
         # compute repel and attract gradient via the SDF
-
         obj_point_indices_aug = batch_point_to_idx(obj_points_aug, self.new_res, self.new_origin_point_expanded)
-        sdf_dist_aug = tf.gather_nd(self.sdf, obj_point_indices_aug)  # will be zero if index OOB
-        obj_attract_sdf_grad = tf.gather_nd(self.attract_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
-        obj_repel_sdf_grad = tf.gather_nd(self.repel_sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
+        sdf_aug = tf.gather_nd(self.sdf, obj_point_indices_aug)  # will be zero if index OOB
+        sdf_grad_aug = tf.gather_nd(self.sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
+        obj_occupancy_aug = tf.cast(sdf_aug < 0, tf.float32)
+        obj_occupancy_aug_change = self.obj_occupancy - obj_occupancy_aug
+        attract_repel_dpoint = sdf_grad_aug * obj_occupancy_aug_change[:, :, None]  # [b,n,3]
 
         # and also the grad for preserving the min dist
-        min_dist_aug = tf.reduce_min(sdf_dist_aug, axis=1)
-        min_dist_aug_idx = tf.argmin(sdf_dist_aug, axis=1)
+        min_dist_aug = tf.reduce_min(sdf_aug, axis=1)
+        min_dist_aug_idx = tf.argmin(sdf_aug, axis=1)
         delta_min_dist = self.min_dist - min_dist_aug
         min_dist_points_aug = tf.gather(obj_points_aug, min_dist_aug_idx, axis=1, batch_dims=1)
         min_dist_indices_aug = batch_point_to_idx(min_dist_points_aug, self.new_res, self.new_origin_point_expanded)
         delta_min_dist_grad_dpoint = -tf.gather_nd(self.sdf_grad, min_dist_indices_aug) * delta_min_dist[:, None]
         delta_min_dist_grad_dpoint = delta_min_dist_grad_dpoint * self.aug_opt.hparams['delta_min_dist_weight']
 
-        return obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx
+        return obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx, attract_repel_dpoint
 
     def step(self, _: int, opt, obj_transforms: tf.Variable):
         tape = tf.GradientTape()
 
         viz_vars = self.forward(tape, obj_transforms)
-        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx = viz_vars
+        obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx, attract_repel_dpoint = viz_vars
 
         with tape:
             invariance_loss = self.aug_opt.invariance_model_wrapper.evaluate(obj_transforms)
@@ -110,11 +107,6 @@ class AugProjOpt(BaseProjectOpt):
             ]
             losses_sum = tf.add_n(losses)
             loss = tf.reduce_mean(losses_sum)
-
-        attract_mask = self.object_points_occupancy  # assumed to already be either 0.0 or 1.0
-        attract_grad = obj_attract_sdf_grad * tf.expand_dims(attract_mask, -1) * self.attract_weight
-        repel_grad = -obj_repel_sdf_grad * tf.expand_dims((1 - attract_mask), -1) * self.repel_weight
-        attract_repel_dpoint = (attract_grad + repel_grad)  # [b,n,3]
 
         # Compute the jacobian of the transformation
         jacobian = transformation_jacobian(obj_transforms)[:, None]  # [b,1,6,4,4]
@@ -137,11 +129,18 @@ class AugProjOpt(BaseProjectOpt):
         clipped_grads_and_vars = self.aug_opt.clip_env_aug_grad(gradients, variables)
         opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
         lr = opt._decayed_lr(tf.float32)
-        can_terminate = self.aug_opt.can_terminate(lr, gradients)
+        can_terminate = self.can_terminate(lr, gradients)
 
         x_out = tf.identity(obj_transforms)
 
         return x_out, can_terminate, viz_vars
+
+    def can_terminate(self, lr, gradients):
+        grad_norm = tf.linalg.norm(gradients[0], axis=-1)
+        step_size_i = grad_norm * lr
+        can_terminate = step_size_i < self.aug_opt.hparams['step_size_threshold']
+        can_terminate = tf.reduce_all(can_terminate)
+        return can_terminate
 
     def step_towards_target(self, target_transforms, obj_transforms):
         # NOTE: although interpolating euler angles can be problematic or unintuitive,
@@ -163,68 +162,54 @@ class AugProjOpt(BaseProjectOpt):
         return max_distance
 
     def viz_func(self, i, obj_transforms, _, target, viz_vars):
-        obj_attract_sdf_grad, obj_repel_sdf_grad, sdf_dist_aug, obj_point_indices_aug, obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx = viz_vars
+        obj_points_aug, to_local_frame, min_dist_points_aug, delta_min_dist_grad_dpoint, min_dist_aug_idx, attract_repel_dpoint = viz_vars
+        scale = 0.005
+        s = self.aug_opt.scenario
+        for b in debug_viz_batch_indices(self.batch_size):
+            target_b = target[b]
+            obj_transforms_b = obj_transforms[b]
 
-        shape = tf.convert_to_tensor(self.new_env['env'].shape, tf.int64)[None, None]
-        oob = tf.logical_or(obj_point_indices_aug < 0,
-                            obj_point_indices_aug > shape)
-        oob = tf.reduce_any(oob, axis=-1)
+            local_pos_b = to_local_frame[b, 0].numpy()
+            target_pos_b = target_b[:3].numpy()
+            self.aug_opt.debug.send_position_transform(local_pos_b, 'initial_local_frame')
+            self.plot_transform(obj_transforms_b, 'aug_opt_current')
+            self.plot_transform(target_b, 'aug_opt_target')
 
-        if debug_aug_sgd():
+            dir_msg = rviz_arrow([0, 0, 0], target_pos_b, scale=2.0)
+            dir_msg.header.frame_id = 'initial_local_frame'
+            self.aug_dir_pub.publish(dir_msg)
 
-            scale = 0.005
-            for b in debug_viz_batch_indices(self.batch_size):
-                target_b = target[b]
-                obj_transforms_b = obj_transforms[b]
+            repel_indices = tf.squeeze(tf.where(1 - self.obj_occupancy[b]), -1)
+            attract_indices = tf.squeeze(tf.where(self.obj_occupancy[b]), -1)
 
-                local_pos_b = to_local_frame[b, 0].numpy()
-                target_pos_b = target_b[:3].numpy()
-                self.aug_opt.debug.send_position_transform(local_pos_b, 'initial_local_frame')
-                self.plot_transform(obj_transforms_b, 'aug_opt_current')
-                self.plot_transform(target_b, 'aug_opt_target')
+            attract_points = tf.gather(self.obj_points[b], attract_indices).numpy()
+            repel_points = tf.gather(self.obj_points[b], repel_indices).numpy()
+            attract_points_aug = tf.gather(obj_points_aug[b], attract_indices).numpy()
+            repel_points_aug = tf.gather(obj_points_aug[b], repel_indices).numpy()
 
-                dir_msg = rviz_arrow([0, 0, 0], target_pos_b, scale=2.0)
-                dir_msg.header.frame_id = 'initial_local_frame'
-                self.aug_dir_pub.publish(dir_msg)
+            s.plot_points_rviz(attract_points, label='attract', color='g', scale=scale)
+            s.plot_points_rviz(repel_points, label='repel', color='r', scale=scale)
+            s.plot_points_rviz(attract_points_aug, label='attract_aug', color='g', scale=scale)
+            s.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=scale)
 
-                repel_indices = tf.squeeze(tf.where(1 - self.object_points_occupancy[b]), -1)
-                attract_indices = tf.squeeze(tf.where(self.object_points_occupancy[b]), -1)
+            attract_repel_dpoint_b = attract_repel_dpoint[b]
+            attract_grad_b = -tf.gather(attract_repel_dpoint_b, attract_indices, axis=0) * 0.02
+            repel_grad_b = -tf.gather(attract_repel_dpoint_b, repel_indices, axis=0) * 0.02
+            s.delete_arrows_rviz(label='attract_sdf_grad')
+            s.delete_arrows_rviz(label='repel_sdf_grad')
+            s.plot_arrows_rviz(attract_points_aug, attract_grad_b, label='attract_sdf_grad', color='g', scale=0.5)
+            s.plot_arrows_rviz(repel_points_aug, repel_grad_b, label='repel_sdf_grad', color='r', scale=0.5)
 
-                attract_points = tf.gather(self.obj_points[b], attract_indices).numpy()
-                repel_points = tf.gather(self.obj_points[b], repel_indices).numpy()
-                attract_points_aug = tf.gather(obj_points_aug[b], attract_indices).numpy()
-                repel_points_aug = tf.gather(obj_points_aug[b], repel_indices).numpy()
-
-                self.aug_opt.scenario.plot_points_rviz(attract_points, label='attract', color='g', scale=scale)
-                self.aug_opt.scenario.plot_points_rviz(repel_points, label='repel', color='r', scale=scale)
-                self.aug_opt.scenario.plot_points_rviz(attract_points_aug, label='attract_aug', color='g', scale=scale)
-                self.aug_opt.scenario.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=scale)
-
-                attract_grad_b = -tf.gather(obj_attract_sdf_grad[b], attract_indices, axis=0) * 0.02
-                repel_sdf_dist = tf.gather(sdf_dist_aug[b], repel_indices, axis=0)
-                repel_oob = tf.gather(oob[b], repel_indices, axis=0)
-                repel_sdf_grad_b = tf.gather(obj_repel_sdf_grad[b], repel_indices, axis=0)
-                repel_close = tf.logical_and(repel_sdf_dist < self.aug_opt.barrier_cut_off, tf.logical_not(repel_oob))
-                repel_close_indices = tf.squeeze(tf.where(repel_close), axis=-1)
-                repel_close_grad_b = tf.gather(repel_sdf_grad_b, repel_close_indices, axis=0) * 0.02
-                repel_close_points_aug = tf.gather(repel_points_aug, repel_close_indices)
-                self.aug_opt.scenario.delete_arrows_rviz(label='attract_sdf_grad')
-                self.aug_opt.scenario.delete_arrows_rviz(label='repel_sdf_grad')
-                self.aug_opt.scenario.plot_arrows_rviz(attract_points_aug, attract_grad_b, label='attract_sdf_grad',
-                                                       color='g', scale=0.5)
-                self.aug_opt.scenario.plot_arrows_rviz(repel_close_points_aug, repel_close_grad_b,
-                                                       label='repel_sdf_grad',
-                                                       color='r', scale=0.5)
-
-                delta_min_dist_points_b = min_dist_points_aug[b].numpy()
-                delta_min_dist_grad_b = delta_min_dist_grad_dpoint[b].numpy()
-                self.aug_opt.scenario.plot_arrow_rviz(delta_min_dist_points_b, delta_min_dist_grad_b,
-                                                      label='delta_min_dist_grad', color='pink', scale=0.5)
+            delta_min_dist_points_b = min_dist_points_aug[b].numpy()
+            delta_min_dist_grad_b = delta_min_dist_grad_dpoint[b].numpy()
+            s.plot_arrow_rviz(delta_min_dist_points_b, delta_min_dist_grad_b, label='delta_min_dist_grad', color='pink',
+                              scale=0.5)
 
     def plot_transform(self, transform_params, frame_id):
         """
 
         Args:
+            frame_id:
             transform_params: [x,y,z,roll,pitch,yaw]
 
         Returns:

@@ -23,6 +23,7 @@ RVizAnimationController::RVizAnimationController(QWidget *parent) : rviz::Panel(
   connect(ui.pause_button, &QPushButton::clicked, this, &RVizAnimationController::PauseClicked);
   connect(ui.done_button, &QPushButton::clicked, this, &RVizAnimationController::DoneClicked);
   connect(ui.loop_checkbox, &QCheckBox::toggled, this, &RVizAnimationController::LoopToggled);
+  connect(ui.auto_next_checkbox, &QCheckBox::toggled, this, &RVizAnimationController::AutoNextToggled);
   connect(ui.auto_play_checkbox, &QCheckBox::toggled, this, &RVizAnimationController::AutoPlayToggled);
   connect(ui.period_spinbox, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
           &RVizAnimationController::PeriodChanged);
@@ -30,33 +31,8 @@ RVizAnimationController::RVizAnimationController(QWidget *parent) : rviz::Panel(
   connect(this, &RVizAnimationController::setStepText, ui.step_number_lineedit, &QLineEdit::setText,
           Qt::QueuedConnection);
   connect(this, &RVizAnimationController::setMaxText, ui.max_step_number_label, &QLabel::setText, Qt::QueuedConnection);
-
-  command_pub_ = ros_node_.advertise<peter_msgs::AnimationControl>("rviz_anim/control", 10);
-
-  auto get_state_bind = [this](peter_msgs::GetAnimControllerStateRequest &req,
-                               peter_msgs::GetAnimControllerStateResponse &res) {
-    (void)req;  // unused
-    res.state.auto_play = ui.auto_play_checkbox->isChecked();
-    res.state.loop = ui.loop_checkbox->isChecked();
-    res.state.period = static_cast<float>(ui.period_spinbox->value());
-    return true;
-  };
-  auto get_state_so = create_service_options(peter_msgs::GetAnimControllerState, "rviz_anim/get_state", get_state_bind);
-  get_state_srv_ = ros_node_.advertiseService(get_state_so);
-
-  // this is stupid why must I list this type here but not when I do this for services!?
-  boost::function<void(const std_msgs::Int64::ConstPtr &)> time_cb = [this](const std_msgs::Int64::ConstPtr &msg) {
-    TimeCallback(msg);
-  };
-  auto time_sub_so = ros::SubscribeOptions::create("rviz_anim/time", 10, time_cb, ros::VoidPtr(), &queue_);
-  time_sub_ = ros_node_.subscribe(time_sub_so);
-
-  // this is stupid why must I list this type here but not when I do this for services!?
-  boost::function<void(const std_msgs::Int64::ConstPtr &)> max_time_cb = [this](const std_msgs::Int64::ConstPtr &msg) {
-    MaxTimeCallback(msg);
-  };
-  auto max_time_sub_so = ros::SubscribeOptions::create("rviz_anim/max_time", 10, max_time_cb, ros::VoidPtr(), &queue_);
-  max_time_sub_ = ros_node_.subscribe(max_time_sub_so);
+  connect(ui.namespace_lineedit, &QLineEdit::textChanged, this, &RVizAnimationController::TopicEdited,
+          Qt::QueuedConnection);
 
   ros_queue_thread_ = std::thread([this] { QueueThread(); });
 }
@@ -66,6 +42,37 @@ RVizAnimationController::~RVizAnimationController() {
   queue_.disable();
   ros_node_.shutdown();
   ros_queue_thread_.join();
+}
+
+void RVizAnimationController::TopicEdited(const QString &text) {
+  auto const ns = text.toStdString();
+
+  command_pub_ = ros_node_.advertise<peter_msgs::AnimationControl>(ns + "/control", 10);
+
+  auto get_state_bind = [this](peter_msgs::GetAnimControllerStateRequest &req,
+                               peter_msgs::GetAnimControllerStateResponse &res) {
+    (void)req;  // unused
+    res.state.auto_play = ui.auto_play_checkbox->isChecked();
+    res.state.loop = ui.loop_checkbox->isChecked();
+    res.state.period = static_cast<float>(ui.period_spinbox->value());
+    return true;
+  };
+  auto get_state_so = create_service_options(peter_msgs::GetAnimControllerState, ns + "/get_state", get_state_bind);
+  get_state_srv_ = ros_node_.advertiseService(get_state_so);
+
+  // this is stupid why must I list this type here but not when I do this for services!?
+  boost::function<void(const std_msgs::Int64::ConstPtr &)> time_cb = [this](const std_msgs::Int64::ConstPtr &msg) {
+    TimeCallback(msg);
+  };
+  auto time_sub_so = ros::SubscribeOptions::create(ns + "/time", 10, time_cb, ros::VoidPtr(), &queue_);
+  time_sub_ = ros_node_.subscribe(time_sub_so);
+
+  // this is stupid why must I list this type here but not when I do this for services!?
+  boost::function<void(const std_msgs::Int64::ConstPtr &)> max_time_cb = [this](const std_msgs::Int64::ConstPtr &msg) {
+    MaxTimeCallback(msg);
+  };
+  auto max_time_sub_so = ros::SubscribeOptions::create(ns + "/max_time", 10, max_time_cb, ros::VoidPtr(), &queue_);
+  max_time_sub_ = ros_node_.subscribe(max_time_sub_so);
 }
 
 void RVizAnimationController::TimeCallback(const std_msgs::Int64::ConstPtr &msg) {
@@ -128,6 +135,13 @@ void RVizAnimationController::LoopToggled() {
     ROS_WARN_STREAM("Auto-play takes precedence over looping");
     // show a warning here
   }
+}
+
+void RVizAnimationController::AutoNextToggled() {
+  peter_msgs::AnimationControl cmd;
+  cmd.state.auto_play = ui.auto_play_checkbox->isChecked();
+  cmd.command = peter_msgs::AnimationControl::SET_AUTO_PLAY;
+  command_pub_.publish(cmd);
 }
 
 void RVizAnimationController::AutoPlayToggled() {

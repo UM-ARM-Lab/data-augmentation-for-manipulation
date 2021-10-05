@@ -12,7 +12,7 @@ from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.aug_opt_ik import AugOptIk
 from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik, check_env_constraints, pick_best_params, \
     initial_identity_params, transform_obj_points
-from link_bot_classifiers.aug_opt_v6 import AugProjOpt
+from link_bot_classifiers.aug_projection_opt import AugProjOpt
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.iterative_projection import iterative_projection
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
@@ -57,8 +57,6 @@ class AugmentationOptimization:
         self.seed_int = 4 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.gen = tf.random.Generator.from_seed(self.seed_int)
         self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
-        self.step_size_threshold = 0.0003  # stopping criteria, how far the env moved (meters)
-        self.barrier_cut_off = 0.06  # stop repelling loss after this (squared) distance (meters)
         self.barrier_epsilon = 0.01
         self.grad_clip = 0.25  # max dist step the env aug update can take
         self.ground_penetration_weight = 1.0
@@ -173,17 +171,16 @@ class AugmentationOptimization:
                                  obj_points=obj_points,
                                  object_points_occupancy=object_points_occupancy)
         not_progressing_threshold = self.hparams['not_progressing_threshold']
-        obj_transforms, viz_vars = iterative_projection(initial_value=initial_transformation_params,
-                                                        target=target_transformation_params,
-                                                        n=self.hparams['n_outer_iters'],
-                                                        m=self.hparams['max_steps'],
-                                                        step_towards_target=project_opt.step_towards_target,
-                                                        project_opt=project_opt,
-                                                        x_distance=project_opt.distance,
-                                                        not_progressing_threshold=not_progressing_threshold,
-                                                        viz_func=project_opt.viz_func,
-                                                        viz=debug_aug())
-        sdf_dist_aug = viz_vars[2]
+        obj_transforms, _ = iterative_projection(initial_value=initial_transformation_params,
+                                                 target=target_transformation_params,
+                                                 n=self.hparams['n_outer_iters'],
+                                                 m=self.hparams['max_steps'],
+                                                 step_towards_target=project_opt.step_towards_target,
+                                                 project_opt=project_opt,
+                                                 x_distance=project_opt.distance,
+                                                 not_progressing_threshold=not_progressing_threshold,
+                                                 viz_func=project_opt.viz_func,
+                                                 viz=debug_aug())
 
         transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
         obj_points_aug, to_local_frame = transform_obj_points(obj_points, transformation_matrices)
@@ -205,8 +202,8 @@ class AugmentationOptimization:
         new_env_repeated = repeat(new_env, repetitions=batch_size, axis=0, new_axis=True)
         local_env_aug, _ = self.local_env_helper.get(local_center_aug, new_env_repeated, batch_size)
 
-        is_valid = self.check_is_valid(obj_points_aug, new_env, object_points_occupancy, res, project_opt.sdf_dist,
-                                       sdf_dist_aug)
+        is_valid = self.check_is_valid(obj_points_aug, new_env, object_points_occupancy, res, project_opt.sdf,
+                                       )
 
         return inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, is_valid
 
@@ -309,13 +306,6 @@ class AugmentationOptimization:
                                                              self.local_env_helper.h,
                                                              self.local_env_helper.w,
                                                              self.local_env_helper.c)
-
-    def can_terminate(self, lr, gradients):
-        grad_norm = tf.linalg.norm(gradients[0], axis=-1)
-        step_size_i = grad_norm * lr
-        can_terminate = step_size_i < self.step_size_threshold
-        can_terminate = tf.reduce_all(can_terminate)
-        return can_terminate
 
     def clip_env_aug_grad(self, gradients, variables):
         def _clip(g):

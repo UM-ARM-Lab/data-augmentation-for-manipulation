@@ -39,6 +39,7 @@ class RvizAnimationController:
 
         state_res = self.get_state_srv(GetAnimControllerStateRequest())
         self.auto_play = state_res.state.auto_play
+        self.auto_next = state_res.state.auto_next
         self.loop = state_res.state.loop
         self.period = state_res.state.period
         self.playing = self.auto_play or self.loop
@@ -69,8 +70,10 @@ class RvizAnimationController:
             self.on_done()
         elif msg.command == AnimationControl.SET_LOOP:
             self.loop = msg.state.loop
+        elif msg.command == AnimationControl.SET_AUTO_NEXT:
+            self.auto_next = msg.state.auto_next
         elif msg.command == AnimationControl.SET_AUTO_PLAY:
-            self.loop = msg.state.loop
+            self.auto_play = msg.state.auto_play
         elif msg.command == AnimationControl.SET_PERIOD:
             self.period = msg.state.period
         elif msg.command == AnimationControl.SET_IDX:
@@ -121,7 +124,7 @@ class RvizAnimationController:
             if self.idx < self.max_idx - 1:
                 self.idx += 1
             else:
-                if self.auto_play:
+                if self.auto_next:
                     self.done = True
                 elif self.loop:
                     self.idx = 0

@@ -45,11 +45,15 @@ class RVizAnimationController : public rviz::Panel {
 
   void LoopToggled();
 
+  void AutoNextToggled();
+
   void AutoPlayToggled();
 
   void StepNumberChanged();
 
   void PeriodChanged(double period);
+
+  void TopicEdited(const QString& text);
 
  signals:
   void setStepText(const QString& text);

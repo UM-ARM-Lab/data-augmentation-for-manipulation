@@ -46,10 +46,11 @@
     delta_min_dist_threshold: 0.055
     loss_threshold: 0.001
     lr_decay: 0.90
-    lr_decay_steps: 7
-    max_steps: 100
+    lr_decay_steps: 4
+    max_steps: 50
     n_outer_iters: 25
     not_progressing_threshold: 0.001
+    step_size_threshold: 0.0003
     step_size: 0.3
     # hparams for the final check of the constraints
     max_env_violations: 8
