@@ -58,7 +58,7 @@ class AugProjOpt(BaseProjectOpt):
 
         # precompute stuff
         self.obj_point_indices = batch_point_to_idx(self.obj_points, self.new_res, self.new_origin_point_expanded)
-        self.obj_sdf = tf.gather_nd(self.new_env['sdf'], self.obj_point_indices)  # will be zero if index OOB
+        self.obj_sdf = tf.gather_nd(sdf, self.obj_point_indices)  # will be zero if index OOB
         self.min_dist = tf.reduce_min(self.obj_sdf, axis=1)
 
     def make_opt(self):

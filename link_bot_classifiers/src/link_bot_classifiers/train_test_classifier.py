@@ -120,7 +120,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
         model_hparams['labeling_params']['threshold'] = threshold
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.get_scenario())
 
-    checkpoint_name, trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)
+    trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)
 
     if no_validate:
         mid_epoch_val_batches = None
@@ -156,7 +156,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
                                                        seed,
                                                        take)
 
-    if augmentation_config_dir is not None:
+    if 'augmentation' in model_hparams:
         train_dataset = add_augmentation_configs_to_dataset(augmentation_config_dir, train_dataset, batch_size)
 
     final_val_metrics = runner.train(train_dataset, val_dataset, num_epochs=epochs)
@@ -467,8 +467,7 @@ class ClassifierEvaluation:
         self.start_at = start_at
         trials_directory = pathlib.Path('trials').absolute()
         trial_path = checkpoint.parent.absolute()
-        _, params = filepath_tools.create_or_load_trial(trial_path=trial_path,
-                                                        trials_directory=trials_directory)
+        _, params = filepath_tools.create_or_load_trial(trial_path=trial_path, trials_directory=trials_directory)
 
         # Dataset
         if 'dataset_loader' in kwargs:

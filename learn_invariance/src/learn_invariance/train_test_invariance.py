@@ -37,7 +37,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model_hparams.update(common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset_loader))
     model = InvarianceModel(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.get_scenario())
 
-    checkpoint_name, trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory)
+    trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory)
 
     if no_validate:
         mid_epoch_val_batches = None

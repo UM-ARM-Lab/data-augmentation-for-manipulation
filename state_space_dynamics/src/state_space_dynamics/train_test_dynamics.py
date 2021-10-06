@@ -42,7 +42,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope))
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)
 
-    checkpoint_name, trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)
+    trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)
 
     runner = ModelRunner(model=model,
                          training=True,
@@ -60,19 +60,14 @@ def train_main(dataset_dirs: List[pathlib.Path],
 
 def setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx=None):
     trial_path = None
-    checkpoint_name = None
     if checkpoint:
         trial_path = checkpoint.parent.absolute()
-        checkpoint_name = checkpoint.name
     group_name = log if trial_path is None else None
     if ensemble_idx is not None:
         group_name = f"{group_name}_{ensemble_idx}"
-    trial_path, _ = filepath_tools.create_or_load_trial(group_name=group_name,
-                                                        params=model_hparams,
-                                                        trial_path=trial_path,
-                                                        trials_directory=trials_directory,
-                                                        write_summary=False)
-    return checkpoint_name, trial_path
+    trial_path, _ = filepath_tools.create_or_load_trial(group_name=group_name, trial_path=trial_path,
+                                                        params=model_hparams, trials_directory=trials_directory)
+    return trial_path
 
 
 def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):

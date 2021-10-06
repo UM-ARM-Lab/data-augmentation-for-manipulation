@@ -22,8 +22,7 @@ def make_unique_trial_subdirectory_name(*names):
 def create_or_load_trial(group_name: Optional[pathlib.Path] = None,
                          trial_path: Optional[pathlib.Path] = None,
                          params: Optional[Dict] = None,
-                         trials_directory: Optional[pathlib.Path] = None,
-                         write_summary: Optional[bool] = True):
+                         trials_directory: Optional[pathlib.Path] = None):
     if trial_path is not None:
         # Resume and warn for errors
         if group_name is not None:

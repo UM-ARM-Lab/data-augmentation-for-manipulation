@@ -36,6 +36,7 @@
   include_robot_geometry: true
   augmentation: {
     # weights for the different terms in the objective
+    sdf_grad_weight: 1.0
     bbox_weight: 0.05
     delta_min_dist_weight: 0.25
     invariance_weight: 1.0

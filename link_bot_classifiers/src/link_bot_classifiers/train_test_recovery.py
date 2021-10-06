@@ -92,11 +92,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
         trial_path = checkpoint.parent.absolute()
     trials_directory = pathlib.Path('recovery_trials').absolute()
     group_name = log if trial_path is None else None
-    trial_path, _ = filepath_tools.create_or_load_trial(group_name=group_name,
-                                                        params=model_hparams,
-                                                        trial_path=trial_path,
-                                                        trials_directory=trials_directory,
-                                                        write_summary=False)
+    trial_path, _ = filepath_tools.create_or_load_trial(group_name=group_name, trial_path=trial_path,
+                                                        params=model_hparams, trials_directory=trials_directory)
 
     if no_validate:
         mid_epoch_val_batches = None
@@ -137,8 +134,7 @@ def eval_main(dataset_dirs: List[pathlib.Path],
     ###############
     trial_path = checkpoint.parent.absolute()
     trials_directory = pathlib.Path('recovery_trials').absolute()
-    _, params = filepath_tools.create_or_load_trial(trial_path=trial_path,
-                                                    trials_directory=trials_directory)
+    _, params = filepath_tools.create_or_load_trial(trial_path=trial_path, trials_directory=trials_directory)
     scenario = get_scenario(params['scenario'])
     net = NNRecoveryModel(hparams=params, scenario=scenario, batch_size=batch_size)
 
