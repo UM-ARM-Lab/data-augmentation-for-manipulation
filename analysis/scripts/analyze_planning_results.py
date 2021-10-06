@@ -27,6 +27,9 @@ def analyze_planning_results(args):
     _, ax = violinplot(df, outdir, 'x_name', 'normalized_model_error', 'Normalized Model Error', hue='accept_type')
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
+    _, ax = violinplot(df, outdir, 'x_name', 'combined_error', 'Combined Error', hue='accept_type')
+    _, ymax = ax.get_ylim()
+    ax.set_ylim([0, ymax])
 
     z = df.groupby("method_name").agg({
         'success': 'mean',

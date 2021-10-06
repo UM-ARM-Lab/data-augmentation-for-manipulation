@@ -25,16 +25,19 @@ def metrics_main(args):
     nme_max = 1.2
     iter_key = 'ift_iteration'
 
-    z2 = df.groupby(iter_key).agg('mean').rolling(w).agg('mean')  # groupby iter_key also sorts by default
-    fig, ax = lineplot(z2, iter_key, 'success', 'Success Rate [all combined] (rolling)')
-    ax.set_xlim(-0.01, x_max)
-    ax.set_ylim(-0.01, 1.01)
-
+    # z2 = df.groupby(iter_key).agg('mean').rolling(w).agg('mean')  # groupby iter_key also sorts by default
+    # fig, ax = lineplot(z2, iter_key, 'success', 'Success Rate [all combined] (rolling)')
+    # ax.set_xlim(-0.01, x_max)
+    # ax.set_ylim(-0.01, 1.01)
+    #
     # compute rolling average per run
     agg = {
         'success':                'mean',
         'task_error':             'mean',
         'normalized_model_error': 'mean',
+        'combined_error':         'mean',
+        'min_error_discrepancy':  'mean',
+        'min_planning_error':     'mean',
         'used_augmentation':      rlast,
         iter_key:                 rlast,
     }
@@ -42,36 +45,48 @@ def metrics_main(args):
     # hack for the fact that for iter=0 used_augmentation is always 0, even on runs where augmentation is used.
     df_r = df_r.loc[(df_r['used_augmentation'] == 0.0) | (df_r['used_augmentation'] == 1.0)]
 
-    fig, ax = lineplot(df, iter_key, 'success', 'Success Rate', hue='used_augmentation')
-    ax.set_xlim(-0.01, x_max)
-    ax.set_ylim(-0.01, 1.01)
-    plt.savefig(outdir / f'success_rate.png')
-
-    fig, ax = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling)', hue='used_augmentation')
-    ax.set_xlim(-0.01, x_max)
-    ax.set_ylim(-0.01, 1.01)
-    plt.savefig(outdir / f'success_rate_rolling.png')
-
-    fig, ax = lineplot(df, iter_key, 'any_solved', 'Any Solved', hue='used_augmentation')
-    plt.savefig(outdir / f'any_solved.png')
-
-    fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid')
-    ax.set_ylim(0.0, te_max)
-    ax.set_xlim(-0.01, x_max)
-
-    fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
-    ax.set_ylim(0.0, te_max)
-    ax.set_xlim(-0.01, x_max)
+    # fig, ax = lineplot(df, iter_key, 'success', 'Success Rate', hue='used_augmentation')
+    # ax.set_xlim(-0.01, x_max)
+    # ax.set_ylim(-0.01, 1.01)
+    # plt.savefig(outdir / f'success_rate.png')
+    #
+    # fig, ax = lineplot(df_r, iter_key, 'success', 'Success Rate (rolling)', hue='used_augmentation')
+    # ax.set_xlim(-0.01, x_max)
+    # ax.set_ylim(-0.01, 1.01)
+    # plt.savefig(outdir / f'success_rate_rolling.png')
+    #
+    # fig, ax = lineplot(df, iter_key, 'any_solved', 'Any Solved', hue='used_augmentation')
+    # plt.savefig(outdir / f'any_solved.png')
+    #
+    # fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid')
+    # ax.set_ylim(0.0, te_max)
+    # ax.set_xlim(-0.01, x_max)
+    #
+    # fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
+    # ax.set_ylim(0.0, te_max)
+    # ax.set_xlim(-0.01, x_max)
+    #
+    # fig, ax = lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
+    # ax.set_xlim(-0.01, x_max)
+    # ax.set_ylim(0.0, nme_max)
+    # plt.savefig(outdir / f'normalized_model_error.png')
 
     fig, ax = lineplot(df_r, iter_key, 'task_error', 'Task Error (rolling)', hue='used_augmentation')
     ax.set_ylim(0.0, te_max)
     ax.set_xlim(-0.01, x_max)
     plt.savefig(outdir / f'task_error_rolling.png')
 
-    fig, ax = lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
+    fig, ax = lineplot(df_r, iter_key, 'combined_error', 'Combined Score (rolling)', hue='used_augmentation')
     ax.set_xlim(-0.01, x_max)
-    ax.set_ylim(0.0, nme_max)
-    plt.savefig(outdir / f'normalized_model_error.png')
+    plt.savefig(outdir / f'combined_error_rolling.png')
+
+    fig, ax = lineplot(df_r, iter_key, 'min_error_discrepancy', 'Error Discrepancy (rolling)', hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'min_error_discrepancy_rolling.png')
+
+    fig, ax = lineplot(df_r, iter_key, 'min_planning_error', 'Planning Error (rolling)', hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'min_planning_error_rolling.png')
 
     fig, ax = lineplot(df_r, iter_key, 'normalized_model_error', 'Normalized Model Error (rolling)',
                        hue='used_augmentation')
@@ -81,8 +96,6 @@ def metrics_main(args):
 
     if not args.no_plot:
         plt.show()
-
-    # generate_tables(z3, outdir, table_specs)
 
 
 @ros_init.with_ros("analyse_ift_results")

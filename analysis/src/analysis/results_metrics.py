@@ -106,6 +106,46 @@ def cumulative_planning_error(_: pathlib.Path, scenario: ExperimentScenario, __:
 
 
 @metrics_funcs
+def min_planning_error(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
+    goal = trial_datum['goal']
+    final_plan_to_goal_errors = []
+    for step in trial_datum['steps']:
+        final_planned_state = step['planning_result'].path[-1]
+        final_plan_to_goal_error = scenario.distance_to_goal(final_planned_state, goal)
+        final_plan_to_goal_errors.append(final_plan_to_goal_error)
+    min_final_plan_to_goal_error = np.min(final_plan_to_goal_errors)
+    return min_final_plan_to_goal_error
+
+
+@metrics_funcs
+def min_task_error(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
+    goal = trial_datum['goal']
+    final_execution_to_goal_errors = []
+    for step in trial_datum['steps']:
+        final_actual_state = step['execution_result'].path[-1]
+        final_execution_to_goal_error = scenario.distance_to_goal(final_actual_state, goal)
+        final_execution_to_goal_errors.append(final_execution_to_goal_error)
+    min_final_execution_to_goal_error = np.min(final_execution_to_goal_errors)
+    return min_final_execution_to_goal_error
+
+
+@metrics_funcs
+def min_error_discrepancy(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
+    min_final_execution_to_goal_error = min_task_error(_, scenario, __, trial_datum)
+    min_final_plan_to_goal_error = min_planning_error(_, scenario, __, trial_datum)
+    return abs(min_final_execution_to_goal_error - min_final_plan_to_goal_error)
+
+
+@metrics_funcs
+def combined_error(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
+    min_final_execution_to_goal_error = min_task_error(_, scenario, __, trial_datum)
+    min_final_plan_to_goal_error = min_planning_error(_, scenario, __, trial_datum)
+    combined_error_alpha = 0.5
+    return combined_error_alpha * min_final_plan_to_goal_error + \
+           (1 - combined_error_alpha) * abs(min_final_execution_to_goal_error - min_final_plan_to_goal_error)
+
+
+@metrics_funcs
 def task_error(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
     goal = trial_datum['goal']
     final_actual_state = trial_datum['end_state']
