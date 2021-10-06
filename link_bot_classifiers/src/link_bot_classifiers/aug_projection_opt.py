@@ -37,9 +37,10 @@ class AugProjOpt(BaseProjectOpt):
         self.batch_size = batch_size
         self.obj_points = obj_points
         self.obj_occupancy = object_points_occupancy
+        self.hparams = self.aug_opt.hparams
 
         # More hyperparameters
-        self.step_toward_target_fraction = 1 / self.aug_opt.hparams['n_outer_iters']
+        self.step_toward_target_fraction = 1 / self.hparams['n_outer_iters']
         self.lr_decay = 0.90
         self.lr_decay_steps = 10
 
@@ -50,9 +51,7 @@ class AugProjOpt(BaseProjectOpt):
             sdf_grad = self.new_env['sdf_grad']
         else:
             print("Computing SDF online, very slow!")
-            sdf, sdf_grad = utils_3d.compute_sdf_and_gradient(self.new_env['env'],
-                                                              self.new_res,
-                                                              self.new_origin_point)
+            sdf, sdf_grad = utils_3d.compute_sdf_and_gradient(self.new_env['env'], self.new_res, self.new_origin_point)
 
         self.sdf = tf.convert_to_tensor(sdf)
         self.sdf_grad = tf.convert_to_tensor(sdf_grad)
@@ -63,9 +62,9 @@ class AugProjOpt(BaseProjectOpt):
         self.min_dist = tf.reduce_min(self.obj_sdf, axis=1)
 
     def make_opt(self):
-        lr = tf.keras.optimizers.schedules.ExponentialDecay(self.aug_opt.hparams['step_size'],
-                                                            self.aug_opt.hparams['lr_decay_steps'],
-                                                            self.aug_opt.hparams['lr_decay'])
+        lr = tf.keras.optimizers.schedules.ExponentialDecay(self.hparams['step_size'],
+                                                            self.hparams['lr_decay_steps'],
+                                                            self.hparams['lr_decay'])
         opt = tf.keras.optimizers.SGD(lr)
         return opt
 
@@ -85,7 +84,7 @@ class AugProjOpt(BaseProjectOpt):
         sdf_grad_aug = tf.gather_nd(self.sdf_grad, obj_point_indices_aug)  # will be zero if index OOB
         obj_occupancy_aug = tf.cast(sdf_aug < 0, tf.float32)
         obj_occupancy_aug_change = self.obj_occupancy - obj_occupancy_aug
-        attract_repel_dpoint = sdf_grad_aug * obj_occupancy_aug_change[:, :, None]  # [b,n,3]
+        attract_repel_dpoint = sdf_grad_aug * obj_occupancy_aug_change[:, :, None] * self.hparams['sdf_grad_weight']  # [b,n,3]
 
         # and also the grad for preserving the min dist
         min_dist_aug = tf.reduce_min(sdf_aug, axis=1)
@@ -94,7 +93,7 @@ class AugProjOpt(BaseProjectOpt):
         min_dist_points_aug = tf.gather(obj_points_aug, min_dist_aug_idx, axis=1, batch_dims=1)
         min_dist_indices_aug = batch_point_to_idx(min_dist_points_aug, self.new_res, self.new_origin_point_expanded)
         delta_min_dist_grad_dpoint = -tf.gather_nd(self.sdf_grad, min_dist_indices_aug) * delta_min_dist[:, None]
-        delta_min_dist_grad_dpoint = delta_min_dist_grad_dpoint * self.aug_opt.hparams['delta_min_dist_weight']
+        delta_min_dist_grad_dpoint = delta_min_dist_grad_dpoint * self.hparams['delta_min_dist_weight']
 
         return VizVars(obj_points_aug=obj_points_aug,
                        to_local_frame=to_local_frame,
@@ -111,8 +110,8 @@ class AugProjOpt(BaseProjectOpt):
 
         with tape:
             invariance_loss = self.aug_opt.invariance_model_wrapper.evaluate(obj_transforms)
-            invariance_loss = tf.maximum(self.aug_opt.hparams['invariance_threshold'], invariance_loss)
-            invariance_loss = self.aug_opt.hparams['invariance_weight'] * invariance_loss
+            invariance_loss = tf.maximum(self.hparams['invariance_threshold'], invariance_loss)
+            invariance_loss = self.hparams['invariance_weight'] * invariance_loss
 
             bbox_loss_batch = self.aug_opt.bbox_loss(v.obj_points_aug, self.new_env['extent'])
             bbox_loss = tf.reduce_sum(bbox_loss_batch, axis=-1)
@@ -155,7 +154,7 @@ class AugProjOpt(BaseProjectOpt):
     def clip_env_aug_grad(self, gradients, variables):
         def _clip(g):
             # we want grad_clip to be as close to in meters as possible, so here we scale by step size
-            c = self.aug_opt.hparams['grad_clip'] / self.aug_opt.hparams['step_size']
+            c = self.hparams['grad_clip'] / self.hparams['step_size']
             return tf.clip_by_value(g, -c, c)
 
         return [(_clip(g), v) for (g, v) in zip(gradients, variables)]
@@ -163,7 +162,7 @@ class AugProjOpt(BaseProjectOpt):
     def can_terminate(self, lr, gradients):
         grad_norm = tf.linalg.norm(gradients[0], axis=-1)
         step_size_i = grad_norm * lr
-        can_terminate = step_size_i < self.aug_opt.hparams['step_size_threshold']
+        can_terminate = step_size_i < self.hparams['step_size_threshold']
         can_terminate = tf.reduce_all(can_terminate)
         return can_terminate
 
