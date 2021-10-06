@@ -182,7 +182,8 @@ def eval_generator(dataset_dirs: List[pathlib.Path],
                                            take=take,
                                            threshold=threshold,
                                            use_gt_rope=use_gt_rope,
-                                           scenario=scenario)
+                                           scenario=scenario,
+                                           **kwargs)
 
     val_metrics = model.create_metrics()
     for example, outputs in runner.val_generator(tf_dataset, val_metrics):

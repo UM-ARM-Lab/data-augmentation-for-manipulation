@@ -47,6 +47,7 @@ def eval_augmentation(dataset_dir: pathlib.Path,
         for e in tqdm(train_dataset):
             e['batch_size'] = batch_size
             out = model.preprocess_no_gradient(e, training=True)
+            out['is_valid']
             print(out.keys())
 
 

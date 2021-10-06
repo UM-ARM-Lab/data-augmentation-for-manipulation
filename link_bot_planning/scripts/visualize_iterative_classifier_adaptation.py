@@ -14,6 +14,7 @@ from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import deserialize_scene_msg
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.marker_index_generator import marker_index_generator
+from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -33,6 +34,7 @@ def eval_classifier_no_batch(scenario: ScenarioWithVisualization,
                                                     checkpoint=checkpoint,
                                                     mode=mode,
                                                     balance=False,
+                                                    verbose=-1,
                                                     batch_size=1,
                                                     use_gt_rope=True)
     data_no_batch = []
@@ -68,7 +70,7 @@ def get_data(scenario: ScenarioWithVisualization,
         checkpoint = get_named_item_in_dir(classifiers_dir, classifier_iteration_idx - 1)
         checkpoint = next(checkpoint.iterdir())
 
-    checkpoint = checkpoint / log['ift_config']['checkpoint_suffix']
+    checkpoint = checkpoint / log['checkpoint_suffix']
     return eval_classifier_no_batch(scenario, checkpoint, iteration_dataset_dir, mode)
 
 
@@ -112,7 +114,9 @@ class MyClassifierFilter(MyFilter):
 
 def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
     log = load_hjson(ift_dir / 'logfile.hjson')
-    scenario = get_scenario(log['planner_params']['scenario'])
+    planner_params_filename0 = ift_dir / 'planning_results' / 'iteration_0000_planning' / 'metadata.hjson'
+    planner_params = load_hjson(planner_params_filename0)['planner_params']
+    scenario = get_scenario(planner_params['scenario'])
     planning_iteration_dirs = ift_dir / 'planning_results'
 
     mode = 'all'
@@ -134,15 +138,15 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
     state_metadata_keys = dataset_for_viz.state_metadata_keys
     predicted_state_keys = dataset_for_viz.predicted_state_keys
     action_keys = dataset_for_viz.action_keys
-    true_state_keys = dataset_for_viz.true_state_keys
 
-    goal_threshold = log['planner_params']['goal_params']['threshold']
+    goal_threshold = planner_params['goal_params']['threshold']
 
     f = MyClassifierFilter()
 
     classifier_cache = {}
     planning_data_cache = {}
 
+    last_iteration_idx = 0
     while not rviz_stepper.done:
         iteration_idx = rviz_stepper.t()
 
@@ -153,7 +157,9 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
         g = marker_index_generator(0)
 
         # clear the markers from the previous iteration
-        scenario.reset_planning_viz()
+        if iteration_idx < last_iteration_idx or iteration_idx == 0 or not viz_options.accumulate:
+            scenario.reset_planning_viz()
+        last_iteration_idx = iteration_idx
 
         if viz_options.accumulate:
             iterations_to_plot = range(iteration_idx + 1)
@@ -182,10 +188,11 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
                 t1_marker_idx = next(g)
                 label = 'predicted'
                 color = 'blue' if example['is_close'][1] else 'red'
-                data
-                scenario.plot_state_rviz(pred, label=label, color=color, idx=t0_marker_idx)
-                scenario.plot_state_rviz(pred_next, label=label, color=color, idx=t1_marker_idx)
-                scenario.plot_action_rviz(pred, action, label=label, color='k', idx=t0_marker_idx)
+                lightness_multiplier = i / len(iterations_to_plot) * 0.8 + 0.1
+                color = adjust_lightness(color, lightness_multiplier)
+                scenario.plot_state_rviz(pred, label=label, color=color, idx=t0_marker_idx, scale=0.2)
+                scenario.plot_state_rviz(pred_next, label=label, color=color, idx=t1_marker_idx, scale=0.2)
+                scenario.plot_action_rviz(pred, action, label=label, color=color, idx=t0_marker_idx, scale=1.0)
 
         rviz_stepper.step()
 

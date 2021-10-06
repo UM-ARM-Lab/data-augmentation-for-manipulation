@@ -137,7 +137,7 @@ class RandomActionsBaseline:
 
     def learn_classifier(self, classifier_dataset_dir, i: int, n_examples: int):
         classifiers_module_path = pathlib.Path(r.get_path('link_bot_classifiers'))
-        classifier_hparams = classifiers_module_path / 'hparams' / 'classifier' / 'nn_classifier2.hjson'
+        classifier_hparams = classifiers_module_path / 'hparams' / 'classifier' / 'no_aug.hjson'
         trials_dir = self.logdir / 'classifiers'
         trial_path, final_val_metrics = train_test_classifier.train_main(dataset_dirs=[classifier_dataset_dir],
                                                                          model_hparams=classifier_hparams,

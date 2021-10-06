@@ -1,5 +1,5 @@
 {
-  model_class: nn_classifier2
+  model_class: nn_classifier
   scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
   state_keys: [
     rope

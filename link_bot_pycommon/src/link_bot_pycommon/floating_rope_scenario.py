@@ -32,11 +32,10 @@ from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_im
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
 from moonshine.moonshine_utils import numpify
-from moonshine.simple_profiler import SimpleProfiler
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import Image, CameraInfo
-from std_msgs.msg import Float32, ColorRGBA
+from std_msgs.msg import ColorRGBA
 from std_srvs.srv import Empty, EmptyRequest
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
@@ -911,9 +910,11 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             idx1 = kwargs.pop("idx1", 0)
             idx2 = kwargs.pop("idx2", 1)
 
+        scale = kwargs.pop("scale", 2.0)
+
         msg = MarkerArray()
-        msg.markers.append(rviz_arrow(s1, a1, idx=idx1, label=label, **kwargs, scale=2.0))
-        msg.markers.append(rviz_arrow(s2, a2, idx=idx2, label=label, **kwargs, scale=2.0))
+        msg.markers.append(rviz_arrow(s1, a1, idx=idx1, label=label, **kwargs, scale=scale))
+        msg.markers.append(rviz_arrow(s2, a2, idx=idx2, label=label, **kwargs, scale=scale))
 
         self.action_viz_pub.publish(msg)
 

@@ -64,8 +64,6 @@ class AugmentationOptimization:
                                                                    self.scenario)
 
         # metrics
-        self.is_valids = None
-        self.local_env_aug_fix_delta = None
 
     def augmentation_optimization(self,
                                   inputs: Dict,
@@ -81,14 +79,14 @@ class AugmentationOptimization:
         # actually identical.
         new_env_0 = {k: v[0] for k, v in new_env.items()}
         inputs_aug, local_origin_point_aug, local_center_aug, local_env_aug, is_obj_aug_valid = \
-            self.opt_object_augmentation6(inputs,
-                                          inputs_aug,
-                                          new_env_0,
-                                          object_points,
-                                          object_points_occupancy,
-                                          res,
-                                          batch_size,
-                                          time)
+            self.opt_object_augmentation(inputs,
+                                         inputs_aug,
+                                         new_env_0,
+                                         object_points,
+                                         object_points_occupancy,
+                                         res,
+                                         batch_size,
+                                         time)
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs, inputs_aug, new_env, batch_size)
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,
@@ -96,7 +94,6 @@ class AugmentationOptimization:
         })
 
         is_valid = is_ik_valid * is_obj_aug_valid
-        self.is_valids = possibly_none_concat(self.is_valids, is_valid, axis=0)
 
         if debug_aug():
             for b in debug_viz_batch_indices(batch_size):
@@ -122,17 +119,21 @@ class AugmentationOptimization:
                                                                                          local_env_aug,
                                                                                          local_origin_point,
                                                                                          local_origin_point_aug)
+
+        # add more useful info
+        inputs_aug['is_valid'] = is_valid
+
         return inputs_aug, local_env_aug, local_origin_point_aug
 
-    def opt_object_augmentation6(self,
-                                 inputs: Dict,
-                                 inputs_aug: Dict,
-                                 new_env: Dict,
-                                 obj_points,
-                                 object_points_occupancy,
-                                 res,
-                                 batch_size,
-                                 time):
+    def opt_object_augmentation(self,
+                                inputs: Dict,
+                                inputs_aug: Dict,
+                                new_env: Dict,
+                                obj_points,
+                                object_points_occupancy,
+                                res,
+                                batch_size,
+                                time):
         # viz new env
         if debug_aug():
             for b in debug_viz_batch_indices(batch_size):

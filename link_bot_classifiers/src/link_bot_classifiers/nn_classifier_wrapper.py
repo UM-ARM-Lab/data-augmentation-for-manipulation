@@ -4,7 +4,7 @@ from typing import Dict, Optional, List
 import tensorflow as tf
 from colorama import Fore
 
-from link_bot_classifiers import nn_classifier, nn_classifier2
+from link_bot_classifiers import nn_classifier
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -110,10 +110,3 @@ class NNClassifierWrapper(BaseConstraintChecker):
     @staticmethod
     def get_net_class():
         return nn_classifier.NNClassifier
-
-
-class NNClassifier2Wrapper(NNClassifierWrapper):
-
-    @staticmethod
-    def get_net_class():
-        return nn_classifier2.NNClassifier
