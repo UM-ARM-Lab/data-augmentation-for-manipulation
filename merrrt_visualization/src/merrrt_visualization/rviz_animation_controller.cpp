@@ -198,11 +198,23 @@ void RVizAnimationController::load(const rviz::Config &config) {
   if (config.mapGetBool("auto_play", &auto_play)) {
     ui.auto_play_checkbox->setChecked(auto_play);
   }
+
+  bool done_after_playing;
+  if (config.mapGetBool("done_after_playing", &done_after_playing)) {
+    ui.done_after_playing_checkbox->setChecked(done_after_playing);
+  }
+
+  QString ns;
+  if (config.mapGetString("namespace", &ns)) {
+    ui.namespace_lineedit->setText(ns);
+  }
 }
 
 void RVizAnimationController::save(rviz::Config config) const {
   rviz::Panel::save(config);
+  config.mapSetValue("namespace", ui.namespace_lineedit->text());
   config.mapSetValue("auto_play", ui.auto_play_checkbox->isChecked());
+  config.mapSetValue("done_after_playing", ui.done_after_playing_checkbox->isChecked());
   config.mapSetValue("loop", ui.loop_checkbox->isChecked());
   config.mapSetValue("period", ui.period_spinbox->value());
 }
