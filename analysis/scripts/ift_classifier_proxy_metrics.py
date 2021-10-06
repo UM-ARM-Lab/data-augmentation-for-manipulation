@@ -45,12 +45,12 @@ def main():
 
     outdir = args.results_dirs[0]
 
+    plot_proxy_dataset_metric(z, 'ras', 'accuracy', f'Accuracy on RAS')
+    plt.savefig(outdir / 'acc_ras.png')
     plot_proxy_dataset_metric(z, 'hrs', 'accuracy on negatives', f'Specificity on HRS')
     plt.savefig(outdir / 'spec_hrs.png')
     plot_proxy_dataset_metric(z, 'ncs', 'accuracy on negatives', f'Specificity on NCS')
     plt.savefig(outdir / 'spec_ncs.png')
-    plot_proxy_dataset_metric(z, 'ras', 'accuracy', f'Accuracy on RAS')
-    plt.savefig(outdir / 'acc_ras.png')
 
     # plot_mistakes_over_time(args.results_dir)
     # plt.savefig(outdir / 'mistakes.png')

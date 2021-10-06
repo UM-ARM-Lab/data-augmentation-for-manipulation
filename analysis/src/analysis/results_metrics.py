@@ -53,8 +53,11 @@ def augmentation_type(path: pathlib.Path, __: ExperimentScenario, trial_metadata
         classifier_hparams = trial_metadata_to_classifier_hparams(path, trial_metadata)
         if 'augmentation' in classifier_hparams:
             aug_params = classifier_hparams['augmentation']
-            aug_type_str = f"{aug_params['type']}-{aug_params['on_invalid_aug']}"
-            return aug_type_str
+            if 'type' and 'on_invalid_aug' in aug_params:
+                aug_type_str = f"{aug_params['type']}-{aug_params['on_invalid_aug']}"
+                return aug_type_str
+            else:
+                return None
         return None
     except RuntimeError:
         return None
