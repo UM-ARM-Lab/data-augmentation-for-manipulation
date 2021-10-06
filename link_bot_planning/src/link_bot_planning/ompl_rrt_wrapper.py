@@ -203,6 +203,13 @@ class OmplRRTWrapper(MyPlanner):
         # compute new num_diverged by checking the constraint
         accept, accept_probabilities = self.check_constraint(all_states, all_actions)
 
+        if 'NNClassifierWrapper' in accept_probabilities:
+            final_predicted_state['accept_probability'] = accept_probabilities['NNClassifierWrapper']
+        elif 'NNClassifier2Wrapper' in accept_probabilities:
+            final_predicted_state['accept_probability'] = accept_probabilities['NNClassifier2Wrapper']
+        else:
+            final_predicted_state['accept_probability'] = -1
+
         if accept:
             final_predicted_state['num_diverged'] = np.array([0.0])
 
@@ -301,7 +308,11 @@ class OmplRRTWrapper(MyPlanner):
             random_color = cm.Dark2(self.control_sampler_rng.uniform(0, 1))
             self.visualize_propogation_color = random_color
 
-        classifier_probabilities = accept_probabilities.get('NNClassifier2Wrapper', None)
+        classifier_probabilities = None
+        if 'NNClassifierWrapper' in accept_probabilities:
+            classifier_probabilities = accept_probabilities['NNClassifierWrapper']
+        if 'NNClassifier2Wrapper' in accept_probabilities:
+            classifier_probabilities = accept_probabilities['NNClassifier2Wrapper']
         if classifier_probabilities is not None:
             assert classifier_probabilities.size == 1
             classifier_probability = classifier_probabilities[0]

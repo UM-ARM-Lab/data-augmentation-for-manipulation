@@ -370,6 +370,9 @@ def plot_steps(scenario: ScenarioWithVisualization,
             scenario.plot_action_rviz(s_t, a_t, color=action_color)
 
         if s_t_pred is not None:
+            if 'accept_probability' in s_t_pred:
+                accept_probability_t = s_t_pred['accept_probability']
+                scenario.plot_accept_probability(accept_probability_t)
             if 'scene_msg' in e_t and 'attached_collision_objects' not in s_t_pred:
                 s_t_pred['attached_collision_objects'] = e_t['scene_msg'].robot_state.attached_collision_objects
             # scenario.plot_state_rviz(s_t_pred, label='predicted', color=c, idx=debugging_idx + t)

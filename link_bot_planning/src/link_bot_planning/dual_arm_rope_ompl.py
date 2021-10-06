@@ -46,6 +46,10 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
             state_out[state_component_idx][i] = np.float64(joint_state_i)
         state_component_idx += 1
 
+        if 'accept_probability' in state_np:
+            state_out[state_component_idx][0] = np.float64(state_np['accept_probability'])
+        state_component_idx += 1
+
     def numpy_to_ompl_control(self, state_np: Dict, control_np: Dict, control_out: oc.CompoundControl):
         left_gripper_delta = control_np['left_gripper_position'] - state_np['left_gripper']
         left_r, left_phi, left_theta = vector3_to_spherical(left_gripper_delta)
@@ -92,18 +96,23 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
         joint_positions = []
         for i in range(n_joints):
             joint_positions.append(ompl_state[state_component_idx][i])
+        state_component_idx += 1
         joint_positions = np.array(joint_positions, np.float32)
 
         joint_names = np.array([joint_positions_subspace.getDimensionName(i) for i in range(n_joints)])
 
+        accept_probability = np.array([ompl_state[state_component_idx][0]], np.float32)
+        state_component_idx += 1
+
         return {
-            'left_gripper':    left_gripper,
-            'right_gripper':   right_gripper,
-            'rope':            rope,
-            'stdev':           stdev,
-            'num_diverged':    num_diverged,
-            'joint_positions': joint_positions,
-            'joint_names':     joint_names,
+            'left_gripper':       left_gripper,
+            'right_gripper':      right_gripper,
+            'rope':               rope,
+            'stdev':              stdev,
+            'num_diverged':       num_diverged,
+            'joint_positions':    joint_positions,
+            'joint_names':        joint_names,
+            'accept_probability': accept_probability,
         }
 
     def ompl_control_to_numpy(self, ompl_state: ob.CompoundState, ompl_control: oc.CompoundControl):
@@ -200,6 +209,14 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
             joint_positions_subspace.setDimensionName(i, joint_name)
         # by setting weight to zero we make is unnecessary to sample joint states
         state_space.addSubspace(joint_positions_subspace, weight=0)
+
+        accept_probability_subspace = ob.RealVectorStateSpace(1)
+        accept_probability_bounds = ob.RealVectorBounds(1)
+        accept_probability_bounds.setLow(0, -1000)
+        accept_probability_bounds.setHigh(0, 1000)
+        accept_probability_subspace.setBounds(accept_probability_bounds)
+        accept_probability_subspace.setName("accept_probability")
+        state_space.addSubspace(accept_probability_subspace, weight=0)
 
         def _state_sampler_allocator(state_space):
             return DualGripperStateSampler(state_space,
