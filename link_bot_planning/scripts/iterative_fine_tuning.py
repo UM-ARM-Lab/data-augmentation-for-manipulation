@@ -115,6 +115,7 @@ class IterativeFineTuning:
             rospy.loginfo(f"Overriding with timeout {timeout}")
             self.initial_planner_params["termination_criteria"]['timeout'] = timeout
             self.initial_planner_params["termination_criteria"]['total_timeout'] = timeout
+        self.job_chunker.store_result('initial_planner_params', self.initial_planner_params)
 
         self.gazebo_processes = get_gazebo_processes()
 
