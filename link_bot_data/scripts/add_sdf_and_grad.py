@@ -17,7 +17,7 @@ def main():
         sdf, sdf_grad = utils_3d.compute_sdf_and_gradient(example['env'], example['res'], example['origin_point'])
         example['sdf'] = sdf
         example['sdf_grad'] = sdf_grad
-        return example
+        yield example
 
     modify_classifier_dataset(args.dataset_dir, suffix, add_sdf_and_grad)
 

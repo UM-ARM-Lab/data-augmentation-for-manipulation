@@ -23,7 +23,7 @@ def main():
 
     args = parser.parse_args()
 
-    suffix = f"-aug-{int(time())}"
+    suffix = f"aug-{int(time())}"
     dataset_dir = args.dataset_dir
     save_format = 'pkl'
     augmentation_config_dir = pathlib.Path("/media/shared/pretransfer_initial_configs/car3")
@@ -41,7 +41,6 @@ def main():
 
     def augment(_, inputs):
         inputs = batch_examples_dicts([inputs])
-        inputs = add_augmentation_env_func(inputs)
         inputs, local_env, local_origin_point = model.aug.augmentation_optimization(inputs, batch_size=1, time=2)
         return inputs
 

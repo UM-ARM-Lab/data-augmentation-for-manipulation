@@ -408,8 +408,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
         right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
 
-        object_aug_valid = tf.ones([batch_size], dtype=tf.float32)  # NOTE: no constraints here currently
-
         # Now that we've updated the state/action in inputs, compute the local origin point
         state_aug_0 = {
             'left_gripper':  left_gripper_aug[:, 0],
@@ -441,7 +439,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 self.plot_environment_rviz(env_b)
                 self.debug_viz_state_action(object_aug_update, b, 'aug', color='white')
                 stepper.step()
-        return object_aug_valid, object_aug_update, local_origin_point_aug, local_center_aug
+        return object_aug_update, local_origin_point_aug, local_center_aug
 
     def apply_object_augmentation(self,
                                   m,

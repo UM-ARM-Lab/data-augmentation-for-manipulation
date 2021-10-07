@@ -36,4 +36,4 @@ def modify_classifier_dataset(dataset_dir, suffix, process_example: Callable, sa
                         hparams_update=hparams_update,
                         save_format=save_format)
 
-    split_dataset(dataset_dir)
+    split_dataset(outdir)

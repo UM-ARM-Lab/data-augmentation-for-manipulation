@@ -137,9 +137,9 @@ class NNClassifier(MyKerasModel):
 
         if training and self.aug.do_augmentation():
             # returns a copy, does NOT modify inputs in-place
-            inputs, local_env, local_origin_point = self.aug.augmentation_optimization(inputs, batch_size, time)
-        else:
-            local_env, local_origin_point = self.aug.get_local_env(inputs, batch_size)
+            inputs = self.aug.augmentation_optimization(inputs, batch_size, time)
+
+        local_env, local_origin_point = self.get_local_env(inputs, batch_size)
 
         if training and self.save_inputs_path is not None:
             self.save_inputs_path.mkdir(exist_ok=True)
@@ -294,8 +294,16 @@ class NNClassifier(MyKerasModel):
         out_h = self.lstm(out_d)
         return out_h
 
-    def debug_viz_inputs(self, inputs: Dict, local_origin_point, time):
+    def get_local_env(self, inputs, batch_size):
+        state_0 = {k: inputs[add_predicted(k)][:, 0] for k in self.state_keys}
 
+        # NOTE: to be more general, this should return a pose not just a point/position
+        local_env_center = self.scenario.local_environment_center_differentiable(state_0)
+        local_env, local_origin_point = self.local_env_helper.get(local_env_center, inputs, batch_size)
+
+        return local_env, local_origin_point
+
+    def debug_viz_inputs(self, inputs: Dict, local_origin_point, time):
         for b in debug_viz_batch_indices(self.batch_size):
             if local_origin_point is not None:
                 self.debug.send_position_transform(local_origin_point[b], 'local_origin_point')
