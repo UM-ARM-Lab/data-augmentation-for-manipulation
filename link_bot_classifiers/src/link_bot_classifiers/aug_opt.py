@@ -112,10 +112,13 @@ class AugmentationOptimization:
         }
         inputs_aug.update(obj_aug_update)
 
-        # if debug_aug():
-        #     for b in debug_viz_batch_indices(batch_size):
-        #         self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
-        #         self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
+        if debug_aug():
+            for b in debug_viz_batch_indices(batch_size):
+                self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
+                self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
+                self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug_before', color='blue')
+                self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug_after', color='blue')
+                self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
 
         default_robot_positions = inputs[add_predicted('joint_positions')][:, 0]
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs_aug, default_robot_positions, batch_size)
@@ -130,25 +133,6 @@ class AugmentationOptimization:
 
         # add some more useful info
         inputs_aug['is_valid'] = is_valid
-
-        # local_env, local_origin_point = self.get_local_env(inputs, batch_size)
-        # if debug_aug():
-        #     for b in debug_viz_batch_indices(batch_size):
-        #         _aug_dict = {
-        #             'env':          local_env_aug[b].numpy(),
-        #             'origin_point': local_origin_point_aug[b].numpy(),
-        #             'res':          res[b].numpy(),
-        #         }
-        #         msg = environment_to_vg_msg(_aug_dict, frame='local_env_aug_vg', stamp=rospy.Time(0))
-        #         self.debug.env_aug_pub5.publish(msg)
-        #         send_voxelgrid_tf_origin_point_res(self.broadcaster,
-        #                                            local_origin_point_aug[b],
-        #                                            res[b],
-        #                                            frame='local_env_aug_vg')
-        #
-        #         self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug_before', color='blue')
-        #         self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug_after', color='blue')
-        #         self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
 
         return inputs_aug
 
