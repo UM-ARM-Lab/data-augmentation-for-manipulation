@@ -264,14 +264,14 @@ class AugmentationOptimization:
             'origin_point':         inputs['origin_point'],
             'env':                  inputs['env'],
             'is_close':             inputs['is_close'],
-            'batch_size':           inputs['batch_size'],
+            'batch_size':           batch_size,
             'time':                 inputs['time'],
             add_predicted('stdev'): inputs[add_predicted('stdev')],
         }
 
         local_env, local_origin_point = self.get_local_env(inputs, batch_size)
 
-        object_points = self.compute_swept_object_points(inputs)
+        object_points = self.compute_swept_object_points(inputs, batch_size)
         res = inputs['res']
         # get all components of the state as a set of points
         # in general this should be the swept volume, and should include the robot
@@ -311,9 +311,8 @@ class AugmentationOptimization:
     def do_augmentation(self):
         return self.hparams is not None
 
-    def compute_swept_object_points(self, inputs):
+    def compute_swept_object_points(self, inputs, batch_size):
         points_state_keys = [add_predicted(k) for k in self.points_state_keys]
-        batch_size = inputs['batch_size']
 
         def _make_points(k, t):
             v = inputs[k][:, t]

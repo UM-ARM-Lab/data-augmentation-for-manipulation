@@ -7,7 +7,7 @@ from link_bot_data.dataset_utils import add_new
 from moonshine.moonshine_utils import repeat
 
 
-def add_augmentation_configs_to_dataset(augmentation_config_dir, dataset, batch_size):
+def make_add_augmentation_env_func(augmentation_config_dir, batch_size):
     augmentation_config_gen = load_augmentation_configs(augmentation_config_dir)
 
     def _add_augmentation_env(example: Dict):
@@ -32,6 +32,11 @@ def add_augmentation_configs_to_dataset(augmentation_config_dir, dataset, batch_
 
         return example
 
+    return _add_augmentation_env
+
+
+def add_augmentation_configs_to_dataset(augmentation_config_dir, dataset, batch_size):
+    _add_augmentation_env = make_add_augmentation_env_func(augmentation_config_dir, batch_size)
     return dataset.map(_add_augmentation_env)
 
 
