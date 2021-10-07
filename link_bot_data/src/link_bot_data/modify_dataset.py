@@ -4,13 +4,12 @@ from typing import Callable, Optional, Dict
 
 import hjson
 from colorama import Fore
-from progressbar import progressbar
+from tqdm import tqdm
 
 from arc_utilities import algorithms
 from link_bot_data.base_dataset import BaseDatasetLoader
 from link_bot_data.dataset_utils import write_example
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
-from link_bot_data.progressbar_widgets import mywidgets
 
 
 def modify_hparams(in_dir: pathlib.Path, out_dir: pathlib.Path, update: Optional[Dict] = None):
@@ -98,7 +97,7 @@ def dataset_generator_all_modes(dataset_dir: pathlib.Path,
         full_output_directory = outdir / mode
         full_output_directory.mkdir(parents=True, exist_ok=True)
 
-        for i, example in enumerate(progressbar(dataset, widgets=mywidgets)):
+        for i, example in enumerate(tqdm(dataset)):
             yield full_output_directory, i, example
 
 
@@ -113,5 +112,5 @@ def dataset_generator_all_modes2(dataset_dir: pathlib.Path,
 
     for mode in ['train', 'test', 'val']:
         tf_dataset = dataset.get_datasets(mode=mode, shuffle=False).serial()
-        for i, example in enumerate(progressbar(tf_dataset, widgets=mywidgets)):
+        for i, example in enumerate(tqdm(tf_dataset)):
             yield i, example

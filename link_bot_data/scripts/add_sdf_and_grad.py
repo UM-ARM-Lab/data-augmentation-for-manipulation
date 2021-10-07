@@ -8,7 +8,7 @@ from sdf_tools import utils_3d
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
+    parser.add_argument('dataset_dirs', type=pathlib.Path, help='dataset directory', nargs='+')
 
     args = parser.parse_args()
     suffix = 'sdf'
@@ -19,7 +19,8 @@ def main():
         example['sdf_grad'] = sdf_grad
         yield example
 
-    modify_classifier_dataset(args.dataset_dir, suffix, add_sdf_and_grad)
+    for dataset_dir in args.dataset_dirs:
+        modify_classifier_dataset(dataset_dir, suffix, add_sdf_and_grad)
 
 
 if __name__ == '__main__':
