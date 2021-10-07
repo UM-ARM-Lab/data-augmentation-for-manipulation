@@ -19,8 +19,18 @@ def main():
         example['sdf_grad'] = sdf_grad
         yield example
 
+    hparams_update = {'env_keys': [
+        'env',
+        'extent',
+        'origin',
+        'origin_point',
+        'res',
+        'scene_msg',
+        'sdf',
+        'sdf_grad',
+    ]}
     for dataset_dir in args.dataset_dirs:
-        modify_classifier_dataset(dataset_dir, suffix, add_sdf_and_grad)
+        modify_classifier_dataset(dataset_dir, suffix, add_sdf_and_grad, hparams_update=hparams_update)
 
 
 if __name__ == '__main__':

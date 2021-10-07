@@ -9,10 +9,11 @@ from link_bot_data.split_dataset import split_dataset
 
 
 @ros_init.with_ros("modify_classifier_dataset")
-def modify_classifier_dataset(dataset_dir, suffix, process_example: Callable, save_format='pkl'):
+def modify_classifier_dataset(dataset_dir, suffix, process_example: Callable, save_format='pkl', hparams_update=None):
     outdir = dataset_dir.parent / f"{dataset_dir.name}+{suffix}"
 
-    hparams_update = {}
+    if hparams_update is None:
+        hparams_update = {}
 
     dataset_format = guess_dataset_format(dataset_dir)
     if save_format is None:
