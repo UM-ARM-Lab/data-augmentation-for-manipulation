@@ -3,8 +3,6 @@ from io import BytesIO
 
 import tensorflow as tf
 
-
-@lru_cache
 def bytes_to_ros_msg(bytes, msg_type: type):
     msg = msg_type()
     msg.deserialize(bytes)
