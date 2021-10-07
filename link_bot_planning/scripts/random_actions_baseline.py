@@ -70,10 +70,10 @@ class RandomActionsBaseline:
         self.job_chunker = JobChunker(self.logfilename)
         self.job_chunker.store_result('logfilename', self.logfilename.as_posix())
 
-        self.full_classifier_dataset_dir = pathlib.Path(self.job_chunker.load_or_prompt('full_classifier_dataset_dir'))
-        self.max_planning_trials = int(self.job_chunker.load_or_prompt('max_planning_trials'))
-        self.planner_params_filename = pathlib.Path(self.job_chunker.load_or_prompt('planner_params_filename'))
-        self.test_scenes_dir = pathlib.Path(self.job_chunker.load_or_prompt('test_scenes_dir'))
+        self.full_classifier_dataset_dir = pathlib.Path(self.job_chunker.load_prompt('full_classifier_dataset_dir'))
+        self.max_planning_trials = int(self.job_chunker.load_prompt('max_planning_trials'))
+        self.planner_params_filename = pathlib.Path(self.job_chunker.load_prompt('planner_params_filename'))
+        self.test_scenes_dir = pathlib.Path(self.job_chunker.load_prompt('test_scenes_dir'))
         self.proxy_dataset_dirs = [
             pathlib.Path("/media/shared/classifier_data/car_no_classifier_eval/"),
             pathlib.Path("/media/shared/classifier_data/car_heuristic_classifier_eval2/"),

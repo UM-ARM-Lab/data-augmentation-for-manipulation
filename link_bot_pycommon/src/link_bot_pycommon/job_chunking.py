@@ -105,7 +105,7 @@ class JobChunker:
         return self.get_result(key, *args)
 
     def load_prompt_filename(self, key, *args):
-        return self.load_prompt(key, *args, input_func=tab_complete_path)
+        return pathlib.Path(self.load_prompt(key, *args, input_func=tab_complete_path))
 
     def load_prompt(self, key, *args, input_func=input):
         """
