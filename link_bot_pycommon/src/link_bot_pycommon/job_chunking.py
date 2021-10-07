@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional
 
 import hjson
 
+from link_bot_pycommon.pycommon import pathify
 from link_bot_pycommon.serialization import MyHJsonSerializer
 from link_bot_pycommon.tab_complete_path import tab_complete_path
 
@@ -105,7 +106,7 @@ class JobChunker:
         return self.get_result(key, *args)
 
     def load_prompt_filename(self, key, *args):
-        return pathlib.Path(self.load_prompt(key, *args, input_func=tab_complete_path))
+        return pathify(self.load_prompt(key, *args, input_func=tab_complete_path))
 
     def load_prompt(self, key, *args, input_func=input):
         """
