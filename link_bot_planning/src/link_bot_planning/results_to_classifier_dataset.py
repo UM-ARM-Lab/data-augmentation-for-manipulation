@@ -328,6 +328,10 @@ class ResultsToClassifierDataset:
             return
         if self.only_rejected_transitions and after_state_pred['num_diverged'].squeeze() != 1:
             return
+        if 'accept_probability' not in after_state_pred:
+            after_state_pred['accept_probability'] = -1
+        if 'accept_probability' not in before_state_pred:
+            before_state_pred['accept_probability'] = -1
 
         classifier_horizon = 2  # this script only handles this case
         example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
