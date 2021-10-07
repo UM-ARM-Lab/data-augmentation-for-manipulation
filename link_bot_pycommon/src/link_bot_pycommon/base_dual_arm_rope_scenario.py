@@ -20,6 +20,7 @@ from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import numpify, to_list_of_strings
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene, AllowedCollisionMatrix
+from sdf_tools import utils_3d
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():
@@ -241,6 +242,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         env = {}
         env.update({k: np.array(v).astype(np.float32) for k, v in voxel_grid_env.items()})
+        sdf, sdf_grad = utils_3d.compute_sdf_and_gradient(voxel_grid_env['env'],
+                                                          voxel_grid_env['res'],
+                                                          voxel_grid_env['origin_point'])
+        env['sdf'] = sdf
+        env['sdf_grad'] = sdf_grad
+        print("Computing SDF and SDF Grad")
         env.update(MoveitPlanningSceneScenarioMixin.get_environment(self))
 
         return env

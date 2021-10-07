@@ -151,7 +151,11 @@ def try_adding_aco(state: Dict, example: Dict):
 
 
 def plot_classifier_state_b_t(scenario, state_keys, input_dict, b, t, label: str, color='red'):
-    state_t = numpify({k: input_dict[add_predicted(k)][b, t] for k in state_keys})
+    state_t = {}
+    for k in state_keys:
+        if add_predicted(k) in input_dict:
+            state_t[k] = input_dict[add_predicted(k)][b, t]
+    state_t = numpify(state_t)
     state_t['joint_names'] = input_dict['joint_names'][b, t]
     scenario.plot_state_rviz(state_t, label=label, color=color)
 

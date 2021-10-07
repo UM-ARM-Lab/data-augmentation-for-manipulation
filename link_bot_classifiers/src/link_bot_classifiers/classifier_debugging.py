@@ -44,14 +44,19 @@ class ClassifierDebugging:
         self.env_aug_pub5.publish(empty_msg)
 
     def plot_action_rviz(self, input_dict, b, label: str, color='red'):
-        state_0 = numpify({k: input_dict[add_predicted(k)][b, 0] for k in self.state_keys})
+        state_0 = {}
+        for k in self.state_keys:
+            if add_predicted(k) in input_dict:
+                state_0[k] = input_dict[add_predicted(k)][b, 0]
+        state_0 = numpify(state_0)
         state_0['joint_names'] = input_dict['joint_names'][b, 0]
         action_0 = numpify({k: input_dict[k][b, 0] for k in self.action_keys})
         self.scenario.plot_action_rviz(state_0, action_0, idx=1, label=label, color=color)
 
-        robot_state = {k: input_dict[k][b] for k in ['joint_names', add_predicted('joint_positions')]}
-        display_traj_msg = make_robot_trajectory(robot_state)
-        self.scenario.robot.display_robot_traj(display_traj_msg, label=label, color=color)
+        if add_predicted('joint_positions') in input_dict:
+            robot_state = {k: input_dict[k][b] for k in ['joint_names', add_predicted('joint_positions')]}
+            display_traj_msg = make_robot_trajectory(robot_state)
+            self.scenario.robot.display_robot_traj(display_traj_msg, label=label, color=color)
 
     def plot_state_rviz(self, input_dict, b, t, label: str, color='red'):
         plot_classifier_state_b_t(self.scenario, self.state_keys, input_dict, b=b, t=t, label=label, color=color)
