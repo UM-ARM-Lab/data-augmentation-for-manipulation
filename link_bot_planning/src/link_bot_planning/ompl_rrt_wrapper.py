@@ -27,6 +27,15 @@ from link_bot_planning.timeout_or_not_progressing import TimeoutOrNotProgressing
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 
+def add_accept_probability(accept_probabilities, final_predicted_state):
+    if 'NNClassifierWrapper' in accept_probabilities:
+        final_predicted_state['accept_probability'] = accept_probabilities['NNClassifierWrapper']
+    elif 'NNClassifier2Wrapper' in accept_probabilities:
+        final_predicted_state['accept_probability'] = accept_probabilities['NNClassifier2Wrapper']
+    else:
+        final_predicted_state['accept_probability'] = -1
+
+
 class OmplRRTWrapper(MyPlanner):
 
     def __init__(self,
@@ -202,13 +211,7 @@ class OmplRRTWrapper(MyPlanner):
 
         # compute new num_diverged by checking the constraint
         accept, accept_probabilities = self.check_constraint(all_states, all_actions)
-
-        if 'NNClassifierWrapper' in accept_probabilities:
-            final_predicted_state['accept_probability'] = accept_probabilities['NNClassifierWrapper']
-        elif 'NNClassifier2Wrapper' in accept_probabilities:
-            final_predicted_state['accept_probability'] = accept_probabilities['NNClassifier2Wrapper']
-        else:
-            final_predicted_state['accept_probability'] = -1
+        add_accept_probability(accept_probabilities, final_predicted_state)
 
         if accept:
             final_predicted_state['num_diverged'] = np.array([0.0])
@@ -497,6 +500,15 @@ class OmplRRTWrapper(MyPlanner):
                                                                     proposed_action_seq_to_end)
             classifier_accept, accept_probabilities = self.check_constraint(proposed_state_seq_to_end,
                                                                             proposed_action_seq_to_end)
+            # copy the old/new accept probabilites in the states, cuz propagate produces state w/o accept probabilities
+            proposed_state_seq_to_end[0]['accept_probability'] = state_sequence[start_t]['accept_probability']
+            for j, proposed_state_j in enumerate(proposed_state_seq_to_end[1:]):
+                if 'NNClassifierWrapper' in accept_probabilities:
+                    proposed_state_j['accept_probability'] = accept_probabilities['NNClassifierWrapper'][j]
+                elif 'NNClassifier2Wrapper' in accept_probabilities:
+                    proposed_state_j['accept_probability'] = accept_probabilities['NNClassifier2Wrapper'][j]
+                else:
+                    proposed_state_j['accept_probability'] = -1
             proposed_state_seq = state_sequence[:start_t] + proposed_state_seq_to_end
 
             # NOTE: we don't check this because smoothing is run even when we Timeout and the goal wasn't reached

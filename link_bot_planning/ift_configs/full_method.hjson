@@ -8,7 +8,6 @@
     fine_tune_lstm: true
     fine_tune_output: true
     learning_rate: 0.001
-    augmentation_config_dir: /media/shared/pretransfer_initial_configs/car3/
     epochs: 25
     early_stopping: false
   }

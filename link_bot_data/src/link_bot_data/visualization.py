@@ -56,7 +56,6 @@ def recovery_transition_viz_t(metadata: Dict, state_keys: List[str]):
 def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_state_keys, true_state_keys: Optional):
     def _classifier_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int):
         pred_t = index_time_with_metadata(metadata, example, state_metadata_keys + predicted_state_keys, t=t)
-        print(example['predicted/accept_probability'])
         try_adding_aco(state=pred_t, example=example)
         scenario.plot_state_rviz(pred_t, label='predicted', color='#0000ffff')
 

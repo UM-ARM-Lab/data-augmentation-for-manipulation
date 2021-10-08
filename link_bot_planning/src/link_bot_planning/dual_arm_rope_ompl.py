@@ -48,6 +48,8 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
 
         if 'accept_probability' in state_np:
             state_out[state_component_idx][0] = np.float64(state_np['accept_probability'])
+        else:
+            state_out[state_component_idx][0] = -1.0
         state_component_idx += 1
 
     def numpy_to_ompl_control(self, state_np: Dict, control_np: Dict, control_out: oc.CompoundControl):
