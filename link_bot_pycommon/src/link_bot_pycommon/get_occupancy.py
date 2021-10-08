@@ -63,7 +63,7 @@ def get_environment_for_extents_3d(extent,
         'res':          res,
         'origin':       origin,
         'extent':       extent,
-        'origin_point': ros_numpy.numpify(response.origin_point_expanded),
+        'origin_point': ros_numpy.numpify(response.origin_point),
     }
 
 
