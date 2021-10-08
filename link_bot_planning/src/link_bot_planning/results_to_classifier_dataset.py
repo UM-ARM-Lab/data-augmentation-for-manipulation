@@ -19,8 +19,8 @@ from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.split_dataset import split_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree, PlanningResult
-from link_bot_planning.trial_result import ExecutionResult
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
+from link_bot_planning.trial_result import ExecutionResult
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions
@@ -48,7 +48,7 @@ class ResultsToClassifierDataset:
                  regenerate: bool = False,
                  verbose: int = 1,
                  only_rejected_transitions: bool = False,
-                 max_examples_per_trial: Optional[int] = 500,
+                 max_examples_per_trial: Optional[int] = None,
                  val_split=DEFAULT_VAL_SPLIT,
                  test_split=DEFAULT_TEST_SPLIT,
                  fwd_model: Optional = None,
@@ -329,9 +329,9 @@ class ResultsToClassifierDataset:
         if self.only_rejected_transitions and after_state_pred['num_diverged'].squeeze() != 1:
             return
         if 'accept_probability' not in after_state_pred:
-            after_state_pred['accept_probability'] = -1
+            after_state_pred['accept_probability'] = np.array([-1], np.float32)
         if 'accept_probability' not in before_state_pred:
-            before_state_pred['accept_probability'] = -1
+            before_state_pred['accept_probability'] = np.array([-1], np.float32)
 
         classifier_horizon = 2  # this script only handles this case
         example_states = sequence_of_dicts_to_dict_of_tensors([before_state, after_state])
