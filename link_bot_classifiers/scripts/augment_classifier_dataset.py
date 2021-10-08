@@ -27,7 +27,7 @@ def main():
     tf.get_logger().setLevel(logging.FATAL)
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
-    parser.add_argument('--n-augmentations', type=int, default=3)
+    parser.add_argument('--n-augmentations', type=int, default=10)
     parser.add_argument('--visualize', action='store_true')
 
     args = parser.parse_args()
@@ -51,13 +51,20 @@ def main():
 
     def augment(inputs):
         inputs = batch_examples_dicts([inputs])
+        if args.visualize:
+            scenario.reset_planning_viz()
+
+            inputs_viz = remove_batch(inputs)
+            viz_f(scenario, inputs_viz, t=0, idx=0, color='g')
+            viz_f(scenario, inputs_viz, t=1, idx=1, color='g')
+
         for k in range(args.n_augmentations):
             inputs = model.aug.aug_opt(inputs, batch_size=1, time=2)
 
             if args.visualize:
                 inputs_viz = remove_batch(inputs)
-                viz_f(scenario, inputs_viz, t=0, id=k)
-                viz_f(scenario, inputs_viz, t=1, id=k)
+                viz_f(scenario, inputs_viz, t=0, idx=2 * k + 2, color='#0000ff88')
+                viz_f(scenario, inputs_viz, t=1, idx=2 * k + 3, color='#0000ff88')
 
             yield inputs
 

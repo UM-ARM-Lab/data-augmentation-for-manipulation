@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Union
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
-from progressbar import progressbar
+from tqdm import tqdm
 
 import rospy
 from analysis import results_utils
@@ -15,7 +15,6 @@ from arm_robots.robot import RobotPlanningError
 from gazebo_msgs.msg import LinkStates
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
 from link_bot_data.dataset_utils import add_predicted, write_example, DEFAULT_VAL_SPLIT, DEFAULT_TEST_SPLIT
-from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.split_dataset import split_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree, PlanningResult
@@ -172,7 +171,7 @@ class ResultsToClassifierDataset:
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
             try:
                 examples_gen = self.result_datum_to_classifier_dataset(datum)
-                for example in progressbar(examples_gen):
+                for example in tqdm(examples_gen):
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
                     write_example(self.outdir, example, self.example_idx, self.save_format)
@@ -215,7 +214,7 @@ class ResultsToClassifierDataset:
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
             examples_gen = self.full_result_datum_to_dynamics_dataset(datum)
             max_value = self.precompute_full_tree_size(datum)
-            for example in progressbar(examples_gen, widgets=mywidgets, max_value=max_value):
+            for example in tqdm(examples_gen, widgets=mywidgets, max_value=max_value):
                 self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                 total_examples += 1
                 write_example(self.outdir, example, self.example_idx, self.save_format)
