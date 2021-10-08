@@ -10,8 +10,8 @@ def debug_aug():
     return rospy.get_param("DEBUG_AUG", False)
 
 
-def debug_aug_sgd():
-    return rospy.get_param("DEBUG_AUG_SGD", False)
+def debug_input():
+    return rospy.get_param("DEBUG_INPUT", False)
 
 
 def debug_ik():

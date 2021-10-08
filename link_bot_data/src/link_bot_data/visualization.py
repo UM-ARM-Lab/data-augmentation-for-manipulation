@@ -54,10 +54,10 @@ def recovery_transition_viz_t(metadata: Dict, state_keys: List[str]):
 
 
 def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_state_keys, true_state_keys: Optional):
-    def _classifier_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int):
+    def _classifier_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int, **kwargs):
         pred_t = index_time_with_metadata(metadata, example, state_metadata_keys + predicted_state_keys, t=t)
         try_adding_aco(state=pred_t, example=example)
-        scenario.plot_state_rviz(pred_t, label='predicted', color='#0000ffff')
+        scenario.plot_state_rviz(pred_t, label='predicted', color='#0000ffff', **kwargs)
 
         label_t = example['is_close'][t]
         scenario.plot_is_close(label_t)
@@ -65,7 +65,7 @@ def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_s
         if true_state_keys is not None:
             true_t = index_time_with_metadata(metadata, example, state_metadata_keys + true_state_keys, t=t)
             try_adding_aco(state=true_t, example=example)
-            scenario.plot_state_rviz(true_t, label='actual', color='#ff0000ff', scale=1.1)
+            scenario.plot_state_rviz(true_t, label='actual', color='#ff0000ff', scale=1.1, **kwargs)
 
         if 'error' in example:
             scenario.plot_error_rviz(example['error'][t])

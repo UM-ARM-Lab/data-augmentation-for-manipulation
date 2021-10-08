@@ -28,6 +28,10 @@ def iterative_projection(initial_value,
                          viz: bool = True,
                          ):
     x = initial_value
+
+    if viz:
+        viz_func(None, x, initial_value, target, None)
+
     for i in range(n):
         x_old = tf.identity(x)  # make a copy
 

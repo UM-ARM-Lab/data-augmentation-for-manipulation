@@ -10,13 +10,13 @@ from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 import rospy
 from link_bot_classifiers.aug_opt import AugmentationOptimization
+from link_bot_classifiers.aug_opt_utils import debug_input
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
 # noinspection PyUnresolvedReferences
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
 from link_bot_classifiers.robot_points import RobotVoxelgridInfo
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
-from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import environment_to_vg_msg, \
@@ -29,11 +29,6 @@ from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegativ
     FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
 from moonshine.moonshine_utils import numpify
 from moonshine.my_keras_model import MyKerasModel
-from visualization_msgs.msg import MarkerArray
-
-
-def debug_input():
-    return rospy.get_param("DEBUG_INPUT", False)
 
 
 class NNClassifier(MyKerasModel):
@@ -131,13 +126,12 @@ class NNClassifier(MyKerasModel):
                     'extent':       inputs['extent'][b],
                 }
                 self.scenario.plot_environment_rviz(env_b)
-                self.delete_state_action_markers('aug')
                 origin_point_b = inputs['origin_point'][b].numpy().tolist()
                 self.debug.send_position_transform(origin_point_b, 'origin_point')
 
         if training and self.aug.do_augmentation():
             # returns a copy, does NOT modify inputs in-place
-            inputs = self.aug.augmentation_optimization(inputs, batch_size, time)
+            inputs = self.aug.aug_opt(inputs, batch_size, time)
 
         local_env, local_origin_point = self.get_local_env(inputs, batch_size)
 
@@ -348,12 +342,3 @@ class NNClassifier(MyKerasModel):
             self.debug.plot_state_rviz(inputs, b, t, 'inputs')
 
             anim.step()
-
-    def delete_state_action_markers(self, label):
-        state_delete_msg = MarkerArray(markers=[make_delete_marker(ns=label + '_l'),
-                                                make_delete_marker(ns=label + 'aug_r'),
-                                                make_delete_marker(ns=label + 'aug_rope')])
-        self.scenario.state_viz_pub.publish(state_delete_msg)
-        action_delete_msg = MarkerArray(markers=[make_delete_marker(ns=label)])
-        self.scenario.action_viz_pub.publish(action_delete_msg)
-        self.scenario.arrows_pub.publish(make_delete_markerarray())

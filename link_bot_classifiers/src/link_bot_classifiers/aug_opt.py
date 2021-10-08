@@ -5,11 +5,11 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from pyjacobian_follower import IkParams
 
-import rospy
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.aug_opt_ik import AugOptIk
-from link_bot_classifiers.aug_opt_utils import debug_aug, debug_ik, check_env_constraints, pick_best_params, \
+from link_bot_classifiers.aug_opt_utils import debug_aug, debug_input, debug_ik, check_env_constraints, \
+    pick_best_params, \
     initial_identity_params, transform_obj_points
 from link_bot_classifiers.aug_projection_opt import AugProjOpt
 from link_bot_classifiers.classifier_debugging import ClassifierDebugging
@@ -17,13 +17,15 @@ from link_bot_classifiers.iterative_projection import iterative_projection
 from link_bot_classifiers.local_env_helper import LocalEnvHelper
 from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
+from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.grid_utils import lookup_points_in_vg, send_voxelgrid_tf_origin_point_res, environment_to_vg_msg
+from link_bot_pycommon.grid_utils import lookup_points_in_vg
 from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.geometry import transformation_params_to_matrices
 from moonshine.moonshine_utils import to_list_of_strings
 from sensor_msgs.msg import JointState
+from visualization_msgs.msg import MarkerArray
 
 
 class AugmentationOptimization:
@@ -63,10 +65,10 @@ class AugmentationOptimization:
             self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
                                                                    self.scenario)
 
-    def augmentation_optimization(self,
-                                  inputs: Dict,
-                                  batch_size,
-                                  time):
+    def aug_opt(self, inputs: Dict, batch_size: int, time: int):
+        if debug_aug():
+            self.delete_state_action_markers()
+
         res = inputs['res']
         extent = inputs['extent']
         origin_point = inputs['origin_point']
@@ -76,8 +78,7 @@ class AugmentationOptimization:
         # get all components of the state as a set of points. this could be the swept volume and/or include the robot
         obj_occupancy = lookup_points_in_vg(obj_points, env, res, origin_point, batch_size)
 
-        transformation_matrices, to_local_frame, is_obj_aug_valid = self.opt_object_augmentation(
-            env=env,
+        transformation_matrices, to_local_frame, is_obj_aug_valid = self.aug_obj_transform(
             res=res,
             extent=extent,
             origin_point=origin_point,
@@ -112,13 +113,21 @@ class AugmentationOptimization:
         }
         inputs_aug.update(obj_aug_update)
 
-        if debug_aug():
+        if debug_input():
             for b in debug_viz_batch_indices(batch_size):
                 self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
                 self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
                 self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug_before', color='blue')
                 self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug_after', color='blue')
                 self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
+                env_b = {
+                    'env':          env[b].numpy(),
+                    'res':          res[b].numpy(),
+                    'origin_point': origin_point[b].numpy(),
+                    'extent':       extent[b].numpy(),
+                }
+                self.scenario.plot_environment_rviz(env_b)
+                self.debug.send_position_transform(origin_point[b], 'origin_point')
 
         default_robot_positions = inputs[add_predicted('joint_positions')][:, 0]
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs_aug, default_robot_positions, batch_size)
@@ -136,31 +145,16 @@ class AugmentationOptimization:
 
         return inputs_aug
 
-    def opt_object_augmentation(self,
-                                env,
-                                res,
-                                extent,
-                                origin_point,
-                                sdf,
-                                sdf_grad,
-                                obj_points,
-                                obj_occupancy,
-                                batch_size,
-                                ):
-        if debug_aug():
-            for b in debug_viz_batch_indices(batch_size):
-                env_dict = {
-                    'env': env[b].numpy(),
-                    'res': res[b].numpy(),
-                }
-                msg = environment_to_vg_msg(env_dict, frame='env_aug_vg', stamp=rospy.Time(0))
-                self.debug.env_aug_pub1.publish(msg)
-
-                send_voxelgrid_tf_origin_point_res(self.broadcaster,
-                                                   origin_point=origin_point[b],
-                                                   res=res[b],
-                                                   frame='env_aug_vg')
-
+    def aug_obj_transform(self,
+                          res,
+                          extent,
+                          origin_point,
+                          sdf,
+                          sdf_grad,
+                          obj_points,
+                          obj_occupancy,
+                          batch_size: int,
+                          ):
         initial_transformation_params = initial_identity_params(batch_size)
         target_transformation_params = self.sample_target_transform_params(batch_size)
         project_opt = AugProjOpt(aug_opt=self,
@@ -172,6 +166,8 @@ class AugmentationOptimization:
                                  batch_size=batch_size,
                                  obj_points=obj_points,
                                  obj_occupancy=obj_occupancy)
+        if debug_aug():
+            project_opt.clear_viz()
         not_progressing_threshold = self.hparams['not_progressing_threshold']
         obj_transforms, viz_vars = iterative_projection(initial_value=initial_transformation_params,
                                                         target=target_transformation_params,
@@ -187,26 +183,26 @@ class AugmentationOptimization:
         transformation_matrices = transformation_params_to_matrices(obj_transforms, batch_size)
         obj_points_aug, to_local_frame = transform_obj_points(obj_points, transformation_matrices)
 
-        is_valid = self.check_is_valid(obj_points_aug,
-                                       obj_occupancy,
-                                       extent,
-                                       res,
-                                       project_opt.obj_sdf,
-                                       viz_vars.sdf_aug)
+        is_valid = self.check_is_valid(obj_points_aug=obj_points_aug,
+                                       obj_occupancy=obj_occupancy,
+                                       extent=extent,
+                                       res=res,
+                                       sdf=project_opt.obj_sdf,
+                                       sdf_aug=viz_vars.sdf_aug)
 
         return transformation_matrices, to_local_frame, is_valid
 
-    def check_is_valid(self, obj_points_aug, attract_mask, extent, res, sdf_dist, sdf_dist_aug):
+    def check_is_valid(self, obj_points_aug, obj_occupancy, extent, res, sdf, sdf_aug):
         bbox_loss_batch = self.bbox_loss(obj_points_aug, extent)
         bbox_constraint_satisfied = tf.cast(tf.reduce_sum(bbox_loss_batch, axis=-1) == 0, tf.float32)
 
-        env_constraints_satisfied_ = check_env_constraints(attract_mask, sdf_dist_aug, res)
+        env_constraints_satisfied_ = check_env_constraints(obj_occupancy, sdf_aug, res)
         num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=1)
         env_constraints_satisfied = tf.cast(num_env_constraints_violated < self.hparams['max_env_violations'],
                                             tf.float32)
 
-        min_dist = tf.reduce_min(sdf_dist, axis=1)
-        min_dist_aug = tf.reduce_min(sdf_dist_aug, axis=1)
+        min_dist = tf.reduce_min(sdf, axis=1)
+        min_dist_aug = tf.reduce_min(sdf_aug, axis=1)
         delta_min_dist = tf.abs(min_dist - min_dist_aug)
         delta_min_dist_satisfied = tf.cast(delta_min_dist < self.hparams['delta_min_dist_threshold'], tf.float32)
 
@@ -346,3 +342,14 @@ class AugmentationOptimization:
         upper_extent_loss = tf.maximum(0., lower_extent - obj_points_aug)
         bbox_loss = tf.reduce_sum(lower_extent_loss + upper_extent_loss, axis=-1)
         return self.hparams['bbox_weight'] * bbox_loss
+
+    def delete_state_action_markers(self):
+        label = 'aug'
+        state_delete_msg = MarkerArray(markers=[make_delete_marker(ns=label + '_l'),
+                                                make_delete_marker(ns=label + '_r'),
+                                                make_delete_marker(ns=label + '_rope')])
+        self.scenario.state_viz_pub.publish(state_delete_msg)
+        action_delete_msg = MarkerArray(markers=[make_delete_marker(ns=label)])
+        self.scenario.action_viz_pub.publish(action_delete_msg)
+        self.scenario.arrows_pub.publish(make_delete_markerarray())
+        self.scenario.arrows_pub.publish(make_delete_markerarray())

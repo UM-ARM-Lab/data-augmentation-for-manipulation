@@ -59,7 +59,7 @@ def opt_object_manual(self,
         time)
     inputs_aug.update(object_aug_update)
 
-    if debug_aug_sgd():
+    if debug_aug():
         for b in debug_viz_batch_indices(batch_size):
             self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
             self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')

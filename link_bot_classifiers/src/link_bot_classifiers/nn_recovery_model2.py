@@ -152,7 +152,7 @@ class NNRecoveryModel(MyKerasModel):
             self.debug_viz_local_env_pre_aug(inputs)
 
         if training and self.aug.do_augmentation():
-            self.aug.augmentation_optimization(inputs, batch_size, time=2)
+            self.aug.aug_opt(inputs, batch_size, time=2)
 
         return inputs
 
