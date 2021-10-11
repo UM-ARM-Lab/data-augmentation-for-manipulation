@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1269</width>
+    <width>1316</width>
     <height>38</height>
    </rect>
   </property>
@@ -88,6 +88,16 @@
     </widget>
    </item>
    <item>
+    <widget class="QPushButton" name="play_backward_button">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="icon">
+      <iconset theme="media-skip-backward-symbolic"/>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QPushButton" name="backward_button">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -102,34 +112,20 @@
       </size>
      </property>
      <property name="text">
-      <string>Step backward</string>
+      <string/>
      </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QPushButton" name="play_backward_button">
-     <property name="text">
-      <string>Play Backward</string>
+     <property name="icon">
+      <iconset theme="media-seek-backward-symbolic"/>
      </property>
     </widget>
    </item>
    <item>
     <widget class="QPushButton" name="pause_button">
      <property name="text">
-      <string>Pause</string>
+      <string/>
      </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QPushButton" name="play_forward_button">
-     <property name="minimumSize">
-      <size>
-       <width>50</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="text">
-      <string>Play Forward</string>
+     <property name="icon">
+      <iconset theme="media-playback-pause"/>
      </property>
     </widget>
    </item>
@@ -142,11 +138,29 @@
       </size>
      </property>
      <property name="text">
-      <string>Step Forward</string>
+      <string/>
      </property>
      <property name="icon">
-      <iconset theme="SP_MediaSkipForward">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="media-seek-forward-symbolic"/>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="play_forward_button">
+     <property name="minimumSize">
+      <size>
+       <width>50</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="icon">
+      <iconset theme="media-skip-forward-symbolic"/>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
      </property>
     </widget>
    </item>
