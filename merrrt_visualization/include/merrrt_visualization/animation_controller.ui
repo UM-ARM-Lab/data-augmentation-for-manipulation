@@ -64,6 +64,12 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
+     <property name="maximumSize">
+      <size>
+       <width>45</width>
+       <height>16777215</height>
+      </size>
+     </property>
     </widget>
    </item>
    <item>
@@ -93,7 +99,8 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset theme="media-skip-backward-symbolic"/>
+      <iconset theme="media-skip-backward-symbolic">
+       <normaloff>.</normaloff>.</iconset>
      </property>
     </widget>
    </item>
@@ -115,7 +122,8 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset theme="media-seek-backward-symbolic"/>
+      <iconset theme="media-seek-backward-symbolic">
+       <normaloff>.</normaloff>.</iconset>
      </property>
     </widget>
    </item>
@@ -125,7 +133,8 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset theme="media-playback-pause"/>
+      <iconset theme="media-playback-pause">
+       <normaloff>.</normaloff>.</iconset>
      </property>
     </widget>
    </item>
@@ -141,7 +150,8 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset theme="media-seek-forward-symbolic"/>
+      <iconset theme="media-seek-forward-symbolic">
+       <normaloff>.</normaloff>.</iconset>
      </property>
     </widget>
    </item>
@@ -157,7 +167,8 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset theme="media-skip-forward-symbolic"/>
+      <iconset theme="media-skip-forward-symbolic">
+       <normaloff>.</normaloff>.</iconset>
      </property>
      <property name="flat">
       <bool>false</bool>
