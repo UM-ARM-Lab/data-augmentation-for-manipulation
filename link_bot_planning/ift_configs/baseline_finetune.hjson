@@ -28,7 +28,4 @@
   results_to_recovery_dataset: null
   labeling_params_update: {
   }
-  pretraining: {
-    use_pretraining: false
-  }
 }
