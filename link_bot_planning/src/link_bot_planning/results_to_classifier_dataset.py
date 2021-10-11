@@ -214,7 +214,7 @@ class ResultsToClassifierDataset:
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
             examples_gen = self.full_result_datum_to_dynamics_dataset(datum)
             max_value = self.precompute_full_tree_size(datum)
-            for example in tqdm(examples_gen, widgets=mywidgets, max_value=max_value):
+            for example in tqdm(examples_gen, total=max_value):
                 self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                 total_examples += 1
                 write_example(self.outdir, example, self.example_idx, self.save_format)

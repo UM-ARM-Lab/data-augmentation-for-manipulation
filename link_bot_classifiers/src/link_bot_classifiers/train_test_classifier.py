@@ -1,7 +1,9 @@
 #!/usr/bin/env python
+import operator
 import pathlib
 import pickle
 import uuid
+from functools import reduce
 from time import time
 from typing import List, Optional, Dict, Callable
 
@@ -25,6 +27,7 @@ from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data import dynamodb_utils
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import batch_tf_dataset, get_filter, deserialize_scene_msg
+from link_bot_data.dynamodb_utils import get_classifier_df
 from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.visualization import init_viz_env
@@ -42,6 +45,8 @@ from state_space_dynamics.train_test_dynamics import setup_training_paths
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 
+
+df = None
 
 def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
     hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset)
@@ -247,6 +252,11 @@ def eval_n_main(dataset_dirs: List[pathlib.Path],
                 balance: bool = False,
                 scenario: Optional[ScenarioWithVisualization] = None,
                 **kwargs):
+    global df
+    if df is None:
+        df = get_classifier_df()
+
+
     for dataset_dir in dataset_dirs:
         print(Fore.GREEN + dataset_dir.name + Fore.RESET)
         dataset_loader, dataset = setup_eval_dataset(scenario=scenario, dataset_dirs=[dataset_dir], mode=mode,
@@ -258,6 +268,18 @@ def eval_n_main(dataset_dirs: List[pathlib.Path],
         for checkpoint in checkpoints:
             trial_path = checkpoint.parent.absolute()
             _, params = filepath_tools.create_or_load_trial(trial_path=trial_path)
+
+            # check for duplicates
+            conditions = [
+                df['classifier'] == checkpoint.as_posix(),
+                df['dataset_dirs'] == dataset_dir.as_posix(),
+            ]
+            duplicate = reduce(operator.iand, conditions).any()
+
+            if duplicate and kwargs.get("skip_duplicates", True):
+                print("Duplicate! Skipping...")
+                continue
+
             model_class = link_bot_classifiers.get_model.get_model(params['model_class'])
 
             model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario(),
@@ -387,6 +409,7 @@ def put_eval_in_database(val_metrics,
         'invariance_model':         invariance_model,
     }
     item.update({k: float(v.result().numpy().squeeze()) for k, v in val_metrics.items()})
+
     put_item(item=item, table=dynamodb_utils.classifier_table(kwargs.get("debug", False)))
 
 
