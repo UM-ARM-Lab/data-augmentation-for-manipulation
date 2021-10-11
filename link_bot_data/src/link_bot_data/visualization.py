@@ -70,6 +70,10 @@ def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_s
             true_s_color = kw_color if kw_color is not None else '#ff0000ff'
             scenario.plot_state_rviz(true_t, label='actual', scale=1.1, color=true_s_color, **kwargs)
 
+        if add_predicted('accept_probability') in example:
+            p_t = example[add_predicted('accept_probability')][t, 0]
+            scenario.plot_accept_probability(p_t)
+
         if 'error' in example:
             scenario.plot_error_rviz(example['error'][t])
 

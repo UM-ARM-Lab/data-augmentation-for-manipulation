@@ -109,6 +109,7 @@ class ResultsToClassifierDataset:
         else:
             self.results_to_classifier_dataset()
 
+        print(f'{self.val_split:=} {self.test_split:=}')
         split_dataset(self.outdir, val_split=self.val_split, test_split=self.test_split)
 
     def save_hparams(self):
