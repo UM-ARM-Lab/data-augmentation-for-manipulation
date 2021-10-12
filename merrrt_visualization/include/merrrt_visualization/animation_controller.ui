@@ -193,7 +193,7 @@
      <item>
       <widget class="QPushButton" name="pause_button">
        <property name="toolTip">
-        <string>play</string>
+        <string>pause</string>
        </property>
        <property name="text">
         <string/>
@@ -239,7 +239,7 @@
         <string/>
        </property>
        <property name="icon">
-        <iconset theme="media-skip-forward-symbolic">
+        <iconset theme="media-playback-start-symbolic">
          <normaloff>.</normaloff>.</iconset>
        </property>
        <property name="flat">

@@ -24,6 +24,7 @@
   results_to_recovery_dataset: null
   labeling_params_update: {
     augmentation: {
+      version: 6.2
       # weights for the different terms in the objective
       sdf_grad_weight: 1.0
       bbox_weight: 0.05
