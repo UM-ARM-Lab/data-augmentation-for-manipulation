@@ -183,10 +183,11 @@ class ModelRunner:
                 self.latest_checkpoint_manager.save()
 
         train_full_metrics_results = {k: m.result() for k, m in train_full_metrics.items()}
-        for k, v in self.params['termination_criteria'].items():
-            if train_full_metrics_results[k] > v:
-                done = True
-                break
+        if 'termination_criteria' in self.params:
+            for k, v in self.params['termination_criteria'].items():
+                if train_full_metrics_results[k] > v:
+                    done = True
+                    break
 
         return done
 
