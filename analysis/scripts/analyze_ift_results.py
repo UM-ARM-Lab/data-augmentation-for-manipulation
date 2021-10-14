@@ -37,6 +37,7 @@ def metrics_main(args):
         'normalized_model_error': 'mean',
         'combined_error':         'mean',
         'min_error_discrepancy':  'mean',
+        'total_time':             'mean',
         'min_planning_error':     'mean',
         'used_augmentation':      rlast,
         iter_key:                 rlast,

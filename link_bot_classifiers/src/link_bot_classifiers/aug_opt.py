@@ -28,6 +28,23 @@ from sdf_tools import utils_3d
 from sensor_msgs.msg import JointState
 from visualization_msgs.msg import MarkerArray
 
+cache_ = {}
+
+
+def sdf_and_grad_cached(env, res, origin_point, batch_size):
+    global cache_
+
+    if isinstance(env, tf.Tensor):
+        key = env.numpy().tostring() + res.numpy().tostring() + origin_point.numpy().tostring()
+    else:
+        key = env.tostring() + str(res).encode("utf-8") + origin_point.tostring()
+    if key in cache_:
+        return cache_[key]
+    print("Computing SDF, slow!!!", len(cache_))
+    v = utils_3d.compute_sdf_and_gradient_batch(env, res, origin_point, batch_size)
+    cache_[key] = v
+    return v
+
 
 class AugmentationOptimization:
 
@@ -71,10 +88,7 @@ class AugmentationOptimization:
             self.delete_state_action_markers()
 
         if 'sdf' not in inputs or 'sdf_grad' not in inputs:
-            sdf, sdf_grad = utils_3d.compute_sdf_and_gradient_batch(inputs['env'],
-                                                                    inputs['res'],
-                                                                    inputs['origin_point'],
-                                                                    batch_size)
+            sdf, sdf_grad = sdf_and_grad_cached(inputs['env'], inputs['res'], inputs['origin_point'], batch_size)
             inputs['sdf'] = sdf
             inputs['sdf_grad'] = sdf_grad
 

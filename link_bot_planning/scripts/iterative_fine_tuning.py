@@ -100,7 +100,6 @@ class IterativeFineTuning:
         self.ift_uuid = self.job_chunker.get('ift_uuid', str(uuid4()))
         self.n_augmentations = self.job_chunker.get('n_augmentations')
         self.n_augmentations = None if self.n_augmentations is None else int(self.n_augmentations)
-        print(f"{self.n_augmentations:=}")
 
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration

@@ -9,8 +9,11 @@
     fine_tune_lstm: true
     fine_tune_output: true
     learning_rate: 0.001
-    epochs: 5
+    epochs: 125  # setting this to be n_augmentations * epochs, as specified in full_method.hjson
     early_stopping: false
+    termination_criteria: {
+      accuracy: 0.95
+    }
   }
   fine_tune_recovery: null
   planner_params_update: {

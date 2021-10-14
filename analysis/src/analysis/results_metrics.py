@@ -167,7 +167,7 @@ def is_fine_tuned(path: pathlib.Path, __: ExperimentScenario, trial_metadata: Di
 
 @metrics_funcs
 def accept_type(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
-    return trial_metadata['planner_params']['accept_type']
+    return trial_metadata['planner_params'].get('accept_type', 'strict')
 
 
 @metrics_funcs
