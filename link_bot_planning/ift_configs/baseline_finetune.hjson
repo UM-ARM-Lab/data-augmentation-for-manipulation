@@ -1,4 +1,5 @@
 {
+  n_augmentations: null
   full_retrain_classifier: false
   trials_per_iteration: 1
   trials_generator_type: random

@@ -14,6 +14,7 @@ from more_itertools import chunked
 
 from analysis.results_utils import list_all_planning_results_trials
 from arc_utilities.algorithms import nested_dict_update
+from link_bot_classifiers.augment_classifier_dataset import augment_classifier_dataset
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_classifiers.fine_tune_recovery import fine_tune_recovery
 from link_bot_gazebo import gazebo_services
@@ -97,6 +98,8 @@ class IterativeFineTuning:
         self.job_chunker.store_result('to_env', 'car3')
 
         self.ift_uuid = self.job_chunker.get('ift_uuid', str(uuid4()))
+        self.n_augmentations = self.job_chunker.get('n_augmentations')
+        self.n_augmentations = None if self.n_augmentations is None else int(self.n_augmentations)
 
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
@@ -161,7 +164,6 @@ class IterativeFineTuning:
         initial_classifier_checkpoint = pathify(self.job_chunker.get('initial_classifier_checkpoint'))
         initial_recovery_checkpoint = pathify(self.job_chunker.get('initial_recovery_checkpoint'))
 
-        # NOTE: should I append the pretraining datasets to this? Possibly...
         fine_tuning_classifier_dataset_dirs = []
         fine_tuning_recovery_dataset_dirs = []
 
@@ -271,7 +273,6 @@ class IterativeFineTuning:
         dataset_chunker = iteration_data.iteration_chunker.sub_chunker('classifier dataset')
         new_dataset_dir = pathify(dataset_chunker.get('new_dataset_dir'))
         if new_dataset_dir is None:
-            print("Updating Classifier Dataset")
             [p.suspend() for p in self.gazebo_processes]
 
             new_dataset_dir = self.outdir / 'classifier_datasets' / f'iteration_{i:04d}_dataset'
@@ -293,7 +294,29 @@ class IterativeFineTuning:
             dataset_chunker.store_result('new_dataset_dir', new_dataset_dir_rel.as_posix())
         else:
             new_dataset_dir = self.outdir / new_dataset_dir
-        return new_dataset_dir
+
+        if self.n_augmentations is None:
+            return new_dataset_dir
+
+        new_aug_dataset_dir = pathify(dataset_chunker.get("new_aug_dataset_dir"))
+        if new_aug_dataset_dir is None:
+            [p.suspend() for p in self.gazebo_processes]
+
+            aug_outdir = self.outdir / 'classifier_datasets_aug' / f'iteration_{i:04d}_dataset'
+            aug_outdir.mkdir(exist_ok=True, parents=True)
+            hparams = load_hjson(pathlib.Path("hparams/classifier/aug.hjson"))
+            new_aug_dataset_dir = augment_classifier_dataset(dataset_dir=new_dataset_dir,
+                                                             hparams=hparams,
+                                                             outdir=aug_outdir,
+                                                             n_augmentations=self.n_augmentations,
+                                                             scenario=self.scenario,
+                                                             )
+            new_aug_dataset_dir_rel = new_aug_dataset_dir.relative_to(self.outdir)
+            dataset_chunker.store_result('new_aug_dataset_dir', new_aug_dataset_dir_rel.as_posix())
+        else:
+            new_aug_dataset_dir = self.outdir / new_aug_dataset_dir
+
+        return new_aug_dataset_dir
 
     def update_recovery_datasets(self, iteration_data: IterationData, planning_results_dir):
         i = iteration_data.iteration
@@ -352,7 +375,7 @@ class IterativeFineTuning:
                 trials_directory=self.trials_directory,
                 batch_size=adaptive_batch_size,
                 verbose=self.verbose,
-                validate_first=True,
+                no_validate=True,
                 model_hparams_update=self.job_chunker.get('labeling_params_update'),
                 **self.job_chunker.get('fine_tune_classifier'))
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
