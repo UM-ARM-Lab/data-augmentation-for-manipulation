@@ -174,7 +174,7 @@ class NNRecoveryModel(MyKerasModel):
             'loss': LossMetric(),
         }
 
-    def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
+    def compute_metrics(self, metrics: Dict[str, Metric], dataset_element, outputs):
         pass
 
     def call(self, input_dict: Dict, training, **kwargs):

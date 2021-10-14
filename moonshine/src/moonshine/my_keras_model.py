@@ -43,7 +43,7 @@ class MyKerasModel(tf.keras.Model):
         """
         raise NotImplementedError()
 
-    def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
+    def compute_metrics(self, metrics: Dict[str, Metric], dataset_element, outputs):
         return {}
 
     # No tf.function is needed here, since train_step is decorated
@@ -81,9 +81,7 @@ class MyKerasModel(tf.keras.Model):
 
         self.apply_gradients(tape, train_element, train_outputs, train_losses, metrics)
 
-        self.compute_metrics(metrics, train_losses, train_element, train_outputs)
-        for loss_name_k, batch_loss_k in train_losses.items():
-            metrics[loss_name_k].update_state(batch_loss_k)
+        self.update_metrics(metrics, train_element, train_losses, train_outputs)
 
         return train_outputs
 
@@ -95,11 +93,14 @@ class MyKerasModel(tf.keras.Model):
         val_outputs = self.call(val_element, training=False)
         val_losses = self.compute_loss(val_element, val_outputs)
 
-        self.compute_metrics(metrics, val_losses, val_element, val_outputs)
-        for loss_name_k, batch_loss_k in val_losses.items():
-            metrics[loss_name_k].update_state(batch_loss_k)
+        self.update_metrics(metrics, val_element, val_losses, val_outputs)
 
         return val_outputs
+
+    def update_metrics(self, metrics, inputs, losses, outputs):
+        self.compute_metrics(metrics, inputs, outputs)
+        for loss_name_k, batch_loss_k in losses.items():
+            metrics[loss_name_k].update_state(batch_loss_k)
 
     def create_metrics(self):
         if self.verbose > -1:

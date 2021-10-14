@@ -66,9 +66,9 @@ class UnconstrainedDynamicsNN(MyKerasModel):
             'loss': self.scenario.dynamics_loss_function(example, outputs)
         }
 
-    def compute_metrics(self, example, outputs):
-        metrics = self.scenario.dynamics_metrics_function(example, outputs)
-        metrics['loss'] = self.scenario.dynamics_loss_function(example, outputs)
+    def compute_metrics(self, metrics, dataset_element, outputs):
+        metrics = self.scenario.dynamics_metrics_function(dataset_element, outputs)
+        metrics['loss'] = self.scenario.dynamics_loss_function(dataset_element, outputs)
         return metrics
 
 

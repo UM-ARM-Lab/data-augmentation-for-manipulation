@@ -137,8 +137,12 @@ class ModelRunner:
     def write_val_summary(self, summary_dict):
         self.write_summary(self.val_summary_writer, summary_dict)
 
-    def train_epoch(self, train_dataset, val_dataset, train_metrics, val_metrics):
+    def train_epoch(self, train_dataset, val_dataset, train_full_metrics, train_metrics, val_metrics):
         t0 = time.time()
+        done = False
+
+        for v in train_full_metrics.values():
+            v.reset_states()
 
         for batch_idx, train_batch in enumerate(tqdm(train_dataset)):
             self.model.scenario.heartbeat()
@@ -150,8 +154,10 @@ class ModelRunner:
 
             p = self.prof.start(batch_idx=batch_idx, epoch=self.latest_ckpt.epoch.numpy())
             with tf.profiler.experimental.Trace('TraceContext', graph_type='train', batch_idx=batch_idx):
-                self.model.train_step(train_batch, train_metrics)
+                train_outputs = self.model.train_step(train_batch, train_metrics)
             p.stop()
+
+            self.model.compute_metrics(train_full_metrics, train_batch, train_outputs)
 
             self.write_train_summary({k: m.result() for k, m in train_metrics.items()})
 
@@ -175,6 +181,14 @@ class ModelRunner:
                     and current_minute % self.save_every_n_minutes == 0:
                 self.latest_minute = current_minute
                 self.latest_checkpoint_manager.save()
+
+        train_full_metrics_results = {k: m.result() for k, m in train_full_metrics.items()}
+        for k, v in self.params['termination_criteria'].items():
+            if train_full_metrics_results[k] > v:
+                done = True
+                break
+
+        return done
 
     def mid_epoch_validation(self, val_dataset, val_metrics):
         for v in val_metrics.values():
@@ -217,6 +231,7 @@ class ModelRunner:
     def train(self, train_dataset, val_dataset, num_epochs):
         val_metrics = self.model.create_metrics()
         train_metrics = self.model.create_metrics()
+        train_full_metrics = self.model.create_metrics()
 
         last_epoch = self.latest_ckpt.epoch + num_epochs
         try:
@@ -237,7 +252,7 @@ class ModelRunner:
                 print('')
                 msg_fmt = Fore.GREEN + Style.BRIGHT + 'Epoch {:3d}/{}, Group Name [{}]' + Style.RESET_ALL
                 print(msg_fmt.format(self.latest_ckpt.epoch.numpy(), last_epoch, self.group_name))
-                self.train_epoch(train_dataset, val_dataset, train_metrics, val_metrics)
+                done = self.train_epoch(train_dataset, val_dataset, train_full_metrics, train_metrics, val_metrics)
                 self.latest_checkpoint_manager.save()
                 save_path = self.latest_checkpoint_manager.save()
                 print(Fore.CYAN + "Saving " + save_path + Fore.RESET)
@@ -254,6 +269,10 @@ class ModelRunner:
                     print(Fore.CYAN + f"New best checkpoint {save_path}" + Fore.RESET)
                 elif self.early_stopping:
                     print(Fore.YELLOW + f"No new best checkpoint, triggering early stopping." + Fore.RESET)
+                    break
+
+                if done:
+                    print(Fore.YELLOW + f"Done according to train metrics" + Fore.RESET)
                     break
 
         except KeyboardInterrupt:

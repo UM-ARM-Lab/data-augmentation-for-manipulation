@@ -34,6 +34,9 @@
   with_robot_frame: true
   negative_label_weight: 0.50
   include_robot_geometry: true
+  termination_criteria: {
+    accuracy: 0.95
+  }
   augmentation: {
     # weights for the different terms in the objective
     sdf_grad_weight: 1.0

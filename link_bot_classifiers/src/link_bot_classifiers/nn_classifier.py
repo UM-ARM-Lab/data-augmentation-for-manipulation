@@ -230,7 +230,7 @@ class NNClassifier(MyKerasModel):
             'class_balance':         Mean(),
         }
 
-    def compute_metrics(self, metrics: Dict[str, Metric], losses: Dict, dataset_element, outputs):
+    def compute_metrics(self, metrics: Dict[str, Metric], dataset_element, outputs):
         labels = tf.expand_dims(dataset_element['is_close'][:, 1:], axis=2)
         probabilities = outputs['probabilities']
         metrics['accuracy'].update_state(y_true=labels, y_pred=probabilities)
