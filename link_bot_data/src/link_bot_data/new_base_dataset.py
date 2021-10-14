@@ -5,7 +5,7 @@ from typing import List, Dict, Optional, Callable
 import numpy as np
 import tensorflow as tf
 
-from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example
+from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example, add_predicted
 from link_bot_data.new_dataset_utils import get_filenames, UNUSED_COMPAT, load_single
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -100,7 +100,7 @@ class NewBaseDataset:
             return list(batch_sequence(filenames, batch_size, drop_remainder))
 
         def _include_batch_size(example: Dict):
-            actual_batch_size = len(example['rope'])
+            actual_batch_size = len(example[add_predicted('rope')])
             example['batch_size'] = actual_batch_size
             return example
 

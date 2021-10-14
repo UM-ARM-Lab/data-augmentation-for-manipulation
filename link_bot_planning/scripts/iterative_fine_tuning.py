@@ -100,6 +100,7 @@ class IterativeFineTuning:
         self.ift_uuid = self.job_chunker.get('ift_uuid', str(uuid4()))
         self.n_augmentations = self.job_chunker.get('n_augmentations')
         self.n_augmentations = None if self.n_augmentations is None else int(self.n_augmentations)
+        print(f"{self.n_augmentations:=}")
 
         self.initial_planner_params["log_full_tree"] = self.log_full_tree
         self.initial_planner_params['classifier_model_dir'] = []  # this gets replace at every iteration
@@ -305,6 +306,7 @@ class IterativeFineTuning:
             aug_outdir = self.outdir / 'classifier_datasets_aug' / f'iteration_{i:04d}_dataset'
             aug_outdir.mkdir(exist_ok=True, parents=True)
             hparams = load_hjson(pathlib.Path("hparams/classifier/aug.hjson"))
+            print(Fore.MAGENTA + "Creating augmentations" + Fore.RESET)
             new_aug_dataset_dir = augment_classifier_dataset(dataset_dir=new_dataset_dir,
                                                              hparams=hparams,
                                                              outdir=aug_outdir,

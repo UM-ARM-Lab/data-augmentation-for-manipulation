@@ -26,9 +26,12 @@ def get_gazebo_pids():
     else:
         with GAZEBO_PIDS_FILENAME.open("r") as f:
             pids = [int(l.strip('\n')) for l in f.readlines()]
-        for pid in pids:
-            if not psutil.pid_exists(pid):
-                look_up_new_pids = True
+        if len(pids) == 0:
+            look_up_new_pids = True
+        else:
+            for pid in pids:
+                if not psutil.pid_exists(pid):
+                    look_up_new_pids = True
 
     if look_up_new_pids:
         pids = []

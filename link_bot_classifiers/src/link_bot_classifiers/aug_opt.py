@@ -24,6 +24,7 @@ from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.geometry import transformation_params_to_matrices
 from moonshine.moonshine_utils import to_list_of_strings
+from sdf_tools import utils_3d
 from sensor_msgs.msg import JointState
 from visualization_msgs.msg import MarkerArray
 
@@ -69,6 +70,14 @@ class AugmentationOptimization:
         if debug_aug():
             self.delete_state_action_markers()
 
+        if 'sdf' not in inputs or 'sdf_grad' not in inputs:
+            sdf, sdf_grad = utils_3d.compute_sdf_and_gradient_batch(inputs['env'],
+                                                                    inputs['res'],
+                                                                    inputs['origin_point'],
+                                                                    batch_size)
+            inputs['sdf'] = sdf
+            inputs['sdf_grad'] = sdf_grad
+
         res = inputs['res']
         extent = inputs['extent']
         origin_point = inputs['origin_point']
@@ -110,6 +119,7 @@ class AugmentationOptimization:
             'time':                 inputs['time'],
             'joint_names':          inputs['joint_names'],
             add_predicted('stdev'): inputs[add_predicted('stdev')],
+            'error':                inputs['error'],
         }
         inputs_aug.update(obj_aug_update)
 
