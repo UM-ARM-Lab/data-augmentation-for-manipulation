@@ -8,7 +8,6 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers.augment_classifier_dataset import augment_classifier_dataset
-from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson
 from moonshine.gpu_config import limit_gpu_mem
