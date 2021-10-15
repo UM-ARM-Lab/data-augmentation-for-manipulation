@@ -372,7 +372,11 @@ class IterativeFineTuning:
                                                      max_batch_size=16)
 
             labeling_params_update = self.job_chunker.get('labeling_params_update')
+            if labeling_params_update is None:
+                labeling_params_update = {}
             model_params_update = self.job_chunker.get('model_params_update')
+            if model_params_update is None:
+                model_params_update = {}
             model_params_update = update_nested_dict(labeling_params_update, model_params_update)
             new_latest_checkpoint_dir = fine_tune_classifier(
                 train_dataset_dirs=iteration_data.fine_tuning_classifier_dataset_dirs,
