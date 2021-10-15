@@ -8,7 +8,7 @@ from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import vector_to_points_2d
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.indexing import index_time_with_metadata, index_state_action_with_metadata
+from moonshine.indexing import index_time_with_metadata, index_state_action_with_metadata, try_index_time_with_metadata
 from moonshine.moonshine_utils import numpify
 from std_msgs.msg import Float32
 
@@ -55,7 +55,7 @@ def recovery_transition_viz_t(metadata: Dict, state_keys: List[str]):
 
 def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_state_keys, true_state_keys: Optional):
     def _classifier_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int, **kwargs):
-        pred_t = index_time_with_metadata(metadata, example, state_metadata_keys + predicted_state_keys, t=t)
+        pred_t = try_index_time_with_metadata(metadata, example, state_metadata_keys + predicted_state_keys, t=t)
         try_adding_aco(state=pred_t, example=example)
         kw_color = kwargs.pop('color', None)
         pred_s_color = kw_color if kw_color is not None else '#0000ffff'
@@ -65,12 +65,13 @@ def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_s
         scenario.plot_is_close(label_t)
 
         if true_state_keys is not None:
-            true_t = index_time_with_metadata(metadata, example, state_metadata_keys + true_state_keys, t=t)
+            true_t = try_index_time_with_metadata(metadata, example, state_metadata_keys + true_state_keys, t=t)
             try_adding_aco(state=true_t, example=example)
             true_s_color = kw_color if kw_color is not None else '#ff0000ff'
             scenario.plot_state_rviz(true_t, label='actual', scale=1.1, color=true_s_color, **kwargs)
 
         if add_predicted('accept_probability') in example:
+            print("warning! you might not want this?")
             p_t = example[add_predicted('accept_probability')][t, 0]
             scenario.plot_accept_probability(p_t)
 

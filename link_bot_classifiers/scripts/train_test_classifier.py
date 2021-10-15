@@ -137,7 +137,7 @@ def main():
     viz_parser.add_argument('--verbose', '-v', action='count', default=0)
     viz_parser.add_argument('--only-negative', action='store_true')
     viz_parser.add_argument('--only-positive', action='store_true')
-    viz_parser.add_argument('--only-errors', action='store_true')
+    viz_parser.add_argument('--only-mistakes', action='store_true')
     viz_parser.add_argument('--only-fp', action='store_true')
     viz_parser.add_argument('--only-fn', action='store_true')
     viz_parser.add_argument('--only-tn', action='store_true')

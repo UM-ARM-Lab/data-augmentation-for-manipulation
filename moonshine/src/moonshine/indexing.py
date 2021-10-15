@@ -18,6 +18,11 @@ def index_batch_time_with_metadata(metadata: Dict, example: Dict, keys, b: int, 
     return e_t
 
 
+def try_index_time_with_metadata(metadata: Dict, example: Dict, keys, t: int):
+    e_t = {k: index_time_kv(k, example[k], t) for k in keys if k in example}
+    e_t.update(metadata)
+    return e_t
+
 def index_time_with_metadata(metadata: Dict, example: Dict, keys, t: int):
     e_t = {k: index_time_kv(k, example[k], t) for k in keys}
     e_t.update(metadata)

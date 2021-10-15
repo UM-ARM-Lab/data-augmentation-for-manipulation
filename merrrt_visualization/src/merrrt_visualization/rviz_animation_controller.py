@@ -215,7 +215,6 @@ class RvizAnimation:
         self.ns = ns
 
     def play(self, example: Any):
-        print("Warning: you may need to call numpify!")
         for init_func in self.init_funcs:
             init_func(self.myobj, example)
 

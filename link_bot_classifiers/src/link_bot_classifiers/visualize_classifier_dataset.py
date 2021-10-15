@@ -95,8 +95,8 @@ def visualize_dataset(args, dataset_loader):
         if args.display_type == 'just_count':
             continue
         elif args.display_type == '3d':
-            msg = dataset_loader.get_scenario().make_simple_grippers_marker(example, count)
-            grippers_viz_pub.publish(msg)
+            # msg = dataset_loader.get_scenario().make_simple_grippers_marker(example, count)
+            # grippers_viz_pub.publish(msg)
             dataset_loader.get_scenario().plot_traj_idx_rviz(i)
             # print()
             # print(np.linalg.norm(example['predicted/rope'][1] - example['rope'][1]), example['error'][1])

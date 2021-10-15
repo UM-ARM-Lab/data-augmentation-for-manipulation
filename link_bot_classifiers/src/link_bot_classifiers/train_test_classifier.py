@@ -12,7 +12,7 @@ import numpy as np
 import tensorflow as tf
 from colorama import Fore
 from dynamo_pandas.transactions import put_item
-from progressbar import progressbar
+from tqdm import tqdm
 
 import link_bot_classifiers
 import link_bot_classifiers.get_model
@@ -29,7 +29,6 @@ from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import batch_tf_dataset, get_filter, deserialize_scene_msg
 from link_bot_data.dynamodb_utils import get_classifier_df
 from link_bot_data.load_dataset import get_classifier_dataset_loader
-from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import has_keys
@@ -45,8 +44,8 @@ from state_space_dynamics.train_test_dynamics import setup_training_paths
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 
-
 df = None
+
 
 def setup_hparams(batch_size, dataset_dirs, seed, train_dataset, use_gt_rope):
     hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset)
@@ -256,7 +255,6 @@ def eval_n_main(dataset_dirs: List[pathlib.Path],
     if df is None:
         df = get_classifier_df()
 
-
     for dataset_dir in dataset_dirs:
         print(Fore.GREEN + dataset_dir.name + Fore.RESET)
         dataset_loader, dataset = setup_eval_dataset(scenario=scenario, dataset_dirs=[dataset_dir], mode=mode,
@@ -447,7 +445,7 @@ def compare_main(dataset_dirs: List[pathlib.Path],
             p2_decision = p2 > 0.5
             if p1_decision != p2_decision:
                 # visualize!
-                anim = RvizAnimation(scenario=dataset.get_scenario(),
+                anim = RvizAnimation(myobj=dataset.get_scenario(),
                                      n_time_steps=dataset.horizon,
                                      init_funcs=[init_viz_env,
                                                  dataset.init_viz_action(),
@@ -516,7 +514,7 @@ class ClassifierEvaluation:
 
     def __iter__(self):
         if self.show_progressbar:
-            gen = progressbar(self.dataset, widgets=mywidgets)
+            gen = tqdm(self.dataset)
         else:
             gen = self.dataset
         for batch_idx, example in enumerate(gen):
@@ -570,16 +568,13 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              checkpoint: pathlib.Path,
              mode: str,
              batch_size: int,
-             start_at: int = 0,
-             only_errors: bool = False,
+             only_mistakes: bool = False,
              only_fp: bool = False,
              only_fn: bool = False,
              only_tp: bool = False,
              only_tn: bool = False,
              only_negative: bool = False,
              only_positive: bool = False,
-             use_gt_rope: bool = True,
-             threshold: Optional[float] = None,
              **kwargs):
     count = 0
 
@@ -615,14 +610,14 @@ def viz_main(dataset_dirs: List[pathlib.Path],
         if only_fn:
             if not tf.reduce_all(is_fn):
                 return False
-        if only_errors:
+        if only_mistakes:
             if tf.reduce_all(classifier_is_correct):
                 return False
         return True
 
     view = ClassifierEvaluationFilter(dataset_dirs=dataset_dirs,
                                       checkpoint=checkpoint,
-                                      mode='all',
+                                      mode=mode,
                                       should_keep_example=_should_keep_example,
                                       show_progressbar=False)
 
@@ -644,7 +639,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
                 scenario.plot_accept_probability(accept_probability_t)
                 scenario.plot_traj_idx_rviz(batch_idx * batch_size + b)
 
-            anim = RvizAnimation(scenario=view.dataset_loader.get_scenario(),
+            anim = RvizAnimation(myobj=view.dataset_loader.get_scenario(),
                                  n_time_steps=view.dataset_loader.horizon,
                                  init_funcs=[init_viz_env,
                                              view.dataset_loader.init_viz_action(),
@@ -683,7 +678,7 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
     tf_dataset = tf_dataset.batch(batch_size, drop_remainder=False)
 
     # Evaluate
-    for batch_idx, batch in enumerate(progressbar(tf_dataset, widgets=mywidgets)):
+    for batch_idx, batch in enumerate(tqdm(tf_dataset)):
         batch.update(dataset.batch_metadata)
 
         mean_predictions, stdev_predictions = ensemble.check_constraint_from_example(batch)
@@ -868,7 +863,7 @@ def viz_ensemble_main(dataset_dir: pathlib.Path,
             def _custom_viz_t(scenario: ScenarioWithVisualization, e: Dict, t: int):
                 pass
 
-            anim = RvizAnimation(scenario=dataset.get_scenario(),
+            anim = RvizAnimation(myobj=dataset.get_scenario(),
                                  n_time_steps=dataset.horizon,
                                  init_funcs=[init_viz_env,
                                              dataset.init_viz_action(),
