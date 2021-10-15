@@ -2,6 +2,9 @@ import argparse
 import logging
 import pathlib
 
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 import tensorflow as tf
 
 from arc_utilities import ros_init
@@ -65,11 +68,38 @@ def main():
         outputs.append(outputs_i)
 
     print('n_augmentations:', args.n_augmentations)
-    print(aug_dataset_dir)
-    print(trial_paths)
+    print('aug dataset', aug_dataset_dir.as_posix())
+    for p in trial_paths:
+        print(pathlib.Path(p.parts[5:]).as_posix())
     for outputs_i in outputs:
-        print(outputs_i)
+        assert len(outputs_i) == 1
+        print(outputs_i[0])
+
+    print()
+    print()
+    for outputs_i in outputs:
+        assert len(outputs_i) == 1
+        print(args.n_augmentations, outputs_i[0])
+
+
+
+def plot():
+    df = pd.read_csv("results/how_many_augmentations.csv")
+    df = df.dropna()
+
+    plt.style.use("slides")
+    sns.set(rc={'figure.figsize': (7, 4)})
+
+    fig = plt.figure()
+    ax = plt.gca()
+    sns.lineplot(ax=ax, data=df, x='n_augmentations', y='output', err_style='bars', ci=100)
+    sns.scatterplot(ax=ax, data=df, x='n_augmentations', y='output')
+    ax.set_ylim(0,1)
+
+    plt.savefig("results/how_many_augmentations.png")
+    plt.show()
 
 
 if __name__ == '__main__':
     main()
+    # plot()
