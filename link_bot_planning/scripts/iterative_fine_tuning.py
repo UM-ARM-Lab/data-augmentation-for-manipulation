@@ -10,6 +10,7 @@ from typing import List
 from uuid import uuid4
 
 import numpy as np
+from matplotlib.style.core import update_nested_dict
 from more_itertools import chunked
 
 from analysis.results_utils import list_all_planning_results_trials
@@ -369,6 +370,10 @@ class IterativeFineTuning:
 
             adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_classifier_dataset_dirs,
                                                      max_batch_size=16)
+
+            labeling_params_update = self.job_chunker.get('labeling_params_update')
+            model_params_update = self.job_chunker.get('model_params_update')
+            model_params_update = update_nested_dict(labeling_params_update, model_params_update)
             new_latest_checkpoint_dir = fine_tune_classifier(
                 train_dataset_dirs=iteration_data.fine_tuning_classifier_dataset_dirs,
                 checkpoint=latest_checkpoint,
@@ -377,7 +382,7 @@ class IterativeFineTuning:
                 batch_size=adaptive_batch_size,
                 verbose=self.verbose,
                 no_validate=True,
-                model_hparams_update=self.job_chunker.get('labeling_params_update'),
+                model_hparams_update=model_params_update,
                 **self.job_chunker.get('fine_tune_classifier'))
             new_latest_checkpoint_dir_rel = new_latest_checkpoint_dir.relative_to(self.outdir)
             fine_tune_chunker.store_result('new_latest_checkpoint_dir', new_latest_checkpoint_dir_rel.as_posix())

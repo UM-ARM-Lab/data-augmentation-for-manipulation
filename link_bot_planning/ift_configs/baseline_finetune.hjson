@@ -11,9 +11,6 @@
     learning_rate: 0.001
     epochs: 125  # setting this to be n_augmentations * epochs, as specified in full_method.hjson
     early_stopping: false
-    termination_criteria: {
-      accuracy: 0.95
-    }
   }
   fine_tune_recovery: null
   planner_params_update: {
@@ -26,6 +23,9 @@
     test_split: 0.0
   }
   results_to_recovery_dataset: null
-  labeling_params_update: {
+  model_params_update: {
+    termination_criteria: {
+      accuracy: 0.95
+    }
   }
 }
