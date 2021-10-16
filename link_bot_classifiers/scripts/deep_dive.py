@@ -70,7 +70,7 @@ def main():
     print('n_augmentations:', args.n_augmentations)
     print('aug dataset', aug_dataset_dir.as_posix())
     for p in trial_paths:
-        print(pathlib.Path(p.parts[5:]).as_posix())
+        print(pathlib.Path(*p.parts[5:]).as_posix())
     for outputs_i in outputs:
         assert len(outputs_i) == 1
         print(outputs_i[0])
@@ -82,19 +82,19 @@ def main():
         print(args.n_augmentations, outputs_i[0])
 
 
-
 def plot():
-    df = pd.read_csv("results/how_many_augmentations.csv")
-    df = df.dropna()
 
     plt.style.use("slides")
     sns.set(rc={'figure.figsize': (7, 4)})
 
-    fig = plt.figure()
+    df = pd.read_csv("results/how_many_augmentations.csv")
+    df = df.dropna()
+    plt.figure()
     ax = plt.gca()
     sns.lineplot(ax=ax, data=df, x='n_augmentations', y='output', err_style='bars', ci=100)
     sns.scatterplot(ax=ax, data=df, x='n_augmentations', y='output')
-    ax.set_ylim(0,1)
+    ax.axhline(0.5, color='r')
+    ax.set_ylim(-0.01, 1)
 
     plt.savefig("results/how_many_augmentations.png")
     plt.show()
