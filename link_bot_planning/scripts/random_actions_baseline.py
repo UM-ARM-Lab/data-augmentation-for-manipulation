@@ -19,7 +19,7 @@ from link_bot_gazebo.gazebo_utils import get_gazebo_processes
 from link_bot_planning.planning_evaluation import evaluate_multiple_planning, load_planner_params
 from link_bot_planning.test_scenes import get_all_scene_indices
 from link_bot_pycommon.job_chunking import JobChunker
-from link_bot_pycommon.pycommon import pathify
+from link_bot_pycommon.pycommon import pathify, binary_search
 
 
 def copy(classifier_dataset_i_dir: pathlib.Path, filename: pathlib.Path):
@@ -42,23 +42,6 @@ fwd_model_dir = pathlib.Path("/media/shared/dy_trials/gt_rope_w_robot_ensemble")
 
 def n(i, n_examples):
     return f'iteration_{i:04d}_examples_{n_examples:09d}'
-
-
-def binary_search(n):
-    q = [(0, n)]
-    yield 0
-    yield n
-    while len(q) > 0:
-        low, high = q.pop(0)
-        mid = (high + low) // 2
-        if mid != 0 and mid != n:
-            yield mid
-        if high - low > 1:
-            q.append((low, mid - 1))
-            q.append((mid + 1, high))
-        elif high - low == 1:
-            if high != 0 and high != n:
-                yield high
 
 
 class RandomActionsBaseline:

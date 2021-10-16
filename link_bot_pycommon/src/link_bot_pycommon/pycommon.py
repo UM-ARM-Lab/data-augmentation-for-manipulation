@@ -474,3 +474,20 @@ def path_to_string(p: Optional[pathlib.Path]):
     if p is None:
         return None
     return p.as_posix()
+
+
+def binary_search(n):
+    q = [(0, n)]
+    yield 0
+    yield n
+    while len(q) > 0:
+        low, high = q.pop(0)
+        mid = (high + low) // 2
+        if mid != 0 and mid != n:
+            yield mid
+        if high - low > 1:
+            q.append((low, mid - 1))
+            q.append((mid + 1, high))
+        elif high - low == 1:
+            if high != 0 and high != n:
+                yield high

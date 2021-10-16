@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 import logging
 import pathlib
@@ -7,23 +8,21 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import tensorflow as tf
+from colorama import Fore
 
 from arc_utilities import ros_init
 from link_bot_classifiers.augment_classifier_dataset import augment_classifier_dataset
 from link_bot_classifiers.train_test_classifier import train_main, ClassifierEvaluation
+from link_bot_pycommon import banners
+from link_bot_pycommon.args import run_subparsers
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.job_chunking import JobChunker
+from link_bot_pycommon.pycommon import binary_search
 from moonshine.filepath_tools import load_hjson
 
 
 @ros_init.with_ros("deep_dive")
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--max-models', '-m', type=int, default=3)
-    parser.add_argument('--max-datasets', '-d', type=int, default=3)
-
-    args = parser.parse_args()
-
+def main(args):
     tf.get_logger().setLevel(logging.FATAL)
 
     aug_hparams_filename = pathlib.Path("hparams/classifier/aug.hjson")
@@ -36,7 +35,8 @@ def main():
 
     chunker = JobChunker(logfile_name=pathlib.Path('results/how_many_augmentations.hjson'))
 
-    for n_idx in range(1, 25):
+    nums_augmentations = list(binary_search(25))[1:]
+    for n_idx in nums_augmentations:
         train_eval_for_k(chunker,
                          n_idx,
                          args.max_models,
@@ -96,6 +96,8 @@ def train_and_eval_on_mistake(chunker: JobChunker,
     key = make_key(n_idx, m_idx, k_idx)
     output = chunker.get_result(key)
     if output is None:
+        msg = banners.stars(f"N Augmentations={n_idx} Dataset {k_idx} Model {m_idx}")
+        print(Fore.GREEN + msg + Fore.RESET)
         trial_path, _ = train_main(dataset_dirs=[aug_dataset_dir],
                                    model_hparams=no_aug_hparams_filename,
                                    log=f'{base_dataset_dir.name}-{suffix}',
@@ -113,12 +115,18 @@ def train_and_eval_on_mistake(chunker: JobChunker,
         chunker.store_result(key, output)
 
 
-def plot():
+def plot(args):
     plt.style.use("slides")
     sns.set(rc={'figure.figsize': (7, 4)})
 
-    df = pd.read_csv("results/how_many_augmentations.csv")
-    df = df.dropna()
+    data = load_hjson(pathlib.Path("results/how_many_augmentations.hjson"))
+
+    rows = []
+    for k, v in data.items():
+        n_idx, m_idx, k_idx = k.split('-')
+        rows.append([n_idx, m_idx, k_idx, v])
+    df = pd.DataFrame(rows, columns=['n_augmentations', 'model_idx', 'dataset_idx', 'output'])
+
     plt.figure()
     ax = plt.gca()
     sns.lineplot(ax=ax, data=df, x='n_augmentations', y='output', err_style='bars', ci=100)
@@ -131,5 +139,15 @@ def plot():
 
 
 if __name__ == '__main__':
-    main()
-    # plot()
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+    main_parser = subparsers.add_parser('main')
+    main_parser.add_argument('--max-models', '-m', type=int, default=3)
+    main_parser.add_argument('--max-datasets', '-d', type=int, default=3)
+
+    plot_parser = subparsers.add_parser('plot')
+
+    main_parser.set_defaults(func=main)
+    plot_parser.set_defaults(func=plot)
+
+    run_subparsers(parser)
