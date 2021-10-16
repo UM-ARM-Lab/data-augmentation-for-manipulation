@@ -25,7 +25,7 @@
   results_to_recovery_dataset: null
   model_params_update: {
     termination_criteria: {
-      accuracy: 0.95
+      accuracy: 0.98
     }
   }
 }
