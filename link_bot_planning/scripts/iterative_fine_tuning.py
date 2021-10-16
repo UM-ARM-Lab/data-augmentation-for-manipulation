@@ -369,7 +369,7 @@ class IterativeFineTuning:
             [p.suspend() for p in self.gazebo_processes]
 
             adaptive_batch_size = compute_batch_size(iteration_data.fine_tuning_classifier_dataset_dirs,
-                                                     max_batch_size=16)
+                                                     max_batch_size=32)
 
             labeling_params_update = self.job_chunker.get('labeling_params_update')
             if labeling_params_update is None:
