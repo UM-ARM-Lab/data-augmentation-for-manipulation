@@ -41,6 +41,15 @@ def used_augmentation(path: pathlib.Path, __: ExperimentScenario, trial_metadata
         classifier_hparams = trial_metadata_to_classifier_hparams(path, trial_metadata)
         if 'augmentation' in classifier_hparams:
             return True
+
+        n_augmentations = has_keys(trial_metadata, ['ift_config', 'n_augmentations'], None)
+        if n_augmentations is not None:
+            return True
+
+        ift_config_filename = has_keys(trial_metadata, ['ift_config', 'ift_config_filename'], None)
+        if ift_config_filename is not None and 'full_method' in ift_config_filename:
+            return True
+
         return False
     except RuntimeError:
         print("error!")
