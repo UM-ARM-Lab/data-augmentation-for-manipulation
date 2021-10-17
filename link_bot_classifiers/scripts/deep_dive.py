@@ -62,6 +62,8 @@ def train_eval_for_k(chunker,
         aug_dataset_dir = base_dataset_dir.parent / f"{base_dataset_dir.name}+{suffix}"
 
         if not aug_dataset_dir.exists():
+            msg = banners.stars(f"Making dataset of N Augmentations={n_idx}")
+            print(Fore.CYAN + msg + Fore.RESET)
             augment_classifier_dataset(dataset_dir=base_dataset_dir,
                                        hparams=aug_hparams,
                                        outdir=aug_dataset_dir,
@@ -124,6 +126,9 @@ def plot(args):
     rows = []
     for k, v in data.items():
         n_idx, m_idx, k_idx = k.split('-')
+        n_idx = int(n_idx)
+        m_idx = int(m_idx)
+        k_idx = int(k_idx)
         rows.append([n_idx, m_idx, k_idx, v])
     df = pd.DataFrame(rows, columns=['n_augmentations', 'model_idx', 'dataset_idx', 'output'])
 
