@@ -10,7 +10,7 @@ from typing import List
 from uuid import uuid4
 
 import numpy as np
-from matplotlib.style.core import update_nested_dict
+from arc_utilities.algorithms import nested_dict_update
 from more_itertools import chunked
 
 from analysis.results_utils import list_all_planning_results_trials
@@ -377,7 +377,7 @@ class IterativeFineTuning:
             model_params_update = self.job_chunker.get('model_params_update')
             if model_params_update is None:
                 model_params_update = {}
-            model_params_update = update_nested_dict(labeling_params_update, model_params_update)
+            model_params_update = nested_dict_update(labeling_params_update, model_params_update)
             new_latest_checkpoint_dir = fine_tune_classifier(
                 train_dataset_dirs=iteration_data.fine_tuning_classifier_dataset_dirs,
                 checkpoint=latest_checkpoint,
