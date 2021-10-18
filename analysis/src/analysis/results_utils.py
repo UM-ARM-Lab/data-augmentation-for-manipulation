@@ -6,10 +6,11 @@ from typing import Dict, Optional, List, Union
 
 import hjson
 from colorama import Fore
+from matplotlib import cm
 
 import rospy
 from arc_utilities.algorithms import zip_repeat_shorter
-from link_bot_planning.my_planner import PlanningResult, PlanningQuery
+from link_bot_planning.my_planner import PlanningResult
 from link_bot_planning.trial_result import ExecutionResult, planning_trial_name
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.grid_utils import extent_res_to_origin_point
@@ -219,18 +220,23 @@ def get_scenario_and_metadata(results_dir: pathlib.Path):
 
 
 def trials_generator(results_dir: pathlib.Path, trials: Optional[List[int]] = None):
-    if trials is None:
-        # assume we want all trials
-        filenames = list_all_planning_results_trials(results_dir)
-    else:
-        filenames = []
-        for trial_idx in trials:
-            filenames.append((trial_idx, results_dir / planning_trial_name(trial_idx)))
+    idx_and_filenames = trials_filenames_generator(results_dir, trials)
 
-    sorted_filenames = sorted(filenames)
-    for trial_idx, datum_filename in sorted_filenames:
+    for trial_idx, datum_filename in idx_and_filenames:
         datum = load_gzipped_pickle(datum_filename)
         yield trial_idx, datum, datum_filename
+
+
+def trials_filenames_generator(results_dir, trials: Optional = None):
+    if trials is None:
+        # assume we want all trials
+        idx_and_filenames = list_all_planning_results_trials(results_dir)
+    else:
+        idx_and_filenames = []
+        for trial_idx in trials:
+            idx_and_filenames.append((trial_idx, results_dir / planning_trial_name(trial_idx)))
+
+    return sorted(idx_and_filenames)
 
 
 def list_numbered_files(results_dir, pattern, extension):
@@ -298,9 +304,6 @@ def get_goal_threshold(planner_params):
     return goal_threshold
 
 
-# debugging_idx = 0
-
-
 def plot_steps(scenario: ScenarioWithVisualization,
                datum: Dict,
                metadata: Dict,
@@ -308,8 +311,6 @@ def plot_steps(scenario: ScenarioWithVisualization,
                verbose: int,
                full_plan: bool,
                screen_recorder: Optional[ScreenRecorder] = None):
-    # global debugging_idx
-    # debugging_idx += 1000
     if screen_recorder is not None:
         screen_recorder.start()
 
@@ -321,18 +322,7 @@ def plot_steps(scenario: ScenarioWithVisualization,
     steps = datum['steps']
 
     if len(steps) == 0:
-        q: PlanningQuery = datum['planning_queries'][0]
-        start = q.start
-        goal = q.goal
-        environment = q.environment
-        if 'origin_point' not in environment:
-            environment['origin_point'] = extent_res_to_origin_point(environment['extent'], environment['res'])
-        anim = RvizAnimationController(n_time_steps=1)
-        scenario.plot_state_rviz(start, label='actual', color='#ff0000aa')
-        scenario.plot_goal_rviz(goal, goal_threshold)
-        scenario.plot_environment_rviz(environment)
-        anim.step()
-        return
+        rospy.logerr("zero steps!?")
 
     goal = datum['goal']
     paths = list(get_paths(datum, verbose, full_plan))
@@ -354,30 +344,36 @@ def plot_steps(scenario: ScenarioWithVisualization,
         t = anim.t()
         e_t, a_t, s_t, s_t_pred, type_t, j_t = paths[t]
 
-        state_color = '#ff0000aa' if j_t != 0 else '#ffffffaa'
+        if j_t == 0 and t > 0:
+            break
+
+        actual_state_color = '#00000088' if j_t != 0 else '#ffffffaa'
 
         if 'scene_msg' in e_t and 'attached_collision_objects' not in s_t:
             s_t['attached_collision_objects'] = e_t['scene_msg'].robot_state.attached_collision_objects
         if 'origin_point' not in e_t:
             e_t['origin_point'] = extent_res_to_origin_point(e_t['extent'], e_t['res'])
         scenario.plot_environment_rviz(e_t)
-        # scenario.plot_state_rviz(s_t, label='actual', color=state_color, idx=debugging_idx + t)
-        scenario.plot_state_rviz(s_t, label='actual', color=state_color)
-        c = '#0000ffaa'
-        if t < anim.max_t:
-            action_color = _type_action_color(type_t)
-            # scenario.plot_action_rviz(s_t, a_t, color=action_color, idx=debugging_idx + t)
-            scenario.plot_action_rviz(s_t, a_t, color=action_color)
+        scenario.plot_state_rviz(s_t, label='actual', color=actual_state_color)
 
         if s_t_pred is not None:
             if 'accept_probability' in s_t_pred:
                 accept_probability_t = s_t_pred['accept_probability']
-                scenario.plot_accept_probability(accept_probability_t)
             else:
-                scenario.plot_accept_probability(-1)
+                accept_probability_t = -1
+        else:
+            accept_probability_t = -1
+
+        scenario.plot_accept_probability(accept_probability_t)
+        c = cm.jet_r(accept_probability_t)
+
+        if t < anim.max_t:
+            action_color = _type_action_color(type_t)
+            scenario.plot_action_rviz(s_t, a_t, color=action_color)
+
+        if s_t_pred is not None:
             if 'scene_msg' in e_t and 'attached_collision_objects' not in s_t_pred:
                 s_t_pred['attached_collision_objects'] = e_t['scene_msg'].robot_state.attached_collision_objects
-            # scenario.plot_state_rviz(s_t_pred, label='predicted', color=c, idx=debugging_idx + t)
             scenario.plot_state_rviz(s_t_pred, label='predicted', color=c)
             is_close = scenario.compute_label(s_t, s_t_pred, labeling_params)
             scenario.plot_is_close(is_close)

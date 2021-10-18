@@ -32,15 +32,17 @@ def metrics_main(args):
 
     # compute rolling average per run
     agg = {
-        'success':                'mean',
-        'task_error':             'mean',
-        'normalized_model_error': 'mean',
-        'combined_error':         'mean',
-        'min_error_discrepancy':  'mean',
-        'total_time':             'mean',
-        'min_planning_error':     'mean',
-        'used_augmentation':      rlast,
-        iter_key:                 rlast,
+        'success':                 'mean',
+        'task_error':              'mean',
+        'normalized_model_error':  'mean',
+        'combined_error':          'mean',
+        'min_error_discrepancy':   'mean',
+        'total_time':              'mean',
+        'min_planning_error':      'mean',
+        'mean_error_accept_agreement':  'mean',
+        'mean_accept_probability': 'mean',
+        'used_augmentation':       rlast,
+        iter_key:                  rlast,
     }
     df_r = df.sort_values(iter_key).groupby('ift_uuid').rolling(w).agg(agg)
     # hack for the fact that for iter=0 used_augmentation is always 0, even on runs where augmentation is used.
@@ -94,6 +96,16 @@ def metrics_main(args):
     ax.set_xlim(-0.01, x_max)
     ax.set_ylim(0.0, nme_max)
     plt.savefig(outdir / f'normalized_model_error_rolling.png')
+
+    fig, ax = lineplot(df_r, iter_key, 'mean_error_accept_agreement', 'Error-Accept Agreement (rolling)',
+                       hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'error_accept_agreement_rolling.png')
+
+    fig, ax = lineplot(df_r, iter_key, 'mean_accept_probability', 'Accept Probability (rolling)',
+                       hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'accept_probability_rolling.png')
 
     if not args.no_plot:
         plt.show()

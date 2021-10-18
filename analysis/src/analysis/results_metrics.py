@@ -97,6 +97,33 @@ def num_steps(_: pathlib.Path, __: ExperimentScenario, ___: Dict, trial_datum: D
 
 
 @metrics_funcs
+def mean_accept_probability(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
+    total = 0
+    n_actions = 0
+    for _, _, actual_state_t, planned_state_t, _, _ in get_paths(trial_datum):
+        if planned_state_t is not None and 'accept_probability' in planned_state_t:
+            p = planned_state_t['accept_probability']
+            total += p
+            n_actions += 1
+
+    return total / n_actions
+
+
+@metrics_funcs
+def mean_error_accept_agreement(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
+    n_actions = 0
+    total = 0
+    for _, _, actual_state_t, planned_state_t, _, _ in get_paths(trial_datum):
+        if planned_state_t is not None and 'accept_probability' in planned_state_t:
+            d = scenario.classifier_distance(actual_state_t, planned_state_t)
+            p = planned_state_t['accept_probability']
+            total += 1 - abs(np.exp(-d) - p)
+            n_actions += 1
+
+    return total / n_actions
+
+
+@metrics_funcs
 def cumulative_task_error(_: pathlib.Path, scenario: ExperimentScenario, __: Dict, trial_datum: Dict):
     goal = trial_datum['goal']
     cumulative_error = 0
