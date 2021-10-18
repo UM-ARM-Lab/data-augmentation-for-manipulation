@@ -8,7 +8,8 @@ from more_itertools import interleave
 from link_bot_data.dataset_utils import add_predicted, add_label
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader, NewBaseDataset
 from link_bot_data.new_dataset_utils import UNUSED_COMPAT, get_filenames, load_metadata
-from link_bot_data.visualization import init_viz_env, init_viz_action, classifier_transition_viz_t
+from link_bot_data.visualization import init_viz_env, classifier_transition_viz_t, init_viz_action, \
+    plot_classifier_state_t
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_time
@@ -140,3 +141,8 @@ class NewClassifierDatasetLoader(NewBaseDatasetLoader):
 
     def init_viz_action(self):
         return init_viz_action({}, self.action_keys, self.predicted_state_keys)
+
+    def plot_transition(self, example: Dict, label: str, **kwargs):
+        init_viz_env(self.get_scenario(), example)
+        plot_classifier_state_t(self.get_scenario(), self.true_state_keys, example, t=0, label=label + '_0', **kwargs)
+        plot_classifier_state_t(self.get_scenario(), self.true_state_keys, example, t=1, label=label + '_1', **kwargs)

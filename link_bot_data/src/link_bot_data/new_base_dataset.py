@@ -4,6 +4,7 @@ from typing import List, Dict, Optional, Callable
 
 import numpy as np
 import tensorflow as tf
+from tqdm import tqdm
 
 from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example, add_predicted
 from link_bot_data.new_dataset_utils import get_filenames, UNUSED_COMPAT, load_single
@@ -163,6 +164,20 @@ class NewBaseDataset:
                 print(k, v.shape)
             except AttributeError:
                 print(k, type(v))
+
+    def parallel_filter(self, f: Callable, *args, **kwargs):
+        args = [(filename, f, args, kwargs) for filename in self.filenames]
+        for e in tqdm(self.loader.pool.imap_unordered(filter_func, args), total=len(self.filenames)):
+            if e is not None:
+                yield e
+
+
+def filter_func(map_args):
+    filename, f, args, kwargs = map_args
+    example = load_single(filename)
+    if f(example, *args, **kwargs):
+        return example
+    return None
 
 
 class NewBaseDatasetLoader:
