@@ -20,8 +20,6 @@ from visualization_msgs.msg import Marker
 
 
 def visualize_dataset(args, dataset_loader):
-    grippers_viz_pub = rospy.Publisher("grippers_viz_pub", Marker, queue_size=10)
-
     dataset = dataset_loader.get_datasets(mode=args.mode, shuffle=args.shuffle)
 
     print_dict(dataset.get_example(0))
@@ -71,8 +69,6 @@ def visualize_dataset(args, dataset_loader):
         if args.only_starts_far and not starts_far:
             continue
 
-        # print(f"Example {i}, Trajectory #{int(example['traj_idx'])}")
-
         count += 1
 
         if positive:
@@ -95,12 +91,7 @@ def visualize_dataset(args, dataset_loader):
         if args.display_type == 'just_count':
             continue
         elif args.display_type == '3d':
-            # msg = dataset_loader.get_scenario().make_simple_grippers_marker(example, count)
-            # grippers_viz_pub.publish(msg)
             dataset_loader.get_scenario().plot_traj_idx_rviz(i)
-            # print()
-            # print(np.linalg.norm(example['predicted/rope'][1] - example['rope'][1]), example['error'][1])
-            # print()
             dataset_loader.anim_transition_rviz(example)
 
         elif args.display_type == 'stdev':
