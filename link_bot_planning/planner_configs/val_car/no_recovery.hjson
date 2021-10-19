@@ -1,7 +1,0 @@
-{
-  method_name: no recovery
-  recovery: {
-    use_recovery: false
-  }
-  stop_on_error_above: 999.0
-}
