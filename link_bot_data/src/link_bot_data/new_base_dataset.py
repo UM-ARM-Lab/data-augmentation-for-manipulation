@@ -165,11 +165,23 @@ class NewBaseDataset:
             except AttributeError:
                 print(k, type(v))
 
+    def parallel_map(self, f: Callable, *args, **kwargs):
+        args = [(filename, f, args, kwargs) for filename in self.filenames]
+        for e in tqdm(self.loader.pool.imap_unordered(map_func, args), total=len(self.filenames)):
+            if e is not None:
+                yield e
+
     def parallel_filter(self, f: Callable, *args, **kwargs):
         args = [(filename, f, args, kwargs) for filename in self.filenames]
         for e in tqdm(self.loader.pool.imap_unordered(filter_func, args), total=len(self.filenames)):
             if e is not None:
                 yield e
+
+
+def map_func(map_args):
+    filename, f, args, kwargs = map_args
+    example = load_single(filename)
+    return f(example, *args, **kwargs)
 
 
 def filter_func(map_args):
