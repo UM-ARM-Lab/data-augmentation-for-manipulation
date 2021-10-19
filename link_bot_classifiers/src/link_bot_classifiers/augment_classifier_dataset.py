@@ -73,7 +73,7 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
             for out_example in augment(example):
                 yield from unbatch_examples(out_example, actual_batch_size)
 
-    modify_hparams(dataset_dir, outdir, None)
+    modify_hparams(dataset_dir, outdir, update={'used_augmentation': True})
     dataset = dataset_loader.get_datasets(mode='all', shuffle=False)
     expected_total = (1 + n_augmentations) * len(dataset)
 

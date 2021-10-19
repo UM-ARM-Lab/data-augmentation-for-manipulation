@@ -47,7 +47,7 @@ def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None
     return fig, ax
 
 
-def barplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None):
+def barplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, ci=100):
     fig, ax = plt.subplots(figsize=(12, 8))
     sns.barplot(
         ax=ax,
@@ -56,7 +56,7 @@ def barplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None):
         y=y,
         palette='colorblind',
         linewidth=5,
-        ci=100,
+        ci=ci,
         hue=hue,
     )
     ax.set_title(title)

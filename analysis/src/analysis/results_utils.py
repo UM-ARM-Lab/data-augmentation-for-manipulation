@@ -344,9 +344,6 @@ def plot_steps(scenario: ScenarioWithVisualization,
         t = anim.t()
         e_t, a_t, s_t, s_t_pred, type_t, j_t = paths[t]
 
-        if j_t == 0 and t > 0:
-            break
-
         actual_state_color = '#00000088' if j_t != 0 else '#ffffffaa'
 
         if 'scene_msg' in e_t and 'attached_collision_objects' not in s_t:

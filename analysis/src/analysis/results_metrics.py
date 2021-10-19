@@ -42,6 +42,10 @@ def used_augmentation(path: pathlib.Path, __: ExperimentScenario, trial_metadata
         if 'augmentation' in classifier_hparams:
             return True
 
+        _used_augmentation = has_keys(classifier_hparams, ['dataset_hparams', 'used_augmentation'], None)
+        if _used_augmentation:
+            return True
+
         n_augmentations = has_keys(trial_metadata, ['ift_config', 'n_augmentations'], None)
         if n_augmentations is not None:
             return True

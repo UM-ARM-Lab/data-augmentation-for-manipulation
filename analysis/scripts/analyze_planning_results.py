@@ -3,6 +3,8 @@ import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 
 from analysis.analyze_results import planning_results
 from analysis.results_figures import violinplot, barplot
@@ -19,27 +21,28 @@ def analyze_planning_results(args):
     def _shorten(c):
         return shorten(c.split('/')[0])[:16]
 
-    df['x_name'] = df['classifier_name'].map(_shorten) + '-' + df['accept_type']
+    # df['x_name'] = df['classifier_name'].map(_shorten) + '-' + df['used_augmentation']
 
-    print(df['any_solved'])
-
-    _, ax = violinplot(df, outdir, 'x_name', 'task_error', "Task Error", hue='accept_type')
+    hue = 'used_augmentation'
+    _, ax = violinplot(df, outdir, hue, 'task_error', "Task Error")
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
-    _, ax = violinplot(df, outdir, 'x_name', 'normalized_model_error', 'Normalized Model Error', hue='accept_type')
+    _, ax = violinplot(df, outdir, hue, 'normalized_model_error', 'Normalized Model Error')
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
-    _, ax = violinplot(df, outdir, 'x_name', 'combined_error', 'Combined Error', hue='accept_type')
+    _, ax = violinplot(df, outdir, hue, 'combined_error', 'Combined Error')
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
 
-    z = df.groupby("method_name").agg({
-        'success': 'mean',
-        'accept_type': 'first',
-        'x_name': 'first',
-    })
-    _, ax = barplot(z, outdir, x='x_name', y='success', title='Success', hue='accept_type')
-    ax.set_ylim(-0.01, 1.01)
+    _, ax = barplot(df, outdir, x=hue, y='success', title='Success', ci=None)
+
+    # z = df.groupby("method_name").agg({
+    #     'success': 'mean',
+    #     hue:       'first',
+    #     # 'x_name':  'first',
+    # })
+    # _, ax = barplot(z, outdir, x=hue, y='success', title='Success', ci=90)
+    # ax.set_ylim(-0.01, 1.01)
 
     if not args.no_plot:
         plt.show()
