@@ -28,7 +28,7 @@ def main():
     parser.add_argument("reference_example_idx", type=int)
     parser.add_argument("query_dataset_dirs", type=pathlib.Path, nargs='+')
     parser.add_argument("--n-nearest", '-n', type=int, default=100)
-    parser.add_argument("--dist-threshold", '-d', type=float, default=0.2)
+    parser.add_argument("--dist-threshold", '-d', type=float, default=0.3)
     parser.add_argument("--restore", type=pathlib.Path)
 
     args = parser.parse_args()

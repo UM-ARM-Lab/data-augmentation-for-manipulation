@@ -5,6 +5,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from pyjacobian_follower import IkParams
 
+import sdf_tools.utils_3d_tensorflow
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
 from link_bot_classifiers.aug_opt_ik import AugOptIk
@@ -41,7 +42,7 @@ def sdf_and_grad_cached(env, res, origin_point, batch_size):
     if key in cache_:
         return cache_[key]
     print("Computing SDF, slow!!!", len(cache_))
-    v = utils_3d.compute_sdf_and_gradient_batch(env, res, origin_point, batch_size)
+    v = sdf_tools.utils_3d_tensorflow.compute_sdf_and_gradient_batch(env, res, origin_point, batch_size)
     cache_[key] = v
     return v
 

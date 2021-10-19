@@ -21,7 +21,7 @@ def main():
     tf.get_logger().setLevel(logging.FATAL)
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
-    parser.add_argument('--n-augmentations', type=int, default=10)
+    parser.add_argument('--n-augmentations', type=int, default=25)
     parser.add_argument('--visualize', action='store_true')
 
     args = parser.parse_args()

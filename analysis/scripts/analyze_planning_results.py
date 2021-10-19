@@ -21,6 +21,8 @@ def analyze_planning_results(args):
 
     df['x_name'] = df['classifier_name'].map(_shorten) + '-' + df['accept_type']
 
+    print(df['any_solved'])
+
     _, ax = violinplot(df, outdir, 'x_name', 'task_error', "Task Error", hue='accept_type')
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])

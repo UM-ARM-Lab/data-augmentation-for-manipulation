@@ -106,6 +106,9 @@ def mean_accept_probability(_: pathlib.Path, scenario: ExperimentScenario, __: D
             total += p
             n_actions += 1
 
+    if n_actions == 0:
+        return 1
+
     return total / n_actions
 
 
@@ -120,6 +123,8 @@ def mean_error_accept_agreement(_: pathlib.Path, scenario: ExperimentScenario, _
             total += 1 - abs(np.exp(-d) - p)
             n_actions += 1
 
+    if n_actions == 0:
+        return 1
     return total / n_actions
 
 

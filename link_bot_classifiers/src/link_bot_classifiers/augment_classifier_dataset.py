@@ -57,6 +57,7 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
 
         for k in range(n_augmentations):
             output = model.aug.aug_opt(inputs, batch_size=actual_batch_size, time=2)
+            output['augmented_from'] = inputs['full_filename']
 
             if visualize:
                 viz_f(scenario, remove_batch(output), t=0, idx=2 * k + 2, color='#0000ff88')
