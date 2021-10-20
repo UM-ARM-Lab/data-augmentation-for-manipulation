@@ -1,4 +1,5 @@
 {
+  accept_type: strict
   probabilistic_accept_k: 0.01
   scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
   filter_model_dir: [

@@ -3,11 +3,10 @@ import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import seaborn as sns
 
 from analysis.analyze_results import planning_results
-from analysis.results_figures import violinplot, barplot
+from analysis.results_figures import violinplot
 from arc_utilities import ros_init
 from link_bot_pycommon.string_utils import shorten
 from moonshine.gpu_config import limit_gpu_mem
@@ -21,7 +20,7 @@ def analyze_planning_results(args):
     def _shorten(c):
         return shorten(c.split('/')[0])[:16]
 
-    # df['x_name'] = df['classifier_name'].map(_shorten) + '-' + df['used_augmentation']
+    df['x_name'] = df['classifier_name'].map(_shorten)
 
     hue = 'used_augmentation'
     _, ax = violinplot(df, outdir, hue, 'task_error', "Task Error")
@@ -34,15 +33,24 @@ def analyze_planning_results(args):
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
 
-    _, ax = barplot(df, outdir, x=hue, y='success', title='Success', ci=None)
-
-    # z = df.groupby("method_name").agg({
-    #     'success': 'mean',
-    #     hue:       'first',
-    #     # 'x_name':  'first',
-    # })
-    # _, ax = barplot(z, outdir, x=hue, y='success', title='Success', ci=90)
-    # ax.set_ylim(-0.01, 1.01)
+    fig, ax = plt.subplots(figsize=(12, 8))
+    sns.barplot(
+        ax=ax,
+        data=df,
+        x='used_augmentation',
+        y='success',
+        palette='colorblind',
+        linewidth=5,
+        ci=None,
+    )
+    for p in ax.patches:
+        _x = p.get_x() + p.get_width() / 2
+        _y = p.get_y() + p.get_height() + 0.02
+        value = '{:.2f}'.format(p.get_height())
+        ax.text(_x, _y, value, ha="center")
+    ax.set_ylim(0, 1.0)
+    ax.set_title('success')
+    plt.savefig(outdir / f'success.png')
 
     if not args.no_plot:
         plt.show()
