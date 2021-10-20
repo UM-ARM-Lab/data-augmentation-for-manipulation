@@ -5,31 +5,54 @@ import tensorflow as tf
 
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import dict_of_sequences_to_sequence_of_dicts
 
 DEFAULT_INFLATION_RADIUS = 0.00
 
 
-def check_collision(scenario: ExperimentScenario,
+def check_collision_transition(scenario: ScenarioWithVisualization,
+                               environment: Dict,
+                               before_state: Dict,
+                               after_state: Dict,
+                               collision_check_object=True):
+    before_points = get_points_for_cc(collision_check_object, scenario, before_state)
+    after_points = get_points_for_cc(collision_check_object, scenario, after_state)
+
+    points_interp = tf.linspace(before_points, after_points, 5, axis=-2)
+    points_interp = tf.reshape(points_interp, [-1, 3])
+    in_collision, _ = batch_in_collision_tf_3d(environment=environment,
+                                               points=points_interp,
+                                               inflate_radius_m=DEFAULT_INFLATION_RADIUS)
+    # scenario.plot_points_rviz(points_interp, label='cc_points')
+
+    return in_collision
+
+
+def check_collision(scenario: ScenarioWithVisualization,
                     environment: Dict,
                     state: Dict,
                     collision_check_object=True):
-    if collision_check_object:
-        points = scenario.state_to_points_for_cc(state)
-    else:
-        points = scenario.state_to_gripper_position(state)
+    points = get_points_for_cc(collision_check_object, scenario, state)
     in_collision, _ = batch_in_collision_tf_3d(environment=environment,
                                                points=points,
                                                inflate_radius_m=DEFAULT_INFLATION_RADIUS)
     return in_collision
 
 
+def get_points_for_cc(collision_check_object, scenario, state):
+    if collision_check_object:
+        points = scenario.state_to_points_for_cc(state)
+    else:
+        points = scenario.state_to_gripper_position(state)
+    return points
+
+
 class PointsCollisionChecker(BaseConstraintChecker):
 
     def __init__(self,
                  path: pathlib.Path,
-                 scenario: ExperimentScenario,
+                 scenario: ScenarioWithVisualization,
                  ):
         super().__init__(path, scenario)
         self.name = self.__class__.__name__
@@ -46,10 +69,8 @@ class PointsCollisionChecker(BaseConstraintChecker):
                             states_sequence: List[Dict],
                             actions):
         in_collision = False
-        for t, state in enumerate(states_sequence):
-            # DEBUGGING
-            # self.scenario.plot_state_rviz(state, label='debugging', idx=t, color='yellow')
-            in_collision = check_collision(self.scenario, environment, state)
+        for t, (before_state, after_state) in enumerate(zip(states_sequence[:-1], states_sequence[1:])):
+            in_collision = check_collision_transition(self.scenario, environment, before_state, after_state)
             if in_collision:
                 break
         constraint_satisfied = tf.cast(tf.logical_not(in_collision), tf.float32)[tf.newaxis]

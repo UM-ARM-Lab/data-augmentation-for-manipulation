@@ -19,7 +19,7 @@ from link_bot_data.visualization_common import make_delete_marker, make_delete_m
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.grid_utils import environment_to_vg_msg, occupied_voxels_to_points
+from link_bot_pycommon.grid_utils import environment_to_vg_msg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.rviz_marker_manager import RVizMarkerManager
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController

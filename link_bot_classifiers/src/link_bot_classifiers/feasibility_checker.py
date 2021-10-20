@@ -29,6 +29,7 @@ class RobotFeasibilityChecker(BaseConstraintChecker):
 
 
 class FastRobotFeasibilityChecker(BaseConstraintChecker):
+    """new_feasibility"""
 
     def __init__(self,
                  path: pathlib.Path,

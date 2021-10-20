@@ -27,11 +27,11 @@ from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_m
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.matplotlib_utils import adjust_lightness_msg
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
-from link_bot_pycommon.pycommon import default_if_none
+from link_bot_pycommon.pycommon import default_if_none, densify_points
 from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
-from moonshine.moonshine_utils import numpify
+from moonshine.moonshine_utils import numpify, remove_batch, add_batch
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import Image, CameraInfo
@@ -491,7 +491,9 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
     @staticmethod
     def state_to_points_for_cc(state: Dict):
-        return state[rope_key_name].reshape(-1, 3)
+        points = state[rope_key_name].reshape(-1, 3)
+        points_dense = remove_batch(densify_points(1, add_batch(points)))
+        return points_dense
 
     def __repr__(self):
         return "DualFloatingGripperRope"

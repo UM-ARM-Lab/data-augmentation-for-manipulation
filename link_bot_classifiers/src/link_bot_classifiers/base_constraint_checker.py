@@ -4,14 +4,14 @@ from typing import Dict, List, Optional
 import tensorflow as tf
 
 from link_bot_classifiers.uncertainty import make_max_class_prob
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.ensemble import Ensemble2
 from moonshine.filepath_tools import load_params
 
 
 class BaseConstraintChecker:
 
-    def __init__(self, path: pathlib.Path, scenario: ExperimentScenario):
+    def __init__(self, path: pathlib.Path, scenario: ScenarioWithVisualization):
         self.path = path
         self.scenario = scenario
         self.horizon = 2
