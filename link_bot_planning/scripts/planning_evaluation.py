@@ -23,7 +23,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('planner_params', type=pathlib.Path, help='planner params hjson file')
     parser.add_argument("test_scenes_dir", type=pathlib.Path)
-    parser.add_argument("nickname", type=str, help='used in making the output directory')
+    parser.add_argument("outdir", type=pathlib.Path, help='used in making the output directory')
     parser.add_argument("--trials", type=int_set_arg)
     parser.add_argument("--timeout", type=int, help='timeout to override what is in the planner config file')
     parser.add_argument("--seed", type=int, help='an additional seed for testing randomness', default=0)
@@ -39,13 +39,13 @@ def main():
     args = parser.parse_args()
 
     if args.continue_from is not None:
-        print(f"Ignoring nickname {args.nickname}")
-        root = args.continue_from
+        print(f"Ignoring nickname {args.outdir}")
+        outdir = args.continue_from
     else:
-        root = make_unique_outdir(pathlib.Path('results') / f"{args.nickname}-planning-evaluation")
+        outdir = make_unique_outdir(args.outdir)
 
     planner_params = load_planner_params(args.planner_params)
-    planner_params['method_name'] = args.nickname
+    planner_params['method_name'] = args.outdir.name
     if args.classifier:
         planner_params["classifier_model_dir"] = [args.classifier,
                                                   pathlib.Path("cl_trials/new_feasibility_baseline/none")]
@@ -60,7 +60,7 @@ def main():
         args.trials = list(get_all_scene_indices(args.test_scenes_dir))
         print(args.trials)
 
-    evaluate_multiple_planning(outdir=root,
+    evaluate_multiple_planning(outdir=outdir,
                                planners_params=[(args.planner_params.stem, planner_params)],
                                trials=args.trials,
                                how_to_handle=args.on_exception,
