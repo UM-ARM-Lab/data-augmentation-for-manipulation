@@ -14,7 +14,7 @@ from link_bot_planning.my_planner import PlanningResult
 from link_bot_planning.trial_result import ExecutionResult, planning_trial_name
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.grid_utils import extent_res_to_origin_point
-from link_bot_pycommon.pycommon import paths_from_json
+from link_bot_pycommon.pycommon import paths_from_json, has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.screen_recorder import ScreenRecorder
 from link_bot_pycommon.serialization import load_gzipped_pickle, my_hdump
@@ -92,10 +92,10 @@ def labeling_params_from_planner_params(planner_params, fallback_labeling_params
 
     if 'labeling_params' in classifier_hparams:
         labeling_params = classifier_hparams['labeling_params']
-    elif 'classifier_dataset_hparams' in classifier_hparams:
-        labeling_params = classifier_hparams['classifier_dataset_hparams']['labeling_params']
     else:
-        labeling_params = fallback_labeling_params
+        labeling_params = has_keys(classifier_hparams, ['classifier_dataset_hparams', 'labeling_params'])
+        if not labeling_params:
+            labeling_params = fallback_labeling_params
     return labeling_params
 
 

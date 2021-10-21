@@ -23,12 +23,15 @@ def analyze_planning_results(args):
     df['x_name'] = df['classifier_name'].map(_shorten)
 
     hue = 'used_augmentation'
+
     _, ax = violinplot(df, outdir, hue, 'task_error', "Task Error")
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
+
     _, ax = violinplot(df, outdir, hue, 'normalized_model_error', 'Normalized Model Error')
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
+
     _, ax = violinplot(df, outdir, hue, 'combined_error', 'Combined Error')
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
@@ -51,6 +54,10 @@ def analyze_planning_results(args):
     ax.set_ylim(0, 1.0)
     ax.set_title('success')
     plt.savefig(outdir / f'success.png')
+
+    _, ax = violinplot(df, outdir, hue, 'min_planning_error', "Planning Error")
+
+    _, ax = violinplot(df, outdir, hue, 'min_error_discrepancy', "Error Discrepancy")
 
     if not args.no_plot:
         plt.show()
