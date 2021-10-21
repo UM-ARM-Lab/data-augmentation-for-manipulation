@@ -8,11 +8,13 @@ from typing import Dict, List
 import tensorflow as tf
 
 from arc_utilities import ros_init
+from arc_utilities.algorithms import nested_dict_update
+from link_bot_data.dataset_utils import add_predicted
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_gazebo.gazebo_utils import get_gazebo_processes
 from link_bot_planning.execute_full_tree import execute_full_tree
 from link_bot_planning.get_planner import get_planner
-from link_bot_planning.my_planner import PlanningQuery, PlanningResult
+from link_bot_planning.my_planner import PlanningQuery, PlanningResult, LoggingTree, are_states_close
 from link_bot_planning.planning_evaluation import load_planner_params
 from link_bot_planning.test_scenes import get_all_scenes, TestScene
 from link_bot_planning.timeout_or_not_progressing import NExtensions
@@ -23,6 +25,11 @@ from link_bot_pycommon.serialization import dump_gzipped_pickle
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
     from ompl import util as ou
+
+
+def _are_states_close(a: Dict, b: Dict):
+    keys = [add_predicted(k) for k in ['rope', 'left_gripper', 'right_gripper']]
+    return are_states_close(a, b, keys)
 
 
 def generate_execution_graph(gazebo_processes: List,
@@ -40,8 +47,17 @@ def generate_execution_graph(gazebo_processes: List,
                                       planner_params=planner_params,
                                       planning_query=planning_query,
                                       verbose=verbose)
+
+    graph = LoggingTree(are_states_close_f=_are_states_close)
     for e in execution_gen:
-        pass
+        planned_before_state = {add_predicted(k): v for k, v in e.planned_before_state.items()}
+        planned_after_state = {add_predicted(k): v for k, v in e.planned_after_state.items()}
+        combined_before_state = nested_dict_update(planned_before_state, e.before_state)
+        combined_after_state = nested_dict_update(planned_after_state, e.after_state)
+        graph.add(before_state=combined_before_state,
+                  action=e.action,
+                  after_state=combined_after_state,
+                  accept_probabilities=None)
 
     return graph
 
@@ -77,7 +93,7 @@ def generate_planning_graph(gazebo_processes: List,
     goal['goal_type'] = planner_params['goal_params']['goal_type']
     rrt_planner = get_planner(planner_params, verbose=verbose, log_full_tree=True, scenario=scenario)
 
-    def _override_ptc(planning_query: PlanningQuery):
+    def _override_ptc(_: PlanningQuery):
         return NExtensions(max_n_extensions=max_n_extensions)
 
     rrt_planner.make_ptc = _override_ptc
@@ -93,6 +109,7 @@ def generate_planning_graph(gazebo_processes: List,
 
 
 def generate_graph_data(name: str,
+                        n_extensions,
                         planner_params_filename: pathlib.Path,
                         test_scene: TestScene,
                         verbose: int):
@@ -118,10 +135,10 @@ def generate_graph_data(name: str,
                            goal=goal,
                            verbose=verbose,
                            gazebo_processes=gazebo_processes,
-                           max_n_extensions=10,
+                           max_n_extensions=n_extensions,
                            service_provider=service_provider)
 
-    outfilename = root / f"{name}.pkl.gz"
+    out_filename = root / f"{name}.pkl.gz"
     graph_data = {
         'generated-at': int(time()),
         'graph':        graph,
@@ -129,7 +146,8 @@ def generate_graph_data(name: str,
         'goal':         goal,
         'params':       planner_params,
     }
-    dump_gzipped_pickle(graph_data, outfilename)
+    dump_gzipped_pickle(graph_data, out_filename)
+    print(out_filename)
 
 
 @ros_init.with_ros("generate_graph")
@@ -138,6 +156,7 @@ def main():
     parser.add_argument("name")
     parser.add_argument("planner_params", type=pathlib.Path)
     parser.add_argument("test_scenes", type=pathlib.Path)
+    parser.add_argument("--n", '-n', type=int, default=10000)
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
 
     args = parser.parse_args()
@@ -151,7 +170,8 @@ def main():
         generate_graph_data(name=args.name,
                             planner_params_filename=args.planner_params,
                             test_scene=test_scene,
-                            verbose=args.verbose)
+                            verbose=args.verbose,
+                            n_extensions=args.n)
 
 
 if __name__ == '__main__':

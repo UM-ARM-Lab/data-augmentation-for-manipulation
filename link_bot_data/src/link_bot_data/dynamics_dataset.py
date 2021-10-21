@@ -108,7 +108,7 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
                               action_keys=self.action_keys)
 
     def anim_rviz(self, example: Dict):
-        anim = RvizAnimation(scenario=self.scenario,
+        anim = RvizAnimation(myobj=self.scenario,
                              n_time_steps=10,
                              init_funcs=[init_viz_env],
                              t_funcs=[init_viz_env, self.dynamics_viz_t()])

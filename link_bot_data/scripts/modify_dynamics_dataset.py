@@ -24,18 +24,11 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset, example: Dict):
-        for k, v in example.items():
-            try:
-                v = np.array(v)
-                if v.dtype == np.float32 or k == 'joint_names':
-                    example[k] = v
-            except Exception:
-                pass
         yield example
 
     hparams_update = {}
 
-    if args.save_format == 'tfrecord':
+    if True:
         dataset = DynamicsDatasetLoader([args.dataset_dir])
         modify_dataset(dataset_dir=args.dataset_dir,
                        dataset=dataset,

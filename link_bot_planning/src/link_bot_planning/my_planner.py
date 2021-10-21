@@ -12,9 +12,8 @@ from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 from state_space_dynamics.base_filter_function import BaseFilterFunction, PassThroughFilter
 
 
-def are_states_close(a: Dict, b: Dict):
-    # assert (set(a.keys()) == set(b.keys()))
-    for k in ['rope', 'left_gripper', 'right_gripper']:
+def are_states_close(a: Dict, b: Dict, keys=['rope', 'left_gripper', 'right_gripper']):
+    for k in keys:
         v1 = a[k]
         v2 = b[k]
         if isinstance(v1, np.ndarray):
@@ -44,12 +43,13 @@ class LoggingTree:
     This duplicates what OMPL does already, but the OMPL implementation is not python friendly
     """
 
-    def __init__(self, state=None, action=None, accept_probabilities=None):
+    def __init__(self, state=None, action=None, accept_probabilities=None, are_states_close_f=are_states_close):
         self.state = state
         self.action = action
         self.children: List[LoggingTree] = []
         self.accept_probabilities = accept_probabilities
         self.size = 0
+        self.are_states_close_f = are_states_close_f
 
         self.cached = self
 
@@ -65,12 +65,15 @@ class LoggingTree:
             else:
                 t = self.find(before_state)
 
-        new_child = LoggingTree(state=after_state, action=action, accept_probabilities=accept_probabilities)
+        new_child = LoggingTree(state=after_state,
+                                action=action,
+                                accept_probabilities=accept_probabilities,
+                                are_states_close_f=self.are_states_close_f)
         t.children.append(new_child)
         self.cached = new_child
 
     def find(self, state: Dict):
-        if are_states_close(self.state, state):
+        if self.are_states_close_f(self.state, state):
             return self
         for child in self.children:
             s = child.find(state)

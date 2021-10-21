@@ -172,7 +172,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         for joint_name in self.robot.get_move_group_commander("whole_body").get_active_joints():
             index_of_joint_name_in_state_msg = joint_state.name.index(joint_name)
             joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
-        self.robot.plan_to_joint_config("whole_body", joint_config) # FIXME: why is this going back?
+        self.robot.plan_to_joint_config("whole_body", joint_config)
 
         self.service_provider.pause()
         self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
