@@ -80,7 +80,7 @@ def generate_graph(planner_params: Dict, scenario: ScenarioWithVisualization, st
                                      planner_params=planner_params,
                                      verbose=verbose)
 
-    return graph
+    return planning_result, graph
 
 
 def generate_planning_graph(gazebo_processes: List,
@@ -97,6 +97,7 @@ def generate_planning_graph(gazebo_processes: List,
         return NExtensions(max_n_extensions=max_n_extensions)
 
     rrt_planner.make_ptc = _override_ptc
+
     environment = scenario.get_environment(planner_params)
     planning_query = PlanningQuery(goal=goal,
                                    environment=environment,
@@ -129,22 +130,23 @@ def generate_graph_data(name: str,
     start = scenario.get_state()
     goal = test_scene.goal
 
-    graph = generate_graph(planner_params=planner_params,
-                           scenario=scenario,
-                           start=start,
-                           goal=goal,
-                           verbose=verbose,
-                           gazebo_processes=gazebo_processes,
-                           max_n_extensions=n_extensions,
-                           service_provider=service_provider)
+    planning_result, graph = generate_graph(planner_params=planner_params,
+                                            scenario=scenario,
+                                            start=start,
+                                            goal=goal,
+                                            verbose=verbose,
+                                            gazebo_processes=gazebo_processes,
+                                            max_n_extensions=n_extensions,
+                                            service_provider=service_provider)
 
     out_filename = root / f"{name}.pkl.gz"
     graph_data = {
-        'generated-at': int(time()),
-        'graph':        graph,
-        'start':        start,
-        'goal':         goal,
-        'params':       planner_params,
+        'generated_at':    int(time()),
+        'planning_result': planning_result,
+        'graph':           graph,
+        'start':           start,
+        'goal':            goal,
+        'params':          planner_params,
     }
     dump_gzipped_pickle(graph_data, out_filename)
     print(out_filename)
