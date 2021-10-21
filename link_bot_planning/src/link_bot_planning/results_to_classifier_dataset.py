@@ -1,5 +1,4 @@
 import pathlib
-import tempfile
 from typing import Optional, List, Dict, Union
 
 import numpy as np
@@ -12,13 +11,12 @@ from analysis import results_utils
 from analysis.results_utils import NoTransitionsError, dynamics_dataset_params_from_classifier_params, \
     classifier_params_from_planner_params, fwd_model_params_from_planner_params
 from arm_robots.robot import RobotPlanningError
-from gazebo_msgs.msg import LinkStates
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
 from link_bot_data.dataset_utils import add_predicted, write_example, DEFAULT_VAL_SPLIT, DEFAULT_TEST_SPLIT
 from link_bot_data.split_dataset import split_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
+from link_bot_planning.execute_full_tree import store_bagfile
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree, PlanningResult
-from link_bot_planning.test_scenes import get_states_to_save, save_test_scene_given_name
 from link_bot_planning.trial_result import ExecutionResult
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
@@ -212,7 +210,7 @@ class ResultsToClassifierDataset:
             self.reset_visualization()
 
             self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
-            examples_gen = self.full_result_datum_to_dynamics_dataset(datum)
+            examples_gen = self.full_result_datum_to_classifier_dataset(datum)
             max_value = self.precompute_full_tree_size(datum)
             for example in tqdm(examples_gen, total=max_value):
                 self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
@@ -254,7 +252,7 @@ class ResultsToClassifierDataset:
                 size += planning_result.tree.size
         return size
 
-    def full_result_datum_to_dynamics_dataset(self, datum: Dict):
+    def full_result_datum_to_classifier_dataset(self, datum: Dict):
         steps = datum['steps']
         setup_info = datum['setup_info']
         planner_params = datum['planner_params']
@@ -279,7 +277,7 @@ class ResultsToClassifierDataset:
             raise RuntimeError()
 
         if bagfile_name is None:
-            bagfile_name = self.store_bagfile()
+            bagfile_name = store_bagfile()
 
         for child in tree.children:
             # if we only have one child we can skip the restore, this speeds things up a lot
@@ -428,15 +426,6 @@ class ResultsToClassifierDataset:
     def on_gazebo_restarting(self, _: Empty):
         self.restart = True
 
-    def store_bagfile(self):
-        rospy.sleep(5)  # FIXME: janky
-        # FIXME: janky
-        for i in range(4):
-            joint_state, links_states = get_states_to_save()
-        make_links_states_quasistatic(links_states)
-        bagfile_name = pathlib.Path(tempfile.NamedTemporaryFile().name)
-        return save_test_scene_given_name(joint_state, links_states, bagfile_name, force=True)
-
     def get_transitions(self, datum: Dict):
         steps = datum['steps']
 
@@ -487,13 +476,3 @@ class ResultsToClassifierDataset:
                 a_t = actions[t]
                 type_t = types[t]
                 yield e, (before_state_pred_t, before_state_t), a_t, (after_state_pred_t, after_state_t), type_t
-
-
-def make_links_states_quasistatic(links_states: LinkStates):
-    for twist in links_states.twist:
-        twist.linear.x = 0
-        twist.linear.y = 0
-        twist.linear.z = 0
-        twist.angular.x = 0
-        twist.angular.y = 0
-        twist.angular.z = 0
