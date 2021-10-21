@@ -229,7 +229,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         raise NotImplementedError()
 
     def get_environment(self, params: Dict, **kwargs):
-        default_res = 0.01
+        default_res = 0.02
         if 'res' not in params:
             rospy.logwarn(f"res not in params, using default {default_res}", logger_name=Path(__file__).stem)
             res = default_res

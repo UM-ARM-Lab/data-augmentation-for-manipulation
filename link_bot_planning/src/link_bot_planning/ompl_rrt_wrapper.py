@@ -504,9 +504,11 @@ class OmplRRTWrapper(MyPlanner):
             proposed_state_seq_to_end[0]['accept_probability'] = state_sequence[start_t]['accept_probability']
             for j, proposed_state_j in enumerate(proposed_state_seq_to_end[1:]):
                 if 'NNClassifierWrapper' in accept_probabilities:
-                    proposed_state_j['accept_probability'] = np.array([accept_probabilities['NNClassifierWrapper'][j]], np.float32)
+                    proposed_state_j['accept_probability'] = np.array([accept_probabilities['NNClassifierWrapper'][j]],
+                                                                      np.float32)
                 elif 'NNClassifier2Wrapper' in accept_probabilities:
-                    proposed_state_j['accept_probability'] = np.array([accept_probabilities['NNClassifier2Wrapper'][j]], np.float32)
+                    proposed_state_j['accept_probability'] = np.array([accept_probabilities['NNClassifier2Wrapper'][j]],
+                                                                      np.float32)
                 else:
                     proposed_state_j['accept_probability'] = np.array([-1], np.float32)
             proposed_state_seq = state_sequence[:start_t] + proposed_state_seq_to_end
