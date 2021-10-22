@@ -42,7 +42,7 @@ def main():
     goal_threshold = 0.045
 
     def actual_reached_goal(node):
-        d_to_goal = scenario.distance_to_goal(node, goal).numpy()
+        d_to_goal = scenario.distance_to_goal(node.state, goal).numpy()
         return d_to_goal < goal_threshold
 
     def predicted_reached_goal(node):
@@ -56,9 +56,8 @@ def main():
         paths = extract_paths(g, predicted_reached_goal)
         viz_paths(scenario, paths, goal, goal_threshold)
     elif args.viz_type == "actual_plans_to_goal":
-        p = extract_path(g, actual_reached_goal)
-        scenario.plot_goal_rviz(goal, goal_threshold)
-        viz_path(scenario, p, goal, goal_threshold)
+        paths = extract_paths(g, actual_reached_goal)
+        viz_paths(scenario, paths, goal, goal_threshold)
     else:
         raise NotImplementedError(args.viz_type)
 
@@ -69,14 +68,26 @@ def viz_path(scenario, path, goal, goal_threshold):
     while not anim.done:
         t = anim.t()
         node = path[t]
-        s_t = node.state
 
+        s_t = node['state']
         scenario.plot_state_rviz(s_t)
+        if t < anim.max_t:
+            next_node = path[t + 1]
+            a_t = next_node['action']
+            if a_t is not None:
+                state_for_action = deepcopy(s_t)
+                state_for_action.pop("left_gripper")
+                state_for_action.pop("right_gripper")
+                state_for_action.pop("rope")
+                scenario.plot_action_rviz(state_for_action, a_t)
 
         anim.step()
 
 
 def viz_paths(scenario, paths, goal, goal_threshold):
+    if len(paths) == 0:
+        return
+
     anim = RvizAnimationController(n_time_steps=len(paths), ns='trajs')
     while not anim.done:
         t = anim.t()
@@ -102,7 +113,7 @@ def extract_path(g: LoggingTree, cond: Callable):
 
 
 def tree_to_paths(parent: StateActionTree, path=[]):
-    path.append(parent)
+    path.append({'state': parent.state, 'action': parent.action})
 
     if len(parent.children) == 0:
         yield path
@@ -110,10 +121,15 @@ def tree_to_paths(parent: StateActionTree, path=[]):
     for child in parent.children:
         yield from tree_to_paths(child, path)
 
+    path.pop()
+
 
 def trim_tree(parent: LoggingTree, other_parent: StateActionTree, cond):
     new = StateActionTree(parent.state, parent.action)
     other_parent.children.append(new)
+
+    if cond(parent):
+        return
 
     for child in parent.children:
         trim_tree(child, new, cond)
@@ -126,6 +142,9 @@ def trim_tree(parent: LoggingTree, other_parent: StateActionTree, cond):
 def extract_paths(g: LoggingTree, cond: Callable):
     trimmed_tree = StateActionTree()
     trim_tree(g, trimmed_tree, cond)
+    if len(trimmed_tree.children) == 0:
+        print("No paths!")
+        return []
     return list(tree_to_paths(trimmed_tree.children[0]))
 
 

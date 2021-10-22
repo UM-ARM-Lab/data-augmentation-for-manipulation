@@ -63,27 +63,6 @@ def generate_execution_graph(gazebo_processes: List,
     return graph
 
 
-def generate_graph(planner_params: Dict, scenario: ScenarioWithVisualization, start: Dict, goal: Dict, verbose: int,
-                   gazebo_processes: List, max_n_extensions: int, service_provider):
-    planning_query, planning_result, env = generate_planning_graph(gazebo_processes=gazebo_processes,
-                                                                   goal=goal,
-                                                                   planner_params=planner_params,
-                                                                   scenario=scenario,
-                                                                   start=start,
-                                                                   verbose=verbose,
-                                                                   max_n_extensions=max_n_extensions)
-
-    graph = generate_execution_graph(gazebo_processes=gazebo_processes,
-                                     service_provider=service_provider,
-                                     planning_query=planning_query,
-                                     scenario=scenario,
-                                     planning_result=planning_result,
-                                     planner_params=planner_params,
-                                     verbose=verbose)
-
-    return planning_result, graph, env
-
-
 def generate_planning_graph(gazebo_processes: List,
                             goal: Dict,
                             planner_params: Dict,
@@ -110,6 +89,38 @@ def generate_planning_graph(gazebo_processes: List,
     return planning_query, planning_result, environment
 
 
+def generate_graph(root: pathlib.Path,
+                   name: str,
+                   planner_params: Dict,
+                   scenario: ScenarioWithVisualization,
+                   start: Dict,
+                   goal: Dict,
+                   verbose: int,
+                   gazebo_processes: List,
+                   max_n_extensions: int,
+                   service_provider: GazeboServices):
+    planning_query, planning_result, env = generate_planning_graph(gazebo_processes=gazebo_processes,
+                                                                   goal=goal,
+                                                                   planner_params=planner_params,
+                                                                   scenario=scenario,
+                                                                   start=start,
+                                                                   verbose=verbose,
+                                                                   max_n_extensions=max_n_extensions)
+
+    planning_result_filename = root / f"{name}-planning_result.pkl.gz"
+    dump_gzipped_pickle(planning_result, planning_result_filename)
+
+    graph = generate_execution_graph(gazebo_processes=gazebo_processes,
+                                     service_provider=service_provider,
+                                     planning_query=planning_query,
+                                     scenario=scenario,
+                                     planning_result=planning_result,
+                                     planner_params=planner_params,
+                                     verbose=verbose)
+
+    return planning_result, graph, env
+
+
 def generate_graph_data(name: str,
                         n_extensions,
                         planner_params_filename: pathlib.Path,
@@ -131,7 +142,9 @@ def generate_graph_data(name: str,
     start = scenario.get_state()
     goal = test_scene.goal
 
-    planning_result, graph, env = generate_graph(planner_params=planner_params,
+    planning_result, graph, env = generate_graph(root=root,
+                                                 name=name,
+                                                 planner_params=planner_params,
                                                  scenario=scenario,
                                                  start=start,
                                                  goal=goal,
