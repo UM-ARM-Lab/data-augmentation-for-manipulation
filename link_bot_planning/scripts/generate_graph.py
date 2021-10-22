@@ -22,7 +22,7 @@ from link_bot_planning.test_scenes import get_all_scenes, TestScene
 from link_bot_planning.timeout_or_not_progressing import NExtensions
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from link_bot_pycommon.serialization import dump_gzipped_pickle
+from link_bot_pycommon.serialization import dump_gzipped_pickle, load_gzipped_pickle
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
