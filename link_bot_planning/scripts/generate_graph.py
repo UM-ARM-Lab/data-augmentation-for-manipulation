@@ -65,13 +65,13 @@ def generate_execution_graph(gazebo_processes: List,
 
 def generate_graph(planner_params: Dict, scenario: ScenarioWithVisualization, start: Dict, goal: Dict, verbose: int,
                    gazebo_processes: List, max_n_extensions: int, service_provider):
-    planning_query, planning_result = generate_planning_graph(gazebo_processes=gazebo_processes,
-                                                              goal=goal,
-                                                              planner_params=planner_params,
-                                                              scenario=scenario,
-                                                              start=start,
-                                                              verbose=verbose,
-                                                              max_n_extensions=max_n_extensions)
+    planning_query, planning_result, env = generate_planning_graph(gazebo_processes=gazebo_processes,
+                                                                   goal=goal,
+                                                                   planner_params=planner_params,
+                                                                   scenario=scenario,
+                                                                   start=start,
+                                                                   verbose=verbose,
+                                                                   max_n_extensions=max_n_extensions)
 
     graph = generate_execution_graph(gazebo_processes=gazebo_processes,
                                      service_provider=service_provider,
@@ -81,7 +81,7 @@ def generate_graph(planner_params: Dict, scenario: ScenarioWithVisualization, st
                                      planner_params=planner_params,
                                      verbose=verbose)
 
-    return planning_result, graph
+    return planning_result, graph, env
 
 
 def generate_planning_graph(gazebo_processes: List,
@@ -107,7 +107,7 @@ def generate_planning_graph(gazebo_processes: List,
                                    trial_start_time_seconds=perf_counter())
     [p.suspend() for p in gazebo_processes]
     planning_result = rrt_planner.plan(planning_query)
-    return planning_query, planning_result
+    return planning_query, planning_result, environment
 
 
 def generate_graph_data(name: str,
@@ -131,19 +131,20 @@ def generate_graph_data(name: str,
     start = scenario.get_state()
     goal = test_scene.goal
 
-    planning_result, graph = generate_graph(planner_params=planner_params,
-                                            scenario=scenario,
-                                            start=start,
-                                            goal=goal,
-                                            verbose=verbose,
-                                            gazebo_processes=gazebo_processes,
-                                            max_n_extensions=n_extensions,
-                                            service_provider=service_provider)
+    planning_result, graph, env = generate_graph(planner_params=planner_params,
+                                                 scenario=scenario,
+                                                 start=start,
+                                                 goal=goal,
+                                                 verbose=verbose,
+                                                 gazebo_processes=gazebo_processes,
+                                                 max_n_extensions=n_extensions,
+                                                 service_provider=service_provider)
 
     out_filename = root / f"{name}.pkl.gz"
     graph_data = {
         'generated_at':    int(time()),
         'planning_result': planning_result,
+        'env':             env,
         'graph':           graph,
         'start':           start,
         'goal':            goal,
