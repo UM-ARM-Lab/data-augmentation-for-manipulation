@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import pathlib
 
 from link_bot_planning.test_scenes import TestScene
@@ -28,11 +29,11 @@ def adjust_trash_pos(s: TestScene):
 
 def rename(s: TestScene):
     renames = [
-        ('car_engine2::body', 'car_engine3::body'),
-        ('car_engine2::lift_tab1', 'car_engine3::lift_tab1'),
-        ('car_engine2::lift_tab2', 'car_engine3::lift_tab2'),
-        ('car_engine2::lift_tab3', 'car_engine3::lift_tab3'),
-        ('car_engine2::lift_tab4', 'car_engine3::lift_tab4'),
+        ('car_engine3::body', 'car_engine2::body'),
+        ('car_engine3::lift_tab1', 'car_engine2::lift_tab1'),
+        ('car_engine3::lift_tab2', 'car_engine2::lift_tab2'),
+        ('car_engine3::lift_tab3', 'car_engine2::lift_tab3'),
+        ('car_engine3::lift_tab4', 'car_engine2::lift_tab4'),
     ]
     for old_name, new_name in renames:
         if old_name in s.links_states.name:
@@ -58,16 +59,17 @@ def shift_hook(s: TestScene):
 
 
 def main():
-    scene_dir = "swap_straps_no_recovery3"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("scenes_dir", type=pathlib.Path)
+
+    args = parser.parse_args()
+
     scene_indices = range(0, 100)
 
-    root_dir = pathlib.Path("/home/peter/catkin_ws/src/link_bot/link_bot_planning/test_scenes")
-    scenes_fulldir = root_dir / scene_dir
 
     for scene_idx in scene_indices:
-        s = TestScene(scenes_fulldir, scene_idx)
+        s = TestScene(args.scenes_dir, scene_idx)
 
-        #print(s.links_states.name)
         s = rename(s)
         s.save(force=True)
 
