@@ -70,6 +70,7 @@ class LoggingTree:
                                 accept_probabilities=accept_probabilities)
         t.children.append(new_child)
         self.cached = new_child
+        return new_child
 
     def find(self, state: Dict, are_states_close_f):
         if are_states_close_f(self.state, state):
