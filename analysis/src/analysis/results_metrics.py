@@ -30,8 +30,6 @@ def full_retrain(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, 
 def ift_uuid(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     default_value = 'no_ift_uuid'
     uuid = trial_metadata.get('ift_uuid', default_value)
-    if uuid == default_value:
-        rospy.logwarn_throttle(5, Fore.YELLOW + default_value + Fore.RESET)
     return uuid
 
 

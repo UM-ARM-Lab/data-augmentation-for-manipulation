@@ -48,7 +48,7 @@ def generate_execution_graph(gazebo_processes: List,
                                       planning_query=planning_query,
                                       verbose=verbose)
 
-    graph = LoggingTree(are_states_close_f=_are_states_close)
+    graph = LoggingTree()
     for e in execution_gen:
         planned_before_state = {add_predicted(k): v for k, v in e.planned_before_state.items()}
         planned_after_state = {add_predicted(k): v for k, v in e.planned_after_state.items()}
@@ -57,7 +57,8 @@ def generate_execution_graph(gazebo_processes: List,
         graph.add(before_state=combined_before_state,
                   action=e.action,
                   after_state=combined_after_state,
-                  accept_probabilities=None)
+                  accept_probabilities=None,
+                  are_states_close_f=_are_states_close)
 
     return graph
 

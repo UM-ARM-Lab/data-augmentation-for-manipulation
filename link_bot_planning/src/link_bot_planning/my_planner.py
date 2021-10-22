@@ -43,17 +43,17 @@ class LoggingTree:
     This duplicates what OMPL does already, but the OMPL implementation is not python friendly
     """
 
-    def __init__(self, state=None, action=None, accept_probabilities=None, are_states_close_f=are_states_close):
+    def __init__(self, state=None, action=None, accept_probabilities=None):
         self.state = state
         self.action = action
         self.children: List[LoggingTree] = []
         self.accept_probabilities = accept_probabilities
         self.size = 0
-        self.are_states_close_f = are_states_close_f
 
         self.cached = self
 
-    def add(self, before_state: Dict, action: Dict, after_state: Dict, accept_probabilities):
+    def add(self, before_state: Dict, action: Dict, after_state: Dict, accept_probabilities,
+            are_states_close_f=are_states_close):
         self.size += 1
         if len(self.children) == 0:
             self.state = before_state
@@ -63,20 +63,19 @@ class LoggingTree:
             if are_states_close(self.cached.state, before_state):
                 t = self.cached
             else:
-                t = self.find(before_state)
+                t = self.find(before_state, are_states_close_f)
 
         new_child = LoggingTree(state=after_state,
                                 action=action,
-                                accept_probabilities=accept_probabilities,
-                                are_states_close_f=self.are_states_close_f)
+                                accept_probabilities=accept_probabilities)
         t.children.append(new_child)
         self.cached = new_child
 
-    def find(self, state: Dict):
-        if self.are_states_close_f(self.state, state):
+    def find(self, state: Dict, are_states_close_f):
+        if are_states_close_f(self.state, state):
             return self
         for child in self.children:
-            s = child.find(state)
+            s = child.find(state, are_states_close_f)
             if s is not None:
                 return s
         return None

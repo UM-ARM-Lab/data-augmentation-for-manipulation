@@ -46,6 +46,7 @@ def main():
                        args.only_reached and trial_status != TrialStatus.Reached)
 
         if should_skip:
+            anim.step()
             continue
 
         print(f"trial {trial_idx}, status {trial_status}")
