@@ -40,17 +40,26 @@ def generate_executed_paths(gazebo_processes: List,
                             service_provider: GazeboServices,
                             planning_query: PlanningQuery,
                             scenario: ScenarioWithVisualization,
-                            planned_paths: List):
+                            planned_paths: List,
+                            test_scene: TestScene,
+                            planner_params: Dict):
     [p.resume() for p in gazebo_processes]
 
+    scenario.plot_environment_rviz(planning_query.environment)
+
     executed_paths = []
-    for planned_path in planned_paths:
+    for planned_path in tqdm(planned_paths):
         executed_path = []
+        scenario.restore_from_bag(service_provider, planner_params, test_scene.get_scene_filename())
         for p_i in planned_path[1:]:
             before_state, after_state, error = execute(scenario=scenario,
                                                        service_provider=service_provider,
                                                        environment=planning_query.environment,
                                                        action=p_i['action'])
+
+            scenario.plot_state_rviz(after_state, label='actual')
+            scenario.plot_state_rviz(p_i['state'], label='planned')
+
             if len(executed_path) == 0:
                 executed_path.append(before_state)
             executed_path.append(after_state)
@@ -119,7 +128,8 @@ def generate_graph(root: pathlib.Path,
                    gazebo_processes: List,
                    max_n_extensions: int,
                    service_provider: GazeboServices,
-                   restore_from_planning_tree: bool):
+                   restore_from_planning_tree: bool,
+                   test_scene: TestScene):
     planning_result_filename = root / f"{name}-planning_result.pkl.gz"
     goal['goal_type'] = planner_params['goal_params']['goal_type']
     planning_query = get_planning_query(goal, planner_params, scenario, start)
@@ -152,7 +162,9 @@ def generate_graph(root: pathlib.Path,
                                              service_provider=service_provider,
                                              planning_query=planning_query,
                                              planned_paths=planned_paths,
-                                             scenario=scenario)
+                                             scenario=scenario,
+                                             test_scene=test_scene,
+                                             planner_params=planner_params)
 
     return planning_query, planning_result, planned_paths, executed_paths, planning_query.environment
 
@@ -199,6 +211,7 @@ def generate_graph_data(name: str,
                                                                                          gazebo_processes=gazebo_processes,
                                                                                          max_n_extensions=n_extensions,
                                                                                          service_provider=service_provider,
+                                                                                         test_scene=test_scene,
                                                                                          restore_from_planning_tree=restore_from_planning_tree)
 
     out_filename = root / f"{name}.pkl.gz"

@@ -60,52 +60,47 @@ def metrics_main(args):
     # ax.legend()
     plt.savefig(outdir / f'success_rate_rolling.png')
 
-    # fig, ax = lineplot(df, iter_key, 'any_solved', 'Any Solved', hue='used_augmentation')
-    # plt.savefig(outdir / f'any_solved.png')
-    #
-    # fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid')
-    # ax.set_xlim(-0.01, x_max)
-    #
-    # fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
+    fig, ax = lineplot(df, iter_key, 'any_solved', 'Any Solved', hue='used_augmentation')
+    plt.savefig(outdir / f'any_solved.png')
 
-    # fig, ax = lineplot(df_r, iter_key, 'task_error', f'Task Error (rolling={w})', hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'task_error_rolling.png')
-    #
-    # fig, ax = lineplot(df, iter_key, 'normalized_model_error', 'Normalized Model Error', hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # ax.set_ylim(0.0, nme_max)
-    # plt.savefig(outdir / f'normalized_model_error.png')
+    fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid')
+    ax.set_xlim(-0.01, x_max)
 
-    # fig, ax = lineplot(df_r, iter_key, 'combined_error', f'Combined Score (rolling={w})', hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'combined_error_rolling.png')
-    #
-    # fig, ax = lineplot(df_r, iter_key, 'min_error_discrepancy', f'Error Discrepancy (rolling={w})',
-    #                    hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'min_error_discrepancy_rolling.png')
-    #
-    # fig, ax = lineplot(df_r, iter_key, 'min_planning_error', f'Planning Error (rolling={w})', hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'min_planning_error_rolling.png')
-    #
-    # fig, ax = lineplot(df_r, iter_key, 'normalized_model_error', f'Normalized Model Error (rolling={w})',
-    #                    hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # ax.set_ylim(0.0, nme_max)
-    # plt.savefig(outdir / f'normalized_model_error_rolling.png')
+    fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
 
-    # fig, ax = lineplot(df_r, iter_key, 'mean_error_accept_agreement', f'Error-Accept Agreement (rolling={w})',
-    #                    hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'error_accept_agreement_rolling.png')
-    #
-    # fig, ax = lineplot(df_r, iter_key, 'mean_accept_probability', f'Accept Probability (rolling={w})',
-    #                    hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'accept_probability_rolling.png')
+    fig, ax = lineplot(df_r, iter_key, 'task_error', f'Task Error (rolling={w})', hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'task_error_rolling.png')
+
+    fig, ax = lineplot(df_r, iter_key, 'combined_error', f'Combined Score (rolling={w})', hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'combined_error_rolling.png')
+
+    fig, ax = lineplot(df_r, iter_key, 'min_error_discrepancy', f'Error Discrepancy (rolling={w})',
+                       hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'min_error_discrepancy_rolling.png')
+
+    fig, ax = lineplot(df_r, iter_key, 'min_planning_error', f'Planning Error (rolling={w})', hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'min_planning_error_rolling.png')
+
+    fig, ax = lineplot(df_r, iter_key, 'normalized_model_error', f'Normalized Model Error (rolling={w})',
+                       hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    ax.set_ylim(0.0, nme_max)
+    plt.savefig(outdir / f'normalized_model_error_rolling.png')
+
+    fig, ax = lineplot(df_r, iter_key, 'mean_error_accept_agreement', f'Error-Accept Agreement (rolling={w})',
+                       hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'error_accept_agreement_rolling.png')
+
+    fig, ax = lineplot(df_r, iter_key, 'mean_accept_probability', f'Accept Probability (rolling={w})',
+                       hue='used_augmentation')
+    ax.set_xlim(-0.01, x_max)
+    plt.savefig(outdir / f'accept_probability_rolling.png')
 
     if not args.no_plot:
         plt.show()

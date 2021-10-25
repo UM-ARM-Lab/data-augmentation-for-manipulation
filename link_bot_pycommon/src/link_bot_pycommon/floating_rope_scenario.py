@@ -434,6 +434,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return gripper_position1, gripper_position2
 
     def get_gazebo_rope_state(self):
+        rospy.sleep(0.01)
         # global p_get_rope_state
         # p_get_rope_state.start()
         rope_res = self.get_rope_srv(GetRopeStateRequest())
