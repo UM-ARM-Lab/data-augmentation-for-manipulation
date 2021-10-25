@@ -15,12 +15,13 @@ from arc_utilities.algorithms import nested_dict_update
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_gazebo.gazebo_utils import get_gazebo_processes
-from link_bot_planning.execute_full_tree import execute_full_tree
+from link_bot_planning.execute_full_tree import execute_full_tree, execute
 from link_bot_planning.get_planner import get_planner
 from link_bot_planning.my_planner import PlanningQuery, PlanningResult, LoggingTree, are_states_close
 from link_bot_planning.planning_evaluation import load_planner_params
 from link_bot_planning.test_scenes import get_all_scenes, TestScene
 from link_bot_planning.timeout_or_not_progressing import NExtensions
+from link_bot_planning.tree_utils import make_predicted_reached_goal, trim_tree, tree_to_paths
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import dump_gzipped_pickle, load_gzipped_pickle
@@ -33,6 +34,29 @@ with warnings.catch_warnings():
 def _are_states_close(a: Dict, b: Dict):
     keys = [add_predicted(k) for k in ['rope', 'left_gripper', 'right_gripper']]
     return are_states_close(a, b, keys)
+
+
+def generate_executed_paths(gazebo_processes: List,
+                            service_provider: GazeboServices,
+                            planning_query: PlanningQuery,
+                            scenario: ScenarioWithVisualization,
+                            planned_paths: List):
+    [p.resume() for p in gazebo_processes]
+
+    executed_paths = []
+    for planned_path in planned_paths:
+        executed_path = []
+        for p_i in planned_path[1:]:
+            before_state, after_state, error = execute(scenario=scenario,
+                                                       service_provider=service_provider,
+                                                       environment=planning_query.environment,
+                                                       action=p_i['action'])
+            if len(executed_path) == 0:
+                executed_path.append(before_state)
+            executed_path.append(after_state)
+        executed_paths.append(executed_path)
+
+    return executed_paths
 
 
 def generate_execution_graph(gazebo_processes: List,
@@ -74,7 +98,6 @@ def generate_planning_graph(planning_query: PlanningQuery,
                             scenario: ScenarioWithVisualization,
                             max_n_extensions: int,
                             verbose: int):
-    goal['goal_type'] = planner_params['goal_params']['goal_type']
     rrt_planner = get_planner(planner_params, verbose=verbose, log_full_tree=True, scenario=scenario)
 
     def _override_ptc(_: PlanningQuery):
@@ -82,7 +105,6 @@ def generate_planning_graph(planning_query: PlanningQuery,
 
     rrt_planner.make_ptc = _override_ptc
 
-    [p.suspend() for p in gazebo_processes]
     planning_result = rrt_planner.plan(planning_query)
     return planning_query, planning_result
 
@@ -99,7 +121,11 @@ def generate_graph(root: pathlib.Path,
                    service_provider: GazeboServices,
                    restore_from_planning_tree: bool):
     planning_result_filename = root / f"{name}-planning_result.pkl.gz"
+    goal['goal_type'] = planner_params['goal_params']['goal_type']
     planning_query = get_planning_query(goal, planner_params, scenario, start)
+
+    # suspend after getting planning query, which involves getting the state/env, which requires gazebo running
+    [p.suspend() for p in gazebo_processes]
 
     if not restore_from_planning_tree:
         planning_result = generate_planning_graph(planning_query=planning_query,
@@ -115,15 +141,20 @@ def generate_graph(root: pathlib.Path,
         with planning_result_filename.open("rb") as planning_result_file:
             planning_result = load_gzipped_pickle(planning_result_file)
 
-    graph = generate_execution_graph(gazebo_processes=gazebo_processes,
-                                     service_provider=service_provider,
-                                     planning_query=planning_query,
-                                     scenario=scenario,
-                                     planning_result=planning_result,
-                                     planner_params=planner_params,
-                                     verbose=verbose)
+    trimmed_tree = LoggingTree()
+    goal['goal_type'] = planner_params['goal_params']['goal_type']
+    goal_cond = make_predicted_reached_goal(scenario, goal, goal_threshold=0.045)
+    trim_tree(planning_result.tree, trimmed_tree, goal_cond)
+    trimmed_tree = trimmed_tree.children[0]
+    planned_paths = list(tree_to_paths(trimmed_tree))
 
-    return planning_query, planning_result, graph, planning_query.environment
+    executed_paths = generate_executed_paths(gazebo_processes=gazebo_processes,
+                                             service_provider=service_provider,
+                                             planning_query=planning_query,
+                                             planned_paths=planned_paths,
+                                             scenario=scenario)
+
+    return planning_query, planning_result, planned_paths, executed_paths, planning_query.environment
 
 
 def get_planning_query(goal, planner_params, scenario, start):
@@ -158,17 +189,17 @@ def generate_graph_data(name: str,
     start = scenario.get_state()
     goal = test_scene.goal
 
-    planning_query, planning_result, graph, env = generate_graph(root=root,
-                                                                 name=name,
-                                                                 planner_params=planner_params,
-                                                                 scenario=scenario,
-                                                                 start=start,
-                                                                 goal=goal,
-                                                                 verbose=verbose,
-                                                                 gazebo_processes=gazebo_processes,
-                                                                 max_n_extensions=n_extensions,
-                                                                 service_provider=service_provider,
-                                                                 restore_from_planning_tree=restore_from_planning_tree)
+    planning_query, planning_result, planned_paths, executed_paths, env = generate_graph(root=root,
+                                                                                         name=name,
+                                                                                         planner_params=planner_params,
+                                                                                         scenario=scenario,
+                                                                                         start=start,
+                                                                                         goal=goal,
+                                                                                         verbose=verbose,
+                                                                                         gazebo_processes=gazebo_processes,
+                                                                                         max_n_extensions=n_extensions,
+                                                                                         service_provider=service_provider,
+                                                                                         restore_from_planning_tree=restore_from_planning_tree)
 
     out_filename = root / f"{name}.pkl.gz"
     graph_data = {
@@ -176,7 +207,8 @@ def generate_graph_data(name: str,
         'planning_query':  planning_query,
         'planning_result': planning_result,
         'env':             env,
-        'graph':           graph,
+        'planned_paths':   planned_paths,
+        'executed_paths':  executed_paths,
         'start':           start,
         'goal':            goal,
         'params':          planner_params,
