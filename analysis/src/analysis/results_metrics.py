@@ -4,9 +4,7 @@ from typing import Dict, Optional
 
 import numpy as np
 import rospkg
-from colorama import Fore
 
-import rospy
 from analysis.results_utils import get_paths, try_load_classifier_params
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_planning.my_planner import PlanningResult, MyPlannerStatus

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-from tqdm import tqdm
 import logging
 import pathlib
 import warnings
@@ -9,13 +8,14 @@ from time import time, perf_counter
 from typing import Dict, List
 
 import tensorflow as tf
+from tqdm import tqdm
 
 from arc_utilities import ros_init
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_gazebo.gazebo_utils import get_gazebo_processes
-from link_bot_planning.execute_full_tree import execute_full_tree, precompute_full_tree_size
+from link_bot_planning.execute_full_tree import execute_full_tree
 from link_bot_planning.get_planner import get_planner
 from link_bot_planning.my_planner import PlanningQuery, PlanningResult, LoggingTree, are_states_close
 from link_bot_planning.planning_evaluation import load_planner_params
