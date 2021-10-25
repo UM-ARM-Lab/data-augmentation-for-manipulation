@@ -50,8 +50,12 @@ def execute_full_tree(scenario: ScenarioWithVisualization,
                                                    service_provider=service_provider,
                                                    environment=planning_query.environment,
                                                    action=child.action)
-        if error and stop_on_error:
+        if stop_on_error and error:
             continue
+        elif error:
+            print("Error executing action!")
+
+        child.action['error'] = error
 
         # only include this example and continue the DFS if we were able to successfully execute the action
         yield FullTreeExecutionElement(environment=planning_query.environment,
