@@ -5,7 +5,7 @@ import logging
 import pathlib
 import warnings
 from time import time, perf_counter
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import tensorflow as tf
 
@@ -96,7 +96,7 @@ def generate_graph(root: pathlib.Path,
                    gazebo_processes: List,
                    max_n_extensions: int,
                    service_provider: GazeboServices,
-                   restore_from_planning_tree: Optional[pathlib.Path]):
+                   restore_from_planning_tree: bool):
     planning_result_filename = root / f"{name}-planning_result.pkl.gz"
     planning_query = get_planning_query(goal, planner_params, scenario, start)
 
@@ -139,7 +139,7 @@ def generate_graph_data(name: str,
                         planner_params_filename: pathlib.Path,
                         test_scene: TestScene,
                         verbose: int,
-                        restore_from_planning_tree: Optional[pathlib.Path]):
+                        restore_from_planning_tree: bool):
     root = pathlib.Path("/media/shared/graphs")
     root.mkdir(exist_ok=True)
 
@@ -189,7 +189,7 @@ def main():
     parser.add_argument("planner_params", type=pathlib.Path)
     parser.add_argument("test_scenes", type=pathlib.Path)
     parser.add_argument("--n", '-n', type=int, default=10000)
-    parser.add_argument("--restore-from-planning-tree", '-r', type=pathlib.Path)
+    parser.add_argument("--restore-from-planning-tree", '-r', action='store_true')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
 
     args = parser.parse_args()
