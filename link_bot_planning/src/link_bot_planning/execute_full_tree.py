@@ -29,7 +29,8 @@ def execute_full_tree(scenario: ScenarioWithVisualization,
                       planning_query: PlanningQuery,
                       bagfile_name=None,
                       depth: int = 0,
-                      verbose: int = 1):
+                      verbose: int = 1,
+                      stop_on_error: bool = True):
     if depth == 0:
         service_provider.play()
         scenario.on_before_get_state_or_execute_action()
@@ -49,7 +50,7 @@ def execute_full_tree(scenario: ScenarioWithVisualization,
                                                    service_provider=service_provider,
                                                    environment=planning_query.environment,
                                                    action=child.action)
-        if error:
+        if error and stop_on_error:
             continue
 
         # only include this example and continue the DFS if we were able to successfully execute the action

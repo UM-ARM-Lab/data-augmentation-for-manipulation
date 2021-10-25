@@ -48,7 +48,8 @@ def generate_execution_graph(gazebo_processes: List,
                                       tree=planning_result.tree,
                                       planner_params=planner_params,
                                       planning_query=planning_query,
-                                      verbose=verbose)
+                                      verbose=verbose,
+                                      stop_on_error=False)
 
     graph = LoggingTree()
     for e in execution_gen:
