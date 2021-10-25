@@ -79,7 +79,7 @@ def execute(scenario, service_provider, environment: Dict, action: Dict):
     error = False
     try:
         scenario.execute_action(environment=environment, state=before_state, action=action)
-    except RobotPlanningError:
+    except (RobotPlanningError, RuntimeError):
         error = True
     after_state = scenario.get_state()
     return before_state, after_state, error

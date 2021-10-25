@@ -5,7 +5,7 @@ import logging
 import pathlib
 import warnings
 from time import time, perf_counter
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import tensorflow as tf
 
@@ -65,11 +65,11 @@ def generate_execution_graph(gazebo_processes: List,
     return graph
 
 
-def generate_planning_graph(gazebo_processes: List,
+def generate_planning_graph(planning_query: PlanningQuery,
+                            gazebo_processes: List,
                             goal: Dict,
                             planner_params: Dict,
                             scenario: ScenarioWithVisualization,
-                            start: Dict,
                             max_n_extensions: int,
                             verbose: int):
     goal['goal_type'] = planner_params['goal_params']['goal_type']
@@ -80,15 +80,9 @@ def generate_planning_graph(gazebo_processes: List,
 
     rrt_planner.make_ptc = _override_ptc
 
-    environment = scenario.get_environment(planner_params)
-    planning_query = PlanningQuery(goal=goal,
-                                   environment=environment,
-                                   start=start,
-                                   seed=0,
-                                   trial_start_time_seconds=perf_counter())
     [p.suspend() for p in gazebo_processes]
     planning_result = rrt_planner.plan(planning_query)
-    return planning_query, planning_result, environment
+    return planning_query, planning_result
 
 
 def generate_graph(root: pathlib.Path,
@@ -100,17 +94,23 @@ def generate_graph(root: pathlib.Path,
                    verbose: int,
                    gazebo_processes: List,
                    max_n_extensions: int,
-                   service_provider: GazeboServices):
-    planning_query, planning_result, env = generate_planning_graph(gazebo_processes=gazebo_processes,
-                                                                   goal=goal,
-                                                                   planner_params=planner_params,
-                                                                   scenario=scenario,
-                                                                   start=start,
-                                                                   verbose=verbose,
-                                                                   max_n_extensions=max_n_extensions)
-
+                   service_provider: GazeboServices,
+                   restore_from_planning_tree: Optional[pathlib.Path]):
     planning_result_filename = root / f"{name}-planning_result.pkl.gz"
-    dump_gzipped_pickle(planning_result, planning_result_filename)
+    planning_query = get_planning_query(goal, planner_params, scenario, start)
+
+    if not restore_from_planning_tree:
+        planning_result = generate_planning_graph(planning_query=planning_query,
+                                                  gazebo_processes=gazebo_processes,
+                                                  goal=goal,
+                                                  planner_params=planner_params,
+                                                  scenario=scenario,
+                                                  verbose=verbose,
+                                                  max_n_extensions=max_n_extensions)
+        dump_gzipped_pickle(planning_result, planning_result_filename)
+    else:
+        with planning_result_filename.open("rb") as planning_result_file:
+            planning_result = load_gzipped_pickle(planning_result_file)
 
     graph = generate_execution_graph(gazebo_processes=gazebo_processes,
                                      service_provider=service_provider,
@@ -120,14 +120,25 @@ def generate_graph(root: pathlib.Path,
                                      planner_params=planner_params,
                                      verbose=verbose)
 
-    return planning_result, graph, env
+    return planning_result, graph, planning_query.environment
+
+
+def get_planning_query(goal, planner_params, scenario, start):
+    environment = scenario.get_environment(planner_params)
+    planning_query = PlanningQuery(goal=goal,
+                                   environment=environment,
+                                   start=start,
+                                   seed=0,
+                                   trial_start_time_seconds=perf_counter())
+    return planning_query
 
 
 def generate_graph_data(name: str,
                         n_extensions,
                         planner_params_filename: pathlib.Path,
                         test_scene: TestScene,
-                        verbose: int):
+                        verbose: int,
+                        restore_from_planning_tree: Optional[pathlib.Path]):
     root = pathlib.Path("/media/shared/graphs")
     root.mkdir(exist_ok=True)
 
@@ -153,7 +164,8 @@ def generate_graph_data(name: str,
                                                  verbose=verbose,
                                                  gazebo_processes=gazebo_processes,
                                                  max_n_extensions=n_extensions,
-                                                 service_provider=service_provider)
+                                                 service_provider=service_provider,
+                                                 restore_from_planning_tree=restore_from_planning_tree)
 
     out_filename = root / f"{name}.pkl.gz"
     graph_data = {
@@ -176,6 +188,7 @@ def main():
     parser.add_argument("planner_params", type=pathlib.Path)
     parser.add_argument("test_scenes", type=pathlib.Path)
     parser.add_argument("--n", '-n', type=int, default=10000)
+    parser.add_argument("--restore-from-planning-tree", '-r', type=pathlib.Path)
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
 
     args = parser.parse_args()
@@ -190,7 +203,8 @@ def main():
                             planner_params_filename=args.planner_params,
                             test_scene=test_scene,
                             verbose=args.verbose,
-                            n_extensions=args.n)
+                            n_extensions=args.n,
+                            restore_from_planning_tree=args.restore_from_planning_tree)
 
 
 if __name__ == '__main__':

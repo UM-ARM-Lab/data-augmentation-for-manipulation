@@ -11,7 +11,7 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers.classifier_utils import load_generic_model
-from link_bot_planning.tree_utils import make_predicted_reached_goal, StateActionTree, trim_tree
+from link_bot_planning.tree_utils import make_predicted_reached_goal, StateActionTree, trim_tree, tree_to_paths
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.gpu_config import limit_gpu_mem
@@ -27,7 +27,7 @@ def tree_eval_classifier(environment, tree, classifiers):
                 p_accepts_for_model = c.check_constraint(environment=environment,
                                                          states_sequence=[parent.state, child.state],
                                                          actions=[child.action])
-                tree.classifier_probabilites[c.name] = p_accepts_for_model
+                tree.classifier_probabilities[c.name] = p_accepts_for_model
 
             _eval(child)
 
@@ -60,12 +60,14 @@ def graph_planning_evaluation(outdir: pathlib.Path,
     tree_eval_classifier(environment, trimmed_tree, classifiers)
 
     planning_time = perf_counter() - t0
+    paths = list(tree_to_paths(trimmed_tree))
 
     results = {
-        # 'paths':         paths,
+        'paths':         paths,
         'planning_time': planning_time,
     }
 
+    outdir.mkdir(exist_ok=True)
     with (outdir / 'results.pkl').open("wb") as f:
         pickle.dump(results, f)
 
