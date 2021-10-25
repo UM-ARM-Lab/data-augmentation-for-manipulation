@@ -7,12 +7,6 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 
 
-class StateActionTree:
-    def __init__(self, state=None, action=None):
-        self.state = state
-        self.action = action
-        self.children = []
-
 
 def walk(parent: LoggingTree):
     for child in parent.children:
@@ -70,8 +64,8 @@ def extract_path(g: LoggingTree, cond: Callable):
     return _exatract_path(g)
 
 
-def tree_to_paths(parent: StateActionTree, path=[]):
-    path.append({'state': parent.state, 'action': parent.action})
+def tree_to_paths(parent: LoggingTree, path=[]):
+    path.append(parent.to_dict())
 
     if len(parent.children) == 0:
         yield deepcopy(path)
@@ -82,8 +76,8 @@ def tree_to_paths(parent: StateActionTree, path=[]):
     path.pop()
 
 
-def trim_tree(parent: LoggingTree, other_parent: StateActionTree, goal_cond):
-    new = StateActionTree(parent.state, parent.action)
+def trim_tree(parent: LoggingTree, other_parent: LoggingTree, goal_cond):
+    new = LoggingTree(state=parent.state, action=parent.action)
     other_parent.children.append(new)
 
     if goal_cond(parent):
@@ -98,7 +92,7 @@ def trim_tree(parent: LoggingTree, other_parent: StateActionTree, goal_cond):
 
 
 def extract_paths(g: LoggingTree, goal_cond: Callable):
-    trimmed_tree = StateActionTree()
+    trimmed_tree = LoggingTree()
     trim_tree(g, trimmed_tree, goal_cond)
     if len(trimmed_tree.children) == 0:
         print("No paths!")

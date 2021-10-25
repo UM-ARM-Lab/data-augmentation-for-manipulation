@@ -11,7 +11,9 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_classifiers.classifier_utils import load_generic_model
-from link_bot_planning.tree_utils import make_predicted_reached_goal, StateActionTree, trim_tree, tree_to_paths
+from link_bot_planning.my_planner import LoggingTree, PlanningResult, MyPlannerStatus
+from link_bot_planning.tree_utils import make_predicted_reached_goal, trim_tree, tree_to_paths
+from link_bot_planning.trial_result import ExecutionResult
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.gpu_config import limit_gpu_mem
@@ -20,14 +22,14 @@ limit_gpu_mem(None)
 
 
 def tree_eval_classifier(environment, tree, classifiers):
-    def _eval(parent: StateActionTree):
-        tree.classifier_probabilities = {}
+    def _eval(parent: LoggingTree):
         for child in parent.children:
+            child.accept_probabilities = {}
             for c in classifiers:
                 p_accepts_for_model = c.check_constraint(environment=environment,
                                                          states_sequence=[parent.state, child.state],
                                                          actions=[child.action])
-                tree.classifier_probabilities[c.name] = p_accepts_for_model
+                child.accept_probabilities[c.name] = p_accepts_for_model
 
             _eval(child)
 
@@ -45,6 +47,8 @@ def graph_planning_evaluation(outdir: pathlib.Path,
     start = graph_data['start']
     goal = graph_data['goal']
     params = graph_data['params']
+    planning_query = graph_data['planning_query']
+    full_planning_result = graph_data['planning_result']
 
     scenario = get_scenario(params['scenario'])
 
@@ -52,7 +56,7 @@ def graph_planning_evaluation(outdir: pathlib.Path,
 
     classifiers = [load_generic_model(d, scenario=scenario) for d in classifier_model_dirs]
 
-    trimmed_tree = StateActionTree()
+    trimmed_tree = LoggingTree()
     goal_cond = make_predicted_reached_goal(scenario, goal, goal_threshold)
     trim_tree(tree, trimmed_tree, goal_cond)
     trimmed_tree = trimmed_tree.children[0]
@@ -62,14 +66,55 @@ def graph_planning_evaluation(outdir: pathlib.Path,
     planning_time = perf_counter() - t0
     paths = list(tree_to_paths(trimmed_tree))
 
-    results = {
-        'paths':         paths,
-        'planning_time': planning_time,
-    }
-
     outdir.mkdir(exist_ok=True)
-    with (outdir / 'results.pkl').open("wb") as f:
-        pickle.dump(results, f)
+
+    for i, path in enumerate(paths):
+        path_states = [p_i['state'] for p_i in path]
+        path_actions = [p_i['action'] for p_i in path]
+        step_planning_result = PlanningResult(
+            path=path_states,
+            actions=path_actions,
+            status=MyPlannerStatus.Solved,
+            tree=LoggingTree(),
+            time=0.0,
+            mean_propagate_time=0.0
+        )
+        steps = [{
+            'type':             'executed_plan',
+            'planning_query':   planning_query,
+            'planning_result':  step_planning_result,
+            'recovery_action':  None,
+            'execution_result': ExecutionResult(
+                path=path_states,
+                end_trial=False,
+                stopped=False,
+                end_t=-1,
+            ),
+            'time_since_start': None,
+        }]
+
+        trial_datum = {
+            'graph_filename':        graph_filename,
+            'classifier_model_dirs': classifier_model_dirs,
+            'scenario':              params['scenario'],
+            'planning_time':         planning_time,
+            'paths':                 paths,
+            'goal':                  goal,
+            'steps':                 steps,
+            'end_state':             path_states[-1],
+            'total_time':            -1,
+            'metadata':              {
+                'planner_params': params
+            }
+        }
+        classifier_model_dirs_str = [c.as_posix() for c in classifier_model_dirs]
+        trial_datum['metadata']['planner_params']['classifier_model_dir'] = classifier_model_dirs_str
+        trial_datum['metadata']['planner_params']['goal_params']['threshold'] = goal_threshold
+
+        outfilename = outdir / f'trial_{i}.pkl'
+        with outfilename.open("wb") as f:
+            pickle.dump(trial_datum, f)
+        print(f"{outfilename.as_posix()}")
 
 
 @ros_init.with_ros("graph_planning_evaluation")

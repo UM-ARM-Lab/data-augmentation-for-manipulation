@@ -88,6 +88,14 @@ class LoggingTree:
         s += str(self.state)
         return s
 
+    def to_dict(self):
+        d = {
+            'state':                self.state,
+            'action':               self.action,
+            'accept_probabilities': self.accept_probabilities,
+        }
+        return d
+
 
 @dataclass_json
 @dataclass

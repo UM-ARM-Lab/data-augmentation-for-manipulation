@@ -15,7 +15,7 @@ from arc_utilities.algorithms import nested_dict_update
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_gazebo.gazebo_utils import get_gazebo_processes
-from link_bot_planning.execute_full_tree import execute_full_tree
+from link_bot_planning.execute_full_tree import execute_full_tree, precompute_full_tree_size
 from link_bot_planning.get_planner import get_planner
 from link_bot_planning.my_planner import PlanningQuery, PlanningResult, LoggingTree, are_states_close
 from link_bot_planning.planning_evaluation import load_planner_params
@@ -53,7 +53,7 @@ def generate_execution_graph(gazebo_processes: List,
                                       stop_on_error=False)
 
     graph = LoggingTree()
-    for e in tqdm(execution_gen, total=total):
+    for e in tqdm(execution_gen, total=planning_result.tree.size):
         planned_before_state = {add_predicted(k): v for k, v in e.planned_before_state.items()}
         planned_after_state = {add_predicted(k): v for k, v in e.planned_after_state.items()}
         combined_before_state = nested_dict_update(planned_before_state, e.before_state)
@@ -123,7 +123,7 @@ def generate_graph(root: pathlib.Path,
                                      planner_params=planner_params,
                                      verbose=verbose)
 
-    return planning_result, graph, planning_query.environment
+    return planning_query, planning_result, graph, planning_query.environment
 
 
 def get_planning_query(goal, planner_params, scenario, start):
@@ -158,21 +158,22 @@ def generate_graph_data(name: str,
     start = scenario.get_state()
     goal = test_scene.goal
 
-    planning_result, graph, env = generate_graph(root=root,
-                                                 name=name,
-                                                 planner_params=planner_params,
-                                                 scenario=scenario,
-                                                 start=start,
-                                                 goal=goal,
-                                                 verbose=verbose,
-                                                 gazebo_processes=gazebo_processes,
-                                                 max_n_extensions=n_extensions,
-                                                 service_provider=service_provider,
-                                                 restore_from_planning_tree=restore_from_planning_tree)
+    planning_query, planning_result, graph, env = generate_graph(root=root,
+                                                                 name=name,
+                                                                 planner_params=planner_params,
+                                                                 scenario=scenario,
+                                                                 start=start,
+                                                                 goal=goal,
+                                                                 verbose=verbose,
+                                                                 gazebo_processes=gazebo_processes,
+                                                                 max_n_extensions=n_extensions,
+                                                                 service_provider=service_provider,
+                                                                 restore_from_planning_tree=restore_from_planning_tree)
 
     out_filename = root / f"{name}.pkl.gz"
     graph_data = {
         'generated_at':    int(time()),
+        'planning_query':  planning_query,
         'planning_result': planning_result,
         'env':             env,
         'graph':           graph,
