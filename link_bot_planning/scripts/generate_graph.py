@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+from tqdm import tqdm
 import logging
 import pathlib
 import warnings
@@ -52,7 +53,7 @@ def generate_execution_graph(gazebo_processes: List,
                                       stop_on_error=False)
 
     graph = LoggingTree()
-    for e in execution_gen:
+    for e in tqdm(execution_gen, total=total):
         planned_before_state = {add_predicted(k): v for k, v in e.planned_before_state.items()}
         planned_after_state = {add_predicted(k): v for k, v in e.planned_after_state.items()}
         combined_before_state = nested_dict_update(planned_before_state, e.before_state)
@@ -110,6 +111,7 @@ def generate_graph(root: pathlib.Path,
                                                   max_n_extensions=max_n_extensions)
         dump_gzipped_pickle(planning_result, planning_result_filename)
     else:
+        print("Restoring!")
         with planning_result_filename.open("rb") as planning_result_file:
             planning_result = load_gzipped_pickle(planning_result_file)
 
