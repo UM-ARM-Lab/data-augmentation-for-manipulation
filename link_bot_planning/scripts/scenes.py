@@ -59,6 +59,20 @@ def viz_main(args):
             break
 
 
+def cp_main(args):
+    start_idx = len(get_all_scenes(args.dest))
+    out_idx = start_idx
+    for idx in args.idx:
+        # get the source scene
+        s_i = TestScene(root=args.src, idx=idx)
+
+        # change its info and save
+        s_i.root = args.dest
+        s_i.change_index(out_idx)
+
+        out_idx += 1
+
+
 def filter_main(args):
     scenario = get_scenario(args.scenario)
     scenario.on_before_get_state_or_execute_action()
@@ -131,6 +145,12 @@ def main():
     filter_parser.add_argument("outdir", type=pathlib.Path, help='dir to save the filtered scenes to')
     filter_parser.add_argument("--scenario", default='dual_arm_rope_sim_val_with_robot_feasibility_checking')
     filter_parser.set_defaults(func=filter_main)
+
+    copy_parser = subparsers.add_parser('cp')
+    copy_parser.add_argument("src", type=pathlib.Path)
+    copy_parser.add_argument("dest", type=pathlib.Path)
+    copy_parser.add_argument("idx", type=int_set_arg)
+    copy_parser.set_defaults(func=cp_main)
 
     args = parser.parse_args()
 

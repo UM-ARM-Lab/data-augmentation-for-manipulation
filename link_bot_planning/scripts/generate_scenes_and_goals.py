@@ -61,7 +61,6 @@ def generate_saved_goals(method: str,
     goal_radius = params['goal_params']['threshold']
 
     if method == 'rviz_marker':
-        print("Run the following: rosrun rviz_visual_tools imarker_simple_demo")
         print("drag the marker to where you want and hit enter...")
 
     def make_marker(scale: float):
@@ -96,6 +95,9 @@ def generate_saved_goals(method: str,
         scenario.plot_environment_rviz(environment)
 
         current_goal = load(scenes_dir, trial_idx)
+        state = scenario.get_state()
+        scenario.reset_planning_viz()
+        scenario.plot_state_rviz(state, label='start')
         if current_goal is not None:
             scenario.plot_goal_rviz(current_goal, goal_threshold=goal_radius)
 
@@ -105,7 +107,8 @@ def generate_saved_goals(method: str,
         elif method == 'rviz_marker':
             if current_goal is not None:
                 goal_im.set_pose(Pose(position=ros_numpy.msgify(Point, current_goal['point'])))
-            input("press enter to save")
+            # input("press enter to save")
+            rospy.sleep(10)
             goal = rviz_marker_goal(goal_im)
         else:
             raise NotImplementedError()
@@ -146,7 +149,7 @@ def sketchy_default_params():
         'res':                       0.02,
         'extent':                    [-0.6, 0.6, 0.25, 1.15, -0.3, 0.6],
         'goal_params':               {
-            'threshold': 0.05,
+            'threshold': 0.045,
         }
     }
     return params
