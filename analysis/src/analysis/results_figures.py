@@ -15,7 +15,8 @@ def lineplot(df,
              title: str,
              hue: Optional[str] = None,
              style: Optional[str] = None,
-             figsize=None):
+             figsize=None,
+             ci=100):
     fig = plt.figure(figsize=figsize)
     ax = sns.lineplot(
         data=df,
@@ -24,7 +25,7 @@ def lineplot(df,
         hue=hue,
         style=style,
         palette='colorblind',
-        ci=100,
+        ci=ci,
         estimator='mean',
     )
     ax.set_title(title)
