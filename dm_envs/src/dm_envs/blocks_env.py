@@ -65,6 +65,7 @@ class MyBlocks(composer.Task):
         self._blocks = []
         for i in range(num_blocks):
             block = Box(half_lengths=[0.01] * 3)
+            self._arena.add_free_entity(block)
             self._blocks.append(block)
 
         # configure and enable observables
