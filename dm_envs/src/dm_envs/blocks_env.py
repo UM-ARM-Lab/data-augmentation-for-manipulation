@@ -1,5 +1,4 @@
 import collections
-from itertools import cycle
 
 from dm_control import composer
 from dm_control.composer import initializers
@@ -41,7 +40,7 @@ MY_WORKSPACE = MyWorkspace(prop_bbox=workspaces.BoundingBox(lower=(-WORKSPACE_PR
 
 
 class MyBlocks(composer.Task):
-    def __init__(self, arena, arm, hand, obs_settings, workspace, control_timestep, num_blocks: int = 30):
+    def __init__(self, arena, arm, hand, obs_settings, workspace, control_timestep, num_blocks: int):
         self._arena = arena
         self._arm = arm
         self._hand = hand
@@ -109,11 +108,11 @@ class MyBlocks(composer.Task):
 
 
 @registry.add(tags.VISION)
-def my_blocks():
+def my_blocks(num_blocks=10):
     arena = arenas.Standard()
     arm = robots.make_arm(obs_settings=VISION_DEPTH)
     hand = robots.make_hand(obs_settings=VISION_DEPTH)
-    task = MyBlocks(arena, arm, hand, VISION_DEPTH, MY_WORKSPACE, constants.CONTROL_TIMESTEP)
+    task = MyBlocks(arena, arm, hand, VISION_DEPTH, MY_WORKSPACE, constants.CONTROL_TIMESTEP, num_blocks=num_blocks)
     return task
 
 
