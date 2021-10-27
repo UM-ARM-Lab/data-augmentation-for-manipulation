@@ -4,10 +4,12 @@ from dm_control import composer
 from dm_control.composer import initializers
 from dm_control.composer.variation import distributions
 from dm_control.manipulation.props.primitive import Box
-from dm_control.manipulation.shared import arenas, cameras, workspaces, constants, robots
+from dm_control.manipulation.shared import arenas, cameras, workspaces, constants, robots, observations
 from dm_control.manipulation.shared import registry, tags
 from dm_control.manipulation.shared.observations import ObservationSettings, _ENABLED_FEATURE, _ENABLED_FTT, \
     ObservableSpec, VISION
+
+from dm_envs.primitive_hand import PrimitiveHand, PrimitiveHandObservables
 
 
 class MyCameraObservableSpec(collections.namedtuple(
@@ -79,14 +81,6 @@ class MyBlocks(composer.Task):
         return self._arena
 
     @property
-    def arm(self):
-        return self._arm
-
-    @property
-    def hand(self):
-        return self._hand
-
-    @property
     def task_observables(self):
         return self._task_observables
 
@@ -100,7 +94,6 @@ class MyBlocks(composer.Task):
             settle_physics=True)
 
     def initialize_episode(self, physics, random_state):
-        self._hand.set_grasp(physics, close_factors=random_state.uniform())
         self._tcp_initializer(physics, random_state)
         self._block_placer(physics, random_state)
 
@@ -112,7 +105,7 @@ class MyBlocks(composer.Task):
 def my_blocks(num_blocks=10):
     arena = arenas.Standard()
     arm = robots.make_arm(obs_settings=VISION)
-    hand = robots.make_hand(obs_settings=VISION)
+    hand = PrimitiveHand()
     task = MyBlocks(arena, arm, hand, VISION, MY_WORKSPACE, constants.CONTROL_TIMESTEP, num_blocks=num_blocks)
     return task
 
