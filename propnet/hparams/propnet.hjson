@@ -1,0 +1,11 @@
+{
+  model_class: PropNet
+  sequence_length: 10
+  shuffle_buffer_size: 64
+  state_keys: [
+  ]
+  action_keys: [
+  ]
+  learning_rate: 0.001
+  epochs: 400
+}

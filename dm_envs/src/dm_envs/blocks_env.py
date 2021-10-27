@@ -7,7 +7,7 @@ from dm_control.manipulation.props.primitive import Box
 from dm_control.manipulation.shared import arenas, cameras, workspaces, constants, robots
 from dm_control.manipulation.shared import registry, tags
 from dm_control.manipulation.shared.observations import ObservationSettings, _ENABLED_FEATURE, _ENABLED_FTT, \
-    ObservableSpec
+    ObservableSpec, VISION
 
 
 class MyCameraObservableSpec(collections.namedtuple(
@@ -41,6 +41,7 @@ MY_WORKSPACE = MyWorkspace(prop_bbox=workspaces.BoundingBox(lower=(-WORKSPACE_PR
 
 class MyBlocks(composer.Task):
     def __init__(self, arena, arm, hand, obs_settings, workspace, control_timestep, num_blocks: int):
+        self.box_length = 0.02
         self._arena = arena
         self._arm = arm
         self._hand = hand
@@ -63,7 +64,7 @@ class MyBlocks(composer.Task):
         # create block entities
         self._blocks = []
         for i in range(num_blocks):
-            block = Box(half_lengths=[0.01] * 3)
+            block = Box(half_lengths=[self.box_length / 2] * 3)
             self._arena.add_free_entity(block)
             self._blocks.append(block)
 
@@ -110,9 +111,9 @@ class MyBlocks(composer.Task):
 @registry.add(tags.VISION)
 def my_blocks(num_blocks=10):
     arena = arenas.Standard()
-    arm = robots.make_arm(obs_settings=VISION_DEPTH)
-    hand = robots.make_hand(obs_settings=VISION_DEPTH)
-    task = MyBlocks(arena, arm, hand, VISION_DEPTH, MY_WORKSPACE, constants.CONTROL_TIMESTEP, num_blocks=num_blocks)
+    arm = robots.make_arm(obs_settings=VISION)
+    hand = robots.make_hand(obs_settings=VISION)
+    task = MyBlocks(arena, arm, hand, VISION, MY_WORKSPACE, constants.CONTROL_TIMESTEP, num_blocks=num_blocks)
     return task
 
 

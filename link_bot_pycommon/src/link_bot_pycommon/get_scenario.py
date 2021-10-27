@@ -21,6 +21,11 @@ def make_dual_arm_real_val_rope_scenario():
     return DualArmRealValRopeScenario
 
 
+def make_blocks_scenario():
+    from dm_envs.blocks_scenario import BlocksScenario
+    return BlocksScenario
+
+
 def make_dual_arm_scenario():
     from link_bot_pycommon.dual_arm_scenario import DualArmScenario
     return DualArmScenario
@@ -70,6 +75,7 @@ scenario_map = {
     'dual_arm_no_rope':                                      make_dual_arm_scenario,
     'dual_arm_rope_sim_val_with_robot_feasibility_checking': make_dual_arm_rope_sim_val_with_robot_feasibility_checking,
     'real_val_with_robot_feasibility_checking':              make_real_val_with_robot_feasibility_checking,
+    'blocks':                                                make_blocks_scenario,
 }
 
 

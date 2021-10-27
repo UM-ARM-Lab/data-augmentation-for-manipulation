@@ -166,12 +166,6 @@ class BaseDataCollector:
         return full_output_directory
 
     def save_hparams(self, full_output_directory, n_trajs, nickname):
-        s_for_size = self.scenario.get_state()
-        a_for_size, _ = self.scenario.sample_action(action_rng=np.random.RandomState(0),
-                                                    environment={},
-                                                    state=s_for_size,
-                                                    action_params=self.params,
-                                                    validate=False)
         dataset_hparams = {
             'nickname':               nickname,
             'robot_namespace':        self.scenario.robot.robot_namespace,
