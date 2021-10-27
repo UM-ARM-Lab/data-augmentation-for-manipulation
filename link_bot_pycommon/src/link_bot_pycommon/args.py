@@ -72,7 +72,7 @@ def int_range_arg(v):
 
 
 def int_setify(v):
-    if v is None or v == 'None' or v == 'null':
+    if v is None or v in ['None', 'none', 'Null', 'null']:
         return None
     return int_set_arg(v)
 
