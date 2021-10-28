@@ -34,7 +34,7 @@ class NewDynamicsDatasetLoader(NewBaseDatasetLoader):
                               action_keys=self.action_keys)
 
     def anim_rviz(self, example: Dict):
-        anim = RvizAnimation(scenario=self.get_scenario(),
+        anim = RvizAnimation(self.get_scenario(),
                              n_time_steps=example['time_idx'].size,
                              init_funcs=[
                                  init_viz_env

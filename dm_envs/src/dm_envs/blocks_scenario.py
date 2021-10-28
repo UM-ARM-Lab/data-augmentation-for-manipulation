@@ -2,11 +2,11 @@ from typing import Dict, Optional
 
 import numpy as np
 from dm_control import composer
+from dm_envs.blocks_env import my_blocks
 from matplotlib import colors
 
 import ros_numpy
 import rospy
-from dm_envs.blocks_env import my_blocks
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from sensor_msgs.msg import Image
 from std_msgs.msg import ColorRGBA
@@ -23,15 +23,24 @@ class BlocksScenario(ScenarioWithVisualization):
         self.task = None
         self.env = None
         self.action_spec = None
+        self.num_blocks = None
 
         self.camera_pub = rospy.Publisher("camera", Image, queue_size=10)
 
-    def on_before_data_collection(self, params: Dict):
-        self.num_blocks = params['num_blocks']
+        self.num_blocks = 20
         self.task = my_blocks(num_blocks=self.num_blocks)
         # we don't want episode termination to be decided by dm_control, we do that ourselves elsewhere
         self.env = composer.Environment(self.task, time_limit=9999, random_state=0)
         self.action_spec = self.env.action_spec()
+        print("constructing BlockScenario")
+
+    def on_before_data_collection(self, params: Dict):
+        # modified the input dict!
+        s = self.get_state()
+        params['state_keys'] = list(s.keys())
+        params['env_keys'] = []
+        params['action_keys'] = ['mjaction']
+        params['state_metadata_keys'] = []
 
     def get_environment(self, params: Dict, **kwargs):
         # not the mujoco "env", this means the static obstacles and workspaces geometry
@@ -58,12 +67,8 @@ class BlocksScenario(ScenarioWithVisualization):
 
         msg = MarkerArray()
         for i in range(self.num_blocks):
-            if i == 0:
-                box_position = state[f'box/position']
-                box_orientation = state[f'box/orientation']
-            else:
-                box_position = state[f'box_{i}/position']
-                box_orientation = state[f'box_{i}/orientation']
+            box_position = state[f'box{i}/position']
+            box_orientation = state[f'box{i}/orientation']
 
             block_marker = Marker()
             block_marker.header.frame_id = 'world'

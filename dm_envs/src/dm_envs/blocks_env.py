@@ -66,7 +66,7 @@ class MyBlocks(composer.Task):
         # create block entities
         self._blocks = []
         for i in range(num_blocks):
-            block = Box(half_lengths=[self.box_length / 2] * 3)
+            block = Box(half_lengths=[self.box_length / 2] * 3, name=f'box{i}')
             self._arena.add_free_entity(block)
             self._blocks.append(block)
 
