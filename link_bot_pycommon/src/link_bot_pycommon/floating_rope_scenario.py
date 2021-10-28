@@ -17,8 +17,9 @@ from link_bot_gazebo.gazebo_utils import get_gazebo_kinect_pose
 from link_bot_gazebo.position_3d import Position3D
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_marker_utils import make_box_marker_from_extents
-from link_bot_pycommon.bbox_visualization import extent_array_to_bbox
+from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.collision_checking import inflate_tf_3d
+from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds, sample_delta_position
 from link_bot_pycommon.get_cdcpd_state import GetCdcpdState
 from link_bot_pycommon.get_link_states import GetLinkStates
 from link_bot_pycommon.grid_utils import extent_to_env_shape, extent_res_to_origin_point
@@ -37,13 +38,9 @@ from rosgraph.names import ns_join
 from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import ColorRGBA
 from std_srvs.srv import Empty, EmptyRequest
-from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
 rope_key_name = 'rope'
-
-
-# p_get_rope_state = SimpleProfiler()
 
 
 class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenarioMixin):
@@ -195,10 +192,9 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
                       action_params: Dict,
                       validate: bool,
                       stateless: Optional[bool] = False):
-        self.viz_action_sample_bbox(self.left_gripper_bbox_pub, self.get_action_sample_extent(action_params, 'left'))
-        self.viz_action_sample_bbox(self.right_gripper_bbox_pub, self.get_action_sample_extent(action_params, 'right'))
+        viz_action_sample_bbox(self.left_gripper_bbox_pub, get_action_sample_extent(action_params, 'left'))
+        viz_action_sample_bbox(self.right_gripper_bbox_pub, get_action_sample_extent(action_params, 'right'))
 
-        action = None
         for _ in range(self.max_action_attempts):
             # move in the same direction as the previous action with some probability
             repeat_probability = action_params['repeat_delta_gripper_motion_probability']
@@ -210,8 +206,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
                 right_gripper_delta_position = self.last_action['right_gripper_delta_position']
             else:
                 # Sample a new random action
-                left_gripper_delta_position = self.sample_delta_position(action_params, action_rng)
-                right_gripper_delta_position = self.sample_delta_position(action_params, action_rng)
+                left_gripper_delta_position = sample_delta_position(action_params, action_rng)
+                right_gripper_delta_position = sample_delta_position(action_params, action_rng)
 
             # Apply delta and check for out of bounds
             left_gripper_position = state['left_gripper'] + left_gripper_delta_position
@@ -265,43 +261,12 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         return cost
 
-    def get_action_sample_extent(self, action_params: Dict, prefix: str):
-        k = prefix + '_gripper_action_sample_extent'
-        if k in action_params:
-            gripper_extent = np.array(action_params[k]).reshape([3, 2])
-        else:
-            gripper_extent = np.array(action_params['extent']).reshape([3, 2])
-        return gripper_extent
-
-    def viz_action_sample_bbox(self, gripper_bbox_pub: rospy.Publisher, gripper_extent):
-        gripper_bbox_msg = extent_array_to_bbox(gripper_extent)
-        gripper_bbox_msg.header.frame_id = 'world'
-        gripper_bbox_pub.publish(gripper_bbox_msg)
-
-    @staticmethod
-    def sample_delta_position(action_params: Dict, action_rng: np.random.RandomState):
-        pitch = action_rng.uniform(-np.pi, np.pi)
-        yaw = action_rng.uniform(-np.pi, np.pi)
-        displacement = action_rng.uniform(0, action_params['max_distance_gripper_can_move'])
-        rotation_matrix = transformations.euler_matrix(0, pitch, yaw).astype(np.float32)
-        gripper_delta_position_homo = rotation_matrix @ np.array([1, 0, 0, 1], np.float32) * displacement
-        gripper_delta_position = gripper_delta_position_homo[:3]
-        return gripper_delta_position
-
     @staticmethod
     def grippers_out_of_bounds(left_gripper, right_gripper, action_params: Dict):
         left_gripper_extent = action_params['left_gripper_action_sample_extent']
         right_gripper_extent = action_params['right_gripper_action_sample_extent']
-        return FloatingRopeScenario.is_out_of_bounds(left_gripper, left_gripper_extent) \
-               or FloatingRopeScenario.is_out_of_bounds(right_gripper, right_gripper_extent)
-
-    @staticmethod
-    def is_out_of_bounds(p, extent):
-        x, y, z = p
-        x_min, x_max, y_min, y_max, z_min, z_max = extent
-        return x < x_min or x > x_max \
-               or y < y_min or y > y_max \
-               or z < z_min or z > z_max
+        return is_out_of_bounds(left_gripper, left_gripper_extent) \
+               or is_out_of_bounds(right_gripper, right_gripper_extent)
 
     @staticmethod
     def interpolate(start_state, end_state, step_size=0.05):

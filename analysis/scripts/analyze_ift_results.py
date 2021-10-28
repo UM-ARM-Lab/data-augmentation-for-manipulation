@@ -56,7 +56,7 @@ def metrics_main(args):
     fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='used_augmentation')
     ax.set_xlim(-0.01, x_max)
     ax.set_ylim(-0.01, 1.01)
-    ax.axhline(0.8125, color='black', linewidth=4, label='heuristic classifier')
+    # ax.axhline(0.8125, color='black', linewidth=4, label='heuristic classifier')
     ax.legend()
     plt.savefig(outdir / f'success_rate_rolling.png')
 
@@ -66,9 +66,9 @@ def metrics_main(args):
     # fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid')
     # ax.set_xlim(-0.01, x_max)
 
-    fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
-    ax.axhline(0.045, color='black', linewidth=3, label='goal threshold')
-    ax.set_xlim(-0.01, x_max)
+    # fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
+    # ax.axhline(0.045, color='black', linewidth=3, label='goal threshold')
+    # ax.set_xlim(-0.01, x_max)
 
     fig, ax = lineplot(df_r, iter_key, 'task_error', f'Task Error (rolling={w})', hue='used_augmentation')
     ax.set_xlim(-0.01, x_max)

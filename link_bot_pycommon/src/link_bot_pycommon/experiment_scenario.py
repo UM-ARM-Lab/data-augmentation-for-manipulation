@@ -14,6 +14,7 @@ from link_bot_pycommon.sample_object_positions import sample_object_position, sa
 from moonshine.indexing import index_time_2
 from peter_msgs.srv import GetPosition3DRequest, Position3DEnableRequest, Position3DActionRequest
 from std_msgs.msg import Int64, Float32
+from tf import transformations
 from visualization_msgs.msg import MarkerArray
 
 logger = logging.getLogger(__file__)
@@ -340,3 +341,33 @@ class ExperimentScenario:
 
     def move_objects_out_of_scene(self, params: Dict):
         pass
+
+
+def get_action_sample_extent(action_params: Dict, prefix: Optional[str] = None):
+    k = 'gripper_action_sample_extent'
+    if prefix != '' and prefix is not None:
+        k = prefix + '_' + k
+
+    if k in action_params:
+        gripper_extent = np.array(action_params[k]).reshape([3, 2])
+    else:
+        gripper_extent = np.array(action_params['extent']).reshape([3, 2])
+    return gripper_extent
+
+
+def is_out_of_bounds(p, extent):
+    x, y, z = p
+    x_min, x_max, y_min, y_max, z_min, z_max = extent
+    return x < x_min or x > x_max \
+           or y < y_min or y > y_max \
+           or z < z_min or z > z_max
+
+
+def sample_delta_position(action_params: Dict, action_rng: np.random.RandomState):
+    pitch = action_rng.uniform(-np.pi, np.pi)
+    yaw = action_rng.uniform(-np.pi, np.pi)
+    displacement = action_rng.uniform(0, action_params['max_distance_gripper_can_move'])
+    rotation_matrix = transformations.euler_matrix(0, pitch, yaw).astype(np.float32)
+    gripper_delta_position_homo = rotation_matrix @ np.array([1, 0, 0, 1], np.float32) * displacement
+    gripper_delta_position = gripper_delta_position_homo[:3]
+    return gripper_delta_position

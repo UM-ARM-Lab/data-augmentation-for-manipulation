@@ -193,3 +193,4 @@ def plot_classifier_state_t(scenario, state_keys, input_dict, t, label: str, col
         scenario.plot_error_rviz(error_t)
     else:
         scenario.plot_error_rviz(-999)
+

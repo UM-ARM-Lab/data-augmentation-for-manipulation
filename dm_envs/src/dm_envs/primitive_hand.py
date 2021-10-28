@@ -11,14 +11,14 @@ class PrimitiveHandObservables(Observables):
         return observable.MJCFFeature('xpos', self._entity.tool_center_point)
 
     @composer.observable
-    def tcp_quat(self):
-        return observable.MJCFFeature('xquat', self._entity.tool_center_point)
+    def tcp_xmat(self):
+        return observable.MJCFFeature('xmat', self._entity.tool_center_point)
 
 
 class PrimitiveHand(RobotHand):
 
     def _build(self):
-        self._mjcf_root = mjcf.RootElement()
+        self._mjcf_root = mjcf.RootElement("primitive_hand")
 
         self.thigh = self.mjcf_model.worldbody.add('body')
         height = 0.04

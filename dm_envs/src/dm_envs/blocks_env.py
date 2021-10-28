@@ -1,62 +1,41 @@
-import collections
+from typing import Dict
 
-from dm_control import composer
+from dm_control import composer, mjcf
 from dm_control.composer import initializers
+from dm_control.composer.observation import observable
 from dm_control.composer.variation import distributions
+from dm_control.entities.manipulators.base import DOWN_QUATERNION
 from dm_control.manipulation.props.primitive import Box
-from dm_control.manipulation.shared import arenas, cameras, workspaces, constants, robots, observations
+from dm_control.manipulation.shared import arenas, cameras, workspaces, constants, robots
 from dm_control.manipulation.shared import registry, tags
-from dm_control.manipulation.shared.observations import ObservationSettings, _ENABLED_FEATURE, _ENABLED_FTT, \
-    ObservableSpec, VISION
+from dm_control.manipulation.shared.observations import VISION
+from dm_control.utils import inverse_kinematics
 
-from dm_envs.primitive_hand import PrimitiveHand, PrimitiveHandObservables
-
-
-class MyCameraObservableSpec(collections.namedtuple(
-    'CameraObservableSpec', ('depth', 'height', 'width') + ObservableSpec._fields)):
-    __slots__ = ()
-
-
-ENABLED_CAMERA_DEPTH = MyCameraObservableSpec(height=84,
-                                              width=84,
-                                              enabled=True,
-                                              depth=True,
-                                              update_interval=1,
-                                              buffer_size=1,
-                                              delay=0,
-                                              aggregator=None,
-                                              corruptor=None)
-
-VISION_DEPTH = ObservationSettings(proprio=_ENABLED_FEATURE,
-                                   ftt=_ENABLED_FTT,
-                                   prop_pose=_ENABLED_FEATURE,
-                                   camera=ENABLED_CAMERA_DEPTH)
-
-MyWorkspace = collections.namedtuple('MyWorkspace', ['prop_bbox', 'tcp_bbox', 'arm_offset'])
-
-WORKSPACE_PROP_W = 0.15
-MY_WORKSPACE = MyWorkspace(prop_bbox=workspaces.BoundingBox(lower=(-WORKSPACE_PROP_W, -WORKSPACE_PROP_W, 1e-6),
-                                                            upper=(WORKSPACE_PROP_W, WORKSPACE_PROP_W, 0.10)),
-                           tcp_bbox=workspaces.BoundingBox(lower=(-0.1, -0.1, 0.10), upper=(0.1, 0.1, 0.1)),
-                           arm_offset=robots.ARM_OFFSET)
+from dm_envs.primitive_hand import PrimitiveHand
 
 
 class MyBlocks(composer.Task):
-    def __init__(self, arena, arm, hand, obs_settings, workspace, control_timestep, num_blocks: int):
+    def __init__(self, arena, arm, hand, obs_settings, control_timestep, params):
         self.box_length = 0.02
         self._arena = arena
         self._arm = arm
         self._hand = hand
         self._arm.attach(self._hand)
-        self._arena.attach_offset(self._arm, offset=workspace.arm_offset)
+        self._arena.attach_offset(self._arm, offset=robots.ARM_OFFSET)
         self.control_timestep = control_timestep
-        self._prop_bbox = workspace.prop_bbox
+
+        # extents are ordered [xmin, xmax, ymin, ymax, zmin, zmax
+        self._prop_bbox = workspaces.BoundingBox(lower=params['extent'][0::2],
+                                                 upper=params['extent'][1::2])
+        self._tcp_bbox = workspaces.BoundingBox(lower=params['gripper_action_sample_extent'][0::2],
+                                                upper=params['gripper_action_sample_extent'][1::2])
 
         # Create initializers
         self._block_placer = None
+
         self._tcp_initializer = initializers.ToolCenterPointInitializer(
             self._hand, self._arm,
-            position=distributions.Uniform(*workspace.tcp_bbox),
+            position=distributions.Uniform(*self._tcp_bbox),
             quaternion=workspaces.DOWN_QUATERNION)
 
         # configure physics
@@ -65,13 +44,21 @@ class MyBlocks(composer.Task):
 
         # create block entities
         self._blocks = []
-        for i in range(num_blocks):
+        for i in range(params['num_blocks']):
             block = Box(half_lengths=[self.box_length / 2] * 3, name=f'box{i}')
             self._arena.add_free_entity(block)
             self._blocks.append(block)
 
         # configure and enable observables
         self._task_observables = cameras.add_camera_observables(arena, obs_settings, cameras.FRONT_CLOSE)
+
+        def _num_blocks_observable_callable(_):
+            return params['num_blocks']
+
+        self._task_observables['num_blocks'] = observable.Generic(_num_blocks_observable_callable)
+        self._task_observables['num_blocks'].enabled = True
+        self._hand.observables.enable_all()
+
         for block in self._blocks:
             block.observables.position.enabled = True
             block.observables.orientation.enabled = True
@@ -100,13 +87,82 @@ class MyBlocks(composer.Task):
     def get_reward(self, physics):
         return 0
 
+    @property
+    def joint_names(self):
+        joint_names = [joint.full_identifier for joint in self._arm.joints]
+        return joint_names
+
+    def solve_position_ik(self, physics, target_pos):
+        initial_qpos = physics.bind(self._arm.joints).qpos.copy()
+
+        success = False
+        for _ in range(10):
+            result = inverse_kinematics.qpos_from_site_pose(
+                physics=physics,
+                site_name='jaco_arm/primitive_hand/tcp',
+                target_pos=target_pos,
+                target_quat=DOWN_QUATERNION,
+                joint_names=self.joint_names,
+                inplace=True)
+
+            physics.forward()  # Recalculate contacts.
+            # NOTE: can I just call self._tcp_initializer._has_relevant_collisions ???
+            in_collision = self._has_relevant_collisions(physics)
+            if result.success and not in_collision:
+                success = True
+                break
+
+        joint_position = physics.named.data.qpos[self.joint_names]
+
+        # reset the arm joints to their original positions, because the above functions actually modify physics state
+        physics.bind(self._arm.joints).qpos = initial_qpos
+
+        return success, joint_position
+
+    def _has_relevant_collisions(self, physics):
+        mjcf_root = self._arm.mjcf_model.root_model
+        all_geoms = mjcf_root.find_all('geom')
+        free_body_geoms = set()
+        for body in mjcf_root.worldbody.get_children('body'):
+            if mjcf.get_freejoint(body):
+                free_body_geoms.update(body.find_all('geom'))
+
+        arm_model = self._arm.mjcf_model
+        hand_model = None
+        if self._hand is not None:
+            hand_model = self._hand.mjcf_model
+
+        def is_robot(geom):
+            return geom.root is arm_model or geom.root is hand_model
+
+        def is_external_body_without_freejoint(geom):
+            return not (is_robot(geom) or geom in free_body_geoms)
+
+        for contact in physics.data.contact:
+            geom_1 = all_geoms[contact.geom1]
+            geom_2 = all_geoms[contact.geom2]
+            if contact.dist > 0:
+                # Ignore "contacts" with positive distance (i.e. not actually touching).
+                continue
+            if (
+                    # Include arm-arm and arm-hand self-collisions (but not hand-hand).
+                    (geom_1.root is arm_model and geom_2.root is arm_model) or
+                    (geom_1.root is arm_model and geom_2.root is hand_model) or
+                    (geom_1.root is hand_model and geom_2.root is arm_model) or
+                    # Include collisions between the arm or hand and an external body
+                    # provided that the external body does not have a freejoint.
+                    (is_robot(geom_1) and is_external_body_without_freejoint(geom_2)) or
+                    (is_external_body_without_freejoint(geom_1) and is_robot(geom_2))):
+                return True
+        return False
+
 
 @registry.add(tags.VISION)
-def my_blocks(num_blocks=10):
+def my_blocks(params: Dict):
     arena = arenas.Standard()
     arm = robots.make_arm(obs_settings=VISION)
     hand = PrimitiveHand()
-    task = MyBlocks(arena, arm, hand, VISION, MY_WORKSPACE, constants.CONTROL_TIMESTEP, num_blocks=num_blocks)
+    task = MyBlocks(arena, arm, hand, VISION, constants.CONTROL_TIMESTEP, params)
     return task
 
 
