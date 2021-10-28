@@ -213,7 +213,7 @@ class BlocksScenario(ScenarioWithVisualization):
             max_error = max(yaw_diff(target_joint_position, current_position))
             max_vel = max(abs(get_joint_velocities(state)))
             reached = max_error < 0.01
-            stopped = max_vel < 0.001
+            stopped = max_vel < 0.002
             if reached and stopped:
                 break
 
