@@ -3,7 +3,7 @@
   scenario: blocks
   service_provider: mujoco
   steps_per_traj: 100
-  randomize_n: null
+  randomize_n: 1
   num_blocks: 20
   block_size: 0.03
   extent: [

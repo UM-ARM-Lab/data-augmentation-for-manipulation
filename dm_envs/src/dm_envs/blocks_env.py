@@ -101,7 +101,9 @@ class MyBlocks(composer.Task):
         return joint_names
 
     def solve_position_ik(self, physics, target_pos):
-        success = False
+        initial_qpos = physics.bind(self._arm.joints).qpos.copy()
+
+        result = None
         for _ in range(10):
             result = inverse_kinematics.qpos_from_site_pose(
                 physics=physics,
@@ -109,18 +111,20 @@ class MyBlocks(composer.Task):
                 target_pos=target_pos,
                 target_quat=DOWN_QUATERNION,
                 joint_names=self.joint_names,
-                tol=1e-8,  # more tolerance than the default
-                rot_weight=2  # more rotation weight than the default
+                rot_weight=2,  # more rotation weight than the default
+                inplace=True,
             )
-
             if result.success:
-                success = True
                 break
 
-        indices = [physics.model.name2id(joint_name, 'joint') for joint_name in self.joint_names]
-        joint_position = result.qpos[indices]
+        joint_position = physics.named.data.qpos[self.joint_names]
+        if _ != 0:
+            print(_)
 
-        return success, joint_position
+        # reset the arm joints to their original positions, because the above functions actually modify physics state
+        physics.bind(self._arm.joints).qpos = initial_qpos
+
+        return result.success, joint_position
 
 
 @registry.add(tags.VISION)

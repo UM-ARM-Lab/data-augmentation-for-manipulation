@@ -222,5 +222,8 @@ class BlocksScenario(ScenarioWithVisualization):
     def needs_reset(self, state: Dict, params: Dict):
         return False
 
+    def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
+        self.env.reset()
+
     def __repr__(self):
         return "blocks"

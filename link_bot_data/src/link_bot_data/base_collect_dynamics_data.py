@@ -56,14 +56,6 @@ class BaseDataCollector:
             # get current state and sample action
             state = self.scenario.get_state()
 
-            # # DEBUG
-            # grippers_unchanged = np.allclose(state['left_gripper'], last_state['left_gripper'])
-            # image_unchanged = np.allclose(state['rgbd'][:, :, :3], last_state['rgbd'][:, :, :3])
-            # if image_unchanged and not grippers_unchanged:
-            #     rospy.logerr("previous RGB is the same!!!!")
-            # last_state = state
-            # # END DEBUG
-
             # TODO: sample the entire action sequence in advance?
             action, invalid = self.scenario.sample_action(action_rng=action_rng,
                                                           environment=environment,
