@@ -304,7 +304,7 @@
     <parent link="j2n6s300_link_6"/>
     <child link="ee_cylinder"/>
     <axis xyz="0 0 0"/>
-    <origin rpy="0 0 0" xyz="0 0 -0.081"/>
+    <origin rpy="0 0 0" xyz="0 0 -0.041"/>
   </joint>
 </robot>
 

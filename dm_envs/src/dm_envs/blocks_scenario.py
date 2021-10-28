@@ -19,6 +19,13 @@ ARM_NAME = 'jaco_arm'
 HAND_NAME = 'primitive_hand'
 
 
+def get_joint_position(state):
+    sin = state[f'{ARM_NAME}/joints_pos'][0, :, 0]
+    cos = state[f'{ARM_NAME}/joints_pos'][0, :, 1]
+    angles = np.arctan2(sin, cos)
+    return angles
+
+
 class BlocksScenario(ScenarioWithVisualization):
     """
     the state here is defined by the dm_control Env, "my_blocks"
@@ -76,7 +83,7 @@ class BlocksScenario(ScenarioWithVisualization):
         # TODO: plot the robot arm state
         joint_state = JointState()
         joint_state.header.stamp = rospy.Time.now()
-        joint_state.position = state[f'{ARM_NAME}/joints_pos'][0, :, 0].tolist()
+        joint_state.position = get_joint_position(state).tolist()
         joint_state.name = [n.replace(f'{ARM_NAME}/', '') for n in self.task.joint_names]
         self.joint_states_pub.publish(joint_state)
 
@@ -153,8 +160,7 @@ class BlocksScenario(ScenarioWithVisualization):
             self.last_action = action
             return action, (invalid := False)
 
-        print("WHY IS THIS 3D???")
-        current_joint_position = state[f'{ARM_NAME}/joints_pos'][0, :, 0]
+        current_joint_position = get_joint_position(state)
         action_dict = {
             'joint_position': current_joint_position,
         }
