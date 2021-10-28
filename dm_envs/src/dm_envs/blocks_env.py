@@ -17,7 +17,6 @@ from dm_envs.primitive_hand import PrimitiveHand
 
 class MyBlocks(composer.Task):
     def __init__(self, arena, arm, hand, obs_settings, control_timestep, params):
-        self.box_length = 0.02
         self._arena = arena
         self._arm = arm
         self._hand = hand
@@ -49,7 +48,7 @@ class MyBlocks(composer.Task):
         # create block entities
         self._blocks = []
         for i in range(params['num_blocks']):
-            block = Box(half_lengths=[self.box_length / 2] * 3, name=f'box{i}')
+            block = Box(half_lengths=[params['block_size'] / 2] * 3, name=f'box{i}')
             self._arena.add_free_entity(block)
             self._blocks.append(block)
 
@@ -59,8 +58,13 @@ class MyBlocks(composer.Task):
         def _num_blocks_observable_callable(_):
             return params['num_blocks']
 
+        def _block_size_observable_callable(_):
+            return params['block_size']
+
         self._task_observables['num_blocks'] = observable.Generic(_num_blocks_observable_callable)
         self._task_observables['num_blocks'].enabled = True
+        self._task_observables['block_size'] = observable.Generic(_block_size_observable_callable)
+        self._task_observables['block_size'].enabled = True
         self._hand.observables.enable_all()
 
         for block in self._blocks:
@@ -105,7 +109,9 @@ class MyBlocks(composer.Task):
                 target_pos=target_pos,
                 target_quat=DOWN_QUATERNION,
                 joint_names=self.joint_names,
-                rot_weight=2)
+                tol=1e-8,  # more tolerance than the default
+                rot_weight=2  # more rotation weight than the default
+            )
 
             if result.success:
                 success = True

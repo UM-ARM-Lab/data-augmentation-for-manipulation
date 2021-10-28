@@ -85,7 +85,7 @@ class BlocksScenario(ScenarioWithVisualization):
     def get_state(self):
         state = self.env._observation_updater.get_observation()
         joint_names = [n.replace(f'{ARM_NAME}/', '') for n in self.task.joint_names]
-        state['joint_names'] = joint_names
+        state['joint_names'] = np.array(joint_names)
         return state
 
     def plot_environment_rviz(self, environment: Dict, **kwargs):
@@ -105,6 +105,7 @@ class BlocksScenario(ScenarioWithVisualization):
         self.joint_states_pub.publish(joint_state)
 
         num_blocks = state['num_blocks'][0]
+        block_size = state['block_size'][0]
         msg = MarkerArray()
         for i in range(num_blocks):
             box_position = state[f'box{i}/position']
@@ -124,9 +125,9 @@ class BlocksScenario(ScenarioWithVisualization):
             block_marker.pose.orientation.x = box_orientation[0, 1]
             block_marker.pose.orientation.y = box_orientation[0, 2]
             block_marker.pose.orientation.z = box_orientation[0, 3]
-            block_marker.scale.x = self.task.box_length
-            block_marker.scale.y = self.task.box_length
-            block_marker.scale.z = self.task.box_length
+            block_marker.scale.x = block_size
+            block_marker.scale.y = block_size
+            block_marker.scale.z = block_size
             msg.markers.append(block_marker)
 
         self.state_viz_pub.publish(msg)
@@ -195,8 +196,7 @@ class BlocksScenario(ScenarioWithVisualization):
         # we picked a new end effector pose, now solve IK to turn that into a joint configuration
         success, target_joint_position = self.task.solve_position_ik(self.env.physics, target_cartesian_position)
         if not success:
-            print("failed to solve IK!")
-            return
+            print("failed to solve IK! continuing anyways")
 
         current_position = get_joint_position(state)
         kP = 10.0
