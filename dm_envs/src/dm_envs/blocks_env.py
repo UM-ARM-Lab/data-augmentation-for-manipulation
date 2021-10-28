@@ -5,15 +5,14 @@ from dm_control.composer import initializers
 from dm_control.composer.observation import observable
 from dm_control.composer.variation import distributions
 from dm_control.entities.manipulators.base import DOWN_QUATERNION
-from dm_control.entities.manipulators.kinova import jaco_arm
 from dm_control.manipulation.props.primitive import Box
 from dm_control.manipulation.shared import arenas, cameras, workspaces, constants, robots
 from dm_control.manipulation.shared import registry, tags
 from dm_control.manipulation.shared.observations import VISION
 from dm_control.utils import inverse_kinematics
 
+from dm_envs import primitive_hand
 from dm_envs.primitive_hand import PrimitiveHand
-
 
 
 class MyBlocks(composer.Task):
@@ -35,10 +34,13 @@ class MyBlocks(composer.Task):
         # Create initializers
         self._block_placer = None
 
-        self._tcp_initializer = initializers.ToolCenterPointInitializer(
-            self._hand, self._arm,
-            position=distributions.Uniform(*self._tcp_bbox),
-            quaternion=workspaces.DOWN_QUATERNION)
+        start_pos = [params['gripper_action_sample_extent'][0],
+                     params['gripper_action_sample_extent'][2],
+                     primitive_hand.Z_OFFSET + 0.01]  # start 1cm off the floor/table
+        self._tcp_initializer = initializers.ToolCenterPointInitializer(self._hand,
+                                                                        self._arm,
+                                                                        position=start_pos,
+                                                                        quaternion=workspaces.DOWN_QUATERNION)
 
         # configure physics
         self._arena.mjcf_model.size.nconmax = 10000
@@ -95,8 +97,6 @@ class MyBlocks(composer.Task):
         return joint_names
 
     def solve_position_ik(self, physics, target_pos):
-        initial_qpos = physics.bind(self._arm.joints).qpos.copy()
-
         success = False
         for _ in range(10):
             result = inverse_kinematics.qpos_from_site_pose(
@@ -105,17 +105,14 @@ class MyBlocks(composer.Task):
                 target_pos=target_pos,
                 target_quat=DOWN_QUATERNION,
                 joint_names=self.joint_names,
-                rot_weight=2,
-                inplace=True)
+                rot_weight=2)
 
             if result.success:
                 success = True
                 break
 
-        joint_position = physics.named.data.qpos[self.joint_names]
-
-        # reset the arm joints to their original positions, because the above functions actually modify physics state
-        physics.bind(self._arm.joints).qpos = initial_qpos
+        indices = [physics.model.name2id(joint_name, 'joint') for joint_name in self.joint_names]
+        joint_position = result.qpos[indices]
 
         return success, joint_position
 

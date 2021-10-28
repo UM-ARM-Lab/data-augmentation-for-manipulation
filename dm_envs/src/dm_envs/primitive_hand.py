@@ -15,15 +15,23 @@ class PrimitiveHandObservables(Observables):
         return observable.MJCFFeature('xmat', self._entity.tool_center_point)
 
 
+HEIGHT = 0.08
+HALF_HEIGHT = HEIGHT / 2
+RADIUS = 0.02
+Z_OFFSET = HEIGHT
+
+
 class PrimitiveHand(RobotHand):
 
     def _build(self):
         self._mjcf_root = mjcf.RootElement("primitive_hand")
 
         self.thigh = self.mjcf_model.worldbody.add('body')
-        height = 0.04  # I think this is actually _half_ the height???
-        radius = 0.02
-        self.thigh.add('geom', type='cylinder', size=[radius, height], rgba=[0, 1, 0, 1], pos=[0, 0, height + 0.01])
+        self.thigh.add('geom',
+                       type='cylinder',
+                       size=[RADIUS, HALF_HEIGHT],
+                       rgba=[0, 1, 0, 1],
+                       pos=[0, 0, HALF_HEIGHT])
 
         self._bodies = self.mjcf_model.find_all('body')
         self._tool_center_point = self.mjcf_model.worldbody.add('site', name='tcp', pos=[0, 0, 0], euler=[0, 0, 0])
