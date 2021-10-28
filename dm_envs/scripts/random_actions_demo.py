@@ -1,15 +1,20 @@
 import numpy as np
-from dm_control import manipulation
-
+from dm_control import composer
 from dm_control import viewer
 
-from link_bot.dm_envs.src.dm_envs.blocks_env import register_envs
+from link_bot.dm_envs.src.dm_envs.blocks_env import register_envs, my_blocks
 
 
 def main():
     register_envs()
 
-    env = manipulation.load('my_blocks', seed=0)
+    params = {
+        'num_blocks':                   10,
+        'extent':                       [-0.15, 0.15, -0.15, 0.15, 1e-6, 0.15],
+        'gripper_action_sample_extent': [-0.1, 0.1, -0.1, 0.1, 1e-6, 0.1],
+    }
+    task = my_blocks(params)
+    env = composer.Environment(task, time_limit=9999, random_state=0)
 
     spec = env.action_spec()
 

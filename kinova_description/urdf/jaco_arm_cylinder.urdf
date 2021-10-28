@@ -279,12 +279,32 @@
       <mechanicalReduction>160</mechanicalReduction>
     </actuator>
   </transmission>
-  <link name="j2n6s300_end_effector"/>
-  <joint name="j2n6s300_joint_end_effector" type="fixed">
+  <!-- this information must match the info in primitive_hand.py -->
+  <link name="ee_cylinder">
+    <visual>
+      <geometry>
+        <cylinder radius="0.02" length="0.08" />
+      </geometry>
+      <material name="green">
+        <color rgba="0.0 1.0 0.0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.02" length="0.08" />
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.00002333" ixy="0" ixz="0" iyy="0.00002333" iyz="0" izz="0.00002000"/>
+    </inertial>
+  </link>
+  <joint name="joint_end_effector2" type="fixed">
     <parent link="j2n6s300_link_6"/>
-    <child link="j2n6s300_end_effector"/>
+    <child link="ee_cylinder"/>
     <axis xyz="0 0 0"/>
-    <origin rpy="3.141592653589793 0 1.5707963267948966" xyz="0 0 -0.1600"/>
+    <origin rpy="0 0 0" xyz="0 0 -0.081"/>
   </joint>
 </robot>
 

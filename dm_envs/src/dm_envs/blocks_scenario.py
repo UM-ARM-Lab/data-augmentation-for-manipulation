@@ -32,7 +32,7 @@ class BlocksScenario(ScenarioWithVisualization):
 
         self.camera_pub = rospy.Publisher("camera", Image, queue_size=10)
         self.gripper_bbox_pub = rospy.Publisher('gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
-        self.kinova_joint_states_pub = rospy.Publisher('kinova/joint_states', JointState, queue_size=10)
+        self.joint_states_pub = rospy.Publisher('jaco_arm/joint_states', JointState, queue_size=10)
 
         self.last_action = None
         self.max_action_attempts = 100
@@ -78,7 +78,7 @@ class BlocksScenario(ScenarioWithVisualization):
         joint_state.header.stamp = rospy.Time.now()
         joint_state.position = state[f'{ARM_NAME}/joints_pos'][0, :, 0].tolist()
         joint_state.name = [n.replace(f'{ARM_NAME}/', '') for n in self.task.joint_names]
-        self.kinova_joint_states_pub.publish(joint_state)
+        self.joint_states_pub.publish(joint_state)
 
         num_blocks = state['num_blocks'][0]
         msg = MarkerArray()
@@ -133,6 +133,8 @@ class BlocksScenario(ScenarioWithVisualization):
                 gripper_delta_position = sample_delta_position(action_params, action_rng)
 
             gripper_position = state[f'{ARM_NAME}/{HAND_NAME}/tcp_pos'][0] + gripper_delta_position
+
+            self.tf.send_transform(gripper_position, [0, 0, 0, 1], 'world', 'sample_action_gripper_position')
 
             out_of_bounds = is_out_of_bounds(gripper_position, action_params['gripper_action_sample_extent'])
             if out_of_bounds and validate:

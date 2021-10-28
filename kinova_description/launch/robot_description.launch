@@ -1,0 +1,10 @@
+<launch>
+    <param name="jaco_arm/robot_description" textfile="$(find kinova_description)urdf/jaco_arm_cylinder.urdf"/>
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
+        <remap from="joint_states" to="jaco_arm/joint_states"/>
+        <remap from="robot_description" to="jaco_arm/robot_description"/>
+    </node>
+
+</launch>
+
