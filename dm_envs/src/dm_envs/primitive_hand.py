@@ -21,7 +21,7 @@ class PrimitiveHand(RobotHand):
         self._mjcf_root = mjcf.RootElement("primitive_hand")
 
         self.thigh = self.mjcf_model.worldbody.add('body')
-        height = 0.04
+        height = 0.04  # I think this is actually _half_ the height???
         radius = 0.02
         self.thigh.add('geom', type='cylinder', size=[radius, height], rgba=[0, 1, 0, 1], pos=[0, 0, height + 0.01])
 

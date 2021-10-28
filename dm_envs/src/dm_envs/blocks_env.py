@@ -1,10 +1,11 @@
 from typing import Dict
 
-from dm_control import composer, mjcf
+from dm_control import composer
 from dm_control.composer import initializers
 from dm_control.composer.observation import observable
 from dm_control.composer.variation import distributions
 from dm_control.entities.manipulators.base import DOWN_QUATERNION
+from dm_control.entities.manipulators.kinova import jaco_arm
 from dm_control.manipulation.props.primitive import Box
 from dm_control.manipulation.shared import arenas, cameras, workspaces, constants, robots
 from dm_control.manipulation.shared import registry, tags
@@ -12,6 +13,7 @@ from dm_control.manipulation.shared.observations import VISION
 from dm_control.utils import inverse_kinematics
 
 from dm_envs.primitive_hand import PrimitiveHand
+
 
 
 class MyBlocks(composer.Task):
@@ -103,6 +105,7 @@ class MyBlocks(composer.Task):
                 target_pos=target_pos,
                 target_quat=DOWN_QUATERNION,
                 joint_names=self.joint_names,
+                rot_weight=2,
                 inplace=True)
 
             if result.success:
@@ -115,43 +118,6 @@ class MyBlocks(composer.Task):
         physics.bind(self._arm.joints).qpos = initial_qpos
 
         return success, joint_position
-
-    def _has_relevant_collisions(self, physics):
-        mjcf_root = self._arm.mjcf_model.root_model
-        all_geoms = mjcf_root.find_all('geom')
-        free_body_geoms = set()
-        for body in mjcf_root.worldbody.get_children('body'):
-            if mjcf.get_freejoint(body):
-                free_body_geoms.update(body.find_all('geom'))
-
-        arm_model = self._arm.mjcf_model
-        hand_model = None
-        if self._hand is not None:
-            hand_model = self._hand.mjcf_model
-
-        def is_robot(geom):
-            return geom.root is arm_model or geom.root is hand_model
-
-        def is_external_body_without_freejoint(geom):
-            return not (is_robot(geom) or geom in free_body_geoms)
-
-        for contact in physics.data.contact:
-            geom_1 = all_geoms[contact.geom1]
-            geom_2 = all_geoms[contact.geom2]
-            if contact.dist > 0:
-                # Ignore "contacts" with positive distance (i.e. not actually touching).
-                continue
-            if (
-                    # Include arm-arm and arm-hand self-collisions (but not hand-hand).
-                    (geom_1.root is arm_model and geom_2.root is arm_model) or
-                    (geom_1.root is arm_model and geom_2.root is hand_model) or
-                    (geom_1.root is hand_model and geom_2.root is arm_model) or
-                    # Include collisions between the arm or hand and an external body
-                    # provided that the external body does not have a freejoint.
-                    (is_robot(geom_1) and is_external_body_without_freejoint(geom_2)) or
-                    (is_external_body_without_freejoint(geom_1) and is_robot(geom_2))):
-                return True
-        return False
 
 
 @registry.add(tags.VISION)

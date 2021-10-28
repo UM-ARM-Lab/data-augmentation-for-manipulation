@@ -10,6 +10,7 @@ from dm_envs.blocks_env import my_blocks
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds, sample_delta_position
+from link_bot_pycommon.pycommon import yaw_diff
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from sensor_msgs.msg import Image, JointState
 from std_msgs.msg import ColorRGBA
@@ -24,6 +25,14 @@ def get_joint_position(state):
     cos = state[f'{ARM_NAME}/joints_pos'][0, :, 1]
     angles = np.arctan2(sin, cos)
     return angles
+
+
+def get_joint_velocities(state):
+    return state[f'{ARM_NAME}/joints_vel'][0]
+
+
+def get_tcp_pos(state):
+    return state[f'{ARM_NAME}/{HAND_NAME}/tcp_pos'][0]
 
 
 class BlocksScenario(ScenarioWithVisualization):
@@ -130,6 +139,8 @@ class BlocksScenario(ScenarioWithVisualization):
                       validate, stateless: Optional[bool] = False):
         viz_action_sample_bbox(self.gripper_bbox_pub, get_action_sample_extent(action_params))
 
+        start_gripper_position = get_tcp_pos(state)
+        print('start gripper position', start_gripper_position)
         # sample random delta in x and y
 
         for _ in range(self.max_action_attempts):
@@ -139,7 +150,7 @@ class BlocksScenario(ScenarioWithVisualization):
             else:
                 gripper_delta_position = sample_delta_position(action_params, action_rng)
 
-            gripper_position = state[f'{ARM_NAME}/{HAND_NAME}/tcp_pos'][0] + gripper_delta_position
+            gripper_position = start_gripper_position + gripper_delta_position
 
             self.tf.send_transform(gripper_position, [0, 0, 0, 1], 'world', 'sample_action_gripper_position')
 
@@ -152,6 +163,7 @@ class BlocksScenario(ScenarioWithVisualization):
             if not success:
                 continue
 
+            print('print action is to reach', gripper_position)
             action = {
                 'joint_position':         joint_position,
                 'gripper_delta_position': gripper_delta_position,
@@ -168,9 +180,27 @@ class BlocksScenario(ScenarioWithVisualization):
         return action_dict, (invalid := False)
 
     def execute_action(self, environment, state, action: Dict):
-        self.env.step(action['joint_position'])
-        end_trial = False
-        return end_trial
+        target_position = action['joint_position']
+
+        reached = False
+        stopped = False
+
+        current_position = get_joint_position(state)
+        kP = 5.0
+
+        while not reached or not stopped:
+            # p-control to achieve joint positions using the lower level velocity controller
+            velocity_cmd = yaw_diff(target_position, current_position) * kP
+            time_step = self.env.step(velocity_cmd)
+            state = time_step.observation
+            current_position = get_joint_position(state)
+            max_error = max(yaw_diff(target_position, current_position))
+            max_vel = max(abs(get_joint_velocities(state)))
+            reached = max_error < 0.01
+            stopped = max_vel < 0.001
+            self.plot_state_rviz(state)
+
+        return (end_trial := False)
 
     def needs_reset(self, state: Dict, params: Dict):
         return False
