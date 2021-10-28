@@ -105,10 +105,7 @@ class MyBlocks(composer.Task):
                 joint_names=self.joint_names,
                 inplace=True)
 
-            physics.forward()  # Recalculate contacts.
-            # NOTE: can I just call self._tcp_initializer._has_relevant_collisions ???
-            in_collision = self._has_relevant_collisions(physics)
-            if result.success and not in_collision:
+            if result.success:
                 success = True
                 break
 
