@@ -13,11 +13,10 @@ from link_bot_classifiers.aug_opt_utils import debug_aug, debug_input, debug_ik,
     pick_best_params, \
     initial_identity_params, transform_obj_points
 from link_bot_classifiers.aug_projection_opt import AugProjOpt
-from link_bot_classifiers.classifier_debugging import ClassifierDebugging
 from link_bot_classifiers.iterative_projection import iterative_projection
-from link_bot_classifiers.local_env_helper import LocalEnvHelper
-from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
+from link_bot_data.local_env_helper import LocalEnvHelper
+from link_bot_data.visualization import DebuggingViz
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg
@@ -25,7 +24,6 @@ from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.geometry import transformation_params_to_matrices
 from moonshine.moonshine_utils import to_list_of_strings
-from sdf_tools import utils_3d
 from sensor_msgs.msg import JointState
 from visualization_msgs.msg import MarkerArray
 
@@ -49,15 +47,8 @@ def sdf_and_grad_cached(env, res, origin_point, batch_size):
 
 class AugmentationOptimization:
 
-    def __init__(self,
-                 scenario: ScenarioWithVisualization,
-                 debug: ClassifierDebugging,
-                 local_env_helper: LocalEnvHelper,
-                 vg_info: VoxelgridInfo,
-                 points_state_keys: List[str],
-                 hparams: Dict,
-                 batch_size: int,
-                 state_keys: List[str],
+    def __init__(self, scenario: ScenarioWithVisualization, debug: DebuggingViz, local_env_helper: LocalEnvHelper,
+                 points_state_keys: List[str], hparams: Dict, batch_size: int, state_keys: List[str],
                  action_keys: List[str]):
         self.state_keys = state_keys
         self.action_keys = action_keys
@@ -65,7 +56,6 @@ class AugmentationOptimization:
         self.points_state_keys = points_state_keys
         self.batch_size = batch_size
         self.scenario = scenario
-        self.vg_info = vg_info
         self.debug = debug
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
@@ -78,7 +68,7 @@ class AugmentationOptimization:
         if self.do_augmentation():
             ik_params = IkParams(rng_dist=self.hparams.get("rand_dist", 0.1),
                                  max_collision_check_attempts=self.hparams.get("max_collision_check_attempts", 1))
-            self.ik_solver = AugOptIk(scenario.robot, ik_params=ik_params)
+            self.ik_solver = AugOptIk(scenario, ik_params=ik_params)
 
             invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
             self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
@@ -154,6 +144,11 @@ class AugmentationOptimization:
                 self.scenario.plot_environment_rviz(env_b)
                 self.debug.send_position_transform(origin_point[b], 'origin_point')
 
+        # NOTE: We use IK as a simple and efficient way to preserve the contacts between the robot and the environment.
+        #  Preserving contacts is a key insight of our augmentation method, so in a way this is just a more specific
+        #  implementation of a more abstract rule. Solving IK is very efficient, but a bit less general.
+        #  it assumes the body of the robot is not in contact and that the specific contacts involved in any grasping
+        #  is not important.
         default_robot_positions = inputs[add_predicted('joint_positions')][:, 0]
         joint_positions_aug, is_ik_valid = self.solve_ik(inputs_aug, default_robot_positions, batch_size)
         inputs_aug.update({
@@ -309,7 +304,6 @@ class AugmentationOptimization:
         right_gripper_points_aug = inputs_aug[add_predicted('right_gripper')]
         deserialize_scene_msg(inputs_aug)
 
-        # run ik, try to find collision free solution
         scene_msg = inputs_aug['scene_msg']
         joint_names = to_list_of_strings(inputs_aug['joint_names'][0, 0].numpy().tolist())
         joint_positions_aug_, is_ik_valid = self.ik_solver.solve(scene_msg=scene_msg,

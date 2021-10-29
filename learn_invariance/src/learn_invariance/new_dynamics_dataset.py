@@ -14,6 +14,7 @@ class NewDynamicsDatasetLoader(NewBaseDatasetLoader):
         self.data_collection_params = self.hparams['data_collection_params']
         self.steps_per_traj = self.data_collection_params['steps_per_traj']
         self.state_keys = self.data_collection_params['state_keys']
+        self.points_state_keys = self.data_collection_params.get('points_state_keys', [])
         self.state_metadata_keys = self.data_collection_params['state_metadata_keys']
         self.state_keys.append('time_idx')
         self.env_keys = self.data_collection_params['env_keys']

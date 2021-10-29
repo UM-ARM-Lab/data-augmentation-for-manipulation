@@ -11,12 +11,12 @@ from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 import rospy
 from link_bot_classifiers.aug_opt import AugmentationOptimization
 from link_bot_classifiers.aug_opt_utils import debug_input
-from link_bot_classifiers.classifier_debugging import ClassifierDebugging
-from link_bot_classifiers.local_env_helper import LocalEnvHelper
-# noinspection PyUnresolvedReferences
-from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
-from link_bot_classifiers.robot_points import RobotVoxelgridInfo
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
+from link_bot_data.local_env_helper import LocalEnvHelper
+# noinspection PyUnresolvedReferences
+from link_bot_data.make_voxelgrid_inputs import VoxelgridInfo
+from link_bot_data.robot_points import RobotVoxelgridInfo
+from link_bot_data.visualization import DebuggingViz
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import environment_to_vg_msg, \
@@ -29,6 +29,12 @@ from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegativ
     FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
 from moonshine.moonshine_utils import numpify
 from moonshine.my_keras_model import MyKerasModel
+
+
+def filter_point_state_keys(state_keys):
+    points_state_keys = copy(state_keys)
+    points_state_keys.remove("joint_positions")  # FIXME: feels hacky
+    return points_state_keys
 
 
 class NNClassifier(MyKerasModel):
@@ -45,8 +51,7 @@ class NNClassifier(MyKerasModel):
         self.local_env_w_cols = self.hparams['local_env_w_cols']
         self.local_env_c_channels = self.hparams['local_env_c_channels']
         self.state_keys = self.hparams['state_keys']
-        self.points_state_keys = copy(self.state_keys)
-        self.points_state_keys.remove("joint_positions")  # FIXME: feels hacky
+        self.point_state_keys = filter_point_state_keys(self.state_keys)
         self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.action_keys = self.hparams['action_keys']
         self.save_inputs_path = None
@@ -77,7 +82,7 @@ class NNClassifier(MyKerasModel):
 
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
                                                c=self.local_env_c_channels)
-        self.debug = ClassifierDebugging(self.scenario, self.state_keys, self.action_keys)
+        self.debug = DebuggingViz(self.scenario, self.state_keys, self.action_keys)
 
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
         if not self.include_robot_geometry:
@@ -94,7 +99,7 @@ class NNClassifier(MyKerasModel):
                                      )
 
         self.aug = AugmentationOptimization(scenario=self.scenario, debug=self.debug,
-                                            local_env_helper=self.local_env_helper, vg_info=self.vg_info,
+                                            local_env_helper=self.local_env_helper,
                                             points_state_keys=self.points_state_keys, hparams=self.hparams,
                                             batch_size=self.batch_size, state_keys=self.state_keys,
                                             action_keys=self.action_keys)

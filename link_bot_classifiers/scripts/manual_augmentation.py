@@ -12,7 +12,7 @@ import rospy
 from arc_utilities import ros_init
 from geometry_msgs.msg import Point, Pose
 from link_bot_data.load_dataset import get_classifier_dataset_loader
-from link_bot_data.visualization import plot_classifier_state_t
+from link_bot_data.visualization import plot_state_t
 from link_bot_pycommon.basic_3d_pose_marker import Basic3DPoseInteractiveMarker
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.serialization import my_hdump
@@ -78,14 +78,14 @@ def main():
     keys.remove("time_idx")
 
     def viz(e, label, color):
-        plot_classifier_state_t(s, keys, e, t=0, label=label + '_0', color=color)
+        plot_state_t(s, keys, e, t=0, label=label + '_0', color=color)
         s_for_a_t, a_t = index_state_action_with_metadata(e,
                                                           state_keys=dataset_loader.predicted_state_keys,
                                                           state_metadata_keys=dataset_loader.state_metadata_keys,
                                                           action_keys=dataset_loader.action_keys,
                                                           t=0)
         s.plot_action_rviz(s_for_a_t, a_t, label=label)
-        plot_classifier_state_t(s, keys, e, t=1, label=label + '_1', color=adjust_lightness(color, 0.8))
+        plot_state_t(s, keys, e, t=1, label=label + '_1', color=adjust_lightness(color, 0.8))
 
     if outfile.exists():
         manual_transforms = load_hjson(outfile)

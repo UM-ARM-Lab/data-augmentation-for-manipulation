@@ -11,7 +11,7 @@ import tensorflow as tf
 from colorama import Fore
 
 from arc_utilities import ros_init
-from link_bot_classifiers.augment_classifier_dataset import augment_classifier_dataset
+from augmentation.augment_dataset import augment_classifier_dataset
 from link_bot_classifiers.train_test_classifier import train_main, ClassifierEvaluation
 from link_bot_pycommon import banners
 from link_bot_pycommon.args import run_subparsers

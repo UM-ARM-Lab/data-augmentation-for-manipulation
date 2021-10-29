@@ -10,12 +10,11 @@ from typing import List
 from uuid import uuid4
 
 import numpy as np
-from arc_utilities.algorithms import nested_dict_update
 from more_itertools import chunked
 
 from analysis.results_utils import list_all_planning_results_trials
 from arc_utilities.algorithms import nested_dict_update
-from link_bot_classifiers.augment_classifier_dataset import augment_classifier_dataset
+from augmentation.augment_dataset import augment_classifier_dataset
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_classifiers.fine_tune_recovery import fine_tune_recovery
 from link_bot_gazebo import gazebo_services

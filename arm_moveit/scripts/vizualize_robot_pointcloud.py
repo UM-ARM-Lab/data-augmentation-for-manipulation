@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from arc_utilities.listener import Listener
-from link_bot_classifiers.robot_points import batch_transform_robot_points, batch_robot_state_to_transforms, \
+from link_bot_data.robot_points import batch_transform_robot_points, batch_robot_state_to_transforms, \
     RobotVoxelgridInfo
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import repeat_tensor, numpify

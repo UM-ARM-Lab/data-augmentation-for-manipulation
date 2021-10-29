@@ -448,6 +448,20 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 stepper.step()
         return object_aug_update, local_origin_point_aug, local_center_aug
 
+    def compute_collision_free_point_ik(self,
+                                        default_robot_state,
+                                        points,
+                                        group_name,
+                                        tip_names,
+                                        scene_msg,
+                                        ik_params):
+        return self.robot.j.compute_collision_free_point_ik(default_robot_state,
+                                                            points,
+                                                            group_name,
+                                                            tip_names,
+                                                            scene_msg,
+                                                            ik_params)
+
     def apply_object_augmentation(self,
                                   m,
                                   inputs: Dict,

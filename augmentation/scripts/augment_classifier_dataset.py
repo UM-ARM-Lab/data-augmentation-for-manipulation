@@ -8,7 +8,7 @@ import tensorflow as tf
 from colorama import Fore
 
 from arc_utilities import ros_init
-from link_bot_classifiers.augment_classifier_dataset import augment_classifier_dataset
+from augmentation.augment_dataset import augment_classifier_dataset
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson
 from moonshine.gpu_config import limit_gpu_mem
@@ -32,7 +32,7 @@ def main():
     outdir = dataset_dir.parent / f"{dataset_dir.name}+{suffix}"
 
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
-    hparams = load_hjson(pathlib.Path("hparams/classifier/aug.hjson"))
+    hparams = load_hjson(pathlib.Path("hparams/aug.hjson"))
 
     outdir = augment_classifier_dataset(dataset_dir=dataset_dir,
                                         hparams=hparams,

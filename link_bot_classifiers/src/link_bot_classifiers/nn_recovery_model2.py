@@ -10,10 +10,10 @@ from tensorflow.python.keras.metrics import Metric
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_classifiers.aug_opt import AugmentationOptimization
-from link_bot_classifiers.classifier_debugging import ClassifierDebugging
-from link_bot_classifiers.local_env_helper import LocalEnvHelper
-from link_bot_classifiers.make_voxelgrid_inputs import VoxelgridInfo
-from link_bot_classifiers.robot_points import RobotVoxelgridInfo
+from link_bot_data.visualization import DebuggingViz
+from link_bot_data.local_env_helper import LocalEnvHelper
+from link_bot_data.make_voxelgrid_inputs import VoxelgridInfo
+from link_bot_data.robot_points import RobotVoxelgridInfo
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -80,7 +80,7 @@ class NNRecoveryModel(MyKerasModel):
 
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
                                                c=self.local_env_c_channels)
-        self.debug = ClassifierDebugging(self.scenario, self.state_keys, self.action_keys)
+        self.debug = DebuggingViz(self.scenario, self.state_keys, self.action_keys)
 
         self.indices = self.create_env_indices(batch_size)
 
@@ -98,10 +98,10 @@ class NNRecoveryModel(MyKerasModel):
                                      include_robot_geometry=self.include_robot_geometry,
                                      )
         self.aug = AugmentationOptimization(scenario=self.scenario, debug=self.debug,
-                                            local_env_helper=self.local_env_helper, vg_info=self.vg_info,
+                                            local_env_helper=self.local_env_helper,
                                             points_state_keys=self.points_state_keys, hparams=self.hparams,
-                                            batch_size=self.batch_size, action_keys=self.action_keys,
-                                            state_keys=self.state_keys)
+                                            batch_size=self.batch_size, state_keys=self.state_keys,
+                                            action_keys=self.action_keys)
         if self.aug.do_augmentation():
             rospy.loginfo("Using augmentation during training")
         else:

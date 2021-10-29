@@ -1,23 +1,27 @@
 from typing import List, Optional
 
-from pyjacobian_follower import IkParams
 import tensorflow as tf
+from pyjacobian_follower import IkParams
 
-from arm_robots.robot import MoveitEnabledRobot
 from geometry_msgs.msg import Point
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moveit_msgs.msg import PlanningScene, RobotState
 
 
 class AugOptIk:
 
-    def __init__(self, robot: MoveitEnabledRobot,
+    def __init__(self,
+                 scenario: ScenarioWithVisualization,
                  group_name: str = 'both_arms',
                  position_only: bool = True,
                  ik_params: Optional[IkParams] = None):
+        # NOTE: what are we really doing here? we're using Ik to solve for contacts
+        #  position_only here only really relates to "grasping",
+        #  so the question is do we need orientation to be the same for grasps?
+        #  I guess that depends on how the grasp contacts the objects and interacts with the rest of the scene
         self.position_only = position_only
-        self.robot = robot
+        self.s = scenario
         self.group_name = group_name
-        self.j = robot.jacobian_follower
         if ik_params is None:
             self.ik_params = IkParams(rng_dist=0.1, max_collision_check_attempts=100)
         else:
@@ -68,14 +72,10 @@ class AugOptIk:
             if self.position_only:
                 points_b = [_position_tensor_to_point(left_target_position[b]),
                             _position_tensor_to_point(right_target_position[b])]
-
-                robot_state_b = self.j.compute_collision_free_point_ik(default_robot_state_b, points_b, self.group_name,
-                                                                       self.tip_names,
-                                                                       scene_msg_b, self.ik_params)
+                robot_state_b = self.compute_collision_free_point_ik(default_robot_state_b, points_b, scene_msg_b)
             else:
                 poses_b = [left_target_pose[b], right_target_pose[b]]
-                robot_state_b = self.j.compute_collision_free_pose_ik(default_robot_state_b, poses_b, self.group_name,
-                                                                      self.tip_names, scene_msg_b, self.ik_params)
+                robot_state_b = self.compute_collision_free_pose_ik(default_robot_state_b, poses_b, scene_msg_b)
 
             reached.append(robot_state_b is not None)
             if robot_state_b is None:
@@ -87,3 +87,21 @@ class AugOptIk:
         joint_positions = tf.stack(joint_positions, axis=0)
         reached = tf.stack(reached, axis=0)
         return joint_positions, reached
+
+    def compute_collision_free_point_ik(self, default_robot_state_b, points_b, scene_msg_b):
+        robot_state_b = self.s.compute_collision_free_point_ik(default_robot_state_b,
+                                                               points_b,
+                                                               self.group_name,
+                                                               self.tip_names,
+                                                               scene_msg_b,
+                                                               self.ik_params)
+        return robot_state_b
+
+    def compute_collision_free_pose_ik(self, default_robot_state_b, poses_b, scene_msg_b):
+        robot_state_b = self.s.compute_collision_free_pose_ik(default_robot_state_b,
+                                                              poses_b,
+                                                              self.group_name,
+                                                              self.tip_names,
+                                                              scene_msg_b,
+                                                              self.ik_params)
+        return robot_state_b

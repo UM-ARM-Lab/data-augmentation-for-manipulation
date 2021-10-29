@@ -10,6 +10,7 @@ from dm_envs.blocks_env import my_blocks
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds
+from link_bot_pycommon.grid_utils import extent_to_env_shape
 from link_bot_pycommon.pycommon import yaw_diff
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from sensor_msgs.msg import Image, JointState
@@ -80,16 +81,24 @@ class BlocksScenario(ScenarioWithVisualization):
 
     def get_environment(self, params: Dict, **kwargs):
         # not the mujoco "env", this means the static obstacles and workspaces geometry
-        return {}
+        res = 0.005
+        extent = np.array(params['extent'])
+        origin_point = extent[[0, 2, 4]]
+        shape = extent_to_env_shape(extent, res)
+        mock_floor_voxel_grid = np.zeros(shape, np.float32)
+        mock_floor_voxel_grid[:, :, 0] = 1.0
+        return {
+            'res':          res,
+            'extent':       extent,
+            'env':          mock_floor_voxel_grid,
+            'origin_point': origin_point,
+        }
 
     def get_state(self):
         state = self.env._observation_updater.get_observation()
         joint_names = [n.replace(f'{ARM_NAME}/', '') for n in self.task.joint_names]
         state['joint_names'] = np.array(joint_names)
         return state
-
-    def plot_environment_rviz(self, environment: Dict, **kwargs):
-        pass
 
     def plot_state_rviz(self, state: Dict, **kwargs):
         ns = kwargs.get("label", "")
@@ -224,6 +233,15 @@ class BlocksScenario(ScenarioWithVisualization):
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         self.env.reset()
+
+    def compute_collision_free_point_ik(self,
+                                        default_robot_state,
+                                        points,
+                                        group_name,
+                                        tip_names,
+                                        scene_msg,
+                                        ik_params):
+        pass
 
     def __repr__(self):
         return "blocks"
