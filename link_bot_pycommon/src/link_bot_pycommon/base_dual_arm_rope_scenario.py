@@ -379,7 +379,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             return tf.linspace(obj_points_0[k], obj_points_1[k], num_object_interp, axis=1)
 
         swept_obj_points = tf.concat([_linspace(k) for k in keys], axis=2)
-        swept_obj_points = tf.reshape(swept_obj_points, [batch_size, 1, -1, 3])
+        swept_obj_points = tf.reshape(swept_obj_points, [batch_size, -1, 3])
 
         return swept_obj_points
 

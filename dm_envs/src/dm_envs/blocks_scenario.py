@@ -4,13 +4,16 @@ from typing import Dict, Optional
 import numpy as np
 import tensorflow as tf
 from dm_control import composer
-from matplotlib import colors
+from matplotlib import colors, cm
 from pyjacobian_follower import IkParams
+from tensorflow_graphics.geometry.transformation import quaternion
+from tensorflow_graphics.geometry.transformation import rotation_matrix_3d
 
 import ros_numpy
 import rospy
 from dm_envs.blocks_env import my_blocks
 from jsk_recognition_msgs.msg import BoundingBox
+from link_bot_data.visualization_common import make_delete_markerarray
 from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds
 from link_bot_pycommon.grid_utils import extent_to_env_shape
@@ -22,7 +25,6 @@ from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import Image, JointState
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
-from tensorflow_graphics.geometry.transformation.rotation_matrix_3d import from_quaternion
 
 ARM_NAME = 'jaco_arm'
 HAND_NAME = 'primitive_hand'
@@ -61,7 +63,7 @@ def transformation_matrices_from_pos_quat(positions, quats):
     Returns:  [b, m, T, 4, 4]
 
     """
-    rmat = from_quaternion(quats)  # [b,m,T,3,3]
+    rmat = rotation_matrix_3d.from_quaternion(quats)  # [b,m,T,3,3]
     bottom_row = tf.constant([0, 0, 0, 1], dtype=tf.float32)  # [4]
     mat34 = tf.concat([rmat, positions[..., None]], axis=-1)
     bottom_row = tf.expand_dims(tf.ones_like(quats, tf.float32), axis=-2) * bottom_row[None, None, None, None]
@@ -103,6 +105,11 @@ def size_to_points(size):
     return unit_cube_points[None, None] * size[:, :, None, None]  # [b, T, 8, 3]
 
 
+def wxyz2xyzw(quat):
+    w, x, y, z = tf.unstack(quat, axis=-1)
+    return tf.stack([x, y, z, w], axis=-1)
+
+
 class BlocksScenario(ScenarioWithVisualization):
     """
     the state here is defined by the dm_control Env, "my_blocks"
@@ -117,6 +124,7 @@ class BlocksScenario(ScenarioWithVisualization):
         self.camera_pub = rospy.Publisher("camera", Image, queue_size=10)
         self.gripper_bbox_pub = rospy.Publisher('gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
         self.joint_states_pub = rospy.Publisher('jaco_arm/joint_states', JointState, queue_size=10)
+        self.blocks_aug_pub = rospy.Publisher('blocks_aug', MarkerArray, queue_size=10)
 
         self.last_action = None
         self.max_action_attempts = 100
@@ -332,7 +340,9 @@ class BlocksScenario(ScenarioWithVisualization):
         quats = []  # [b, m, T, 4]
         for block_idx in range(num_blocks):
             pos = inputs[f"box{block_idx}/position"][:, :, 0]  # [b, T, 3]
+            # in our mujoco dataset the quaternions are stored w,x,y,z but the rest of our code assumes xyzw
             quat = inputs[f"box{block_idx}/orientation"][:, :, 0]  # [b, T, 4]
+            quat = wxyz2xyzw(quat)
             positions.append(pos)
             quats.append(quat)
         positions = tf.stack(positions, axis=1)
@@ -456,6 +466,56 @@ class BlocksScenario(ScenarioWithVisualization):
 
         """
         pass
+
+    def plot_aug_rviz(self,
+                      b: int,
+                      obj_i: int,
+                      obj_transforms_b_i,  # [6]
+                      target_pos_b_i,  # [3]
+                      target_b_i,  # [6]
+                      obj_points_b_i,  # [n_points,3]
+                      ):
+        obj_points_b_i_time = tf.reshape(obj_points_b_i, [-1, 8, 3])
+        blocks_aug_msg = MarkerArray()
+        for t, obj_points_b_i_t in enumerate(obj_points_b_i_time):
+            color_t = ColorRGBA(*cm.Greys(t / obj_points_b_i_time.shape[0]))
+            color_t.a = 0.2
+
+            block_center = tf.reduce_mean(obj_points_b_i_t, 0)
+            block_x_axis = obj_points_b_i_t[3] - obj_points_b_i_t[0]  # [3]
+            block_y_axis = obj_points_b_i_t[1] - obj_points_b_i_t[0]  # [3]
+            block_z_axis = obj_points_b_i_t[4] - obj_points_b_i_t[0]  # [3]
+            block_x_axis_norm, _ = tf.linalg.normalize(block_x_axis)
+            block_y_axis_norm, _ = tf.linalg.normalize(block_y_axis)
+            block_z_axis_norm, _ = tf.linalg.normalize(block_z_axis)
+            block_rot_mat = tf.stack([block_x_axis_norm, block_y_axis_norm, block_z_axis_norm], axis=-1)
+            block_quat = quaternion.from_rotation_matrix(block_rot_mat)
+
+            block_aug_msg = Marker()
+            block_aug_msg.ns = 'blocks_aug'
+            block_aug_msg.id = t + 1000 * obj_i
+            block_aug_msg.header.frame_id = 'world'
+            block_aug_msg.action = Marker.ADD
+            block_aug_msg.type = Marker.CUBE
+            block_aug_msg.scale.x = tf.linalg.norm(block_x_axis)
+            block_aug_msg.scale.y = tf.linalg.norm(block_y_axis)
+            block_aug_msg.scale.z = tf.linalg.norm(block_z_axis)
+            block_aug_msg.pose.position.x = block_center[0]
+            block_aug_msg.pose.position.y = block_center[1]
+            block_aug_msg.pose.position.z = block_center[2]
+            block_aug_msg.pose.orientation.x = block_quat[0]
+            block_aug_msg.pose.orientation.y = block_quat[1]
+            block_aug_msg.pose.orientation.z = block_quat[2]
+            block_aug_msg.pose.orientation.w = block_quat[3]
+            block_aug_msg.color = color_t
+
+            blocks_aug_msg.markers.append(block_aug_msg)
+        self.blocks_aug_pub.publish(blocks_aug_msg)
+
+    def reset_planning_viz(self):
+        super().reset_planning_viz()
+        m = make_delete_markerarray(ns='blocks_aug')
+        self.blocks_aug_pub.publish(m)
 
     def __repr__(self):
         return "blocks"

@@ -1,0 +1,9 @@
+{
+  augmentation: {
+
+    viz: {
+      scale: 0.002
+      arrows_scale: 0.004
+    }
+  }
+}

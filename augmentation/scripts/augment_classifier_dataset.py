@@ -8,6 +8,7 @@ import tensorflow as tf
 from colorama import Fore
 
 from arc_utilities import ros_init
+from arc_utilities.algorithms import nested_dict_update
 from augmentation.augment_dataset import augment_classifier_dataset
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson
@@ -22,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('--n-augmentations', type=int, default=25)
+    parser.add_argument('--hparams', type=pathlib.Path, default=pathlib.Path("aug_hparams/rope.hjson"))
     parser.add_argument('--visualize', action='store_true')
 
     args = parser.parse_args()
@@ -32,7 +34,9 @@ def main():
     outdir = dataset_dir.parent / f"{dataset_dir.name}+{suffix}"
 
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
-    hparams = load_hjson(pathlib.Path("hparams/aug.hjson"))
+    common_hparams = load_hjson(pathlib.Path("aug_hparams/common.hjson"))
+    hparams = load_hjson(args.hparams)
+    hparams = nested_dict_update(common_hparams, hparams)
 
     outdir = augment_classifier_dataset(dataset_dir=dataset_dir,
                                         hparams=hparams,
