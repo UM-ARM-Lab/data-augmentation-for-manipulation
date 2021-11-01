@@ -1,8 +1,11 @@
+import re
 from typing import Dict, Optional
 
 import numpy as np
+import tensorflow as tf
 from dm_control import composer
 from matplotlib import colors
+from pyjacobian_follower import IkParams
 
 import ros_numpy
 import rospy
@@ -13,9 +16,13 @@ from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_o
 from link_bot_pycommon.grid_utils import extent_to_env_shape
 from link_bot_pycommon.pycommon import yaw_diff
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from moonshine.geometry import transform_points_3d
+from moonshine.moonshine_utils import repeat_tensor
+from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import Image, JointState
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
+from tensorflow_graphics.geometry.transformation.rotation_matrix_3d import from_quaternion
 
 ARM_NAME = 'jaco_arm'
 HAND_NAME = 'primitive_hand'
@@ -42,6 +49,58 @@ def sample_delta_xy(action_params: Dict, action_rng: np.random.RandomState):
     dy = action_rng.uniform(-d, d)
     z_noise = action_rng.uniform(-0.01, 0.01)
     return [dx, dy, z_noise]
+
+
+def transformation_matrices_from_pos_quat(positions, quats):
+    """
+
+    Args:
+        positions: [b, m, T, 3]
+        quats: [b, m, T, 4]
+
+    Returns:  [b, m, T, 4, 4]
+
+    """
+    rmat = from_quaternion(quats)  # [b,m,T,3,3]
+    bottom_row = tf.constant([0, 0, 0, 1], dtype=tf.float32)  # [4]
+    mat34 = tf.concat([rmat, positions[..., None]], axis=-1)
+    bottom_row = tf.expand_dims(tf.ones_like(quats, tf.float32), axis=-2) * bottom_row[None, None, None, None]
+    mat44 = tf.concat([mat34, bottom_row], axis=-2)
+    return mat44
+
+
+def blocks_to_points(positions, quats, size):
+    """
+
+    Args:
+        positions:  [b, m, T, 3]
+        quats:  [b, m, T, 4]
+        size:  [b, T]
+
+    Returns: [b, m, T, 8, 3]
+
+    """
+    m = positions.shape[1]
+    sized_cube_points = size_to_points(size)  # [b, T, 8, 3]
+    sized_cubes_points = repeat_tensor(sized_cube_points, m, axis=1, new_axis=True)  # [b, m, T, 8, 3]
+    transform_matrix = transformation_matrices_from_pos_quat(positions, quats)  # [b, m, T, 4, 4]
+    transform_matrix = repeat_tensor(transform_matrix, 8, 3, True)
+    obj_points = transform_points_3d(transform_matrix, sized_cubes_points)  # [b, m, T, 8, 3]
+    return obj_points
+
+
+def size_to_points(size):
+    """
+
+    Args:
+        size: [b, T] where each element is the size of the cube. it can vary of batch/time
+
+    Returns: [b, T, 8, 3] where 8 represents the corners the cube, and 3 is x,y,z.
+
+    """
+    unit_cube_points = tf.constant([[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0],
+                                    [0, 0, 1], [0, 1, 1], [1, 1, 1], [1, 0, 1]], tf.float32) - 0.5
+    return unit_cube_points[None, None] * size[:, :, None, None]  # [b, T, 8, 3]
 
 
 class BlocksScenario(ScenarioWithVisualization):
@@ -74,24 +133,46 @@ class BlocksScenario(ScenarioWithVisualization):
         s = self.get_state()
         self.plot_state_rviz(s)
 
-        params['state_keys'] = list(s.keys()) + ['joint_names']
-        params['env_keys'] = []
+        params['state_keys'] = list(s.keys())
+        params['env_keys'] = [
+            'res',
+            'extent',
+            'env',
+            'origin_point',
+            'sdf',
+            'sdf_grad',
+        ]
         params['action_keys'] = ['gripper_position']
         params['state_metadata_keys'] = []
+        params['gripper_keys'] = ['jaco_arm/primitive_hand/tcp_pos', 'jaco_arm/primitive_hand/tcp_xmat']
+        params['augmentable_state_keys'] = [k for k in s.keys() if 'box' in k]
+
+        def _is_points_key(k):
+            return any([
+                re.match('box.*position', k),
+                k == 'jaco_arm/primitive_hand/tcp_pos',
+            ])
+
+        params['points_state_keys'] = list(filter(_is_points_key, s.keys()))
 
     def get_environment(self, params: Dict, **kwargs):
         # not the mujoco "env", this means the static obstacles and workspaces geometry
-        res = 0.005
+        res = np.float32(0.005)
         extent = np.array(params['extent'])
         origin_point = extent[[0, 2, 4]]
         shape = extent_to_env_shape(extent, res)
         mock_floor_voxel_grid = np.zeros(shape, np.float32)
         mock_floor_voxel_grid[:, :, 0] = 1.0
+
+        sdf, sdf_grad = compute_sdf_and_gradient(mock_floor_voxel_grid, res, origin_point)
+
         return {
             'res':          res,
             'extent':       extent,
             'env':          mock_floor_voxel_grid,
             'origin_point': origin_point,
+            'sdf':          sdf,
+            'sdf_grad':     sdf_grad,
         }
 
     def get_state(self):
@@ -234,6 +315,122 @@ class BlocksScenario(ScenarioWithVisualization):
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         self.env.reset()
 
+    def compute_obj_points(self, inputs: Dict, num_object_interp: int, batch_size: int):
+        """
+
+        Args:
+            inputs: contains the poses and size of the blocks, over a whole trajectory, which we convert into points
+            num_object_interp:
+            batch_size:
+
+        Returns:
+
+        """
+        size = inputs['block_size'][:, :, 0]  # [b, T]
+        num_blocks = inputs['num_blocks'][0, 0, 0]  # assumed fixed across batch/time
+        positions = []  # [b, m, T, 3]
+        quats = []  # [b, m, T, 4]
+        for block_idx in range(num_blocks):
+            pos = inputs[f"box{block_idx}/position"][:, :, 0]  # [b, T, 3]
+            quat = inputs[f"box{block_idx}/orientation"][:, :, 0]  # [b, T, 4]
+            positions.append(pos)
+            quats.append(quat)
+        positions = tf.stack(positions, axis=1)
+        quats = tf.stack(quats, axis=1)
+
+        obj_points = blocks_to_points(positions, quats, size)
+
+        # combine to get one set of points per object
+        obj_points = tf.reshape(obj_points, [obj_points.shape[0], obj_points.shape[1], -1, 3])
+
+        return obj_points
+
+    def apply_object_augmentation_no_ik(self,
+                                        m,
+                                        to_local_frame,
+                                        inputs: Dict,
+                                        batch_size,
+                                        time,
+                                        h: int,
+                                        w: int,
+                                        c: int,
+                                        ):
+        """
+
+        Args:
+            m: [b, 4, 4]
+            to_local_frame: [b, 1, 3]  the 1 can also be equal to time
+            inputs:
+            batch_size:
+            time:
+            h:
+            w:
+            c:
+
+        Returns:
+
+        """
+        # apply those to the rope and grippers
+        rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
+        left_gripper_point = inputs[add_predicted('left_gripper')]
+        right_gripper_point = inputs[add_predicted('right_gripper')]
+        left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
+        right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
+
+        def _transform(m, points, _to_local_frame):
+            points_local_frame = points - _to_local_frame
+            points_local_frame_aug = transform_points_3d(m, points_local_frame)
+            return points_local_frame_aug + _to_local_frame
+
+        # m is expanded to broadcast across batch & num_points dimensions
+        rope_points_aug = _transform(m[:, None, None], rope_points, to_local_frame[:, None])
+        left_gripper_points_aug = _transform(m[:, None, None], left_gripper_points, to_local_frame[:, None])
+        right_gripper_points_aug = _transform(m[:, None, None], right_gripper_points, to_local_frame[:, None])
+
+        # compute the new action
+        left_gripper_position = inputs['left_gripper_position']
+        right_gripper_position = inputs['right_gripper_position']
+        # m is expanded to broadcast across batch dimensions
+        left_gripper_position_aug = _transform(m[:, None], left_gripper_position, to_local_frame)
+        right_gripper_position_aug = _transform(m[:, None], right_gripper_position, to_local_frame)
+
+        rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
+        left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
+        right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
+
+        # Now that we've updated the state/action in inputs, compute the local origin point
+        state_aug_0 = {
+            'left_gripper':  left_gripper_aug[:, 0],
+            'right_gripper': right_gripper_aug[:, 0],
+            'rope':          rope_aug[:, 0]
+        }
+        local_center_aug = self.local_environment_center_differentiable(state_aug_0)
+        res = inputs['res']
+        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
+
+        object_aug_update = {
+            add_predicted('rope'):          rope_aug,
+            add_predicted('left_gripper'):  left_gripper_aug,
+            add_predicted('right_gripper'): right_gripper_aug,
+            'left_gripper_position':        left_gripper_position_aug,
+            'right_gripper_position':       right_gripper_position_aug,
+        }
+
+        if DEBUG_VIZ_STATE_AUG:
+            stepper = RvizSimpleStepper()
+            for b in debug_viz_batch_indices(batch_size):
+                env_b = {
+                    'env':          inputs['env'][b],
+                    'res':          res[b],
+                    'extent':       inputs['extent'][b],
+                    'origin_point': inputs['origin_point'][b],
+                }
+
+                self.plot_environment_rviz(env_b)
+                self.debug_viz_state_action(object_aug_update, b, 'aug', color='white')
+                stepper.step()
+        return object_aug_update, local_origin_point_aug, local_center_aug
+
     def compute_collision_free_point_ik(self,
                                         default_robot_state,
                                         points,
@@ -241,6 +438,23 @@ class BlocksScenario(ScenarioWithVisualization):
                                         tip_names,
                                         scene_msg,
                                         ik_params):
+        pass
+
+    def aug_ik(self,
+               inputs_aug: Dict,
+               default_robot_positions,
+               ik_params: IkParams,
+               batch_size: int):
+        """
+
+        Args:
+            inputs_aug: a dict containing the desired gripper positions as well as the scene_msg and other state info
+            default_robot_positions: default robot joint state to seed IK
+            batch_size:
+
+        Returns:
+
+        """
         pass
 
     def __repr__(self):

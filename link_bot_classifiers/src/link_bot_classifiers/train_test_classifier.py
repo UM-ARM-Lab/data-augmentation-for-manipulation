@@ -21,7 +21,7 @@ import rospy
 from analysis.results_utils import try_load_classifier_params
 from geometry_msgs.msg import Point
 from link_bot_classifiers import classifier_utils
-from link_bot_classifiers.add_augmentation_configs import add_augmentation_configs_to_dataset
+from augmentation.add_augmentation_configs import add_augmentation_configs_to_dataset
 from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
 from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data import dynamodb_utils

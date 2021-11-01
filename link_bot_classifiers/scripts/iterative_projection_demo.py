@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 import rospy
-from link_bot_classifiers.iterative_projection import iterative_projection, BaseProjectOpt
+from augmentation.iterative_projection import iterative_projection, BaseProjectOpt
 from visualization_msgs.msg import Marker
 
 

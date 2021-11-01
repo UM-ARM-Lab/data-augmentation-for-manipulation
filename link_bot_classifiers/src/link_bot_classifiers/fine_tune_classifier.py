@@ -5,7 +5,7 @@ from typing import List, Optional, Dict
 import link_bot_classifiers
 import link_bot_classifiers.get_model
 from arc_utilities.algorithms import nested_dict_update
-from link_bot_classifiers.add_augmentation_configs import add_augmentation_configs_to_dataset
+from augmentation.add_augmentation_configs import add_augmentation_configs_to_dataset
 from link_bot_classifiers.train_test_classifier import setup_datasets
 from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_pycommon.pycommon import paths_to_json

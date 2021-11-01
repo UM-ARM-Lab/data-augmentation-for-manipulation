@@ -9,8 +9,8 @@ from tensorflow.keras.metrics import Mean
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 
 import rospy
-from link_bot_classifiers.aug_opt import AugmentationOptimization
-from link_bot_classifiers.aug_opt_utils import debug_input
+from augmentation.aug_opt import AugmentationOptimization
+from augmentation.aug_opt_utils import debug_input
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_data.local_env_helper import LocalEnvHelper
 # noinspection PyUnresolvedReferences
@@ -52,6 +52,7 @@ class NNClassifier(MyKerasModel):
         self.local_env_c_channels = self.hparams['local_env_c_channels']
         self.state_keys = self.hparams['state_keys']
         self.point_state_keys = filter_point_state_keys(self.state_keys)
+        self.point_state_keys_pred = [add_predicted(k) for k in self.points_state_keys]
         self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.action_keys = self.hparams['action_keys']
         self.save_inputs_path = None
@@ -92,7 +93,7 @@ class NNClassifier(MyKerasModel):
         self.vg_info = VoxelgridInfo(h=self.local_env_h_rows,
                                      w=self.local_env_w_cols,
                                      c=self.local_env_c_channels,
-                                     state_keys=[add_predicted(k) for k in self.points_state_keys],
+                                     state_keys=self.pred_state_keys_pred,
                                      jacobian_follower=self.scenario.robot.jacobian_follower,
                                      robot_info=self.robot_info,
                                      include_robot_geometry=self.include_robot_geometry
@@ -100,7 +101,7 @@ class NNClassifier(MyKerasModel):
 
         self.aug = AugmentationOptimization(scenario=self.scenario, debug=self.debug,
                                             local_env_helper=self.local_env_helper,
-                                            points_state_keys=self.points_state_keys, hparams=self.hparams,
+                                            points_state_keys=self.points_state_keys_pred, hparams=self.hparams,
                                             batch_size=self.batch_size, state_keys=self.state_keys,
                                             action_keys=self.action_keys)
         if self.verbose > 0:

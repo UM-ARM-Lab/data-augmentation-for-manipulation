@@ -25,8 +25,8 @@ class MyBlocks(composer.Task):
         self.control_timestep = control_timestep
 
         # extents are ordered [xmin, xmax, ymin, ymax, zmin, zmax
-        self._prop_bbox = workspaces.BoundingBox(lower=params['extent'][0::2],
-                                                 upper=params['extent'][1::2])
+        self._prop_bbox = workspaces.BoundingBox(lower=params['blocks_init_extent'][0::2],
+                                                 upper=params['blocks_init_extent'][1::2])
         self._tcp_bbox = workspaces.BoundingBox(lower=params['gripper_action_sample_extent'][0::2],
                                                 upper=params['gripper_action_sample_extent'][1::2])
 
@@ -48,7 +48,7 @@ class MyBlocks(composer.Task):
         # create block entities
         self._blocks = []
         for i in range(params['num_blocks']):
-            block = Box(half_lengths=[params['block_size'] / 2] * 3, name=f'box{i}')
+            block = Box(half_lengths=[params['block_size'] / 2] * 3, name=f'block{i}')
             self._arena.add_free_entity(block)
             self._blocks.append(block)
 
@@ -103,23 +103,17 @@ class MyBlocks(composer.Task):
     def solve_position_ik(self, physics, target_pos):
         initial_qpos = physics.bind(self._arm.joints).qpos.copy()
 
-        result = None
-        for _ in range(10):
-            result = inverse_kinematics.qpos_from_site_pose(
-                physics=physics,
-                site_name='jaco_arm/primitive_hand/tcp',
-                target_pos=target_pos,
-                target_quat=DOWN_QUATERNION,
-                joint_names=self.joint_names,
-                rot_weight=2,  # more rotation weight than the default
-                inplace=True,
-            )
-            if result.success:
-                break
+        result = inverse_kinematics.qpos_from_site_pose(
+            physics=physics,
+            site_name='jaco_arm/primitive_hand/tcp',
+            target_pos=target_pos,
+            target_quat=DOWN_QUATERNION,
+            joint_names=self.joint_names,
+            rot_weight=2,  # more rotation weight than the default
+            inplace=True,
+        )
 
         joint_position = physics.named.data.qpos[self.joint_names]
-        if _ != 0:
-            print(_)
 
         # reset the arm joints to their original positions, because the above functions actually modify physics state
         physics.bind(self._arm.joints).qpos = initial_qpos

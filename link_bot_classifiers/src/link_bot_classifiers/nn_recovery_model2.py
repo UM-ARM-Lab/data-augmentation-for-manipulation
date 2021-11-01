@@ -9,7 +9,7 @@ from tensorflow.python.keras.metrics import Metric
 
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
-from link_bot_classifiers.aug_opt import AugmentationOptimization
+from augmentation.aug_opt import AugmentationOptimization
 from link_bot_data.visualization import DebuggingViz
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.make_voxelgrid_inputs import VoxelgridInfo
@@ -101,7 +101,9 @@ class NNRecoveryModel(MyKerasModel):
                                             local_env_helper=self.local_env_helper,
                                             points_state_keys=self.points_state_keys, hparams=self.hparams,
                                             batch_size=self.batch_size, state_keys=self.state_keys,
-                                            action_keys=self.action_keys)
+                                            action_keys=self.action_keys,
+                                            left_gripper_key=add_predicted('left_gripper'),
+                                            right_gripper_key=add_predicted('left_gripper'))
         if self.aug.do_augmentation():
             rospy.loginfo("Using augmentation during training")
         else:

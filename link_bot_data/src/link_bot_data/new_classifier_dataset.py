@@ -93,10 +93,14 @@ class NewClassifierDatasetLoader(NewBaseDatasetLoader):
         self.labeling_params = self.hparams['labeling_params']
         self.horizon = self.hparams['labeling_params']['classifier_horizon']
         self.true_state_keys = self.hparams['true_state_keys']
+        self.state_keys = self.true_state_keys
         self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.predicted_state_keys = [add_predicted(k) for k in self.hparams['predicted_state_keys']]
         self.threshold = threshold if threshold is not None else self.labeling_params['threshold']
         self.predicted_state_keys.append(add_predicted('stdev'))
+        default = [add_predicted('left_gripper'), add_predicted('right_gripper'), add_predicted('rope')]
+        self.points_state_keys = self.hparams.get('points_state_keys', default)
+        self.augmentable_state_keys = self.hparams.get('augmentable_state_keys', ['rope'])
         self.env_keys = self.hparams['env_keys']
         self.action_keys = self.hparams['action_keys']
 

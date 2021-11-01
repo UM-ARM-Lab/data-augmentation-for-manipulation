@@ -7,7 +7,7 @@ import tensorflow as tf
 from tqdm import tqdm
 
 from arc_utilities import ros_init
-from link_bot_classifiers.add_augmentation_configs import add_augmentation_configs_to_dataset
+from augmentation.add_augmentation_configs import add_augmentation_configs_to_dataset
 from link_bot_classifiers.get_model import get_model
 from link_bot_data.load_dataset import get_classifier_dataset_loader
 from moonshine import common_train_hparams, filepath_tools

@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 import rospy
-from link_bot_classifiers.aug_opt_utils import debug_aug, debug_aug_sgd, transform_obj_points
+from augmentation.aug_opt_utils import debug_aug, transform_obj_points
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_tf_origin_point_res

@@ -52,21 +52,23 @@ def subsample_points(points, fraction):
     return points[::n_take_every]
 
 
-@tf.function
+# @tf.function
 def transform_obj_points(obj_points, transformation_matrices):
     """
 
     Args:
-        obj_points:
-        transformation_matrices: considered to in the frame of the obj_points,
+        obj_points: [b1,b2,...,n_points,3]
+        transformation_matrices: [b1,b2,...,4,4]
+            considered to in the frame of the obj_points,
             which is defined as the same orientation as the world but with the position being the center of obj_points
 
     Returns:
 
     """
-    to_local_frame = tf.reduce_mean(obj_points, axis=1, keepdims=True)
+    to_local_frame = tf.reduce_mean(obj_points, axis=-2, keepdims=True)
     obj_points_local_frame = obj_points - to_local_frame
-    obj_points_aug_local_frame = transform_points_3d(transformation_matrices[:, None], obj_points_local_frame)
+    transformation_matrices_expanded = tf.expand_dims(transformation_matrices, axis=-3)
+    obj_points_aug_local_frame = transform_points_3d(transformation_matrices_expanded, obj_points_local_frame)
     obj_points_aug = obj_points_aug_local_frame + to_local_frame
     return obj_points_aug, to_local_frame
 
@@ -79,8 +81,8 @@ def check_env_constraints(attract_mask, min_dist, res):
     return constraints_satisfied
 
 
-def pick_best_params(aug_opt, batch_size, sampled_params):
-    predicted_errors = aug_opt.invariance_model_wrapper.evaluate(sampled_params)
+def pick_best_params(invariance_model, sampled_params, batch_size):
+    predicted_errors = invariance_model.evaluate(sampled_params)
     _, best_indices_all = tf.math.top_k(-predicted_errors, tf.cast(batch_size, tf.int32), sorted=False)
     best_indices_shuffled = tf.random.shuffle(best_indices_all, seed=0)
     best_indices = best_indices_shuffled[:batch_size]
@@ -88,8 +90,8 @@ def pick_best_params(aug_opt, batch_size, sampled_params):
     return best_params
 
 
-def initial_identity_params(batch_size):
-    return tf.zeros([batch_size, 6], tf.float32)
+def initial_identity_params(batch_size, m_objects):
+    return tf.zeros([batch_size, m_objects, 6], tf.float32)
 
 
 def delta_min_dist_loss(sdf_dist, sdf_dist_aug):
@@ -100,6 +102,6 @@ def delta_min_dist_loss(sdf_dist, sdf_dist_aug):
 
 
 def dpoint_to_dparams(dpoint, dpoint_dparams):
-    dparams = tf.einsum('bni,bnij->bnj', dpoint, dpoint_dparams)  # [b,n,6]
-    dparams = tf.reduce_mean(dparams, axis=1)
+    dparams = tf.einsum('bmni,bmnij->bmnj', dpoint, dpoint_dparams)  # [b,m,n_points,6]
+    dparams = tf.reduce_mean(dparams, axis=-2)
     return dparams

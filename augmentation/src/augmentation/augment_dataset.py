@@ -4,8 +4,8 @@ from typing import Dict, Callable
 
 from tqdm import tqdm
 
+from augmentation.aug_opt import AugmentationOptimization
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
-from link_bot_classifiers.aug_opt import AugmentationOptimization
 from link_bot_data.dataset_utils import write_example
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.modify_dataset import modify_hparams
@@ -150,9 +150,11 @@ def make_aug_opt(scenario: ScenarioWithVisualization, dataset_loader: NewBaseDat
     aug = AugmentationOptimization(scenario=scenario,
                                    debug=debug,
                                    local_env_helper=local_env_helper,
-                                   points_state_keys=dataset_loader.points_state_keys,
                                    hparams=hparams,
                                    batch_size=batch_size,
                                    state_keys=dataset_loader.state_keys,
-                                   action_keys=dataset_loader.action_keys)
+                                   action_keys=dataset_loader.action_keys,
+                                   points_state_keys=dataset_loader.points_state_keys,
+                                   augmentable_state_keys=dataset_loader.augmentable_state_keys,
+                                   )
     return aug

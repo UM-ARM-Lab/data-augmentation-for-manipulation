@@ -3,19 +3,20 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import numpy as np
-import pyjacobian_follower
 import tensorflow as tf
 import tensorflow_probability as tfp
+from pyjacobian_follower import IkParams, JacobianFollower
 
 import rosnode
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
-from link_bot_data.dataset_utils import add_predicted, _deserialize_scene_msg
+from link_bot_data.dataset_utils import add_predicted, _deserialize_scene_msg, deserialize_scene_msg
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.get_dual_arm_robot_state import GetDualArmRobotState
 from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
 from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
+from link_bot_pycommon.pycommon import densify_points
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import numpify, to_list_of_strings
@@ -301,7 +302,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 return False
         return True
 
-    def follow_jacobian_from_example(self, example: Dict, j: Optional[pyjacobian_follower.JacobianFollower] = None):
+    def follow_jacobian_from_example(self, example: Dict, j: Optional[JacobianFollower] = None):
         if j is None:
             j = self.robot.jacobian_follower
         batch_size = example["batch_size"]
@@ -361,6 +362,26 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         transformation_params = distribution.sample(seed=seed())
 
         return transformation_params
+
+    def compute_obj_points(self, inputs: Dict, num_object_interp: int, batch_size: int):
+        keys = [add_predicted('rope'), add_predicted('left_gripper'), add_predicted('right_gripper')]
+
+        def _make_points(k, t):
+            v = inputs[k][:, t]
+            points = tf.reshape(v, [batch_size, -1, 3])
+            points = densify_points(batch_size, points)
+            return points
+
+        obj_points_0 = {k: _make_points(k, 0) for k in keys}
+        obj_points_1 = {k: _make_points(k, 1) for k in keys}
+
+        def _linspace(k):
+            return tf.linspace(obj_points_0[k], obj_points_1[k], num_object_interp, axis=1)
+
+        swept_obj_points = tf.concat([_linspace(k) for k in keys], axis=2)
+        swept_obj_points = tf.reshape(swept_obj_points, [batch_size, 1, -1, 3])
+
+        return swept_obj_points
 
     def apply_object_augmentation_no_ik(self,
                                         m,
@@ -639,3 +660,118 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         if 'error' in inputs:
             error_t = inputs['error'][b, 1]
             self.plot_error_rviz(error_t)
+
+    def aug_solve_ik(self,
+                     scene_msg: List[PlanningScene],
+                     joint_names,
+                     default_robot_positions,
+                     batch_size: int,
+                     left_target_position,
+                     right_target_position,
+                     ik_params: IkParams,
+                     group_name='both_arms',
+                     tip_names=None,
+                     ):
+        if tip_names is None:
+            tip_names = ['left_tool', 'right_tool']
+        robot_state_b: RobotState
+        joint_positions = []
+        reached = []
+
+        def _position_tensor_to_point(_positions):
+            return Point(*_positions.numpy())
+
+        for b in range(batch_size):
+            scene_msg_b = scene_msg[b]
+
+            default_robot_state_b = RobotState()
+            default_robot_state_b.joint_state.position = default_robot_positions[b].numpy().tolist()
+            default_robot_state_b.joint_state.name = joint_names
+            scene_msg_b.robot_state.joint_state.position = default_robot_positions[b].numpy().tolist()
+            scene_msg_b.robot_state.joint_state.name = joint_names
+            points_b = [_position_tensor_to_point(left_target_position[b]),
+                        _position_tensor_to_point(right_target_position[b])]
+            robot_state_b = self.compute_collision_free_point_ik(default_robot_state_b,
+                                                                 points_b,
+                                                                 group_name,
+                                                                 tip_names,
+                                                                 scene_msg_b,
+                                                                 ik_params)
+
+            reached.append(robot_state_b is not None)
+            if robot_state_b is None:
+                joint_position_b = default_robot_state_b.joint_state.position
+            else:
+                joint_position_b = robot_state_b.joint_state.position
+            joint_positions.append(tf.convert_to_tensor(joint_position_b, dtype=tf.float32))
+
+        joint_positions = tf.stack(joint_positions, axis=0)
+        reached = tf.stack(reached, axis=0)
+        return joint_positions, reached
+
+    def aug_ik(self,
+               inputs_aug: Dict,
+               default_robot_positions,
+               ik_params: IkParams,
+               batch_size: int):
+        """
+
+        Args:
+            inputs_aug: a dict containing the desired gripper positions as well as the scene_msg and other state info
+            default_robot_positions: default robot joint state to seed IK
+            batch_size:
+
+        Returns:
+
+        """
+        left_gripper_points_aug = inputs_aug[add_predicted('left_gripper')]
+        right_gripper_points_aug = inputs_aug[add_predicted('right_gripper')]
+        deserialize_scene_msg(inputs_aug)
+
+        scene_msg = inputs_aug['scene_msg']
+        joint_names = to_list_of_strings(inputs_aug['joint_names'][0, 0].numpy().tolist())
+        joint_positions_aug_, is_ik_valid = self.aug_solve_ik(scene_msg=scene_msg,
+                                                              joint_names=joint_names,
+                                                              default_robot_positions=default_robot_positions,
+                                                              left_target_position=left_gripper_points_aug[:, 0],
+                                                              right_target_position=right_gripper_points_aug[:, 0],
+                                                              ik_params=ik_params,
+                                                              batch_size=batch_size)
+        joint_positions_aug_start = joint_positions_aug_
+
+        # then run the jacobian follower to compute the second new position
+        tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
+        preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
+        joint_positions_aug = []
+        reached = []
+        for b in range(batch_size):
+            scene_msg_b = scene_msg[b]
+            grippers_end_b = [left_gripper_points_aug[b, 1][None].numpy(), right_gripper_points_aug[b, 1][None].numpy()]
+            joint_positions_aug_start_b = joint_positions_aug_start[b]
+            start_joint_state_b = JointState(name=joint_names, position=joint_positions_aug_start_b.numpy())
+            empty_scene_msg_b, start_robot_state_b = merge_joint_state_and_scene_msg(scene_msg_b,
+                                                                                     start_joint_state_b)
+            plan_to_end, reached_end_b = self.robot.jacobian_follower.plan(
+                group_name='whole_body',
+                tool_names=tool_names,
+                preferred_tool_orientations=preferred_tool_orientations,
+                start_state=start_robot_state_b,
+                scene=scene_msg_b,
+                grippers=grippers_end_b,
+                max_velocity_scaling_factor=0.1,
+                max_acceleration_scaling_factor=0.1,
+            )
+            planned_to_end_points = plan_to_end.joint_trajectory.points
+            if len(planned_to_end_points) > 0:
+                end_joint_state_b = planned_to_end_points[-1].positions
+            else:
+                end_joint_state_b = joint_positions_aug_start_b  # just a filler
+
+            joint_positions_aug_b = tf.stack([joint_positions_aug_start_b, end_joint_state_b])
+            joint_positions_aug.append(joint_positions_aug_b)
+            reached.append(reached_end_b)
+        reached = tf.stack(reached, axis=0)
+        joint_positions_aug = tf.stack(joint_positions_aug, axis=0)
+        is_ik_valid = tf.cast(tf.logical_and(is_ik_valid, reached), tf.float32)
+
+        return joint_positions_aug, is_ik_valid
