@@ -4,11 +4,11 @@
   service_provider: mujoco
   steps_per_traj: 100
   randomize_n: 1
-  num_blocks: 20
-  block_size: 0.03
+  num_blocks: 10
+  block_size: 0.025
   extent: [
-    -0.20, 0.20
-    -0.20, 0.20
+    -0.25, 0.25
+    -0.25, 0.25
     0, 0.11
   ]
   blocks_init_extent: [

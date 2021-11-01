@@ -3,6 +3,7 @@
     viz: {
       scale: 1.0
       arrows_scale: 1.0
+      min_delta_dist_grad_scale: 4.0
     }
   }
 }

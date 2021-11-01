@@ -18,7 +18,7 @@ from visualization_msgs.msg import Marker
 @dataclass
 class VizVars:
     obj_points_aug: tf.Tensor  # [b, m, n_points, 3]
-    to_local_frame: tf.Tensor
+    to_local_frame: tf.Tensor  # [b, m, 1, 3]
     min_dist_points_aug: tf.Tensor
     delta_min_dist_grad_dpoint: tf.Tensor
     attract_repel_dpoint: tf.Tensor
@@ -60,6 +60,7 @@ class AugProjOpt(BaseProjectOpt):
         viz_params = self.hparams.get('viz', {})
         self.viz_scale = viz_params.get('scale', 1.0)
         self.viz_arrow_scale = viz_params.get('arrow_scale', 1.0)
+        self.viz_min_delta_dist_grad_scale = viz_params.get('min_delta_dist_grad_scale', 4.0)
 
     def make_opt(self):
         lr = tf.keras.optimizers.schedules.ExponentialDecay(self.hparams['step_size'],
@@ -191,7 +192,6 @@ class AugProjOpt(BaseProjectOpt):
         return max_distance
 
     def viz_func(self, _: Optional, obj_transforms, __, target, v: Optional[VizVars]):
-        s = self.aug_opt.scenario
         for b in debug_viz_batch_indices(self.batch_size):
             target_b = target[b]
             target_pos_b = target_b[..., :3].numpy()
@@ -213,44 +213,64 @@ class AugProjOpt(BaseProjectOpt):
                 obj_points_b_i = self.obj_points[b, obj_i]  # [n_points, 3]
                 obj_occupancy_b_i = self.obj_occupancy[b, obj_i]  # [n_points]
 
-                s.plot_aug_rviz(b,
-                                obj_i,
-                                obj_transforms_b_i,
-                                target_pos_b_i,
-                                target_b_i,
-                                obj_points_b_i)
-
                 repel_indices = tf.squeeze(tf.where(1 - obj_occupancy_b_i))  # [n_repel_points]
                 attract_indices = tf.squeeze(tf.where(obj_occupancy_b_i), -1)  # [n_attract_points]
 
-                repel_points = tf.gather(obj_points_b_i, repel_indices).numpy()  # [n_attract_points]
-                attract_points = tf.gather(obj_points_b_i, attract_indices).numpy()  # [n_repel_points]
-                s.plot_points_rviz(attract_points, label=f'attract_{obj_i}', color='g', scale=self.viz_scale)
-                s.plot_points_rviz(repel_points, label=f'repel_{obj_i}', color='r', scale=self.viz_scale)
+                self.viz_b_i(attract_indices,
+                             b,
+                             obj_i,
+                             obj_points_b_i,
+                             obj_transforms_b_i,
+                             repel_indices,
+                             target_b_i,
+                             target_pos_b_i,
+                             v)
 
-                if v is not None:
-                    local_pos_b = v.to_local_frame[b, 0].numpy()
-                    self.aug_opt.debug.send_position_transform(local_pos_b, 'aug_opt_initial')
-                    attract_points_aug = tf.gather(v.obj_points_aug[b], attract_indices).numpy()
-                    repel_points_aug = tf.gather(v.obj_points_aug[b], repel_indices).numpy()
-                    s.plot_points_rviz(attract_points_aug, label='attract_aug', color='g', scale=self.viz_scale)
-                    s.plot_points_rviz(repel_points_aug, label='repel_aug', color='r', scale=self.viz_scale)
+    def viz_b_i(self,
+                attract_indices,
+                b,
+                obj_i,
+                obj_points_b_i,
+                obj_transforms_b_i,
+                repel_indices,
+                target_b_i,
+                target_pos_b_i,
+                v):
+        s = self.aug_opt.scenario
+        s.plot_aug_rviz(b,
+                        obj_i,
+                        obj_transforms_b_i,
+                        target_pos_b_i,
+                        target_b_i,
+                        obj_points_b_i)
+        repel_points = tf.gather(obj_points_b_i, repel_indices).numpy()  # [n_attract_points]
+        attract_points = tf.gather(obj_points_b_i, attract_indices).numpy()  # [n_repel_points]
+        s.plot_points_rviz(attract_points, label=f'attract_{obj_i}', color='g', scale=self.viz_scale)
+        s.plot_points_rviz(repel_points, label=f'repel_{obj_i}', color='r', scale=self.viz_scale)
+        if v is not None:
+            local_pos_b = v.to_local_frame[b, obj_i, 0].numpy()  # [3]
+            obj_points_aug_b_i = v.obj_points_aug[b, obj_i]  # [n_points, 3]
+            self.aug_opt.debug.send_position_transform(local_pos_b, f'aug_opt_initial_{obj_i}')
+            attract_points_aug = tf.gather(obj_points_aug_b_i, attract_indices).numpy()
+            repel_points_aug = tf.gather(obj_points_aug_b_i, repel_indices).numpy()
+            s.plot_points_rviz(attract_points_aug, f'attract_aug_{obj_i}', color='g', scale=self.viz_scale)
+            s.plot_points_rviz(repel_points_aug, f'repel_aug_{obj_i}', color='r', scale=self.viz_scale)
 
-                    attract_repel_dpoint_b = v.attract_repel_dpoint[b]
-                    attract_grad_b = -tf.gather(attract_repel_dpoint_b, attract_indices, axis=0) * 0.02
-                    repel_grad_b = -tf.gather(attract_repel_dpoint_b, repel_indices, axis=0) * 0.02
-                    s.plot_arrows_rviz(attract_points_aug, attract_grad_b, label='attract_sdf_grad', color='g',
-                                       scale=self.viz_arrows_scale)
-                    s.plot_arrows_rviz(repel_points_aug, repel_grad_b, label='repel_sdf_grad', color='r',
-                                       scale=self.viz_arrows_scale)
+            attract_repel_dpoint_b_i = v.attract_repel_dpoint[b, obj_i]
+            attract_grad_b = -tf.gather(attract_repel_dpoint_b_i, attract_indices, axis=0) * 0.02
+            repel_grad_b = -tf.gather(attract_repel_dpoint_b_i, repel_indices, axis=0) * 0.02
+            s.plot_arrows_rviz(attract_points_aug, attract_grad_b, f'attract_sdf_grad_{obj_i}', color='g',
+                               scale=self.viz_arrow_scale)
+            s.plot_arrows_rviz(repel_points_aug, repel_grad_b, f'repel_sdf_grad_{obj_i}', color='r',
+                               scale=self.viz_arrow_scale)
 
-                    delta_min_dist_points_b = v.min_dist_points_aug[b].numpy()
-                    delta_min_dist_grad_b = -v.delta_min_dist_grad_dpoint[b].numpy()
-                    s.plot_arrow_rviz(delta_min_dist_points_b,
-                                      delta_min_dist_grad_b * 4,
-                                      label='delta_min_dist_grad',
-                                      color='pink',
-                                      scale=self.viz_arrows_scale)
+            delta_min_dist_points_b_i = v.min_dist_points_aug[b, obj_i].numpy()
+            delta_min_dist_grad_b_i = -v.delta_min_dist_grad_dpoint[b, obj_i].numpy()
+            s.plot_arrow_rviz(delta_min_dist_points_b_i,
+                              delta_min_dist_grad_b_i * self.viz_min_delta_dist_grad_scale,
+                              label=f'delta_min_dist_grad_{obj_i}',
+                              color='pink',
+                              scale=self.viz_arrow_scale)
 
     def plot_transform(self, obj_i, transform_params, frame_id):
         """

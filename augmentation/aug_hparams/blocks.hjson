@@ -4,6 +4,7 @@
     viz: {
       scale: 0.002
       arrows_scale: 0.004
+      min_delta_dist_grad_scale: 0.4
     }
   }
 }

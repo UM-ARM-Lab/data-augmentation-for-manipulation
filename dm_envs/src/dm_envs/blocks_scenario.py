@@ -153,11 +153,11 @@ class BlocksScenario(ScenarioWithVisualization):
         params['action_keys'] = ['gripper_position']
         params['state_metadata_keys'] = []
         params['gripper_keys'] = ['jaco_arm/primitive_hand/tcp_pos', 'jaco_arm/primitive_hand/tcp_xmat']
-        params['augmentable_state_keys'] = [k for k in s.keys() if 'box' in k]
+        params['augmentable_state_keys'] = [k for k in s.keys() if 'block' in k]
 
         def _is_points_key(k):
             return any([
-                re.match('box.*position', k),
+                re.match('block.*position', k),
                 k == 'jaco_arm/primitive_hand/tcp_pos',
             ])
 
@@ -206,8 +206,8 @@ class BlocksScenario(ScenarioWithVisualization):
         block_size = state['block_size'][0]
         msg = MarkerArray()
         for i in range(num_blocks):
-            box_position = state[f'box{i}/position']
-            box_orientation = state[f'box{i}/orientation']
+            block_position = state[f'block{i}/position']
+            block_orientation = state[f'block{i}/orientation']
 
             block_marker = Marker()
             block_marker.header.frame_id = 'world'
@@ -216,13 +216,13 @@ class BlocksScenario(ScenarioWithVisualization):
             block_marker.id = idx * num_blocks + i
             block_marker.ns = ns
             block_marker.color = color_msg
-            block_marker.pose.position.x = box_position[0, 0]
-            block_marker.pose.position.y = box_position[0, 1]
-            block_marker.pose.position.z = box_position[0, 2]
-            block_marker.pose.orientation.w = box_orientation[0, 0]
-            block_marker.pose.orientation.x = box_orientation[0, 1]
-            block_marker.pose.orientation.y = box_orientation[0, 2]
-            block_marker.pose.orientation.z = box_orientation[0, 3]
+            block_marker.pose.position.x = block_position[0, 0]
+            block_marker.pose.position.y = block_position[0, 1]
+            block_marker.pose.position.z = block_position[0, 2]
+            block_marker.pose.orientation.w = block_orientation[0, 0]
+            block_marker.pose.orientation.x = block_orientation[0, 1]
+            block_marker.pose.orientation.y = block_orientation[0, 2]
+            block_marker.pose.orientation.z = block_orientation[0, 3]
             block_marker.scale.x = block_size
             block_marker.scale.y = block_size
             block_marker.scale.z = block_size
@@ -339,9 +339,9 @@ class BlocksScenario(ScenarioWithVisualization):
         positions = []  # [b, m, T, 3]
         quats = []  # [b, m, T, 4]
         for block_idx in range(num_blocks):
-            pos = inputs[f"box{block_idx}/position"][:, :, 0]  # [b, T, 3]
+            pos = inputs[f"block{block_idx}/position"][:, :, 0]  # [b, T, 3]
             # in our mujoco dataset the quaternions are stored w,x,y,z but the rest of our code assumes xyzw
-            quat = inputs[f"box{block_idx}/orientation"][:, :, 0]  # [b, T, 4]
+            quat = inputs[f"block{block_idx}/orientation"][:, :, 0]  # [b, T, 4]
             quat = wxyz2xyzw(quat)
             positions.append(pos)
             quats.append(quat)
