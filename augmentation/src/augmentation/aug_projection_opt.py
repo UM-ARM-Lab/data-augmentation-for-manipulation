@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import tensorflow as tf
+from matplotlib import cm
 
 import rospy
 from augmentation.aug_opt_utils import transform_obj_points, dpoint_to_dparams
@@ -181,10 +182,10 @@ class AugProjOpt(BaseProjectOpt):
         return x_interp, viz_vars
 
     def distance(self, transforms1, transforms2):
-        trans1 = transforms1[:, :3]
-        trans2 = transforms2[:, :3]
-        euler1 = transforms1[:, 3:]
-        euler2 = transforms2[:, 3:]
+        trans1 = transforms1[..., :3]
+        trans2 = transforms2[..., :3]
+        euler1 = transforms1[..., 3:]
+        euler2 = transforms2[..., 3:]
         euler_dist = tf.linalg.norm(euler_angle_diff(euler1, euler2), axis=-1)
         trans_dist = tf.linalg.norm(trans1 - trans2, axis=-1)
         distances = trans_dist + euler_dist
@@ -208,6 +209,7 @@ class AugProjOpt(BaseProjectOpt):
 
                 dir_msg = rviz_arrow([0, 0, 0], target_pos_b_i, scale=2.0)
                 dir_msg.header.frame_id = f'aug_opt_initial_{obj_i}'
+                dir_msg.id = obj_i
                 self.aug_dir_pub.publish(dir_msg)
 
                 obj_points_b_i = self.obj_points[b, obj_i]  # [n_points, 3]
@@ -237,12 +239,7 @@ class AugProjOpt(BaseProjectOpt):
                 target_pos_b_i,
                 v):
         s = self.aug_opt.scenario
-        s.plot_aug_rviz(b,
-                        obj_i,
-                        obj_transforms_b_i,
-                        target_pos_b_i,
-                        target_b_i,
-                        obj_points_b_i)
+        s.plot_aug_points_rviz(obj_i, obj_points_b_i, '', cm.Greys)
         repel_points = tf.gather(obj_points_b_i, repel_indices).numpy()  # [n_attract_points]
         attract_points = tf.gather(obj_points_b_i, attract_indices).numpy()  # [n_repel_points]
         s.plot_points_rviz(attract_points, label=f'attract_{obj_i}', color='g', scale=self.viz_scale)
@@ -250,6 +247,7 @@ class AugProjOpt(BaseProjectOpt):
         if v is not None:
             local_pos_b = v.to_local_frame[b, obj_i, 0].numpy()  # [3]
             obj_points_aug_b_i = v.obj_points_aug[b, obj_i]  # [n_points, 3]
+            s.plot_aug_points_rviz(obj_i, obj_points_aug_b_i, 'aug', cm.Blues)
             self.aug_opt.debug.send_position_transform(local_pos_b, f'aug_opt_initial_{obj_i}')
             attract_points_aug = tf.gather(obj_points_aug_b_i, attract_indices).numpy()
             repel_points_aug = tf.gather(obj_points_aug_b_i, repel_indices).numpy()

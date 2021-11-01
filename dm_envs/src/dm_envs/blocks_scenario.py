@@ -467,18 +467,11 @@ class BlocksScenario(ScenarioWithVisualization):
         """
         pass
 
-    def plot_aug_rviz(self,
-                      b: int,
-                      obj_i: int,
-                      obj_transforms_b_i,  # [6]
-                      target_pos_b_i,  # [3]
-                      target_b_i,  # [6]
-                      obj_points_b_i,  # [n_points,3]
-                      ):
+    def plot_aug_points_rviz(self, obj_i: int, obj_points_b_i, label: str, color_map):
         obj_points_b_i_time = tf.reshape(obj_points_b_i, [-1, 8, 3])
         blocks_aug_msg = MarkerArray()
         for t, obj_points_b_i_t in enumerate(obj_points_b_i_time):
-            color_t = ColorRGBA(*cm.Greys(t / obj_points_b_i_time.shape[0]))
+            color_t = ColorRGBA(*color_map(t / obj_points_b_i_time.shape[0]))
             color_t.a = 0.2
 
             block_center = tf.reduce_mean(obj_points_b_i_t, 0)
@@ -492,7 +485,7 @@ class BlocksScenario(ScenarioWithVisualization):
             block_quat = quaternion.from_rotation_matrix(block_rot_mat)
 
             block_aug_msg = Marker()
-            block_aug_msg.ns = 'blocks_aug'
+            block_aug_msg.ns = 'blocks_' + label
             block_aug_msg.id = t + 1000 * obj_i
             block_aug_msg.header.frame_id = 'world'
             block_aug_msg.action = Marker.ADD

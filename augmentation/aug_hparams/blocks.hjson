@@ -1,5 +1,21 @@
 {
   augmentation: {
+    invariance_weight: 0.0
+
+    # hyperparameters of the optimization loop
+    target_trans_lim: 0.15
+    target_euler_lim: 0.1
+    not_progressing_threshold: 0.0005
+    step_size_threshold: 0.0001
+    step_size: 0.01
+    grad_clip: 0.05
+
+    # for the final check of the constraints
+    delta_min_dist_threshold: 0.005
+
+    # misc
+    # FIXME: this needs to be changed
+    invariance_model: /media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint
 
     viz: {
       scale: 0.002

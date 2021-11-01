@@ -223,16 +223,16 @@ class AugmentationOptimization:
         return transformation_matrices, to_local_frame, is_valid
 
     def check_is_valid(self, obj_points_aug, obj_occupancy, extent, res, sdf, sdf_aug):
-        bbox_loss_batch = self.bbox_loss(obj_points_aug, extent)
+        bbox_loss_batch = tf.reduce_sum(self.bbox_loss(obj_points_aug, extent), axis=-2)
         bbox_constraint_satisfied = tf.cast(tf.reduce_sum(bbox_loss_batch, axis=-1) == 0, tf.float32)
 
         env_constraints_satisfied_ = check_env_constraints(obj_occupancy, sdf_aug, res)
-        num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=1)
+        num_env_constraints_violated = tf.reduce_sum(tf.reduce_sum(1 - env_constraints_satisfied_, axis=-1), axis=-1)
         env_constraints_satisfied = tf.cast(num_env_constraints_violated < self.hparams['max_env_violations'],
                                             tf.float32)
 
-        min_dist = tf.reduce_min(sdf, axis=1)
-        min_dist_aug = tf.reduce_min(sdf_aug, axis=1)
+        min_dist = tf.reduce_min(tf.reduce_min(sdf, axis=1), axis=1)
+        min_dist_aug = tf.reduce_min(tf.reduce_min(sdf_aug, axis=-1), axis=-1)
         delta_min_dist = tf.abs(min_dist - min_dist_aug)
         delta_min_dist_satisfied = tf.cast(delta_min_dist < self.hparams['delta_min_dist_threshold'], tf.float32)
 
