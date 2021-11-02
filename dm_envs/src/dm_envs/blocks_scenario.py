@@ -1,4 +1,5 @@
 import re
+import torch
 from typing import Dict
 
 import tensorflow as tf
@@ -6,12 +7,10 @@ from matplotlib import colors
 from pyjacobian_follower import IkParams
 from tensorflow_graphics.geometry.transformation import quaternion
 
-import ros_numpy
 from dm_envs.blocks_env import PlanarPushingBlocksTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario, transformation_matrices_from_pos_quat
 from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import repeat_tensor
-from sensor_msgs.msg import Image
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 
@@ -69,18 +68,18 @@ class BlocksScenario(PlanarPushingScenario):
             a = 1.0
         idx = kwargs.get("idx", 0)
 
-        num_blocks = state['num_blocks'][0]
+        num_objs = state['num_objs'][0]
         block_size = state['block_size'][0]
         msg = MarkerArray()
-        for i in range(num_blocks):
-            block_position = state[f'block{i}/position']
-            block_orientation = state[f'block{i}/orientation']
+        for i in range(num_objs):
+            block_position = state[f'obj{i}/position']
+            block_orientation = state[f'obj{i}/orientation']
 
             block_marker = Marker()
             block_marker.header.frame_id = 'world'
             block_marker.action = Marker.ADD
             block_marker.type = Marker.CUBE
-            block_marker.id = idx * num_blocks + i
+            block_marker.id = idx * num_objs + i
             block_marker.ns = ns
             block_marker.color = color_msg
             block_marker.pose.position.x = block_position[0, 0]
@@ -109,13 +108,13 @@ class BlocksScenario(PlanarPushingScenario):
 
         """
         size = inputs['block_size'][:, :, 0]  # [b, T]
-        num_blocks = inputs['num_blocks'][0, 0, 0]  # assumed fixed across batch/time
+        num_objs = inputs['num_objs'][0, 0, 0]  # assumed fixed across batch/time
         positions = []  # [b, m, T, 3]
         quats = []  # [b, m, T, 4]
-        for block_idx in range(num_blocks):
-            pos = inputs[f"block{block_idx}/position"][:, :, 0]  # [b, T, 3]
+        for block_idx in range(num_objs):
+            pos = inputs[f"obj{block_idx}/position"][:, :, 0]  # [b, T, 3]
             # in our mujoco dataset the quaternions are stored w,x,y,z but the rest of our code assumes xyzw
-            quat = inputs[f"block{block_idx}/orientation"][:, :, 0]  # [b, T, 4]
+            quat = inputs[f"obj{block_idx}/orientation"][:, :, 0]  # [b, T, 4]
             quat = wxyz2xyzw(quat)
             positions.append(pos)
             quats.append(quat)
@@ -282,7 +281,7 @@ class BlocksScenario(PlanarPushingScenario):
     @staticmethod
     def is_points_key(k):
         return any([
-            re.match('block.*position', k),
+            re.match('obj.*position', k),
             k == 'jaco_arm/primitive_hand/tcp_pos',
         ])
 
@@ -291,3 +290,23 @@ class BlocksScenario(PlanarPushingScenario):
 
     def __repr__(self):
         return "blocks"
+
+    def get_obj_attr_state_action(self, batch, batch_size, obj_idx, time, device):
+        obj_attr = torch.zeros([batch_size, 1]).to(device)
+        obj_pos = torch.squeeze(batch[f"obj{obj_idx}/position"], 2)  # [b, T, 3]
+        obj_quat = torch.squeeze(batch[f"obj{obj_idx}/orientation"], 2)  # [b, T, 4]
+        obj_linear_vel = torch.squeeze(batch[f"obj{obj_idx}/linear_velocity"], 2)  # [b, T, 3]
+        obj_angular_vel = torch.squeeze(batch[f"obj{obj_idx}/angular_velocity"], 2)  # [b, T, 3]
+        obj_state = torch.cat([obj_pos, obj_quat, obj_linear_vel, obj_angular_vel], dim=-1)  # [b, T, 13]
+        obj_action = torch.zeros([batch_size, time - 1, 3]).to(device)
+        return obj_action, obj_attr, obj_state
+
+    def get_robot_attr_state_action(self, batch, batch_size, device):
+        robot_attr = torch.ones([batch_size, 1]).to(device)
+        ee_pos = torch.squeeze(batch["jaco_arm/primitive_hand/tcp_pos"], 2)
+        ee_quat = torch.squeeze(batch["jaco_arm/primitive_hand/orientation"], 2)
+        ee_linear_vel = torch.squeeze(batch["jaco_arm/primitive_hand/linear_velocity"], 2)
+        ee_angular_vel = torch.squeeze(batch["jaco_arm/primitive_hand/angular_velocity"], 2)
+        ee_state = torch.cat([ee_pos, ee_quat, ee_linear_vel, ee_angular_vel], dim=-1)  # [b, T, 13]
+        robot_action = batch['gripper_position']
+        return ee_state, robot_action, robot_attr

@@ -246,15 +246,15 @@ class PropNet(pl.LightningModule):
         attr_dim = self.params['attr_dim']
         state_dim = self.params['state_dim']
         self.action_dim = self.params['action_dim']
-        position_dim = self.params['position_dim']
+        self.position_dim = self.params['position_dim']
         relation_dim = self.params['relation_dim']  # should match the last dim of Ra
-        num_objects = self.params['num_objects']
+        self.num_objects = self.params['num_objects']
 
         batch = True
         input_dim = attr_dim + state_dim + self.action_dim
-        self.model = PropModule(params, input_dim, position_dim, batch, residual)
+        self.model = PropModule(params, input_dim, self.position_dim, batch, residual)
 
-        Rr, Rs, Ra = construct_fully_connected_rel(num_objects, relation_dim, device=self.device)
+        Rr, Rs, Ra = construct_fully_connected_rel(self.num_objects, relation_dim, device=self.device)
         self.register_buffer("Rr", Rr)
         self.register_buffer("Rs", Rs)
         self.register_buffer("Ra", Ra)
@@ -286,31 +286,37 @@ class PropNet(pl.LightningModule):
         return optimizer
 
     def training_step(self, train_batch, batch_idx):
-        batch_size = len(train_batch['filename'])
-        Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
-
-        loss = F.l1_loss(pred, label)
+        gt_vel, pred_vel = self.multistep_prediction(train_batch)
+        loss = F.l1_loss(pred_vel, gt_vel)
         self.log('train_loss', loss)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        dt = torch.squeeze(val_batch['dt'], dim=-1)[:, 0]
-        batch_size = len(val_batch['filename'])
+        gt_vel, pred_vel = self.multistep_prediction(val_batch)
+        loss = F.l1_loss(pred_vel, gt_vel)
+        self.log('val_loss', loss)
+
+    def multistep_prediction(self, batch):
+        batch_size = len(batch['filename'])
         Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
 
-        attr, states, actions = self.states_and_actions(val_batch, batch_size)
-        gt_vel = states
+        dt = batch['dt'][:, 0:1]  # in batch, dt is [batch, time, 1] but we want [batch, 1, 1]
 
+        attr, states, actions = self.states_and_actions(batch, batch_size)
+        gt_vel = states[:, :, :, self.position_dim:]
         pred_state_t = states[:, 0]  # [b, n_objects, state_dim]
+        pred_vel = [pred_state_t[:, :, self.position_dim:]]
         for t in range(actions.shape[1]):
             action_t = actions[:, t]
             pred_vel_t = self.forward([attr, pred_state_t, Rr_batch, Rs_batch, Ra_batch], self.params['pstep'],
                                       action=action_t)
-            # pred_vel_t: [b, n_objects, 3]
-            pred_state_t = pred_state_t + dt * pred_vel_t
-
-        loss = F.l1_loss(pred, gt_vel)
-        self.log('val_loss', loss)
+            # pred_vel_t: [b, n_objects, position_dim]
+            # Integrate the velocity to produce the next positions, then copy the velocities
+            pred_state_t[:, :, :self.position_dim] = pred_state_t[:, :, :self.position_dim] + dt * pred_vel_t
+            pred_state_t[:, :, self.position_dim:] = pred_vel_t
+            pred_vel.append(pred_vel_t)
+        pred_vel = torch.stack(pred_vel, dim=1)
+        return gt_vel, pred_vel
 
     def batch_relations(self, batch_size):
         Rr_batch = self.Rr[None, :, :].repeat(batch_size, 1, 1)
@@ -319,7 +325,7 @@ class PropNet(pl.LightningModule):
         return Ra_batch, Rr_batch, Rs_batch
 
     def states_and_actions(self, batch, batch_size):
-        num_blocks = batch['num_blocks'][0, 0, 0]  # assumed fixed across batch/time
+        num_objs = batch['num_objs'][0, 0, 0]  # assumed fixed across batch/time
         time = batch['time_idx'].shape[1]
         attrs = []
         states = []
@@ -328,30 +334,19 @@ class PropNet(pl.LightningModule):
         # end-effector (more generally, the robot) is treated as an object in the system, so it has state.
         # It also has action and attribute=1
         # all of the object objects do not have action (zero value and attribute=0)
-        robot_attr = torch.ones([batch_size, 1]).to(self.device)
-        ee_pos = torch.squeeze(batch["jaco_arm/primitive_hand/tcp_pos"], 2)
-        ee_quat = torch.squeeze(batch["jaco_arm/primitive_hand/orientation"], 2)
-        ee_linear_vel = torch.squeeze(batch["jaco_arm/primitive_hand/linear_velocity"], 2)
-        ee_angular_vel = torch.squeeze(batch["jaco_arm/primitive_hand/angular_velocity"], 2)
-        ee_state = torch.cat([ee_pos, ee_quat, ee_linear_vel, ee_angular_vel], dim=-1)  # [b, T, 13]
-        robot_action = batch['gripper_position']
+        ee_state, robot_action, robot_attr = self.scenario.get_robot_attr_state_action(batch, batch_size, self.device)
         attrs.append(robot_attr)
         states.append(ee_state)
         actions.append(robot_action)
 
         # blocks
-        for block_idx in range(num_blocks):
-            block_attr = torch.zeros([batch_size, 1]).to(self.device)
-            block_pos = torch.squeeze(batch[f"block{block_idx}/position"], 2)  # [b, T, 3]
-            block_quat = torch.squeeze(batch[f"block{block_idx}/orientation"], 2)  # [b, T, 4]
-            block_linear_vel = torch.squeeze(batch[f"block{block_idx}/linear_velocity"], 2)  # [b, T, 3]
-            block_angular_vel = torch.squeeze(batch[f"block{block_idx}/angular_velocity"], 2)  # [b, T, 3]
-            block_state = torch.cat([block_pos, block_quat, block_linear_vel, block_angular_vel], dim=-1)  # [b, T, 13]
-            block_action = torch.zeros([batch_size, time - 1, self.action_dim]).to(self.device)
-            attrs.append(block_attr)
-            states.append(block_state)
-            actions.append(block_action)
+        for obj_idx in range(num_objs):
+            obj_action, obj_attr, obj_state = self.scenario.get_obj_attr_state_action(batch, batch_size, obj_idx, time,
+                                                                                      self.device)
+            attrs.append(obj_attr)
+            states.append(obj_state)
+            actions.append(obj_action)
         attrs = torch.stack(attrs, dim=1)  # [b, n_objects, 1]
-        states = torch.stack(states, dim=2)  # [b, n_objects, T, 13]
-        actions = torch.stack(actions, dim=2)  # [b, n_objects, T-1, 13]
+        states = torch.stack(states, dim=2)  # [b, n_objects, T, ...]
+        actions = torch.stack(actions, dim=2)  # [b, n_objects, T-1, ...]
         return attrs, states, actions

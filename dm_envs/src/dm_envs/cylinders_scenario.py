@@ -1,4 +1,5 @@
 import re
+import torch
 from typing import Dict
 
 import tensorflow as tf
@@ -295,3 +296,19 @@ class CylindersScenario(PlanarPushingScenario):
 
     def __repr__(self):
         return "cylinders"
+
+    def get_obj_attr_state_action(self, batch, batch_size, obj_idx, time, device):
+        obj_attr = torch.zeros([batch_size, 1]).to(device)
+        obj_pos = torch.squeeze(batch[f"obj{obj_idx}/position"], 2)[:, :, :2]  # [b, T, 2]
+        obj_linear_vel = torch.squeeze(batch[f"obj{obj_idx}/linear_velocity"], 2)[:, :, :2]  # [b, T, 2]
+        obj_state = torch.cat([obj_pos, obj_linear_vel], dim=-1)  # [b, T, 4]
+        obj_action = torch.zeros([batch_size, time - 1, 3]).to(device)
+        return obj_action, obj_attr, obj_state
+
+    def get_robot_attr_state_action(self, batch, batch_size, device):
+        robot_attr = torch.ones([batch_size, 1]).to(device)
+        ee_pos = torch.squeeze(batch["jaco_arm/primitive_hand/tcp_pos"], 2)[:, :, :2]
+        ee_linear_vel = torch.squeeze(batch["jaco_arm/primitive_hand/linear_velocity"], 2)[:, :, :2]
+        ee_state = torch.cat([ee_pos, ee_linear_vel], dim=-1)  # [b, T, 4]
+        robot_action = batch['gripper_position']
+        return ee_state, robot_action, robot_attr

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import multiprocessing
 import pathlib
 from time import perf_counter
 
@@ -8,6 +7,7 @@ from tqdm import tqdm
 
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from propnet.torch_dynamics_dataset import TorchDynamicsDataset
+from propnet.train_test_propnet import get_num_workers
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
     batch_size = 32
 
     dataset = TorchDynamicsDataset(p, mode)
-    loader = DataLoader(dataset, batch_size=batch_size, num_workers=min(batch_size, multiprocessing.cpu_count()))
+    loader = DataLoader(dataset, batch_size=batch_size, num_workers=get_num_workers(batch_size))
 
     t0 = perf_counter()
     for _ in tqdm(loader):

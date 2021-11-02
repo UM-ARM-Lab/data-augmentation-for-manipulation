@@ -4,7 +4,7 @@
   service_provider: mujoco
   steps_per_traj: 100
   randomize_n: 1
-  num_blocks: 10
+  num_objs: 10
   block_size: 0.025
   extent: [
     -0.25, 0.25
