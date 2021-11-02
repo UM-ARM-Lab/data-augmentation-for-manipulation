@@ -1,14 +1,5 @@
-from dataclasses import dataclass
-
 import numpy as np
 import torch
-
-
-@dataclass
-class RelationsGraph:
-    Rr_idx: torch.Tensor
-    Rs_idx: torch.Tensor
-    Ra: torch.Tensor
 
 
 def construct_fully_connected_rel(size: int, relation_dim: int, device):
@@ -29,8 +20,11 @@ def construct_fully_connected_rel(size: int, relation_dim: int, device):
 
     n_rel = rel.shape[0]
     n_rel_range = np.arange(n_rel)  # [0, 1, ..., size^2]
-    Rr_idx = torch.LongTensor(np.array([rel[:, 0], n_rel_range])).to(device)  # receiver indices [2, size^2]
-    Rs_idx = torch.LongTensor(np.array([rel[:, 1], n_rel_range])).to(device)  # sender indices [2, size^2]
-    Ra = torch.zeros(n_rel, relation_dim).to(device)  # relation attributes information
+    Rr_idx = torch.LongTensor(np.array([rel[:, 0], n_rel_range]))  # receiver indices [2, size^2]
+    Rs_idx = torch.LongTensor(np.array([rel[:, 1], n_rel_range]))  # sender indices [2, size^2]
+    Ra = torch.zeros(n_rel, relation_dim)  # relation attributes information
+    ones = torch.ones(n_rel)
+    Rr = torch.sparse_coo_tensor(Rr_idx, ones, (size, n_rel)).to_dense()
+    Rs = torch.sparse_coo_tensor(Rs_idx, ones, (size, n_rel)).to_dense()
 
-    return RelationsGraph(Rr_idx, Rs_idx, Ra)
+    return Rr, Rs, Ra

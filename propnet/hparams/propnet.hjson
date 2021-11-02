@@ -18,6 +18,6 @@
   position_dim: 3  # x, y, angle
   pstep: 3
   relation_dim: 1 # there's only one type of relation
-  state_dim: 6 # x, y, angle, xdot, ydot, angledot
+  state_dim: 13 # tx,ty,tz,qw,qx,qy,qz,tx_dot,ty_dot,tz_dot,rx_dot,ry_dot,rz_dot
   verbose: 1
 }

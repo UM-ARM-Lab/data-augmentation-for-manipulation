@@ -68,7 +68,7 @@ class ParticleEncoder(nn.Module):
 
 # noinspection PyPep8Naming
 class Propagator(nn.Module):
-    def __init__(self, input_size, output_size, residual=True):
+    def __init__(self, input_size, output_size, residual=False):
         super(Propagator, self).__init__()
 
         self.input_size = input_size
@@ -123,8 +123,8 @@ class ParticlePredictor(nn.Module):
 
 
 # noinspection PyPep8Naming
-class PropModule(nn.Module):
-    def __init__(self, params, input_dim, output_dim, batch=True, residual=True):
+class PropModule(pl.LightningModule):
+    def __init__(self, params, input_dim, output_dim, batch=True, residual=False):
 
         super(PropModule, self).__init__()
 
@@ -164,7 +164,7 @@ class PropModule(nn.Module):
             print('pstep', pstep)
 
         # calculate particle encoding
-        particle_effect = Variable(torch.zeros((state.size(0), state.size(1), self.nf_effect)))
+        particle_effect = Variable(torch.zeros((state.size(0), state.size(1), self.nf_effect))).to(self.device)
 
         # receiver_state, sender_state
         if self.batch:
@@ -186,10 +186,10 @@ class PropModule(nn.Module):
             print('state_s', state_s.size())
 
         # particle encode
-        particle_encode = self.particle_encoder(state)
+        particle_encode = self.particle_encoder(state)  # [b, n_objects, nf_particle]
 
         # calculate relation encoding
-        relation_encode = self.relation_encoder(torch.cat([state_r, state_s, Ra], 2))
+        relation_encode = self.relation_encoder(torch.cat([state_r, state_s, Ra], 2))  # [b, n_objects, nf_relation]
 
         if verbose:
             print("relation encode:", relation_encode.size())
@@ -207,8 +207,7 @@ class PropModule(nn.Module):
                 effect_s = Rsp.mm(particle_effect[0])[None, :, :]
 
             # calculate relation effect
-            relation_effect = self.relation_propagator(
-                torch.cat([relation_encode, effect_r, effect_s], 2))
+            relation_effect = self.relation_propagator(torch.cat([relation_encode, effect_r, effect_s], 2))
 
             if verbose:
                 print("relation effect:", relation_effect.size())
@@ -248,14 +247,17 @@ class PropNet(pl.LightningModule):
         state_dim = self.params['state_dim']
         self.action_dim = self.params['action_dim']
         position_dim = self.params['position_dim']
-        relation_dim = self.params['relation_dim']
+        relation_dim = self.params['relation_dim']  # should match the last dim of Ra
         num_objects = self.params['num_objects']
 
         batch = True
         input_dim = attr_dim + state_dim + self.action_dim
         self.model = PropModule(params, input_dim, position_dim, batch, residual)
 
-        self.relation_graph = construct_fully_connected_rel(num_objects, relation_dim, device=self.device)
+        Rr, Rs, Ra = construct_fully_connected_rel(num_objects, relation_dim, device=self.device)
+        self.register_buffer("Rr", Rr)
+        self.register_buffer("Rs", Rs)
+        self.register_buffer("Ra", Ra)
 
     def forward(self, data, _, action=None):
         """
@@ -285,7 +287,7 @@ class PropNet(pl.LightningModule):
 
     def training_step(self, train_batch, batch_idx):
         batch_size = len(train_batch['filename'])
-        Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size, train_batch)
+        Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
 
         loss = F.l1_loss(pred, label)
         self.log('train_loss', loss)
@@ -293,7 +295,7 @@ class PropNet(pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         batch_size = len(val_batch['filename'])
-        Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size, val_batch)
+        Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
 
         attr, states, actions = self.states_and_actions(val_batch, batch_size)
         label = states
@@ -307,10 +309,10 @@ class PropNet(pl.LightningModule):
         loss = F.l1_loss(pred, label)
         self.log('val_loss', loss)
 
-    def batch_relations(self, batch_size, val_batch):
-        Rr_batch = self.relation_graph.Rr_idx[None, :, :].repeat(batch_size, 1, 1)
-        Rs_batch = self.relation_graph.Rs_idx[None, :, :].repeat(batch_size, 1, 1)
-        Ra_batch = self.relation_graph.Ra[None, :, :].repeat(batch_size, 1, 1)
+    def batch_relations(self, batch_size):
+        Rr_batch = self.Rr[None, :, :].repeat(batch_size, 1, 1)
+        Rs_batch = self.Rs[None, :, :].repeat(batch_size, 1, 1)
+        Ra_batch = self.Ra[None, :, :].repeat(batch_size, 1, 1)
         return Ra_batch, Rr_batch, Rs_batch
 
     def states_and_actions(self, batch, batch_size):
