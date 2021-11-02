@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import logging
 import multiprocessing
 import pathlib
 from typing import List, Optional
@@ -27,7 +28,10 @@ def train_main(dataset_dirs: List[pathlib.Path],
     assert len(dataset_dirs) == 1
     train_dataset = TorchDynamicsDataset(dataset_dirs[0], mode='train')
     val_dataset = TorchDynamicsDataset(dataset_dirs[0], mode='val')
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=get_num_workers(batch_size))
+    train_loader = DataLoader(train_dataset,
+                              batch_size=batch_size,
+                              shuffle=True,
+                              num_workers=get_num_workers(batch_size))
     val_loader = None
     if len(val_dataset) > 0 and not no_validate:
         val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=get_num_workers(batch_size))
@@ -40,6 +44,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model = PropNet(params=model_params, scenario=train_dataset.get_scenario())
 
     # training
+    logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
     trainer = pl.Trainer(gpus=1,
                          weights_summary=None,
                          log_every_n_steps=1,
@@ -49,3 +54,4 @@ def train_main(dataset_dirs: List[pathlib.Path],
 
 def get_num_workers(batch_size):
     return min(batch_size, multiprocessing.cpu_count())
+    # return 0
