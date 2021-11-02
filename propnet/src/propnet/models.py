@@ -1,5 +1,7 @@
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.autograd import Variable
 
 # noinspection PyPep8Naming
@@ -121,39 +123,36 @@ class ParticlePredictor(nn.Module):
 
 # noinspection PyPep8Naming
 class PropModule(nn.Module):
-    def __init__(self, args, input_dim, output_dim, batch=True, residual=True, use_gpu=True):
+    def __init__(self, params, input_dim, output_dim, batch=True, residual=True, use_gpu=True):
 
         super(PropModule, self).__init__()
 
-        self.args = args
+        self.params = params
         self.batch = batch
 
-        relation_dim = args.relation_dim
+        relation_dim = self.params['relation_dim']
 
-        nf_particle = args.nf_particle
-        nf_relation = args.nf_relation
-        nf_effect = args.nf_effect
-
-        self.nf_effect = args.nf_effect
+        nf_particle = self.params['nf_particle']
+        nf_relation = self.params['nf_relation']
+        self.nf_effect = self.params['nf_effect']
 
         self.use_gpu = use_gpu
         self.residual = residual
 
         # particle encoder
-        self.particle_encoder = ParticleEncoder(input_dim, nf_particle, nf_effect)
+        self.particle_encoder = ParticleEncoder(input_dim, nf_particle, self.nf_effect)
 
         # relation encoder
         self.relation_encoder = RelationEncoder(2 * input_dim + relation_dim, nf_relation, nf_relation)
 
         # input: (1) particle encode (2) particle effect
-        self.particle_propagator = Propagator(2 * nf_effect, nf_effect, self.residual)
+        self.particle_propagator = Propagator(2 * self.nf_effect, self.nf_effect, self.residual)
 
         # input: (1) relation encode (2) sender effect (3) receiver effect
-        self.relation_propagator = Propagator(nf_relation + 2 * nf_effect, nf_effect)
+        self.relation_propagator = Propagator(nf_relation + 2 * self.nf_effect, self.nf_effect)
 
         # input: (1) particle effect
-        self.particle_predictor = ParticlePredictor(
-            nf_effect, nf_effect, output_dim)
+        self.particle_predictor = ParticlePredictor(self.nf_effect, self.nf_effect, output_dim)
 
     def forward(self, state, Rr, Rs, Ra, pstep, verbose: int = 0):
 
@@ -240,36 +239,56 @@ class PropModule(nn.Module):
 
 
 # noinspection PyPep8Naming
-class PropNet(nn.Module):
+class PropNet(pl.LightningModule):
 
-    def __init__(self, args, scenario: ScenarioWithVisualization, residual=True, use_gpu=True):
-        super(PropNet, self).__init__()
+    def __init__(self, params, scenario: ScenarioWithVisualization, residual=True, use_gpu=True):
+        super().__init__()
 
-        self.args = args
+        self.params = params
         self.scenario = scenario
-        attr_dim = args.attr_dim
-        state_dim = args.state_dim
-        action_dim = args.action_dim
-        position_dim = args.position_dim
+        attr_dim = self.params['attr_dim']
+        state_dim = self.params['state_dim']
+        action_dim = self.params['action_dim']
+        position_dim = self.params['position_dim']
 
         batch = True
         input_dim = attr_dim + state_dim + action_dim
-        self.model = PropModule(args, input_dim, position_dim, batch, residual, use_gpu)
+        self.model = PropModule(params, input_dim, position_dim, batch, residual, use_gpu)
 
     def to_latent(self, state):
-        if self.args.agg_method == 'sum':
+        if self.params['agg_method'] == 'sum':
             return torch.sum(state, 1, keepdim=True)
-        elif self.args.agg_method == 'mean':
+        elif self.params['agg_method'] == 'mean':
             return torch.mean(state, 1, keepdim=True)
         else:
             raise AssertionError("Unsupported aggregation method")
 
     def forward(self, data, _, action=None):
         # used only for fully observable case
-        args = self.args
         attr, state, Rr, Rs, Ra = data
         if action is not None:
             state = torch.cat([attr, state, action], 2)
         else:
             state = torch.cat([attr, state], 2)
-        return self.model(state, Rr, Rs, Ra, args.pstep, verbose=args.verbose_model)
+        return self.model(state, Rr, Rs, Ra, self.params['pstep'], verbose=self.params['verbose'])
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        return optimizer
+
+    def training_step(self, train_batch, batch_idx):
+        x, y = train_batch
+        x = x.view(x.size(0), -1)
+        z = self.encoder(x)
+        x_hat = self.decoder(z)
+        loss = F.mse_loss(x_hat, x)
+        self.log('train_loss', loss)
+        return loss
+
+    def validation_step(self, val_batch, batch_idx):
+        x, y = val_batch
+        x = x.view(x.size(0), -1)
+        z = self.encoder(x)
+        x_hat = self.decoder(z)
+        loss = F.mse_loss(x_hat, x)
+        self.log('val_loss', loss)

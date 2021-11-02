@@ -3,8 +3,11 @@ import pathlib
 import pickle
 from typing import List, Optional, Dict, Callable
 
+import pytorch_lightning as pl
 import tensorflow as tf
 from colorama import Fore
+from torch.utils.data import random_split, DataLoader
+from torchvision.transforms import transforms
 from tqdm import tqdm
 
 import link_bot_classifiers
@@ -23,7 +26,35 @@ from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import remove_batch
 from propnet.models import PropNet
+from propnet.torch_dynamics_dataset import TorchDynamicsDataset
 from state_space_dynamics.train_test_dynamics import setup_training_paths
+
+
+def train_main(dataset_dirs: List[pathlib.Path],
+               model_params: pathlib.Path,
+               log: str,
+               batch_size: int,
+               epochs: int,
+               seed: int,
+               checkpoint: Optional[pathlib.Path] = None,
+               take: Optional[int] = None,
+               no_validate: bool = False,
+               trials_directory: Optional[pathlib.Path] = pathlib.Path("./trials").absolute(),
+               **kwargs):
+    model_params = load_hjson(model_params)
+
+    assert len(dataset_dirs) == 1
+    dataset = TorchDynamicsDataset(dataset_dirs[0], transform=transforms.ToTensor())
+    # train, val = random_split(dataset, [55000, 5000])
+
+    train_loader = DataLoader(train, batch_size=32)
+    val_loader = DataLoader(val, batch_size=32)
+
+    model = PropNet(params=model_params, scenario=dataset.get_scenario())
+
+    # training
+    trainer = pl.Trainer(gpus=4, num_nodes=8, precision=16, limit_train_batches=0.5)
+    trainer.fit(model, train_loader, val_loader)
 
 
 def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, train_take, val_take=-1):
@@ -65,17 +96,17 @@ def setup_dataset_loaders(model_hparams,
     return train_dataset, val_dataset
 
 
-def train_main(dataset_dirs: List[pathlib.Path],
-               model_hparams: pathlib.Path,
-               log: str,
-               batch_size: int,
-               epochs: int,
-               seed: int,
-               checkpoint: Optional[pathlib.Path] = None,
-               take: Optional[int] = None,
-               no_validate: bool = False,
-               trials_directory: Optional[pathlib.Path] = pathlib.Path("./trials").absolute(),
-               **kwargs):
+def train_main_old(dataset_dirs: List[pathlib.Path],
+                   model_hparams: pathlib.Path,
+                   log: str,
+                   batch_size: int,
+                   epochs: int,
+                   seed: int,
+                   checkpoint: Optional[pathlib.Path] = None,
+                   take: Optional[int] = None,
+                   no_validate: bool = False,
+                   trials_directory: Optional[pathlib.Path] = pathlib.Path("./trials").absolute(),
+                   **kwargs):
     model_hparams = load_hjson(model_hparams)
 
     train_dataset_loader = get_dynamics_dataset_loader(dataset_dirs)
@@ -83,7 +114,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
 
     model_hparams.update(common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset_loader))
 
-    model = PropNet(args=model_hparams, scenario=train_dataset_loader.get_scenario())
+    model = PropNet(hparams=model_hparams, scenario=train_dataset_loader.get_scenario())
 
     trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory)
 

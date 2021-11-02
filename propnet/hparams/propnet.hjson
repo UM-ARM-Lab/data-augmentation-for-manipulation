@@ -19,5 +19,5 @@
   pstep: 3
   relation_dim: 1 # there's only one type of relation
   state_dim: 6 # x, y, angle, xdot, ydot, angledot
-  verbose_model: 1
+  verbose: 1
 }
