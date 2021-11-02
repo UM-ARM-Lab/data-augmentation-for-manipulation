@@ -185,6 +185,7 @@ class PlanarPushingScenario(ScenarioWithVisualization):
                 gripper_delta_position = sample_delta_xy(action_params, action_rng)
 
             gripper_position = start_gripper_position + gripper_delta_position
+            gripper_position[2] = 0.01
 
             self.tf.send_transform(gripper_position, [0, 0, 0, 1], 'world', 'sample_action_gripper_position')
 
