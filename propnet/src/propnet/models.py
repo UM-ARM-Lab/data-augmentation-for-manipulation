@@ -1,14 +1,9 @@
-import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn import init
-from torchvision import models
 from torch.autograd import Variable
-from torch.nn import functional as F
 
 
-### Propagation Networks
-
+# noinspection PyPep8Naming
 class RelationEncoder(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(RelationEncoder, self).__init__()
@@ -27,17 +22,18 @@ class RelationEncoder(nn.Module):
         )
 
     def forward(self, x):
-        '''
+        """
         Args:
             x: [batch_size, n_relations, input_size]
         Returns:
             [batch_size, n_relations, output_size]
-        '''
+        """
         B, N, D = x.size()
         x = self.model(x.view(B * N, D))
         return x.view(B, N, self.output_size)
 
 
+# noinspection PyPep8Naming
 class ParticleEncoder(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(ParticleEncoder, self).__init__()
@@ -54,17 +50,18 @@ class ParticleEncoder(nn.Module):
         )
 
     def forward(self, x):
-        '''
+        """
         Args:
             x: [batch_size, n_particles, input_size]
         Returns:
             [batch_size, n_particles, output_size]
-        '''
+        """
         B, N, D = x.size()
         x = self.model(x.view(B * N, D))
         return x.view(B, N, self.output_size)
 
 
+# noinspection PyPep8Naming
 class Propagator(nn.Module):
     def __init__(self, input_size, output_size, residual=False):
         super(Propagator, self).__init__()
@@ -77,12 +74,13 @@ class Propagator(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x, res=None):
-        '''
+        """
         Args:
             x: [batch_size, n_relations/n_particles, input_size]
+            res: residual?
         Returns:
             [batch_size, n_relations/n_particles, output_size]
-        '''
+        """
         B, N, D = x.size()
         if self.residual:
             x = self.linear(x.view(B * N, D))
@@ -93,6 +91,7 @@ class Propagator(nn.Module):
         return x.view(B, N, self.output_size)
 
 
+# noinspection PyPep8Naming
 class ParticlePredictor(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(ParticlePredictor, self).__init__()
@@ -106,18 +105,19 @@ class ParticlePredictor(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        '''
+        """
         Args:
             x: [batch_size, n_particles, input_size]
         Returns:
             [batch_size, n_particles, output_size]
-        '''
+        """
         B, N, D = x.size()
         x = x.view(B * N, D)
         x = self.linear_1(self.relu(self.linear_0(x)))
         return x.view(B, N, self.output_size)
 
 
+# noinspection PyPep8Naming
 class PropModule(nn.Module):
     def __init__(self, args, input_dim, output_dim, batch=True, residual=False, use_gpu=False):
 
@@ -126,10 +126,7 @@ class PropModule(nn.Module):
         self.args = args
         self.batch = batch
 
-        state_dim = args.state_dim
-        attr_dim = args.attr_dim
         relation_dim = args.relation_dim
-        action_dim = args.action_dim
 
         nf_particle = args.nf_particle
         nf_relation = args.nf_relation
@@ -244,6 +241,7 @@ class PropModule(nn.Module):
         return pred
 
 
+# noinspection PyPep8Naming
 class PropNet(nn.Module):
 
     def __init__(self, args, residual=False, use_gpu=False):
@@ -298,15 +296,12 @@ class PropNet(nn.Module):
         else:
             raise AssertionError("Unsupported aggregation method")
 
-    def forward(self, data, pstep, action=None):
+    def forward(self, data, _, action=None):
         # used only for fully observable case
         args = self.args
         attr, state, Rr, Rs, Ra = data
-        # print(attr.size(), state.size(), Rr.size(), Rs.size(), Ra.size())
         if action is not None:
             state = torch.cat([attr, state, action], 2)
         else:
             state = torch.cat([attr, state], 2)
         return self.model(state, Rr, Rs, Ra, args.pstep, args.verbose_model)
-
-

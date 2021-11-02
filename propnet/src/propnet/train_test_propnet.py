@@ -11,7 +11,7 @@ import link_bot_classifiers
 import rospy
 from link_bot_classifiers import classifier_utils
 from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg
-from link_bot_data.load_dataset import get_classifier_dataset_loader
+from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -70,29 +70,18 @@ def train_main(dataset_dirs: List[pathlib.Path],
                batch_size: int,
                epochs: int,
                seed: int,
-               use_gt_rope: bool = True,
                checkpoint: Optional[pathlib.Path] = None,
-               threshold: Optional[float] = None,
                take: Optional[int] = None,
                no_validate: bool = False,
-               save_inputs: bool = False,
                trials_directory: Optional[pathlib.Path] = pathlib.Path("./trials").absolute(),
                **kwargs):
     model_hparams = load_hjson(model_hparams)
 
-    train_dataset_loader = get_classifier_dataset_loader(dataset_dirs=dataset_dirs,
-                                                         use_gt_rope=use_gt_rope,
-                                                         threshold=threshold,
-                                                         )
-    val_dataset_loader = get_classifier_dataset_loader(dataset_dirs=dataset_dirs,
-                                                       use_gt_rope=use_gt_rope,
-                                                       threshold=threshold,
-                                                       )
+    train_dataset_loader = get_dynamics_dataset_loader(dataset_dirs)
+    val_dataset_loader = get_dynamics_dataset_loader(dataset_dirs)
 
     model_hparams.update(common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset_loader))
 
-    if threshold is not None:
-        model_hparams['labeling_params']['threshold'] = threshold
     model = PropNet(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.get_scenario())
 
     trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory)
@@ -107,10 +96,6 @@ def train_main(dataset_dirs: List[pathlib.Path],
         val_every_n_batches = 500
         save_every_n_minutes = 20
         validate_first = True
-
-    if save_inputs:
-        model.save_inputs_path = trial_path / 'saved_inputs'
-        print(model.save_inputs_path.as_posix())
 
     runner = ModelRunner(model=model,
                          training=True,
@@ -140,8 +125,6 @@ def eval_generator(dataset_dirs: List[pathlib.Path],
                    checkpoint: pathlib.Path,
                    mode: str,
                    batch_size: int,
-                   use_gt_rope: bool = True,
-                   threshold: Optional[float] = None,
                    take: Optional[int] = None,
                    balance: bool = True,
                    scenario: Optional[ScenarioWithVisualization] = None,
@@ -152,8 +135,6 @@ def eval_generator(dataset_dirs: List[pathlib.Path],
                                            dataset_dirs=dataset_dirs,
                                            mode=mode,
                                            take=take,
-                                           threshold=threshold,
-                                           use_gt_rope=use_gt_rope,
                                            scenario=scenario,
                                            **kwargs)
 
@@ -166,8 +147,6 @@ def eval_main(dataset_dirs: pathlib.Path,
               checkpoint: pathlib.Path,
               mode: str,
               batch_size: int,
-              use_gt_rope: bool = True,
-              threshold: Optional[float] = None,
               take: Optional[int] = None,
               balance: bool = False,
               scenario: Optional[ScenarioWithVisualization] = None,
@@ -179,8 +158,6 @@ def eval_main(dataset_dirs: pathlib.Path,
                                            dataset_dirs=dataset_dirs,
                                            mode=mode,
                                            take=take,
-                                           threshold=threshold,
-                                           use_gt_rope=use_gt_rope,
                                            scenario=scenario,
                                            profile=profile)
 
@@ -198,8 +175,6 @@ def eval_setup(balance,
                dataset_dirs,
                mode,
                take,
-               threshold,
-               use_gt_rope,
                scenario,
                **kwargs):
     trial_path = checkpoint.parent.absolute()
@@ -207,8 +182,7 @@ def eval_setup(balance,
     model_class = link_bot_classifiers.get_model.get_model(params['model_class'])
 
     dataset_loader, dataset = setup_eval_dataset(scenario=scenario, dataset_dirs=dataset_dirs, mode=mode,
-                                                 balance=balance, take=take, threshold=threshold,
-                                                 use_gt_rope=use_gt_rope, batch_size=batch_size)
+                                                 balance=balance, take=take, batch_size=batch_size)
 
     model = model_class(hparams=params, batch_size=batch_size, scenario=dataset_loader.get_scenario())
     # This call to model runner restores the model
@@ -224,12 +198,8 @@ def eval_setup(balance,
     return model, runner, dataset
 
 
-def setup_eval_dataset(scenario, dataset_dirs, mode, balance, take, threshold, use_gt_rope, batch_size):
-    dataset_loader = get_classifier_dataset_loader(dataset_dirs,
-                                                   load_true_states=True,
-                                                   use_gt_rope=use_gt_rope,
-                                                   threshold=threshold,
-                                                   scenario=scenario)
+def setup_eval_dataset(scenario, dataset_dirs, mode, balance, take, batch_size):
+    dataset_loader = get_dynamics_dataset_loader(dataset_dirs)
     dataset = dataset_loader.get_datasets(mode=mode)
     if balance:
         rospy.loginfo(Fore.CYAN + "NOTE! These metrics are on the balanced dataset")
@@ -245,9 +215,7 @@ class ClassifierEvaluation:
                  mode: str,
                  batch_size: int,
                  start_at: int,
-                 use_gt_rope: bool = True,
                  take: int = None,
-                 threshold: Optional[float] = None,
                  show_progressbar: Optional[bool] = True,
                  **kwargs):
         self.show_progressbar = show_progressbar
@@ -260,10 +228,7 @@ class ClassifierEvaluation:
         if 'dataset_loader' in kwargs:
             self.dataset_loader = kwargs["dataset_loader"]
         else:
-            self.dataset_loader = get_classifier_dataset_loader(dataset_dirs,
-                                                                load_true_states=True,
-                                                                use_gt_rope=use_gt_rope,
-                                                                threshold=threshold)
+            self.dataset_loader = get_dynamics_dataset_loader(dataset_dirs)
         if 'dataset' in kwargs:
             self.dataset = kwargs["dataset"]
         else:
@@ -298,19 +263,15 @@ class ClassifierEvaluationFilter:
                  mode: str,
                  should_keep_example: Callable,
                  start_at: int = 0,
-                 use_gt_rope: bool = True,
                  take: int = None,
                  take_after_filter: int = None,
-                 threshold: Optional[float] = None,
                  **kwargs):
         self.view = ClassifierEvaluation(dataset_dirs=dataset_dirs,
                                          checkpoint=checkpoint,
                                          mode=mode,
                                          batch_size=1,
                                          start_at=start_at,
-                                         use_gt_rope=use_gt_rope,
                                          take=take,
-                                         threshold=threshold,
                                          **kwargs)
         self.take_after_filter = take_after_filter
         self.should_keep_example = should_keep_example
