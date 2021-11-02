@@ -10,8 +10,10 @@ def main():
 
     params = {
         'num_blocks':                   10,
+        'block_size':                   0.03,
         'extent':                       [-0.15, 0.15, -0.15, 0.15, 1e-6, 0.15],
         'gripper_action_sample_extent': [-0.1, 0.1, -0.1, 0.1, 1e-6, 0.1],
+        'blocks_init_extent':           [-0.1, 0.1, -0.1, 0.1, 1e-6, 0.1],
     }
     task = my_blocks(params)
     env = composer.Environment(task, time_limit=9999, random_state=0)

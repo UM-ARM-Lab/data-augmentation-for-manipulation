@@ -1,40 +1,33 @@
-from dm_control import mjcf, composer
-from dm_control.composer import Observables
+from dm_control.composer import define
 from dm_control.composer.observation import observable
 from dm_control.entities.manipulators.base import RobotHand
-
-
-class PrimitiveHandObservables(Observables):
-
-    @composer.observable
-    def tcp_pos(self):
-        return observable.MJCFFeature('xpos', self._entity.tool_center_point)
-
-    @composer.observable
-    def tcp_xmat(self):
-        return observable.MJCFFeature('xmat', self._entity.tool_center_point)
-
+from dm_control.entities.props import Primitive
+from dm_control.entities.props.primitive import PrimitiveObservables
 
 HEIGHT = 0.08
 HALF_HEIGHT = HEIGHT / 2
 RADIUS = 0.02
-Z_OFFSET = HEIGHT
+Z_OFFSET = 0.0
 
 
-class PrimitiveHand(RobotHand):
+class PrimitiveHandObservables(PrimitiveObservables):
+
+    @define.observable
+    def tcp_pos(self):
+        return observable.MJCFFeature('xpos', self._entity.tool_center_point)
+
+
+class PrimitiveHand(RobotHand, Primitive):
 
     def _build(self):
-        self._mjcf_root = mjcf.RootElement("primitive_hand")
-
-        self.thigh = self.mjcf_model.worldbody.add('body')
-        self.thigh.add('geom',
-                       type='cylinder',
-                       size=[RADIUS, HALF_HEIGHT],
-                       rgba=[0, 1, 0, 1],
-                       pos=[0, 0, HALF_HEIGHT])
-
-        self._bodies = self.mjcf_model.find_all('body')
-        self._tool_center_point = self.mjcf_model.worldbody.add('site', name='tcp', pos=[0, 0, 0], euler=[0, 0, 0])
+        size = [RADIUS, HALF_HEIGHT]
+        Primitive._build(self,
+                         geom_type='cylinder',
+                         size=size,
+                         name='primitive_hand',
+                         pos=[0, 0, HALF_HEIGHT],
+                         rgba=[0, 1, 0, 1])
+        self._tool_center_point = self.mjcf_model.worldbody.add('site', name='tcp', pos=[0, 0, HEIGHT], euler=[0, 0, 0])
 
     def _build_observables(self):
         return PrimitiveHandObservables(self)
@@ -44,13 +37,8 @@ class PrimitiveHand(RobotHand):
         return self._tool_center_point
 
     @property
-    def mjcf_model(self):
-        return self._mjcf_root
-
-    @property
     def actuators(self):
-        """List of finger actuators."""
         return []
 
     def set_grasp(self, physics, close_factors):
-        pass
+        raise NotImplementedError()

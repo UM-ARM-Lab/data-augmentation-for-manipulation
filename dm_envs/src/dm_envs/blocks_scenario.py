@@ -4,7 +4,7 @@ from typing import Dict, Optional
 import numpy as np
 import tensorflow as tf
 from dm_control import composer
-from matplotlib import colors, cm
+from matplotlib import colors
 from pyjacobian_follower import IkParams
 from tensorflow_graphics.geometry.transformation import quaternion
 from tensorflow_graphics.geometry.transformation import rotation_matrix_3d
@@ -49,7 +49,8 @@ def sample_delta_xy(action_params: Dict, action_rng: np.random.RandomState):
     d = action_params['max_distance_gripper_can_move']
     dx = action_rng.uniform(-d, d)
     dy = action_rng.uniform(-d, d)
-    z_noise = action_rng.uniform(-0.01, 0.01)
+    z_noise_max = 0.01
+    z_noise = action_rng.uniform(-z_noise_max, z_noise_max)
     return [dx, dy, z_noise]
 
 
@@ -152,7 +153,7 @@ class BlocksScenario(ScenarioWithVisualization):
         ]
         params['action_keys'] = ['gripper_position']
         params['state_metadata_keys'] = []
-        params['gripper_keys'] = ['jaco_arm/primitive_hand/tcp_pos', 'jaco_arm/primitive_hand/tcp_xmat']
+        params['gripper_keys'] = ['jaco_arm/primitive_hand/tcp_pos', 'jaco_arm/primitive_hand/orientation']
         params['augmentable_state_keys'] = [k for k in s.keys() if 'block' in k]
 
         def _is_points_key(k):
@@ -272,6 +273,7 @@ class BlocksScenario(ScenarioWithVisualization):
 
             out_of_bounds = is_out_of_bounds(gripper_position, action_params['gripper_action_sample_extent'])
             if out_of_bounds and validate:
+                self.last_action = None
                 continue
 
             action = {

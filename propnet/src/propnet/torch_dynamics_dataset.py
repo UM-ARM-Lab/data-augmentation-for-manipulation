@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 from link_bot_data.new_dataset_utils import get_filenames, load_single
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_params
+from moonshine.moonshine_utils import to_list_of_strings
 
 
 class TorchDynamicsDataset(Dataset):
@@ -28,6 +29,9 @@ class TorchDynamicsDataset(Dataset):
 
         metadata_filename = self.metadata_filenames[idx]
         example = load_single(metadata_filename)
+
+        if 'joint_names' in example:
+            example.pop('joint_names')
 
         if self.transform:
             example = self.transform(example)

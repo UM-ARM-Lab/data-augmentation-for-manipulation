@@ -6,6 +6,7 @@ from torch.autograd import Variable
 
 # noinspection PyPep8Naming
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from propnet.relations import construct_fully_connected_rel
 
 
 class RelationEncoder(nn.Module):
@@ -123,7 +124,7 @@ class ParticlePredictor(nn.Module):
 
 # noinspection PyPep8Naming
 class PropModule(nn.Module):
-    def __init__(self, params, input_dim, output_dim, batch=True, residual=True, use_gpu=True):
+    def __init__(self, params, input_dim, output_dim, batch=True, residual=True):
 
         super(PropModule, self).__init__()
 
@@ -136,7 +137,6 @@ class PropModule(nn.Module):
         nf_relation = self.params['nf_relation']
         self.nf_effect = self.params['nf_effect']
 
-        self.use_gpu = use_gpu
         self.residual = residual
 
         # particle encoder
@@ -165,8 +165,6 @@ class PropModule(nn.Module):
 
         # calculate particle encoding
         particle_effect = Variable(torch.zeros((state.size(0), state.size(1), self.nf_effect)))
-        if self.use_gpu:
-            particle_effect = particle_effect.cuda()
 
         # receiver_state, sender_state
         if self.batch:
@@ -241,33 +239,42 @@ class PropModule(nn.Module):
 # noinspection PyPep8Naming
 class PropNet(pl.LightningModule):
 
-    def __init__(self, params, scenario: ScenarioWithVisualization, residual=True, use_gpu=True):
+    def __init__(self, params, scenario: ScenarioWithVisualization, residual=True):
         super().__init__()
 
         self.params = params
         self.scenario = scenario
         attr_dim = self.params['attr_dim']
         state_dim = self.params['state_dim']
-        action_dim = self.params['action_dim']
+        self.action_dim = self.params['action_dim']
         position_dim = self.params['position_dim']
+        relation_dim = self.params['relation_dim']
+        num_objects = self.params['num_objects']
 
         batch = True
-        input_dim = attr_dim + state_dim + action_dim
-        self.model = PropModule(params, input_dim, position_dim, batch, residual, use_gpu)
+        input_dim = attr_dim + state_dim + self.action_dim
+        self.model = PropModule(params, input_dim, position_dim, batch, residual)
 
-    def to_latent(self, state):
-        if self.params['agg_method'] == 'sum':
-            return torch.sum(state, 1, keepdim=True)
-        elif self.params['agg_method'] == 'mean':
-            return torch.mean(state, 1, keepdim=True)
-        else:
-            raise AssertionError("Unsupported aggregation method")
+        self.relation_graph = construct_fully_connected_rel(num_objects, relation_dim, device=self.device)
 
     def forward(self, data, _, action=None):
-        # used only for fully observable case
+        """
+        Used only for fully observable case. Make only a 1-step prediction
+
+        Args:
+            data:
+            _:
+            action:
+
+        Returns:
+
+        """
         attr, state, Rr, Rs, Ra = data
+        # Rr: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the receiver in relation j
+        # Rs: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the sender in relation j
+        # Ra: [b, num_objects^2, attr_dim] containing the relation attributes
         if action is not None:
-            state = torch.cat([attr, state, action], 2)
+            state = torch.cat([attr, state, action], 2)  # [b, num_objects, state+action]
         else:
             state = torch.cat([attr, state], 2)
         return self.model(state, Rr, Rs, Ra, self.params['pstep'], verbose=self.params['verbose'])
@@ -277,18 +284,69 @@ class PropNet(pl.LightningModule):
         return optimizer
 
     def training_step(self, train_batch, batch_idx):
-        x, y = train_batch
-        x = x.view(x.size(0), -1)
-        z = self.encoder(x)
-        x_hat = self.decoder(z)
-        loss = F.mse_loss(x_hat, x)
+        batch_size = len(train_batch['filename'])
+        Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size, train_batch)
+
+        loss = F.l1_loss(pred, label)
         self.log('train_loss', loss)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        x, y = val_batch
-        x = x.view(x.size(0), -1)
-        z = self.encoder(x)
-        x_hat = self.decoder(z)
-        loss = F.mse_loss(x_hat, x)
+        batch_size = len(val_batch['filename'])
+        Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size, val_batch)
+
+        attr, states, actions = self.states_and_actions(val_batch, batch_size)
+        label = states
+
+        pred_state_t = states[:, 0]
+        for t in range(actions.shape[1]):
+            action_t = actions[:, t]
+            pred_state_t = self.forward([attr, pred_state_t, Rr_batch, Rs_batch, Ra_batch], self.params['pstep'],
+                                        action=action_t)
+
+        loss = F.l1_loss(pred, label)
         self.log('val_loss', loss)
+
+    def batch_relations(self, batch_size, val_batch):
+        Rr_batch = self.relation_graph.Rr_idx[None, :, :].repeat(batch_size, 1, 1)
+        Rs_batch = self.relation_graph.Rs_idx[None, :, :].repeat(batch_size, 1, 1)
+        Ra_batch = self.relation_graph.Ra[None, :, :].repeat(batch_size, 1, 1)
+        return Ra_batch, Rr_batch, Rs_batch
+
+    def states_and_actions(self, batch, batch_size):
+        num_blocks = batch['num_blocks'][0, 0, 0]  # assumed fixed across batch/time
+        time = batch['time_idx'].shape[1]
+        attrs = []
+        states = []
+        actions = []
+
+        # end-effector (more generally, the robot) is treated as an object in the system, so it has state.
+        # It also has action and attribute=1
+        # all of the object objects do not have action (zero value and attribute=0)
+        robot_attr = torch.ones([batch_size, 1]).to(self.device)
+        ee_pos = torch.squeeze(batch["jaco_arm/primitive_hand/tcp_pos"], 2)
+        ee_quat = torch.squeeze(batch["jaco_arm/primitive_hand/orientation"], 2)
+        ee_linear_vel = torch.squeeze(batch["jaco_arm/primitive_hand/linear_velocity"], 2)
+        ee_angular_vel = torch.squeeze(batch["jaco_arm/primitive_hand/angular_velocity"], 2)
+        ee_state = torch.cat([ee_pos, ee_quat, ee_linear_vel, ee_angular_vel], dim=-1)  # [b, T, 13]
+        robot_action = batch['gripper_position']
+        attrs.append(robot_attr)
+        states.append(ee_state)
+        actions.append(robot_action)
+
+        # blocks
+        for block_idx in range(num_blocks):
+            block_attr = torch.zeros([batch_size, 1]).to(self.device)
+            block_pos = torch.squeeze(batch[f"block{block_idx}/position"], 2)  # [b, T, 3]
+            block_quat = torch.squeeze(batch[f"block{block_idx}/orientation"], 2)  # [b, T, 4]
+            block_linear_vel = torch.squeeze(batch[f"block{block_idx}/linear_velocity"], 2)  # [b, T, 3]
+            block_angular_vel = torch.squeeze(batch[f"block{block_idx}/angular_velocity"], 2)  # [b, T, 3]
+            block_state = torch.cat([block_pos, block_quat, block_linear_vel, block_angular_vel], dim=-1)  # [b, T, 13]
+            block_action = torch.zeros([batch_size, time - 1, self.action_dim]).to(self.device)
+            attrs.append(block_attr)
+            states.append(block_state)
+            actions.append(block_action)
+        attrs = torch.stack(attrs, dim=1)  # [b, n_objects, 1]
+        states = torch.stack(states, dim=2)  # [b, n_objects, T, 13]
+        actions = torch.stack(actions, dim=2)  # [b, n_objects, T-1, 13]
+        return attrs, states, actions

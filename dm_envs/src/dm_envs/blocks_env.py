@@ -70,6 +70,8 @@ class MyBlocks(composer.Task):
         for block in self._blocks:
             block.observables.position.enabled = True
             block.observables.orientation.enabled = True
+            block.observables.linear_velocity.enabled = True
+            block.observables.angular_velocity.enabled = True
 
     @property
     def root_entity(self):

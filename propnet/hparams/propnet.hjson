@@ -9,9 +9,9 @@
   learning_rate: 0.001
   epochs: 400
   # params for propnet model
-  action_dim: 4  # relative position and velocity of end effector perhaps?
+  action_dim: 3 # [x,y,z] target for end effector
   agg_method: sum
-  attr_dim: 0  # all objects are the same size, so we don't even need to include it
+  attr_dim: 1  # this is a single binary attribute which indicates whether the object is part of the robot
   nf_effect: 100
   nf_particle: 100
   nf_relation: 150
