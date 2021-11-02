@@ -2,20 +2,24 @@ import numpy as np
 from dm_control import composer
 from dm_control import viewer
 
-from link_bot.dm_envs.src.dm_envs.blocks_env import register_envs, my_blocks
+from dm_envs.blocks_env import PlanarPushingBlocksTask
+from dm_envs.cylinders_env import PlanarPushingCylindersTask
 
 
 def main():
-    register_envs()
-
     params = {
         'num_blocks':                   10,
+        'num_objs':                     10,
         'block_size':                   0.03,
+        'height':                       0.05,
+        'radius':                       0.02,
         'extent':                       [-0.15, 0.15, -0.15, 0.15, 1e-6, 0.15],
         'gripper_action_sample_extent': [-0.1, 0.1, -0.1, 0.1, 1e-6, 0.1],
         'blocks_init_extent':           [-0.1, 0.1, -0.1, 0.1, 1e-6, 0.1],
+        'objs_init_extent':             [-0.1, 0.1, -0.1, 0.1, 1e-6, 0.05],
     }
-    task = my_blocks(params)
+    # task = PlanarPushingBlocksTask(params)
+    task = PlanarPushingCylindersTask(params)
     env = composer.Environment(task, time_limit=9999, random_state=0)
 
     spec = env.action_spec()

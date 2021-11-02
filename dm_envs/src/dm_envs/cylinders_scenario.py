@@ -6,48 +6,50 @@ from matplotlib import colors
 from pyjacobian_follower import IkParams
 from tensorflow_graphics.geometry.transformation import quaternion
 
-import ros_numpy
-from dm_envs.blocks_env import PlanarPushingBlocksTask
+from dm_envs.cylinders_env import PlanarPushingCylindersTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario, transformation_matrices_from_pos_quat
+from link_bot_data.dataset_utils import add_predicted
 from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import repeat_tensor
-from sensor_msgs.msg import Image
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 
 
-def blocks_to_points(positions, quats, size):
+def cylinders_to_points(positions, quats, height, radius):
     """
 
     Args:
         positions:  [b, m, T, 3]
         quats:  [b, m, T, 4]
-        size:  [b, T]
+        height:  [b, T]
+        radius:  [b, T]
 
     Returns: [b, m, T, 8, 3]
 
     """
+    raise NotImplementedError()
     m = positions.shape[1]
-    sized_cube_points = size_to_points(size)  # [b, T, 8, 3]
-    sized_cubes_points = repeat_tensor(sized_cube_points, m, axis=1, new_axis=True)  # [b, m, T, 8, 3]
+    sized_points = size_to_points(height, radius)  # [b, T, 8, 3]
+    sized_points = repeat_tensor(sized_points, m, axis=1, new_axis=True)  # [b, m, T, 8, 3]
     transform_matrix = transformation_matrices_from_pos_quat(positions, quats)  # [b, m, T, 4, 4]
     transform_matrix = repeat_tensor(transform_matrix, 8, 3, True)
-    obj_points = transform_points_3d(transform_matrix, sized_cubes_points)  # [b, m, T, 8, 3]
+    obj_points = transform_points_3d(transform_matrix, sized_points)  # [b, m, T, 8, 3]
     return obj_points
 
 
-def size_to_points(size):
+def size_to_points(height, radius):
     """
 
     Args:
-        size: [b, T] where each element is the size of the cube. it can vary of batch/time
+        height: [b, T]
+        radius: [b, T]
 
     Returns: [b, T, 8, 3] where 8 represents the corners the cube, and 3 is x,y,z.
 
     """
-    unit_cube_points = tf.constant([[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0],
-                                    [0, 0, 1], [0, 1, 1], [1, 1, 1], [1, 0, 1]], tf.float32) - 0.5
-    return unit_cube_points[None, None] * size[:, :, None, None]  # [b, T, 8, 3]
+    unit_cylinder_points = tf.constant([[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0],
+                                        [0, 0, 1], [0, 1, 1], [1, 1, 1], [1, 0, 1]], tf.float32) - 0.5
+    return unit_cylinder_points[None, None] * size[:, :, None, None]  # [b, T, 8, 3]
 
 
 def wxyz2xyzw(quat):
@@ -55,7 +57,7 @@ def wxyz2xyzw(quat):
     return tf.stack([x, y, z, w], axis=-1)
 
 
-class BlocksScenario(PlanarPushingScenario):
+class CylindersScenario(PlanarPushingScenario):
 
     def plot_state_rviz(self, state: Dict, **kwargs):
         super().plot_state_rviz(state, **kwargs)
@@ -69,31 +71,32 @@ class BlocksScenario(PlanarPushingScenario):
             a = 1.0
         idx = kwargs.get("idx", 0)
 
-        num_blocks = state['num_blocks'][0]
-        block_size = state['block_size'][0]
+        num_objs = state['num_objs'][0]
+        height = state['height'][0]
+        radius = state['radius'][0]
         msg = MarkerArray()
-        for i in range(num_blocks):
-            block_position = state[f'block{i}/position']
-            block_orientation = state[f'block{i}/orientation']
+        for i in range(num_objs):
+            position = state[f'obj{i}/position']
+            orientation = state[f'obj{i}/orientation']
 
-            block_marker = Marker()
-            block_marker.header.frame_id = 'world'
-            block_marker.action = Marker.ADD
-            block_marker.type = Marker.CUBE
-            block_marker.id = idx * num_blocks + i
-            block_marker.ns = ns
-            block_marker.color = color_msg
-            block_marker.pose.position.x = block_position[0, 0]
-            block_marker.pose.position.y = block_position[0, 1]
-            block_marker.pose.position.z = block_position[0, 2]
-            block_marker.pose.orientation.w = block_orientation[0, 0]
-            block_marker.pose.orientation.x = block_orientation[0, 1]
-            block_marker.pose.orientation.y = block_orientation[0, 2]
-            block_marker.pose.orientation.z = block_orientation[0, 3]
-            block_marker.scale.x = block_size
-            block_marker.scale.y = block_size
-            block_marker.scale.z = block_size
-            msg.markers.append(block_marker)
+            marker = Marker()
+            marker.header.frame_id = 'world'
+            marker.action = Marker.ADD
+            marker.type = Marker.CYLINDER
+            marker.id = idx * num_objs + i
+            marker.ns = ns
+            marker.color = color_msg
+            marker.pose.position.x = position[0, 0]
+            marker.pose.position.y = position[0, 1]
+            marker.pose.position.z = position[0, 2]
+            marker.pose.orientation.w = orientation[0, 0]
+            marker.pose.orientation.x = orientation[0, 1]
+            marker.pose.orientation.y = orientation[0, 2]
+            marker.pose.orientation.z = orientation[0, 3]
+            marker.scale.x = radius * 2
+            marker.scale.y = radius * 2
+            marker.scale.z = height
+            msg.markers.append(marker)
 
         self.state_viz_pub.publish(msg)
 
@@ -108,21 +111,22 @@ class BlocksScenario(PlanarPushingScenario):
         Returns:
 
         """
-        size = inputs['block_size'][:, :, 0]  # [b, T]
-        num_blocks = inputs['num_blocks'][0, 0, 0]  # assumed fixed across batch/time
+        height = inputs['height'][:, :, 0]  # [b, T]
+        radius = inputs['radius'][:, :, 0]  # [b, T]
+        num_objs = inputs['num_objs'][0, 0, 0]  # assumed fixed across batch/time
         positions = []  # [b, m, T, 3]
         quats = []  # [b, m, T, 4]
-        for block_idx in range(num_blocks):
-            pos = inputs[f"block{block_idx}/position"][:, :, 0]  # [b, T, 3]
+        for i in range(num_objs):
+            pos = inputs[f"obj{i}/position"][:, :, 0]  # [b, T, 3]
             # in our mujoco dataset the quaternions are stored w,x,y,z but the rest of our code assumes xyzw
-            quat = inputs[f"block{block_idx}/orientation"][:, :, 0]  # [b, T, 4]
+            quat = inputs[f"obj{i}/orientation"][:, :, 0]  # [b, T, 4]
             quat = wxyz2xyzw(quat)
             positions.append(pos)
             quats.append(quat)
         positions = tf.stack(positions, axis=1)
         quats = tf.stack(quats, axis=1)
 
-        obj_points = blocks_to_points(positions, quats, size)
+        obj_points = cylinders_to_points(positions, quats, height, radius)
 
         # combine to get one set of points per object
         obj_points = tf.reshape(obj_points, [obj_points.shape[0], obj_points.shape[1], -1, 3])
@@ -282,12 +286,12 @@ class BlocksScenario(PlanarPushingScenario):
     @staticmethod
     def is_points_key(k):
         return any([
-            re.match('block.*position', k),
+            re.match('obj.*position', k),
             k == 'jaco_arm/primitive_hand/tcp_pos',
         ])
 
     def make_dm_task(self, params):
-        return PlanarPushingBlocksTask(params)
+        return PlanarPushingCylindersTask(params)
 
     def __repr__(self):
-        return "blocks"
+        return "cylinders"

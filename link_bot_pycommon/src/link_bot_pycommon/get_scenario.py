@@ -21,6 +21,11 @@ def make_dual_arm_real_val_rope_scenario():
     return DualArmRealValRopeScenario
 
 
+def make_cylinders_scenario():
+    from dm_envs.cylinders_scenario import CylindersScenario
+    return CylindersScenario
+
+
 def make_blocks_scenario():
     from dm_envs.blocks_scenario import BlocksScenario
     return BlocksScenario
@@ -76,6 +81,7 @@ scenario_map = {
     'dual_arm_rope_sim_val_with_robot_feasibility_checking': make_dual_arm_rope_sim_val_with_robot_feasibility_checking,
     'real_val_with_robot_feasibility_checking':              make_real_val_with_robot_feasibility_checking,
     'blocks':                                                make_blocks_scenario,
+    'cylinders':                                             make_cylinders_scenario,
 }
 
 

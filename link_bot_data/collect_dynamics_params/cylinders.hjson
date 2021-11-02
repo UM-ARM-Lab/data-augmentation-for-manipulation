@@ -1,11 +1,12 @@
 {
-  name: blocks
-  scenario: blocks
+  name: cylindesr
+  scenario: cylinders
   service_provider: mujoco
   steps_per_traj: 100
   randomize_n: 1
-  num_blocks: 10
-  block_size: 0.025
+  num_objs: 10
+  radius: 0.02
+  height: 0.04
   extent: [
     -0.25, 0.25
     -0.25, 0.25
