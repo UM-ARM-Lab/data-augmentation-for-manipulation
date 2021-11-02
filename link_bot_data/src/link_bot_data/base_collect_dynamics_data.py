@@ -4,12 +4,11 @@ from typing import Dict, Optional
 
 import numpy as np
 from colorama import Fore
-from progressbar import progressbar
+from tqdm import tqdm
 
 import rospy
 from arm_robots.robot import RobotPlanningError
 from link_bot_data.dataset_utils import make_unique_outdir, tf_write_example, pkl_write_example
-from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.get_service_provider import get_service_provider
 from link_bot_pycommon.serialization import my_hdump
@@ -44,7 +43,8 @@ class BaseDataCollector:
         example.update(environment)
         example['traj_idx'] = np.float32(traj_idx)
 
-        self.scenario.plot_environment_rviz(environment)
+        if self.verbose > 0:
+            self.scenario.plot_environment_rviz(environment)
 
         actions = {k: [] for k in self.params['action_keys']}
         # NOTE: state metadata is information that is constant, possibly non-numeric, and convenient to have with state
@@ -67,12 +67,13 @@ class BaseDataCollector:
                 return {}, invalid
 
             # Visualization
-            self.scenario.plot_environment_rviz(environment)
-            self.scenario.plot_traj_idx_rviz(traj_idx)
-            self.scenario.plot_state_rviz(state, label='actual')
-            if time_idx < self.params['steps_per_traj'] - 1:  # skip the last action in visualization as well
-                self.scenario.plot_action_rviz(state, action)
-            self.scenario.plot_time_idx_rviz(time_idx)
+            if self.verbose > 0:
+                self.scenario.plot_environment_rviz(environment)
+                self.scenario.plot_traj_idx_rviz(traj_idx)
+                self.scenario.plot_state_rviz(state, label='actual')
+                if time_idx < self.params['steps_per_traj'] - 1:  # skip the last action in visualization as well
+                    self.scenario.plot_action_rviz(state, action)
+                self.scenario.plot_time_idx_rviz(time_idx)
             # End Visualization
 
             # execute action
@@ -121,7 +122,7 @@ class BaseDataCollector:
         self.save_hparams(full_output_directory, n_trajs, nickname)
 
         combined_seeds = [traj_idx + 100000 * self.seed for traj_idx in range(n_trajs)]
-        for traj_idx, seed in enumerate(progressbar(combined_seeds, wdigets=mywidgets)):
+        for traj_idx, seed in enumerate(tqdm(combined_seeds)):
             invalid = False
             for retry_idx in range(10):
                 # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
