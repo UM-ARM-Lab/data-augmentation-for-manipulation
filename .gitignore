@@ -20,3 +20,4 @@ CATKIN_IGNORE
 **/*trials/*
 **/classifier_data/*
 **/invariance_data/*
+lightning_logs
