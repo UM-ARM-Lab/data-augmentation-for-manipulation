@@ -84,7 +84,6 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model_hparams.update(common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset_loader))
 
     model = PropNet(args=model_hparams, scenario=train_dataset_loader.get_scenario())
-    model = PropNet(args, residual=True, use_gpu=use_gpu)
 
     trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory)
 

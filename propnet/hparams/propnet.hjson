@@ -8,4 +8,16 @@
   ]
   learning_rate: 0.001
   epochs: 400
+  # params for propnet model
+  action_dim: 4  # relative position and velocity of end effector perhaps?
+  agg_method: sum
+  attr_dim: 0  # all objects are the same size, so we don't even need to include it
+  nf_effect: 100
+  nf_particle: 100
+  nf_relation: 150
+  position_dim: 3  # x, y, angle
+  pstep: 3
+  relation_dim: 1 # there's only one type of relation
+  state_dim: 6 # x, y, angle, xdot, ydot, angledot
+  verbose_model: 1
 }

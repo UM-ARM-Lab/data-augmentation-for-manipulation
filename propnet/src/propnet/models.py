@@ -155,7 +155,7 @@ class PropModule(nn.Module):
         self.particle_predictor = ParticlePredictor(
             nf_effect, nf_effect, output_dim)
 
-    def forward(self, state, Rr, Rs, Ra, pstep, verbose=0):
+    def forward(self, state, Rr, Rs, Ra, pstep, verbose: int = 0):
 
         if verbose:
             print('state size', state.size(), state.dtype)
@@ -247,45 +247,14 @@ class PropNet(nn.Module):
 
         self.args = args
         self.scenario = scenario
-        nf_effect = args.nf_effect
         attr_dim = args.attr_dim
         state_dim = args.state_dim
         action_dim = args.action_dim
         position_dim = args.position_dim
 
-        # input: (1) attr (2) state (3) [optional] action
-        if args.pn_mode == 'partial':
-            batch = False
-            input_dim = attr_dim + state_dim
-            self.encoder = PropModule(args, input_dim, nf_effect, batch, residual, use_gpu)
-            self.decoder = PropModule(args, nf_effect, state_dim, batch, residual, use_gpu)
-
-            input_dim = (nf_effect + action_dim) * args.history_window
-            self.roller = ParticlePredictor(input_dim, nf_effect, nf_effect)
-
-        elif args.pn_mode == 'full':
-            batch = True
-            input_dim = attr_dim + state_dim + action_dim
-            self.model = PropModule(args, input_dim, position_dim, batch, residual, use_gpu)
-
-    def encode(self, data, pstep):
-        # used only for partially observable case
-        args = self.args
-        state, Rr, Rs, Ra = data
-        return self.encoder(state, Rr, Rs, Ra, pstep, args.verbose_model)
-
-    def decode(self, data, pstep):
-        # used only for partially obsevable case
-        args = self.args
-        state, Rr, Rs, Ra = data
-        return self.decoder(state, Rr, Rs, Ra, pstep, args.verbose_model)
-
-    def rollout(self, state, action):
-        # used only for partially obsevable case
-        if self.args.verbose_model:
-            print('latent state', state.size())
-            print('action', action.size())
-        return self.roller(torch.cat([state, action], 2))
+        batch = True
+        input_dim = attr_dim + state_dim + action_dim
+        self.model = PropModule(args, input_dim, position_dim, batch, residual, use_gpu)
 
     def to_latent(self, state):
         if self.args.agg_method == 'sum':
@@ -303,4 +272,4 @@ class PropNet(nn.Module):
             state = torch.cat([attr, state, action], 2)
         else:
             state = torch.cat([attr, state], 2)
-        return self.model(state, Rr, Rs, Ra, args.pstep, args.verbose_model)
+        return self.model(state, Rr, Rs, Ra, args.pstep, verbose=args.verbose_model)
