@@ -2,8 +2,10 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-
 # noinspection PyPep8Naming
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+
+
 class RelationEncoder(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(RelationEncoder, self).__init__()
@@ -63,7 +65,7 @@ class ParticleEncoder(nn.Module):
 
 # noinspection PyPep8Naming
 class Propagator(nn.Module):
-    def __init__(self, input_size, output_size, residual=False):
+    def __init__(self, input_size, output_size, residual=True):
         super(Propagator, self).__init__()
 
         self.input_size = input_size
@@ -77,7 +79,7 @@ class Propagator(nn.Module):
         """
         Args:
             x: [batch_size, n_relations/n_particles, input_size]
-            res: residual?
+            res: residual
         Returns:
             [batch_size, n_relations/n_particles, output_size]
         """
@@ -119,7 +121,7 @@ class ParticlePredictor(nn.Module):
 
 # noinspection PyPep8Naming
 class PropModule(nn.Module):
-    def __init__(self, args, input_dim, output_dim, batch=True, residual=False, use_gpu=False):
+    def __init__(self, args, input_dim, output_dim, batch=True, residual=True, use_gpu=True):
 
         super(PropModule, self).__init__()
 
@@ -138,20 +140,16 @@ class PropModule(nn.Module):
         self.residual = residual
 
         # particle encoder
-        self.particle_encoder = ParticleEncoder(
-            input_dim, nf_particle, nf_effect)
+        self.particle_encoder = ParticleEncoder(input_dim, nf_particle, nf_effect)
 
         # relation encoder
-        self.relation_encoder = RelationEncoder(
-            2 * input_dim + relation_dim, nf_relation, nf_relation)
+        self.relation_encoder = RelationEncoder(2 * input_dim + relation_dim, nf_relation, nf_relation)
 
         # input: (1) particle encode (2) particle effect
-        self.particle_propagator = Propagator(
-            2 * nf_effect, nf_effect, self.residual)
+        self.particle_propagator = Propagator(2 * nf_effect, nf_effect, self.residual)
 
         # input: (1) relation encode (2) sender effect (3) receiver effect
-        self.relation_propagator = Propagator(
-            nf_relation + 2 * nf_effect, nf_effect)
+        self.relation_propagator = Propagator(nf_relation + 2 * nf_effect, nf_effect)
 
         # input: (1) particle effect
         self.particle_predictor = ParticlePredictor(
@@ -244,10 +242,11 @@ class PropModule(nn.Module):
 # noinspection PyPep8Naming
 class PropNet(nn.Module):
 
-    def __init__(self, args, residual=False, use_gpu=False):
+    def __init__(self, args, scenario: ScenarioWithVisualization, residual=True, use_gpu=True):
         super(PropNet, self).__init__()
 
         self.args = args
+        self.scenario = scenario
         nf_effect = args.nf_effect
         attr_dim = args.attr_dim
         state_dim = args.state_dim

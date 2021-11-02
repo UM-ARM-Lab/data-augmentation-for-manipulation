@@ -22,6 +22,7 @@ from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import remove_batch
+from propnet.models import PropNet
 from state_space_dynamics.train_test_dynamics import setup_training_paths
 
 
@@ -82,7 +83,8 @@ def train_main(dataset_dirs: List[pathlib.Path],
 
     model_hparams.update(common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset_loader))
 
-    model = PropNet(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.get_scenario())
+    model = PropNet(args=model_hparams, scenario=train_dataset_loader.get_scenario())
+    model = PropNet(args, residual=True, use_gpu=use_gpu)
 
     trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory)
 
