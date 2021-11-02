@@ -5,7 +5,7 @@ from dm_control.composer import initializers
 from dm_control.composer.observation import observable
 from dm_control.composer.variation import distributions
 from dm_control.entities.manipulators.base import DOWN_QUATERNION
-from dm_control.manipulation.props.primitive import Box
+from dm_control.manipulation.props.primitive import Box, Cylinder
 from dm_control.manipulation.shared import arenas, cameras, workspaces, constants, robots
 from dm_control.manipulation.shared import registry, tags
 from dm_control.manipulation.shared.observations import VISION
@@ -61,10 +61,15 @@ class MyBlocks(composer.Task):
         def _block_size_observable_callable(_):
             return params['block_size']
 
+        def _dt_observable_callable(_):
+            return control_timestep
+
         self._task_observables['num_blocks'] = observable.Generic(_num_blocks_observable_callable)
         self._task_observables['num_blocks'].enabled = True
         self._task_observables['block_size'] = observable.Generic(_block_size_observable_callable)
         self._task_observables['block_size'].enabled = True
+        self._task_observables['dt'] = observable.Generic(_dt_observable_callable)
+        self._task_observables['dt'].enabled = True
         self._hand.observables.enable_all()
 
         for block in self._blocks:

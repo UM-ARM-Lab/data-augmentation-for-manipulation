@@ -294,19 +294,22 @@ class PropNet(pl.LightningModule):
         return loss
 
     def validation_step(self, val_batch, batch_idx):
+        dt = torch.squeeze(val_batch['dt'], dim=-1)[:, 0]
         batch_size = len(val_batch['filename'])
         Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
 
         attr, states, actions = self.states_and_actions(val_batch, batch_size)
-        label = states
+        gt_vel = states
 
-        pred_state_t = states[:, 0]
+        pred_state_t = states[:, 0]  # [b, n_objects, state_dim]
         for t in range(actions.shape[1]):
             action_t = actions[:, t]
-            pred_state_t = self.forward([attr, pred_state_t, Rr_batch, Rs_batch, Ra_batch], self.params['pstep'],
-                                        action=action_t)
+            pred_vel_t = self.forward([attr, pred_state_t, Rr_batch, Rs_batch, Ra_batch], self.params['pstep'],
+                                      action=action_t)
+            # pred_vel_t: [b, n_objects, 3]
+            pred_state_t = pred_state_t + dt * pred_vel_t
 
-        loss = F.l1_loss(pred, label)
+        loss = F.l1_loss(pred, gt_vel)
         self.log('val_loss', loss)
 
     def batch_relations(self, batch_size):
