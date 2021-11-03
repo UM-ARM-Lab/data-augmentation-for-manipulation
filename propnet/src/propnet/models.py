@@ -342,16 +342,23 @@ class PropNet(pl.LightningModule):
 
     def velocity_loss(self, gt_vel, pred_vel):
         loss = torch.norm(gt_vel - pred_vel, dim=-1)
-        loss = torch.mean(loss, dim=2)  # average across objects
-        loss = torch.max(loss, dim=1)  # max across time
-        loss = torch.mean(loss, dim=0)  # average across batch
+        loss = torch.mean(loss, dim=2)  # objects
+        loss = torch.mean(loss, dim=1)  # time
+        loss = torch.mean(loss, dim=0)  # batch
         return loss
 
-    def error_pos(self, gt_pos, pred_pos):
+    def mean_error_pos(self, gt_pos, pred_pos):
         loss = torch.norm(gt_pos - pred_pos, dim=-1)
-        loss = torch.mean(loss, dim=2)  # average across objects
-        loss = torch.max(loss, dim=1)  # max across time
-        loss = torch.mean(loss, dim=0)  # average across batch
+        loss = torch.mean(loss, dim=2)  # objects
+        loss = torch.mean(loss, dim=1)  # time
+        loss = torch.mean(loss, dim=0)  # batch
+        return loss
+
+    def max_error_pos(self, gt_pos, pred_pos):
+        loss = torch.norm(gt_pos - pred_pos, dim=-1)
+        loss = torch.max(loss, dim=2)  # objects
+        loss = torch.max(loss, dim=1)  # time
+        loss = torch.max(loss, dim=0)  # batch
         return loss
 
     def training_step(self, train_batch, batch_idx):
@@ -364,5 +371,7 @@ class PropNet(pl.LightningModule):
         gt_vel, gt_pos, pred_vel, pred_pos = self.forward(val_batch)
         loss = self.velocity_loss(gt_vel, pred_vel)
         self.log('val_loss', loss)
-        error_pos = self.error_pos(gt_pos, pred_pos)
-        self.log('error_pos', error_pos)
+        max_error_pos = self.max_error_pos(gt_pos, pred_pos)
+        self.log('max_error_pos', max_error_pos)
+        mean_error_pos = self.mean_error_pos(gt_pos, pred_pos)
+        self.log('mean_error_pos', mean_error_pos)
