@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 # noinspection PyPep8Naming
+from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from propnet.relations import construct_fully_connected_rel
 
@@ -124,35 +125,38 @@ class ParticlePredictor(nn.Module):
 
 # noinspection PyPep8Naming
 class PropModule(pl.LightningModule):
-    def __init__(self, params, input_dim, output_dim, batch=True, residual=False):
+    def __init__(self, hparams, batch=True, residual=False):
+        super().__init__()
 
-        super(PropModule, self).__init__()
+        self.save_hyperparameters(hparams)
 
-        self.params = params
         self.batch = batch
 
-        relation_dim = self.params['relation_dim']
-
-        nf_particle = self.params['nf_particle']
-        nf_relation = self.params['nf_relation']
-        self.nf_effect = self.params['nf_effect']
-
         self.residual = residual
+        self.input_dim = self.hparams.attr_dim + self.hparams.state_dim + self.hparams.action_dim
+        self.output_dim = self.hparams.position_dim
 
         # particle encoder
-        self.particle_encoder = ParticleEncoder(input_dim, nf_particle, self.nf_effect)
+        self.particle_encoder = ParticleEncoder(self.input_dim, self.hparams.nf_particle, self.hparams.nf_effect)
 
         # relation encoder
-        self.relation_encoder = RelationEncoder(2 * input_dim + relation_dim, nf_relation, nf_relation)
+        self.relation_encoder = RelationEncoder(2 * self.input_dim + self.hparams.relation_dim,
+                                                self.hparams.nf_relation,
+                                                self.hparams.nf_relation)
 
         # input: (1) particle encode (2) particle effect
-        self.particle_propagator = Propagator(2 * self.nf_effect, self.nf_effect, self.residual)
+        self.particle_propagator = Propagator(2 * self.hparams.nf_effect,
+                                              self.hparams.nf_effect,
+                                              self.residual)
 
         # input: (1) relation encode (2) sender effect (3) receiver effect
-        self.relation_propagator = Propagator(nf_relation + 2 * self.nf_effect, self.nf_effect)
+        self.relation_propagator = Propagator(self.hparams.nf_relation + 2 * self.hparams.nf_effect,
+                                              self.hparams.nf_effect)
 
         # input: (1) particle effect
-        self.particle_predictor = ParticlePredictor(self.nf_effect, self.nf_effect, output_dim)
+        self.particle_predictor = ParticlePredictor(self.hparams.nf_effect,
+                                                    self.hparams.nf_effect,
+                                                    self.output_dim)
 
     def forward(self, state, Rr, Rs, Ra, pstep, verbose: int = 0):
 
@@ -164,7 +168,7 @@ class PropModule(pl.LightningModule):
             print('pstep', pstep)
 
         # calculate particle encoding
-        particle_effect = Variable(torch.zeros((state.size(0), state.size(1), self.nf_effect))).to(self.device)
+        particle_effect = Variable(torch.zeros((state.size(0), state.size(1), self.hparams.nf_effect))).to(self.device)
 
         # receiver_state, sender_state
         if self.batch:
@@ -238,40 +242,25 @@ class PropModule(pl.LightningModule):
 # noinspection PyPep8Naming
 class PropNet(pl.LightningModule):
 
-    def __init__(self, params, scenario: ScenarioWithVisualization, residual=True):
+    def __init__(self, hparams, residual=False):
         super().__init__()
+        self.save_hyperparameters(hparams)  # this allows us to access kwargs['foo'] like self.hparams.foo
 
-        self.params = params
-        self.scenario = scenario
-        attr_dim = self.params['attr_dim']
-        state_dim = self.params['state_dim']
-        self.action_dim = self.params['action_dim']
-        self.position_dim = self.params['position_dim']
-        relation_dim = self.params['relation_dim']  # should match the last dim of Ra
-        self.num_objects = self.params['num_objects']
+        self.scenario = get_scenario(self.hparams.scenario)
 
         batch = True
-        input_dim = attr_dim + state_dim + self.action_dim
-        self.model = PropModule(params, input_dim, self.position_dim, batch, residual)
+        self.model = PropModule(self.hparams, batch, residual)
 
-        Rr, Rs, Ra = construct_fully_connected_rel(self.num_objects, relation_dim, device=self.device)
+        Rr, Rs, Ra = construct_fully_connected_rel(self.hparams.num_objects, self.hparams.relation_dim, device=self.device)
         self.register_buffer("Rr", Rr)
         self.register_buffer("Rs", Rs)
         self.register_buffer("Ra", Ra)
 
-    def forward(self, data, _, action=None):
+    def one_step_forward(self, attr, state, Rr, Rs, Ra, action=None):
         """
-        Used only for fully observable case. Make only a 1-step prediction
-
-        Args:
-            data:
-            _:
-            action:
-
-        Returns:
-
+        Used only for fully observable case. Make only a 1-step prediction.
+        In the original propnet code this was simply called forward.
         """
-        attr, state, Rr, Rs, Ra = data
         # Rr: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the receiver in relation j
         # Rs: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the sender in relation j
         # Ra: [b, num_objects^2, attr_dim] containing the relation attributes
@@ -279,41 +268,40 @@ class PropNet(pl.LightningModule):
             state = torch.cat([attr, state, action], 2)  # [b, num_objects, state+action]
         else:
             state = torch.cat([attr, state], 2)
-        return self.model(state, Rr, Rs, Ra, self.params['pstep'], verbose=self.params['verbose'])
+        return self.model(state, Rr, Rs, Ra, self.hparams['pstep'], verbose=self.hparams['verbose'])
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
 
     def training_step(self, train_batch, batch_idx):
-        gt_vel, pred_vel = self.multistep_prediction(train_batch)
+        gt_vel, pred_vel = self.forward(train_batch)
         loss = F.l1_loss(pred_vel, gt_vel)
         self.log('train_loss', loss)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        gt_vel, pred_vel = self.multistep_prediction(val_batch)
+        gt_vel, pred_vel = self.forward(val_batch)
         loss = F.l1_loss(pred_vel, gt_vel)
         self.log('val_loss', loss)
 
-    def multistep_prediction(self, batch):
+    def forward(self, batch):
         batch_size = len(batch['filename'])
         Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
 
         dt = batch['dt'][:, 0:1]  # in batch, dt is [batch, time, 1] but we want [batch, 1, 1]
 
         attr, states, actions = self.states_and_actions(batch, batch_size)
-        gt_vel = states[:, :, :, self.position_dim:]
+        gt_vel = states[:, :, :, self.hparams.position_dim:]
         pred_state_t = states[:, 0]  # [b, n_objects, state_dim]
-        pred_vel = [pred_state_t[:, :, self.position_dim:]]
+        pred_vel = [pred_state_t[:, :, self.hparams.position_dim:]]
         for t in range(actions.shape[1]):
             action_t = actions[:, t]
-            pred_vel_t = self.forward([attr, pred_state_t, Rr_batch, Rs_batch, Ra_batch], self.params['pstep'],
-                                      action=action_t)
+            pred_vel_t = self.one_step_forward(attr, pred_state_t, Rr_batch, Rs_batch, Ra_batch, action_t)
             # pred_vel_t: [b, n_objects, position_dim]
             # Integrate the velocity to produce the next positions, then copy the velocities
-            pred_state_t[:, :, :self.position_dim] = pred_state_t[:, :, :self.position_dim] + dt * pred_vel_t
-            pred_state_t[:, :, self.position_dim:] = pred_vel_t
+            pred_state_t[:, :, :self.hparams.position_dim] = pred_state_t[:, :, :self.hparams.position_dim] + dt * pred_vel_t
+            pred_state_t[:, :, self.hparams.position_dim:] = pred_vel_t
             pred_vel.append(pred_vel_t)
         pred_vel = torch.stack(pred_vel, dim=1)
         return gt_vel, pred_vel

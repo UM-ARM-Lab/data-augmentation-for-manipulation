@@ -6,8 +6,8 @@ from time import time
 import numpy as np
 
 from arc_utilities import ros_init
+from link_bot_pycommon.args import run_subparsers
 from propnet import train_test_propnet
-from link_bot_pycommon.args import run_subparsers, int_tuple_arg
 
 
 def train_main(args):
@@ -37,7 +37,7 @@ def main():
     subparsers = parser.add_subparsers()
 
     train_parser = subparsers.add_parser('train')
-    train_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
+    train_parser.add_argument('dataset_dir', type=pathlib.Path)
     train_parser.add_argument('model_params', type=pathlib.Path)  # hparams/blocks.hjson
     train_parser.add_argument('--checkpoint', type=pathlib.Path)
     train_parser.add_argument('--batch-size', type=int, default=24)
@@ -48,25 +48,10 @@ def main():
     train_parser.add_argument('--seed', type=int, default=None)
     train_parser.set_defaults(func=train_main)
 
-    eval_parser = subparsers.add_parser('eval')
-    eval_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
-    eval_parser.add_argument('checkpoint', type=pathlib.Path)
-    eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='all')
-    eval_parser.add_argument('--balance', action='store_true')
-    eval_parser.add_argument('--batch-size', type=int, default=128)
-    eval_parser.add_argument('--verbose', '-v', action='count', default=0)
-    eval_parser.add_argument('--take', type=int)
-    eval_parser.add_argument('--debug', action='store_true')
-    eval_parser.add_argument('--profile', type=int_tuple_arg, default=None)
-    eval_parser.set_defaults(func=eval_main)
-
     viz_parser = subparsers.add_parser('viz')
-    viz_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
+    viz_parser.add_argument('dataset_dir', type=pathlib.Path)
     viz_parser.add_argument('checkpoint', type=pathlib.Path)
     viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
-    viz_parser.add_argument('--batch-size', type=int, default=32)
-    viz_parser.add_argument('--verbose', '-v', action='count', default=0)
-    viz_parser.add_argument('--start-at', type=int, default=0)
     viz_parser.set_defaults(func=viz_main)
 
     run_subparsers(parser)
