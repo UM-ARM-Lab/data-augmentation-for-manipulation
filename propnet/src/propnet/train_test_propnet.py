@@ -3,8 +3,10 @@
 import logging
 import multiprocessing
 import pathlib
+from datetime import datetime
 from typing import Optional
 
+import git
 import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader
@@ -49,6 +51,12 @@ def train_main(dataset_dir: pathlib.Path,
         model_params = load_hjson(model_params)
         model_params['num_objects'] = train_dataset.params['data_collection_params']['num_objs'] + 1
         model_params['scenario'] = train_dataset.params['scenario']
+        # add some extra useful info here
+        stamp = "{:%B_%d_%H-%M-%S}".format(datetime.now())
+        repo = git.Repo(search_parent_directories=True)
+        sha = repo.head.object.hexsha[:10]
+        model_params['sha'] = sha
+        model_params['start-train-time'] = stamp
         model = PropNet(hparams=model_params)
     else:
         model = PropNet.load_from_checkpoint(checkpoint.as_posix())
@@ -56,8 +64,8 @@ def train_main(dataset_dir: pathlib.Path,
     # training
     logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
     best_val_ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss",
-                                                    filename="best")
-    latest_ckpt_cb = pl.callbacks.ModelCheckpoint(filename='latest')
+                                                    filename="best-{epoch:02d}-{val_loss:.6f}")
+    latest_ckpt_cb = pl.callbacks.ModelCheckpoint(filename='latest-{epoch:02d}')
     early_stopping = pl.callbacks.EarlyStopping(monitor="val_loss", patience=15)
     trainer = pl.Trainer(gpus=1,
                          weights_summary=None,

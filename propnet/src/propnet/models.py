@@ -355,11 +355,12 @@ class PropNet(pl.LightningModule):
         return loss
 
     def max_error_pos(self, gt_pos, pred_pos):
-        loss = torch.norm(gt_pos - pred_pos, dim=-1)
-        loss = torch.max(loss, dim=2)  # objects
-        loss = torch.max(loss, dim=1)  # time
-        loss = torch.max(loss, dim=0)  # batch
-        return loss
+        error_pos = torch.norm(gt_pos - pred_pos, dim=-1)
+        error_pos = torch.max(error_pos, dim=2)  # objects
+        error_pos = torch.max(error_pos.values, dim=1)  # time
+        error_pos = torch.max(error_pos.values, dim=0)  # batch
+        error_pos = error_pos.values
+        return error_pos
 
     def training_step(self, train_batch, batch_idx):
         gt_vel, gt_pos, pred_vel, pred_pos = self.forward(train_batch)
