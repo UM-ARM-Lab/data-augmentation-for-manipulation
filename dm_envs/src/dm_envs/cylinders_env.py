@@ -5,6 +5,13 @@ from dm_envs.planar_pushing import PlanarPushingTask
 
 
 class PlanarPushingCylindersTask(PlanarPushingTask):
+
+    def __init__(self, params):
+        super().__init__(params)
+
+        for obj in self.objs:
+            obj.observables.linear_velocity.enabled = False
+
     def create_objs(self, params):
         _objs = []
         for i in range(params['num_objs']):

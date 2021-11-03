@@ -6,7 +6,12 @@ from torch.utils.data import Dataset
 from link_bot_data.new_dataset_utils import get_filenames, load_single
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_params
-from moonshine.moonshine_utils import to_list_of_strings
+
+
+def remove_joint_names(example):
+    if 'joint_names' in example:
+        example.pop('joint_names')
+    return example
 
 
 class TorchDynamicsDataset(Dataset):
@@ -20,6 +25,12 @@ class TorchDynamicsDataset(Dataset):
         self.transform = transform
         self.scenario = None
 
+        self.data_collection_params = self.params['data_collection_params']
+        self.state_keys = self.data_collection_params['state_keys']
+        self.state_keys.append('time_idx')
+        self.env_keys = self.data_collection_params['env_keys']
+        self.action_keys = self.data_collection_params['action_keys']
+
     def __len__(self):
         return len(self.metadata_filenames)
 
@@ -29,9 +40,6 @@ class TorchDynamicsDataset(Dataset):
 
         metadata_filename = self.metadata_filenames[idx]
         example = load_single(metadata_filename)
-
-        if 'joint_names' in example:
-            example.pop('joint_names')
 
         if self.transform:
             example = self.transform(example)

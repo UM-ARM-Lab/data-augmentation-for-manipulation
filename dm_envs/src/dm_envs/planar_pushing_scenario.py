@@ -3,34 +3,29 @@ from typing import Dict, Optional
 import numpy as np
 import tensorflow as tf
 from dm_control import composer
-from matplotlib import colors
-from pyjacobian_follower import IkParams
-from tensorflow_graphics.geometry.transformation import quaternion
 from tensorflow_graphics.geometry.transformation import rotation_matrix_3d
 
 import ros_numpy
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
-from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.visualization_common import make_delete_markerarray
 from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds
 from link_bot_pycommon.grid_utils import extent_to_env_shape
 from link_bot_pycommon.pycommon import yaw_diff
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.geometry import transform_points_3d
 from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import Image, JointState
-from std_msgs.msg import ColorRGBA
-from visualization_msgs.msg import MarkerArray, Marker
+from visualization_msgs.msg import MarkerArray
 
 ARM_NAME = 'jaco_arm'
 HAND_NAME = 'primitive_hand'
 
 
 def get_joint_position(state):
-    sin = state[f'{ARM_NAME}/joints_pos'][0, :, 0]
-    cos = state[f'{ARM_NAME}/joints_pos'][0, :, 1]
+    sin_cos = state[f'{ARM_NAME}/joints_pos']
+    sin = sin_cos[0, :, 0]
+    cos = sin_cos[0, :, 1]
     angles = np.arctan2(sin, cos)
     return angles
 
@@ -142,16 +137,19 @@ class PlanarPushingScenario(ScenarioWithVisualization):
         state = self.env._observation_updater.get_observation()
         joint_names = [n.replace(f'{ARM_NAME}/', '') for n in self.task.joint_names]
         state['joint_names'] = np.array(joint_names)
+
         return state
 
     def plot_state_rviz(self, state: Dict, **kwargs):
-        joint_state = self.get_joint_state_msg(state)
-        self.joint_states_pub.publish(joint_state)
+        if 'jaco_arm/joints_pos' in state:
+            joint_state = self.get_joint_state_msg(state)
+            self.joint_states_pub.publish(joint_state)
 
-        img = state['front_close'][0]
-        img_msg = ros_numpy.msgify(Image, img, encoding='rgb8')
-        img_msg.header.frame_id = 'world'
-        self.camera_pub.publish(img_msg)
+        if 'front_close' in state:
+            img = state['front_close'][0]
+            img_msg = ros_numpy.msgify(Image, img, encoding='rgb8')
+            img_msg.header.frame_id = 'world'
+            self.camera_pub.publish(img_msg)
 
     def get_joint_state_msg(self, state):
         joint_position = get_joint_position(state).tolist()

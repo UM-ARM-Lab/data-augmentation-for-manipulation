@@ -26,6 +26,7 @@ def rviz_arrow(position,
                target_position,
                label: str = 'arrow',
                **kwargs):
+    """ uses start/end points method """
     idx = kwargs.get("idx", 0)
     color = color_from_kwargs(kwargs, 0, 0, 1.0)
 

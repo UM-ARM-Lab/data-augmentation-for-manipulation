@@ -21,6 +21,7 @@ def metrics_main(args):
     w = 10
     max_iter = 100
     x_max = max_iter + 0.01
+    ci = 95
     te_max = 0.25
     nme_max = 1.2
     iter_key = 'ift_iteration'
@@ -48,12 +49,12 @@ def metrics_main(args):
     # hack for the fact that for iter=0 used_augmentation is always 0, even on runs where augmentation is used.
     df_r = df_r.loc[(df_r['used_augmentation'] == 0.0) | (df_r['used_augmentation'] == 1.0)]
 
-    fig, ax = lineplot(df, iter_key, 'success', 'Success', hue='used_augmentation')
-    ax.set_xlim(-0.01, x_max)
-    ax.set_ylim(-0.01, 1.01)
-    plt.savefig(outdir / f'success.png')
+    # fig, ax = lineplot(df, iter_key, 'success', 'Success', hue='used_augmentation')
+    # ax.set_xlim(-0.01, x_max)
+    # ax.set_ylim(-0.01, 1.01)
+    # plt.savefig(outdir / f'success.png')
 
-    fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='used_augmentation')
+    fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='used_augmentation', ci=ci)
     ax.set_xlim(-0.01, x_max)
     ax.set_ylim(-0.01, 1.01)
     # ax.axhline(0.8125, color='black', linewidth=4, label='heuristic classifier')
@@ -70,9 +71,10 @@ def metrics_main(args):
     # ax.axhline(0.045, color='black', linewidth=3, label='goal threshold')
     # ax.set_xlim(-0.01, x_max)
 
-    fig, ax = lineplot(df_r, iter_key, 'task_error', f'Task Error (rolling={w})', hue='used_augmentation')
+    fig, ax = lineplot(df_r, iter_key, 'task_error', f'Task Error (rolling={w})', hue='used_augmentation', ci=ci)
     ax.set_xlim(-0.01, x_max)
     ax.axhline(0.045, color='black', linewidth=3, label='goal threshold')
+    ax.legend()
     plt.savefig(outdir / f'task_error_rolling.png')
 
     # fig, ax = lineplot(df_r, iter_key, 'combined_error', f'Combined Score (rolling={w})', hue='used_augmentation')

@@ -17,7 +17,11 @@ def color_from_kwargs(kwargs, r, g, b, a=1.0):
 
     """
     if 'color' in kwargs:
-        return ColorRGBA(*colors.to_rgba(kwargs["color"]))
+        color_kwarg = kwargs["color"]
+        if isinstance(color_kwarg, ColorRGBA):
+            return color_kwarg
+        else:
+            return ColorRGBA(*colors.to_rgba(kwargs["color"]))
     else:
         r = float(kwargs.get("r", r))
         g = float(kwargs.get("g", g))

@@ -6,7 +6,6 @@ from torch.autograd import Variable
 
 # noinspection PyPep8Naming
 from link_bot_pycommon.get_scenario import get_scenario
-from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from propnet.relations import construct_fully_connected_rel
 
 
@@ -240,6 +239,12 @@ class PropModule(pl.LightningModule):
 
 
 # noinspection PyPep8Naming
+def pos_to_vel(robot_pos):
+    robot_vel = robot_pos[:, 1:] - robot_pos[:, :-1]
+    robot_vel = F.pad(robot_vel, [0, 0, 1, 0])
+    return robot_vel
+
+
 class PropNet(pl.LightningModule):
 
     def __init__(self, hparams, residual=False):
@@ -251,7 +256,8 @@ class PropNet(pl.LightningModule):
         batch = True
         self.model = PropModule(self.hparams, batch, residual)
 
-        Rr, Rs, Ra = construct_fully_connected_rel(self.hparams.num_objects, self.hparams.relation_dim, device=self.device)
+        Rr, Rs, Ra = construct_fully_connected_rel(self.hparams.num_objects, self.hparams.relation_dim,
+                                                   device=self.device)
         self.register_buffer("Rr", Rr)
         self.register_buffer("Rs", Rs)
         self.register_buffer("Ra", Ra)
@@ -275,13 +281,15 @@ class PropNet(pl.LightningModule):
         return optimizer
 
     def training_step(self, train_batch, batch_idx):
-        gt_vel, pred_vel = self.forward(train_batch)
+        gt_vel, gt_pos, pred_vel, pred_pos = self.forward(train_batch)
         loss = F.l1_loss(pred_vel, gt_vel)
+        error_pos = F.l1_loss(pred_pos, gt_pos)
         self.log('train_loss', loss)
+        self.log('error_pos', error_pos)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        gt_vel, pred_vel = self.forward(val_batch)
+        gt_vel, gt_pos, pred_vel, pred_pos = self.forward(val_batch)
         loss = F.l1_loss(pred_vel, gt_vel)
         self.log('val_loss', loss)
 
@@ -292,19 +300,24 @@ class PropNet(pl.LightningModule):
         dt = batch['dt'][:, 0:1]  # in batch, dt is [batch, time, 1] but we want [batch, 1, 1]
 
         attr, states, actions = self.states_and_actions(batch, batch_size)
+        gt_pos = states[:, :, :, :self.hparams.position_dim]
         gt_vel = states[:, :, :, self.hparams.position_dim:]
         pred_state_t = states[:, 0]  # [b, n_objects, state_dim]
-        pred_vel = [pred_state_t[:, :, self.hparams.position_dim:]]
+        pred_vel = [pred_state_t[:, :, self.hparams.position_dim:].clone()]
+        pred_pos = [pred_state_t[:, :, :self.hparams.position_dim].clone()]
         for t in range(actions.shape[1]):
             action_t = actions[:, t]
             pred_vel_t = self.one_step_forward(attr, pred_state_t, Rr_batch, Rs_batch, Ra_batch, action_t)
             # pred_vel_t: [b, n_objects, position_dim]
             # Integrate the velocity to produce the next positions, then copy the velocities
-            pred_state_t[:, :, :self.hparams.position_dim] = pred_state_t[:, :, :self.hparams.position_dim] + dt * pred_vel_t
+            next_pred_pos = pred_state_t[:, :, :self.hparams.position_dim] + dt * pred_vel_t
+            pred_state_t[:, :, :self.hparams.position_dim] = next_pred_pos
             pred_state_t[:, :, self.hparams.position_dim:] = pred_vel_t
             pred_vel.append(pred_vel_t)
+            pred_pos.append(next_pred_pos)
         pred_vel = torch.stack(pred_vel, dim=1)
-        return gt_vel, pred_vel
+        pred_pos = torch.stack(pred_pos, dim=1)
+        return gt_vel, gt_pos, pred_vel, pred_pos
 
     def batch_relations(self, batch_size):
         Rr_batch = self.Rr[None, :, :].repeat(batch_size, 1, 1)
@@ -322,15 +335,18 @@ class PropNet(pl.LightningModule):
         # end-effector (more generally, the robot) is treated as an object in the system, so it has state.
         # It also has action and attribute=1
         # all of the object objects do not have action (zero value and attribute=0)
-        ee_state, robot_action, robot_attr = self.scenario.get_robot_attr_state_action(batch, batch_size, self.device)
+        robot_attr, robot_pos, robot_action = self.scenario.propnet_robot_v(batch, batch_size, self.device)
+        robot_vel = pos_to_vel(robot_pos)
+        robot_state = torch.cat([robot_pos, robot_vel], dim=-1)
         attrs.append(robot_attr)
-        states.append(ee_state)
+        states.append(robot_state)
         actions.append(robot_action)
 
         # blocks
         for obj_idx in range(num_objs):
-            obj_action, obj_attr, obj_state = self.scenario.get_obj_attr_state_action(batch, batch_size, obj_idx, time,
-                                                                                      self.device)
+            obj_attr, obj_pos, obj_action = self.scenario.propnet_obj_v(batch, batch_size, obj_idx, time, self.device)
+            obj_vel = pos_to_vel(obj_pos)
+            obj_state = torch.cat([obj_pos, obj_vel], dim=-1)
             attrs.append(obj_attr)
             states.append(obj_state)
             actions.append(obj_action)

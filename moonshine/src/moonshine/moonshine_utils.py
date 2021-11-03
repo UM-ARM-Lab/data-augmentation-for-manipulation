@@ -4,6 +4,7 @@ from typing import Dict, Optional, List, Callable
 
 import numpy as np
 import tensorflow as tf
+import torch
 from colorama import Fore
 
 import genpy
@@ -87,6 +88,8 @@ def numpify(x, dtype=np.float32):
                 return l_arr
             else:
                 return l
+    elif isinstance(x, torch.Tensor):
+        return x.detach().numpy()
     elif isinstance(x, tf.Tensor):
         if x.dtype == tf.string:
             if len(x.shape) == 0:

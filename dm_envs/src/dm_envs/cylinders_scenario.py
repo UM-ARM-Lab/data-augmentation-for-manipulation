@@ -1,14 +1,14 @@
 import re
-import torch
 from typing import Dict
 
 import tensorflow as tf
-from matplotlib import colors
+import torch
 from pyjacobian_follower import IkParams
 from tensorflow_graphics.geometry.transformation import quaternion
 
 from dm_envs.cylinders_env import PlanarPushingCylindersTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario, transformation_matrices_from_pos_quat
+from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.dataset_utils import add_predicted
 from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import repeat_tensor
@@ -16,12 +16,11 @@ from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 
 
-def cylinders_to_points(positions, quats, height, radius):
+def cylinders_to_points(positions, height, radius):
     """
 
     Args:
         positions:  [b, m, T, 3]
-        quats:  [b, m, T, 4]
         height:  [b, T]
         radius:  [b, T]
 
@@ -32,7 +31,7 @@ def cylinders_to_points(positions, quats, height, radius):
     m = positions.shape[1]
     sized_points = size_to_points(height, radius)  # [b, T, 8, 3]
     sized_points = repeat_tensor(sized_points, m, axis=1, new_axis=True)  # [b, m, T, 8, 3]
-    transform_matrix = transformation_matrices_from_pos_quat(positions, quats)  # [b, m, T, 4, 4]
+    transform_matrix = transformation_matrices_from_pos_quat(positions, [0, 0, 0, 1])  # [b, m, T, 4, 4]
     transform_matrix = repeat_tensor(transform_matrix, 8, 3, True)
     obj_points = transform_points_3d(transform_matrix, sized_points)  # [b, m, T, 8, 3]
     return obj_points
@@ -53,24 +52,14 @@ def size_to_points(height, radius):
     return unit_cylinder_points[None, None] * size[:, :, None, None]  # [b, T, 8, 3]
 
 
-def wxyz2xyzw(quat):
-    w, x, y, z = tf.unstack(quat, axis=-1)
-    return tf.stack([x, y, z, w], axis=-1)
-
-
 class CylindersScenario(PlanarPushingScenario):
 
     def plot_state_rviz(self, state: Dict, **kwargs):
         super().plot_state_rviz(state, **kwargs)
 
         ns = kwargs.get("label", "")
-        color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
-        if 'a' in kwargs:
-            color_msg.a = kwargs['a']
-            a = kwargs['a']
-        else:
-            a = 1.0
         idx = kwargs.get("idx", 0)
+        color_msg = color_from_kwargs(kwargs, 1.0, 0, 0.0)
 
         num_objs = state['num_objs'][0]
         height = state['height'][0]
@@ -78,7 +67,6 @@ class CylindersScenario(PlanarPushingScenario):
         msg = MarkerArray()
         for i in range(num_objs):
             position = state[f'obj{i}/position']
-            orientation = state[f'obj{i}/orientation']
 
             marker = Marker()
             marker.header.frame_id = 'world'
@@ -90,14 +78,16 @@ class CylindersScenario(PlanarPushingScenario):
             marker.pose.position.x = position[0, 0]
             marker.pose.position.y = position[0, 1]
             marker.pose.position.z = position[0, 2]
-            marker.pose.orientation.w = orientation[0, 0]
-            marker.pose.orientation.x = orientation[0, 1]
-            marker.pose.orientation.y = orientation[0, 2]
-            marker.pose.orientation.z = orientation[0, 3]
+            marker.pose.orientation.w = 1
             marker.scale.x = radius * 2
             marker.scale.y = radius * 2
             marker.scale.z = height
             msg.markers.append(marker)
+
+            # velocity = state[f'obj{i}/linear_velocity'] * 20
+            # end = position[0] + velocity[0]
+            # vel_marker = rviz_arrow(position[0], end, label=ns + 'vel', color=color_msg, idx=idx * num_objs + i)
+            # msg.markers.append(vel_marker)
 
         self.state_viz_pub.publish(msg)
 
@@ -116,18 +106,13 @@ class CylindersScenario(PlanarPushingScenario):
         radius = inputs['radius'][:, :, 0]  # [b, T]
         num_objs = inputs['num_objs'][0, 0, 0]  # assumed fixed across batch/time
         positions = []  # [b, m, T, 3]
-        quats = []  # [b, m, T, 4]
         for i in range(num_objs):
             pos = inputs[f"obj{i}/position"][:, :, 0]  # [b, T, 3]
             # in our mujoco dataset the quaternions are stored w,x,y,z but the rest of our code assumes xyzw
-            quat = inputs[f"obj{i}/orientation"][:, :, 0]  # [b, T, 4]
-            quat = wxyz2xyzw(quat)
             positions.append(pos)
-            quats.append(quat)
         positions = tf.stack(positions, axis=1)
-        quats = tf.stack(quats, axis=1)
 
-        obj_points = cylinders_to_points(positions, quats, height, radius)
+        obj_points = cylinders_to_points(positions, height, radius)
 
         # combine to get one set of points per object
         obj_points = tf.reshape(obj_points, [obj_points.shape[0], obj_points.shape[1], -1, 3])
@@ -297,18 +282,14 @@ class CylindersScenario(PlanarPushingScenario):
     def __repr__(self):
         return "cylinders"
 
-    def get_obj_attr_state_action(self, batch, batch_size, obj_idx, time, device):
+    def propnet_obj_v(self, batch, batch_size, obj_idx, time, device):
         obj_attr = torch.zeros([batch_size, 1]).to(device)
         obj_pos = torch.squeeze(batch[f"obj{obj_idx}/position"], 2)[:, :, :2]  # [b, T, 2]
-        obj_linear_vel = torch.squeeze(batch[f"obj{obj_idx}/linear_velocity"], 2)[:, :, :2]  # [b, T, 2]
-        obj_state = torch.cat([obj_pos, obj_linear_vel], dim=-1)  # [b, T, 4]
         obj_action = torch.zeros([batch_size, time - 1, 3]).to(device)
-        return obj_action, obj_attr, obj_state
+        return obj_attr, obj_pos, obj_action
 
-    def get_robot_attr_state_action(self, batch, batch_size, device):
+    def propnet_robot_v(self, batch, batch_size, device):
         robot_attr = torch.ones([batch_size, 1]).to(device)
-        ee_pos = torch.squeeze(batch["jaco_arm/primitive_hand/tcp_pos"], 2)[:, :, :2]
-        ee_linear_vel = torch.squeeze(batch["jaco_arm/primitive_hand/linear_velocity"], 2)[:, :, :2]
-        ee_state = torch.cat([ee_pos, ee_linear_vel], dim=-1)  # [b, T, 4]
+        robot_pos = torch.squeeze(batch["jaco_arm/primitive_hand/tcp_pos"], 2)[:, :, :2]
         robot_action = batch['gripper_position']
-        return ee_state, robot_action, robot_attr
+        return robot_attr, robot_pos, robot_action
