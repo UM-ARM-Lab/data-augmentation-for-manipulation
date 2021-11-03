@@ -96,7 +96,7 @@ def generate_saved_goals(method: str,
 
         current_goal = load(scenes_dir, trial_idx)
         state = scenario.get_state()
-        scenario.reset_planning_viz()
+        scenario.reset_viz()
         scenario.plot_state_rviz(state, label='start')
         if current_goal is not None:
             scenario.plot_goal_rviz(current_goal, goal_threshold=goal_radius)

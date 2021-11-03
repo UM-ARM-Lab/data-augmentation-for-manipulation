@@ -265,4 +265,4 @@ class ResultsToRecoveryDataset:
         self.scenario.plot_state_rviz(after_state, idx=1, label='actual')
 
     def clear_markers(self):
-        self.scenario.reset_planning_viz()
+        self.scenario.reset_viz()

@@ -2,6 +2,7 @@
 import pathlib
 from typing import Dict, Optional
 
+import hjson
 import numpy as np
 from colorama import Fore
 from tqdm import tqdm
@@ -9,6 +10,7 @@ from tqdm import tqdm
 import rospy
 from arm_robots.robot import RobotPlanningError
 from link_bot_data.dataset_utils import make_unique_outdir, tf_write_example, pkl_write_example
+from link_bot_data.split_dataset import split_dataset_via_files
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.get_service_provider import get_service_provider
 from link_bot_pycommon.serialization import my_hdump
@@ -118,6 +120,7 @@ class BaseDataCollector:
 
         self.scenario.randomization_initialization(self.params)
         self.scenario.on_before_data_collection(self.params)
+        self.scenario.reset_viz()
 
         self.save_hparams(full_output_directory, n_trajs, nickname)
 
@@ -215,3 +218,31 @@ class PklDataCollector(BaseDataCollector):
 
     def write_example(self, full_output_directory, example, traj_idx):
         pkl_write_example(full_output_directory, example, traj_idx)
+
+
+def collect_dynamics_data(collect_dynamics_params: pathlib.Path,
+                          n_trajs: int,
+                          nickname: str,
+                          verbose=0,
+                          save_format: str = 'pkl',
+                          seed: Optional[int] = None):
+    with collect_dynamics_params.open("r") as f:
+        collect_dynamics_params = hjson.load(f)
+    DataCollectorClass, extension = get_data_collector_class(save_format)
+    data_collector = DataCollectorClass(params=collect_dynamics_params,
+                                        seed=seed,
+                                        verbose=verbose)
+    dataset_dir = data_collector.collect_data(n_trajs=n_trajs, nickname=nickname)
+    split_dataset_via_files(dataset_dir, extension)
+    return dataset_dir
+
+
+def get_data_collector_class(save_format: str):
+    if save_format == 'h5':
+        return H5DataCollector, 'h5'
+    elif save_format == 'tfrecord':
+        return TfDataCollector, 'tfrecords'
+    elif save_format == 'pkl':
+        return PklDataCollector, 'pkl'
+    else:
+        raise NotImplementedError(f"unsupported save_format {save_format}")

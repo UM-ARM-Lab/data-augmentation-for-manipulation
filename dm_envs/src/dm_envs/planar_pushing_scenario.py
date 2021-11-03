@@ -95,7 +95,6 @@ class PlanarPushingScenario(ScenarioWithVisualization):
 
         # modified the input dict!
         s = self.get_state()
-        self.plot_state_rviz(s)
 
         params['state_keys'] = list(s.keys())
         params['env_keys'] = [
@@ -212,7 +211,7 @@ class PlanarPushingScenario(ScenarioWithVisualization):
         # we picked a new end effector pose, now solve IK to turn that into a joint configuration
         success, target_joint_position = self.task.solve_position_ik(self.env.physics, target_cartesian_position)
         if not success:
-            print("failed to solve IK! continuing anyways")
+            rospy.logwarn("failed to solve IK! continuing anyways")
 
         current_position = get_joint_position(state)
         kP = 10.0
@@ -241,8 +240,8 @@ class PlanarPushingScenario(ScenarioWithVisualization):
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         self.env.reset()
 
-    def reset_planning_viz(self):
-        super().reset_planning_viz()
+    def reset_viz(self):
+        super().reset_viz()
         m = make_delete_markerarray(ns='viz_aug')
         self.viz_aug_pub.publish(m)
 

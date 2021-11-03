@@ -103,7 +103,7 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
     def augment(inputs):
         actual_batch_size = inputs['batch_size']
         if visualize:
-            scenario.reset_planning_viz()
+            scenario.reset_viz()
 
             inputs_viz = remove_batch(inputs)
             viz_f(scenario, inputs_viz, t=0, idx=0, color='g')

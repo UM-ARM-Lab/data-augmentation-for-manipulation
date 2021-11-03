@@ -1,4 +1,5 @@
 from typing import Dict
+import numpy as np
 
 from dm_control import composer
 from dm_control.composer import initializers
@@ -41,13 +42,12 @@ class PlanarPushingTask(composer.Task):
         # Create initializers
         self._obj_placer = None
 
-        start_pos = [params['gripper_action_sample_extent'][0],
-                     params['gripper_action_sample_extent'][2],
-                     primitive_hand.Z_OFFSET + 0.01]  # start 1cm off the floor/table
-        self._tcp_initializer = initializers.ToolCenterPointInitializer(self._hand,
-                                                                        self._arm,
-                                                                        position=start_pos,
-                                                                        quaternion=workspaces.DOWN_QUATERNION)
+        tcp_bbox = np.reshape(np.array(params['gripper_action_sample_extent']), [3, 2]).T
+        self._tcp_initializer = initializers.ToolCenterPointInitializer(
+            self._hand,
+            self._arm,
+            position=distributions.Uniform(*tcp_bbox),
+            quaternion=workspaces.DOWN_QUATERNION)
 
         # configure physics
         self._arena.mjcf_model.size.nconmax = 10000
@@ -93,6 +93,8 @@ class PlanarPushingTask(composer.Task):
             props=self.objs,
             position=distributions.Uniform(*self._prop_bbox),
             quaternion=workspaces.uniform_z_rotation,
+            ignore_collisions=False,
+            max_attempts_per_prop=100,
             settle_physics=True)
 
     def initialize_episode(self, physics, random_state):

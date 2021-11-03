@@ -1,28 +1,12 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-from typing import Type
-
-import hjson
 
 from arc_utilities import ros_init
-from link_bot_data.base_collect_dynamics_data import TfDataCollector, H5DataCollector, PklDataCollector
-from link_bot_data.split_dataset import split_dataset_via_files
-from link_bot_pycommon.get_service_provider import get_service_provider
+from link_bot_data.base_collect_dynamics_data import collect_dynamics_data
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
-
-
-def get_data_collector_class(save_format: str):
-    if save_format == 'h5':
-        return H5DataCollector, 'h5'
-    elif save_format == 'tfrecord':
-        return TfDataCollector, 'tfrecords'
-    elif save_format == 'pkl':
-        return PklDataCollector, 'pkl'
-    else:
-        raise NotImplementedError(f"unsupported save_format {save_format}")
 
 
 @ros_init.with_ros("collect_dynamics_data")
@@ -38,15 +22,7 @@ def main():
 
     args = parser.parse_args()
 
-    with args.collect_dynamics_params.open("r") as f:
-        collect_dynamics_params = hjson.load(f)
-
-    DataCollectorClass, extension = get_data_collector_class(args.save_format)
-    data_collector = DataCollectorClass(params=collect_dynamics_params,
-                                        seed=args.seed,
-                                        verbose=args.verbose)
-    dataset_dir = data_collector.collect_data(n_trajs=args.n_trajs, nickname=args.nickname)
-    split_dataset_via_files(dataset_dir, extension)
+    collect_dynamics_data(**vars(args))
 
 
 if __name__ == '__main__':

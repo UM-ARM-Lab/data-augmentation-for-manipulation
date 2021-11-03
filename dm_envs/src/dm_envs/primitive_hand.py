@@ -7,7 +7,6 @@ from dm_control.entities.props.primitive import PrimitiveObservables
 HEIGHT = 0.08
 HALF_HEIGHT = HEIGHT / 2
 RADIUS = 0.02
-Z_OFFSET = 0.0
 
 
 class PrimitiveHandObservables(PrimitiveObservables):

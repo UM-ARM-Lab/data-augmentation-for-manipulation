@@ -1,10 +1,10 @@
 {
-  name: cylindesr
+  name: cylinders
   scenario: cylinders
   service_provider: mujoco
-  steps_per_traj: 100
+  steps_per_traj: 50
   randomize_n: 1
-  num_objs: 10
+  num_objs: 20
   radius: 0.02
   height: 0.04
   extent: [

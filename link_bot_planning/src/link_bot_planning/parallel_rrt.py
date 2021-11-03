@@ -523,7 +523,7 @@ class NewRRT(MyPlanner):
         start_state_tf = make_dict_tf_float32(start_state_tf)
 
         # visualization
-        self.scenario.reset_planning_viz()
+        self.scenario.reset_viz()
         self.scenario.plot_environment_rviz(planning_query.environment)
         self.scenario.plot_start_state(planning_query.start)
         self.scenario.plot_goal_rviz(planning_query.goal, self.params['goal_params']['threshold'])

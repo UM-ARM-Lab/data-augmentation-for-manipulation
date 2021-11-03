@@ -421,7 +421,7 @@ class ResultsToClassifierDataset:
         self.scenario.plot_is_close(is_close)
 
     def clear_markers(self):
-        self.scenario.reset_planning_viz()
+        self.scenario.reset_viz()
 
     def on_gazebo_restarting(self, _: Empty):
         self.restart = True

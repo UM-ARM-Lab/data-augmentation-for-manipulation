@@ -372,7 +372,7 @@ class OmplRRTWrapper(MyPlanner):
         self.scenario_ompl.numpy_to_ompl_state(start_state, ompl_start_scoped())
 
         # visualization
-        self.scenario.reset_planning_viz()
+        self.scenario.reset_viz()
         self.scenario.plot_environment_rviz(planning_query.environment)
         self.scenario.plot_start_state(start_state)
         self.scenario.plot_goal_rviz(planning_query.goal, self.params['goal_params']['threshold'])
@@ -565,7 +565,7 @@ class OmplRRTWrapper(MyPlanner):
 
     def clear_smoothing_markers(self):
         # FIXME: temporary hack
-        self.scenario.reset_planning_viz()
+        self.scenario.reset_viz()
         # self.scenario.mm.delete(label='from')
         # self.scenario.mm.delete(label='to')
         # self.scenario.mm.delete(label='smoothed')

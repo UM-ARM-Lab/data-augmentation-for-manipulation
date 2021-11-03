@@ -339,7 +339,7 @@ def plot_steps(scenario: ScenarioWithVisualization,
         elif type_t == 'executed_recovery':
             return '#ff00ff'
 
-    scenario.reset_planning_viz()
+    scenario.reset_viz()
     while not anim.done:
         t = anim.t()
         e_t, a_t, s_t, s_t_pred, type_t, j_t = paths[t]

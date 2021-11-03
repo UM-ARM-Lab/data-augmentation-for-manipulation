@@ -158,7 +158,7 @@ def visualize_iterative_classifier_adaption(ift_dir: pathlib.Path):
 
         # clear the markers from the previous iteration
         if iteration_idx < last_iteration_idx or iteration_idx == 0 or not viz_options.accumulate:
-            scenario.reset_planning_viz()
+            scenario.reset_viz()
         last_iteration_idx = iteration_idx
 
         if viz_options.accumulate:

@@ -74,7 +74,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         pos = action_rng.uniform([x_min, y_min, z_min], [x_max, y_max, z_max])
         return pos
 
-    def reset_planning_viz(self):
+    def reset_viz(self):
         clear_msg = MarkerArray()
         clear_marker_msg = Marker()
         clear_marker_msg.action = Marker.DELETEALL
