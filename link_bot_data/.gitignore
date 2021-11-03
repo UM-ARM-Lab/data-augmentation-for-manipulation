@@ -1,4 +1,5 @@
 results
+.log_*
 *.pyc
 data
 classifier_data
