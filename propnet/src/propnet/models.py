@@ -280,28 +280,13 @@ class PropNet(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
 
-    def training_step(self, train_batch, batch_idx):
-        gt_vel, gt_pos, pred_vel, pred_pos = self.forward(train_batch)
-        loss = F.l1_loss(pred_vel, gt_vel)
-        error_pos = F.l1_loss(pred_pos, gt_pos)
-        self.log('train_loss', loss)
-        self.log('error_pos', error_pos)
-        return loss
-
-    def validation_step(self, val_batch, batch_idx):
-        gt_vel, gt_pos, pred_vel, pred_pos = self.forward(val_batch)
-        loss = F.l1_loss(pred_vel, gt_vel)
-        self.log('val_loss', loss)
-
     def forward(self, batch):
         batch_size = len(batch['filename'])
         Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
 
-        dt = batch['dt'][:, 0:1]  # in batch, dt is [batch, time, 1] but we want [batch, 1, 1]
-
         attr, states, actions = self.states_and_actions(batch, batch_size)
-        gt_pos = states[:, :, :, :self.hparams.position_dim]
-        gt_vel = states[:, :, :, self.hparams.position_dim:]
+        gt_pos = states[:, :, :, :self.hparams.position_dim].clone()
+        gt_vel = states[:, :, :, self.hparams.position_dim:].clone()
         pred_state_t = states[:, 0]  # [b, n_objects, state_dim]
         pred_vel = [pred_state_t[:, :, self.hparams.position_dim:].clone()]
         pred_pos = [pred_state_t[:, :, :self.hparams.position_dim].clone()]
@@ -310,11 +295,11 @@ class PropNet(pl.LightningModule):
             pred_vel_t = self.one_step_forward(attr, pred_state_t, Rr_batch, Rs_batch, Ra_batch, action_t)
             # pred_vel_t: [b, n_objects, position_dim]
             # Integrate the velocity to produce the next positions, then copy the velocities
-            next_pred_pos = pred_state_t[:, :, :self.hparams.position_dim] + dt * pred_vel_t
+            next_pred_pos = pred_state_t[:, :, :self.hparams.position_dim] + pred_vel_t
             pred_state_t[:, :, :self.hparams.position_dim] = next_pred_pos
             pred_state_t[:, :, self.hparams.position_dim:] = pred_vel_t
-            pred_vel.append(pred_vel_t)
-            pred_pos.append(next_pred_pos)
+            pred_vel.append(pred_vel_t.clone())
+            pred_pos.append(next_pred_pos.clone())
         pred_vel = torch.stack(pred_vel, dim=1)
         pred_pos = torch.stack(pred_pos, dim=1)
         return gt_vel, gt_pos, pred_vel, pred_pos
@@ -354,3 +339,30 @@ class PropNet(pl.LightningModule):
         states = torch.stack(states, dim=2)  # [b, n_objects, T, ...]
         actions = torch.stack(actions, dim=2)  # [b, n_objects, T-1, ...]
         return attrs, states, actions
+
+    def velocity_loss(self, gt_vel, pred_vel):
+        loss = torch.norm(gt_vel - pred_vel, dim=-1)
+        loss = torch.mean(loss, dim=2)  # average across objects
+        loss = torch.max(loss, dim=1)  # max across time
+        loss = torch.mean(loss, dim=0)  # average across batch
+        return loss
+
+    def error_pos(self, gt_pos, pred_pos):
+        loss = torch.norm(gt_pos - pred_pos, dim=-1)
+        loss = torch.mean(loss, dim=2)  # average across objects
+        loss = torch.max(loss, dim=1)  # max across time
+        loss = torch.mean(loss, dim=0)  # average across batch
+        return loss
+
+    def training_step(self, train_batch, batch_idx):
+        gt_vel, gt_pos, pred_vel, pred_pos = self.forward(train_batch)
+        loss = self.velocity_loss(gt_vel, pred_vel)
+        self.log('train_loss', loss)
+        return loss
+
+    def validation_step(self, val_batch, batch_idx):
+        gt_vel, gt_pos, pred_vel, pred_pos = self.forward(val_batch)
+        loss = self.velocity_loss(gt_vel, pred_vel)
+        self.log('val_loss', loss)
+        error_pos = self.error_pos(gt_pos, pred_pos)
+        self.log('error_pos', error_pos)

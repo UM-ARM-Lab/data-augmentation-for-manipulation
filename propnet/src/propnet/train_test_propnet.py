@@ -58,7 +58,7 @@ def train_main(dataset_dir: pathlib.Path,
     best_val_ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss",
                                                     filename="best")
     latest_ckpt_cb = pl.callbacks.ModelCheckpoint(filename='latest')
-    early_stopping = pl.callbacks.EarlyStopping(monitor="val_loss", patience=10)
+    early_stopping = pl.callbacks.EarlyStopping(monitor="val_loss", patience=15)
     trainer = pl.Trainer(gpus=1,
                          weights_summary=None,
                          log_every_n_steps=1,

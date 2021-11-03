@@ -4,6 +4,7 @@ import pathlib
 from time import time
 
 import numpy as np
+import torch
 
 from arc_utilities import ros_init
 from link_bot_pycommon.args import run_subparsers
@@ -31,7 +32,8 @@ node_name = f"train_test_propnet_{int(time())}"
 
 @ros_init.with_ros(node_name)
 def main():
-    np.set_printoptions(linewidth=250, precision=4, suppress=True)
+    torch.set_printoptions(linewidth=250, precision=5, sci_mode=False)
+    np.set_printoptions(linewidth=250, precision=5, suppress=True)
     parser = argparse.ArgumentParser()
 
     subparsers = parser.add_subparsers()
