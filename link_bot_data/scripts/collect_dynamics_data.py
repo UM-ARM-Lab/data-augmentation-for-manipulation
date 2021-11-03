@@ -16,7 +16,6 @@ def main():
     parser.add_argument("n_trajs", type=int, help='how many trajectories to collect')
     parser.add_argument("nickname")
     parser.add_argument("--seed", '-s', type=int, help='seed')
-    parser.add_argument("--real-time-rate", type=float, default=0, help='number of times real time')
     parser.add_argument('--verbose', '-v', action='count', default=0)
     parser.add_argument('--save-format', choices=['pkl', 'h5', 'tfrecord'], default='pkl')
 

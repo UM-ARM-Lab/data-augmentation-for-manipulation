@@ -173,6 +173,17 @@ class PlanarPushingScenario(ScenarioWithVisualization):
         viz_action_sample_bbox(self.gripper_bbox_pub, get_action_sample_extent(action_params))
 
         start_gripper_position = get_tcp_pos(state)
+        action_dict = {
+            'gripper_position': start_gripper_position,
+        }
+
+        # first check if any objects are wayyy to far
+        num_objs = state['num_objs'][0]
+        for i in range(num_objs):
+            obj_position = state[f'obj{i}/position'][0]
+            out_of_bounds = is_out_of_bounds(obj_position, action_params['extent'])
+            if out_of_bounds:
+                return action_dict, (invalid := False)  # this will cause the current trajectory to be thrown out
 
         for _ in range(self.max_action_attempts):
             repeat_probability = action_params['repeat_delta_gripper_motion_probability']
@@ -199,9 +210,6 @@ class PlanarPushingScenario(ScenarioWithVisualization):
             self.last_action = action
             return action, (invalid := False)
 
-        action_dict = {
-            'gripper_position': start_gripper_position,
-        }
         rospy.logwarn("Could not find a valid action, executing an invalid one")
         return action_dict, (invalid := False)
 

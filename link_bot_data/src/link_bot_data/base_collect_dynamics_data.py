@@ -148,7 +148,7 @@ class BaseDataCollector:
                     break
 
             if invalid:
-                raise RuntimeError(f"Could not execute trajectory {traj_idx}")
+                raise RuntimeError(f"Could not execute valid trajectory {traj_idx}")
 
             # Save the data
             self.write_example(full_output_directory, example, traj_idx)
@@ -225,7 +225,8 @@ def collect_dynamics_data(collect_dynamics_params: pathlib.Path,
                           nickname: str,
                           verbose=0,
                           save_format: str = 'pkl',
-                          seed: Optional[int] = None):
+                          seed: Optional[int] = None,
+                          **kwargs):
     with collect_dynamics_params.open("r") as f:
         collect_dynamics_params = hjson.load(f)
     DataCollectorClass, extension = get_data_collector_class(save_format)

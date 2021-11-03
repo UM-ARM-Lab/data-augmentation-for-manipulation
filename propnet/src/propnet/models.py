@@ -356,10 +356,11 @@ class PropNet(pl.LightningModule):
 
     def max_error_pos(self, gt_pos, pred_pos):
         error_pos = torch.norm(gt_pos - pred_pos, dim=-1)
-        error_pos = torch.max(error_pos, dim=2)  # objects
-        error_pos = torch.max(error_pos.values, dim=1)  # time
-        error_pos = torch.max(error_pos.values, dim=0)  # batch
-        error_pos = error_pos.values
+        # we use 95% quantile instead of max because there are outliers
+        error_pos = torch.quantile(error_pos, q=0.95, dim=2)  # objects
+        error_pos = torch.quantile(error_pos, q=0.95, dim=1)  # time
+        error_pos = torch.quantile(error_pos, q=0.95, dim=0)  # batch
+        error_pos = error_pos
         return error_pos
 
     def training_step(self, train_batch, batch_idx):
