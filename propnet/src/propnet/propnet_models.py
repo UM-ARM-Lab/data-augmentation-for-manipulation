@@ -179,21 +179,30 @@ class PropNet(pl.LightningModule):
             Rs: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the sender in relation j
             Ra: [b, num_objects^2, attr_dim] containing the relation attributes
         """
+        pos_vel_dim = int(state.shape[-1] / 2)  # divide by 2 because pos and vel are equal size
+
         if action is not None:
+            vel_start_idx = attr.shape[-1] + pos_vel_dim
             object_observations = torch.cat([attr, state, action], dim=-1)
         else:
+            pos_vel_dim = int(state.shape[-1] / 2)  # divide by 2 because pos and vel are equal size
+            vel_start_idx = pos_vel_dim
             object_observations = torch.cat([attr, state], dim=-1)
         # [3, b, num_objects, attr+state+action]
 
+        vel_end_idx = vel_start_idx + pos_vel_dim
+
         std_object_observations = object_observations[2]
+        std_vel = std_object_observations[..., vel_start_idx:vel_end_idx]
         mean_object_observations = object_observations[1]
+        mean_vel = mean_object_observations[..., vel_start_idx:vel_end_idx]
         object_observations = object_observations[0]
 
         object_observations = normalize(object_observations, mean_object_observations, std_object_observations)
         pred_vel_t = self.model(object_observations, Rr, Rs, Ra, self.hparams['pstep'], verbose=self.hparams['verbose'])
-        inv_mean_object_observations = -mean_object_observations / std_object_observations
-        inv_std_object_observations = 1 / std_object_observations
-        pred_vel_t = normalize(pred_vel_t, inv_mean_object_observations, inv_std_object_observations)
+        inv_mean_vel = -mean_vel / std_vel
+        inv_std_vel = 1 / std_vel
+        pred_vel_t = normalize(pred_vel_t, inv_mean_vel, inv_std_vel)
 
         return pred_vel_t
 
@@ -207,11 +216,11 @@ class PropNet(pl.LightningModule):
 
         attr, states, actions = self.states_and_actions(batch, batch_size)
         # attr: [3, b, n_objects, 1]
-        # states: [3, b, n_objects, T, n_state]
-        # actions: [3, b, n_objects, T, n_action]
+        # states: [3, b, T, n_objects, n_state]
+        # actions: [3, b, T, n_objects, n_action]
         gt_pos = states[..., :self.hparams.position_dim].clone()
         gt_vel = states[..., self.hparams.position_dim:].clone()
-        pred_state_t = states[:, :, 0]  # [b, n_objects, state_dim]
+        pred_state_t = states[:, :, 0]  # [3, b, n_objects, state_dim]
         pred_vel = [pred_state_t[..., self.hparams.position_dim:].clone()]
         pred_pos = [pred_state_t[..., :self.hparams.position_dim].clone()]
         for t in range(actions.shape[2]):

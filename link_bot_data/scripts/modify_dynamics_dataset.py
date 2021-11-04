@@ -13,11 +13,6 @@ from link_bot_data.modify_dataset import modify_dataset, modify_dataset2
 from link_bot_data.split_dataset import split_dataset_via_files
 
 
-def pos_to_vel(pos):
-    vel = pos[1:] - pos[:-1]
-    vel = np.pad(vel, [[1, 0], [0, 0], [0, 0]])
-    return vel
-
 
 @ros_init.with_ros("modify_dynamics_dataset")
 def main():
@@ -33,14 +28,7 @@ def main():
     s = None
 
     def _process_example(dataset, example: Dict):
-        num_objs = example['num_objs'][0, 0]  # assumed fixed across time
-        robot_pos = example[f'{ARM_HAND_NAME}/tcp_pos']
-        robot_vel = pos_to_vel(robot_pos)
-        example[f"{ARM_HAND_NAME}/tcp_vel"] = robot_vel
-        for obj_idx in range(num_objs):
-            obj_pos = example[f'{ARM_HAND_NAME}/position']
-            obj_vel = pos_to_vel(obj_pos)
-            example[f"obj{obj_idx}/linear_velocity"] = obj_vel
+        example = s.propnet_add_vel(example)
         yield example
 
     hparams_update = {}
@@ -63,7 +51,7 @@ def main():
                         process_example=_process_example,
                         hparams_update=hparams_update,
                         save_format=args.save_format)
-        split_dataset_via_files(args.dataset_dir, 'hjson')
+        split_dataset_via_files(args.dataset_dir, 'pkl')
 
 
 if __name__ == '__main__':

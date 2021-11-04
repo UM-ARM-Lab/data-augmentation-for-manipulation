@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import pickle
 from typing import Dict
@@ -20,7 +21,7 @@ def remove_keys(*keys):
     return _remove_keys
 
 
-def add_stats(example: Dict, stats: Dict):
+def add_stats_to_example(example: Dict, stats: Dict):
     for k, stats_k in stats.items():
         example[f'{k}/mean'] = stats_k[0]
         example[f'{k}/std'] = stats_k[1]
@@ -30,9 +31,10 @@ def add_stats(example: Dict, stats: Dict):
 
 class TorchDynamicsDataset(Dataset):
 
-    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None):
+    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, add_stats=True):
         self.dataset_dir = dataset_dir
         self.metadata_filenames = get_filenames([dataset_dir], mode)
+        self.add_stats = add_stats
 
         self.params = load_params(dataset_dir)
 
@@ -61,7 +63,11 @@ class TorchDynamicsDataset(Dataset):
         metadata_filename = self.metadata_filenames[idx]
         example = load_single(metadata_filename)
 
-        example = add_stats(example, self.stats)
+        if self.add_stats:
+            if self.stats is None:
+                logging.getLogger(__file__).warning('no stats in this dataset?!')
+            else:
+                example = add_stats_to_example(example, self.stats)
 
         if self.transform:
             example = self.transform(example)

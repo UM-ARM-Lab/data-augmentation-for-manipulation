@@ -19,7 +19,8 @@ def main():
 
     dataset = TorchDynamicsDataset(args.dataset_dir,
                                    mode='train',
-                                   transform=remove_keys('filename', 'full_filename', 'joint_names', 'metadata'))
+                                   transform=remove_keys('filename', 'full_filename', 'joint_names', 'metadata'),
+                                   add_stats=False)  # don't load the existing stats
     n = len(dataset)
     features_sums = {}
 
