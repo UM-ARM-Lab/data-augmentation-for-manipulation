@@ -209,8 +209,7 @@ class PropNet(pl.LightningModule):
             pred_vel_t = self.one_step_forward(attr, pred_state_t, action_t, Rr_batch, Rs_batch, Ra_batch)
             # pred_vel_t: [b, n_objects, position_dim]
             # Integrate the velocity to produce the next positions, then copy the velocities
-            next_pred_pos = pred_state_t[..., :self.hparams.position_dim] + pred_vel_t
-            x = pred_state_t[..., :self.hparams.position_dim] + gt_vel[:, t]
+            next_pred_pos = pred_state_t[..., :self.hparams.position_dim] + pred_vel_t  # [b, n_objects, pos_dim]
             pred_state_t[..., :self.hparams.position_dim] = next_pred_pos
             pred_state_t[..., self.hparams.position_dim:] = pred_vel_t
             pred_vel.append(pred_vel_t.clone())
