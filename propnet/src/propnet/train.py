@@ -11,7 +11,7 @@ from progressbar import ProgressBar
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from data import PhysicsDataset, collate_fn
-from models import PropNet
+from propnet.propnet_models import PropNet
 from utils import count_parameters, AverageMeter
 
 

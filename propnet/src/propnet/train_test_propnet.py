@@ -10,12 +10,13 @@ import git
 import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader
+from torchvision import transforms
 
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import numpify
 from moonshine.torch_utils import my_collate
-from propnet.models import PropNet
+from propnet.propnet_models import PropNet
 from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
 
@@ -30,8 +31,15 @@ def train_main(dataset_dir: pathlib.Path,
                no_validate: bool = False,
                **kwargs):
     pl.seed_everything(seed, workers=True)
-    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=remove_keys('filename', 'full_filename', 'joint_names', 'metadata'))
-    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=remove_keys('filename', 'full_filename', 'joint_names', 'metadata'))
+
+    transform = transforms.Compose([
+        remove_keys('filename', 'full_filename', 'joint_names', 'metadata'),
+    ])
+
+    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train',
+                                         transform=transform)
+    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val',
+                                       transform=transform)
     train_loader = DataLoader(train_dataset,
                               batch_size=batch_size,
                               shuffle=True,

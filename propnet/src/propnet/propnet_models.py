@@ -1,125 +1,22 @@
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import Variable
+from torch.nn import functional as F
 
-# noinspection PyPep8Naming
 from link_bot_pycommon.get_scenario import get_scenario
+from propnet.component_models import ParticleEncoder, RelationEncoder, Propagator, ParticlePredictor
 from propnet.relations import construct_fully_connected_rel
 
 
-class RelationEncoder(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super(RelationEncoder, self).__init__()
-
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.output_size = output_size
-
-        self.model = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, output_size),
-            nn.ReLU()
-        )
-
-    def forward(self, x):
-        """
-        Args:
-            x: [batch_size, n_relations, input_size]
-        Returns:
-            [batch_size, n_relations, output_size]
-        """
-        B, N, D = x.size()
-        x = self.model(x.view(B * N, D))
-        return x.view(B, N, self.output_size)
+def pos_to_vel(robot_pos):
+    robot_vel = robot_pos[:, 1:] - robot_pos[:, :-1]
+    robot_vel = F.pad(robot_vel, [0, 0, 1, 0])
+    return robot_vel
 
 
-# noinspection PyPep8Naming
-class ParticleEncoder(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super(ParticleEncoder, self).__init__()
-
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.output_size = output_size
-
-        self.model = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, output_size),
-            nn.ReLU()
-        )
-
-    def forward(self, x):
-        """
-        Args:
-            x: [batch_size, n_particles, input_size]
-        Returns:
-            [batch_size, n_particles, output_size]
-        """
-        B, N, D = x.size()
-        x = self.model(x.view(B * N, D))
-        return x.view(B, N, self.output_size)
-
-
-# noinspection PyPep8Naming
-class Propagator(nn.Module):
-    def __init__(self, input_size, output_size, residual=False):
-        super(Propagator, self).__init__()
-
-        self.input_size = input_size
-        self.output_size = output_size
-        self.residual = residual
-
-        self.linear = nn.Linear(input_size, output_size)
-        self.relu = nn.ReLU()
-
-    def forward(self, x, res=None):
-        """
-        Args:
-            x: [batch_size, n_relations/n_particles, input_size]
-            res: residual
-        Returns:
-            [batch_size, n_relations/n_particles, output_size]
-        """
-        B, N, D = x.size()
-        if self.residual:
-            x = self.linear(x.view(B * N, D))
-            x = self.relu(x + res.view(B * N, self.output_size))
-        else:
-            x = self.relu(self.linear(x.view(B * N, D)))
-
-        return x.view(B, N, self.output_size)
-
-
-# noinspection PyPep8Naming
-class ParticlePredictor(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super(ParticlePredictor, self).__init__()
-
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.output_size = output_size
-
-        self.linear_0 = nn.Linear(input_size, hidden_size)
-        self.linear_1 = nn.Linear(hidden_size, output_size)
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        """
-        Args:
-            x: [batch_size, n_particles, input_size]
-        Returns:
-            [batch_size, n_particles, output_size]
-        """
-        B, N, D = x.size()
-        x = x.view(B * N, D)
-        x = self.linear_1(self.relu(self.linear_0(x)))
-        return x.view(B, N, self.output_size)
+def get_batch_size(batch):
+    batch_size = len(batch['time_idx'])
+    return batch_size
 
 
 # noinspection PyPep8Naming
@@ -239,17 +136,6 @@ class PropModule(pl.LightningModule):
 
 
 # noinspection PyPep8Naming
-def pos_to_vel(robot_pos):
-    robot_vel = robot_pos[:, 1:] - robot_pos[:, :-1]
-    robot_vel = F.pad(robot_vel, [0, 0, 1, 0])
-    return robot_vel
-
-
-def get_batch_size(batch):
-    batch_size = len(batch['time_idx'])
-    return batch_size
-
-
 class PropNet(pl.LightningModule):
 
     def __init__(self, hparams, residual=False):
@@ -267,19 +153,28 @@ class PropNet(pl.LightningModule):
         self.register_buffer("Rs", Rs)
         self.register_buffer("Ra", Ra)
 
-    def one_step_forward(self, attr, state, Rr, Rs, Ra, action=None):
+    def one_step_forward(self, attr, state, Rr, Rs, Ra, action):
         """
         Used only for fully observable case. Make only a 1-step prediction.
         In the original propnet code this was simply called forward.
+
+        As in the original propnet code and in the BRDPN implementation, we normalize the inputs to the model
+
+        Rr: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the receiver in relation j
+        Rs: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the sender in relation j
+        Ra: [b, num_objects^2, attr_dim] containing the relation attributes
         """
-        # Rr: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the receiver in relation j
-        # Rs: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the sender in relation j
-        # Ra: [b, num_objects^2, attr_dim] containing the relation attributes
         if action is not None:
-            state = torch.cat([attr, state, action], 2)  # [b, num_objects, state+action]
+            object_observations = torch.cat([attr, state, action], dim=-1)
         else:
-            state = torch.cat([attr, state], 2)
-        return self.model(state, Rr, Rs, Ra, self.hparams['pstep'], verbose=self.hparams['verbose'])
+            object_observations = torch.cat([attr, state], dim=-1)
+        # [b, num_objects, attr+state+action]
+
+        object_observations = self.normalizer(object_observations, stats)
+        pred_vel_t = self.model(object_observations, Rr, Rs, Ra, self.hparams['pstep'], verbose=self.hparams['verbose'])
+        pred_vel_t = self.denormalizer(pred_vel_t, inverse_stats)
+
+        return pred_vel_t
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)

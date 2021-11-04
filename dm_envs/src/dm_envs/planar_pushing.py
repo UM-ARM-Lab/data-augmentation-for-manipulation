@@ -1,6 +1,6 @@
 from typing import Dict
-import numpy as np
 
+import numpy as np
 from dm_control import composer
 from dm_control.composer import initializers
 from dm_control.composer.observation import observable
@@ -9,7 +9,6 @@ from dm_control.entities.manipulators.base import DOWN_QUATERNION
 from dm_control.manipulation.shared import cameras, workspaces, robots, observations, constants, arenas
 from dm_control.utils import inverse_kinematics
 
-from dm_envs import primitive_hand
 from dm_envs.primitive_hand import PrimitiveHand
 
 
