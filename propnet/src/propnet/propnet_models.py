@@ -78,7 +78,7 @@ class PropModule(pl.LightningModule):
         if self.batch:
             Rrp = torch.transpose(Rr, 1, 2)
             Rsp = torch.transpose(Rs, 1, 2)
-            state_r = Rrp.bmm(state)
+            state_r = Rrp.bmm(state)  # basically copies the receiver states
             state_s = Rsp.bmm(state)
         else:
             Rrp = Rr.t()
@@ -97,7 +97,11 @@ class PropModule(pl.LightningModule):
         particle_encode = self.particle_encoder(state)  # [b, n_objects, nf_particle]
 
         # calculate relation encoding
-        relation_encode = self.relation_encoder(torch.cat([state_r, state_s, Ra], 2))  # [b, n_objects, nf_relation]
+        # TODO: use difference in pos and vel between related objects?
+        state_r_rel = state_r  # [b, num_relations, nf_relation]
+        state_s_rel = state_s
+        relation_features = torch.cat([state_r_rel, state_s_rel, Ra], dim=-1)
+        relation_encode = self.relation_encoder(relation_features)  # [b, n_objects, nf_relation]
 
         if verbose:
             print("relation encode:", relation_encode.size())

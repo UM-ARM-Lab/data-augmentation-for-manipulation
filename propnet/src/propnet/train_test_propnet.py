@@ -8,7 +8,6 @@ from typing import Optional
 
 import git
 import pytorch_lightning as pl
-import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
@@ -109,19 +108,7 @@ def viz_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, **k
 
             s.plot_state_rviz(state_t, label='actual', color='#ff0000aa')
 
-            pred_state_t = {}
-            height_b_t = inputs['height'][b, t]
-            pred_state_t['height'] = height_b_t
-            pred_state_t['radius'] = inputs['radius'][b, t]
-            num_objs = inputs['num_objs'][b, t, 0]
-            pred_state_t['num_objs'] = [num_objs]
-            for j in range(num_objs):
-                pred_pos_b_t_2d = pred_pos[b, t, j + 1]
-                pred_pos_b_t_3d = torch.cat([pred_pos_b_t_2d, height_b_t / 2])
-                pred_vel_b_t_2d = pred_vel[b, t, j + 1]
-                pred_vel_b_t_3d = torch.cat([pred_vel_b_t_2d, torch.zeros(1)])
-                pred_state_t[f'obj{j}/position'] = torch.unsqueeze(pred_pos_b_t_3d, 0)
-                # pred_state_t[f'obj{j}/linear_velocity'] = torch.unsqueeze(pred_vel_b_t_3d, 0)
+            pred_state_t = s.propnet_outputs_to_state(inputs=inputs, pred_vel=pred_vel, pred_pos=pred_pos, b=b, t=t)
 
             s.plot_state_rviz(pred_state_t, label='predicted', color='#0000ffaa')
 

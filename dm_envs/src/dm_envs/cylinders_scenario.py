@@ -1,4 +1,5 @@
 import re
+from copy import deepcopy
 from typing import Dict
 
 import numpy as np
@@ -7,11 +8,13 @@ import torch
 from pyjacobian_follower import IkParams
 from tensorflow_graphics.geometry.transformation import quaternion
 
+from dm_envs import primitive_hand
 from dm_envs.cylinders_task import PlanarPushingCylindersTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario
 from dm_envs.planar_pushing_task import ARM_HAND_NAME
 from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
+from link_bot_pycommon.marker_index_generator import marker_index_generator
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 
@@ -70,6 +73,35 @@ def get_k_with_stats(batch, k):
     return v, v_mean, v_std
 
 
+def make_cylinder_marker(color_msg, height, idx, ns, position, radius):
+    marker = Marker(ns=ns, action=Marker.ADD, type=Marker.CYLINDER, id=idx, color=color_msg)
+    marker.header.frame_id = 'world'
+    marker.pose.position.x = position[0, 0]
+    marker.pose.position.y = position[0, 1]
+    marker.pose.position.z = position[0, 2]
+    marker.pose.orientation.w = 1
+    marker.scale.x = radius * 2
+    marker.scale.y = radius * 2
+    marker.scale.z = height
+
+    return marker
+
+
+def make_vel_arrow(color_msg, height, idx, ns, position, velocity):
+    start = position[0] + np.array([0, 0, height / 2 + 0.0005])
+    end = start + velocity[0]
+    vel_color_factor = 0.4
+    vel_color = ColorRGBA(color_msg.r * vel_color_factor,
+                          color_msg.g * vel_color_factor,
+                          color_msg.b * vel_color_factor,
+                          color_msg.a)
+    vel_marker = rviz_arrow(start, end,
+                            label=ns + 'vel',
+                            color=vel_color,
+                            idx=idx)
+    return vel_marker
+
+
 class CylindersScenario(PlanarPushingScenario):
 
     def plot_state_rviz(self, state: Dict, **kwargs):
@@ -83,38 +115,28 @@ class CylindersScenario(PlanarPushingScenario):
         height = state['height'][0]
         radius = state['radius'][0]
         msg = MarkerArray()
+
+        robot_position = state[f'{ARM_HAND_NAME}/tcp_pos']
+        robot_position[0, 2] += primitive_hand.HALF_HEIGHT
+        robot_color_msg = deepcopy(color_msg)
+        robot_color_msg.b = 1 - robot_color_msg.b
+        ig = marker_index_generator(idx)
+        marker = make_cylinder_marker(robot_color_msg, primitive_hand.HEIGHT, next(ig), ns + '_robot', robot_position,
+                                      radius)
+        msg.markers.append(marker)
+
+        robot_velocity = state[f'{ARM_HAND_NAME}/tcp_vel']
+        vel_marker = make_vel_arrow(color_msg, height, next(ig), ns + '_robot', robot_position, robot_velocity)
+        msg.markers.append(vel_marker)
+
         for i in range(num_objs):
-            position = state[f'obj{i}/position']
+            obj_position = state[f'obj{i}/position']
+            obj_marker = make_cylinder_marker(color_msg, height, next(ig), ns, obj_position, radius)
+            msg.markers.append(obj_marker)
 
-            marker = Marker()
-            marker.header.frame_id = 'world'
-            marker.action = Marker.ADD
-            marker.type = Marker.CYLINDER
-            marker.id = idx * num_objs + i
-            marker.ns = ns
-            marker.color = color_msg
-            marker.pose.position.x = position[0, 0]
-            marker.pose.position.y = position[0, 1]
-            marker.pose.position.z = position[0, 2]
-            marker.pose.orientation.w = 1
-            marker.scale.x = radius * 2
-            marker.scale.y = radius * 2
-            marker.scale.z = height
-            msg.markers.append(marker)
-
-            velocity = state[f'obj{i}/linear_velocity']
-            start = position[0] + np.array([0, 0, height / 2 + 0.0005])
-            end = start + velocity[0]
-            vel_color_factor = 0.4
-            vel_color = ColorRGBA(color_msg.r * vel_color_factor,
-                                  color_msg.g * vel_color_factor,
-                                  color_msg.b * vel_color_factor,
-                                  color_msg.a)
-            vel_marker = rviz_arrow(start, end,
-                                    label=ns + 'vel',
-                                    color=vel_color,
-                                    idx=idx * num_objs + i)
-            msg.markers.append(vel_marker)
+            obj_velocity = state[f'obj{i}/linear_velocity']
+            obj_vel_marker = make_vel_arrow(color_msg, height, next(ig), ns, obj_position, obj_velocity)
+            msg.markers.append(obj_vel_marker)
 
         self.state_viz_pub.publish(msg)
 
@@ -359,3 +381,29 @@ class CylindersScenario(PlanarPushingScenario):
             example[obj_vel_k] = obj_vel
             vel_state_keys.append(obj_vel_k)
         return example, vel_state_keys
+
+    def propnet_outputs_to_state(self, inputs, pred_vel, pred_pos, b, t):
+        pred_state_t = {}
+        height_b_t = inputs['height'][b, t]
+        pred_state_t['height'] = height_b_t
+        pred_state_t['radius'] = inputs['radius'][b, t]
+        num_objs = inputs['num_objs'][b, t, 0]
+        pred_state_t['num_objs'] = [num_objs]
+
+        pred_robot_pos_b_t_2d = pred_pos[b, t, 0]
+        default_robot_z = torch.zeros(1) * 0.01  # we've lost this info so just put something that will visualize ok
+        pred_robot_pos_b_t_3d = torch.cat([pred_robot_pos_b_t_2d, default_robot_z])
+        pred_robot_vel_b_t_2d = pred_vel[b, t, 0]
+        pred_robot_vel_b_t_3d = torch.cat([pred_robot_vel_b_t_2d, torch.zeros(1)])
+        pred_state_t[f'{ARM_HAND_NAME}/tcp_pos'] = torch.unsqueeze(pred_robot_pos_b_t_3d, 0).detach()
+        pred_state_t[f'{ARM_HAND_NAME}/tcp_vel'] = torch.unsqueeze(pred_robot_vel_b_t_3d, 0).detach()
+
+        for j in range(num_objs):
+            pred_pos_b_t_2d = pred_pos[b, t, j + 1]
+            pred_pos_b_t_3d = torch.cat([pred_pos_b_t_2d, height_b_t / 2])
+            pred_vel_b_t_2d = pred_vel[b, t, j + 1]
+            pred_vel_b_t_3d = torch.cat([pred_vel_b_t_2d, torch.zeros(1)])
+            pred_state_t[f'obj{j}/position'] = torch.unsqueeze(pred_pos_b_t_3d, 0).detach()
+            pred_state_t[f'obj{j}/linear_velocity'] = torch.unsqueeze(pred_vel_b_t_3d, 0).detach()
+
+        return pred_state_t
