@@ -31,7 +31,7 @@ def add_stats_to_example(example: Dict, stats: Dict):
 
 class TorchDynamicsDataset(Dataset):
 
-    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, add_stats=True):
+    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, add_stats=False):
         self.dataset_dir = dataset_dir
         self.metadata_filenames = get_filenames([dataset_dir], mode)
         self.add_stats = add_stats

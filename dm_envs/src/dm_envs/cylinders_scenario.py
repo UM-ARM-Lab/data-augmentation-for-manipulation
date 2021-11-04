@@ -18,7 +18,7 @@ from visualization_msgs.msg import MarkerArray, Marker
 
 def pos_to_vel(pos):
     vel = pos[1:] - pos[:-1]
-    vel = np.pad(vel, [[1, 0], [0, 0], [0, 0]])
+    vel = np.pad(vel, [[0, 1], [0, 0], [0, 0]], mode='edge')
     return vel
 
 
@@ -103,13 +103,13 @@ class CylindersScenario(PlanarPushingScenario):
             msg.markers.append(marker)
 
             velocity = state[f'obj{i}/linear_velocity']
-            end = position[0] + np.array([0, 0, height / 2 + 0.001])
-            start = end - velocity[0]
-            vel_color_factor = 0.5
+            start = position[0] + np.array([0, 0, height / 2 + 0.0005])
+            end = start + velocity[0]
+            vel_color_factor = 0.4
             vel_color = ColorRGBA(color_msg.r * vel_color_factor,
                                   color_msg.g * vel_color_factor,
                                   color_msg.b * vel_color_factor,
-                                  color_msg.a * vel_color_factor)
+                                  color_msg.a)
             vel_marker = rviz_arrow(start, end,
                                     label=ns + 'vel',
                                     color=vel_color,
@@ -311,61 +311,39 @@ class CylindersScenario(PlanarPushingScenario):
         return "cylinders"
 
     def propnet_obj_v(self, batch, batch_size, obj_idx, time, device):
-        obj_attr = torch.zeros([batch_size, 1]).to(device)
-        obj_attr_mean = torch.zeros_like(obj_attr)
-        obj_attr_std = torch.ones_like(obj_attr)
+        obj_attr = torch.zeros([batch_size, 1], device=device)
 
         obj_pos_k = f"obj{obj_idx}/position"
-        obj_pos, obj_pos_mean, obj_pos_std = get_k_with_stats(batch, obj_pos_k)  # [b, T, 2]
+        obj_pos = batch[obj_pos_k]  # [b, T, 2]
         obj_pos = squeeze_and_get_xy(obj_pos)
-        obj_pos_mean = squeeze_and_get_xy(obj_pos_mean)
-        obj_pos_std = squeeze_and_get_xy(obj_pos_std)
 
         obj_vel_k = f"obj{obj_idx}/linear_velocity"
-        obj_vel, obj_vel_mean, obj_vel_std = get_k_with_stats(batch, obj_vel_k)  # [b, T, 2]
+        obj_vel = batch[obj_vel_k]  # [b, T, 2]
         obj_vel = squeeze_and_get_xy(obj_vel)
-        obj_vel_mean = squeeze_and_get_xy(obj_vel_mean)
-        obj_vel_std = squeeze_and_get_xy(obj_vel_std)
 
         obj_state = torch.cat([obj_pos, obj_vel], dim=-1)  # [b, T, 4]
-        obj_state_mean = torch.cat([obj_pos_mean, obj_vel_mean], dim=-1)
-        obj_state_std = torch.cat([obj_pos_std, obj_vel_std], dim=-1)
 
-        obj_action = torch.zeros([batch_size, time - 1, 3]).to(device)
-        obj_action_mean = torch.zeros_like(obj_action)
-        obj_action_std = torch.ones_like(obj_action)
+        obj_action = torch.zeros([batch_size, time - 1, 3], device=device)
 
-        return torch.stack([obj_attr, obj_attr_mean, obj_attr_std]), \
-               torch.stack([obj_state, obj_state_mean, obj_state_std]), \
-               torch.stack([obj_action, obj_action_mean, obj_action_std])
+        return obj_attr, obj_state, obj_action
 
     def propnet_robot_v(self, batch, batch_size, device):
-        robot_attr = torch.ones([batch_size, 1]).to(device)
-        robot_attr_mean = torch.zeros_like(robot_attr)
-        robot_attr_std = torch.ones_like(robot_attr)
+        robot_attr = torch.ones([batch_size, 1], device=device)
 
         robot_pos_k = f"{ARM_HAND_NAME}/tcp_pos"
-        robot_pos, robot_pos_mean, robot_pos_std = get_k_with_stats(batch, robot_pos_k)
+        robot_pos = batch[robot_pos_k]
         robot_pos = squeeze_and_get_xy(robot_pos)
-        robot_pos_mean = squeeze_and_get_xy(robot_pos_mean)
-        robot_pos_std = squeeze_and_get_xy(robot_pos_std)
 
         robot_vel_k = f"{ARM_HAND_NAME}/tcp_vel"
-        robot_vel, robot_vel_mean, robot_vel_std = get_k_with_stats(batch, robot_vel_k)
+        robot_vel = batch[robot_vel_k]
         robot_vel = squeeze_and_get_xy(robot_vel)
-        robot_vel_mean = squeeze_and_get_xy(robot_vel_mean)
-        robot_vel_std = squeeze_and_get_xy(robot_vel_std)
 
         robot_state = torch.cat([robot_pos, robot_vel], dim=-1)  # [b, T, 4]
-        robot_state_mean = torch.cat([robot_pos_mean, robot_vel_mean], dim=-1)
-        robot_state_std = torch.cat([robot_pos_std, robot_vel_std], dim=-1)
 
         robot_action_k = 'gripper_position'
-        robot_action, robot_action_mean, robot_action_std = get_k_with_stats(batch, robot_action_k)
+        robot_action = batch[robot_action_k]
 
-        return torch.stack([robot_attr, robot_attr_mean, robot_attr_std]), \
-               torch.stack([robot_state, robot_state_mean, robot_state_std]), \
-               torch.stack([robot_action, robot_action_mean, robot_action_std])
+        return robot_attr, robot_state, robot_action
 
     def propnet_add_vel(self, example: Dict):
         num_objs = example['num_objs'][0, 0]  # assumed fixed across time

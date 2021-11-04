@@ -170,42 +170,22 @@ class PropNet(pl.LightningModule):
         Used only for fully observable case. Make only a 1-step prediction.
         In the original propnet code this was simply called forward.
 
-        As in the original propnet code and in the BRDPN implementation, we normalize the inputs to the model
-
-            attr: [3, b, num_objects, n_attr] first dim is value, mean, std
-            state: [3, b, num_objects, n_state]
-            action: [3, b, num_objects, n_action]
+            attr: [b, num_objects, n_attr] first dim is value, mean, std
+            state: [b, num_objects, n_state]
+            action: [b, num_objects, n_action]
             Rr: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the receiver in relation j
             Rs: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the sender in relation j
             Ra: [b, num_objects^2, attr_dim] containing the relation attributes
         """
-        pos_vel_dim = int(state.shape[-1] / 2)  # divide by 2 because pos and vel are equal size
-
         if action is not None:
-            vel_start_idx = attr.shape[-1] + pos_vel_dim
             object_observations = torch.cat([attr, state, action], dim=-1)
         else:
-            pos_vel_dim = int(state.shape[-1] / 2)  # divide by 2 because pos and vel are equal size
-            vel_start_idx = pos_vel_dim
             object_observations = torch.cat([attr, state], dim=-1)
-        # [3, b, num_objects, attr+state+action]
+        # [b, num_objects, attr+state+action]
 
-        vel_end_idx = vel_start_idx + pos_vel_dim
-
-        std_object_observations = object_observations[2]
-        std_vel = std_object_observations[..., vel_start_idx:vel_end_idx]
-        mean_object_observations = object_observations[1]
-        mean_vel = mean_object_observations[..., vel_start_idx:vel_end_idx]
-        object_observations = object_observations[0]
-
-        object_observations = normalize(object_observations, mean_object_observations, std_object_observations)
         pred_vel_t = self.model(object_observations, Rr, Rs, Ra, self.hparams['pstep'], verbose=self.hparams['verbose'])
-        inv_mean_vel = -mean_vel / std_vel
-        inv_std_vel = 1 / std_vel
-        pred_vel_t = normalize(pred_vel_t, inv_mean_vel, inv_std_vel)
 
-        pred_vel_t_ws = torch.stack([pred_vel_t, mean_vel, std_vel])
-        return pred_vel_t_ws
+        return pred_vel_t
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -215,22 +195,22 @@ class PropNet(pl.LightningModule):
         batch_size = get_batch_size(batch)
         Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
 
-        # foo_ws means with states, so first dim is 3. foo[0] is the values, foo[1] is mean and foo[2] is std
-        attr_ws, states_ws, actions_ws = self.states_and_actions(batch, batch_size)
-        # attr_ws: [3, b, n_objects, 1]
-        # states_ws: [3, b, T, n_objects, n_state]
-        # actions_ws: [3, b, T, n_objects, n_action]
-        gt_pos = states_ws[..., :self.hparams.position_dim].clone()
-        gt_vel = states_ws[..., self.hparams.position_dim:].clone()
-        pred_state_t_ws = states_ws[:, :, 0]  # [b, n_objects, state_dim]
-        pred_vel = [pred_state_t_ws[0, ..., self.hparams.position_dim:].clone()]
-        pred_pos = [pred_state_t_ws[0, ..., :self.hparams.position_dim].clone()]
-        for t in range(actions_ws.shape[2]):
-            action_t_ws = actions_ws[:, :, t]
-            pred_vel_t = self.one_step_forward(attr_ws, pred_state_t_ws, action_t_ws, Rr_batch, Rs_batch, Ra_batch)
-            # pred_vel_t: [3, b, n_objects, position_dim]
+        attr, states, actions = self.states_and_actions(batch, batch_size)
+        # attr: [b, n_objects, 1]
+        # states: [b, T, n_objects, n_state]
+        # actions: [b, T-1, n_objects, n_action]
+        gt_pos = states[..., :self.hparams.position_dim].clone()
+        gt_vel = states[..., self.hparams.position_dim:].clone()
+        pred_state_t = states[:, 0]  # [b, n_objects, state_dim]
+        pred_vel = [pred_state_t[..., self.hparams.position_dim:].clone()]
+        pred_pos = [pred_state_t[..., :self.hparams.position_dim].clone()]
+        for t in range(actions.shape[1]):
+            action_t = actions[:, t]
+            pred_vel_t = self.one_step_forward(attr, pred_state_t, action_t, Rr_batch, Rs_batch, Ra_batch)
+            # pred_vel_t: [b, n_objects, position_dim]
             # Integrate the velocity to produce the next positions, then copy the velocities
             next_pred_pos = pred_state_t[..., :self.hparams.position_dim] + pred_vel_t
+            x = pred_state_t[..., :self.hparams.position_dim] + gt_vel[:, t]
             pred_state_t[..., :self.hparams.position_dim] = next_pred_pos
             pred_state_t[..., self.hparams.position_dim:] = pred_vel_t
             pred_vel.append(pred_vel_t.clone())
@@ -266,9 +246,9 @@ class PropNet(pl.LightningModule):
             attrs.append(obj_attr)
             states.append(obj_state)
             actions.append(obj_action)
-        attrs = torch.stack(attrs, dim=2)  # [3, b, n_objects, 1]
-        states = torch.stack(states, dim=3)  # [3, b, n_objects, T, ...]
-        actions = torch.stack(actions, dim=3)  # [3, b, n_objects, T-1, ...]
+        attrs = torch.stack(attrs, dim=1)  # [b, n_objects, 1]
+        states = torch.stack(states, dim=2)  # [b, T, n_objects,  ...]
+        actions = torch.stack(actions, dim=2)  # [b, T-1, n_objects, ...]
         return attrs, states, actions
 
     def velocity_loss(self, gt_vel, pred_vel):
