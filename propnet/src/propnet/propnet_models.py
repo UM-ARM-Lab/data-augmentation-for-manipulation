@@ -204,7 +204,8 @@ class PropNet(pl.LightningModule):
         inv_std_vel = 1 / std_vel
         pred_vel_t = normalize(pred_vel_t, inv_mean_vel, inv_std_vel)
 
-        return pred_vel_t
+        pred_vel_t_ws = torch.stack([pred_vel_t, mean_vel, std_vel])
+        return pred_vel_t_ws
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -214,18 +215,19 @@ class PropNet(pl.LightningModule):
         batch_size = get_batch_size(batch)
         Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
 
-        attr, states, actions = self.states_and_actions(batch, batch_size)
-        # attr: [3, b, n_objects, 1]
-        # states: [3, b, T, n_objects, n_state]
-        # actions: [3, b, T, n_objects, n_action]
-        gt_pos = states[..., :self.hparams.position_dim].clone()
-        gt_vel = states[..., self.hparams.position_dim:].clone()
-        pred_state_t = states[:, :, 0]  # [3, b, n_objects, state_dim]
-        pred_vel = [pred_state_t[..., self.hparams.position_dim:].clone()]
-        pred_pos = [pred_state_t[..., :self.hparams.position_dim].clone()]
-        for t in range(actions.shape[2]):
-            action_t = actions[:, :, t]
-            pred_vel_t = self.one_step_forward(attr, pred_state_t, action_t, Rr_batch, Rs_batch, Ra_batch)
+        # foo_ws means with states, so first dim is 3. foo[0] is the values, foo[1] is mean and foo[2] is std
+        attr_ws, states_ws, actions_ws = self.states_and_actions(batch, batch_size)
+        # attr_ws: [3, b, n_objects, 1]
+        # states_ws: [3, b, T, n_objects, n_state]
+        # actions_ws: [3, b, T, n_objects, n_action]
+        gt_pos = states_ws[..., :self.hparams.position_dim].clone()
+        gt_vel = states_ws[..., self.hparams.position_dim:].clone()
+        pred_state_t_ws = states_ws[:, :, 0]  # [b, n_objects, state_dim]
+        pred_vel = [pred_state_t_ws[0, ..., self.hparams.position_dim:].clone()]
+        pred_pos = [pred_state_t_ws[0, ..., :self.hparams.position_dim].clone()]
+        for t in range(actions_ws.shape[2]):
+            action_t_ws = actions_ws[:, :, t]
+            pred_vel_t = self.one_step_forward(attr_ws, pred_state_t_ws, action_t_ws, Rr_batch, Rs_batch, Ra_batch)
             # pred_vel_t: [3, b, n_objects, position_dim]
             # Integrate the velocity to produce the next positions, then copy the velocities
             next_pred_pos = pred_state_t[..., :self.hparams.position_dim] + pred_vel_t
