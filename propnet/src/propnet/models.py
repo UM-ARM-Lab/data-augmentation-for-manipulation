@@ -245,6 +245,11 @@ def pos_to_vel(robot_pos):
     return robot_vel
 
 
+def get_batch_size(batch):
+    batch_size = len(batch['time_idx'])
+    return batch_size
+
+
 class PropNet(pl.LightningModule):
 
     def __init__(self, hparams, residual=False):
@@ -281,7 +286,7 @@ class PropNet(pl.LightningModule):
         return optimizer
 
     def forward(self, batch):
-        batch_size = len(batch['filename'])
+        batch_size = get_batch_size(batch)
         Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
 
         attr, states, actions = self.states_and_actions(batch, batch_size)

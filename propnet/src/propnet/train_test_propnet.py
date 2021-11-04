@@ -16,7 +16,7 @@ from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import numpify
 from moonshine.torch_utils import my_collate
 from propnet.models import PropNet
-from propnet.torch_dynamics_dataset import TorchDynamicsDataset
+from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
 
 def train_main(dataset_dir: pathlib.Path,
@@ -29,19 +29,18 @@ def train_main(dataset_dir: pathlib.Path,
                take: Optional[int] = None,
                no_validate: bool = False,
                **kwargs):
-    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train')
-    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val')
+    pl.seed_everything(seed, workers=True)
+    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=remove_keys('filename', 'full_filename', 'joint_names', 'metadata'))
+    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=remove_keys('filename', 'full_filename', 'joint_names', 'metadata'))
     train_loader = DataLoader(train_dataset,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=get_num_workers(batch_size),
-                              collate_fn=my_collate)
+                              num_workers=get_num_workers(batch_size))
     val_loader = None
     if len(val_dataset) > 0 and not no_validate:
         val_loader = DataLoader(val_dataset,
                                 batch_size=batch_size,
-                                num_workers=get_num_workers(batch_size),
-                                collate_fn=my_collate)
+                                num_workers=get_num_workers(batch_size))
 
     if take:
         train_loader = train_loader[:take]
@@ -58,21 +57,23 @@ def train_main(dataset_dir: pathlib.Path,
         model_params['sha'] = sha
         model_params['start-train-time'] = stamp
         model = PropNet(hparams=model_params)
+        ckpt_path = None
     else:
-        model = PropNet.load_from_checkpoint(checkpoint.as_posix())
+        ckpt_path = checkpoint.as_posix()
+        model = PropNet.load_from_checkpoint(ckpt_path)
 
     # training
     logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
     best_val_ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss",
                                                     filename="best-{epoch:02d}-{val_loss:.6f}")
-    latest_ckpt_cb = pl.callbacks.ModelCheckpoint(filename='latest-{epoch:02d}')
-    early_stopping = pl.callbacks.EarlyStopping(monitor="val_loss", patience=15)
+    latest_ckpt_cb = pl.callbacks.ModelCheckpoint(filename='latest-{epoch:02d}', save_on_train_epoch_end=True)
+    early_stopping = pl.callbacks.EarlyStopping(monitor="val_loss", patience=25)
     trainer = pl.Trainer(gpus=1,
-                         weights_summary=None,
+                         enable_model_summary=False,
                          log_every_n_steps=1,
                          max_epochs=epochs,
                          callbacks=[best_val_ckpt_cb, latest_ckpt_cb, early_stopping])
-    trainer.fit(model, train_loader, val_loader)
+    trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
 
 
 def viz_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, **kwargs):

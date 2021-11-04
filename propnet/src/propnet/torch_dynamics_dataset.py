@@ -8,10 +8,14 @@ from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_params
 
 
-def remove_joint_names(example):
-    if 'joint_names' in example:
-        example.pop('joint_names')
-    return example
+def remove_keys(*keys):
+    def _remove_keys(example):
+        for k in keys:
+            if k in example:
+                example.pop(k)
+        return example
+
+    return _remove_keys
 
 
 class TorchDynamicsDataset(Dataset):
