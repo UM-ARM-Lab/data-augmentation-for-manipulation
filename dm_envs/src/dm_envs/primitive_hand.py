@@ -18,12 +18,12 @@ class PrimitiveHandObservables(PrimitiveObservables):
 
 class PrimitiveHand(RobotHand, Primitive):
 
-    def _build(self):
+    def _build(self, hand_name):
         size = [RADIUS, HALF_HEIGHT]
         Primitive._build(self,
                          geom_type='cylinder',
                          size=size,
-                         name='primitive_hand',
+                         name=hand_name,
                          pos=[0, 0, HALF_HEIGHT],
                          rgba=[0, 1, 0, 1])
         self._tool_center_point = self.mjcf_model.worldbody.add('site', name='tcp', pos=[0, 0, HEIGHT], euler=[0, 0, 0])

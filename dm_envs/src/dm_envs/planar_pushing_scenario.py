@@ -7,6 +7,7 @@ from tensorflow_graphics.geometry.transformation import rotation_matrix_3d
 
 import ros_numpy
 import rospy
+from dm_envs.planar_pushing_task import ARM_NAME, HAND_NAME, ARM_HAND_NAME
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.visualization_common import make_delete_markerarray
 from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
@@ -17,9 +18,6 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import Image, JointState
 from visualization_msgs.msg import MarkerArray
-
-ARM_NAME = 'jaco_arm'
-HAND_NAME = 'primitive_hand'
 
 
 def get_joint_position(state):
@@ -80,7 +78,7 @@ class PlanarPushingScenario(ScenarioWithVisualization):
 
         self.camera_pub = rospy.Publisher("camera", Image, queue_size=10)
         self.gripper_bbox_pub = rospy.Publisher('gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
-        self.joint_states_pub = rospy.Publisher('jaco_arm/joint_states', JointState, queue_size=10)
+        self.joint_states_pub = rospy.Publisher(f'{ARM_NAME}/joint_states', JointState, queue_size=10)
         self.viz_aug_pub = rospy.Publisher('viz_aug', MarkerArray, queue_size=10)
 
         self.last_action = None
@@ -107,7 +105,7 @@ class PlanarPushingScenario(ScenarioWithVisualization):
         ]
         params['action_keys'] = ['gripper_position']
         params['state_metadata_keys'] = []
-        params['gripper_keys'] = ['jaco_arm/primitive_hand/tcp_pos', 'jaco_arm/primitive_hand/orientation']
+        params['gripper_keys'] = [f'{ARM_HAND_NAME}/tcp_pos', f'{ARM_HAND_NAME}/orientation']
         params['augmentable_state_keys'] = []
 
         params['points_state_keys'] = list(filter(self.is_points_key, s.keys()))
@@ -140,7 +138,7 @@ class PlanarPushingScenario(ScenarioWithVisualization):
         return state
 
     def plot_state_rviz(self, state: Dict, **kwargs):
-        if 'jaco_arm/joints_pos' in state:
+        if f'{ARM_NAME}/joints_pos' in state:
             joint_state = self.get_joint_state_msg(state)
             self.joint_states_pub.publish(joint_state)
 

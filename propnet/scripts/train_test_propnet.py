@@ -5,6 +5,7 @@ from time import time
 
 import numpy as np
 import torch
+# from pytorch_lightning import Trainer
 
 from arc_utilities import ros_init
 from link_bot_pycommon.args import run_subparsers
@@ -15,7 +16,6 @@ def train_main(args):
     if args.seed is None:
         args.seed = np.random.randint(0, 10000)
 
-    print("Using seed {}".format(args.seed))
     train_test_propnet.train_main(**vars(args))
 
 
@@ -48,6 +48,7 @@ def main():
     train_parser.add_argument('--log', '-l')
     train_parser.add_argument('--no-validate', action='store_true')
     train_parser.add_argument('--seed', type=int, default=None)
+    # train_parser = Trainer.add_argparse_args(train_parser)
     train_parser.set_defaults(func=train_main)
 
     viz_parser = subparsers.add_parser('viz')

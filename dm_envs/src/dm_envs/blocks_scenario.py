@@ -7,7 +7,7 @@ from matplotlib import colors
 from pyjacobian_follower import IkParams
 from tensorflow_graphics.geometry.transformation import quaternion
 
-from dm_envs.blocks_env import PlanarPushingBlocksTask
+from dm_envs.blocks_task import PlanarPushingBlocksTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario, transformation_matrices_from_pos_quat
 from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import repeat_tensor

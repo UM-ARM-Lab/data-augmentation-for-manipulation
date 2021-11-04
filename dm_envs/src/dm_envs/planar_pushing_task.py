@@ -11,13 +11,17 @@ from dm_control.utils import inverse_kinematics
 
 from dm_envs.primitive_hand import PrimitiveHand
 
+ARM_NAME = 'jaco_arm'
+HAND_NAME = 'primitive_hand'
+ARM_HAND_NAME = f'{ARM_NAME}/{HAND_NAME}'
+
 
 class PlanarPushingTask(composer.Task):
     def __init__(self,
                  params: Dict,
                  arena=arenas.Standard(),
                  arm=None,
-                 hand=PrimitiveHand(),
+                 hand=PrimitiveHand(HAND_NAME),
                  obs_settings=observations.VISION,
                  control_timestep=constants.CONTROL_TIMESTEP,
                  ):
@@ -113,7 +117,7 @@ class PlanarPushingTask(composer.Task):
 
         result = inverse_kinematics.qpos_from_site_pose(
             physics=physics,
-            site_name='jaco_arm/primitive_hand/tcp',
+            site_name=f'{ARM_HAND_NAME}/tcp',
             target_pos=target_pos,
             target_quat=DOWN_QUATERNION,
             joint_names=self.joint_names,

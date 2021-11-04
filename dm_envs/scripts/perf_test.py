@@ -1,7 +1,7 @@
 import numpy as np
 from dm_control import composer
 
-from link_bot.dm_envs.src.dm_envs.blocks_env import register_envs, my_blocks
+from link_bot.dm_envs.src.dm_envs.blocks_task import register_envs, my_blocks
 from moonshine.simple_profiler import SimpleProfiler
 
 

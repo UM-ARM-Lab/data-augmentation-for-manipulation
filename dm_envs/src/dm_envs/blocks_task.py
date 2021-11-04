@@ -1,7 +1,7 @@
 from dm_control.composer.observation import observable
 from dm_control.manipulation.props.primitive import Box
 
-from dm_envs.planar_pushing import PlanarPushingTask
+from dm_envs.planar_pushing_task import PlanarPushingTask
 
 
 class PlanarPushingBlocksTask(PlanarPushingTask):

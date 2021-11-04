@@ -2,8 +2,8 @@ import numpy as np
 from dm_control import composer
 from dm_control import viewer
 
-from dm_envs.blocks_env import PlanarPushingBlocksTask
-from dm_envs.cylinders_env import PlanarPushingCylindersTask
+from dm_envs.blocks_task import PlanarPushingBlocksTask
+from dm_envs.cylinders_task import PlanarPushingCylindersTask
 
 
 def main():

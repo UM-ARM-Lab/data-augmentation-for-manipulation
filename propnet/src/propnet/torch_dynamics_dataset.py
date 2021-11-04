@@ -1,4 +1,6 @@
 import pathlib
+import pickle
+from typing import Dict
 
 import torch
 from torch.utils.data import Dataset
@@ -18,6 +20,14 @@ def remove_keys(*keys):
     return _remove_keys
 
 
+def add_stats(example: Dict, stats: Dict):
+    for k, stats_k in stats.items():
+        example[f'{k}/mean'] = stats_k[0]
+        example[f'{k}/std'] = stats_k[1]
+        example[f'{k}/n'] = stats_k[2]
+    return example
+
+
 class TorchDynamicsDataset(Dataset):
 
     def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None):
@@ -35,6 +45,12 @@ class TorchDynamicsDataset(Dataset):
         self.env_keys = self.data_collection_params['env_keys']
         self.action_keys = self.data_collection_params['action_keys']
 
+        self.stats = None
+        self.stats_filename = dataset_dir / 'stats.pkl'
+        if self.stats_filename.exists():
+            with self.stats_filename.open("rb") as f:
+                self.stats = pickle.load(f)
+
     def __len__(self):
         return len(self.metadata_filenames)
 
@@ -44,6 +60,8 @@ class TorchDynamicsDataset(Dataset):
 
         metadata_filename = self.metadata_filenames[idx]
         example = load_single(metadata_filename)
+
+        example = add_stats(example, self.stats)
 
         if self.transform:
             example = self.transform(example)
