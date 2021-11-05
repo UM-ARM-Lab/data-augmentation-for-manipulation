@@ -5,7 +5,6 @@ from torch.nn import functional as F
 
 from link_bot_pycommon.get_scenario import get_scenario
 from propnet.component_models import ParticleEncoder, RelationEncoder, Propagator, ParticlePredictor
-from propnet.relations import construct_fully_connected_rel
 
 
 def pos_to_vel(pos):
@@ -163,8 +162,7 @@ class PropNet(pl.LightningModule):
         batch = True
         self.model = PropModule(self.hparams, batch, residual)
 
-        Rr, Rs, Ra = construct_fully_connected_rel(self.hparams.num_objects, self.hparams.relation_dim,
-                                                   device=self.device)
+        Rr, Rs, Ra = self.scenario.propnet_rel(self.hparams.num_objects, self.hparams.relation_dim, device=self.device)
         self.register_buffer("Rr", Rr)
         self.register_buffer("Rs", Rs)
         self.register_buffer("Ra", Ra)
@@ -256,6 +254,10 @@ class PropNet(pl.LightningModule):
 
     def velocity_loss(self, gt_vel, pred_vel):
         loss = torch.norm(gt_vel - pred_vel, dim=-1)
+        # mask out the robot, we don't care about its vel
+        robot_mask = torch.ones(loss.shape[-1], device=self.device)
+        robot_mask[0] = 0
+        loss = loss * robot_mask
         loss = torch.mean(loss, dim=2)  # objects
         loss = torch.mean(loss, dim=1)  # time
         loss = torch.mean(loss, dim=0)  # batch
@@ -267,6 +269,15 @@ class PropNet(pl.LightningModule):
         loss = torch.mean(loss, dim=1)  # time
         loss = torch.mean(loss, dim=0)  # batch
         return loss
+
+    def max_error_vel(self, gt_vel, pred_vel):
+        error_vel = torch.norm(gt_vel - pred_vel, dim=-1)
+        # we use 95% quantile instead of max because there are outliers
+        error_vel = torch.quantile(error_vel, q=0.95, dim=2)  # objects
+        error_vel = torch.quantile(error_vel, q=0.95, dim=1)  # time
+        error_vel = torch.quantile(error_vel, q=0.95, dim=0)  # batch
+        error_vel = error_vel
+        return error_vel
 
     def max_error_pos(self, gt_pos, pred_pos):
         error_pos = torch.norm(gt_pos - pred_pos, dim=-1)
@@ -287,6 +298,8 @@ class PropNet(pl.LightningModule):
         gt_vel, gt_pos, pred_vel, pred_pos = self.forward(val_batch)
         loss = self.velocity_loss(gt_vel, pred_vel)
         self.log('val_loss', loss)
+        max_error_vel = self.max_error_vel(gt_vel, pred_vel)
+        self.log('max_error_vel', max_error_vel)
         max_error_pos = self.max_error_pos(gt_pos, pred_pos)
         self.log('max_error_pos', max_error_pos)
         mean_error_pos = self.mean_error_pos(gt_pos, pred_pos)

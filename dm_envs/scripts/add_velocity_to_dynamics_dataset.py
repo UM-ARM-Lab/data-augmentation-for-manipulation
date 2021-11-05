@@ -34,13 +34,14 @@ def main():
                     process_example=_process_example,
                     hparams_update={},
                     save_format='pkl')
-    split_dataset_via_files(args.dataset_dir, 'pkl')
     post_hparams_update = {
         'data_collection_params': {
             'state_keys': loader.state_keys + vel_state_keys,
         }
     }
     modify_hparams(outdir, outdir, post_hparams_update)
+
+    split_dataset_via_files(outdir, 'pkl')
 
 
 if __name__ == '__main__':

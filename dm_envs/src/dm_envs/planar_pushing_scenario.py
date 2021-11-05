@@ -19,6 +19,8 @@ from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import Image, JointState
 from visualization_msgs.msg import MarkerArray
 
+ACTION_Z = 0.01
+
 
 def get_joint_position(state):
     sin_cos = state[f'{ARM_NAME}/joints_pos']
@@ -181,7 +183,7 @@ class PlanarPushingScenario(ScenarioWithVisualization):
             obj_position = state[f'obj{i}/position'][0]
             out_of_bounds = is_out_of_bounds(obj_position, action_params['extent'])
             if out_of_bounds:
-                return action_dict, (invalid := False)  # this will cause the current trajectory to be thrown out
+                return action_dict, (invalid := True)  # this will cause the current trajectory to be thrown out
 
         for _ in range(self.max_action_attempts):
             repeat_probability = action_params['repeat_delta_gripper_motion_probability']
@@ -191,7 +193,7 @@ class PlanarPushingScenario(ScenarioWithVisualization):
                 gripper_delta_position = sample_delta_xy(action_params, action_rng)
 
             gripper_position = start_gripper_position + gripper_delta_position
-            gripper_position[2] = 0.01
+            gripper_position[2] = ACTION_Z
 
             self.tf.send_transform(gripper_position, [0, 0, 0, 1], 'world', 'sample_action_gripper_position')
 
@@ -227,8 +229,9 @@ class PlanarPushingScenario(ScenarioWithVisualization):
             # p-control to achieve joint positions using the lower level velocity controller
             velocity_cmd = yaw_diff(target_joint_position, current_position) * kP
             self.env.step(velocity_cmd)
+            # save(self.env, velocity_cmd)
             state = self.get_state()
-            # self.plot_state_rviz(state)
+            # self.plot_state_rviz(state, label='actual')
 
             current_position = get_joint_position(state)
             max_error = max(yaw_diff(target_joint_position, current_position))

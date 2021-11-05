@@ -53,7 +53,6 @@ class BaseDataCollector:
         #  in most cases it could be considered part of the environment, but sometimes having it with state is better
         states = {k: [] for k in self.params['state_keys'] + self.params['state_metadata_keys']}
         time_indices = []
-        last_state = self.scenario.get_state()  # for debugging
         for time_idx in range(self.params['steps_per_traj']):
             # get current state and sample action
             state = self.scenario.get_state()
