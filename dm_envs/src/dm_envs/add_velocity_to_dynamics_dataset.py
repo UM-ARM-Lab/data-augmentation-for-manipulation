@@ -29,3 +29,4 @@ def add_velocity_to_dataset(dataset_dir):
     }
     modify_hparams(outdir, outdir, post_hparams_update)
     split_dataset_via_files(outdir, 'pkl')
+    return outdir

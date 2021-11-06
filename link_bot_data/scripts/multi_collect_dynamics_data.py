@@ -2,6 +2,7 @@
 import argparse
 import pathlib
 import queue
+from arc_utilities.path_utils import rm_tree
 from multiprocessing import Process, Queue
 
 import numpy as np
@@ -59,8 +60,10 @@ def main():
 
     outdir = pathlib.Path('fwd_model_data') / args.name
     merge_pkls(outdir, dataset_dirs, quiet=True)
-    add_velocity_to_dataset(outdir)
-    print(Fore.GREEN + outdir + Fore.RESET)
+    for dataset_dir in dataset_dirs:
+        rm_tree(dataset_dir)
+    outdir = add_velocity_to_dataset(outdir)
+    print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
 
 
 def collect_data_in_parallel(j, n_trajs_total, name, params):
