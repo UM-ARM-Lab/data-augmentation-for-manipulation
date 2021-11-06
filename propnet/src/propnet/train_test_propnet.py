@@ -21,7 +21,6 @@ from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
 def train_main(dataset_dir: pathlib.Path,
                model_params: pathlib.Path,
-               log: str,
                batch_size: int,
                epochs: int,
                seed: int,
@@ -63,6 +62,13 @@ def train_main(dataset_dir: pathlib.Path,
         sha = repo.head.object.hexsha[:10]
         model_params['sha'] = sha
         model_params['start-train-time'] = stamp
+        model_params['dataset_dir'] = dataset_dir.as_posix()
+        model_params['batch_size'] = batch_size
+        model_params['seed'] = seed
+        model_params['epochs'] = epochs
+        model_params['take'] = take
+        model_params['checkpoint'] = checkpoint
+        model_params['no_validate'] = no_validate
         model = PropNet(hparams=model_params)
         ckpt_path = None
     else:
