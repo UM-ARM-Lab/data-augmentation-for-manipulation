@@ -1,27 +1,47 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-from multiprocessing import Process, Queue
 import queue
+from multiprocessing import Process, Queue
 
 import numpy as np
+from tqdm import tqdm
 
-from arc_utilities.ros_init import RosContext
-from link_bot_data.base_collect_dynamics_data import collect_dynamics_data
 from link_bot_data.merge_pkls import merge_pkls
 
 
 def _collect_dynamics_data(i, name, n_trajs_per, params, q):
     import sys
-    # sys.stdout = open(f'.log_{i}', 'w')
-    # sys.stderr = sys.stdout
+    from link_bot_data.base_collect_dynamics_data import collect_dynamics_data
+    from arc_utilities.ros_init import RosContext
+    sys.stdout = open(f'.log_{i}', 'w')
+    sys.stderr = sys.stdout
     with RosContext(f'collect_dynamics_data_{i}'):
-        for done, dataset_dir, n_trajs_per in collect_dynamics_data(collect_dynamics_params=params,
-                                                                    seed=i,
-                                                                    verbose=0,
-                                                                    n_trajs=n_trajs_per,
-                                                                    nickname=f'{name}-{i}'):
-            q.put((done, dataset_dir, n_trajs_per))
+        for dataset_dir, n_trajs_per in collect_dynamics_data(collect_dynamics_params=params,
+                                                              seed=i,
+                                                              verbose=0,
+                                                              n_trajs=n_trajs_per,
+                                                              nickname=f'{name}-{i}'):
+            q.put((dataset_dir, n_trajs_per))
+
+
+def generate(pqs):
+    while True:
+        all_done = True
+        num_trajs_collected_total = 0
+        for p, q in pqs:
+            try:
+                dataset_dir, num_trajs_collected = q.get()
+                num_trajs_collected_total += num_trajs_collected
+                if dataset_dir is None:
+                    all_done = False
+                    yield None, num_trajs_collected_total
+                else:
+                    yield dataset_dir, num_trajs_collected_total
+            except queue.Empty:
+                pass
+        if all_done:
+            return
 
 
 def main():
@@ -38,28 +58,13 @@ def main():
     for i, trajs_split in enumerate(trajs_splits):
         q = Queue()
         p = Process(target=_collect_dynamics_data, args=(i, args.name, len(trajs_split), args.params, q))
-        pqs.append((p,q))
+        pqs.append((p, q))
         p.start()
-    print("Started")
 
     dataset_dirs = []
-    while True:
-        all_done = True
-        num_trajs_collected_total = 0
-        for p, q in pqs:
-            try:
-                done, dataset_dir, num_trajs_collected = q.get()
-                num_trajs_collected_total += num_trajs_collected
-                if not done:
-                    all_done = False
-                else:
-                    dataset_dirs.append(dataset_dir)
-            except queue.Empty:
-                pass
-        print(num_trajs_collected_total)
-        if all_done:
-            break
-    print("done!")
+    for dataset_dir, n_trajs_done in tqdm(generate(pqs), total=args.n_trajs_total):
+        if dataset_dir is not None:
+            dataset_dirs.append(dataset_dir)
 
     outdir = pathlib.Path('fwd_model_data') / args.name
     merge_pkls(outdir, dataset_dirs, quiet=True)
