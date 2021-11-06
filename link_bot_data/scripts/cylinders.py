@@ -5,8 +5,10 @@ import queue
 from multiprocessing import Process, Queue
 
 import numpy as np
+from colorama import Fore
 from tqdm import tqdm
 
+from dm_envs.add_velocity_to_dynamics_dataset import add_velocity_to_dataset
 from link_bot_data.merge_pkls import merge_pkls
 
 
@@ -53,22 +55,27 @@ def main():
 
     args = parser.parse_args()
 
-    trajs_splits = np.array_split(range(args.n_trajs_total), args.j)
-    pqs = []
-    for i, trajs_split in enumerate(trajs_splits):
-        q = Queue()
-        p = Process(target=_collect_dynamics_data, args=(i, args.name, len(trajs_split), args.params, q))
-        pqs.append((p, q))
-        p.start()
-
-    dataset_dirs = []
-    for dataset_dir, n_trajs_done in tqdm(generate(pqs), total=args.n_trajs_total):
-        if dataset_dir is not None:
-            dataset_dirs.append(dataset_dir)
+    dataset_dirs = collect_data_in_parallel(args.j, args.n_trajs_total, args.name, args.params)
 
     outdir = pathlib.Path('fwd_model_data') / args.name
     merge_pkls(outdir, dataset_dirs, quiet=True)
-    print(outdir)
+    add_velocity_to_dataset(outdir)
+    print(Fore.GREEN + outdir + Fore.RESET)
+
+
+def collect_data_in_parallel(j, n_trajs_total, name, params):
+    trajs_splits = np.array_split(range(n_trajs_total), j)
+    pqs = []
+    for i, trajs_split in enumerate(trajs_splits):
+        q = Queue()
+        p = Process(target=_collect_dynamics_data, args=(i, name, len(trajs_split), params, q))
+        pqs.append((p, q))
+        p.start()
+    dataset_dirs = []
+    for dataset_dir, n_trajs_done in tqdm(generate(pqs), total=n_trajs_total):
+        if dataset_dir is not None:
+            dataset_dirs.append(dataset_dir)
+    return dataset_dirs
 
 
 if __name__ == '__main__':
