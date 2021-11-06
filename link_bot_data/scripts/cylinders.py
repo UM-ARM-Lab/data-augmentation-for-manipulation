@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-from multiprocessing import Pool
+from multiprocessing import Process, Queue
+import queue
 
 import numpy as np
 
@@ -10,19 +11,17 @@ from link_bot_data.base_collect_dynamics_data import collect_dynamics_data
 from link_bot_data.merge_pkls import merge_pkls
 
 
-def _collect_dynamics_data(args):
+def _collect_dynamics_data(i, name, n_trajs_per, params, q):
     import sys
-    i, name, n_trajs_per, params = args
-    sys.stderr = open(f'.log_{i}', 'w')
-    # sys.stdout = sys.stdout
+    # sys.stdout = open(f'.log_{i}', 'w')
+    # sys.stderr = sys.stdout
     with RosContext(f'collect_dynamics_data_{i}'):
-        dataset_dir = collect_dynamics_data(
-            collect_dynamics_params=params,
-            seed=i,
-            verbose=0,
-            n_trajs=n_trajs_per,
-            nickname=f'{name}-{i}')
-    return dataset_dir
+        for done, dataset_dir, n_trajs_per in collect_dynamics_data(collect_dynamics_params=params,
+                                                                    seed=i,
+                                                                    verbose=0,
+                                                                    n_trajs=n_trajs_per,
+                                                                    nickname=f'{name}-{i}'):
+            q.put((done, dataset_dir, n_trajs_per))
 
 
 def main():
@@ -34,10 +33,34 @@ def main():
 
     args = parser.parse_args()
 
-    with Pool(args.j) as p:
-        trajs_splits = np.array_split(range(args.n_trajs_total), args.j)
-        process_args = [(i, args.name, len(trajs_split), args.hparams) for i, trajs_split in enumerate(trajs_splits)]
-        dataset_dirs = list(p.imap_unordered(_collect_dynamics_data, process_args))
+    trajs_splits = np.array_split(range(args.n_trajs_total), args.j)
+    pqs = []
+    for i, trajs_split in enumerate(trajs_splits):
+        q = Queue()
+        p = Process(target=_collect_dynamics_data, args=(i, args.name, len(trajs_split), args.params, q))
+        pqs.append((p,q))
+        p.start()
+    print("Started")
+
+    dataset_dirs = []
+    while True:
+        all_done = True
+        num_trajs_collected_total = 0
+        for p, q in pqs:
+            try:
+                done, dataset_dir, num_trajs_collected = q.get()
+                num_trajs_collected_total += num_trajs_collected
+                if not done:
+                    all_done = False
+                else:
+                    dataset_dirs.append(dataset_dir)
+            except queue.Empty:
+                pass
+        print(num_trajs_collected_total)
+        if all_done:
+            break
+    print("done!")
+
     outdir = pathlib.Path('fwd_model_data') / args.name
     merge_pkls(outdir, dataset_dirs, quiet=True)
     print(outdir)

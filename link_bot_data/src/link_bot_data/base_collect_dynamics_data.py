@@ -152,13 +152,16 @@ class BaseDataCollector:
             # Save the data
             self.write_example(full_output_directory, example, traj_idx)
 
+            # tell the caller that we've made progress
+            yield False, None, traj_idx + 1
+
         self.scenario.on_after_data_collection(self.params)
 
         print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)
 
         self.service_provider.pause()
 
-        return full_output_directory
+        return True, full_output_directory, n_trajs
 
     def save_hparams(self, full_output_directory, n_trajs, nickname):
         dataset_hparams = {
@@ -232,9 +235,11 @@ def collect_dynamics_data(collect_dynamics_params: pathlib.Path,
     data_collector = DataCollectorClass(params=collect_dynamics_params,
                                         seed=seed,
                                         verbose=verbose)
-    dataset_dir = data_collector.collect_data(n_trajs=n_trajs, nickname=nickname)
+
+    yield from data_collector.collect_data(n_trajs=n_trajs, nickname=nickname)
+
+    print("Splitting!")
     split_dataset_via_files(dataset_dir, extension)
-    return dataset_dir
 
 
 def get_data_collector_class(save_format: str):
