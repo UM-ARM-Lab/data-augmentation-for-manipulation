@@ -13,7 +13,7 @@ def main():
 
     args = parser.parse_args()
 
-    add_velocity_to_dataset(args)
+    add_velocity_to_dataset(args.dataset_dir)
 
 
 if __name__ == '__main__':
