@@ -25,7 +25,7 @@ def main():
 
     # now my code...
     my_loader = NewDynamicsDatasetLoader([p])
-    my_dataset = my_loader.get_datasets(mode).batch(batch_size)
+    my_dataset = my_loader.batch(batch_size)
 
     t0 = perf_counter()
     for _ in tqdm(my_dataset):

@@ -128,7 +128,7 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
                 yield from unbatch_examples(out_example, actual_batch_size)
 
     modify_hparams(dataset_dir, outdir, update={'used_augmentation': True})
-    dataset = dataset_loader.get_datasets(mode='all', shuffle=False)
+    dataset = dataset_loader
     expected_total = (1 + n_augmentations) * len(dataset)
 
     dataset = dataset.batch(batch_size)

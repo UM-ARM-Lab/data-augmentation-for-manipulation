@@ -38,7 +38,7 @@ def eval_augmentation(dataset_dir: pathlib.Path,
 
     model.save_inputs_path = trial_path / 'saved_inputs'
 
-    train_dataset = train_dataset_loader.get_datasets(mode='all', shuffle=False)
+    train_dataset = train_dataset_loader
     train_dataset = train_dataset.batch(batch_size)
 
     train_dataset = add_augmentation_configs_to_dataset(new_env_dir, train_dataset, batch_size)

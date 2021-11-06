@@ -14,7 +14,7 @@ if __name__ == '__main__':
     loader = NewBaseDatasetLoader([pathlib.Path(d)])
     dataset = loader.get_datasets(mode='all')
     dataset = dataset.take(32)
-    dataset = dataset.shuffle()
+    dataset = dataset
     dataset = dataset.batch(8)
     dataset = dataset.shuffle()
 

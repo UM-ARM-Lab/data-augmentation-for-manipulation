@@ -134,8 +134,8 @@ def print_stats_and_timing(args, counts: Dict, total_dt=None):
 
 
 def compare_examples_from_datasets(args, classifier_dataset1, classifier_dataset2):
-    tf_dataset1 = classifier_dataset1.get_datasets(mode=args.mode, take=args.take)
-    tf_dataset2 = classifier_dataset2.get_datasets(mode=args.mode, take=args.take)
+    tf_dataset1 = classifier_dataset1
+    tf_dataset2 = classifier_dataset2
 
     tf_dataset1 = tf_dataset1.batch(1)
     tf_dataset2 = tf_dataset2.batch(1)

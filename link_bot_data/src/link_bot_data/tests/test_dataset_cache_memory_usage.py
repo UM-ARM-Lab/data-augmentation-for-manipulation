@@ -10,7 +10,7 @@ from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 
 
 def iterate_and_record_max_ram_usage(dataset):
-    tf_dataset = dataset.get_datasets(mode='test')
+    tf_dataset = dataset
     batch_size = 256
     tf_dataset = tf_dataset.batch(batch_size).take(100)
 

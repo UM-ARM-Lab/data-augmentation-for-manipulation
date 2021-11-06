@@ -23,7 +23,7 @@ def main():
 
     dataset_loader = guess_dataset_loader(args.dataset_dir)
 
-    dataset = dataset_loader.get_datasets(mode=args.mode)
+    dataset = dataset_loader
     dataset = dataset.batch(args.batch_size)
 
     p = SimpleProfiler()

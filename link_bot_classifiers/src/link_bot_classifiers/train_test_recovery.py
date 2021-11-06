@@ -173,7 +173,7 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
     # Dataset
     dataset = RecoveryDatasetLoader([dataset_dir])
     tf_dataset = dataset.get_datasets(mode=mode)
-    tf_dataset = tf_dataset.take(take)
+    tf_dataset = tf_dataset
     tf_dataset = tf_dataset.batch(batch_size, drop_remainder=True)
 
     # Evaluate

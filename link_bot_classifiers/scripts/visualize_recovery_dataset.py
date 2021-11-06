@@ -51,7 +51,7 @@ def main():
 def stats(args, dataset):
     recovery_probabilities = []
     batch_size = 512
-    tf_dataset = dataset.get_datasets(mode=args.mode).batch(batch_size, drop_remainder=True)
+    tf_dataset = dataset.batch(batch_size, drop_remainder=True)
     for example in tf_dataset:
         batch = example['recovery_probability'][:, 1].numpy().tolist()
         recovery_probabilities.extend(batch)

@@ -66,10 +66,10 @@ def train_mnist(root, n_take: int, prefix: str, seed: int, checkpoint: Optional[
     ds_train = ds_train.take(n_take)
 
     ds_train = ds_train.cache()
-    ds_train = ds_train.shuffle(ds_info.splits['train'].num_examples, seed=seed)
+    ds_train = ds_train
     ds_train = ds_train.batch(128)
     ds_train = ds_train.prefetch(tf.data.experimental.AUTOTUNE)
-    ds_test = ds_test.map(normalize_img)
+    ds_test = ds_test
     ds_test = ds_test.batch(128)
     ds_test = ds_test.cache()
     ds_test = ds_test.prefetch(tf.data.experimental.AUTOTUNE)

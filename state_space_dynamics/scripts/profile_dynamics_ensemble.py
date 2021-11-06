@@ -22,7 +22,7 @@ def main():
     fwd_model = dynamics_utils.load_generic_model(args.fwd_model_dir, scenario=scenario)
 
     dataset = DynamicsDatasetLoader([args.dataset_dir])
-    tf_dataset = dataset.get_datasets(mode='train')
+    tf_dataset = dataset
     b = 64
     tf_dataset = tf_dataset.batch(b)
     inputs = tf_dataset.get_element(0)

@@ -162,12 +162,7 @@ class PropNet(pl.LightningModule):
         batch = True
         self.model = PropModule(self.hparams, batch, residual)
 
-        Rr, Rs, Ra = self.scenario.propnet_rel(self.hparams.num_objects, self.hparams.relation_dim, device=self.device)
-        self.register_buffer("Rr", Rr)
-        self.register_buffer("Rs", Rs)
-        self.register_buffer("Ra", Ra)
-
-    def one_step_forward(self, attr, state, action, Rr, Rs, Ra):
+    def one_step_forward(self, attr, state, action, Rs, Rr, Ra):
         """
         Used only for fully observable case. Make only a 1-step prediction.
         In the original propnet code this was simply called forward.
@@ -175,8 +170,8 @@ class PropNet(pl.LightningModule):
             attr: [b, num_objects, n_attr] first dim is value, mean, std
             state: [b, num_objects, n_state]
             action: [b, num_objects, n_action]
-            Rr: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the receiver in relation j
             Rs: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the sender in relation j
+            Rr: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the receiver in relation j
             Ra: [b, num_objects^2, attr_dim] containing the relation attributes
         """
         if action is not None:
@@ -185,7 +180,7 @@ class PropNet(pl.LightningModule):
             object_observations = torch.cat([attr, state], dim=-1)
         # [b, num_objects, attr+state+action]
 
-        pred_vel_t = self.model(object_observations, Rr, Rs, Ra, self.hparams['pstep'], verbose=self.hparams['verbose'])
+        pred_vel_t = self.model(object_observations, Rs, Rr, Ra, self.hparams['pstep'], verbose=self.hparams['verbose'])
 
         return pred_vel_t
 
@@ -195,7 +190,6 @@ class PropNet(pl.LightningModule):
 
     def forward(self, batch):
         batch_size = get_batch_size(batch)
-        Ra_batch, Rr_batch, Rs_batch = self.batch_relations(batch_size)
 
         attr, states, actions = self.states_and_actions(batch, batch_size)
         # attr: [b, n_objects, 1]
@@ -203,28 +197,31 @@ class PropNet(pl.LightningModule):
         # actions: [b, T-1, n_objects, n_action]
         gt_pos = states[..., :self.hparams.position_dim].clone()
         gt_vel = states[..., self.hparams.position_dim:].clone()
+
         pred_state_t = states[:, 0]  # [b, n_objects, state_dim]
-        pred_vel = [pred_state_t[..., self.hparams.position_dim:].clone()]
-        pred_pos = [pred_state_t[..., :self.hparams.position_dim].clone()]
+        pred_pos_t = pred_state_t[..., :self.hparams.position_dim]
+        pred_vel_t = pred_state_t[..., self.hparams.position_dim:]
+        pred_pos = [pred_pos_t.clone()]
+        pred_vel = [pred_vel_t.clone()]
         for t in range(actions.shape[1]):
-            action_t = actions[:, t]
-            pred_vel_t = self.one_step_forward(attr, pred_state_t, action_t, Rr_batch, Rs_batch, Ra_batch)
-            # pred_vel_t: [b, n_objects, position_dim]
+            # compute the relations
+            Rs, Rr, Ra = self.scenario.propnet_rel(pred_pos_t, self.hparams.num_objects, self.hparams.relation_dim,
+                                                   device=self.device)
+
             # Integrate the velocity to produce the next positions, then copy the velocities
-            next_pred_pos = pred_state_t[..., :self.hparams.position_dim] + pred_vel_t  # [b, n_objects, pos_dim]
-            pred_state_t[..., :self.hparams.position_dim] = next_pred_pos
-            pred_state_t[..., self.hparams.position_dim:] = pred_vel_t
+            pred_pos_t = pred_pos_t + pred_vel_t  # [b, n_objects, pos_dim]
+
+            # now predicted the next velocity
+            action_t = actions[:, t]
+            pred_state_t = torch.cat([pred_pos_t, pred_vel_t], dim=-1)
+            pred_vel_t = self.one_step_forward(attr, pred_state_t, action_t, Rs, Rr, Ra)  # [b, n_objects, position_dim]
+
+            pred_pos.append(pred_pos_t.clone())
             pred_vel.append(pred_vel_t.clone())
-            pred_pos.append(next_pred_pos.clone())
+
         pred_vel = torch.stack(pred_vel, dim=1)
         pred_pos = torch.stack(pred_pos, dim=1)
         return gt_vel, gt_pos, pred_vel, pred_pos
-
-    def batch_relations(self, batch_size):
-        Rr_batch = self.Rr[None, :, :].repeat(batch_size, 1, 1)
-        Rs_batch = self.Rs[None, :, :].repeat(batch_size, 1, 1)
-        Ra_batch = self.Ra[None, :, :].repeat(batch_size, 1, 1)
-        return Ra_batch, Rr_batch, Rs_batch
 
     def states_and_actions(self, batch, batch_size):
         num_objs = batch['num_objs'][0, 0, 0]  # assumed fixed across batch/time

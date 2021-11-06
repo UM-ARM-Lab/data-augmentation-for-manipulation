@@ -15,6 +15,7 @@ from dm_envs.planar_pushing_task import ARM_HAND_NAME
 from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.marker_index_generator import marker_index_generator
+from moonshine.torch_geometry import pairwise_squared_distances
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 
@@ -87,7 +88,7 @@ def make_cylinder_marker(color_msg, height, idx, ns, position, radius):
     return marker
 
 
-def make_vel_arrow(color_msg, height, idx, ns, position, velocity, vel_scale=1.0):
+def make_vel_arrow(position, velocity, height, color_msg, idx, ns, vel_scale=1.0):
     start = position[0] + np.array([0, 0, height / 2 + 0.0005])
     end = start + velocity[0] * np.array([vel_scale, vel_scale, 1])
     vel_color_factor = 0.4
@@ -128,7 +129,8 @@ class CylindersScenario(PlanarPushingScenario):
         robot_vel_k = f'{ARM_HAND_NAME}/tcp_vel'
         if robot_vel_k in state:
             robot_velocity = state[robot_vel_k]
-            vel_marker = make_vel_arrow(color_msg, height, next(ig), ns + '_robot', robot_position, robot_velocity)
+            vel_marker = make_vel_arrow(robot_position, robot_velocity, primitive_hand.HEIGHT + 0.005, color_msg,
+                                        next(ig), ns + '_robot')
             msg.markers.append(vel_marker)
 
         for i in range(num_objs):
@@ -139,7 +141,7 @@ class CylindersScenario(PlanarPushingScenario):
             obj_vel_k = f'obj{i}/linear_velocity'
             if obj_vel_k in state:
                 obj_velocity = state[obj_vel_k]
-                obj_vel_marker = make_vel_arrow(color_msg, height, next(ig), ns, obj_position, obj_velocity)
+                obj_vel_marker = make_vel_arrow(obj_position, obj_velocity, height, color_msg, next(ig), ns)
                 msg.markers.append(obj_vel_marker)
 
         self.state_viz_pub.publish(msg)
@@ -412,42 +414,39 @@ class CylindersScenario(PlanarPushingScenario):
 
         return pred_state_t
 
-    def propnet_rel(self, num_objects, relation_dim, device):
+    def propnet_rel(self, obj_pos, num_objects, relation_dim, threshold=0.06, device=None):
         """
 
         Args:
             num_objects: number of objects/particles, $|O|$
             relation_dim: dimension of the relation vector
+            threshold: in meters
+            device:
 
         Returns:
-            Rr: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the receiver in relation j
-            Rs: [b, num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the sender in relation j
-            Ra: [b, num_objects^2, attr_dim] containing the relation attributes
+            Rr: [num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the receiver in relation j
+            Rs: [num_objects, num_relations], binary, 1 at [obj_i,rel_j] means object i is the sender in relation j
+            Ra: [num_relations, attr_dim] containing the relation attributes
 
         """
         # we assume the robot is _first_ in the list of objects
         # the robot is included as an object here
-        num_objects_no_robot = num_objects - 1
-        # rel is a matrix. each row is a list of indices i,j for the various objects
-        rel = np.zeros((num_objects ** 2, 2))
-        num_objects_range = np.arange(num_objects)
-        rel[:, 0] = np.repeat(num_objects_range, num_objects)
-        rel[:, 1] = np.tile(num_objects_range, num_objects)
+        batch_size = obj_pos.shape[0]
+        n_rel = num_objects ** 2
 
-        n_rel = rel.shape[0]
-        n_rel_range = np.arange(n_rel)  # [0, 1, ..., num_objects^2]
-        Rr_idx = torch.LongTensor(np.array([rel[:, 0], n_rel_range]))  # receiver indices [2, num_objects^2]
-        Rs_idx = torch.LongTensor(np.array([rel[:, 1], n_rel_range]))  # sender indices [2, num_objects^2]
-        ones = torch.ones(n_rel)
-        Rr = torch.sparse_coo_tensor(Rr_idx, ones, (num_objects, n_rel)).to_dense()
-        Rs = torch.sparse_coo_tensor(Rs_idx, ones, (num_objects, n_rel)).to_dense()
+        squared_distances = pairwise_squared_distances(obj_pos, obj_pos)
+        close = (squared_distances < (threshold ** 2)).float()
+        # remove self. the BRDPN cylinders experient dosn't use self relations
+        close -= torch.eye(num_objects, device=device)
 
-        Ra = torch.zeros(n_rel, relation_dim)  # relation attributes information
-        obj_obj_rel_indices = 1
-        robot_obj_rel_indices = 1
-        obj_robot_rel_indices = 1
-        Ra[:, obj_obj_rel_indices, 0] = 1  # obj->obj
-        Ra[:, robot_obj_rel_indices, 1] = 1  # robot->obj
-        Ra[:, obj_robot_rel_indices, 2] = 1  # obj->robot
+        batch_indices, sender_indices, receiver_indices = torch.where(close == 1)
+        rel_indices_mat = torch.arange(n_rel, device=device).view(num_objects, num_objects)
+        rel_indices = rel_indices_mat[sender_indices, receiver_indices]
 
-        return Rr, Rs, Ra
+        Rs = torch.zeros(batch_size, num_objects, n_rel, device=device)
+        Rs[batch_indices, sender_indices, rel_indices] = 1
+        Rr = torch.zeros(batch_size, num_objects, n_rel, device=device)
+        Rr[batch_indices, receiver_indices, rel_indices] = 1
+        Ra = torch.ones(batch_size, n_rel, relation_dim, device=device)  # relation attributes information
+
+        return Rs, Rr, Ra

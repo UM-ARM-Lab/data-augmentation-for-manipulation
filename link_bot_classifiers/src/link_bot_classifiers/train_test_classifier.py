@@ -79,10 +79,10 @@ def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, seed, 
                                               reshuffle_each_iteration=True,
                                               seed=seed)
     train_dataset = train_dataset.balance()
-    train_dataset = train_dataset.take(train_take)
+    train_dataset = train_dataset
     train_dataset = train_dataset.batch(batch_size, drop_remainder=False)
     val_dataset = val_dataset.balance()
-    val_dataset = val_dataset.take(val_take)
+    val_dataset = val_dataset
     val_dataset = val_dataset.batch(batch_size, drop_remainder=False)
 
     return train_dataset, val_dataset
@@ -507,7 +507,7 @@ class ClassifierEvaluation:
         # Iterate
         self.dataset = self.dataset.batch(batch_size, drop_remainder=False)
         if take is not None:
-            self.dataset = self.dataset.take(take)
+            self.dataset = self.dataset
 
         self.model = classifier_utils.load_generic_model(checkpoint)
         self.scenario = self.dataset_loader.get_scenario()
@@ -674,7 +674,7 @@ def run_ensemble_on_dataset(dataset_dir: pathlib.Path,
     tf_dataset = dataset.get_datasets(mode=mode)
     if balance:
         tf_dataset = tf_dataset.balance()
-    tf_dataset = tf_dataset.take(take)
+    tf_dataset = tf_dataset
     tf_dataset = tf_dataset.batch(batch_size, drop_remainder=False)
 
     # Evaluate
