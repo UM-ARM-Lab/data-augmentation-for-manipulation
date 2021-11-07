@@ -7,6 +7,8 @@ from tensorflow_felzenszwalb_edt import edt1d
 import ros_numpy
 import rospy
 from arc_utilities import ros_init
+from moonshine.moonshine_utils import repeat_tensor
+from moonshine.simple_profiler import SimpleProfiler
 from sensor_msgs.msg import PointCloud2
 
 
@@ -66,12 +68,15 @@ def build_sdf_3d(vg, res, origin_point):
 
     distance_field = empty_distance_field + -filled_distance_field
 
-    for c in range(vg.shape[-1]):
-        plt.figure()
-        plt.imshow(distance_field[0, :, :, c])
-        plt.yticks(range(vg.shape[1]))
-        plt.xticks(range(vg.shape[2]))
-    plt.show()
+    # for c in range(vg.shape[-1]):
+    #     plt.figure()
+    #     plt.imshow(distance_field[0, :, :, c])
+    #     plt.yticks(range(vg.shape[1]))
+    #     plt.xticks(range(vg.shape[2]))
+    # plt.show()
+
+    distance_field_meters = distance_field * res[..., None, None, None]
+    return distance_field_meters
 
 
 @ros_init.with_ros("tfa_sdf")
@@ -91,5 +96,22 @@ def main():
         visualize_sdf(sdf_pub, sdf[0].numpy(), shape, res[0], origin_point[0])
 
 
+def perf():
+    p = SimpleProfiler()
+    batch_size = 32
+    res = repeat_tensor(0.005, batch_size, 0, True)
+    shape = [batch_size, 100, 100, 20]
+    origin_point = repeat_tensor(np.array([-0.25, -0.25, 0], dtype=np.float32), batch_size, 0, True)
+
+    vg = np.zeros(shape, np.float32)
+    vg[:, :5, :5, :5] = 1.0
+
+    def _sdf():
+        sdf = build_sdf_3d(vg, res, origin_point)
+
+    print(p.profile(100, _sdf))
+
+
 if __name__ == '__main__':
-    main()
+    # main()
+    perf()
