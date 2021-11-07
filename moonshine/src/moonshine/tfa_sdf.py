@@ -52,24 +52,25 @@ def build_sdf_3d(vg, res, origin_point):
     """
     # NOTE: this is how the morphological EDT works, you first scale everything by a big number
     s = np.sum(np.array(vg.shape) ** 2)
-    s = 10
-    filled_vg = (1 - vg) * s
+    filled_vg = vg * s
     filled_distance_field = edt1d(filled_vg, 1)[0]
     filled_distance_field = edt1d(filled_distance_field, 2)[0]
     filled_distance_field = edt1d(filled_distance_field, 3)[0]
+    filled_distance_field = tf.sqrt(filled_distance_field)
 
-    empty_vg = vg * s
+    empty_vg = (1 - vg) * s
     empty_distance_field = edt1d(empty_vg, 1)[0]
     empty_distance_field = edt1d(empty_distance_field, 2)[0]
     empty_distance_field = edt1d(empty_distance_field, 3)[0]
-    empty_distance_field
+    empty_distance_field = tf.sqrt(empty_distance_field)
 
     distance_field = empty_distance_field + -filled_distance_field
 
-    plt.figure()
-    plt.imshow(distance_field[0, :, :, 0])
-    plt.yticks(range(vg.shape[1]))
-    plt.xticks(range(vg.shape[2]))
+    for c in range(vg.shape[-1]):
+        plt.figure()
+        plt.imshow(distance_field[0, :, :, c])
+        plt.yticks(range(vg.shape[1]))
+        plt.xticks(range(vg.shape[2]))
     plt.show()
 
 
@@ -78,7 +79,7 @@ def main():
     sdf_pub = rospy.Publisher("sdf", PointCloud2, queue_size=10)
 
     res = [0.04]
-    shape = [1, 25, 20, 1]
+    shape = [1, 25, 20, 10]
     origin_point = np.array([[0, 0, 0]], dtype=np.float32)
 
     vg = np.zeros(shape)
