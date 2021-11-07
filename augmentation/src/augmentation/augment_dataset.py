@@ -40,7 +40,7 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              n_augmentations: int,
                              scenario=None,
                              visualize: bool = False,
-                             batch_size: int = 5,
+                             batch_size: int = 32,
                              save_format='pkl'):
     dataset_loader = NewDynamicsDatasetLoader([dataset_dir])
     if scenario is None:

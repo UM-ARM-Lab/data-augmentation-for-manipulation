@@ -7,6 +7,7 @@ from tensorflow_felzenszwalb_edt import edt1d
 import ros_numpy
 import rospy
 from arc_utilities import ros_init
+from moonshine.matrix_operations import shift_and_pad
 from moonshine.moonshine_utils import repeat_tensor
 from moonshine.simple_profiler import SimpleProfiler
 from sensor_msgs.msg import PointCloud2
@@ -41,15 +42,45 @@ def build_sdf_2d(vg, res, origin_point):
     plt.show()
 
 
-def build_sdf_3d(vg, res, origin_point):
+def compute_sdf_and_gradient_batch(vg, res):
+    sdf = build_sdf_3d(vg, res)
+    sdf_grad = build_grad_3d(sdf)
+    return sdf, sdf_grad
+
+
+def build_grad_3d_partial(sdf, axis):
+    right = shift_and_pad(sdf, shift=1, pad_value=-100, axis=axis)
+    left = shift_and_pad(sdf, shift=-1, pad_value=-100, axis=axis)
+    partial = tf.sign(left - right)
+    return partial
+
+
+def build_grad_3d(sdf):
+    """
+
+    Args:
+        sdf: [b, h, w, c]
+
+    Returns: [b, h, w, c, 3]
+
+    """
+    h_grad = build_grad_3d_partial(sdf, 1)
+    w_grad = build_grad_3d_partial(sdf, 2)
+    c_grad = build_grad_3d_partial(sdf, 3)
+
+    grad = tf.stack([w_grad, h_grad, c_grad], axis=-1)
+
+    return grad
+
+
+def build_sdf_3d(vg, res):
     """
 
     Args:
         vg: [b, h, w ,c] of type float32
-        res:
-        origin_point:
+        res: [b]
 
-    Returns:
+    Returns: [b, h, w, c]
 
     """
     # NOTE: this is how the morphological EDT works, you first scale everything by a big number
@@ -68,13 +99,6 @@ def build_sdf_3d(vg, res, origin_point):
 
     distance_field = empty_distance_field + -filled_distance_field
 
-    # for c in range(vg.shape[-1]):
-    #     plt.figure()
-    #     plt.imshow(distance_field[0, :, :, c])
-    #     plt.yticks(range(vg.shape[1]))
-    #     plt.xticks(range(vg.shape[2]))
-    # plt.show()
-
     distance_field_meters = distance_field * res[..., None, None, None]
     return distance_field_meters
 
@@ -83,14 +107,17 @@ def build_sdf_3d(vg, res, origin_point):
 def main():
     sdf_pub = rospy.Publisher("sdf", PointCloud2, queue_size=10)
 
-    res = [0.04]
-    shape = [1, 25, 20, 10]
-    origin_point = np.array([[0, 0, 0]], dtype=np.float32)
+    batch_size = 32
+    res = repeat_tensor(0.005, batch_size, 0, True)
+    shape = [batch_size, 100, 100, 20]
+    origin_point = np.zeros(3, np.float32)
+    origin_point = repeat_tensor(origin_point, batch_size, 0, True)
 
-    vg = np.zeros(shape)
+    vg = np.zeros(shape, np.float32)
     vg[0, :5, :5, :5] = 1.0
 
-    sdf = build_sdf_3d(vg, res, origin_point)
+    # sdf = build_sdf_3d(vg, res, origin_point)
+    sdf, grad = compute_sdf_and_gradient_batch(vg, res)
 
     for b in range(1):
         visualize_sdf(sdf_pub, sdf[0].numpy(), shape, res[0], origin_point[0])
@@ -101,17 +128,18 @@ def perf():
     batch_size = 32
     res = repeat_tensor(0.005, batch_size, 0, True)
     shape = [batch_size, 100, 100, 20]
-    origin_point = repeat_tensor(np.array([-0.25, -0.25, 0], dtype=np.float32), batch_size, 0, True)
+    origin_point = np.zeros(3, np.float32)
+    origin_point = repeat_tensor(origin_point, batch_size, 0, True)
 
     vg = np.zeros(shape, np.float32)
     vg[:, :5, :5, :5] = 1.0
 
     def _sdf():
-        sdf = build_sdf_3d(vg, res, origin_point)
+        sdf = build_sdf_3d(vg, res)
 
     print(p.profile(100, _sdf))
 
 
 if __name__ == '__main__':
-    # main()
-    perf()
+    main()
+    # perf()
