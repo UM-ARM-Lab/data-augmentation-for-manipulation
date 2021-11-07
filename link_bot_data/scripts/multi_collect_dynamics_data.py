@@ -2,13 +2,15 @@
 import argparse
 import pathlib
 import queue
-from arc_utilities.path_utils import rm_tree
+import traceback
+from copy import deepcopy
 from multiprocessing import Process, Queue
 
 import numpy as np
 from colorama import Fore
 from tqdm import tqdm
 
+from arc_utilities.path_utils import rm_tree
 from dm_envs.add_velocity_to_dynamics_dataset import add_velocity_to_dataset
 from link_bot_data.merge_pkls import merge_pkls
 
@@ -20,12 +22,18 @@ def _collect_dynamics_data(i, name, n_trajs_per, params, q):
     sys.stdout = open(f'.log_{i}', 'w')
     sys.stderr = sys.stdout
     with RosContext(f'collect_dynamics_data_{i}'):
-        for dataset_dir, n_trajs_per in collect_dynamics_data(collect_dynamics_params=params,
-                                                              seed=i,
-                                                              verbose=0,
-                                                              n_trajs=n_trajs_per,
-                                                              nickname=f'{name}-{i}'):
-            q.put((dataset_dir, n_trajs_per))
+        try:
+            for dataset_dir, n_trajs_per in collect_dynamics_data(collect_dynamics_params=params,
+                                                                  seed=i,
+                                                                  verbose=0,
+                                                                  n_trajs=n_trajs_per,
+                                                                  nickname=f'{name}-{i}'):
+                q.put((dataset_dir, n_trajs_per))
+        except Exception as e:
+            sys.stderr = sys.__stderr__
+            sys.stdout = sys.__stdout__
+            traceback.print_exc()
+            print(e)
 
 
 def generate(pqs):

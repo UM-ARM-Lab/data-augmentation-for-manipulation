@@ -775,8 +775,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         return joint_positions_aug, is_ik_valid
 
-    def initial_identity_aug_params(self, batch_size, m_objects):
-        return tf.zeros([batch_size, m_objects, 6], tf.float32)
+    def initial_identity_aug_params(self, batch_size, m_transforms):
+        return tf.zeros([batch_size, m_transforms, 6], tf.float32)
 
     def sample_target_aug_params(self, seed, aug_params, n_samples):
         trans_lim = tf.ones([3]) * aug_params['target_trans_lim']

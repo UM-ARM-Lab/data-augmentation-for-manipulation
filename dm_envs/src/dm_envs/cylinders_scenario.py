@@ -44,7 +44,7 @@ def cylinders_to_points(positions, radius, height):
 
     """
     m = positions.shape[1]  # m is the number of objects
-    num_points = 16
+    num_points = 22
     sized_points = size_to_points(radius, height, num_points)  # [b, T, n_points, 3]
     sized_points = repeat_tensor(sized_points, m, axis=1, new_axis=True)  # [b, m, T, n_points, 3]
     ones = tf.ones(positions.shape[:-1] + [1])
@@ -69,13 +69,13 @@ def size_to_points(radius, height, n_points=16):
     Returns: [b, T, n_points, 3]
 
     """
-    ones = tf.ones_like(radius)
-    zeros = tf.zeros_like(radius)
-    theta = tf.linspace(zeros, ones, n_points, axis=-1)
+    two_pi = tf.ones_like(radius) * 2 * np.pi
+    zero = tf.zeros_like(radius)
+    theta = tf.linspace(zero, two_pi, n_points, axis=-1)
     x = tf.cos(theta)
     y = tf.sin(theta)
-    z = repeat_tensor(zeros, n_points, axis=2, new_axis=True)
-    points = tf.stack([x, y, z], axis=-1)
+    z = repeat_tensor(zero, n_points, axis=2, new_axis=True)
+    points = tf.stack([x, y, z], axis=-1) * radius[..., None, None]
     return points
 
 
@@ -179,7 +179,7 @@ class CylindersScenario(PlanarPushingScenario):
             positions.append(pos)
         positions = tf.stack(positions, axis=1)
 
-        obj_points = cylinders_to_points(positions, height, radius)
+        obj_points = cylinders_to_points(positions, radius=radius, height=height)
 
         return obj_points
 
@@ -462,8 +462,8 @@ class CylindersScenario(PlanarPushingScenario):
 
         return Rs, Rr, Ra
 
-    def initial_identity_aug_params(self, batch_size, m_objects):
-        return tf.zeros([batch_size, m_objects, 2], tf.float32)  # delta x, delta y
+    def initial_identity_aug_params(self, batch_size, m_transforms):
+        return tf.zeros([batch_size, m_transforms, 2], tf.float32)  # delta x, delta y
 
     def sample_target_aug_params(self, seed, aug_params, n_samples):
         trans_lim = tf.ones([2]) * aug_params['target_trans_lim']

@@ -4,6 +4,7 @@ import logging
 import pathlib
 from time import time
 
+import numpy as np
 import tensorflow as tf
 from colorama import Fore
 
@@ -18,6 +19,7 @@ limit_gpu_mem(None)
 
 @ros_init.with_ros("augment_dynamics_dataset")
 def main():
+    np.set_printoptions(suppress=True, precision=4)
     tf.get_logger().setLevel(logging.FATAL)
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')

@@ -155,6 +155,7 @@ class AugmentationOptimization:
                     'extent':       extent[b].numpy(),
                 }
                 self.scenario.plot_environment_rviz(env_stationary_b)
+                self.debug.send_position_transform(origin_point[b], 'origin_point')
 
         sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary,
                                                                              res,
@@ -249,9 +250,9 @@ class AugmentationOptimization:
                           obj_occupancy,
                           batch_size: int,
                           ):
-        m_objects = obj_points.shape[1]
-        initial_transformation_params = self.scenario.initial_identity_aug_params(batch_size, m_objects)
-        target_transformation_params = self.sample_target_transform_params(batch_size, m_objects)
+        m_transforms = 1  # this is always one at the moment because we transform all moved objects rigidly
+        initial_transformation_params = self.scenario.initial_identity_aug_params(batch_size, m_transforms)
+        target_transformation_params = self.sample_target_transform_params(batch_size, m_transforms)
         project_opt = AugProjOpt(aug_opt=self,
                                  sdf=sdf,
                                  sdf_grad=sdf_grad,
@@ -304,16 +305,16 @@ class AugmentationOptimization:
         constraints_satisfied = env_constraints_satisfied * bbox_constraint_satisfied * delta_min_dist_satisfied
         return constraints_satisfied
 
-    def sample_target_transform_params(self, batch_size: int, m_objects: int):
-        n_total = batch_size * m_objects
+    def sample_target_transform_params(self, batch_size: int, m_transforms: int):
+        n_total = batch_size * m_transforms
         good_enough_percentile = self.hparams['good_enough_percentile']
         n_samples = int(1 / good_enough_percentile) * n_total
 
         target_params = self.scenario.sample_target_aug_params(self.seed, self.hparams, n_samples)
 
         # pick the most valid transforms, via the learned object state augmentation validity model
-        best_target_params = pick_best_params(self.invariance_model_wrapper, target_params, n_total)
-        best_target_params = tf.reshape(best_target_params, [batch_size, m_objects, 6])
+        best_target_params = pick_best_params(self.invariance_model_wrapper, target_params, batch_size)
+        best_target_params = tf.reshape(best_target_params, [batch_size, m_transforms, target_params.shape[-1]])
         return best_target_params
 
     def use_original_if_invalid(self,

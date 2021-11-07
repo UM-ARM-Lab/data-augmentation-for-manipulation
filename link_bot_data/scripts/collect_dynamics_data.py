@@ -21,7 +21,7 @@ def main():
 
     args = parser.parse_args()
 
-    collect_dynamics_data(**vars(args))
+    list(collect_dynamics_data(**vars(args)))
 
 
 if __name__ == '__main__':
