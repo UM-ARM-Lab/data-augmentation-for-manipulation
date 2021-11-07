@@ -14,8 +14,7 @@
     delta_min_dist_threshold: 0.005
 
     # misc
-    # FIXME: this needs to be changed
-    invariance_model: /media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint
+    invariance_model: null
 
     viz: {
       scale: 0.002

@@ -4,6 +4,7 @@ from typing import Dict
 
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 import torch
 from pyjacobian_follower import IkParams
 from tensorflow_graphics.geometry.transformation import quaternion
@@ -15,7 +16,8 @@ from dm_envs.planar_pushing_task import ARM_HAND_NAME
 from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from moonshine.torch_geometry import pairwise_squared_distances
+from moonshine.geometry import transform_points_3d
+from moonshine.moonshine_utils import repeat_tensor
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 
@@ -30,41 +32,51 @@ def squeeze_and_get_xy(p):
     return torch.squeeze(p, 2)[:, :, :2]
 
 
-def cylinders_to_points(positions, height, radius):
+def cylinders_to_points(positions, radius, height):
     """
 
     Args:
         positions:  [b, m, T, 3]
-        height:  [b, T]
         radius:  [b, T]
+        height:  [b, T]
 
     Returns: [b, m, T, 8, 3]
 
     """
-    raise NotImplementedError()
-    # m = positions.shape[1]
-    # sized_points = size_to_points(height, radius)  # [b, T, 8, 3]
-    # sized_points = repeat_tensor(sized_points, m, axis=1, new_axis=True)  # [b, m, T, 8, 3]
-    # transform_matrix = transformation_matrices_from_pos_quat(positions, [0, 0, 0, 1])  # [b, m, T, 4, 4]
-    # transform_matrix = repeat_tensor(transform_matrix, 8, 3, True)
-    # obj_points = transform_points_3d(transform_matrix, sized_points)  # [b, m, T, 8, 3]
-    # return obj_points
+    m = positions.shape[1]  # m is the number of objects
+    num_points = 16
+    sized_points = size_to_points(radius, height, num_points)  # [b, T, n_points, 3]
+    sized_points = repeat_tensor(sized_points, m, axis=1, new_axis=True)  # [b, m, T, n_points, 3]
+    ones = tf.ones(positions.shape[:-1] + [1])
+    positions_homo = tf.expand_dims(tf.concat([positions, ones], axis=-1), -1)  # [b, m, T, 4, 1]
+    rot_homo = tf.concat([tf.eye(3), tf.zeros([1, 3])], axis=0)
+    rot_homo = repeat_tensor(rot_homo, positions.shape[0], 0, True)
+    rot_homo = repeat_tensor(rot_homo, positions.shape[1], 1, True)
+    rot_homo = repeat_tensor(rot_homo, positions.shape[2], 2, True)
+    transform_matrix = tf.concat([rot_homo, positions_homo], axis=-1)  # [b, m, T, 4, 4]
+    transform_matrix = repeat_tensor(transform_matrix, num_points, 3, True)
+    obj_points = transform_points_3d(transform_matrix, sized_points)  # [b, m, T, num_points, 3]
+    return obj_points
 
 
-def size_to_points(height, radius):
+def size_to_points(radius, height, n_points=16):
     """
 
     Args:
-        height: [b, T]
         radius: [b, T]
+        height: [b, T]
 
-    Returns: [b, T, 8, 3] where 8 represents the corners the cube, and 3 is x,y,z.
+    Returns: [b, T, n_points, 3]
 
     """
-    raise NotImplementedError()
-    # unit_cylinder_points = tf.constant([[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0],
-    #                                     [0, 0, 1], [0, 1, 1], [1, 1, 1], [1, 0, 1]], tf.float32) - 0.5
-    # return unit_cylinder_points[None, None] * size[:, :, None, None]  # [b, T, 8, 3]
+    ones = tf.ones_like(radius)
+    zeros = tf.zeros_like(radius)
+    theta = tf.linspace(zeros, ones, n_points, axis=-1)
+    x = tf.cos(theta)
+    y = tf.sin(theta)
+    z = repeat_tensor(zeros, n_points, axis=2, new_axis=True)
+    points = tf.stack([x, y, z], axis=-1)
+    return points
 
 
 def get_k_with_stats(batch, k):
@@ -168,9 +180,6 @@ class CylindersScenario(PlanarPushingScenario):
         positions = tf.stack(positions, axis=1)
 
         obj_points = cylinders_to_points(positions, height, radius)
-
-        # combine to get one set of points per object
-        obj_points = tf.reshape(obj_points, [obj_points.shape[0], obj_points.shape[1], -1, 3])
 
         return obj_points
 
@@ -414,7 +423,7 @@ class CylindersScenario(PlanarPushingScenario):
 
         return pred_state_t
 
-    def propnet_rel(self, obj_pos, num_objects, relation_dim, threshold=0.06, device=None):
+    def propnet_rel(self, obj_pos, num_objects, relation_dim, threshold=0.05, device=None):
         """
 
         Args:
@@ -432,21 +441,33 @@ class CylindersScenario(PlanarPushingScenario):
         # we assume the robot is _first_ in the list of objects
         # the robot is included as an object here
         batch_size = obj_pos.shape[0]
-        n_rel = num_objects ** 2
-
-        squared_distances = pairwise_squared_distances(obj_pos, obj_pos)
-        close = (squared_distances < (threshold ** 2)).float()
-        # remove self. the BRDPN cylinders experient dosn't use self relations
-        close -= torch.eye(num_objects, device=device)
-
-        batch_indices, sender_indices, receiver_indices = torch.where(close == 1)
-        rel_indices_mat = torch.arange(n_rel, device=device).view(num_objects, num_objects)
-        rel_indices = rel_indices_mat[sender_indices, receiver_indices]
+        n_rel = num_objects * (num_objects - 1)
 
         Rs = torch.zeros(batch_size, num_objects, n_rel, device=device)
-        Rs[batch_indices, sender_indices, rel_indices] = 1
         Rr = torch.zeros(batch_size, num_objects, n_rel, device=device)
-        Rr[batch_indices, receiver_indices, rel_indices] = 1
         Ra = torch.ones(batch_size, n_rel, relation_dim, device=device)  # relation attributes information
 
+        rel_idx = 0
+        for sender_idx, receiver_idx in np.ndindex(num_objects, num_objects):
+            if sender_idx == receiver_idx:
+                continue
+
+            distance = (obj_pos[:, sender_idx] - obj_pos[:, receiver_idx]).square().sum()
+            is_close = (distance < threshold ** 2).float()
+
+            Rs[:, sender_idx, rel_idx] = 1
+            Rr[:, receiver_idx, rel_idx] = 1
+
+            rel_idx += 1
+
         return Rs, Rr, Ra
+
+    def initial_identity_aug_params(self, batch_size, m_objects):
+        return tf.zeros([batch_size, m_objects, 2], tf.float32)  # delta x, delta y
+
+    def sample_target_aug_params(self, seed, aug_params, n_samples):
+        trans_lim = tf.ones([2]) * aug_params['target_trans_lim']
+        trans_distribution = tfp.distributions.Uniform(low=-trans_lim, high=trans_lim)
+
+        trans_target = trans_distribution.sample(sample_shape=n_samples, seed=seed())
+        return trans_target

@@ -379,7 +379,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             return tf.linspace(obj_points_0[k], obj_points_1[k], num_object_interp, axis=1)
 
         swept_obj_points = tf.concat([_linspace(k) for k in keys], axis=2)
-        swept_obj_points = tf.reshape(swept_obj_points, [batch_size, -1, 3])
 
         return swept_obj_points
 
@@ -775,3 +774,22 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         is_ik_valid = tf.cast(tf.logical_and(is_ik_valid, reached), tf.float32)
 
         return joint_positions_aug, is_ik_valid
+
+    def initial_identity_aug_params(self, batch_size, m_objects):
+        return tf.zeros([batch_size, m_objects, 6], tf.float32)
+
+    def sample_target_aug_params(self, seed, aug_params, n_samples):
+        trans_lim = tf.ones([3]) * aug_params['target_trans_lim']
+        trans_distribution = tfp.distributions.Uniform(low=-trans_lim, high=trans_lim)
+
+        # NOTE: by restricting the sample of euler angles to < pi/2 we can ensure that the representation is unique.
+        #  (see https://www.cs.cmu.edu/~cga/dynopt/readings/Rmetric.pdf) which allows us to use a simple distance euler
+        #  function between two sets of euler angles.
+        euler_lim = tf.ones([3]) * aug_params['target_euler_lim']
+        euler_distribution = tfp.distributions.Uniform(low=-euler_lim, high=euler_lim)
+
+        trans_target = trans_distribution.sample(sample_shape=n_samples, seed=seed())
+        euler_target = euler_distribution.sample(sample_shape=n_samples, seed=seed())
+
+        target_params = tf.concat([trans_target, euler_target], 1)
+        return target_params

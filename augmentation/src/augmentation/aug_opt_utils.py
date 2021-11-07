@@ -90,10 +90,6 @@ def pick_best_params(invariance_model, sampled_params, batch_size):
     return best_params
 
 
-def initial_identity_params(batch_size, m_objects):
-    return tf.zeros([batch_size, m_objects, 6], tf.float32)
-
-
 def delta_min_dist_loss(sdf_dist, sdf_dist_aug):
     min_dist = tf.reduce_min(sdf_dist, axis=1)
     min_dist_aug = tf.reduce_min(sdf_dist_aug, axis=1)

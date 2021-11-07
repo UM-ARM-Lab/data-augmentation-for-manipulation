@@ -22,6 +22,7 @@
     -0.1, 0.1
     0.001, 0.015
   ]
+  res: 0.005
   repeat_delta_gripper_motion_probability: 0.9
   max_distance_gripper_can_move: 0.02
   # unused

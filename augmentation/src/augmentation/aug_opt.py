@@ -5,9 +5,8 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from pyjacobian_follower import IkParams
 
-import sdf_tools.utils_3d_tensorflow
 from augmentation.aug_opt_utils import debug_aug, debug_input, debug_ik, check_env_constraints, pick_best_params, \
-    initial_identity_params, transform_obj_points
+    transform_obj_points
 from augmentation.aug_projection_opt import AugProjOpt
 from augmentation.iterative_projection import iterative_projection
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
@@ -19,24 +18,64 @@ from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.geometry import transformation_params_to_matrices
+from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
+from sdf_tools.utils_3d_tensorflow import compute_sdf_and_gradient_batch
 from visualization_msgs.msg import MarkerArray
 
 cache_ = {}
 
 
-def sdf_and_grad_cached(env, res, origin_point, batch_size):
-    global cache_
+class AcceptInvarianceModel:
+    def __init__(self):
+        pass
 
-    if isinstance(env, tf.Tensor):
-        key = env.numpy().tostring() + res.numpy().tostring() + origin_point.numpy().tostring()
-    else:
-        key = env.tostring() + str(res).encode("utf-8") + origin_point.tostring()
-    if key in cache_:
-        return cache_[key]
-    print("Computing SDF, slow!!!", len(cache_))
-    v = sdf_tools.utils_3d_tensorflow.compute_sdf_and_gradient_batch(env, res, origin_point, batch_size)
-    cache_[key] = v
-    return v
+    def evaluate(self, sampled_params):
+        return tf.ones(sampled_params.shape[0])
+
+
+def compute_moved_mask(obj_points, moved_threshold=0.01):
+    """
+    obj_points: [b, m, T, n_points, 3]
+    return: [b, m], [b, m]
+    """
+    obj_points_dist = tf.linalg.norm(obj_points - obj_points[:, :, 0:1], axis=-1)  # [b, m, T, n_points]
+    obj_points_dist = tf.reduce_max(tf.reduce_max(obj_points_dist, axis=-1), axis=-1)  # [b, m]
+    moved_mask = obj_points_dist > moved_threshold ** 2
+    return tf.cast(moved_mask, tf.float32)
+
+
+def add_stationary_points_to_env(env, obj_points, moved_mask, res, origin_point, batch_size):
+    """
+
+    Args:
+        env: [b, h, w, c]
+        obj_points:  [b, m_objects, T, n_points, 3]
+        moved_mask:  [b, m_objects]
+
+    Returns:
+
+    """
+    indices = tf.where(moved_mask)  # [n, 2]
+    batch_indices = indices[:, 0]
+    points = tf.gather_nd(obj_points, indices)  # [n, T, n_points, 3]
+
+    # because the objects here are stationary, we can ignore the time dimension
+    points_0 = points[:, 0]  # [b, n_points, 3]
+    n_points = points_0.shape[1]
+
+    points_flat = tf.reshape(points_0, [-1, 3])
+    res_flat = tf.repeat(tf.gather(res, batch_indices, axis=0), n_points, axis=0)
+    origin_point_flat = tf.repeat(tf.gather(origin_point, batch_indices, axis=0), n_points, axis=0)
+    batch_indices_flat = tf.repeat(batch_indices, n_points, axis=0)
+
+    env_stationary = points_to_voxel_grid_res_origin_point_batched(batch_indices_flat,  # [b, h, w, c]
+                                                                   points_flat,
+                                                                   res_flat,
+                                                                   origin_point_flat,
+                                                                   *env.shape[-3:],
+                                                                   batch_size)
+    env_stationary = tf.clip_by_value(env + env_stationary, 0, 1)
+    return env_stationary
 
 
 class AugmentationOptimization:
@@ -71,18 +110,17 @@ class AugmentationOptimization:
                                   max_collision_check_attempts=self.hparams.get("max_collision_check_attempts", 1))
 
         if self.do_augmentation():
-            invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
-            self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
-                                                                   self.scenario)
+            invariance_model = self.hparams['invariance_model']
+            if invariance_model is None:
+                self.invariance_model_wrapper = AcceptInvarianceModel()
+            else:
+                invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
+                self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
+                                                                       self.scenario)
 
     def aug_opt(self, inputs: Dict, batch_size: int, time: int):
         if debug_aug():
             self.delete_state_action_markers()
-
-        if 'sdf' not in inputs or 'sdf_grad' not in inputs:
-            sdf, sdf_grad = sdf_and_grad_cached(inputs['env'], inputs['res'], inputs['origin_point'], batch_size)
-            inputs['sdf'] = sdf
-            inputs['sdf_grad'] = sdf_grad
 
         res = inputs['res']
         extent = inputs['extent']
@@ -90,18 +128,45 @@ class AugmentationOptimization:
         env = inputs['env']
 
         n_interp = self.hparams['num_object_interp']
-        obj_points = self.scenario.compute_obj_points(inputs, n_interp, batch_size)  # [b,m,T,8,3]
-        # get all components of the state as a set of points. this could be the swept volume and/or include the robot
+        obj_points = self.scenario.compute_obj_points(inputs, n_interp, batch_size)  # [b,m,T,num_points,3]
+        m_objects = obj_points.shape[3]
+        # check which objects move over time
+        moved_mask = compute_moved_mask(obj_points)  # [b, m_objects]
         obj_points_flat = tf.reshape(obj_points, [batch_size, -1, 3])
         obj_occupancy_flat = lookup_points_in_vg(obj_points_flat, env, res, origin_point, batch_size)
-        obj_occupancy = tf.reshape(obj_occupancy_flat, obj_points.shape[:3])  # [b, m, num_points]
+        obj_occupancy = tf.reshape(obj_occupancy_flat, [batch_size, m_objects, -1])  # [b, m, num_points]
+
+        # then we can add the points that represent the non-moved objects to the "env" voxel grid,
+        # then compute SDF and grad. This will be slow, what can we do about that?
+        # get all components of the state as a set of points. this could be the swept volume and/or include the robot
+        env_stationary = add_stationary_points_to_env(env,
+                                                      obj_points,
+                                                      moved_mask,
+                                                      res,
+                                                      origin_point,
+                                                      batch_size)
+
+        if debug_aug():
+            for b in debug_viz_batch_indices(batch_size):
+                env_stationary_b = {
+                    'env':          env_stationary[b].numpy(),
+                    'res':          res[b].numpy(),
+                    'origin_point': origin_point[b].numpy(),
+                    'extent':       extent[b].numpy(),
+                }
+                self.scenario.plot_environment_rviz(env_stationary_b)
+
+        sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary,
+                                                                             res,
+                                                                             origin_point,
+                                                                             batch_size)
 
         transformation_matrices, to_local_frame, is_obj_aug_valid = self.aug_obj_transform(
             res=res,
             extent=extent,
             origin_point=origin_point,
-            sdf=inputs['sdf'],
-            sdf_grad=inputs['sdf_grad'],
+            sdf=sdf_stationary,
+            sdf_grad=sdf_grad_stationary,
             obj_points=obj_points,
             obj_occupancy=obj_occupancy,
             batch_size=batch_size)
@@ -185,7 +250,7 @@ class AugmentationOptimization:
                           batch_size: int,
                           ):
         m_objects = obj_points.shape[1]
-        initial_transformation_params = initial_identity_params(batch_size, m_objects)
+        initial_transformation_params = self.scenario.initial_identity_aug_params(batch_size, m_objects)
         target_transformation_params = self.sample_target_transform_params(batch_size, m_objects)
         project_opt = AugProjOpt(aug_opt=self,
                                  sdf=sdf,
@@ -244,19 +309,7 @@ class AugmentationOptimization:
         good_enough_percentile = self.hparams['good_enough_percentile']
         n_samples = int(1 / good_enough_percentile) * n_total
 
-        trans_lim = tf.ones([3]) * self.hparams['target_trans_lim']
-        trans_distribution = tfp.distributions.Uniform(low=-trans_lim, high=trans_lim)
-
-        # NOTE: by restricting the sample of euler angles to < pi/2 we can ensure that the representation is unique.
-        #  (see https://www.cs.cmu.edu/~cga/dynopt/readings/Rmetric.pdf) which allows us to use a simple distance euler
-        #  function between two sets of euler angles.
-        euler_lim = tf.ones([3]) * self.hparams['target_euler_lim']
-        euler_distribution = tfp.distributions.Uniform(low=-euler_lim, high=euler_lim)
-
-        trans_target = trans_distribution.sample(sample_shape=n_samples, seed=self.seed())
-        euler_target = euler_distribution.sample(sample_shape=n_samples, seed=self.seed())
-
-        target_params = tf.concat([trans_target, euler_target], 1)
+        target_params = self.scenario.sample_target_aug_params(self.seed, self.hparams, n_samples)
 
         # pick the most valid transforms, via the learned object state augmentation validity model
         best_target_params = pick_best_params(self.invariance_model_wrapper, target_params, n_total)

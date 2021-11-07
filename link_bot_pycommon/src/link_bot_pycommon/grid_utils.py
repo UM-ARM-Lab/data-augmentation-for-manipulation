@@ -28,11 +28,11 @@ def lookup_points_in_vg(state_points, env, res, origin_point, batch_size):
     """
     Returns the values of env at state_points
     Args:
-    state_points: [b, n, 3], in same frame as origin_point
-    env: [b, h, w, c]
-    res:
-    origin_point: [b, 3] in same frame as state_points
-    batch_size:
+        state_points: [b, n, 3], in same frame as origin_point
+        env: [b, h, w, c]
+        res:
+        origin_point: [b, 3] in same frame as state_points
+        batch_size:
 
     Returns: [b, n]
 
@@ -232,6 +232,7 @@ def batch_extent_to_origin_point_tf(extent, res):
     center_xyz = batch_extent_to_center_tf(extent_3d=extent)
     shape_xyz = batch_extent_to_env_shape_xyz_tf(extent=extent, res=res)
     return center_xyz - (tf.cast(shape_xyz, tf.float32) * tf.expand_dims(res, axis=-1) / 2)
+
 
 @deprecated
 def extent_res_to_origin_point(extent, res):

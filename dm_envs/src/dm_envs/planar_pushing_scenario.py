@@ -114,19 +114,18 @@ class PlanarPushingScenario(ScenarioWithVisualization):
 
     def get_environment(self, params: Dict, **kwargs):
         # not the mujoco "env", this means the static obstacles and workspaces geometry
-        res = np.float32(0.005)
+        res = np.float32(params['res'])
         extent = np.array(params['extent'])
         origin_point = extent[[0, 2, 4]]
         shape = extent_to_env_shape(extent, res)
-        mock_floor_voxel_grid = np.zeros(shape, np.float32)
-        mock_floor_voxel_grid[:, :, 0] = 1.0
+        empty_env = np.zeros(shape, np.float32)
 
-        sdf, sdf_grad = compute_sdf_and_gradient(mock_floor_voxel_grid, res, origin_point)
+        sdf, sdf_grad = compute_sdf_and_gradient(empty_env, res, origin_point)
 
         return {
             'res':          res,
             'extent':       extent,
-            'env':          mock_floor_voxel_grid,
+            'env':          empty_env,
             'origin_point': origin_point,
             'sdf':          sdf,
             'sdf_grad':     sdf_grad,
