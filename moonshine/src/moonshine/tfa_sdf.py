@@ -68,6 +68,7 @@ def build_grad_3d(sdf):
     w_grad = build_grad_3d_partial(sdf, 2)
     c_grad = build_grad_3d_partial(sdf, 3)
 
+    # swapping w and h here because we want x,y,z and w=x, h=y, c=z
     grad = tf.stack([w_grad, h_grad, c_grad], axis=-1)
 
     return grad
