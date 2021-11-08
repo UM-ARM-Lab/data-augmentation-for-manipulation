@@ -7,7 +7,7 @@ import rospy
 from augmentation.aug_opt_utils import transform_obj_points, dpoint_to_dparams, mean_over_moved
 from augmentation.iterative_projection import BaseProjectOpt
 from link_bot_data.rviz_arrow import rviz_arrow
-from link_bot_data.visualization_common import make_delete_marker
+from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_point_to_idx
 from moonshine.geometry import homogeneous, euler_angle_diff
@@ -284,10 +284,25 @@ class AugProjOpt(BaseProjectOpt):
             moved_attract_repel_dpoint_b_flat = tf.reshape(moved_attract_repel_dpoint_b, [-1, 3])
             attract_grad_b = -tf.gather(moved_attract_repel_dpoint_b_flat, attract_indices, axis=0) * 0.02
             repel_grad_b = -tf.gather(moved_attract_repel_dpoint_b_flat, repel_indices, axis=0) * 0.02
-            s.plot_arrows_rviz(attract_points_aug, attract_grad_b, f'attract_sdf_grad_{moved_obj_i}', color='g',
-                               scale=self.viz_arrow_scale)
-            s.plot_arrows_rviz(repel_points_aug, repel_grad_b, f'repel_sdf_grad_{moved_obj_i}', color='r',
-                               scale=self.viz_arrow_scale)
+
+            attract_grad_ns = f'attract_sdf_grad_{moved_obj_i}'
+            repel_grad_ns = f'repel_sdf_grad_{moved_obj_i}'
+
+            s.arrows_pub.publish(make_delete_markerarray(attract_grad_ns))
+            s.arrows_pub.publish(make_delete_markerarray(repel_grad_ns))
+
+            attract_grad_nonzero_b_indices = tf.where(tf.linalg.norm(attract_grad_b, axis=-1) > 0.001)
+            attract_points_aug_nonzero = tf.gather(attract_points_aug, attract_grad_nonzero_b_indices)
+            attract_grad_nonzero_b = tf.gather(attract_grad_b, attract_grad_nonzero_b_indices, axis=0)
+
+            repel_grad_nonzero_b_indices = tf.where(tf.linalg.norm(repel_grad_b, axis=-1) > 0.001)
+            repel_points_aug_nonzero = tf.gather(repel_points_aug, repel_grad_nonzero_b_indices)
+            repel_grad_nonzero_b = tf.gather(repel_grad_b, repel_grad_nonzero_b_indices, axis=0)
+
+            s.plot_arrows_rviz(attract_points_aug_nonzero, attract_grad_nonzero_b, attract_grad_ns,
+                               color='g', scale=self.viz_arrow_scale)
+            s.plot_arrows_rviz(repel_points_aug_nonzero, repel_grad_nonzero_b, repel_grad_ns,
+                               color='r', scale=self.viz_arrow_scale)
 
             min_dist_points_aug_b = v.min_dist_points_aug[b]  # [3]
             delta_min_dist_grad_dpoint_b = v.delta_min_dist_grad_dpoint[b]  # [3]
