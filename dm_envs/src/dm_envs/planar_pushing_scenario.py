@@ -260,33 +260,3 @@ class PlanarPushingScenario(ScenarioWithVisualization):
     @staticmethod
     def is_points_key(k):
         raise NotImplementedError()
-
-    def plot_aug_points_rviz(self, obj_i: int, obj_points_b_i, label: str, color_map):
-        objs_aug_msg = MarkerArray()
-        for t, obj_points_b_i_t in enumerate(obj_points_b_i):
-            color_t = ColorRGBA(*color_map(t / obj_points_b_i.shape[0]))
-            color_t.a = 0.2
-
-            obj_center = tf.reduce_mean(obj_points_b_i_t, 0)
-
-            obj_aug_msg = Marker()
-            obj_aug_msg.ns = 'objs_' + label
-            obj_aug_msg.id = t + 1000 * obj_i
-            obj_aug_msg.header.frame_id = 'world'
-            obj_aug_msg.action = Marker.ADD
-            obj_aug_msg.type = Marker.CYLINDER
-            obj_aug_msg.scale.x = float(tf.linalg.norm(obj_x_axis))
-            obj_aug_msg.scale.y = float(tf.linalg.norm(obj_y_axis))
-            obj_aug_msg.scale.z = float(tf.linalg.norm(obj_z_axis))
-            obj_aug_msg.pose.position.x = float(obj_center[0])
-            obj_aug_msg.pose.position.y = float(obj_center[1])
-            obj_aug_msg.pose.position.z = float(obj_center[2])
-            obj_aug_msg.pose.orientation.x = 0
-            obj_aug_msg.pose.orientation.y = 0
-            obj_aug_msg.pose.orientation.z = 0
-            obj_aug_msg.pose.orientation.w = 1
-            obj_aug_msg.color = color_t
-
-            objs_aug_msg.markers.append(obj_aug_msg)
-        self.viz_aug_pub.publish(objs_aug_msg)
-

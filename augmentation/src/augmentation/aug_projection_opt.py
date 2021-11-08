@@ -4,20 +4,20 @@ from typing import Optional
 import tensorflow as tf
 
 import rospy
-from augmentation.aug_opt_utils import transform_obj_points, dpoint_to_dparams
+from augmentation.aug_opt_utils import transform_obj_points, dpoint_to_dparams, mean_over_moved
 from augmentation.iterative_projection import BaseProjectOpt
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_data.visualization_common import make_delete_marker
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_point_to_idx
-from moonshine.geometry import transformation_jacobian, homogeneous, euler_angle_diff
+from moonshine.geometry import homogeneous, euler_angle_diff
 from visualization_msgs.msg import Marker
 
 
 @dataclass
 class VizVars:
-    obj_points_aug: tf.Tensor  # [b, m, n_points, 3]
-    to_local_frame: tf.Tensor  # [b, m, 1, 3]
+    obj_points_aug: tf.Tensor  # [b, m_objects, n_points, 3]
+    to_local_frame: tf.Tensor  # [b, 3]
     min_dist_points_aug: tf.Tensor
     delta_min_dist_grad_dpoint: tf.Tensor
     attract_repel_dpoint: tf.Tensor
@@ -52,7 +52,7 @@ class AugProjOpt(BaseProjectOpt):
         self.extent = extent
         self.obj_points = obj_points
         self.moved_mask = moved_mask
-        self.obj_occupancy = obj_occupancy  # [b,m,n_points]
+        self.obj_occupancy = obj_occupancy  # [b,m,T,n_points]
         self.hparams = self.aug_opt.hparams
 
         # More hyperparameters
@@ -67,9 +67,9 @@ class AugProjOpt(BaseProjectOpt):
         obj_sdf = tf.gather_nd(self.sdf, obj_point_indices, batch_dims=1)  # will be zero if index OOB
         # FIXME: we only want to et the object sdf for points where moved_mask is true
         obj_sdf_moved = tf.where(tf.cast(moved_mask[..., None, None], tf.bool), obj_sdf, 1e6)
-        obj_sdf_moved_flat = tf.reshape(obj_sdf_moved, [self.batch_size, -1])
-        self.min_dist = tf.reduce_min(obj_sdf_moved_flat, axis=-1)
-        self.min_dist_idx = tf.argmin(obj_sdf_moved_flat, axis=-1)  # indexes flattened points
+        obj_sdf_flat = tf.reshape(obj_sdf_moved, [self.batch_size, -1])
+        self.min_dist = tf.reduce_min(obj_sdf_flat, axis=-1)
+        self.min_dist_idx = tf.argmin(obj_sdf_flat, axis=-1)  # indexes flattened points
 
         # viz hyperparameters
         viz_params = self.hparams.get('viz', {})
@@ -129,18 +129,20 @@ class AugProjOpt(BaseProjectOpt):
                        sdf_aug=obj_sdf_aug)
 
     def step(self, _: int, opt, obj_transforms: tf.Variable):
+        s = self.aug_opt.scenario
         tape = tf.GradientTape()
 
         v = self.forward(tape, obj_transforms)
 
         with tape:
-            invariance_loss = self.aug_opt.invariance_model_wrapper.evaluate(obj_transforms)
+            invariance_loss = self.aug_opt.invariance_model_wrapper.evaluate(obj_transforms)  # [b, k_transforms]
             invariance_loss = tf.maximum(self.hparams['invariance_threshold'], invariance_loss)
             invariance_loss = self.hparams['invariance_weight'] * invariance_loss
-            invariance_loss = tf.reduce_mean(invariance_loss, axis=-1)
+            invariance_loss = tf.reduce_mean(invariance_loss, axis=-1)  # [b]
 
-            bbox_loss_batch = self.aug_opt.bbox_loss(v.obj_points_aug, self.extent)  # [b,m]
+            bbox_loss_batch = self.aug_opt.bbox_loss(v.obj_points_aug, self.extent)  # [b,k,T,n]
             bbox_loss = tf.reduce_sum(bbox_loss_batch, axis=-1)
+            bbox_loss = tf.reduce_sum(bbox_loss, axis=-1)
             bbox_loss = tf.reduce_mean(bbox_loss, axis=-1)  # [b]
 
             losses = [
@@ -150,25 +152,35 @@ class AugProjOpt(BaseProjectOpt):
             losses_sum = tf.add_n(losses)
             loss = tf.reduce_mean(losses_sum)
 
-        # Compute the jacobian of the transformation
-        jacobian = tf.expand_dims(transformation_jacobian(obj_transforms), axis=-4)  # [b,m,1,6,4,4]
-        obj_points_local_frame = self.obj_points - v.to_local_frame  # [b,m,n_points,3]
-        obj_points_local_frame_h = homogeneous(obj_points_local_frame)[..., None, :, None]  # [b,m,n_points,1,4,1]
-        dpoint_dparams_h = tf.squeeze(tf.matmul(jacobian, obj_points_local_frame_h), axis=-1)  # [b,m,n_points,6,4]
-        dpoint_dparams = dpoint_dparams_h[..., :3]  # [b,m,n_points,6,3]
-        dpoint_dparams = tf.transpose(dpoint_dparams, [0, 1, 2, 4, 3])  # [b,m,n_points,3,6]
+        # Compute the jacobian of the transformation. Here the transformation parameters have dimension p
+        jacobian = tf.expand_dims(s.aug_transformation_jacobian(obj_transforms), axis=-4)  # [b,k,1,p,4,4]
+        to_local_frame_moved_mean_expanded = v.to_local_frame[:, None, None, :]
+        obj_points_local_frame = self.obj_points - to_local_frame_moved_mean_expanded  # [b,m_objects,T,n_points,3]
+        obj_points_local_frame_h = homogeneous(obj_points_local_frame)[..., None, :, None]  # [b,m,T,n_points,1,4,1]
+        dpoint_dparams_h = tf.squeeze(tf.matmul(jacobian, obj_points_local_frame_h), axis=-1)  # [b,m,T,n_points,p,4]
+        dpoint_dparams = dpoint_dparams_h[..., :3]  # [b,m,T,n_points,p,3]
+        dpoint_dparams = tf.transpose(dpoint_dparams, [0, 1, 2, 3, 5, 4])  # [b, m, T, n_points, 3, p]
 
         # chain rule
         attract_repel_sdf_grad = dpoint_to_dparams(v.attract_repel_dpoint, dpoint_dparams)
-        dpoint_dparams_for_min_point = tf.gather(dpoint_dparams, self.min_dist_idx, axis=-3, batch_dims=2)  # [b,m,3,6]
-        delta_min_dist_grad_dparams = tf.einsum('bmi,bmij->bmj', v.delta_min_dist_grad_dpoint,
-                                                dpoint_dparams_for_min_point)  # [b,m,6]
+        attract_repel_sdf_grad = tf.reduce_mean(attract_repel_sdf_grad, -2)
+        attract_repel_sdf_grad = tf.reduce_mean(attract_repel_sdf_grad, -2)
+        moved_attract_repel_sdf_grad_mean = mean_over_moved(self.moved_mask, attract_repel_sdf_grad)  # [b, p]
+        # NOTE: this code isn't general enough to handle multiple transformations (k>1)
+        moved_attract_repel_sdf_grad_mean = tf.expand_dims(moved_attract_repel_sdf_grad_mean, axis=-2)
+
+        p = obj_transforms.shape[-1]
+        dpoint_dparams_flat = tf.reshape(dpoint_dparams, [self.batch_size, -1, 3, p])
+        dpoint_dparams_for_min_point = tf.gather(dpoint_dparams_flat, self.min_dist_idx, batch_dims=1)  # [b,p]
+        delta_min_dist_grad_dparams = dpoint_to_dparams(v.delta_min_dist_grad_dpoint,  # [b, 3],
+                                                        dpoint_dparams_for_min_point)  # [b, 3, p] -> [b, p]
+        delta_min_dist_grad_dparams = tf.expand_dims(delta_min_dist_grad_dparams, axis=-2)
 
         variables = [obj_transforms]
         tape_gradients = tape.gradient(loss, variables)
 
         # combine with the gradient for the other aspects of the loss, those computed by tf.gradient
-        gradients = [tape_gradients[0] + attract_repel_sdf_grad + delta_min_dist_grad_dparams]
+        gradients = [tape_gradients[0] + moved_attract_repel_sdf_grad_mean + delta_min_dist_grad_dparams]
 
         clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
         opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
@@ -222,17 +234,17 @@ class AugProjOpt(BaseProjectOpt):
             obj_occupancy_b = self.obj_occupancy[b]  # [n_objects, T*n_points, 3]
             moved_mask_b = self.moved_mask[b]
 
-            moved_obj_i = 0  # assume there's only one moved "object" (or group of objects, one big set of points)
-            obj_transforms_b_i = obj_transforms_b[moved_obj_i]
-            target_b_i = target_b[moved_obj_i]
+            k = 0  # assume there's only one moved "object" (or group of objects, one big set of points)
+            obj_transforms_b_i = obj_transforms_b[k]
+            target_b_i = target_b[k]
             target_pos_b_i = s.aug_target_pos(target_b_i)
 
-            s.plot_transform(moved_obj_i, obj_transforms_b_i, f'aug_opt_current_{moved_obj_i}')
-            s.plot_transform(moved_obj_i, target_b_i, f'aug_opt_target_{moved_obj_i}')
+            s.plot_transform(k, obj_transforms_b_i, f'aug_opt_current_{k}')
+            s.plot_transform(k, target_b_i, f'aug_opt_target_{k}')
 
-            dir_msg = rviz_arrow([0, 0, 0], target_pos_b_i.numpy(), scale=2.0)
-            dir_msg.header.frame_id = f'aug_opt_initial_{moved_obj_i}'
-            dir_msg.id = moved_obj_i
+            dir_msg = rviz_arrow([0, 0, 0], target_pos_b_i.numpy(), scale=self.viz_arrow_scale * 2)
+            dir_msg.header.frame_id = f'aug_opt_initial_{k}'
+            dir_msg.id = k
             self.aug_dir_pub.publish(dir_msg)
 
             moved_obj_indices_b = tf.squeeze(tf.where(moved_mask_b))
@@ -244,7 +256,7 @@ class AugProjOpt(BaseProjectOpt):
             repel_indices = tf.squeeze(tf.where(1 - moved_obj_occupancy_b))  # [n_repel_points]
             attract_indices = tf.squeeze(tf.where(moved_obj_occupancy_b), -1)  # [n_attract_points]
 
-            self.viz_b_i(moved_obj_indices_b, attract_indices, b, moved_obj_i, moved_obj_points_b, repel_indices, v)
+            self.viz_b_i(moved_obj_indices_b, attract_indices, b, k, moved_obj_points_b, repel_indices, v)
 
     def viz_b_i(self, moved_obj_indices_b, attract_indices, b, moved_obj_i, moved_obj_points_b_i, repel_indices, v):
         s = self.aug_opt.scenario

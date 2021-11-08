@@ -31,7 +31,7 @@ class AcceptInvarianceModel:
         pass
 
     def evaluate(self, sampled_params):
-        return tf.ones(sampled_params.shape[0])
+        return tf.ones(sampled_params.shape[:-1])
 
 
 def compute_moved_mask(obj_points, moved_threshold=0.01):
@@ -253,9 +253,9 @@ class AugmentationOptimization:
                           obj_occupancy,
                           batch_size: int,
                           ):
-        m_transforms = 1  # this is always one at the moment because we transform all moved objects rigidly
-        initial_transformation_params = self.scenario.initial_identity_aug_params(batch_size, m_transforms)
-        target_transformation_params = self.sample_target_transform_params(batch_size, m_transforms)
+        k_transforms = 1  # this is always one at the moment because we transform all moved objects rigidly
+        initial_transformation_params = self.scenario.initial_identity_aug_params(batch_size, k_transforms)
+        target_transformation_params = self.sample_target_transform_params(batch_size, k_transforms)
         project_opt = AugProjOpt(aug_opt=self,
                                  sdf=sdf,
                                  sdf_grad=sdf_grad,
@@ -309,8 +309,8 @@ class AugmentationOptimization:
         constraints_satisfied = env_constraints_satisfied * bbox_constraint_satisfied * delta_min_dist_satisfied
         return constraints_satisfied
 
-    def sample_target_transform_params(self, batch_size: int, m_transforms: int):
-        n_total = batch_size * m_transforms
+    def sample_target_transform_params(self, batch_size: int, k_transforms: int):
+        n_total = batch_size * k_transforms
         good_enough_percentile = self.hparams['good_enough_percentile']
         n_samples = int(1 / good_enough_percentile) * n_total
 
@@ -318,7 +318,7 @@ class AugmentationOptimization:
 
         # pick the most valid transforms, via the learned object state augmentation validity model
         best_target_params = pick_best_params(self.invariance_model_wrapper, target_params, batch_size)
-        best_target_params = tf.reshape(best_target_params, [batch_size, m_transforms, target_params.shape[-1]])
+        best_target_params = tf.reshape(best_target_params, [batch_size, k_transforms, target_params.shape[-1]])
         return best_target_params
 
     def use_original_if_invalid(self,

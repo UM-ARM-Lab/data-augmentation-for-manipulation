@@ -15,12 +15,10 @@ from dm_envs.planar_pushing_task import ARM_HAND_NAME
 from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices
+from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian
 from moonshine.moonshine_utils import repeat_tensor
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
-
-NUM_POINTS = 25
 
 
 def pos_to_vel(pos):
@@ -33,19 +31,21 @@ def squeeze_and_get_xy(p):
     return torch.squeeze(p, 2)[:, :, :2]
 
 
-def cylinders_to_points(positions, radius, height):
+def cylinders_to_points(positions, res, radius, height):
     """
 
     Args:
         positions:  [b, m, T, 3]
+        res:  [b, T]
         radius:  [b, T]
         height:  [b, T]
 
-    Returns: [b, m, T, NUM_POINTS, 3]
+    Returns: [b, m, T, n_POINTS, 3]
 
     """
     m = positions.shape[1]  # m is the number of objects
-    sized_points = size_to_points(radius, height, NUM_POINTS)  # [b, T, n_points, 3]
+    sized_points = size_to_points(radius, height, res)  # [b, T, n_points, 3]
+    num_points = sized_points.shape[-2]
     sized_points = repeat_tensor(sized_points, m, axis=1, new_axis=True)  # [b, m, T, n_points, 3]
     ones = tf.ones(positions.shape[:-1] + [1])
     positions_homo = tf.expand_dims(tf.concat([positions, ones], axis=-1), -1)  # [b, m, T, 4, 1]
@@ -54,29 +54,54 @@ def cylinders_to_points(positions, radius, height):
     rot_homo = repeat_tensor(rot_homo, positions.shape[1], 1, True)
     rot_homo = repeat_tensor(rot_homo, positions.shape[2], 2, True)
     transform_matrix = tf.concat([rot_homo, positions_homo], axis=-1)  # [b, m, T, 4, 4]
-    transform_matrix = repeat_tensor(transform_matrix, NUM_POINTS, 3, True)
+    transform_matrix = repeat_tensor(transform_matrix, num_points, 3, True)
     obj_points = transform_points_3d(transform_matrix, sized_points)  # [b, m, T, num_points, 3]
     return obj_points
 
 
-def size_to_points(radius, height, n_points):
+def make_odd(x):
+    return tf.where(tf.cast(x % 2, tf.bool), x, x + 1)
+
+
+NUM_POINTS = 256
+cylinder_points_rng = np.random.RandomState(0)
+
+
+def size_to_points(radius, height, res):
     """
 
     Args:
         radius: [b, T]
         height: [b, T]
+        res: [b, T]
 
     Returns: [b, T, n_points, 3]
 
     """
-    two_pi = tf.ones_like(radius) * 2 * np.pi
-    zero = tf.zeros_like(radius)
-    theta = tf.linspace(zero, two_pi, n_points, axis=-1)
-    x = tf.cos(theta)
-    y = tf.sin(theta)
-    z = repeat_tensor(zero, n_points, axis=2, new_axis=True)
-    points = tf.stack([x, y, z], axis=-1) * radius[..., None, None]
-    return points
+    batch_size, time = radius.shape
+    res = res[0, 0]
+    radius = radius[0, 0]
+    height = height[0, 0]
+
+    n_side = make_odd(tf.cast(2 * radius / res, tf.int64))
+    n_height = make_odd(tf.cast(height / res, tf.int64))
+    p = tf.linspace(-radius, radius, n_side)
+    grid_points = tf.stack(tf.meshgrid(p, p), -1)  # [n_side, n_side, 2]
+    in_circle = tf.linalg.norm(grid_points, axis=-1) <= radius
+    in_circle_indices = tf.where(in_circle)
+    points_in_circle = tf.gather_nd(grid_points, in_circle_indices)
+    points_in_circle_w_height = repeat_tensor(points_in_circle, n_height, 0, True)
+    z = tf.linspace(0., height, n_height) - height / 2
+    z = repeat_tensor(z, points_in_circle_w_height.shape[1], 1, True)[..., None]
+    points = tf.concat([points_in_circle_w_height, z], axis=-1)
+    points = tf.reshape(points, [-1, 3])
+
+    sampled_points_indices = cylinder_points_rng.randint(0, points.shape[0], NUM_POINTS)
+    sampled_points = tf.gather(points, sampled_points_indices, axis=0)
+
+    points_batch = repeat_tensor(sampled_points, batch_size, 0, True)
+    points_batch_time = repeat_tensor(points_batch, time, 1, True)
+    return points_batch_time
 
 
 def get_k_with_stats(batch, k):
@@ -179,13 +204,15 @@ class CylindersScenario(PlanarPushingScenario):
         positions = tf.stack(positions, axis=1)
         time = positions.shape[2]
 
-        obj_points = cylinders_to_points(positions, radius=radius, height=height)
+        res = repeat_tensor(inputs['res'], time, 1, True)  # [b]
+
+        obj_points = cylinders_to_points(positions, res=res, radius=radius, height=height)
         robot_radius = repeat_tensor(primitive_hand.RADIUS, batch_size, 0, True)
         robot_radius = repeat_tensor(robot_radius, time, 1, True)
         robot_height = repeat_tensor(primitive_hand.HEIGHT, batch_size, 0, True)
         robot_height = repeat_tensor(robot_height, time, 1, True)
         robot_positions = tf.reshape(inputs[f'{ARM_HAND_NAME}/tcp_pos'], [batch_size, 1, time, 3])
-        robot_points = cylinders_to_points(robot_positions, radius=robot_radius, height=robot_height)
+        robot_points = cylinders_to_points(robot_positions, res=res, radius=robot_radius, height=robot_height)
 
         obj_points = tf.concat([robot_points, obj_points], axis=1)
 
@@ -432,8 +459,8 @@ class CylindersScenario(PlanarPushingScenario):
 
         return Rs, Rr, Ra
 
-    def initial_identity_aug_params(self, batch_size, m_transforms):
-        return tf.zeros([batch_size, m_transforms, 2], tf.float32)  # delta x, delta y
+    def initial_identity_aug_params(self, batch_size, k_transforms):
+        return tf.zeros([batch_size, k_transforms, 2], tf.float32)  # delta x, delta y
 
     def sample_target_aug_params(self, seed, aug_params, n_samples):
         trans_lim = tf.ones([2]) * aug_params['target_trans_lim']
@@ -462,3 +489,10 @@ class CylindersScenario(PlanarPushingScenario):
         zrpy = tf.zeros(obj_transforms.shape[:-1] + [4])
         xyzrpy = tf.concat([obj_transforms, zrpy], axis=-1)
         return xyzrpy_to_matrices(xyzrpy)
+
+    def aug_transformation_jacobian(self, obj_transforms):
+        zrpy = tf.zeros(obj_transforms.shape[:-1] + [4])
+        xyzrpy = tf.concat([obj_transforms, zrpy], axis=-1)
+        jacobian = transformation_jacobian(xyzrpy)
+        jacobian_xy = jacobian[..., 0:2, :, :]
+        return jacobian_xy

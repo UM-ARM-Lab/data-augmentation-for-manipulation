@@ -68,10 +68,7 @@ def transform_obj_points(obj_points, moved_mask, transformation_matrices):
     to_local_frame = tf.reduce_mean(obj_points, axis=-2)  # [b,m,T,1,3]
     to_local_frame = tf.reduce_mean(to_local_frame, axis=-2)  # [b,m,1,1,3]
 
-    to_local_frame_moved = tf.where(tf.cast(moved_mask[..., None], tf.bool), to_local_frame, 0)
-    to_local_frame_moved_sum = tf.reduce_sum(to_local_frame_moved, axis=-2)
-    to_local_frame_moved_count = tf.reduce_sum(moved_mask, axis=-1, keepdims=True)
-    to_local_frame_moved_mean = to_local_frame_moved_sum / to_local_frame_moved_count
+    to_local_frame_moved_mean = mean_over_moved(moved_mask, to_local_frame)
     to_local_frame_moved_mean_expanded = to_local_frame_moved_mean[:, None, None, :]
 
     obj_points_local_frame = obj_points - to_local_frame_moved_mean_expanded  # [b, m_objects, T, n_points, 3]
@@ -79,6 +76,43 @@ def transform_obj_points(obj_points, moved_mask, transformation_matrices):
     obj_points_aug_local_frame = transform_points_3d(transformation_matrices_expanded, obj_points_local_frame)
     obj_points_aug = obj_points_aug_local_frame + to_local_frame_moved_mean_expanded  # [b, m_objects, T, n_points, 3]
     return obj_points_aug, to_local_frame_moved_mean
+
+
+def mean_over_moved(moved_mask, x):
+    """
+
+    Args:
+        moved_mask: [b, m]
+        x: [b, m, d1, ..., dn]
+
+    Returns:
+
+    """
+    # replacing the values where moved_mask is false with zero will not affect the sum...
+    moved_mask_expanded = expand_to_match(moved_mask, x)  # [b, m, 1, 1, 1, 1]
+    x_moved = tf.where(tf.cast(moved_mask_expanded, tf.bool), x, 0)  # [b, m, T, n, 3, p]
+    x_moved_sum = tf.reduce_sum(x_moved, axis=1)
+    # ... if we divide by the right numbers
+    moved_count = tf.reduce_sum(moved_mask, axis=1)
+    moved_count = expand_to_match(moved_count, x)
+    x_moved_mean = x_moved_sum / moved_count
+    return x_moved_mean
+
+
+def expand_to_match(a, b):
+    """
+
+    Args:
+        a: [b1, b2, ..., bN]
+        b: [b1, b2, ..., bN, d1, d2, ... dN]
+
+    Returns: a but with the shape [b1, b2, ..., bN, 1, 1, ... 1]
+
+    """
+    a_expanded = a
+    for dim_j in range(b.ndim - 2):
+        a_expanded = tf.expand_dims(a_expanded, axis=-1)
+    return a_expanded
 
 
 def check_env_constraints(attract_mask, min_dist, res):
@@ -106,6 +140,13 @@ def delta_min_dist_loss(sdf_dist, sdf_dist_aug):
 
 
 def dpoint_to_dparams(dpoint, dpoint_dparams):
-    dparams = tf.einsum('bmni,bmnij->bmnj', dpoint, dpoint_dparams)  # [b,m,n_points,6]
-    dparams = tf.reduce_mean(dparams, axis=-2)
-    return dparams
+    """
+
+    Args:
+        dpoint:  [b,m,T,n_points,3]
+        dpoint_dparams: [b,m,T,n_points,3,p]
+
+    Returns: [b,m,T,n_points,p]
+
+    """
+    return tf.squeeze(tf.matmul(tf.expand_dims(dpoint, -2), dpoint_dparams), axis=-2)

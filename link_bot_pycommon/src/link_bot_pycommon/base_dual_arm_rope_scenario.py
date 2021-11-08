@@ -18,7 +18,7 @@ from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneSce
 from link_bot_pycommon.moveit_utils import make_joint_state
 from link_bot_pycommon.pycommon import densify_points
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices
+from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian
 from moonshine.moonshine_utils import numpify, to_list_of_strings
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene, AllowedCollisionMatrix
 from sdf_tools import utils_3d
@@ -776,8 +776,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         return joint_positions_aug, is_ik_valid
 
-    def initial_identity_aug_params(self, batch_size, m_transforms):
-        return tf.zeros([batch_size, m_transforms, 6], tf.float32)
+    def initial_identity_aug_params(self, batch_size, k_transforms):
+        return tf.zeros([batch_size, k_transforms, 6], tf.float32)
 
     def sample_target_aug_params(self, seed, aug_params, n_samples):
         trans_lim = tf.ones([3]) * aug_params['target_trans_lim']
@@ -815,3 +815,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
     def transformation_params_to_matrices(self, obj_transforms):
         return xyzrpy_to_matrices(obj_transforms)
+
+    def aug_transformation_jacobian(self, obj_transforms):
+        return transformation_jacobian(obj_transforms)
