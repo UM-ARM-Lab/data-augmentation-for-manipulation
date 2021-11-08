@@ -240,44 +240,6 @@ class BlocksScenario(PlanarPushingScenario):
         """
         pass
 
-    def plot_aug_points_rviz(self, obj_i: int, obj_points_b_i, label: str, color_map):
-        obj_points_b_i_time = tf.reshape(obj_points_b_i, [-1, 8, 3])
-        blocks_aug_msg = MarkerArray()
-        for t, obj_points_b_i_t in enumerate(obj_points_b_i_time):
-            color_t = ColorRGBA(*color_map(t / obj_points_b_i_time.shape[0]))
-            color_t.a = 0.2
-
-            block_center = tf.reduce_mean(obj_points_b_i_t, 0)
-            block_x_axis = obj_points_b_i_t[3] - obj_points_b_i_t[0]  # [3]
-            block_y_axis = obj_points_b_i_t[1] - obj_points_b_i_t[0]  # [3]
-            block_z_axis = obj_points_b_i_t[4] - obj_points_b_i_t[0]  # [3]
-            block_x_axis_norm, _ = tf.linalg.normalize(block_x_axis)
-            block_y_axis_norm, _ = tf.linalg.normalize(block_y_axis)
-            block_z_axis_norm, _ = tf.linalg.normalize(block_z_axis)
-            block_rot_mat = tf.stack([block_x_axis_norm, block_y_axis_norm, block_z_axis_norm], axis=-1)
-            block_quat = quaternion.from_rotation_matrix(block_rot_mat)
-
-            block_aug_msg = Marker()
-            block_aug_msg.ns = 'blocks_' + label
-            block_aug_msg.id = t + 1000 * obj_i
-            block_aug_msg.header.frame_id = 'world'
-            block_aug_msg.action = Marker.ADD
-            block_aug_msg.type = Marker.CUBE
-            block_aug_msg.scale.x = tf.linalg.norm(block_x_axis)
-            block_aug_msg.scale.y = tf.linalg.norm(block_y_axis)
-            block_aug_msg.scale.z = tf.linalg.norm(block_z_axis)
-            block_aug_msg.pose.position.x = block_center[0]
-            block_aug_msg.pose.position.y = block_center[1]
-            block_aug_msg.pose.position.z = block_center[2]
-            block_aug_msg.pose.orientation.x = block_quat[0]
-            block_aug_msg.pose.orientation.y = block_quat[1]
-            block_aug_msg.pose.orientation.z = block_quat[2]
-            block_aug_msg.pose.orientation.w = block_quat[3]
-            block_aug_msg.color = color_t
-
-            blocks_aug_msg.markers.append(block_aug_msg)
-        self.viz_aug_pub.publish(blocks_aug_msg)
-
     @staticmethod
     def is_points_key(k):
         return any([

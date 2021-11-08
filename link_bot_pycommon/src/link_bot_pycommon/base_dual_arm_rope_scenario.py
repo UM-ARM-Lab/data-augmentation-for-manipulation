@@ -22,6 +22,7 @@ from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import numpify, to_list_of_strings
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene, AllowedCollisionMatrix
 from sdf_tools import utils_3d
+from tf import transformations
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():
@@ -793,3 +794,21 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         target_params = tf.concat([trans_target, euler_target], 1)
         return target_params
+
+    def plot_transform(self, obj_i, transform_params, frame_id):
+        """
+
+        Args:
+            frame_id:
+            transform_params: [x,y,z,roll,pitch,yaw]
+
+        Returns:
+
+        """
+        target_pos_b = transform_params[:3].numpy()
+        target_euler_b = transform_params[3:].numpy()
+        target_q_b = transformations.quaternion_from_euler(*target_euler_b)
+        self.tf.send_transform(target_pos_b, target_q_b, f'aug_opt_initial_{obj_i}', frame_id, False)
+
+    def aug_target_pos(self, target):
+        return target[:3]

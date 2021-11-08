@@ -1,6 +1,7 @@
 import pathlib
 from typing import Dict, List
 
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from pyjacobian_follower import IkParams
@@ -19,7 +20,7 @@ from link_bot_pycommon.grid_utils import lookup_points_in_vg
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.geometry import transformation_params_to_matrices
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
-from sdf_tools.utils_3d_tensorflow import compute_sdf_and_gradient_batch
+from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
 from visualization_msgs.msg import MarkerArray
 
 cache_ = {}
@@ -41,6 +42,9 @@ def compute_moved_mask(obj_points, moved_threshold=0.01):
     obj_points_dist = tf.linalg.norm(obj_points - obj_points[:, :, 0:1], axis=-1)  # [b, m, T, n_points]
     obj_points_dist = tf.reduce_max(tf.reduce_max(obj_points_dist, axis=-1), axis=-1)  # [b, m]
     moved_mask = obj_points_dist > moved_threshold ** 2
+    robot_always_moved_mask = np.zeros_like(moved_mask)
+    robot_always_moved_mask[:, 0] = 1
+    moved_mask = tf.logical_or(moved_mask, robot_always_moved_mask)
     return tf.cast(moved_mask, tf.float32)
 
 
@@ -129,7 +133,7 @@ class AugmentationOptimization:
 
         n_interp = self.hparams['num_object_interp']
         obj_points = self.scenario.compute_obj_points(inputs, n_interp, batch_size)  # [b,m,T,num_points,3]
-        m_objects = obj_points.shape[3]
+        m_objects = obj_points.shape[1]
         # check which objects move over time
         moved_mask = compute_moved_mask(obj_points)  # [b, m_objects]
         obj_points_flat = tf.reshape(obj_points, [batch_size, -1, 3])
@@ -157,10 +161,7 @@ class AugmentationOptimization:
                 self.scenario.plot_environment_rviz(env_stationary_b)
                 self.debug.send_position_transform(origin_point[b], 'origin_point')
 
-        sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary,
-                                                                             res,
-                                                                             origin_point,
-                                                                             batch_size)
+        sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary, res)
 
         transformation_matrices, to_local_frame, is_obj_aug_valid = self.aug_obj_transform(
             res=res,
@@ -168,6 +169,7 @@ class AugmentationOptimization:
             origin_point=origin_point,
             sdf=sdf_stationary,
             sdf_grad=sdf_grad_stationary,
+            moved_mask=moved_mask,
             obj_points=obj_points,
             obj_occupancy=obj_occupancy,
             batch_size=batch_size)
@@ -246,6 +248,7 @@ class AugmentationOptimization:
                           origin_point,
                           sdf,
                           sdf_grad,
+                          moved_mask,
                           obj_points,
                           obj_occupancy,
                           batch_size: int,
@@ -260,6 +263,7 @@ class AugmentationOptimization:
                                  origin_point=origin_point,
                                  extent=extent,
                                  batch_size=batch_size,
+                                 moved_mask=moved_mask,
                                  obj_points=obj_points,
                                  obj_occupancy=obj_occupancy)
         if debug_aug():

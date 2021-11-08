@@ -7,7 +7,6 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import torch
 from pyjacobian_follower import IkParams
-from tensorflow_graphics.geometry.transformation import quaternion
 
 from dm_envs import primitive_hand
 from dm_envs.cylinders_task import PlanarPushingCylindersTask
@@ -20,6 +19,8 @@ from moonshine.geometry import transform_points_3d
 from moonshine.moonshine_utils import repeat_tensor
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
+
+NUM_POINTS = 25
 
 
 def pos_to_vel(pos):
@@ -40,12 +41,11 @@ def cylinders_to_points(positions, radius, height):
         radius:  [b, T]
         height:  [b, T]
 
-    Returns: [b, m, T, 8, 3]
+    Returns: [b, m, T, NUM_POINTS, 3]
 
     """
     m = positions.shape[1]  # m is the number of objects
-    num_points = 22
-    sized_points = size_to_points(radius, height, num_points)  # [b, T, n_points, 3]
+    sized_points = size_to_points(radius, height, NUM_POINTS)  # [b, T, n_points, 3]
     sized_points = repeat_tensor(sized_points, m, axis=1, new_axis=True)  # [b, m, T, n_points, 3]
     ones = tf.ones(positions.shape[:-1] + [1])
     positions_homo = tf.expand_dims(tf.concat([positions, ones], axis=-1), -1)  # [b, m, T, 4, 1]
@@ -54,12 +54,12 @@ def cylinders_to_points(positions, radius, height):
     rot_homo = repeat_tensor(rot_homo, positions.shape[1], 1, True)
     rot_homo = repeat_tensor(rot_homo, positions.shape[2], 2, True)
     transform_matrix = tf.concat([rot_homo, positions_homo], axis=-1)  # [b, m, T, 4, 4]
-    transform_matrix = repeat_tensor(transform_matrix, num_points, 3, True)
+    transform_matrix = repeat_tensor(transform_matrix, NUM_POINTS, 3, True)
     obj_points = transform_points_3d(transform_matrix, sized_points)  # [b, m, T, num_points, 3]
     return obj_points
 
 
-def size_to_points(radius, height, n_points=16):
+def size_to_points(radius, height, n_points):
     """
 
     Args:
@@ -166,7 +166,7 @@ class CylindersScenario(PlanarPushingScenario):
             num_object_interp:
             batch_size:
 
-        Returns:
+        Returns: [b, m_objects, T, n_points, 3]
 
         """
         height = inputs['height'][:, :, 0]  # [b, T]
@@ -178,8 +178,17 @@ class CylindersScenario(PlanarPushingScenario):
             # in our mujoco dataset the quaternions are stored w,x,y,z but the rest of our code assumes xyzw
             positions.append(pos)
         positions = tf.stack(positions, axis=1)
+        time = positions.shape[2]
 
         obj_points = cylinders_to_points(positions, radius=radius, height=height)
+        robot_radius = repeat_tensor(primitive_hand.RADIUS, batch_size, 0, True)
+        robot_radius = repeat_tensor(robot_radius, time, 1, True)
+        robot_height = repeat_tensor(primitive_hand.HEIGHT, batch_size, 0, True)
+        robot_height = repeat_tensor(robot_height, time, 1, True)
+        robot_positions = tf.reshape(inputs[f'{ARM_HAND_NAME}/tcp_pos'], [batch_size, 1, time, 3])
+        robot_points = cylinders_to_points(robot_positions, radius=robot_radius, height=robot_height)
+
+        obj_points = tf.concat([robot_points, obj_points], axis=1)
 
         return obj_points
 
@@ -295,44 +304,6 @@ class CylindersScenario(PlanarPushingScenario):
 
         """
         raise NotImplementedError()
-
-    def plot_aug_points_rviz(self, obj_i: int, obj_points_b_i, label: str, color_map):
-        obj_points_b_i_time = tf.reshape(obj_points_b_i, [-1, 8, 3])
-        blocks_aug_msg = MarkerArray()
-        for t, obj_points_b_i_t in enumerate(obj_points_b_i_time):
-            color_t = ColorRGBA(*color_map(t / obj_points_b_i_time.shape[0]))
-            color_t.a = 0.2
-
-            block_center = tf.reduce_mean(obj_points_b_i_t, 0)
-            block_x_axis = obj_points_b_i_t[3] - obj_points_b_i_t[0]  # [3]
-            block_y_axis = obj_points_b_i_t[1] - obj_points_b_i_t[0]  # [3]
-            block_z_axis = obj_points_b_i_t[4] - obj_points_b_i_t[0]  # [3]
-            block_x_axis_norm, _ = tf.linalg.normalize(block_x_axis)
-            block_y_axis_norm, _ = tf.linalg.normalize(block_y_axis)
-            block_z_axis_norm, _ = tf.linalg.normalize(block_z_axis)
-            block_rot_mat = tf.stack([block_x_axis_norm, block_y_axis_norm, block_z_axis_norm], axis=-1)
-            block_quat = quaternion.from_rotation_matrix(block_rot_mat)
-
-            block_aug_msg = Marker()
-            block_aug_msg.ns = 'blocks_' + label
-            block_aug_msg.id = t + 1000 * obj_i
-            block_aug_msg.header.frame_id = 'world'
-            block_aug_msg.action = Marker.ADD
-            block_aug_msg.type = Marker.CUBE
-            block_aug_msg.scale.x = tf.linalg.norm(block_x_axis)
-            block_aug_msg.scale.y = tf.linalg.norm(block_y_axis)
-            block_aug_msg.scale.z = tf.linalg.norm(block_z_axis)
-            block_aug_msg.pose.position.x = block_center[0]
-            block_aug_msg.pose.position.y = block_center[1]
-            block_aug_msg.pose.position.z = block_center[2]
-            block_aug_msg.pose.orientation.x = block_quat[0]
-            block_aug_msg.pose.orientation.y = block_quat[1]
-            block_aug_msg.pose.orientation.z = block_quat[2]
-            block_aug_msg.pose.orientation.w = block_quat[3]
-            block_aug_msg.color = color_t
-
-            blocks_aug_msg.markers.append(block_aug_msg)
-        self.viz_aug_pub.publish(blocks_aug_msg)
 
     @staticmethod
     def is_points_key(k):
@@ -471,3 +442,19 @@ class CylindersScenario(PlanarPushingScenario):
 
         trans_target = trans_distribution.sample(sample_shape=n_samples, seed=seed())
         return trans_target
+
+    def plot_transform(self, obj_i, transform_params, frame_id):
+        """
+
+        Args:
+            frame_id:
+            transform_params: [x,y]
+
+        Returns:
+
+        """
+        target_pos_b = [transform_params[0], transform_params[1], 0]
+        self.tf.send_transform(target_pos_b, [0, 0, 0, 1], f'aug_opt_initial_{obj_i}', frame_id, False)
+
+    def aug_target_pos(self, target):
+        return tf.concat([target[0], target[1], 0], axis=0)
