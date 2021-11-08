@@ -52,25 +52,33 @@ def subsample_points(points, fraction):
     return points[::n_take_every]
 
 
-# @tf.function
-def transform_obj_points(obj_points, transformation_matrices):
+def transform_obj_points(obj_points, moved_mask, transformation_matrices):
     """
 
     Args:
-        obj_points: [b1,b2,...,n_points,3]
-        transformation_matrices: [b1,b2,...,4,4]
+        obj_points: [b,m,T,n_points,3]
+        moved_mask: [b,m,...]
+        transformation_matrices: [b,k,4,4]
             considered to in the frame of the obj_points,
             which is defined as the same orientation as the world but with the position being the center of obj_points
 
-    Returns:
+    Returns: [b,k,T,n_points,3], [b,3]
 
     """
-    to_local_frame = tf.reduce_mean(obj_points, axis=-2, keepdims=True)
-    obj_points_local_frame = obj_points - to_local_frame
+    to_local_frame = tf.reduce_mean(obj_points, axis=-2)  # [b,m,T,1,3]
+    to_local_frame = tf.reduce_mean(to_local_frame, axis=-2)  # [b,m,1,1,3]
+
+    to_local_frame_moved = tf.where(tf.cast(moved_mask[..., None], tf.bool), to_local_frame, 0)
+    to_local_frame_moved_sum = tf.reduce_sum(to_local_frame_moved, axis=-2)
+    to_local_frame_moved_count = tf.reduce_sum(moved_mask, axis=-1, keepdims=True)
+    to_local_frame_moved_mean = to_local_frame_moved_sum / to_local_frame_moved_count
+    to_local_frame_moved_mean_expanded = to_local_frame_moved_mean[:, None, None, :]
+
+    obj_points_local_frame = obj_points - to_local_frame_moved_mean_expanded  # [b, m_objects, T, n_points, 3]
     transformation_matrices_expanded = tf.expand_dims(transformation_matrices, axis=-3)
     obj_points_aug_local_frame = transform_points_3d(transformation_matrices_expanded, obj_points_local_frame)
-    obj_points_aug = obj_points_aug_local_frame + to_local_frame
-    return obj_points_aug, to_local_frame
+    obj_points_aug = obj_points_aug_local_frame + to_local_frame_moved_mean_expanded  # [b, m_objects, T, n_points, 3]
+    return obj_points_aug, to_local_frame_moved_mean
 
 
 def check_env_constraints(attract_mask, min_dist, res):

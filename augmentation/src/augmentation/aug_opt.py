@@ -18,7 +18,7 @@ from link_bot_data.visualization_common import make_delete_marker, make_delete_m
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.geometry import transformation_params_to_matrices
+from moonshine.geometry import xyzrpy_to_matrices
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
 from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
 from visualization_msgs.msg import MarkerArray
@@ -59,7 +59,7 @@ def add_stationary_points_to_env(env, obj_points, moved_mask, res, origin_point,
     Returns:
 
     """
-    indices = tf.where(moved_mask)  # [n, 2]
+    indices = tf.where(1 - moved_mask)  # [n, 2]
     batch_indices = indices[:, 0]
     points = tf.gather_nd(obj_points, indices)  # [n, T, n_points, 3]
 
@@ -138,7 +138,7 @@ class AugmentationOptimization:
         moved_mask = compute_moved_mask(obj_points)  # [b, m_objects]
         obj_points_flat = tf.reshape(obj_points, [batch_size, -1, 3])
         obj_occupancy_flat = lookup_points_in_vg(obj_points_flat, env, res, origin_point, batch_size)
-        obj_occupancy = tf.reshape(obj_occupancy_flat, [batch_size, m_objects, -1])  # [b, m, num_points]
+        obj_occupancy = tf.reshape(obj_occupancy_flat, obj_points.shape[:-1])  # [b, m, num_points]
 
         # then we can add the points that represent the non-moved objects to the "env" voxel grid,
         # then compute SDF and grad. This will be slow, what can we do about that?
@@ -280,7 +280,7 @@ class AugmentationOptimization:
                                                         viz_func=project_opt.viz_func,
                                                         viz=debug_aug())
 
-        transformation_matrices = transformation_params_to_matrices(obj_transforms)
+        transformation_matrices = xyzrpy_to_matrices(obj_transforms)
         obj_points_aug, to_local_frame = transform_obj_points(obj_points, transformation_matrices)
 
         is_valid = self.check_is_valid(obj_points_aug=obj_points_aug,

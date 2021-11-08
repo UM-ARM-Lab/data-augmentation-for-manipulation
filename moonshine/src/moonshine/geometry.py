@@ -129,7 +129,7 @@ def transform_dict_of_points_vectors(m: np.ndarray, d, keys):
     return d_out
 
 
-def transformation_params_to_matrices(params):
+def xyzrpy_to_matrices(params):
     """
 
     Args:

@@ -15,7 +15,7 @@ from dm_envs.planar_pushing_task import ARM_HAND_NAME
 from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from moonshine.geometry import transform_points_3d
+from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices
 from moonshine.moonshine_utils import repeat_tensor
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
@@ -175,7 +175,6 @@ class CylindersScenario(PlanarPushingScenario):
         positions = []  # [b, m, T, 3]
         for i in range(num_objs):
             pos = inputs[f"obj{i}/position"][:, :, 0]  # [b, T, 3]
-            # in our mujoco dataset the quaternions are stored w,x,y,z but the rest of our code assumes xyzw
             positions.append(pos)
         positions = tf.stack(positions, axis=1)
         time = positions.shape[2]
@@ -458,3 +457,8 @@ class CylindersScenario(PlanarPushingScenario):
 
     def aug_target_pos(self, target):
         return tf.concat([target[0], target[1], 0], axis=0)
+
+    def transformation_params_to_matrices(self, obj_transforms):
+        zrpy = tf.zeros(obj_transforms.shape[:-1] + [4])
+        xyzrpy = tf.concat([obj_transforms, zrpy], axis=-1)
+        return xyzrpy_to_matrices(xyzrpy)

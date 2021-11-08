@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Optional
 
 import tensorflow as tf
-from matplotlib import cm
 
 import rospy
 from augmentation.aug_opt_utils import transform_obj_points, dpoint_to_dparams
@@ -11,7 +10,7 @@ from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_data.visualization_common import make_delete_marker
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_point_to_idx
-from moonshine.geometry import transformation_params_to_matrices, transformation_jacobian, homogeneous, euler_angle_diff
+from moonshine.geometry import transformation_jacobian, homogeneous, euler_angle_diff
 from visualization_msgs.msg import Marker
 
 
@@ -68,9 +67,9 @@ class AugProjOpt(BaseProjectOpt):
         obj_sdf = tf.gather_nd(self.sdf, obj_point_indices, batch_dims=1)  # will be zero if index OOB
         # FIXME: we only want to et the object sdf for points where moved_mask is true
         obj_sdf_moved = tf.where(tf.cast(moved_mask[..., None, None], tf.bool), obj_sdf, 1e6)
-        obj_sdf_moved_flat = tf.reshape(obj_sdf_moved, [batch_size, -1])
+        obj_sdf_moved_flat = tf.reshape(obj_sdf_moved, [self.batch_size, -1])
         self.min_dist = tf.reduce_min(obj_sdf_moved_flat, axis=-1)
-        self.min_dist_idx = tf.argmin(obj_sdf_moved_flat, axis=-1)  # indexes points flattened from [b, T, n_points]
+        self.min_dist_idx = tf.argmin(obj_sdf_moved_flat, axis=-1)  # indexes flattened points
 
         # viz hyperparameters
         viz_params = self.hparams.get('viz', {})
@@ -86,34 +85,41 @@ class AugProjOpt(BaseProjectOpt):
         return opt
 
     def forward(self, tape, obj_transforms):
+        s = self.aug_opt.scenario
         with tape:
             # obj_points is the set of points that define the object state, ie. the swept rope points.
             # the obj_points are in world frame, so obj_params is a transform in world frame
             # to compute the object state constraints loss we need to transform this during each forward pass
             # we also need to call apply_object_augmentation* at the end
             # to update the rest of the "state" which is input to the network
-            transformation_matrices = transformation_params_to_matrices(obj_transforms)
-            obj_points_aug, to_local_frame = transform_obj_points(self.obj_points, transformation_matrices)
+            transformation_matrices = s.transformation_params_to_matrices(obj_transforms)
+            obj_points_aug, to_local_frame = transform_obj_points(self.obj_points,
+                                                                  self.moved_mask,
+                                                                  transformation_matrices)
 
         # compute repel and attract gradient via the SDF
         obj_point_indices_aug = batch_point_to_idx(obj_points_aug, self.res_expanded2, self.origin_point_expanded2)
-        obj_sdf_aug = tf.gather_nd(self.sdf, obj_point_indices_aug, batch_dims=1)  # will be zero if index OOB
+        obj_sdf_aug = tf.gather_nd(self.sdf, obj_point_indices_aug, batch_dims=1)  # [b, m_objs, T, n_points] 0 if OOB
         obj_sdf_grad_aug = tf.gather_nd(self.sdf_grad, obj_point_indices_aug, batch_dims=1)
         obj_occupancy_aug = tf.cast(obj_sdf_aug < 0, tf.float32)
         obj_occupancy_aug_change = self.obj_occupancy - obj_occupancy_aug
         attract_repel_dpoint = obj_sdf_grad_aug * tf.expand_dims(obj_occupancy_aug_change, -1)
-        attract_repel_dpoint = attract_repel_dpoint * self.hparams['sdf_grad_weight']  # [b,m,n_points,3]
+        attract_repel_dpoint = attract_repel_dpoint * self.hparams['sdf_grad_weight']  # [b,n_points,3]
 
         # and also the grad for preserving the min dist
-        min_dist_aug = tf.gather(obj_sdf_aug, self.min_dist_idx, axis=-1, batch_dims=2)  # [b,m]
+        obj_sdf_aug_flat = tf.reshape(obj_sdf_aug, [self.batch_size, -1])
+        obj_points_aug_flat = tf.reshape(obj_points_aug, [self.batch_size, -1, 3])
+        min_dist_aug = tf.gather(obj_sdf_aug_flat, self.min_dist_idx, axis=-1, batch_dims=1)  # [b]
         delta_min_dist = self.min_dist - min_dist_aug
-        min_dist_points_aug = tf.gather(obj_points_aug, self.min_dist_idx, axis=-2, batch_dims=2)  # [b,m,3]
+        min_dist_points_aug = tf.gather(obj_points_aug_flat, self.min_dist_idx, axis=-2, batch_dims=1)  # [b,3]
         min_dist_indices_aug = batch_point_to_idx(min_dist_points_aug,
-                                                  self.res_expanded,
-                                                  self.origin_point_expanded)  # [b,m,3]
-        delta_min_dist_grad_dpoint = -tf.gather_nd(self.sdf_grad, min_dist_indices_aug, batch_dims=1)  # [b,m,3]
-        delta_min_dist_grad_dpoint = delta_min_dist_grad_dpoint * tf.expand_dims(delta_min_dist, -1)  # [b,m,3]
-        delta_min_dist_grad_dpoint = delta_min_dist_grad_dpoint * self.hparams['delta_min_dist_weight']  # [b,m,3]
+                                                  self.res,
+                                                  self.origin_point)  # [b,3]
+        delta_min_dist_grad_dpoint = -tf.gather_nd(self.sdf_grad, min_dist_indices_aug, batch_dims=1)  # [b,3]
+        delta_min_dist_grad_dpoint = delta_min_dist_grad_dpoint * tf.expand_dims(delta_min_dist, -1)  # [b,3]
+        delta_min_dist_grad_dpoint = delta_min_dist_grad_dpoint * self.hparams['delta_min_dist_weight']  # [b,3]
+
+        # TODO: mask the gradients here?
 
         return VizVars(obj_points_aug=obj_points_aug,
                        to_local_frame=to_local_frame,
@@ -238,37 +244,43 @@ class AugProjOpt(BaseProjectOpt):
             repel_indices = tf.squeeze(tf.where(1 - moved_obj_occupancy_b))  # [n_repel_points]
             attract_indices = tf.squeeze(tf.where(moved_obj_occupancy_b), -1)  # [n_attract_points]
 
-            self.viz_b_i(attract_indices, b, moved_obj_i, moved_obj_points_b, repel_indices, v)
+            self.viz_b_i(moved_obj_indices_b, attract_indices, b, moved_obj_i, moved_obj_points_b, repel_indices, v)
 
-    def viz_b_i(self, attract_indices, b, moved_obj_i, moved_obj_points_b_i, repel_indices, v):
+    def viz_b_i(self, moved_obj_indices_b, attract_indices, b, moved_obj_i, moved_obj_points_b_i, repel_indices, v):
         s = self.aug_opt.scenario
-        s.plot_points_rviz(moved_obj_points_b_i, label='', color='g', scale=self.viz_scale)
         repel_points = tf.gather(moved_obj_points_b_i, repel_indices).numpy()  # [n_attract_points]
         attract_points = tf.gather(moved_obj_points_b_i, attract_indices).numpy()  # [n_repel_points]
         s.plot_points_rviz(attract_points, label=f'attract_{moved_obj_i}', color='g', scale=self.viz_scale)
         s.plot_points_rviz(repel_points, label=f'repel_{moved_obj_i}', color='r', scale=self.viz_scale)
         if v is not None:
-            local_pos_b = v.to_local_frame[b, moved_obj_i, 0].numpy()  # [3]
-            obj_points_aug_b_i = v.obj_points_aug[b, moved_obj_i]  # [n_points, 3]
             s.plot_points_rviz(moved_obj_points_b_i, label='aug', color='b', scale=self.viz_scale)
+
+            local_pos_b = v.to_local_frame[b].numpy()  # [3]
             self.aug_opt.debug.send_position_transform(local_pos_b, f'aug_opt_initial_{moved_obj_i}')
-            attract_points_aug = tf.gather(obj_points_aug_b_i, attract_indices).numpy()
-            repel_points_aug = tf.gather(obj_points_aug_b_i, repel_indices).numpy()
+
+            obj_points_aug_b = v.obj_points_aug[b]  # [m_objects, T, n_points, 3]
+            moved_obj_points_aug_b = tf.gather(obj_points_aug_b, moved_obj_indices_b, axis=0)
+            moved_obj_points_aug_b_flat = tf.reshape(moved_obj_points_aug_b, [-1, 3])
+            attract_points_aug = tf.gather(moved_obj_points_aug_b_flat, attract_indices).numpy()
+            repel_points_aug = tf.gather(moved_obj_points_aug_b_flat, repel_indices).numpy()
             s.plot_points_rviz(attract_points_aug, f'attract_aug_{moved_obj_i}', color='g', scale=self.viz_scale)
             s.plot_points_rviz(repel_points_aug, f'repel_aug_{moved_obj_i}', color='r', scale=self.viz_scale)
 
-            attract_repel_dpoint_b_i = v.attract_repel_dpoint[b, moved_obj_i]
-            attract_grad_b = -tf.gather(attract_repel_dpoint_b_i, attract_indices, axis=0) * 0.02
-            repel_grad_b = -tf.gather(attract_repel_dpoint_b_i, repel_indices, axis=0) * 0.02
+            attract_repel_dpoint_b = v.attract_repel_dpoint[b]  # [m_objects, T, n_points, 3]
+            moved_attract_repel_dpoint_b = tf.gather(attract_repel_dpoint_b, moved_obj_indices_b,
+                                                     axis=0)  # [m_moved, T, n_points, 3]
+            moved_attract_repel_dpoint_b_flat = tf.reshape(moved_attract_repel_dpoint_b, [-1, 3])
+            attract_grad_b = -tf.gather(moved_attract_repel_dpoint_b_flat, attract_indices, axis=0) * 0.02
+            repel_grad_b = -tf.gather(moved_attract_repel_dpoint_b_flat, repel_indices, axis=0) * 0.02
             s.plot_arrows_rviz(attract_points_aug, attract_grad_b, f'attract_sdf_grad_{moved_obj_i}', color='g',
                                scale=self.viz_arrow_scale)
             s.plot_arrows_rviz(repel_points_aug, repel_grad_b, f'repel_sdf_grad_{moved_obj_i}', color='r',
                                scale=self.viz_arrow_scale)
 
-            delta_min_dist_points_b_i = v.min_dist_points_aug[b, moved_obj_i].numpy()
-            delta_min_dist_grad_b_i = -v.delta_min_dist_grad_dpoint[b, moved_obj_i].numpy()
-            s.plot_arrow_rviz(delta_min_dist_points_b_i,
-                              delta_min_dist_grad_b_i * self.viz_min_delta_dist_grad_scale,
+            min_dist_points_aug_b = v.min_dist_points_aug[b]  # [3]
+            delta_min_dist_grad_dpoint_b = v.delta_min_dist_grad_dpoint[b]  # [3]
+            s.plot_arrow_rviz(min_dist_points_aug_b.numpy(),
+                              delta_min_dist_grad_dpoint_b.numpy() * self.viz_min_delta_dist_grad_scale,
                               label=f'delta_min_dist_grad_{moved_obj_i}',
                               color='pink',
                               scale=self.viz_arrow_scale)
