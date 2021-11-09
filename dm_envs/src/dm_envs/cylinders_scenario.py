@@ -14,11 +14,14 @@ from dm_envs.planar_pushing_scenario import PlanarPushingScenario, ACTION_Z
 from dm_envs.planar_pushing_task import ARM_HAND_NAME
 from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
+from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian
 from moonshine.moonshine_utils import repeat_tensor
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
+
+DEBUG_VIZ_STATE_AUG = True
 
 
 def pos_to_vel(pos):
@@ -154,14 +157,18 @@ class CylindersScenario(PlanarPushingScenario):
         radius = state['radius'][0]
         msg = MarkerArray()
 
-        robot_position = state[f'{ARM_HAND_NAME}/tcp_pos']
-        robot_position[0, 2] = primitive_hand.HALF_HEIGHT + ACTION_Z
-        robot_color_msg = deepcopy(color_msg)
-        robot_color_msg.b = 1 - robot_color_msg.b
         ig = marker_index_generator(idx)
-        marker = make_cylinder_marker(robot_color_msg, primitive_hand.HEIGHT, next(ig), ns + '_robot', robot_position,
-                                      radius)
-        msg.markers.append(marker)
+
+        robot_position_k = f'{ARM_HAND_NAME}/tcp_pos'
+        if robot_position_k in state:
+            robot_position = state[robot_position_k]
+            robot_position[0, 2] = primitive_hand.HALF_HEIGHT + ACTION_Z
+            robot_color_msg = deepcopy(color_msg)
+            robot_color_msg.b = 1 - robot_color_msg.b
+            marker = make_cylinder_marker(robot_color_msg, primitive_hand.HEIGHT, next(ig), ns + '_robot',
+                                          robot_position,
+                                          radius)
+            msg.markers.append(marker)
 
         robot_vel_k = f'{ARM_HAND_NAME}/tcp_vel'
         if robot_vel_k in state:
@@ -228,82 +235,82 @@ class CylindersScenario(PlanarPushingScenario):
                                         w: int,
                                         c: int,
                                         ):
-        raise NotImplementedError()
-        # """
-        #
-        # Args:
-        #     m: [b, 4, 4]
-        #     to_local_frame: [b, 1, 3]  the 1 can also be equal to time
-        #     inputs:
-        #     batch_size:
-        #     time:
-        #     h:
-        #     w:
-        #     c:
-        #
-        # Returns:
-        #
-        # """
-        # # apply those to the rope and grippers
-        # rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
-        # left_gripper_point = inputs[add_predicted('left_gripper')]
-        # right_gripper_point = inputs[add_predicted('right_gripper')]
-        # left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
-        # right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
-        #
-        # def _transform(m, points, _to_local_frame):
-        #     points_local_frame = points - _to_local_frame
-        #     points_local_frame_aug = transform_points_3d(m, points_local_frame)
-        #     return points_local_frame_aug + _to_local_frame
-        #
-        # # m is expanded to broadcast across batch & num_points dimensions
-        # rope_points_aug = _transform(m[:, None, None], rope_points, to_local_frame[:, None])
-        # left_gripper_points_aug = _transform(m[:, None, None], left_gripper_points, to_local_frame[:, None])
-        # right_gripper_points_aug = _transform(m[:, None, None], right_gripper_points, to_local_frame[:, None])
-        #
-        # # compute the new action
-        # left_gripper_position = inputs['left_gripper_position']
-        # right_gripper_position = inputs['right_gripper_position']
-        # # m is expanded to broadcast across batch dimensions
-        # left_gripper_position_aug = _transform(m[:, None], left_gripper_position, to_local_frame)
-        # right_gripper_position_aug = _transform(m[:, None], right_gripper_position, to_local_frame)
-        #
-        # rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
-        # left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
-        # right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
-        #
-        # # Now that we've updated the state/action in inputs, compute the local origin point
-        # state_aug_0 = {
-        #     'left_gripper':  left_gripper_aug[:, 0],
-        #     'right_gripper': right_gripper_aug[:, 0],
-        #     'rope':          rope_aug[:, 0]
-        # }
-        # local_center_aug = self.local_environment_center_differentiable(state_aug_0)
-        # res = inputs['res']
-        # local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
-        #
-        # object_aug_update = {
-        #     add_predicted('rope'):          rope_aug,
-        #     add_predicted('left_gripper'):  left_gripper_aug,
-        #     add_predicted('right_gripper'): right_gripper_aug,
-        #     'left_gripper_position':        left_gripper_position_aug,
-        #     'right_gripper_position':       right_gripper_position_aug,
-        # }
-        #
-        # if DEBUG_VIZ_STATE_AUG:
-        #     stepper = RvizSimpleStepper()
-        #     for b in debug_viz_batch_indices(batch_size):
-        #         env_b = {
-        #             'env':          inputs['env'][b],
-        #             'res':          res[b],
-        #             'extent':       inputs['extent'][b],
-        #             'origin_point': inputs['origin_point'][b],
-        #         }
-        #
-        #         self.plot_environment_rviz(env_b)
-        #         self.debug_viz_state_action(object_aug_update, b, 'aug', color='white')
-        #         stepper.step()
-        # return object_aug_update, local_origin_point_aug, local_center_aug
+        """
+
+        Args:
+            m: [b, k, 4, 4]
+            to_local_frame: [b, 3]
+            inputs:
+            batch_size:
+            time:
+            h: local env h
+            w: local env w
+            c: local env c
+
+        Returns:
+
+        """
+        to_local_frame_expanded = to_local_frame[:, None, None]
+        m_expanded = m[:, None]
+
+        def _transform(m, points, _to_local_frame):
+            points_local_frame = points - _to_local_frame
+            points_local_frame_aug = transform_points_3d(m, points_local_frame)
+            return points_local_frame_aug + _to_local_frame
+
+        # apply transformations to the state
+        num_objs = inputs['num_objs'][0, 0, 0]
+        object_aug_update = {
+            'num_objs': inputs['num_objs'],
+            'height':   inputs['height'],
+            'radius':   inputs['radius'],
+        }
+        for obj_idx in range(num_objs):
+            pos_k = f'obj{obj_idx}/position'
+            vel_k = f"obj{obj_idx}/linear_velocity"
+            obj_pos = inputs[pos_k]
+            obj_vel = inputs[vel_k]
+
+            obj_pos_aug = _transform(m_expanded, obj_pos, to_local_frame_expanded)
+            obj_vel_aug = _transform(m_expanded, obj_vel, to_local_frame_expanded)
+
+            object_aug_update[pos_k] = obj_pos_aug
+            object_aug_update[vel_k] = obj_vel_aug
+
+        # apply transformations to the action
+        gripper_position = inputs['gripper_position']
+        gripper_position_aug = _transform(m_expanded, gripper_position, to_local_frame_expanded)
+        object_aug_update['gripper_position'] = gripper_position_aug
+
+        if DEBUG_VIZ_STATE_AUG:
+            for b in debug_viz_batch_indices(batch_size):
+                env_b = {
+                    'env':          inputs['env'][b],
+                    'res':          inputs['res'][b],
+                    'extent':       inputs['extent'][b],
+                    'origin_point': inputs['origin_point'][b],
+                }
+                object_aug_update_b = {k: v[b] for k, v in object_aug_update.items()}
+
+                self.plot_environment_rviz(env_b)
+                for t in range(time):
+                    object_aug_update_b_t = {k: v[0] for k, v in object_aug_update_b.items()}
+                    self.plot_state_rviz(object_aug_update_b_t, label='aug_no_ik', color='white', id=t)
+        return object_aug_update, None, None
+
+    def compute_collision_free_point_ik(self,
+                                        default_robot_state,
+                                        points,
+                                        group_name,
+                                        tip_names,
+                                        scene_msg,
+                                        ik_params):
+        return self.robot.j.compute_collision_free_point_ik(default_robot_state,
+                                                            points,
+                                                            group_name,
+                                                            tip_names,
+                                                            scene_msg,
+                                                            ik_params)
 
     def compute_collision_free_point_ik(self,
                                         default_robot_state,

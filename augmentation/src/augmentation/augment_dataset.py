@@ -111,8 +111,10 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
             viz_f(scenario, inputs_viz, t=0, idx=0, color='g')
             viz_f(scenario, inputs_viz, t=1, idx=1, color='g')
 
+        time = inputs['time_idx'][1]
+
         for k in range(n_augmentations):
-            output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=2)
+            output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)
             output['augmented_from'] = inputs['full_filename']
 
             if visualize:
@@ -125,10 +127,9 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
         for example in dataset:
             # the original example should also be included!
             actual_batch_size = example['batch_size']
-            print("COMMENT ME BACK IN!!!")
-            # yield from unbatch_examples(example, actual_batch_size)
             for out_example in augment(example):
                 yield from unbatch_examples(out_example, actual_batch_size)
+            yield from unbatch_examples(example, actual_batch_size)
 
     modify_hparams(dataset_dir, outdir, update={'used_augmentation': True})
     dataset = dataset_loader.get_datasets(mode='all')

@@ -6,7 +6,7 @@
     target_trans_lim: 0.15
     target_euler_lim: 0.1
     not_progressing_threshold: 0.0005
-    step_size_threshold: 0.0001
+    step_size_threshold: 0.0003
     step_size: 0.1
     grad_clip: 0.05
 

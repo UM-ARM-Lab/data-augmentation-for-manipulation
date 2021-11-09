@@ -18,7 +18,6 @@ from link_bot_data.visualization_common import make_delete_marker, make_delete_m
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.geometry import xyzrpy_to_matrices
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
 from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
 from visualization_msgs.msg import MarkerArray
@@ -199,8 +198,10 @@ class AugmentationOptimization:
 
         if debug_input():
             for b in debug_viz_batch_indices(batch_size):
-                self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
-                self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
+                if local_origin_point_aug is not None:
+                    self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
+                if local_center_aug is not None:
+                    self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
                 self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug_before', color='blue')
                 self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug_after', color='blue')
                 self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
@@ -286,17 +287,17 @@ class AugmentationOptimization:
                                                         project_opt=project_opt,
                                                         x_distance=self.scenario.aug_distance,
                                                         not_progressing_threshold=not_progressing_threshold,
-                                                        viz_func=project_opt.viz_func,
-                                                        viz=debug_aug())
+                                                        viz_func=project_opt.viz_func)
 
-        transformation_matrices = xyzrpy_to_matrices(obj_transforms)
-        obj_points_aug, to_local_frame = transform_obj_points(obj_points, transformation_matrices)
+        transformation_matrices = self.scenario.transformation_params_to_matrices(obj_transforms)
+        # NOTE: to_local_frame is [b, 3] but technically it should be [b, k, 3]
+        obj_points_aug, to_local_frame = transform_obj_points(obj_points, moved_mask, transformation_matrices)
 
         is_valid = self.check_is_valid(obj_points_aug=obj_points_aug,
                                        obj_occupancy=obj_occupancy,
                                        extent=extent,
                                        res=res,
-                                       sdf=project_opt.obj_sdf,
+                                       sdf=project_opt.obj_sdf_moved,
                                        sdf_aug=viz_vars.sdf_aug)
 
         return transformation_matrices, to_local_frame, is_valid
@@ -310,7 +311,7 @@ class AugmentationOptimization:
         env_constraints_satisfied = tf.cast(num_env_constraints_violated < self.hparams['max_env_violations'],
                                             tf.float32)
 
-        min_dist = tf.reduce_min(tf.reduce_min(sdf, axis=1), axis=1)
+        min_dist = tf.reduce_min(tf.reduce_min(sdf, axis=-1), axis=-1)
         min_dist_aug = tf.reduce_min(tf.reduce_min(sdf_aug, axis=-1), axis=-1)
         delta_min_dist = tf.abs(min_dist - min_dist_aug)
         delta_min_dist_satisfied = tf.cast(delta_min_dist < self.hparams['delta_min_dist_threshold'], tf.float32)

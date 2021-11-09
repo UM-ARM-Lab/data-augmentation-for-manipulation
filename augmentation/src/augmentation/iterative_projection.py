@@ -2,6 +2,8 @@ from typing import Callable
 
 import tensorflow as tf
 
+from augmentation.aug_opt_utils import debug_aug
+
 
 class BaseProjectOpt:
     def __init__(self):
@@ -25,18 +27,17 @@ def iterative_projection(initial_value,
                          x_distance: Callable,
                          not_progressing_threshold: float,
                          m_last=None,
-                         viz: bool = True,
                          ):
     x = initial_value
 
-    if viz:
+    if debug_aug():
         viz_func(None, x, initial_value, target, None)
 
     for i in range(n):
         x_old = tf.identity(x)  # make a copy
 
         x, viz_vars = step_towards_target(target, x)
-        if viz:
+        if debug_aug():
             viz_func(i, x, initial_value, target, viz_vars)
 
         opt = project_opt.make_opt()
@@ -53,7 +54,7 @@ def iterative_projection(initial_value,
         x_var = tf.Variable(x)
         for j in range(_m):
             x, can_terminate, viz_vars = project_opt.step(j, opt, x_var)
-            if viz:
+            if debug_aug():
                 viz_func(i, x, initial_value, target, viz_vars)
             if can_terminate:
                 break

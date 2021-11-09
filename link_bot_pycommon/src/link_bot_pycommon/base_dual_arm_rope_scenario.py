@@ -9,7 +9,7 @@ from pyjacobian_follower import IkParams, JacobianFollower
 
 import rosnode
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
-from link_bot_data.dataset_utils import add_predicted, _deserialize_scene_msg, deserialize_scene_msg
+from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.get_dual_arm_robot_state import GetDualArmRobotState
 from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
@@ -483,87 +483,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                                             scene_msg,
                                                             ik_params)
 
-    def apply_object_augmentation(self,
-                                  m,
-                                  inputs: Dict,
-                                  batch_size,
-                                  time,
-                                  h: int,
-                                  w: int,
-                                  c: int,
-                                  ):
-        # apply those to the rope and grippers
-        rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
-        left_gripper_point = inputs[add_predicted('left_gripper')]
-        right_gripper_point = inputs[add_predicted('right_gripper')]
-        left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
-        right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
-
-        # m is expanded to broadcast across batch & num_points dimensions
-        rope_points_aug = transform_points_3d(m[:, None, None], rope_points)
-        left_gripper_points_aug = transform_points_3d(m[:, None, None], left_gripper_points)
-        right_gripper_points_aug = transform_points_3d(m[:, None, None], right_gripper_points)
-
-        # compute the new action
-        left_gripper_position = inputs['left_gripper_position']
-        right_gripper_position = inputs['right_gripper_position']
-        # m is expanded to broadcast across batch dimensions
-        left_gripper_position_aug = transform_points_3d(m[:, None], left_gripper_position)
-        right_gripper_position_aug = transform_points_3d(m[:, None], right_gripper_position)
-
-        joint_names = inputs['joint_names'][0, 0].numpy().tolist()  # assumed constant across batch
-        joint_positions_seed = inputs[add_predicted('joint_positions')][:, 0].numpy().tolist()
-        _deserialize_scene_msg(inputs)
-        allowed_collision_matrix = inputs['scene_msg'][0].allowed_collision_matrix
-        joint_positions_aug, reached = self.apply_augmentation_to_robot_state(batch_size,
-                                                                              joint_positions_seed,
-                                                                              joint_names,
-                                                                              allowed_collision_matrix,
-                                                                              left_gripper_points_aug,
-                                                                              right_gripper_points_aug)
-
-        rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
-        left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
-        right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
-
-        reached = tf.cast(reached, tf.float32)
-        object_aug_valid = reached  # NOTE: there could be other constraints we need to check
-
-        # Now that we've updated the state/action in inputs, compute the local origin point
-        state_aug_0 = {
-            'left_gripper':  left_gripper_aug[:, 0],
-            'right_gripper': right_gripper_aug[:, 0],
-            'rope':          rope_aug[:, 0]
-        }
-        local_center_aug = self.local_environment_center_differentiable(state_aug_0)
-        res = inputs['res']
-        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
-
-        object_aug_update = {
-            add_predicted('joint_positions'): joint_positions_aug,
-            'joint_names':                    inputs['joint_names'],
-            add_predicted('rope'):            rope_aug,
-            add_predicted('left_gripper'):    left_gripper_aug,
-            add_predicted('right_gripper'):   right_gripper_aug,
-            'left_gripper_position':          left_gripper_position_aug,
-            'right_gripper_position':         right_gripper_position_aug,
-        }
-
-        if DEBUG_VIZ_STATE_AUG:
-            stepper = RvizSimpleStepper()
-            for b in debug_viz_batch_indices(batch_size):
-                env_b = {
-                    'env':          inputs['env'][b],
-                    'res':          res[b],
-                    'extent':       inputs['extent'][b],
-                    'origin_point': inputs['origin_point'][b],
-                }
-
-                self.plot_environment_rviz(env_b)
-                self.debug_viz_state_action(object_aug_update, b, 'aug', color='white')
-                stepper.step()
-        return object_aug_valid, object_aug_update, local_origin_point_aug
-
     def apply_augmentation_to_robot_state(self,
                                           batch_size,
                                           joint_positions_seed,
@@ -829,4 +748,3 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         distances = trans_dist + euler_dist
         max_distance = tf.reduce_max(distances)
         return max_distance
-

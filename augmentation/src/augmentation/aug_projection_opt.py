@@ -10,7 +10,7 @@ from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_point_to_idx
-from moonshine.geometry import homogeneous, euler_angle_diff
+from moonshine.geometry import homogeneous
 from visualization_msgs.msg import Marker
 
 
@@ -68,8 +68,8 @@ class AugProjOpt(BaseProjectOpt):
         obj_point_indices = batch_point_to_idx(self.obj_points, self.res_expanded3, self.origin_point_expanded3)
         obj_sdf = tf.gather_nd(self.sdf, obj_point_indices, batch_dims=1)  # will be zero if index OOB
         # FIXME: we only want to et the object sdf for points where moved_mask is true
-        obj_sdf_moved = tf.where(tf.cast(moved_mask[..., None, None], tf.bool), obj_sdf, 1e6)
-        obj_sdf_flat = tf.reshape(obj_sdf_moved, [self.batch_size, -1])
+        self.obj_sdf_moved = tf.where(tf.cast(moved_mask[..., None, None], tf.bool), obj_sdf, 1e6)
+        obj_sdf_flat = tf.reshape(self.obj_sdf_moved, [self.batch_size, -1])
         self.min_dist = tf.reduce_min(obj_sdf_flat, axis=-1)
         self.min_dist_idx = tf.argmin(obj_sdf_flat, axis=-1)  # indexes flattened points
 
@@ -203,8 +203,8 @@ class AugProjOpt(BaseProjectOpt):
         grad_norm = tf.linalg.norm(gradients[0], axis=-1)
         step_size_i = grad_norm * lr
         can_terminate = step_size_i < self.hparams['step_size_threshold']
-        can_terminate = tf.reduce_all(can_terminate)
-        return can_terminate
+        all_can_terminate = tf.reduce_all(can_terminate)
+        return all_can_terminate
 
     def step_towards_target(self, target_transforms, obj_transforms):
         # NOTE: although interpolating euler angles can be problematic or unintuitive,

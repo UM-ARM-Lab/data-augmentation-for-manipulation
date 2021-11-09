@@ -116,7 +116,7 @@ def expand_to_match(a, b):
 
 
 def check_env_constraints(attract_mask, min_dist, res):
-    half_res_expanded = res[:, None, None] / 2
+    half_res_expanded = res[:, None, None, None] / 2
     attract_satisfied = tf.cast(min_dist < half_res_expanded, tf.float32)
     repel_satisfied = tf.cast(min_dist > half_res_expanded, tf.float32)
     constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
