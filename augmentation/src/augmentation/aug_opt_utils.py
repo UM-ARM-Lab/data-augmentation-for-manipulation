@@ -65,14 +65,14 @@ def transform_obj_points(obj_points, moved_mask, transformation_matrices):
     Returns: [b,k,T,n_points,3], [b,3]
 
     """
-    to_local_frame = tf.reduce_mean(obj_points, axis=-2)  # [b,m,T,1,3]
-    to_local_frame = tf.reduce_mean(to_local_frame, axis=-2)  # [b,m,1,1,3]
+    to_local_frame = tf.reduce_mean(obj_points, axis=-2)  # [b,m,T,3]
+    to_local_frame = tf.reduce_mean(to_local_frame, axis=-2)  # [b,m,3]
 
-    to_local_frame_moved_mean = mean_over_moved(moved_mask, to_local_frame)
-    to_local_frame_moved_mean_expanded = to_local_frame_moved_mean[:, None, None, :]
+    to_local_frame_moved_mean = mean_over_moved(moved_mask, to_local_frame)  # [b, 3]
+    to_local_frame_moved_mean_expanded = to_local_frame_moved_mean[:, None, None, None, :]
 
     obj_points_local_frame = obj_points - to_local_frame_moved_mean_expanded  # [b, m_objects, T, n_points, 3]
-    transformation_matrices_expanded = tf.expand_dims(transformation_matrices, axis=-3)
+    transformation_matrices_expanded = transformation_matrices[..., None, None, :, :, :]
     obj_points_aug_local_frame = transform_points_3d(transformation_matrices_expanded, obj_points_local_frame)
     obj_points_aug = obj_points_aug_local_frame + to_local_frame_moved_mean_expanded  # [b, m_objects, T, n_points, 3]
     return obj_points_aug, to_local_frame_moved_mean
@@ -89,8 +89,8 @@ def mean_over_moved(moved_mask, x):
 
     """
     # replacing the values where moved_mask is false with zero will not affect the sum...
-    moved_mask_expanded = expand_to_match(moved_mask, x)  # [b, m, 1, 1, 1, 1]
-    x_moved = tf.where(tf.cast(moved_mask_expanded, tf.bool), x, 0)  # [b, m, T, n, 3, p]
+    moved_mask_expanded = expand_to_match(moved_mask, x)
+    x_moved = tf.where(tf.cast(moved_mask_expanded, tf.bool), x, 0)
     x_moved_sum = tf.reduce_sum(x_moved, axis=1)
     # ... if we divide by the right numbers
     moved_count = tf.reduce_sum(moved_mask, axis=1)

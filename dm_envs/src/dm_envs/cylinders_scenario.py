@@ -63,7 +63,7 @@ def make_odd(x):
     return tf.where(tf.cast(x % 2, tf.bool), x, x + 1)
 
 
-NUM_POINTS = 256
+NUM_POINTS = 512
 cylinder_points_rng = np.random.RandomState(0)
 
 
@@ -496,3 +496,10 @@ class CylindersScenario(PlanarPushingScenario):
         jacobian = transformation_jacobian(xyzrpy)
         jacobian_xy = jacobian[..., 0:2, :, :]
         return jacobian_xy
+
+    def aug_distance(self, transforms1, transforms2):
+        trans1 = transforms1[..., :2]
+        trans2 = transforms2[..., :2]
+        trans_dist = tf.linalg.norm(trans1 - trans2, axis=-1)
+        max_distance = tf.reduce_max(trans_dist)
+        return max_distance

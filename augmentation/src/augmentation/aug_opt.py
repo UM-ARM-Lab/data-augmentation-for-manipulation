@@ -1,5 +1,5 @@
 import pathlib
-from typing import Dict, List
+from typing import Dict, List, Callable
 
 import numpy as np
 import tensorflow as tf
@@ -152,16 +152,12 @@ class AugmentationOptimization:
 
         if debug_aug():
             for b in debug_viz_batch_indices(batch_size):
-                env_stationary_b = {
-                    'env':          env_stationary[b].numpy(),
-                    'res':          res[b].numpy(),
-                    'origin_point': origin_point[b].numpy(),
-                    'extent':       extent[b].numpy(),
-                }
-                self.scenario.plot_environment_rviz(env_stationary_b)
-                self.debug.send_position_transform(origin_point[b], 'origin_point')
+                self.plot_stationary_vg(b, env_stationary, extent, origin_point, res)
 
         sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary, res)
+
+        def _viz_cb(_b):
+            self.plot_stationary_vg(_b, env_stationary, extent, origin_point, res)
 
         transformation_matrices, to_local_frame, is_obj_aug_valid = self.aug_obj_transform(
             res=res,
@@ -172,6 +168,7 @@ class AugmentationOptimization:
             moved_mask=moved_mask,
             obj_points=obj_points,
             obj_occupancy=obj_occupancy,
+            viz_cb=_viz_cb,
             batch_size=batch_size)
 
         # apply the transformations to some components of the state/action
@@ -242,6 +239,16 @@ class AugmentationOptimization:
 
         return inputs_aug
 
+    def plot_stationary_vg(self, b, env_stationary, extent, origin_point, res):
+        env_stationary_b = {
+            'env':          env_stationary[b].numpy(),
+            'res':          res[b].numpy(),
+            'origin_point': origin_point[b].numpy(),
+            'extent':       extent[b].numpy(),
+        }
+        self.scenario.plot_environment_rviz(env_stationary_b)
+        self.debug.send_position_transform(origin_point[b], 'origin_point')
+
     def aug_obj_transform(self,
                           res,
                           extent,
@@ -251,6 +258,7 @@ class AugmentationOptimization:
                           moved_mask,
                           obj_points,
                           obj_occupancy,
+                          viz_cb: Callable,
                           batch_size: int,
                           ):
         k_transforms = 1  # this is always one at the moment because we transform all moved objects rigidly
@@ -265,7 +273,8 @@ class AugmentationOptimization:
                                  batch_size=batch_size,
                                  moved_mask=moved_mask,
                                  obj_points=obj_points,
-                                 obj_occupancy=obj_occupancy)
+                                 obj_occupancy=obj_occupancy,
+                                 viz_cb=viz_cb)
         if debug_aug():
             project_opt.clear_viz()
         not_progressing_threshold = self.hparams['not_progressing_threshold']
@@ -275,7 +284,7 @@ class AugmentationOptimization:
                                                         m=self.hparams['max_steps'],
                                                         step_towards_target=project_opt.step_towards_target,
                                                         project_opt=project_opt,
-                                                        x_distance=project_opt.distance,
+                                                        x_distance=self.scenario.aug_distance,
                                                         not_progressing_threshold=not_progressing_threshold,
                                                         viz_func=project_opt.viz_func,
                                                         viz=debug_aug())
@@ -360,7 +369,7 @@ class AugmentationOptimization:
 
         """
         extent = tf.reshape(extent, [-1, 3, 2])  # [b,3,2]
-        extent_expanded = extent[:, None, None]
+        extent_expanded = extent[:, None, None, None]
         lower_extent = extent_expanded[..., 0]  # [b,1,1,3]
         upper_extent = extent_expanded[..., 1]
         lower_extent_loss = tf.maximum(0., obj_points_aug - upper_extent)  # [b,m,n_points,3]

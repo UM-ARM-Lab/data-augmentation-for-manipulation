@@ -18,7 +18,7 @@ from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneSce
 from link_bot_pycommon.moveit_utils import make_joint_state
 from link_bot_pycommon.pycommon import densify_points
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian
+from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
 from moonshine.moonshine_utils import numpify, to_list_of_strings
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene, AllowedCollisionMatrix
 from sdf_tools import utils_3d
@@ -818,3 +818,15 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
     def aug_transformation_jacobian(self, obj_transforms):
         return transformation_jacobian(obj_transforms)
+
+    def aug_distance(self, transforms1, transforms2):
+        trans1 = transforms1[..., :3]
+        trans2 = transforms2[..., :3]
+        euler1 = transforms1[..., 3:]
+        euler2 = transforms2[..., 3:]
+        euler_dist = tf.linalg.norm(euler_angle_diff(euler1, euler2), axis=-1)
+        trans_dist = tf.linalg.norm(trans1 - trans2, axis=-1)
+        distances = trans_dist + euler_dist
+        max_distance = tf.reduce_max(distances)
+        return max_distance
+
