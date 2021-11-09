@@ -111,7 +111,7 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
             viz_f(scenario, inputs_viz, t=0, idx=0, color='g')
             viz_f(scenario, inputs_viz, t=1, idx=1, color='g')
 
-        time = inputs['time_idx'][1]
+        time = inputs['time_idx'].shape[1]
 
         for k in range(n_augmentations):
             output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)

@@ -3,7 +3,7 @@ from typing import Dict, Optional
 import numpy as np
 import tensorflow as tf
 from dm_control import composer
-from tensorflow_graphics.geometry.transformation import rotation_matrix_3d, quaternion
+from tensorflow_graphics.geometry.transformation import rotation_matrix_3d
 
 import ros_numpy
 import rospy
@@ -17,8 +17,7 @@ from link_bot_pycommon.pycommon import yaw_diff
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import Image, JointState
-from std_msgs.msg import ColorRGBA
-from visualization_msgs.msg import MarkerArray, Marker
+from visualization_msgs.msg import MarkerArray
 
 ACTION_Z = 0.01
 
@@ -260,3 +259,9 @@ class PlanarPushingScenario(ScenarioWithVisualization):
     @staticmethod
     def is_points_key(k):
         raise NotImplementedError()
+
+    @staticmethod
+    def aug_copy_inputs(inputs):
+        return {
+            'joint_names':  inputs['joint_names'],
+        }

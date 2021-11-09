@@ -252,6 +252,9 @@ class CylindersScenario(PlanarPushingScenario):
         """
         to_local_frame_expanded = to_local_frame[:, None, None]
         m_expanded = m[:, None]
+        no_translation_mask = np.ones(m_expanded.shape)
+        no_translation_mask[..., 0:3, 3] = 0
+        m_expanded_no_translation = m_expanded * no_translation_mask
 
         def _transform(m, points, _to_local_frame):
             points_local_frame = points - _to_local_frame
@@ -272,7 +275,7 @@ class CylindersScenario(PlanarPushingScenario):
             obj_vel = inputs[vel_k]
 
             obj_pos_aug = _transform(m_expanded, obj_pos, to_local_frame_expanded)
-            obj_vel_aug = _transform(m_expanded, obj_vel, to_local_frame_expanded)
+            obj_vel_aug = _transform(m_expanded_no_translation, obj_vel, to_local_frame_expanded)
 
             object_aug_update[pos_k] = obj_pos_aug
             object_aug_update[vel_k] = obj_vel_aug

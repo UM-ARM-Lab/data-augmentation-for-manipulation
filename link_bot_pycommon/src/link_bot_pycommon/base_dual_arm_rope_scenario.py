@@ -748,3 +748,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         distances = trans_dist + euler_dist
         max_distance = tf.reduce_max(distances)
         return max_distance
+
+    @staticmethod
+    def aug_copy_inputs(inputs):
+        return {
+            'error':                inputs['error'],
+            'is_close':             inputs['is_close'],
+            'joint_names':          inputs['joint_names'],
+            'scene_msg':            inputs['scene_msg'],
+            'time':         inputs['time'],
+            add_predicted('stdev'): inputs[add_predicted('stdev')],
+        }

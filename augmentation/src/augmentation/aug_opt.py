@@ -180,20 +180,15 @@ class AugmentationOptimization:
 
         # things that we won't be updating in this augmentation
         inputs_aug = {
-            'res':                  res,
-            'extent':               extent,
-            'origin_point':         inputs['origin_point'],
-            'env':                  inputs['env'],
-            'sdf':                  inputs['sdf'],
-            'sdf_grad':             inputs['sdf_grad'],
-            'scene_msg':            inputs['scene_msg'],
-            'is_close':             inputs['is_close'],
-            'batch_size':           batch_size,
-            'time':                 inputs['time'],
-            'joint_names':          inputs['joint_names'],
-            add_predicted('stdev'): inputs[add_predicted('stdev')],
-            'error':                inputs['error'],
+            'batch_size':   batch_size,
+            'env':          inputs['env'],
+            'extent':       extent,
+            'origin_point': inputs['origin_point'],
+            'res':          res,
+            'sdf':          inputs['sdf'],
+            'sdf_grad':     inputs['sdf_grad'],
         }
+        inputs_aug.update(self.scenario.aug_copy_inputs(inputs))
         inputs_aug.update(obj_aug_update)
 
         if debug_input():
