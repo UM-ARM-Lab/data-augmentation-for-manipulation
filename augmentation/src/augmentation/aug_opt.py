@@ -132,7 +132,6 @@ class AugmentationOptimization:
 
         n_interp = self.hparams['num_object_interp']
         obj_points = self.scenario.compute_obj_points(inputs, n_interp, batch_size)  # [b,m,T,num_points,3]
-        m_objects = obj_points.shape[1]
         # check which objects move over time
         moved_mask = compute_moved_mask(obj_points)  # [b, m_objects]
         obj_points_flat = tf.reshape(obj_points, [batch_size, -1, 3])
@@ -214,13 +213,12 @@ class AugmentationOptimization:
         #  implementation of a more abstract rule. Solving IK is very efficient, but a bit less general.
         #  it assumes the body of the robot is not in contact and that the specific contacts involved in any grasping
         #  is not important.
-        default_robot_positions = inputs[add_predicted('joint_positions')][:, 0]
-        joint_positions_aug, is_ik_valid = self.scenario.aug_ik(inputs_aug=inputs_aug,
-                                                                default_robot_positions=default_robot_positions,
+        joint_positions_aug, is_ik_valid = self.scenario.aug_ik(inputs=inputs,
+                                                                inputs_aug=inputs_aug,
                                                                 ik_params=self.ik_params,
                                                                 batch_size=batch_size)
         if debug_ik():
-            print(f"valid % = {tf.reduce_mean(is_ik_valid)}")
+            print(f"ik valid % = {tf.reduce_mean(is_ik_valid)}")
         inputs_aug.update({
             add_predicted('joint_positions'): joint_positions_aug,
             'joint_names':                    inputs['joint_names'],

@@ -51,8 +51,8 @@ class DebuggingViz:
     def plot_action_rviz(self, input_dict, b, label: str, color='red'):
         state_0 = {}
         for k in self.state_keys:
-            if add_predicted(k) in input_dict:
-                state_0[k] = input_dict[add_predicted(k)][b, 0]
+            if k in input_dict:
+                state_0[k] = input_dict[k][b, 0]
         state_0 = numpify(state_0)
         state_0['joint_names'] = input_dict['joint_names'][b, 0]
         action_0 = numpify({k: input_dict[k][b, 0] for k in self.action_keys})
@@ -217,8 +217,8 @@ def try_adding_aco(state: Dict, example: Dict):
 def plot_state_b_t(scenario, state_keys, input_dict, b, t, label: str, color='red'):
     state_t = {}
     for k in state_keys:
-        if add_predicted(k) in input_dict:
-            state_t[k] = input_dict[add_predicted(k)][b, t]
+        if k in input_dict:
+            state_t[k] = input_dict[k][b, t]
     state_t = numpify(state_t)
     state_t['joint_names'] = input_dict['joint_names'][b, t]
     scenario.plot_state_rviz(state_t, label=label, color=color)

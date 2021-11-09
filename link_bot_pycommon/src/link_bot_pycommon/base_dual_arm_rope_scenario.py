@@ -20,7 +20,7 @@ from link_bot_pycommon.pycommon import densify_points
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
 from moonshine.moonshine_utils import numpify, to_list_of_strings
-from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene, AllowedCollisionMatrix
+from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
 from sdf_tools import utils_3d
 from tf import transformations
 from trajectory_msgs.msg import JointTrajectoryPoint
@@ -381,7 +381,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         swept_obj_points = tf.concat([_linspace(k) for k in keys], axis=2)
 
-        return swept_obj_points
+        # TODO: include the robot as an object here?
+        # obj_points = tf.concat([robot_points, swept_obj_points], axis=1)
+        obj_points = tf.expand_dims(swept_obj_points, axis=1)
+
+        return obj_points
 
     def apply_object_augmentation_no_ik(self,
                                         m,
@@ -396,8 +400,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         """
 
         Args:
-            m: [b, 4, 4]
-            to_local_frame: [b, 1, 3]  the 1 can also be equal to time
+            m: [b, k, 4, 4]
+            to_local_frame: [b, 3]  the 1 can also be equal to time
             inputs:
             batch_size:
             time:
@@ -408,8 +412,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         Returns:
 
         """
+        to_local_frame_expanded = to_local_frame[:, None, None]
+        m_expanded = m[:, None]
+
         # apply those to the rope and grippers
-        rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
+        rope_points = inputs[add_predicted('rope')]
         left_gripper_point = inputs[add_predicted('left_gripper')]
         right_gripper_point = inputs[add_predicted('right_gripper')]
         left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
@@ -421,9 +428,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             return points_local_frame_aug + _to_local_frame
 
         # m is expanded to broadcast across batch & num_points dimensions
-        rope_points_aug = _transform(m[:, None, None], rope_points, to_local_frame[:, None])
-        left_gripper_points_aug = _transform(m[:, None, None], left_gripper_points, to_local_frame[:, None])
-        right_gripper_points_aug = _transform(m[:, None, None], right_gripper_points, to_local_frame[:, None])
+        rope_points_aug = _transform(m_expanded, rope_points, to_local_frame_expanded)
+        left_gripper_points_aug = _transform(m_expanded, left_gripper_points, to_local_frame_expanded)
+        right_gripper_points_aug = _transform(m_expanded, right_gripper_points, to_local_frame_expanded)
 
         # compute the new action
         left_gripper_position = inputs['left_gripper_position']
@@ -482,86 +489,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                                             tip_names,
                                                             scene_msg,
                                                             ik_params)
-
-    def apply_augmentation_to_robot_state(self,
-                                          batch_size,
-                                          joint_positions_seed,
-                                          joint_names,
-                                          allowed_collision_matrix: AllowedCollisionMatrix,
-                                          left_gripper_points_aug,
-                                          right_gripper_points_aug):
-        # use IK to get a new starting joint configuration
-        tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
-        empty_scene_msgs = [PlanningScene(allowed_collision_matrix=allowed_collision_matrix)] * batch_size.numpy()
-        out_joint_positions_start = []
-        out_joint_positions_end = []
-        reached = []
-
-        for b in range(batch_size):
-            with tf.profiler.experimental.Trace("apply_to_robot_state_batch_loop", b=b):
-                # use the joint config pre-augmentation to seed IK for the augmented joint config
-                seed_joint_position_b = joint_positions_seed[b]
-                preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
-
-                left_gripper_aug_start_point = left_gripper_points_aug[b, 0, 0].numpy()
-                right_gripper_aug_start_point = right_gripper_points_aug[b, 0, 0].numpy()
-                left_gripper_aug_end_point = left_gripper_points_aug[b, 1, 0].numpy()
-                right_gripper_aug_end_point = right_gripper_points_aug[b, 1, 0].numpy()
-                grippers_start = [[left_gripper_aug_start_point], [right_gripper_aug_start_point]]
-                grippers_end = [[left_gripper_aug_end_point], [right_gripper_aug_end_point]]
-
-                # run jacobian follower to try to solve for a joint config with grippers matching the augmented
-                # gripper positions
-                seed_joint_state = JointState(name=joint_names, position=seed_joint_position_b)
-                empty_scene_msg_b, seed_robot_state = merge_joint_state_and_scene_msg(empty_scene_msgs[b],
-                                                                                      seed_joint_state)
-                plan_to_start, reached_start_b = self.robot.jacobian_follower.plan(
-                    group_name='whole_body',
-                    tool_names=tool_names,
-                    preferred_tool_orientations=preferred_tool_orientations,
-                    start_state=seed_robot_state,
-                    scene=empty_scene_msg_b,
-                    grippers=grippers_start,
-                    max_velocity_scaling_factor=0.1,
-                    max_acceleration_scaling_factor=0.1,
-                )
-
-                planned_to_start_points = plan_to_start.joint_trajectory.points
-                if len(planned_to_start_points) > 0:
-                    out_joint_position_start_b = planned_to_start_points[-1].positions
-                else:
-                    out_joint_position_start_b = seed_joint_position_b
-
-                # run jacobian follower (again) to produce the next joint state and confirm the motion is feasible
-                start_joint_state = JointState(name=joint_names, position=out_joint_position_start_b)
-                empty_scene_msg_b, start_robot_state = merge_joint_state_and_scene_msg(empty_scene_msgs[b],
-                                                                                       start_joint_state)
-                plan_to_end, reached_end_b = self.robot.jacobian_follower.plan(
-                    group_name='whole_body',
-                    tool_names=tool_names,
-                    preferred_tool_orientations=preferred_tool_orientations,
-                    start_state=start_robot_state,
-                    scene=empty_scene_msg_b,
-                    grippers=grippers_end,
-                    max_velocity_scaling_factor=0.1,
-                    max_acceleration_scaling_factor=0.1,
-                )
-
-                planned_to_end_points = plan_to_end.joint_trajectory.points
-                if len(planned_to_end_points) > 0:
-                    out_joint_position_end_b = planned_to_end_points[-1].positions
-                else:
-                    out_joint_position_end_b = seed_joint_position_b
-
-                reached_b = reached_start_b and reached_end_b
-
-                out_joint_positions_start.append(out_joint_position_start_b)
-                out_joint_positions_end.append(out_joint_position_end_b)
-                reached.append(reached_b)
-
-        joint_positions_aug = tf.stack((tf.constant(out_joint_positions_start, tf.float32),
-                                        tf.constant(out_joint_positions_end, tf.float32)), axis=1)
-        return joint_positions_aug, reached
 
     def debug_viz_state_action(self, inputs, b, label: str, color='red'):
         state_keys = ['left_gripper', 'right_gripper', 'rope', 'joint_positions']
@@ -629,20 +556,21 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         return joint_positions, reached
 
     def aug_ik(self,
+               inputs: Dict,
                inputs_aug: Dict,
-               default_robot_positions,
                ik_params: IkParams,
                batch_size: int):
         """
 
         Args:
+            inputs:
             inputs_aug: a dict containing the desired gripper positions as well as the scene_msg and other state info
-            default_robot_positions: default robot joint state to seed IK
             batch_size:
 
         Returns:
 
         """
+        default_robot_positions = inputs[add_predicted('joint_positions')][:, 0]
         left_gripper_points_aug = inputs_aug[add_predicted('left_gripper')]
         right_gripper_points_aug = inputs_aug[add_predicted('right_gripper')]
         deserialize_scene_msg(inputs_aug)
@@ -756,6 +684,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             'is_close':             inputs['is_close'],
             'joint_names':          inputs['joint_names'],
             'scene_msg':            inputs['scene_msg'],
-            'time':         inputs['time'],
+            'time':                 inputs['time'],
             add_predicted('stdev'): inputs[add_predicted('stdev')],
         }

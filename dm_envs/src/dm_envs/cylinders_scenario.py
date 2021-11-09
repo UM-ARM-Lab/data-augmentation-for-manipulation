@@ -325,21 +325,22 @@ class CylindersScenario(PlanarPushingScenario):
         raise NotImplementedError()
 
     def aug_ik(self,
+               inputs: Dict,
                inputs_aug: Dict,
-               default_robot_positions,
                ik_params: IkParams,
                batch_size: int):
         """
 
         Args:
+            inputs:
             inputs_aug: a dict containing the desired gripper positions as well as the scene_msg and other state info
-            default_robot_positions: default robot joint state to seed IK
             batch_size:
 
         Returns:
 
         """
-        raise NotImplementedError()
+        joint_positions_aug, is_ik_valid
+        return joint_positions_aug, is_ik_valid
 
     @staticmethod
     def is_points_key(k):

@@ -1,12 +1,12 @@
 import pathlib
 from copy import deepcopy
-from typing import Dict, Callable
+from typing import Dict, Callable, List
 
 from tqdm import tqdm
 
 from augmentation.aug_opt import AugmentationOptimization
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
-from link_bot_data.dataset_utils import write_example
+from link_bot_data.dataset_utils import write_example, add_predicted
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.modify_dataset import modify_hparams
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
@@ -53,12 +53,14 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
     def viz_f(*args, **kwargs):
         pass
 
+    debug_state_keys = dataset_loader.state_keys
     return augment_dataset_from_loader(dataset_loader,
                                        viz_f,
                                        dataset_dir,
                                        hparams,
                                        outdir,
                                        n_augmentations,
+                                       debug_state_keys,
                                        scenario,
                                        visualize,
                                        batch_size,
@@ -78,12 +80,14 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
                                         state_metadata_keys=dataset_loader.state_metadata_keys,
                                         predicted_state_keys=dataset_loader.predicted_state_keys,
                                         true_state_keys=None)
+    debug_state_keys = [add_predicted(k) for k in dataset_loader.state_keys]
     return augment_dataset_from_loader(dataset_loader,
                                        viz_f,
                                        dataset_dir,
                                        hparams,
                                        outdir,
                                        n_augmentations,
+                                       debug_state_keys,
                                        scenario,
                                        visualize,
                                        batch_size,
@@ -96,11 +100,12 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
                                 hparams: Dict,
                                 outdir: pathlib.Path,
                                 n_augmentations: int,
+                                debug_state_keys,
                                 scenario,
                                 visualize: bool = False,
                                 batch_size: int = 128,
                                 save_format='pkl'):
-    aug = make_aug_opt(scenario, dataset_loader, hparams, batch_size)
+    aug = make_aug_opt(scenario, dataset_loader, hparams, debug_state_keys, batch_size)
 
     def augment(inputs):
         actual_batch_size = inputs['batch_size']
@@ -145,9 +150,12 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
     return outdir
 
 
-def make_aug_opt(scenario: ScenarioWithVisualization, dataset_loader: NewBaseDatasetLoader, hparams: Dict,
+def make_aug_opt(scenario: ScenarioWithVisualization,
+                 dataset_loader: NewBaseDatasetLoader,
+                 hparams: Dict,
+                 debug_state_keys: List[str],
                  batch_size: int):
-    debug = DebuggingViz(scenario, dataset_loader.state_keys, dataset_loader.action_keys)
+    debug = DebuggingViz(scenario, debug_state_keys, dataset_loader.action_keys)
     local_env_helper = LocalEnvHelper(h=hparams['local_env_h_rows'],
                                       w=hparams['local_env_w_cols'],
                                       c=hparams['local_env_c_channels'])
