@@ -255,129 +255,6 @@ class CylindersScenario(PlanarPushingScenario):
 
         return obj_points
 
-    def apply_object_augmentation_no_ik(self,
-                                        m,
-                                        to_local_frame,
-                                        inputs: Dict,
-                                        batch_size,
-                                        time,
-                                        h: int,
-                                        w: int,
-                                        c: int,
-                                        ):
-        """
-
-        Args:
-            m: [b, k, 4, 4]
-            to_local_frame: [b, 3]
-            inputs:
-            batch_size:
-            time:
-            h: local env h
-            w: local env w
-            c: local env c
-
-        Returns:
-
-        """
-        to_local_frame_expanded = to_local_frame[:, None, None]
-        m_expanded = m[:, None]
-        no_translation_mask = np.ones(m_expanded.shape)
-        no_translation_mask[..., 0:3, 3] = 0
-        m_expanded_no_translation = m_expanded * no_translation_mask
-
-        def _transform(m, points, _to_local_frame):
-            points_local_frame = points - _to_local_frame
-            points_local_frame_aug = transform_points_3d(m, points_local_frame)
-            return points_local_frame_aug + _to_local_frame
-
-        # apply transformations to the state
-        num_objs = inputs['num_objs'][0, 0, 0]
-        object_aug_update = {
-        }
-        for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(inputs, num_objs):
-            pos_aug = _transform(m_expanded, pos, to_local_frame_expanded)
-            vel_aug = _transform(m_expanded_no_translation, vel, to_local_frame_expanded)
-            object_aug_update[pos_k] = pos_aug
-            object_aug_update[vel_k] = vel_aug
-
-        # apply transformations to the action
-        gripper_position = inputs['gripper_position']
-        gripper_position_aug = _transform(m_expanded, gripper_position, to_local_frame_expanded)
-        object_aug_update['gripper_position'] = gripper_position_aug
-
-        if DEBUG_VIZ_STATE_AUG:
-            for b in debug_viz_batch_indices(batch_size):
-                env_b = {
-                    'env':          inputs['env'][b],
-                    'res':          inputs['res'][b],
-                    'extent':       inputs['extent'][b],
-                    'origin_point': inputs['origin_point'][b],
-                }
-                object_aug_update_viz = deepcopy(object_aug_update)
-                object_aug_update_viz.update({
-                    'num_objs': inputs['num_objs'],
-                    'height':   inputs['height'],
-                    'radius':   inputs['radius'],
-                })
-                object_aug_update_viz_b = {k: v[b] for k, v in object_aug_update_viz.items()}
-
-                self.plot_environment_rviz(env_b)
-                for t in range(time):
-                    object_aug_update_b_t = {k: v[0].numpy() for k, v in object_aug_update_viz_b.items()}
-                self.plot_state_rviz(object_aug_update_b_t, label='aug_no_ik', color='white', id=t)
-        return object_aug_update, None, None
-
-    def aug_ik(self,
-               inputs: Dict,
-               inputs_aug: Dict,
-               ik_params: IkParams,
-               batch_size: int):
-        """
-
-        Args:
-            inputs:
-            inputs_aug: a dict containing the desired gripper positions as well as the scene_msg and other state info
-            batch_size:
-
-        Returns:
-            is_ik_valid: [b]
-            keys
-
-        """
-        tcp_pos_aug = inputs[f'{ARM_HAND_NAME}/tcp_pos']
-
-        is_ik_valid = []
-        joint_positions_aug = []
-        for b in range(batch_size):
-            tcp_pos_aug_b = tcp_pos_aug[b]
-            is_ik_valid_b = True
-            joint_positions_aug_b = []
-            for t in range(tcp_pos_aug_b.shape[0]):
-                tcp_pos_aug_b_t = tcp_pos_aug_b[t]
-                success, joint_position_aug_b_t = self.task.solve_position_ik(self.env.physics, tcp_pos_aug_b_t)
-                joint_positions_aug_b.append(joint_position_aug_b_t)
-                if not success:
-                    is_ik_valid_b = False
-                    break
-            joint_positions_aug.append(joint_positions_aug_b)
-            is_ik_valid.append(is_ik_valid_b)
-
-        joint_positions_aug = tf.stack(joint_positions_aug)  # [b, T, 6]
-        joint_positions_aug = tf.expand_dims(joint_positions_aug, -2)
-        joint_positions_aug_sin = tf.sin(joint_positions_aug)
-        joint_positions_aug_cos = tf.cos(joint_positions_aug)
-        joint_positions_aug_sincos = tf.stack([joint_positions_aug_sin, joint_positions_aug_cos], -1)  # [b, T, 1, 6, 2]
-        joint_positions_aug_sincos = tf.cast(joint_positions_aug_sincos, tf.float32)
-        is_ik_valid = tf.cast(tf.stack(is_ik_valid), tf.float32)
-
-        joints_pos_k = f'{ARM_NAME}/joints_pos'
-
-        inputs_aug.update({
-            joints_pos_k: joint_positions_aug_sincos,
-        })
-        return is_ik_valid, [joints_pos_k]
-
     @staticmethod
     def is_points_key(k):
         return any([
@@ -547,7 +424,138 @@ class CylindersScenario(PlanarPushingScenario):
         xyzrpy = tf.concat([xy, zrp, theta], axis=-1)
         return xyzrpy_to_matrices(xyzrpy)
 
+    def apply_object_augmentation_no_ik(self,
+                                        m,
+                                        to_local_frame,
+                                        inputs: Dict,
+                                        batch_size,
+                                        time,
+                                        h: int,
+                                        w: int,
+                                        c: int,
+                                        ):
+        """
+
+        Args:
+            m: [b, k, 4, 4]
+            to_local_frame: [b, 3]
+            inputs:
+            batch_size:
+            time:
+            h: local env h
+            w: local env w
+            c: local env c
+
+        Returns:
+
+        """
+        to_local_frame_expanded = to_local_frame[:, None, None]
+        m_expanded = m[:, None]
+        no_translation_mask = np.ones(m_expanded.shape)
+        no_translation_mask[..., 0:3, 3] = 0
+        m_expanded_no_translation = m_expanded * no_translation_mask
+
+        def _transform(m, points, _to_local_frame):
+            points_local_frame = points - _to_local_frame
+            points_local_frame_aug = transform_points_3d(m, points_local_frame)
+            return points_local_frame_aug + _to_local_frame
+
+        # apply transformations to the state
+        num_objs = inputs['num_objs'][0, 0, 0]
+        object_aug_update = {
+        }
+        for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(inputs, num_objs):
+            pos_aug = _transform(m_expanded, pos, to_local_frame_expanded)
+            vel_aug = _transform(m_expanded_no_translation, vel, to_local_frame_expanded)
+            object_aug_update[pos_k] = pos_aug
+            object_aug_update[vel_k] = vel_aug
+
+        # apply transformations to the action
+        gripper_position = inputs['gripper_position']
+        gripper_position_aug = _transform(m, gripper_position, to_local_frame)
+        object_aug_update['gripper_position'] = gripper_position_aug
+
+        if DEBUG_VIZ_STATE_AUG:
+            for b in debug_viz_batch_indices(batch_size):
+                env_b = {
+                    'env':          inputs['env'][b],
+                    'res':          inputs['res'][b],
+                    'extent':       inputs['extent'][b],
+                    'origin_point': inputs['origin_point'][b],
+                }
+                object_aug_update_viz = deepcopy(object_aug_update)
+                object_aug_update_viz.update({
+                    'num_objs': inputs['num_objs'],
+                    'height':   inputs['height'],
+                    'radius':   inputs['radius'],
+                })
+                object_aug_update_viz_b = {k: v[b] for k, v in object_aug_update_viz.items()}
+
+                self.plot_environment_rviz(env_b)
+                for t in range(time):
+                    object_aug_update_b_t = {k: v[0].numpy() for k, v in object_aug_update_viz_b.items()}
+                self.plot_state_rviz(object_aug_update_b_t, label='aug_no_ik', color='white', id=t)
+        return object_aug_update, None, None
+
+    def aug_ik(self,
+               inputs: Dict,
+               inputs_aug: Dict,
+               ik_params: IkParams,
+               batch_size: int):
+        """
+
+        Args:
+            inputs:
+            inputs_aug: a dict containing the desired gripper positions as well as the scene_msg and other state info
+            batch_size:
+
+        Returns:
+            is_ik_valid: [b]
+            keys
+
+        """
+        tcp_pos_aug = inputs[f'{ARM_HAND_NAME}/tcp_pos']
+
+        is_ik_valid = []
+        joint_positions_aug = []
+        for b in range(batch_size):
+            tcp_pos_aug_b = tcp_pos_aug[b]
+            is_ik_valid_b = True
+            joint_positions_aug_b = []
+            for t in range(tcp_pos_aug_b.shape[0]):
+                tcp_pos_aug_b_t = tcp_pos_aug_b[t]
+                success, joint_position_aug_b_t = self.task.solve_position_ik(self.env.physics, tcp_pos_aug_b_t)
+                joint_positions_aug_b.append(joint_position_aug_b_t)
+                if not success:
+                    is_ik_valid_b = False
+                    break
+            joint_positions_aug.append(joint_positions_aug_b)
+            is_ik_valid.append(is_ik_valid_b)
+
+        joint_positions_aug = tf.stack(joint_positions_aug)  # [b, T, 6]
+        joint_positions_aug = tf.expand_dims(joint_positions_aug, -2)
+        joint_positions_aug_sin = tf.sin(joint_positions_aug)
+        joint_positions_aug_cos = tf.cos(joint_positions_aug)
+        joint_positions_aug_sincos = tf.stack([joint_positions_aug_sin, joint_positions_aug_cos], -1)  # [b, T, 1, 6, 2]
+        joint_positions_aug_sincos = tf.cast(joint_positions_aug_sincos, tf.float32)
+        is_ik_valid = tf.cast(tf.stack(is_ik_valid), tf.float32)
+
+        joints_pos_k = f'{ARM_NAME}/joints_pos'
+
+        inputs_aug.update({
+            joints_pos_k: joint_positions_aug_sincos,
+        })
+        return is_ik_valid, [joints_pos_k]
+
     def aug_transformation_jacobian(self, obj_transforms):
+        """
+
+        Args:
+            obj_transforms: [b, k_transforms, p]
+
+        Returns: [b, k_transforms, p, 4, 4]
+
+        """
         zrp = tf.zeros(obj_transforms.shape[:-1] + [3])
         xy = obj_transforms[..., :2]
         theta = obj_transforms[..., 2:3]
@@ -555,14 +563,14 @@ class CylindersScenario(PlanarPushingScenario):
         jacobian = transformation_jacobian(xyzrpy)
         jacobian_xy = jacobian[..., 0:2, :, :]
         jacobian_theta = jacobian[..., 2:3, :, :]
-        jacobian_xyt = tf.stack([jacobian_xy, jacobian_theta], axis=-3)
+        jacobian_xyt = tf.concat([jacobian_xy, jacobian_theta], axis=-3)
         return jacobian_xyt
 
     def aug_distance(self, transforms1, transforms2):
         trans1 = transforms1[..., :2]
         trans2 = transforms2[..., :2]
-        theta1 = transforms1[..., 2]
-        theta2 = transforms2[..., 2]
+        theta1 = transforms1[..., 2:3]
+        theta2 = transforms2[..., 2:3]
         theta_dist = tf.linalg.norm(euler_angle_diff(theta1, theta2), axis=-1)
         trans_dist = tf.linalg.norm(trans1 - trans2, axis=-1)
         distances = trans_dist + theta_dist
@@ -576,5 +584,6 @@ class CylindersScenario(PlanarPushingScenario):
             'radius',
             'height',
             'joint_names',
+            'time_idx',
         ]
         return {k: inputs[k] for k in aug_copy_keys}

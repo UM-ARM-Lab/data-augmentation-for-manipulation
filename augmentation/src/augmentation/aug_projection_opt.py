@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional, Callable
 
+import numpy as np
 import tensorflow as tf
 
 import rospy
@@ -276,6 +277,8 @@ class AugProjOpt(BaseProjectOpt):
             moved_attract_repel_dpoint_b_flat = tf.reshape(moved_attract_repel_dpoint_b, [-1, 3])
             attract_grad_b = -tf.gather(moved_attract_repel_dpoint_b_flat, attract_indices, axis=0) * 0.02
             repel_grad_b = -tf.gather(moved_attract_repel_dpoint_b_flat, repel_indices, axis=0) * 0.02
+            attract_grad_b = attract_grad_b.numpy()
+            repel_grad_b = repel_grad_b.numpy()
 
             attract_grad_ns = f'attract_sdf_grad_{moved_obj_i}'
             repel_grad_ns = f'repel_sdf_grad_{moved_obj_i}'
@@ -284,12 +287,12 @@ class AugProjOpt(BaseProjectOpt):
             s.arrows_pub.publish(make_delete_markerarray(ns=repel_grad_ns))
 
             attract_grad_nonzero_b_indices = tf.where(tf.linalg.norm(attract_grad_b, axis=-1) > self.viz_grad_epsilon)
-            attract_points_aug_nonzero = tf.squeeze(tf.gather(attract_points_aug, attract_grad_nonzero_b_indices))
-            attract_grad_nonzero_b = tf.squeeze(tf.gather(attract_grad_b, attract_grad_nonzero_b_indices, axis=0))
+            attract_points_aug_nonzero = tf.gather(attract_points_aug, attract_grad_nonzero_b_indices)
+            attract_grad_nonzero_b = tf.gather(attract_grad_b, attract_grad_nonzero_b_indices, axis=0)
 
-            repel_grad_nonzero_b_indices = tf.where(tf.linalg.norm(repel_grad_b, axis=-1) > self.viz_grad_epsilon)
-            repel_points_aug_nonzero = tf.squeeze(tf.gather(repel_points_aug, repel_grad_nonzero_b_indices))
-            repel_grad_nonzero_b = tf.squeeze(tf.gather(repel_grad_b, repel_grad_nonzero_b_indices, axis=0))
+            repel_grad_nonzero_b_indices = np.where(np.linalg.norm(repel_grad_b, axis=-1) > self.viz_grad_epsilon)
+            repel_points_aug_nonzero = repel_points_aug[repel_grad_nonzero_b_indices]
+            repel_grad_nonzero_b = repel_grad_b[repel_grad_nonzero_b_indices]
 
             s.plot_arrows_rviz(attract_points_aug_nonzero, attract_grad_nonzero_b, attract_grad_ns,
                                color='g', scale=self.viz_arrow_scale)

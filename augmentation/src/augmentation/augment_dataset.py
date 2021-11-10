@@ -12,8 +12,9 @@ from link_bot_data.modify_dataset import modify_hparams
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.split_dataset import split_dataset
-from link_bot_data.visualization import classifier_transition_viz_t, DebuggingViz
+from link_bot_data.visualization import classifier_transition_viz_t, DebuggingViz, init_viz_env, dynamics_viz_t
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.moonshine_utils import remove_batch, numpify
 
 
@@ -49,8 +50,22 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
     # current needed because mujoco IK requires a fully setup simulation...
     scenario.on_before_data_collection(dataset_loader.data_collection_params)
 
-    def viz_f(_, inputs, **kwargs):
-        dataset_loader.anim_rviz(numpify(inputs))
+    def viz_f(_scenario, example, **kwargs):
+        example = numpify(example)
+        state_keys = list(filter(lambda k: k in example, dataset_loader.state_keys))
+        anim = RvizAnimation(_scenario,
+                             n_time_steps=example['time_idx'].size,
+                             init_funcs=[
+                                 init_viz_env
+                             ],
+                             t_funcs=[
+                                 init_viz_env,
+                                 dynamics_viz_t(metadata={},
+                                                state_metadata_keys=dataset_loader.state_metadata_keys,
+                                                state_keys=state_keys,
+                                                action_keys=dataset_loader.action_keys),
+                             ])
+        anim.play(example)
 
     debug_state_keys = dataset_loader.state_keys
     return augment_dataset_from_loader(dataset_loader,
