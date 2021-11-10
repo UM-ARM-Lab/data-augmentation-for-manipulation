@@ -24,6 +24,7 @@
 
     # for the final check of the constraints
     max_env_violations: 8
+    max_bbox_violation: 0.001
     delta_min_dist_threshold: 0.055
 
     # IK

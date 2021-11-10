@@ -7,7 +7,7 @@ import tensorflow_probability as tfp
 from pyjacobian_follower import IkParams
 
 from augmentation.aug_opt_utils import debug_aug, debug_input, debug_ik, check_env_constraints, pick_best_params, \
-    transform_obj_points
+    transform_obj_points, sum_over_moved
 from augmentation.aug_projection_opt import AugProjOpt
 from augmentation.iterative_projection import iterative_projection
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
@@ -281,26 +281,27 @@ class AugmentationOptimization:
         # NOTE: to_local_frame is [b, 3] but technically it should be [b, k, 3]
         obj_points_aug, to_local_frame = transform_obj_points(obj_points, moved_mask, transformation_matrices)
 
-        is_valid = self.check_is_valid(obj_points_aug=obj_points_aug,
+        is_valid = self.check_is_valid(moved_mask=moved_mask,
+                                       obj_points_aug=obj_points_aug,
                                        obj_occupancy=obj_occupancy,
                                        extent=extent,
-                                       res=res,
                                        sdf=project_opt.obj_sdf_moved,
                                        sdf_aug=viz_vars.sdf_aug)
 
         return transformation_matrices, to_local_frame, is_valid
 
-    def check_is_valid(self, obj_points_aug, obj_occupancy, extent, res, sdf, sdf_aug):
-        bbox_loss_batch = tf.reduce_sum(self.bbox_loss(obj_points_aug, extent), axis=-2)
-        bbox_loss_batch = tf.reduce_sum(bbox_loss_batch, axis=-1)
-        bbox_constraint_satisfied = tf.cast(tf.reduce_sum(bbox_loss_batch, axis=-1) == 0, tf.float32)
+    def check_is_valid(self, moved_mask, obj_points_aug, obj_occupancy, extent, sdf, sdf_aug):
+        bbox_loss_batch = tf.reduce_max(self.bbox_loss(obj_points_aug, extent), axis=-2)
+        bbox_loss_batch = tf.reduce_max(bbox_loss_batch, axis=-1)
+        bbox_loss_batch = tf.reduce_max(bbox_loss_batch, axis=-1)
+        bbox_constraint_satisfied = tf.cast(bbox_loss_batch < self.hparams['max_bbox_violation'], tf.float32)
 
-        env_constraints_satisfied_ = check_env_constraints(obj_occupancy, sdf_aug, res)
+        env_constraints_satisfied_ = check_env_constraints(obj_occupancy, sdf_aug)  # [b, m, T, n]
         num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=-1)
         num_env_constraints_violated = tf.reduce_sum(num_env_constraints_violated, axis=-1)
-        num_env_constraints_violated = tf.reduce_sum(num_env_constraints_violated, axis=-1)
-        env_constraints_satisfied = tf.cast(num_env_constraints_violated < self.hparams['max_env_violations'],
-                                            tf.float32)
+        num_env_constraints_violated_moved = sum_over_moved(moved_mask, num_env_constraints_violated)
+        env_constraints_satisfied = num_env_constraints_violated_moved < self.hparams['max_env_violations']
+        env_constraints_satisfied = tf.cast(env_constraints_satisfied, tf.float32)
 
         delta_dist = tf.abs(sdf - sdf_aug)
         delta_min_dist = tf.reduce_min(delta_dist, axis=-1)

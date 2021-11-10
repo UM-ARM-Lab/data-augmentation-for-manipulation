@@ -449,7 +449,8 @@ class CylindersScenario(PlanarPushingScenario):
         Returns:
 
         """
-        to_local_frame_expanded = to_local_frame[:, None, None]
+        to_local_frame_expanded1 = to_local_frame[:, None]
+        to_local_frame_expanded2 = to_local_frame[:, None, None]
         m_expanded = m[:, None]
         no_translation_mask = np.ones(m_expanded.shape)
         no_translation_mask[..., 0:3, 3] = 0
@@ -465,14 +466,14 @@ class CylindersScenario(PlanarPushingScenario):
         object_aug_update = {
         }
         for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(inputs, num_objs):
-            pos_aug = _transform(m_expanded, pos, to_local_frame_expanded)
-            vel_aug = _transform(m_expanded_no_translation, vel, to_local_frame_expanded)
+            pos_aug = _transform(m_expanded, pos, to_local_frame_expanded2)
+            vel_aug = _transform(m_expanded_no_translation, vel, to_local_frame_expanded2)
             object_aug_update[pos_k] = pos_aug
             object_aug_update[vel_k] = vel_aug
 
         # apply transformations to the action
         gripper_position = inputs['gripper_position']
-        gripper_position_aug = _transform(m, gripper_position, to_local_frame)
+        gripper_position_aug = _transform(m, gripper_position, to_local_frame_expanded1)
         object_aug_update['gripper_position'] = gripper_position_aug
 
         if DEBUG_VIZ_STATE_AUG:

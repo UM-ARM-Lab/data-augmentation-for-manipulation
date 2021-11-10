@@ -78,8 +78,9 @@ def transform_obj_points(obj_points, moved_mask, transformation_matrices):
     return obj_points_aug, to_local_frame_moved_mean
 
 
-def mean_over_moved(moved_mask, x):
+def sum_over_moved(moved_mask, x):
     """
+    Gives the sum of x over dimension 1, which represent different objects, but the non-moved objects aren't included.
 
     Args:
         moved_mask: [b, m]
@@ -92,6 +93,22 @@ def mean_over_moved(moved_mask, x):
     moved_mask_expanded = expand_to_match(moved_mask, x)
     x_moved = tf.where(tf.cast(moved_mask_expanded, tf.bool), x, 0)
     x_moved_sum = tf.reduce_sum(x_moved, axis=1)
+    return x_moved_sum
+
+
+def mean_over_moved(moved_mask, x):
+    """
+    Gives the mean of x over dimension 1, which represent different objects, but the non-moved objects aren't included.
+
+    Args:
+        moved_mask: [b, m]
+        x: [b, m, d1, ..., dn]
+
+    Returns:
+
+    """
+    # replacing the values where moved_mask is false with zero will not affect the sum...
+    x_moved_sum = sum_over_moved(moved_mask, x)
     # ... if we divide by the right numbers
     moved_count = tf.reduce_sum(moved_mask, axis=1)
     moved_count = expand_to_match(moved_count, x)
@@ -115,10 +132,10 @@ def expand_to_match(a, b):
     return a_expanded
 
 
-def check_env_constraints(attract_mask, min_dist, res):
-    half_res_expanded = res[:, None, None, None] / 2
-    attract_satisfied = tf.cast(min_dist < half_res_expanded, tf.float32)
-    repel_satisfied = tf.cast(min_dist > half_res_expanded, tf.float32)
+def check_env_constraints(attract_mask, min_dist):
+    # we don't need to worry about equality because the (discrete) sdf is never exactly 0
+    attract_satisfied = tf.cast(min_dist < 0, tf.float32)
+    repel_satisfied = tf.cast(min_dist > 0, tf.float32)
     constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
     return constraints_satisfied
 
