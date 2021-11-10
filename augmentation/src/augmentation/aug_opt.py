@@ -178,7 +178,7 @@ class AugmentationOptimization:
         # things that we won't be updating in this augmentation
         inputs_aug = {
             'batch_size':   batch_size,
-            'env':          env_stationary,
+            'env':          env,
             'extent':       extent,
             'origin_point': inputs['origin_point'],
             'res':          res,
