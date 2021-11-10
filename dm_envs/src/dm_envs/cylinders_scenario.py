@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 import torch
+import transformations
 from pyjacobian_follower import IkParams
 
 from dm_envs import primitive_hand
@@ -16,7 +17,7 @@ from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian
+from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
 from moonshine.moonshine_utils import repeat_tensor
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
@@ -506,48 +507,66 @@ class CylindersScenario(PlanarPushingScenario):
         return Rs, Rr, Ra
 
     def initial_identity_aug_params(self, batch_size, k_transforms):
-        return tf.zeros([batch_size, k_transforms, 2], tf.float32)  # delta x, delta y
+        return tf.zeros([batch_size, k_transforms, 3], tf.float32)  # change in x, y, theta (about z)
 
     def sample_target_aug_params(self, seed, aug_params, n_samples):
         trans_lim = tf.ones([2]) * aug_params['target_trans_lim']
         trans_distribution = tfp.distributions.Uniform(low=-trans_lim, high=trans_lim)
 
+        theta_lim = tf.ones([1]) * aug_params['target_euler_lim']
+        theta_distribution = tfp.distributions.Uniform(low=-theta_lim, high=theta_lim)
+
         trans_target = trans_distribution.sample(sample_shape=n_samples, seed=seed())
-        return trans_target
+        theta_target = theta_distribution.sample(sample_shape=n_samples, seed=seed())
+
+        target_params = tf.concat([trans_target, theta_target], -1)
+        return target_params
 
     def plot_transform(self, obj_i, transform_params, frame_id):
         """
 
         Args:
             frame_id:
-            transform_params: [x,y]
+            transform_params: [x,y,theta]
 
         Returns:
 
         """
         target_pos_b = [transform_params[0], transform_params[1], 0]
-        self.tf.send_transform(target_pos_b, [0, 0, 0, 1], f'aug_opt_initial_{obj_i}', frame_id, False)
+        theta = transform_params[2]
+        target_quat_b = transformations.quaternion_from_euler(0, 0, theta)
+        self.tf.send_transform(target_pos_b, target_quat_b, f'aug_opt_initial_{obj_i}', frame_id, False)
 
     def aug_target_pos(self, target):
         return tf.concat([target[0], target[1], 0], axis=0)
 
     def transformation_params_to_matrices(self, obj_transforms):
-        zrpy = tf.zeros(obj_transforms.shape[:-1] + [4])
-        xyzrpy = tf.concat([obj_transforms, zrpy], axis=-1)
+        xy = obj_transforms[..., :2]
+        theta = obj_transforms[..., 2:3]
+        zrp = tf.zeros(obj_transforms.shape[:-1] + [3])
+        xyzrpy = tf.concat([xy, zrp, theta], axis=-1)
         return xyzrpy_to_matrices(xyzrpy)
 
     def aug_transformation_jacobian(self, obj_transforms):
-        zrpy = tf.zeros(obj_transforms.shape[:-1] + [4])
-        xyzrpy = tf.concat([obj_transforms, zrpy], axis=-1)
+        zrp = tf.zeros(obj_transforms.shape[:-1] + [3])
+        xy = obj_transforms[..., :2]
+        theta = obj_transforms[..., 2:3]
+        xyzrpy = tf.concat([xy, zrp, theta], axis=-1)
         jacobian = transformation_jacobian(xyzrpy)
         jacobian_xy = jacobian[..., 0:2, :, :]
-        return jacobian_xy
+        jacobian_theta = jacobian[..., 2:3, :, :]
+        jacobian_xyt = tf.stack([jacobian_xy, jacobian_theta], axis=-3)
+        return jacobian_xyt
 
     def aug_distance(self, transforms1, transforms2):
         trans1 = transforms1[..., :2]
         trans2 = transforms2[..., :2]
+        theta1 = transforms1[..., 2]
+        theta2 = transforms2[..., 2]
+        theta_dist = tf.linalg.norm(euler_angle_diff(theta1, theta2), axis=-1)
         trans_dist = tf.linalg.norm(trans1 - trans2, axis=-1)
-        max_distance = tf.reduce_max(trans_dist)
+        distances = trans_dist + theta_dist
+        max_distance = tf.reduce_max(distances)
         return max_distance
 
     @staticmethod
