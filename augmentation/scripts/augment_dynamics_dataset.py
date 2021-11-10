@@ -41,7 +41,8 @@ def main():
     outdir = augment_dynamics_dataset(dataset_dir=dataset_dir,
                                       hparams=hparams,
                                       outdir=outdir,
-                                      n_augmentations=args.n_augmentations)
+                                      n_augmentations=args.n_augmentations,
+                                      visualize=args.visualize)
 
     print(Fore.CYAN + outdir.as_posix() + Fore.RESET)
 

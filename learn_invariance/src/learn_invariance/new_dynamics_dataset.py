@@ -19,7 +19,6 @@ class NewDynamicsDatasetLoader(NewBaseDatasetLoader):
         self.state_keys.append('time_idx')
         self.env_keys = self.data_collection_params['env_keys']
         self.action_keys = self.data_collection_params['action_keys']
-        self.augmentable_state_keys = self.data_collection_params.get('augmentable_state_keys', [])
 
     def get_datasets(self,
                      mode: str,

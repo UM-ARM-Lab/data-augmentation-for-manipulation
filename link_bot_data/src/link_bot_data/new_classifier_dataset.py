@@ -100,7 +100,6 @@ class NewClassifierDatasetLoader(NewBaseDatasetLoader):
         self.predicted_state_keys.append(add_predicted('stdev'))
         default = [add_predicted('left_gripper'), add_predicted('right_gripper'), add_predicted('rope')]
         self.points_state_keys = self.hparams.get('points_state_keys', default)
-        self.augmentable_state_keys = self.hparams.get('augmentable_state_keys', ['rope'])
         self.env_keys = self.hparams['env_keys']
         self.action_keys = self.hparams['action_keys']
 

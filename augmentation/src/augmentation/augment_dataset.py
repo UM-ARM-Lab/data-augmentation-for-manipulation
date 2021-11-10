@@ -46,6 +46,9 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
     if scenario is None:
         scenario = dataset_loader.get_scenario()
 
+    # current needed because mujoco IK requires a fully setup simulation...
+    scenario.on_before_data_collection(dataset_loader.data_collection_params)
+
     # viz_f = classifier_transition_viz_t(metadata={},
     #                                     state_metadata_keys=dataset_loader.state_metadata_keys,
     #                                     predicted_state_keys=dataset_loader.state_keys,
@@ -167,6 +170,5 @@ def make_aug_opt(scenario: ScenarioWithVisualization,
                                    state_keys=dataset_loader.state_keys,
                                    action_keys=dataset_loader.action_keys,
                                    points_state_keys=dataset_loader.points_state_keys,
-                                   augmentable_state_keys=dataset_loader.augmentable_state_keys,
                                    )
     return aug

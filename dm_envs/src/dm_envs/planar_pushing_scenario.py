@@ -108,7 +108,6 @@ class PlanarPushingScenario(ScenarioWithVisualization):
         params['action_keys'] = ['gripper_position']
         params['state_metadata_keys'] = []
         params['gripper_keys'] = [f'{ARM_HAND_NAME}/tcp_pos', f'{ARM_HAND_NAME}/orientation']
-        params['augmentable_state_keys'] = []
 
         params['points_state_keys'] = list(filter(self.is_points_key, s.keys()))
 
@@ -259,9 +258,3 @@ class PlanarPushingScenario(ScenarioWithVisualization):
     @staticmethod
     def is_points_key(k):
         raise NotImplementedError()
-
-    @staticmethod
-    def aug_copy_inputs(inputs):
-        return {
-            'joint_names':  inputs['joint_names'],
-        }

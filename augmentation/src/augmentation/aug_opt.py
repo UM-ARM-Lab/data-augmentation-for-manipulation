@@ -11,7 +11,6 @@ from augmentation.aug_opt_utils import debug_aug, debug_input, debug_ik, check_e
 from augmentation.aug_projection_opt import AugProjOpt
 from augmentation.iterative_projection import iterative_projection
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
-from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.visualization import DebuggingViz
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
@@ -88,7 +87,6 @@ class AugmentationOptimization:
                  debug: DebuggingViz,
                  local_env_helper: LocalEnvHelper,
                  points_state_keys: List[str],
-                 augmentable_state_keys: List[str],
                  hparams: Dict,
                  batch_size: int,
                  state_keys: List[str],
@@ -96,8 +94,6 @@ class AugmentationOptimization:
                  ):
         self.state_keys = state_keys
         self.action_keys = action_keys
-        self.augmentable_state_keys = augmentable_state_keys
-        self.m_obj = len(self.augmentable_state_keys)
         self.hparams = hparams.get('augmentation', None)
         self.points_state_keys = points_state_keys
         self.batch_size = batch_size
@@ -177,6 +173,8 @@ class AugmentationOptimization:
             batch_size,
             time)
 
+        keys_aug = list(obj_aug_update.keys())
+
         # things that we won't be updating in this augmentation
         inputs_aug = {
             'batch_size':   batch_size,
@@ -187,8 +185,8 @@ class AugmentationOptimization:
             'sdf':          inputs['sdf'],
             'sdf_grad':     inputs['sdf_grad'],
         }
-        inputs_aug.update(self.scenario.aug_copy_inputs(inputs))
         inputs_aug.update(obj_aug_update)
+        inputs_aug.update(self.scenario.aug_copy_inputs(inputs))
 
         if debug_input():
             for b in debug_viz_batch_indices(batch_size):
@@ -211,22 +209,19 @@ class AugmentationOptimization:
         # NOTE: We use IK as a simple and efficient way to preserve the contacts between the robot and the environment.
         #  Preserving contacts is a key insight of our augmentation method, so in a way this is just a more specific
         #  implementation of a more abstract rule. Solving IK is very efficient, but a bit less general.
-        #  it assumes the body of the robot is not in contact and that the specific contacts involved in any grasping
-        #  is not important.
-        joint_positions_aug, is_ik_valid = self.scenario.aug_ik(inputs=inputs,
-                                                                inputs_aug=inputs_aug,
-                                                                ik_params=self.ik_params,
-                                                                batch_size=batch_size)
+        #  it assumes the body of the robot is not in contact and that any valid position IK is similar enough
+        is_ik_valid, ik_keys_aug = self.scenario.aug_ik(inputs=inputs,
+                                                        inputs_aug=inputs_aug,
+                                                        ik_params=self.ik_params,
+                                                        batch_size=batch_size)
+        keys_aug += ik_keys_aug
+
         if debug_ik():
             print(f"ik valid % = {tf.reduce_mean(is_ik_valid)}")
-        inputs_aug.update({
-            add_predicted('joint_positions'): joint_positions_aug,
-            'joint_names':                    inputs['joint_names'],
-        })
 
         is_valid = is_ik_valid * is_obj_aug_valid
 
-        inputs_aug = self.use_original_if_invalid(is_valid, batch_size, inputs, inputs_aug)
+        inputs_aug = self.use_original_if_invalid(is_valid, batch_size, inputs, inputs_aug, keys_aug)
 
         # add some more useful info
         inputs_aug['is_valid'] = is_valid
@@ -297,16 +292,20 @@ class AugmentationOptimization:
 
     def check_is_valid(self, obj_points_aug, obj_occupancy, extent, res, sdf, sdf_aug):
         bbox_loss_batch = tf.reduce_sum(self.bbox_loss(obj_points_aug, extent), axis=-2)
+        bbox_loss_batch = tf.reduce_sum(bbox_loss_batch, axis=-1)
         bbox_constraint_satisfied = tf.cast(tf.reduce_sum(bbox_loss_batch, axis=-1) == 0, tf.float32)
 
         env_constraints_satisfied_ = check_env_constraints(obj_occupancy, sdf_aug, res)
-        num_env_constraints_violated = tf.reduce_sum(tf.reduce_sum(1 - env_constraints_satisfied_, axis=-1), axis=-1)
+        num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=-1)
+        num_env_constraints_violated = tf.reduce_sum(num_env_constraints_violated, axis=-1)
+        num_env_constraints_violated = tf.reduce_sum(num_env_constraints_violated, axis=-1)
         env_constraints_satisfied = tf.cast(num_env_constraints_violated < self.hparams['max_env_violations'],
                                             tf.float32)
 
-        min_dist = tf.reduce_min(tf.reduce_min(sdf, axis=-1), axis=-1)
-        min_dist_aug = tf.reduce_min(tf.reduce_min(sdf_aug, axis=-1), axis=-1)
-        delta_min_dist = tf.abs(min_dist - min_dist_aug)
+        delta_dist = tf.abs(sdf - sdf_aug)
+        delta_min_dist = tf.reduce_min(delta_dist, axis=-1)
+        delta_min_dist = tf.reduce_min(delta_min_dist, axis=-1)
+        delta_min_dist = tf.reduce_min(delta_min_dist, axis=-1)
         delta_min_dist_satisfied = tf.cast(delta_min_dist < self.hparams['delta_min_dist_threshold'], tf.float32)
 
         constraints_satisfied = env_constraints_satisfied * bbox_constraint_satisfied * delta_min_dist_satisfied
@@ -328,11 +327,8 @@ class AugmentationOptimization:
                                 is_valid,
                                 batch_size,
                                 inputs,
-                                inputs_aug):
-        # FIXME: this is hacky
-        keys_aug = [add_predicted('joint_positions')]
-        keys_aug += self.action_keys
-        keys_aug += self.points_state_keys
+                                inputs_aug,
+                                keys_aug):
         for k in keys_aug:
             v = inputs_aug[k]
             iv = tf.reshape(is_valid, [batch_size] + [1] * (v.ndim - 1))

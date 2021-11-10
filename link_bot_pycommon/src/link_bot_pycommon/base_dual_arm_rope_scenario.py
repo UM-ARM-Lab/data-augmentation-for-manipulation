@@ -416,15 +416,15 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         m_expanded = m[:, None]
 
         # apply those to the rope and grippers
-        rope_points = inputs[add_predicted('rope')]
+        rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
         left_gripper_point = inputs[add_predicted('left_gripper')]
         right_gripper_point = inputs[add_predicted('right_gripper')]
         left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
         right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
-        def _transform(m, points, _to_local_frame):
+        def _transform(_m, points, _to_local_frame):
             points_local_frame = points - _to_local_frame
-            points_local_frame_aug = transform_points_3d(m, points_local_frame)
+            points_local_frame_aug = transform_points_3d(_m, points_local_frame)
             return points_local_frame_aug + _to_local_frame
 
         # m is expanded to broadcast across batch & num_points dimensions
@@ -436,8 +436,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         left_gripper_position = inputs['left_gripper_position']
         right_gripper_position = inputs['right_gripper_position']
         # m is expanded to broadcast across batch dimensions
-        left_gripper_position_aug = _transform(m[:, None], left_gripper_position, to_local_frame)
-        right_gripper_position_aug = _transform(m[:, None], right_gripper_position, to_local_frame)
+        left_gripper_position_aug = _transform(m, left_gripper_position, tf.expand_dims(to_local_frame, -2))
+        right_gripper_position_aug = _transform(m, right_gripper_position, tf.expand_dims(to_local_frame, -2))
 
         rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
         left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
@@ -476,20 +476,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 stepper.step()
         return object_aug_update, local_origin_point_aug, local_center_aug
 
-    def compute_collision_free_point_ik(self,
-                                        default_robot_state,
-                                        points,
-                                        group_name,
-                                        tip_names,
-                                        scene_msg,
-                                        ik_params):
-        return self.robot.j.compute_collision_free_point_ik(default_robot_state,
-                                                            points,
-                                                            group_name,
-                                                            tip_names,
-                                                            scene_msg,
-                                                            ik_params)
-
     def debug_viz_state_action(self, inputs, b, label: str, color='red'):
         state_keys = ['left_gripper', 'right_gripper', 'rope', 'joint_positions']
         action_keys = ['left_gripper_position', 'right_gripper_position']
@@ -507,17 +493,17 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             error_t = inputs['error'][b, 1]
             self.plot_error_rviz(error_t)
 
-    def aug_solve_ik(self,
-                     scene_msg: List[PlanningScene],
-                     joint_names,
-                     default_robot_positions,
-                     batch_size: int,
-                     left_target_position,
-                     right_target_position,
-                     ik_params: IkParams,
-                     group_name='both_arms',
-                     tip_names=None,
-                     ):
+    def aug_ik_to_start(self,
+                        scene_msg: List[PlanningScene],
+                        joint_names,
+                        default_robot_positions,
+                        batch_size: int,
+                        left_target_position,
+                        right_target_position,
+                        ik_params: IkParams,
+                        group_name='both_arms',
+                        tip_names=None,
+                        ):
         if tip_names is None:
             tip_names = ['left_tool', 'right_tool']
         robot_state_b: RobotState
@@ -537,12 +523,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             scene_msg_b.robot_state.joint_state.name = joint_names
             points_b = [_position_tensor_to_point(left_target_position[b]),
                         _position_tensor_to_point(right_target_position[b])]
-            robot_state_b = self.compute_collision_free_point_ik(default_robot_state_b,
-                                                                 points_b,
-                                                                 group_name,
-                                                                 tip_names,
-                                                                 scene_msg_b,
-                                                                 ik_params)
+            robot_state_b = self.robot.j.compute_collision_free_point_ik(default_robot_state_b,
+                                                                         points_b,
+                                                                         group_name,
+                                                                         tip_names,
+                                                                         scene_msg_b,
+                                                                         ik_params)
 
             reached.append(robot_state_b is not None)
             if robot_state_b is None:
@@ -567,7 +553,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             inputs_aug: a dict containing the desired gripper positions as well as the scene_msg and other state info
             batch_size:
 
-        Returns:
+        Returns: [b], keys
 
         """
         default_robot_positions = inputs[add_predicted('joint_positions')][:, 0]
@@ -577,13 +563,13 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         scene_msg = inputs_aug['scene_msg']
         joint_names = to_list_of_strings(inputs_aug['joint_names'][0, 0].numpy().tolist())
-        joint_positions_aug_, is_ik_valid = self.aug_solve_ik(scene_msg=scene_msg,
-                                                              joint_names=joint_names,
-                                                              default_robot_positions=default_robot_positions,
-                                                              left_target_position=left_gripper_points_aug[:, 0],
-                                                              right_target_position=right_gripper_points_aug[:, 0],
-                                                              ik_params=ik_params,
-                                                              batch_size=batch_size)
+        joint_positions_aug_, is_ik_valid = self.aug_ik_to_start(scene_msg=scene_msg,
+                                                                 joint_names=joint_names,
+                                                                 default_robot_positions=default_robot_positions,
+                                                                 left_target_position=left_gripper_points_aug[:, 0],
+                                                                 right_target_position=right_gripper_points_aug[:, 0],
+                                                                 ik_params=ik_params,
+                                                                 batch_size=batch_size)
         joint_positions_aug_start = joint_positions_aug_
 
         # then run the jacobian follower to compute the second new position
@@ -621,7 +607,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         joint_positions_aug = tf.stack(joint_positions_aug, axis=0)
         is_ik_valid = tf.cast(tf.logical_and(is_ik_valid, reached), tf.float32)
 
-        return joint_positions_aug, is_ik_valid
+        joints_pos_k = add_predicted('joint_positions')
+        inputs_aug.update({
+            joints_pos_k: joint_positions_aug,
+        })
+        return is_ik_valid, [joints_pos_k]
 
     def initial_identity_aug_params(self, batch_size, k_transforms):
         return tf.zeros([batch_size, k_transforms, 6], tf.float32)

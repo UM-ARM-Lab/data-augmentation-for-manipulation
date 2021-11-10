@@ -11,7 +11,7 @@ from pyjacobian_follower import IkParams
 from dm_envs import primitive_hand
 from dm_envs.cylinders_task import PlanarPushingCylindersTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario, ACTION_Z
-from dm_envs.planar_pushing_task import ARM_HAND_NAME
+from dm_envs.planar_pushing_task import ARM_HAND_NAME, ARM_NAME
 from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
@@ -145,6 +145,40 @@ def make_vel_arrow(position, velocity, height, color_msg, idx, ns, vel_scale=1.0
 
 class CylindersScenario(PlanarPushingScenario):
 
+    def iter_keys(self, num_objs):
+        for obj_idx in range(num_objs):
+            obj_k = f'obj{obj_idx}'
+            yield False, obj_idx, obj_k
+        yield True, -1, ARM_HAND_NAME
+
+    def iter_positions(self, inputs, num_objs):
+        for is_robot, obj_idx, k in self.iter_keys(num_objs):
+            if is_robot:
+                pos_k = k + '/tcp_pos'
+            else:
+                pos_k = k + '/position'
+
+            if pos_k in inputs:
+                pos = inputs[pos_k]
+            else:
+                pos = None
+
+            yield is_robot, obj_idx, k, pos_k, pos
+
+    def iter_positions_velocities(self, inputs, num_objs):
+        for is_robot, obj_idx, k, pos_k, pos in self.iter_positions(inputs, num_objs):
+            if not is_robot:
+                vel_k = k + "/linear_velocity"
+            else:
+                vel_k = k + "/tcp_vel"
+
+            if vel_k in inputs:
+                vel = inputs[vel_k]
+            else:
+                vel = None
+
+            yield is_robot, obj_idx, k, pos_k, vel_k, pos, vel
+
     def plot_state_rviz(self, state: Dict, **kwargs):
         super().plot_state_rviz(state, **kwargs)
 
@@ -159,34 +193,26 @@ class CylindersScenario(PlanarPushingScenario):
 
         ig = marker_index_generator(idx)
 
-        robot_position_k = f'{ARM_HAND_NAME}/tcp_pos'
-        if robot_position_k in state:
-            robot_position = state[robot_position_k]
-            robot_position[0, 2] = primitive_hand.HALF_HEIGHT + ACTION_Z
-            robot_color_msg = deepcopy(color_msg)
-            robot_color_msg.b = 1 - robot_color_msg.b
-            marker = make_cylinder_marker(robot_color_msg, primitive_hand.HEIGHT, next(ig), ns + '_robot',
-                                          robot_position,
-                                          radius)
-            msg.markers.append(marker)
-
-        robot_vel_k = f'{ARM_HAND_NAME}/tcp_vel'
-        if robot_vel_k in state:
-            robot_velocity = state[robot_vel_k]
-            vel_marker = make_vel_arrow(robot_position, robot_velocity, primitive_hand.HEIGHT + 0.005, color_msg,
-                                        next(ig), ns + '_robot')
-            msg.markers.append(vel_marker)
-
-        for i in range(num_objs):
-            obj_position = state[f'obj{i}/position']
-            obj_marker = make_cylinder_marker(color_msg, height, next(ig), ns, obj_position, radius)
-            msg.markers.append(obj_marker)
-
-            obj_vel_k = f'obj{i}/linear_velocity'
-            if obj_vel_k in state:
-                obj_velocity = state[obj_vel_k]
-                obj_vel_marker = make_vel_arrow(obj_position, obj_velocity, height, color_msg, next(ig), ns)
-                msg.markers.append(obj_vel_marker)
+        for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(state, num_objs):
+            if is_robot:
+                if pos is not None:
+                    pos[0, 2] = primitive_hand.HALF_HEIGHT + ACTION_Z
+                    robot_color_msg = deepcopy(color_msg)
+                    robot_color_msg.b = 1 - robot_color_msg.b
+                    marker = make_cylinder_marker(robot_color_msg, primitive_hand.HEIGHT, next(ig), ns + '_robot', pos,
+                                                  radius)
+                    msg.markers.append(marker)
+                if vel is not None:
+                    vel_marker = make_vel_arrow(pos, vel, primitive_hand.HEIGHT + 0.005, color_msg, next(ig),
+                                                ns + '_robot')
+                    msg.markers.append(vel_marker)
+            else:
+                if pos is not None:
+                    obj_marker = make_cylinder_marker(color_msg, height, next(ig), ns, pos, radius)
+                    msg.markers.append(obj_marker)
+                if vel is not None:
+                    obj_vel_marker = make_vel_arrow(pos, vel, height, color_msg, next(ig), ns)
+                    msg.markers.append(obj_vel_marker)
 
         self.state_viz_pub.publish(msg)
 
@@ -205,9 +231,11 @@ class CylindersScenario(PlanarPushingScenario):
         radius = inputs['radius'][:, :, 0]  # [b, T]
         num_objs = inputs['num_objs'][0, 0, 0]  # assumed fixed across batch/time
         positions = []  # [b, m, T, 3]
-        for i in range(num_objs):
-            pos = inputs[f"obj{i}/position"][:, :, 0]  # [b, T, 3]
-            positions.append(pos)
+        for is_robot, obj_idx, k, pos_k, pos in self.iter_positions(inputs, num_objs):
+            if not is_robot:
+                pos = pos[:, :, 0]  # [b, T, 3]
+                positions.append(pos)
+
         positions = tf.stack(positions, axis=1)
         time = positions.shape[2]
 
@@ -264,21 +292,12 @@ class CylindersScenario(PlanarPushingScenario):
         # apply transformations to the state
         num_objs = inputs['num_objs'][0, 0, 0]
         object_aug_update = {
-            'num_objs': inputs['num_objs'],
-            'height':   inputs['height'],
-            'radius':   inputs['radius'],
         }
-        for obj_idx in range(num_objs):
-            pos_k = f'obj{obj_idx}/position'
-            vel_k = f"obj{obj_idx}/linear_velocity"
-            obj_pos = inputs[pos_k]
-            obj_vel = inputs[vel_k]
-
-            obj_pos_aug = _transform(m_expanded, obj_pos, to_local_frame_expanded)
-            obj_vel_aug = _transform(m_expanded_no_translation, obj_vel, to_local_frame_expanded)
-
-            object_aug_update[pos_k] = obj_pos_aug
-            object_aug_update[vel_k] = obj_vel_aug
+        for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(inputs, num_objs):
+            pos_aug = _transform(m_expanded, pos, to_local_frame_expanded)
+            vel_aug = _transform(m_expanded_no_translation, vel, to_local_frame_expanded)
+            object_aug_update[pos_k] = pos_aug
+            object_aug_update[vel_k] = vel_aug
 
         # apply transformations to the action
         gripper_position = inputs['gripper_position']
@@ -293,36 +312,19 @@ class CylindersScenario(PlanarPushingScenario):
                     'extent':       inputs['extent'][b],
                     'origin_point': inputs['origin_point'][b],
                 }
-                object_aug_update_b = {k: v[b] for k, v in object_aug_update.items()}
+                object_aug_update_viz = deepcopy(object_aug_update)
+                object_aug_update_viz.update({
+                    'num_objs': inputs['num_objs'],
+                    'height':   inputs['height'],
+                    'radius':   inputs['radius'],
+                })
+                object_aug_update_viz_b = {k: v[b] for k, v in object_aug_update_viz.items()}
 
                 self.plot_environment_rviz(env_b)
                 for t in range(time):
-                    object_aug_update_b_t = {k: v[0] for k, v in object_aug_update_b.items()}
-                    self.plot_state_rviz(object_aug_update_b_t, label='aug_no_ik', color='white', id=t)
+                    object_aug_update_b_t = {k: v[0].numpy() for k, v in object_aug_update_viz_b.items()}
+                self.plot_state_rviz(object_aug_update_b_t, label='aug_no_ik', color='white', id=t)
         return object_aug_update, None, None
-
-    def compute_collision_free_point_ik(self,
-                                        default_robot_state,
-                                        points,
-                                        group_name,
-                                        tip_names,
-                                        scene_msg,
-                                        ik_params):
-        return self.robot.j.compute_collision_free_point_ik(default_robot_state,
-                                                            points,
-                                                            group_name,
-                                                            tip_names,
-                                                            scene_msg,
-                                                            ik_params)
-
-    def compute_collision_free_point_ik(self,
-                                        default_robot_state,
-                                        points,
-                                        group_name,
-                                        tip_names,
-                                        scene_msg,
-                                        ik_params):
-        raise NotImplementedError()
 
     def aug_ik(self,
                inputs: Dict,
@@ -337,10 +339,42 @@ class CylindersScenario(PlanarPushingScenario):
             batch_size:
 
         Returns:
+            is_ik_valid: [b]
+            keys
 
         """
-        joint_positions_aug, is_ik_valid
-        return joint_positions_aug, is_ik_valid
+        tcp_pos_aug = inputs[f'{ARM_HAND_NAME}/tcp_pos']
+
+        is_ik_valid = []
+        joint_positions_aug = []
+        for b in range(batch_size):
+            tcp_pos_aug_b = tcp_pos_aug[b]
+            is_ik_valid_b = True
+            joint_positions_aug_b = []
+            for t in range(tcp_pos_aug_b.shape[0]):
+                tcp_pos_aug_b_t = tcp_pos_aug_b[t]
+                success, joint_position_aug_b_t = self.task.solve_position_ik(self.env.physics, tcp_pos_aug_b_t)
+                joint_positions_aug_b.append(joint_position_aug_b_t)
+                if not success:
+                    is_ik_valid_b = False
+                    break
+            joint_positions_aug.append(joint_positions_aug_b)
+            is_ik_valid.append(is_ik_valid_b)
+
+        joint_positions_aug = tf.stack(joint_positions_aug)  # [b, T, 6]
+        joint_positions_aug = tf.expand_dims(joint_positions_aug, -2)
+        joint_positions_aug_sin = tf.sin(joint_positions_aug)
+        joint_positions_aug_cos = tf.cos(joint_positions_aug)
+        joint_positions_aug_sincos = tf.stack([joint_positions_aug_sin, joint_positions_aug_cos], -1)  # [b, T, 1, 6, 2]
+        joint_positions_aug_sincos = tf.cast(joint_positions_aug_sincos, tf.float32)
+        is_ik_valid = tf.cast(tf.stack(is_ik_valid), tf.float32)
+
+        joints_pos_k = f'{ARM_NAME}/joints_pos'
+
+        inputs_aug.update({
+            joints_pos_k: joint_positions_aug_sincos,
+        })
+        return is_ik_valid, [joints_pos_k]
 
     @staticmethod
     def is_points_key(k):
@@ -514,3 +548,13 @@ class CylindersScenario(PlanarPushingScenario):
         trans_dist = tf.linalg.norm(trans1 - trans2, axis=-1)
         max_distance = tf.reduce_max(trans_dist)
         return max_distance
+
+    @staticmethod
+    def aug_copy_inputs(inputs):
+        aug_copy_keys = [
+            'num_objs',
+            'radius',
+            'height',
+            'joint_names',
+        ]
+        return {k: inputs[k] for k in aug_copy_keys}
