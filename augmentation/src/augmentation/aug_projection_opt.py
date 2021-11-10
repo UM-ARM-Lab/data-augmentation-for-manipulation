@@ -255,8 +255,8 @@ class AugProjOpt(BaseProjectOpt):
         s = self.aug_opt.scenario
         repel_points = tf.gather(moved_obj_points_b_i, repel_indices).numpy()  # [n_attract_points]
         attract_points = tf.gather(moved_obj_points_b_i, attract_indices).numpy()  # [n_repel_points]
-        s.plot_points_rviz(attract_points, label=f'attract_{moved_obj_i}', color='g', scale=self.viz_scale)
-        s.plot_points_rviz(repel_points, label=f'repel_{moved_obj_i}', color='r', scale=self.viz_scale)
+        s.plot_points_rviz(attract_points, label=f'attract_{moved_obj_i}', color='#aaff00', scale=self.viz_scale)
+        s.plot_points_rviz(repel_points, label=f'repel_{moved_obj_i}', color='#ffaa00', scale=self.viz_scale)
         if v is not None:
             # s.plot_points_rviz(moved_obj_points_b_i, label='aug', color='b', scale=self.viz_scale)
 
@@ -300,7 +300,7 @@ class AugProjOpt(BaseProjectOpt):
                                color='r', scale=self.viz_arrow_scale)
 
             min_dist_points_aug_b = v.min_dist_points_aug[b]  # [3]
-            delta_min_dist_grad_dpoint_b = v.delta_min_dist_grad_dpoint[b]  # [3]
+            delta_min_dist_grad_dpoint_b = -v.delta_min_dist_grad_dpoint[b]  # [3]
             s.plot_arrow_rviz(min_dist_points_aug_b.numpy(),
                               delta_min_dist_grad_dpoint_b.numpy() * self.viz_min_delta_dist_grad_scale,
                               label=f'delta_min_dist_grad_{moved_obj_i}',

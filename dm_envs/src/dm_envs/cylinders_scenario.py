@@ -6,7 +6,6 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 import torch
-import transformations
 from pyjacobian_follower import IkParams
 
 from dm_envs import primitive_hand
@@ -20,6 +19,7 @@ from link_bot_pycommon.marker_index_generator import marker_index_generator
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
 from moonshine.moonshine_utils import repeat_tensor
 from std_msgs.msg import ColorRGBA
+from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
 DEBUG_VIZ_STATE_AUG = True

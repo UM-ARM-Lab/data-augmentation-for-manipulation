@@ -61,6 +61,7 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              t_funcs=[
                                  init_viz_env,
                                  dynamics_viz_t(metadata={},
+                                                label='aug',
                                                 state_metadata_keys=dataset_loader.state_metadata_keys,
                                                 state_keys=state_keys,
                                                 action_keys=dataset_loader.action_keys),

@@ -1,11 +1,8 @@
 import re
-import torch
 from typing import Dict
 
 import tensorflow as tf
 from matplotlib import colors
-from pyjacobian_follower import IkParams
-from tensorflow_graphics.geometry.transformation import quaternion
 
 from dm_envs.blocks_task import PlanarPushingBlocksTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario, transformation_matrices_from_pos_quat
@@ -128,118 +125,6 @@ class BlocksScenario(PlanarPushingScenario):
 
         return obj_points
 
-    def apply_object_augmentation_no_ik(self,
-                                        m,
-                                        to_local_frame,
-                                        inputs: Dict,
-                                        batch_size,
-                                        time,
-                                        h: int,
-                                        w: int,
-                                        c: int,
-                                        ):
-        """
-
-        Args:
-            m: [b, 4, 4]
-            to_local_frame: [b, 1, 3]  the 1 can also be equal to time
-            inputs:
-            batch_size:
-            time:
-            h:
-            w:
-            c:
-
-        Returns:
-
-        """
-        # apply those to the rope and grippers
-        rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
-        left_gripper_point = inputs[add_predicted('left_gripper')]
-        right_gripper_point = inputs[add_predicted('right_gripper')]
-        left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
-        right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
-
-        def _transform(m, points, _to_local_frame):
-            points_local_frame = points - _to_local_frame
-            points_local_frame_aug = transform_points_3d(m, points_local_frame)
-            return points_local_frame_aug + _to_local_frame
-
-        # m is expanded to broadcast across batch & num_points dimensions
-        rope_points_aug = _transform(m[:, None, None], rope_points, to_local_frame[:, None])
-        left_gripper_points_aug = _transform(m[:, None, None], left_gripper_points, to_local_frame[:, None])
-        right_gripper_points_aug = _transform(m[:, None, None], right_gripper_points, to_local_frame[:, None])
-
-        # compute the new action
-        left_gripper_position = inputs['left_gripper_position']
-        right_gripper_position = inputs['right_gripper_position']
-        # m is expanded to broadcast across batch dimensions
-        left_gripper_position_aug = _transform(m[:, None], left_gripper_position, to_local_frame)
-        right_gripper_position_aug = _transform(m[:, None], right_gripper_position, to_local_frame)
-
-        rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
-        left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
-        right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
-
-        # Now that we've updated the state/action in inputs, compute the local origin point
-        state_aug_0 = {
-            'left_gripper':  left_gripper_aug[:, 0],
-            'right_gripper': right_gripper_aug[:, 0],
-            'rope':          rope_aug[:, 0]
-        }
-        local_center_aug = self.local_environment_center_differentiable(state_aug_0)
-        res = inputs['res']
-        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
-
-        object_aug_update = {
-            add_predicted('rope'):          rope_aug,
-            add_predicted('left_gripper'):  left_gripper_aug,
-            add_predicted('right_gripper'): right_gripper_aug,
-            'left_gripper_position':        left_gripper_position_aug,
-            'right_gripper_position':       right_gripper_position_aug,
-        }
-
-        if DEBUG_VIZ_STATE_AUG:
-            stepper = RvizSimpleStepper()
-            for b in debug_viz_batch_indices(batch_size):
-                env_b = {
-                    'env':          inputs['env'][b],
-                    'res':          res[b],
-                    'extent':       inputs['extent'][b],
-                    'origin_point': inputs['origin_point'][b],
-                }
-
-                self.plot_environment_rviz(env_b)
-                self.debug_viz_state_action(object_aug_update, b, 'aug', color='white')
-                stepper.step()
-        return object_aug_update, local_origin_point_aug, local_center_aug
-
-    def compute_collision_free_point_ik(self,
-                                        default_robot_state,
-                                        points,
-                                        group_name,
-                                        tip_names,
-                                        scene_msg,
-                                        ik_params):
-        pass
-
-    def aug_ik(self,
-               inputs_aug: Dict,
-               default_robot_positions,
-               ik_params: IkParams,
-               batch_size: int):
-        """
-
-        Args:
-            inputs_aug: a dict containing the desired gripper positions as well as the scene_msg and other state info
-            default_robot_positions: default robot joint state to seed IK
-            batch_size:
-
-        Returns:
-
-        """
-        pass
-
     @staticmethod
     def is_points_key(k):
         return any([
@@ -252,23 +137,3 @@ class BlocksScenario(PlanarPushingScenario):
 
     def __repr__(self):
         return "blocks"
-
-    def get_obj_attr_state_action(self, batch, batch_size, obj_idx, time, device):
-        obj_attr = torch.zeros([batch_size, 1]).to(device)
-        obj_pos = torch.squeeze(batch[f"obj{obj_idx}/position"], 2)  # [b, T, 3]
-        obj_quat = torch.squeeze(batch[f"obj{obj_idx}/orientation"], 2)  # [b, T, 4]
-        obj_linear_vel = torch.squeeze(batch[f"obj{obj_idx}/linear_velocity"], 2)  # [b, T, 3]
-        obj_angular_vel = torch.squeeze(batch[f"obj{obj_idx}/angular_velocity"], 2)  # [b, T, 3]
-        obj_state = torch.cat([obj_pos, obj_quat, obj_linear_vel, obj_angular_vel], dim=-1)  # [b, T, 13]
-        obj_action = torch.zeros([batch_size, time - 1, 3]).to(device)
-        return obj_action, obj_attr, obj_state
-
-    def get_robot_attr_state_action(self, batch, batch_size, device):
-        robot_attr = torch.ones([batch_size, 1]).to(device)
-        ee_pos = torch.squeeze(batch["jaco_arm/primitive_hand/tcp_pos"], 2)
-        ee_quat = torch.squeeze(batch["jaco_arm/primitive_hand/orientation"], 2)
-        ee_linear_vel = torch.squeeze(batch["jaco_arm/primitive_hand/linear_velocity"], 2)
-        ee_angular_vel = torch.squeeze(batch["jaco_arm/primitive_hand/angular_velocity"], 2)
-        ee_state = torch.cat([ee_pos, ee_quat, ee_linear_vel, ee_angular_vel], dim=-1)  # [b, T, 13]
-        robot_action = batch['gripper_position']
-        return ee_state, robot_action, robot_attr
