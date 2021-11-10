@@ -13,8 +13,10 @@ from link_bot_data.new_base_dataset import NewBaseDatasetLoader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.split_dataset import split_dataset
 from link_bot_data.visualization import classifier_transition_viz_t, DebuggingViz, init_viz_env, dynamics_viz_t
+from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
+from moonshine.indexing import try_index_batched_dict
 from moonshine.moonshine_utils import remove_batch, numpify
 
 
@@ -138,8 +140,10 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
             output['augmented_from'] = inputs['full_filename']
 
             if visualize:
-                viz_f(scenario, remove_batch(output), idx=k, color='#0000ff88')
-                # viz_f(scenario, remove_batch(output), t=1, idx=2 * k + 3, color='#0000ff88')
+                for b in debug_viz_batch_indices(actual_batch_size):
+                    output_b = try_index_batched_dict(output, b)
+                    viz_f(scenario, output_b, idx=k, color='#0000ff88')
+                    # viz_f(scenario, remove_batch(output), t=1, idx=2 * k + 3, color='#0000ff88')
 
             yield output
 

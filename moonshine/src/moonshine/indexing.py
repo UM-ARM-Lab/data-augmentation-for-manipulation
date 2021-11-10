@@ -23,6 +23,7 @@ def try_index_time_with_metadata(metadata: Dict, example: Dict, keys, t: int):
     e_t.update(metadata)
     return e_t
 
+
 def index_time_with_metadata(metadata: Dict, example: Dict, keys, t: int):
     e_t = {k: index_time_kv(k, example[k], t) for k in keys}
     e_t.update(metadata)
@@ -173,6 +174,17 @@ def index_dict_of_batched_tensors_tf(in_dict: Dict, index: int, batch_axis: int 
 
 def index_batched_dict(d: Dict, index: int):
     return {k: v[index] for k, v in d.items()}
+
+
+def try_index_batched_dict(d: Dict, index: int):
+    out_d = {}
+    for k, v in d.items():
+        try:
+            out_d[k] = v[index]
+        except TypeError:
+            out_d[k] = v
+
+    return out_d
 
 
 def slice_along_axis(x, start, end, axis):
