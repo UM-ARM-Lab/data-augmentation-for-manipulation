@@ -1,3 +1,4 @@
+import warnings
 from typing import Dict, Optional
 
 import numpy as np
@@ -144,7 +145,9 @@ class PlanarPushingScenario(ScenarioWithVisualization):
 
         if 'front_close' in state:
             img = state['front_close'][0]
-            img_msg = ros_numpy.msgify(Image, img, encoding='rgb8')
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                img_msg = ros_numpy.msgify(Image, img, encoding='rgb8')
             img_msg.header.frame_id = 'world'
             self.camera_pub.publish(img_msg)
 

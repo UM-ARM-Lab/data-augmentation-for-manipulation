@@ -66,7 +66,7 @@ def make_odd(x):
     return tf.where(tf.cast(x % 2, tf.bool), x, x + 1)
 
 
-NUM_POINTS = 512
+NUM_POINTS = 128
 cylinder_points_rng = np.random.RandomState(0)
 
 
@@ -246,8 +246,9 @@ class CylindersScenario(PlanarPushingScenario):
         robot_radius = repeat_tensor(robot_radius, time, 1, True)
         robot_height = repeat_tensor(primitive_hand.HEIGHT, batch_size, 0, True)
         robot_height = repeat_tensor(robot_height, time, 1, True)
-        robot_positions = tf.reshape(inputs[f'{ARM_HAND_NAME}/tcp_pos'], [batch_size, 1, time, 3])
-        robot_points = cylinders_to_points(robot_positions, res=res, radius=robot_radius, height=robot_height)
+        tcp_positions = tf.reshape(inputs[f'{ARM_HAND_NAME}/tcp_pos'], [batch_size, 1, time, 3])
+        robot_cylinder_positions = tcp_positions + [0, 0, primitive_hand.HALF_HEIGHT]
+        robot_points = cylinders_to_points(robot_cylinder_positions, res=res, radius=robot_radius, height=robot_height)
 
         obj_points = tf.concat([robot_points, obj_points], axis=1)
 

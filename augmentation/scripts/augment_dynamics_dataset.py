@@ -20,11 +20,13 @@ limit_gpu_mem(None)
 @ros_init.with_ros("augment_dynamics_dataset")
 def main():
     np.set_printoptions(suppress=True, precision=4)
+
     tf.get_logger().setLevel(logging.FATAL)
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('--n-augmentations', type=int, default=25)
-    parser.add_argument('--hparams', type=pathlib.Path, default=pathlib.Path("aug_hparams/blocks.hjson"))
+    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--hparams', type=pathlib.Path, default=pathlib.Path("aug_hparams/cylinders.hjson"))
     parser.add_argument('--visualize', action='store_true')
 
     args = parser.parse_args()
@@ -42,7 +44,8 @@ def main():
                                       hparams=hparams,
                                       outdir=outdir,
                                       n_augmentations=args.n_augmentations,
-                                      visualize=args.visualize)
+                                      visualize=args.visualize,
+                                      batch_size=args.batch_size)
 
     print(Fore.CYAN + outdir.as_posix() + Fore.RESET)
 

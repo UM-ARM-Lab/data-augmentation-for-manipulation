@@ -14,7 +14,7 @@ from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.split_dataset import split_dataset
 from link_bot_data.visualization import classifier_transition_viz_t, DebuggingViz
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.moonshine_utils import remove_batch
+from moonshine.moonshine_utils import remove_batch, numpify
 
 
 def unbatch_examples(example, actual_batch_size):
@@ -49,12 +49,8 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
     # current needed because mujoco IK requires a fully setup simulation...
     scenario.on_before_data_collection(dataset_loader.data_collection_params)
 
-    # viz_f = classifier_transition_viz_t(metadata={},
-    #                                     state_metadata_keys=dataset_loader.state_metadata_keys,
-    #                                     predicted_state_keys=dataset_loader.state_keys,
-    #                                     true_state_keys=None)
-    def viz_f(*args, **kwargs):
-        pass
+    def viz_f(_, inputs, **kwargs):
+        dataset_loader.anim_rviz(numpify(inputs))
 
     debug_state_keys = dataset_loader.state_keys
     return augment_dataset_from_loader(dataset_loader,
@@ -116,8 +112,8 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
             scenario.reset_viz()
 
             inputs_viz = remove_batch(inputs)
-            viz_f(scenario, inputs_viz, t=0, idx=0, color='g')
-            viz_f(scenario, inputs_viz, t=1, idx=1, color='g')
+            viz_f(scenario, inputs_viz, idx=0, color='g')
+            # viz_f(scenario, inputs_viz, t=1, idx=1, color='g')
 
         time = inputs['time_idx'].shape[1]
 
@@ -126,8 +122,8 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
             output['augmented_from'] = inputs['full_filename']
 
             if visualize:
-                viz_f(scenario, remove_batch(output), t=0, idx=2 * k + 2, color='#0000ff88')
-                viz_f(scenario, remove_batch(output), t=1, idx=2 * k + 3, color='#0000ff88')
+                viz_f(scenario, remove_batch(output), idx=k, color='#0000ff88')
+                # viz_f(scenario, remove_batch(output), t=1, idx=2 * k + 3, color='#0000ff88')
 
             yield output
 

@@ -178,12 +178,12 @@ class AugmentationOptimization:
         # things that we won't be updating in this augmentation
         inputs_aug = {
             'batch_size':   batch_size,
-            'env':          inputs['env'],
+            'env':          env_stationary,
             'extent':       extent,
             'origin_point': inputs['origin_point'],
             'res':          res,
-            'sdf':          inputs['sdf'],
-            'sdf_grad':     inputs['sdf_grad'],
+            'sdf':          sdf_stationary,
+            'sdf_grad':     sdf_grad_stationary,
         }
         inputs_aug.update(obj_aug_update)
         inputs_aug.update(self.scenario.aug_copy_inputs(inputs))

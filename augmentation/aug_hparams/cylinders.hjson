@@ -6,8 +6,8 @@
     target_trans_lim: 0.15
     target_euler_lim: 0.1
     not_progressing_threshold: 0.0005
-    step_size_threshold: 0.0003
-    step_size: 0.1
+    step_size_threshold: 0.0001
+    step_size: 0.5
     grad_clip: 0.05
 
     # for the final check of the constraints
@@ -17,7 +17,7 @@
     invariance_model: null
 
     viz: {
-      scale: 0.002
+      scale: 0.005
       arrows_scale: 0.004
       min_delta_dist_grad_scale: 2
     }

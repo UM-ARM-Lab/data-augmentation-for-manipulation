@@ -78,6 +78,7 @@ class AugProjOpt(BaseProjectOpt):
         self.viz_scale = viz_params.get('scale', 1.0)
         self.viz_arrow_scale = viz_params.get('arrow_scale', 1.0)
         self.viz_min_delta_dist_grad_scale = viz_params.get('min_delta_dist_grad_scale', 4.0)
+        self.viz_grad_epsilon = viz_params.get('viz_grad_epsilon', 1e-6)
 
     def make_opt(self):
         lr = tf.keras.optimizers.schedules.ExponentialDecay(self.hparams['step_size'],
@@ -256,7 +257,7 @@ class AugProjOpt(BaseProjectOpt):
         s.plot_points_rviz(attract_points, label=f'attract_{moved_obj_i}', color='g', scale=self.viz_scale)
         s.plot_points_rviz(repel_points, label=f'repel_{moved_obj_i}', color='r', scale=self.viz_scale)
         if v is not None:
-            s.plot_points_rviz(moved_obj_points_b_i, label='aug', color='b', scale=self.viz_scale)
+            # s.plot_points_rviz(moved_obj_points_b_i, label='aug', color='b', scale=self.viz_scale)
 
             local_pos_b = v.to_local_frame[b].numpy()  # [3]
             self.aug_opt.debug.send_position_transform(local_pos_b, f'aug_opt_initial_{moved_obj_i}')
@@ -282,11 +283,11 @@ class AugProjOpt(BaseProjectOpt):
             s.arrows_pub.publish(make_delete_markerarray(ns=attract_grad_ns))
             s.arrows_pub.publish(make_delete_markerarray(ns=repel_grad_ns))
 
-            attract_grad_nonzero_b_indices = tf.where(tf.linalg.norm(attract_grad_b, axis=-1) > 0.001)
+            attract_grad_nonzero_b_indices = tf.where(tf.linalg.norm(attract_grad_b, axis=-1) > self.viz_grad_epsilon)
             attract_points_aug_nonzero = tf.squeeze(tf.gather(attract_points_aug, attract_grad_nonzero_b_indices))
             attract_grad_nonzero_b = tf.squeeze(tf.gather(attract_grad_b, attract_grad_nonzero_b_indices, axis=0))
 
-            repel_grad_nonzero_b_indices = tf.where(tf.linalg.norm(repel_grad_b, axis=-1) > 0.001)
+            repel_grad_nonzero_b_indices = tf.where(tf.linalg.norm(repel_grad_b, axis=-1) > self.viz_grad_epsilon)
             repel_points_aug_nonzero = tf.squeeze(tf.gather(repel_points_aug, repel_grad_nonzero_b_indices))
             repel_grad_nonzero_b = tf.squeeze(tf.gather(repel_grad_b, repel_grad_nonzero_b_indices, axis=0))
 
