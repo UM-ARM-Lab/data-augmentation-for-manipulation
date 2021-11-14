@@ -211,7 +211,7 @@ class PropNet(pl.LightningModule):
             # Integrate the velocity to produce the next positions, then copy the velocities
             pred_pos_t = pred_pos_t + pred_vel_t  # [b, n_objects, pos_dim]
 
-            # now predicted the next velocity
+            # now predict the next velocity
             action_t = actions[:, t]
             pred_state_t = torch.cat([pred_pos_t, pred_vel_t], dim=-1)
             pred_vel_t = self.one_step_forward(attr, pred_state_t, action_t, Rs, Rr, Ra)  # [b, n_objects, position_dim]

@@ -115,5 +115,3 @@ class ParticlePredictor(nn.Module):
         x = x.view(B * N, D)
         x = self.linear_1(self.relu(self.linear_0(x)))
         return x.view(B, N, self.output_size)
-
-

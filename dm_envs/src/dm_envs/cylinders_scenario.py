@@ -366,7 +366,7 @@ class CylindersScenario(PlanarPushingScenario):
 
         Rs = torch.zeros(batch_size, num_objects, n_rel, device=device)
         Rr = torch.zeros(batch_size, num_objects, n_rel, device=device)
-        Ra = torch.ones(batch_size, n_rel, relation_dim, device=device)  # relation attributes information
+        Ra = torch.zeros(batch_size, n_rel, relation_dim, device=device)  # relation attributes information
 
         rel_idx = 0
         for sender_idx, receiver_idx in np.ndindex(num_objects, num_objects):
