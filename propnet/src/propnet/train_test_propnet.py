@@ -91,7 +91,10 @@ def train_main(dataset_dir: pathlib.Path,
                          log_every_n_steps=1,
                          max_epochs=epochs,
                          callbacks=callbacks)
-    trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
+    trainer.fit(model,
+                train_loader,
+                # val_loader,
+                ckpt_path=ckpt_path)
 
 
 def viz_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, **kwargs):

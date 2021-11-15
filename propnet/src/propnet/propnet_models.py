@@ -141,10 +141,9 @@ class PropNet(pl.LightningModule):
     def forward(self, batch):
         batch_size = get_batch_size(batch)
 
-        attr, states, actions = self.states_and_actions(batch, batch_size)
+        attr, states = self.attr_and_states(batch, batch_size)
         # attr: [b, n_objects, 1]
         # states: [b, T, n_objects, n_state]
-        # actions: [b, T-1, n_objects, n_action]
         gt_pos = states[..., :self.hparams.position_dim].clone()
         gt_vel = states[..., self.hparams.position_dim:].clone()
 
@@ -166,7 +165,6 @@ class PropNet(pl.LightningModule):
             pred_pos_t[:, 0] = gt_pos[:, t + 1, 0]
 
             # now predict the next velocity
-            # action_t = actions[:, t]
             pred_state_t = torch.cat([pred_pos_t, pred_vel_t], dim=-1)
             pred_vel_t = self.one_step_forward(attr, pred_state_t, None, Rs, Rr, Ra)  # [b, n_objects, position_dim]
 
@@ -179,13 +177,11 @@ class PropNet(pl.LightningModule):
         pred_pos = torch.stack(pred_pos, dim=1)
         return gt_vel, gt_pos, pred_vel, pred_pos
 
-    def states_and_actions(self, batch, batch_size):
+    def attr_and_states(self, batch, batch_size):
         num_objs = batch['num_objs'][0, 0, 0]  # assumed fixed across batch/time
         time = batch['time_idx'].shape[1]
         attrs = []
         states = []
-        # actions = []
-        actions = None
 
         # end-effector (more generally, the robot) is treated as an object in the system, so it has state.
         # It also has action and attribute=1
@@ -194,22 +190,19 @@ class PropNet(pl.LightningModule):
         robot_attr, robot_state, robot_action = self.scenario.propnet_robot_v(batch, batch_size, time, self.device)
         attrs.append(robot_attr)
         states.append(robot_state)
-        # actions.append(robot_action)
 
         # loop over objects
         for obj_idx in range(num_objs):
             obj_attr, obj_state, obj_action = self.scenario.propnet_obj_v(batch, batch_size, obj_idx, time, self.device)
             attrs.append(obj_attr)
             states.append(obj_state)
-            # actions.append(obj_action)
         attrs = torch.stack(attrs, dim=1)  # [b, n_objects, 1]
         states = torch.stack(states, dim=2)  # [b, T, n_objects,  ...]
-        # actions = torch.stack(actions, dim=2)  # [b, T-1, n_objects, ...]
-        return attrs, states, actions
+        return attrs, states
 
     def velocity_loss(self, gt_vel, pred_vel):
         loss = torch.norm(gt_vel - pred_vel, dim=-1)
-        # mask out the robot, we don't care about its vel
+        # mask out the robot, we know it's velocity and so we don't care about predicting it
         robot_mask = torch.ones(loss.shape[-1], device=self.device)
         robot_mask[0] = 0
         loss = loss * robot_mask

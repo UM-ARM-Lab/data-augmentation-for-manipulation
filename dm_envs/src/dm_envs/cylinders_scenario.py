@@ -317,8 +317,6 @@ class CylindersScenario(PlanarPushingScenario):
 
         robot_state = torch.cat([robot_pos, robot_vel], dim=-1)  # [b, T, 4]
 
-        # robot_action_k = 'gripper_position'
-        # robot_action = batch[robot_action_k]
         robot_action = torch.zeros([batch_size, time - 1, 0], device=device)
 
         return robot_attr, robot_state, robot_action
@@ -396,8 +394,8 @@ class CylindersScenario(PlanarPushingScenario):
             distance = (obj_pos[:, sender_idx] - obj_pos[:, receiver_idx]).square().sum()
             is_close = (distance < threshold ** 2).float()
 
-            Rs[:, sender_idx, rel_idx] = 1
-            Rr[:, receiver_idx, rel_idx] = 1
+            Rs[:, sender_idx, rel_idx] = is_close
+            Rr[:, receiver_idx, rel_idx] = is_close
 
             rel_idx += 1
 
