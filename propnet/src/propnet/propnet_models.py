@@ -34,16 +34,15 @@ class PropModule(pl.LightningModule):
         self.save_hyperparameters(hparams)
 
         self.residual = residual
-        self.input_dim = self.hparams.attr_dim + self.hparams.state_dim + self.hparams.action_dim
+        self.obj_input_dim = self.hparams.attr_dim + self.hparams.state_dim + self.hparams.action_dim
+        self.rel_input_dim = 2 * self.hparams.attr_dim + self.hparams.state_dim + self.hparams.relation_dim
         self.output_dim = self.hparams.position_dim
 
         # particle encoder
-        self.particle_encoder = ParticleEncoder(self.input_dim, self.hparams.nf_particle, self.hparams.nf_effect)
+        self.particle_encoder = ParticleEncoder(self.obj_input_dim, self.hparams.nf_particle, self.hparams.nf_effect)
 
         # relation encoder
-        self.relation_encoder = RelationEncoder(2 * self.input_dim + self.hparams.relation_dim,
-                                                self.hparams.nf_relation,
-                                                self.hparams.nf_relation)
+        self.relation_encoder = RelationEncoder(self.rel_input_dim, self.hparams.nf_relation, self.hparams.nf_relation)
 
         # input: (1) particle encode (2) particle effect
         self.particle_propagator = Propagator(2 * self.hparams.nf_effect,
@@ -66,7 +65,7 @@ class PropModule(pl.LightningModule):
         # receiver_state, sender_state
         Rrp = torch.transpose(Rr, 1, 2)
         Rsp = torch.transpose(Rs, 1, 2)
-        state_r = Rrp.bmm(state)  # basically copies the receiver states
+        state_r = Rrp.bmm(state)  # basically copies the receiver states, [b, num_relations, obj_dim]
         state_s = Rsp.bmm(state)
 
         # particle encode
@@ -74,9 +73,12 @@ class PropModule(pl.LightningModule):
 
         # calculate relation encoding
         # TODO: use difference in pos and vel between related objects?
-        state_r_rel = state_r  # [b, num_relations, nf_relation]
-        state_s_rel = state_s
-        relation_features = torch.cat([state_r_rel, state_s_rel, Ra], dim=-1)
+        attr_r = state_r[:, :, :2]
+        attr_s = state_s[:, :, :2]
+        state_r_posvel = state_r[:, :, 2:]  # [b, num_relations, state_dim]
+        state_s_posvel = state_s[:, :, 2:]
+        state_rel_posvel = state_r_posvel - state_s_posvel
+        relation_features = torch.cat([attr_r, attr_s, state_rel_posvel, Ra], dim=-1)
         relation_encode = self.relation_encoder(relation_features)  # [b, n_objects, nf_relation]
 
         for i in range(pstep):
