@@ -269,7 +269,24 @@ class CylindersScenario(PlanarPushingScenario):
         return "cylinders"
 
     def propnet_obj_v(self, batch, batch_size, obj_idx, time, device):
-        obj_attr = torch.zeros([batch_size, 1], device=device)
+        """
+
+        Args:
+            batch: dict of data
+            batch_size:
+            obj_idx:
+            time:
+            device:
+
+        Returns:
+            obj_attr [b, T, n_attr]
+            obj_state [b, T, n_state]
+            obj_action [b, T, n_action]
+
+        """
+        is_robot = torch.zeros([batch_size, 1], device=device)
+        radius = batch['radius'][:, 0]  # assume constant across time
+        obj_attr = torch.cat([radius, is_robot], dim=-1)
 
         obj_pos_k = f"obj{obj_idx}/position"
         obj_pos = batch[obj_pos_k]  # [b, T, 2]
@@ -281,12 +298,14 @@ class CylindersScenario(PlanarPushingScenario):
 
         obj_state = torch.cat([obj_pos, obj_vel], dim=-1)  # [b, T, 4]
 
-        obj_action = torch.zeros([batch_size, time - 1, 3], device=device)
+        obj_action = torch.zeros([batch_size, time - 1, 0], device=device)
 
         return obj_attr, obj_state, obj_action
 
-    def propnet_robot_v(self, batch, batch_size, device):
-        robot_attr = torch.ones([batch_size, 1], device=device)
+    def propnet_robot_v(self, batch, batch_size, time, device):
+        is_robot = torch.ones([batch_size, 1], device=device)
+        radius = torch.ones([batch_size, 1], device=device) * primitive_hand.RADIUS
+        robot_attr = torch.cat([radius, is_robot], dim=-1)
 
         robot_pos_k = f"{ARM_HAND_NAME}/tcp_pos"
         robot_pos = batch[robot_pos_k]
@@ -298,8 +317,9 @@ class CylindersScenario(PlanarPushingScenario):
 
         robot_state = torch.cat([robot_pos, robot_vel], dim=-1)  # [b, T, 4]
 
-        robot_action_k = 'gripper_position'
-        robot_action = batch[robot_action_k]
+        # robot_action_k = 'gripper_position'
+        # robot_action = batch[robot_action_k]
+        robot_action = torch.zeros([batch_size, time - 1, 0], device=device)
 
         return robot_attr, robot_state, robot_action
 

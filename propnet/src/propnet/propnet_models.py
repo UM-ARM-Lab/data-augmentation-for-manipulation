@@ -28,12 +28,10 @@ def get_batch_size(batch):
 
 # noinspection PyPep8Naming
 class PropModule(pl.LightningModule):
-    def __init__(self, hparams, batch=True, residual=False):
+    def __init__(self, hparams, residual=False):
         super().__init__()
 
         self.save_hyperparameters(hparams)
-
-        self.batch = batch
 
         self.residual = residual
         self.input_dim = self.hparams.attr_dim + self.hparams.state_dim + self.hparams.action_dim
@@ -61,36 +59,15 @@ class PropModule(pl.LightningModule):
                                                     self.hparams.nf_effect,
                                                     self.output_dim)
 
-    def forward(self, state, Rr, Rs, Ra, pstep, verbose: int = 0):
-
-        if verbose:
-            print('state size', state.size(), state.dtype)
-            print('Rr size', Rr.size(), Rr.dtype)
-            print('Rs size', Rs.size(), Rs.dtype)
-            print('Ra size', Ra.size(), Ra.dtype)
-            print('pstep', pstep)
-
+    def forward(self, state, Rr, Rs, Ra, pstep):
         # calculate particle encoding
         particle_effect = Variable(torch.zeros((state.size(0), state.size(1), self.hparams.nf_effect))).to(self.device)
 
         # receiver_state, sender_state
-        if self.batch:
-            Rrp = torch.transpose(Rr, 1, 2)
-            Rsp = torch.transpose(Rs, 1, 2)
-            state_r = Rrp.bmm(state)  # basically copies the receiver states
-            state_s = Rsp.bmm(state)
-        else:
-            Rrp = Rr.t()
-            Rsp = Rs.t()
-            assert state.size(0) == 1
-            state_r = Rrp.mm(state[0])[None, :, :]
-            state_s = Rsp.mm(state[0])[None, :, :]
-
-        if verbose:
-            print('Rrp', Rrp.size())
-            print('Rsp', Rsp.size())
-            print('state_r', state_r.size())
-            print('state_s', state_s.size())
+        Rrp = torch.transpose(Rr, 1, 2)
+        Rsp = torch.transpose(Rs, 1, 2)
+        state_r = Rrp.bmm(state)  # basically copies the receiver states
+        state_s = Rsp.bmm(state)
 
         # particle encode
         particle_encode = self.particle_encoder(state)  # [b, n_objects, nf_particle]
@@ -102,46 +79,20 @@ class PropModule(pl.LightningModule):
         relation_features = torch.cat([state_r_rel, state_s_rel, Ra], dim=-1)
         relation_encode = self.relation_encoder(relation_features)  # [b, n_objects, nf_relation]
 
-        if verbose:
-            print("relation encode:", relation_encode.size())
-
         for i in range(pstep):
-            if verbose:
-                print("pstep", i)
-
-            if self.batch:
-                effect_r = Rrp.bmm(particle_effect)
-                effect_s = Rsp.bmm(particle_effect)
-            else:
-                assert particle_effect.size(0) == 1
-                effect_r = Rrp.mm(particle_effect[0])[None, :, :]
-                effect_s = Rsp.mm(particle_effect[0])[None, :, :]
+            effect_r = Rrp.bmm(particle_effect)
+            effect_s = Rsp.bmm(particle_effect)
 
             # calculate relation effect
             relation_effect = self.relation_propagator(torch.cat([relation_encode, effect_r, effect_s], 2))
 
-            if verbose:
-                print("relation effect:", relation_effect.size())
-
             # calculate particle effect by aggregating relation effect
-            if self.batch:
-                effect_agg = Rr.bmm(relation_effect)
-            else:
-                assert relation_effect.size(0) == 1
-                effect_agg = Rr.mm(relation_effect[0])[None, :, :]
+            effect_agg = Rr.bmm(relation_effect)
 
             # calculate particle effect
-            particle_effect = self.particle_propagator(
-                torch.cat([particle_encode, effect_agg], 2),
-                res=particle_effect)
-
-            if verbose:
-                print("particle effect:", particle_effect.size())
+            particle_effect = self.particle_propagator(torch.cat([particle_encode, effect_agg], 2), res=particle_effect)
 
         pred = self.particle_predictor(particle_effect)
-
-        if verbose:
-            print("pred:", pred.size())
 
         return pred
 
@@ -159,8 +110,7 @@ class PropNet(pl.LightningModule):
 
         self.scenario = get_scenario(self.hparams.scenario)
 
-        batch = True
-        self.model = PropModule(self.hparams, batch, residual)
+        self.model = PropModule(self.hparams, residual)
 
     def one_step_forward(self, attr, state, action, Rs, Rr, Ra):
         """
@@ -180,7 +130,7 @@ class PropNet(pl.LightningModule):
             object_observations = torch.cat([attr, state], dim=-1)
         # [b, num_objects, attr+state+action]
 
-        pred_vel_t = self.model(object_observations, Rs, Rr, Ra, self.hparams['pstep'], verbose=self.hparams['verbose'])
+        pred_vel_t = self.model(object_observations, Rs, Rr, Ra, self.hparams['pstep'])
 
         return pred_vel_t
 
@@ -198,23 +148,29 @@ class PropNet(pl.LightningModule):
         gt_pos = states[..., :self.hparams.position_dim].clone()
         gt_vel = states[..., self.hparams.position_dim:].clone()
 
-        pred_state_t = states[:, 0]  # [b, n_objects, state_dim]
-        pred_pos_t = pred_state_t[..., :self.hparams.position_dim]
-        pred_vel_t = pred_state_t[..., self.hparams.position_dim:]
+        pred_state_0 = states[:, 0]  # [b, n_objects, state_dim]
+        pred_pos_t = pred_state_0[..., :self.hparams.position_dim]
+        pred_vel_t = pred_state_0[..., self.hparams.position_dim:]
         pred_pos = [pred_pos_t.clone()]
         pred_vel = [pred_vel_t.clone()]
-        for t in range(actions.shape[1]):
+        for t in range(states.shape[1] - 1):
             # compute the relations
             Rs, Rr, Ra = self.scenario.propnet_rel(pred_pos_t, self.hparams.num_objects, self.hparams.relation_dim,
                                                    device=self.device)
 
-            # Integrate the velocity to produce the next positions, then copy the velocities
-            pred_pos_t = pred_pos_t + pred_vel_t  # [b, n_objects, pos_dim]
+            # Integrate the velocity to produce the next positions
+            # but only do this for the objects, not the robot. The robots position and velocity is known
+            # over the entire prediction, because that is the "action". The robot must be at index 0 here.
+            pred_pos_t[:, 1:] = pred_pos_t[:, 1:] + pred_vel_t[:, 1:]  # [b, n_objects, pos_dim]
+            # copy in the robot position
+            pred_pos_t[:, 0] = gt_pos[:, t + 1, 0]
 
             # now predict the next velocity
-            action_t = actions[:, t]
+            # action_t = actions[:, t]
             pred_state_t = torch.cat([pred_pos_t, pred_vel_t], dim=-1)
-            pred_vel_t = self.one_step_forward(attr, pred_state_t, action_t, Rs, Rr, Ra)  # [b, n_objects, position_dim]
+            pred_vel_t = self.one_step_forward(attr, pred_state_t, None, Rs, Rr, Ra)  # [b, n_objects, position_dim]
+
+            pred_vel_t[:, 0] = gt_vel[:, t + 1, 0]  # copy in the known robot position and velocity
 
             pred_pos.append(pred_pos_t.clone())
             pred_vel.append(pred_vel_t.clone())
@@ -228,25 +184,27 @@ class PropNet(pl.LightningModule):
         time = batch['time_idx'].shape[1]
         attrs = []
         states = []
-        actions = []
+        # actions = []
+        actions = None
 
         # end-effector (more generally, the robot) is treated as an object in the system, so it has state.
         # It also has action and attribute=1
         # all of the object objects do not have action (zero value and attribute=0)
-        robot_attr, robot_state, robot_action = self.scenario.propnet_robot_v(batch, batch_size, self.device)
+        # putting this _before_ the loops over objects means the robot is index=0, which we rely on elsewhere
+        robot_attr, robot_state, robot_action = self.scenario.propnet_robot_v(batch, batch_size, time, self.device)
         attrs.append(robot_attr)
         states.append(robot_state)
-        actions.append(robot_action)
+        # actions.append(robot_action)
 
-        # blocks
+        # loop over objects
         for obj_idx in range(num_objs):
             obj_attr, obj_state, obj_action = self.scenario.propnet_obj_v(batch, batch_size, obj_idx, time, self.device)
             attrs.append(obj_attr)
             states.append(obj_state)
-            actions.append(obj_action)
+            # actions.append(obj_action)
         attrs = torch.stack(attrs, dim=1)  # [b, n_objects, 1]
         states = torch.stack(states, dim=2)  # [b, T, n_objects,  ...]
-        actions = torch.stack(actions, dim=2)  # [b, T-1, n_objects, ...]
+        # actions = torch.stack(actions, dim=2)  # [b, T-1, n_objects, ...]
         return attrs, states, actions
 
     def velocity_loss(self, gt_vel, pred_vel):
