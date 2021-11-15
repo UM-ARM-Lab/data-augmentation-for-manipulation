@@ -18,6 +18,6 @@
   nf_effect: 100
   nf_particle: 100
   nf_relation: 150
-  pstep: 3
+  pstep: 5
   verbose: 0
 }

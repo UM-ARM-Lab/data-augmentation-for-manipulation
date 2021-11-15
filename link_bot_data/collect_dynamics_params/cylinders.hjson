@@ -2,7 +2,7 @@
   name: cylinders
   scenario: cylinders
   service_provider: mujoco
-  steps_per_traj: 50
+  steps_per_traj: 100
   randomize_n: 1
   num_objs: 20
   radius: 0.02
@@ -23,8 +23,8 @@
     0.001, 0.015
   ]
   res: 0.005
-  repeat_delta_gripper_motion_probability: 0.9
-  max_distance_gripper_can_move: 0.02
+  repeat_delta_gripper_motion_probability: 0.99
+  max_distance_gripper_can_move: 0.005
   # unused
   real_time_rate: null
   max_step_size: null

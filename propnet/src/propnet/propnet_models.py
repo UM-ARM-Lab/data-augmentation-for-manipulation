@@ -72,12 +72,11 @@ class PropModule(pl.LightningModule):
         particle_encode = self.particle_encoder(state)  # [b, n_objects, nf_particle]
 
         # calculate relation encoding
-        # TODO: use difference in pos and vel between related objects?
         attr_r = state_r[:, :, :2]
         attr_s = state_s[:, :, :2]
         state_r_posvel = state_r[:, :, 2:]  # [b, num_relations, state_dim]
         state_s_posvel = state_s[:, :, 2:]
-        state_rel_posvel = state_r_posvel - state_s_posvel
+        state_rel_posvel = state_r_posvel - state_s_posvel  # use relative position and velocity
         relation_features = torch.cat([attr_r, attr_s, state_rel_posvel, Ra], dim=-1)
         relation_encode = self.relation_encoder(relation_features)  # [b, n_objects, nf_relation]
 
@@ -86,7 +85,7 @@ class PropModule(pl.LightningModule):
             effect_s = Rsp.bmm(particle_effect)
 
             # calculate relation effect
-            relation_effect = self.relation_propagator(torch.cat([relation_encode, effect_r, effect_s], 2))
+            relation_effect = self.relation_propagator(torch.cat([relation_encode, effect_r, effect_s], dim=-1))
 
             # calculate particle effect by aggregating relation effect
             effect_agg = Rr.bmm(relation_effect)

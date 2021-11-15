@@ -93,7 +93,7 @@ def train_main(dataset_dir: pathlib.Path,
                          callbacks=callbacks)
     trainer.fit(model,
                 train_loader,
-                # val_loader,
+                val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
 
 
