@@ -14,7 +14,7 @@
   relation_dim: 1 # one type of relation
   state_dim: 4 # tx,ty,tx_dot,ty_dot
   action_dim: 0 # [x,y,z] target for end effector
-  is_close_threshold: 0.03
+  is_close_threshold: 0.05
   nf_effect: 100
   nf_particle: 100
   nf_relation: 150

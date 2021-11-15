@@ -391,7 +391,7 @@ class CylindersScenario(PlanarPushingScenario):
             if sender_idx == receiver_idx:
                 continue
 
-            distance = (obj_pos[:, sender_idx] - obj_pos[:, receiver_idx]).square().sum()
+            distance = (obj_pos[:, sender_idx] - obj_pos[:, receiver_idx]).square().sum(dim=-1)
             is_close = (distance < is_close_threshold ** 2).float()
 
             Rs[:, sender_idx, rel_idx] = is_close
