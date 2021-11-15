@@ -248,6 +248,7 @@ class PlanarPushingScenario(ScenarioWithVisualization):
         return False
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
+        self.env._random_state = env_rng
         self.env.reset()
 
     def reset_viz(self):
