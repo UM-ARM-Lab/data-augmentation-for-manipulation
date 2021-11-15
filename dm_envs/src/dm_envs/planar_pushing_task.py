@@ -14,6 +14,7 @@ from dm_envs.primitive_hand import PrimitiveHand
 ARM_NAME = 'jaco_arm'
 HAND_NAME = 'primitive_hand'
 ARM_HAND_NAME = f'{ARM_NAME}/{HAND_NAME}'
+ARM_OFFSET = (0., 0.3, 0.)
 
 
 class PlanarPushingTask(composer.Task):
@@ -33,7 +34,7 @@ class PlanarPushingTask(composer.Task):
         self._arm = arm
         self._hand = hand
         self._arm.attach(self._hand)
-        self._arena.attach_offset(self._arm, offset=robots.ARM_OFFSET)
+        self._arena.attach_offset(self._arm, offset=ARM_OFFSET)
         self.control_timestep = control_timestep
 
         # extents are ordered [xmin, xmax, ymin, ymax, zmin, zmax

@@ -123,11 +123,12 @@ class BaseDataCollector:
 
         self.save_hparams(full_output_directory, n_trajs, nickname)
 
-        combined_seeds = [traj_idx + 100000 * self.seed for traj_idx in range(n_trajs)]
+        combined_seeds = [traj_idx + 1000 * self.seed for traj_idx in range(n_trajs)]
         for traj_idx, seed in enumerate(tqdm(combined_seeds)):
             invalid = False
             for retry_idx in range(10):
                 # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
+                print(traj_idx, seed)
                 env_rng = np.random.RandomState(seed)
                 action_rng = np.random.RandomState(seed)
 
@@ -244,7 +245,6 @@ def collect_dynamics_data(collect_dynamics_params: pathlib.Path,
         else:
             yield dataset_dir, n_trajs_done
 
-    print("Splitting!")
     split_dataset_via_files(dataset_dir, extension)
     yield dataset_dir, n_trajs_done
 

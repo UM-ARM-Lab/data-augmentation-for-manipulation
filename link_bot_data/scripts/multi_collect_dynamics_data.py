@@ -19,8 +19,8 @@ def _collect_dynamics_data(i, name, n_trajs_per, params, q):
     import sys
     from link_bot_data.base_collect_dynamics_data import collect_dynamics_data
     from arc_utilities.ros_init import RosContext
-    sys.stdout = open(f'.log_{i}', 'w')
-    sys.stderr = sys.stdout
+    # sys.stdout = open(f'.log_{i}', 'w')
+    # sys.stderr = sys.stdout
     with RosContext(f'collect_dynamics_data_{i}'):
         try:
             for dataset_dir, n_trajs_per in collect_dynamics_data(collect_dynamics_params=params,
