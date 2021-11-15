@@ -362,13 +362,13 @@ class CylindersScenario(PlanarPushingScenario):
 
         return pred_state_t
 
-    def propnet_rel(self, obj_pos, num_objects, relation_dim, threshold=0.05, device=None):
+    def propnet_rel(self, obj_pos, num_objects, relation_dim, is_close_threshold, device=None):
         """
 
         Args:
             num_objects: number of objects/particles, $|O|$
             relation_dim: dimension of the relation vector
-            threshold: in meters
+            is_close_threshold: in meters. Defines whether a relation will exist between two objects
             device:
 
         Returns:
@@ -392,7 +392,7 @@ class CylindersScenario(PlanarPushingScenario):
                 continue
 
             distance = (obj_pos[:, sender_idx] - obj_pos[:, receiver_idx]).square().sum()
-            is_close = (distance < threshold ** 2).float()
+            is_close = (distance < is_close_threshold ** 2).float()
 
             Rs[:, sender_idx, rel_idx] = is_close
             Rr[:, receiver_idx, rel_idx] = is_close

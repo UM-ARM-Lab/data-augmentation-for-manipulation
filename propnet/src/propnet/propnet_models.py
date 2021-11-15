@@ -155,6 +155,7 @@ class PropNet(pl.LightningModule):
         for t in range(states.shape[1] - 1):
             # compute the relations
             Rs, Rr, Ra = self.scenario.propnet_rel(pred_pos_t, self.hparams.num_objects, self.hparams.relation_dim,
+                                                   is_close_threshold=self.hparams.is_close_threshold,
                                                    device=self.device)
 
             # Integrate the velocity to produce the next positions
