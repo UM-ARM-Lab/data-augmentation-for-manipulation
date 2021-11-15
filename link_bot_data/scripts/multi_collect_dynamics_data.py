@@ -68,8 +68,8 @@ def main():
 
     outdir = pathlib.Path('fwd_model_data') / args.name
     merge_pkls(outdir, dataset_dirs, quiet=True)
-    for dataset_dir in dataset_dirs:
-        rm_tree(dataset_dir)
+    # for dataset_dir in dataset_dirs:
+    #     rm_tree(dataset_dir)
     outdir = add_velocity_to_dataset(outdir)
     print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
 

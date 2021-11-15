@@ -24,7 +24,7 @@
     0.001, 0.015
   ]
   repeat_delta_gripper_motion_probability: 0.999
-  max_distance_gripper_can_move: 0.002
+  max_distance_gripper_can_move: 0.005
   # unused
   real_time_rate: null
   max_step_size: null

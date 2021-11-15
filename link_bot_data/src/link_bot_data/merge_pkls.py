@@ -1,4 +1,5 @@
 import pathlib
+import pickle
 import shutil
 from typing import List
 
@@ -33,12 +34,18 @@ def merge_pkls(outdir: pathlib.Path, indirs: List[pathlib.Path], dry_run: bool =
     for i, file in enumerate(sorted(pkl_files)):
         path = pathlib.Path(file)
         new_pkl_filename = index_to_filename('.pkl', traj_idx)
+        new_pkl_gz_filename = index_to_filename('.pkl.gz', traj_idx)
         new_pkl_path = pathlib.Path(outdir) / new_pkl_filename
         traj_idx += 1
         if not quiet:
             print(path, '-->', new_pkl_path)
         if not dry_run:
-            shutil.copyfile(path, new_pkl_path)
+            with path.open("rb") as f:
+                pkl = pickle.load(f)
+            new_pkl = pkl
+            new_pkl['data'] = new_pkl_gz_filename
+            with new_pkl_path.open("wb") as f:
+                pickle.dump(new_pkl, f)
 
     traj_idx = 0
     for i, file in enumerate(sorted(pkl_gz_files)):
