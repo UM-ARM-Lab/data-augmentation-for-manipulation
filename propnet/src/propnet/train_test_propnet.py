@@ -106,7 +106,7 @@ def eval_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, ba
 
     for metrics_i in metrics:
         for k, v in metrics_i.items():
-            print(f"{k}: {v:0.4f}")
+            print(f"{k:20s}: {v:0.4f}")
 
     return metrics
 
