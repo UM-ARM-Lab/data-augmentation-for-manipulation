@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import logging
 import multiprocessing
 import pathlib
 from datetime import datetime
@@ -75,12 +74,9 @@ def train_main(dataset_dir: pathlib.Path,
         ckpt_path = checkpoint.as_posix()
         model = PropNet.load_from_checkpoint(ckpt_path)
 
-    # training
-    logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
     best_val_ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss",
                                                     filename="best-{epoch:02d}-{val_loss:.6f}")
     latest_ckpt_cb = pl.callbacks.ModelCheckpoint(filename='latest-{epoch:02d}', save_on_train_epoch_end=True)
-    early_stopping = pl.callbacks.EarlyStopping(monitor="val_loss", patience=50)
     callbacks = [
         best_val_ckpt_cb,
         latest_ckpt_cb,
@@ -95,6 +91,24 @@ def train_main(dataset_dir: pathlib.Path,
                 train_loader,
                 val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
+
+
+def eval_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, batch_size: int, **kwargs):
+    dataset = TorchDynamicsDataset(dataset_dir, mode)
+
+    loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
+
+    model = PropNet.load_from_checkpoint(checkpoint.as_posix())
+
+    trainer = pl.Trainer(gpus=1, enable_model_summary=False)
+
+    metrics = trainer.validate(model, loader, verbose=0)
+
+    for metrics_i in metrics:
+        for k, v in metrics_i.items():
+            print(f"{k}: {v:0.4f}")
+
+    return metrics
 
 
 def viz_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, **kwargs):

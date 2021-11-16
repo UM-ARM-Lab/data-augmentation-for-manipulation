@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import argparse
+import logging
 import pathlib
 from time import time
 
 import numpy as np
 import torch
-# from pytorch_lightning import Trainer
 
 from arc_utilities import ros_init
 from link_bot_pycommon.args import run_subparsers
@@ -47,7 +47,6 @@ def main():
     train_parser.add_argument('--epochs', type=int, default=100)
     train_parser.add_argument('--no-validate', action='store_true')
     train_parser.add_argument('--seed', type=int, default=None)
-    # train_parser = Trainer.add_argparse_args(train_parser)
     train_parser.set_defaults(func=train_main)
 
     viz_parser = subparsers.add_parser('viz')
@@ -56,9 +55,18 @@ def main():
     viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     viz_parser.set_defaults(func=viz_main)
 
+    eval_parser = subparsers.add_parser('eval')
+    eval_parser.add_argument('dataset_dir', type=pathlib.Path)
+    eval_parser.add_argument('checkpoint', type=pathlib.Path)
+    eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
+    eval_parser.add_argument('--batch-size', type=int, default=24)
+    eval_parser.set_defaults(func=eval_main)
+
     import resource
     rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
     resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
+
+    logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
 
     run_subparsers(parser)
 
