@@ -7,7 +7,7 @@ from typing import Optional
 
 import git
 import pytorch_lightning as pl
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -37,19 +37,23 @@ def train_main(dataset_dir: pathlib.Path,
                                          transform=transform)
     val_dataset = TorchDynamicsDataset(dataset_dir, mode='val',
                                        transform=transform)
-    train_loader = DataLoader(train_dataset,
+
+    if take:
+        train_dataset_take = Subset(train_dataset, range(take))
+        val_dataset_take = Subset(val_dataset, range(take))
+    else:
+        train_dataset_take = train_dataset
+        val_dataset_take = val_dataset
+
+    train_loader = DataLoader(train_dataset_take,
                               batch_size=batch_size,
                               shuffle=True,
                               num_workers=get_num_workers(batch_size))
     val_loader = None
-    if len(val_dataset) > 0 and not no_validate:
-        val_loader = DataLoader(val_dataset,
+    if len(val_dataset_take) > 0 and not no_validate:
+        val_loader = DataLoader(val_dataset_take,
                                 batch_size=batch_size,
                                 num_workers=get_num_workers(batch_size))
-
-    if take:
-        train_loader = train_loader[:take]
-        val_loader = val_loader[:take]
 
     if checkpoint is None:
         model_params = load_hjson(model_params)

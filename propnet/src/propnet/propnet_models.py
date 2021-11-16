@@ -239,6 +239,7 @@ class PropNet(pl.LightningModule):
         return error_pos
 
     def training_step(self, train_batch, batch_idx):
+        print(train_batch['traj_idx'])
         gt_vel, gt_pos, pred_vel, pred_pos = self.forward(train_batch)
         loss = self.velocity_loss(gt_vel, pred_vel)
         self.log('train_loss', loss)
