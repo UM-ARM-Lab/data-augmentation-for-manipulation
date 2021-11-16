@@ -84,7 +84,8 @@ def train_main(dataset_dir: pathlib.Path,
     best_val_ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss",
                                                     filename="best-{epoch:02d}-{val_loss:.6f}")
     latest_ckpt_cb = pl.callbacks.ModelCheckpoint(filename='latest-{epoch:02d}', save_on_train_epoch_end=True)
-    early_stopping = pl.callbacks.EarlyStopping(divergence_threshold=5e-3,
+    early_stopping = pl.callbacks.EarlyStopping(monitor="val_loss",
+                                                divergence_threshold=5e-3,
                                                 patience=200)
     callbacks = [
         best_val_ckpt_cb,
