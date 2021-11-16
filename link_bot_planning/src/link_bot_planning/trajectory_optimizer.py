@@ -7,7 +7,7 @@ from more_itertools import pairwise
 
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 
 

@@ -32,7 +32,8 @@ from link_bot_pycommon.pycommon import default_if_none, densify_points
 from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
-from moonshine.moonshine_utils import numpify, remove_batch, add_batch
+from moonshine.moonshine_utils import remove_batch, add_batch
+from moonshine.numpify import numpify
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import Image, CameraInfo

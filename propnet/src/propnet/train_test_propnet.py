@@ -12,7 +12,7 @@ from torchvision import transforms
 
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 from moonshine.torch_utils import my_collate
 from propnet.propnet_models import PropNet
 from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys

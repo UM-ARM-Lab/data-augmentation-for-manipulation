@@ -18,7 +18,7 @@ from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.matplotlib_utils import save_unconstrained_layout
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.serialization import my_hdumps
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 
 
 class TestThresholdSensitivity:

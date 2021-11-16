@@ -27,7 +27,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from moonshine.classifier_losses_and_metrics import class_weighted_mean_loss
 from moonshine.metrics import BinaryAccuracyOnPositives, BinaryAccuracyOnNegatives, LossMetric, \
     FalsePositiveMistakeRate, FalseNegativeMistakeRate, FalsePositiveOverallRate, FalseNegativeOverallRate
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 from moonshine.my_keras_model import MyKerasModel
 
 

@@ -12,7 +12,8 @@ from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
-from moonshine.moonshine_utils import repeat, numpify, sequence_of_dicts_to_dict_of_tensors, add_time_dim
+from moonshine.moonshine_utils import repeat, sequence_of_dicts_to_dict_of_tensors, add_time_dim
+from moonshine.numpify import numpify
 from state_space_dynamics import dynamics_utils
 
 

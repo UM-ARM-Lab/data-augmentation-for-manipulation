@@ -5,7 +5,8 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from moonshine.ensemble import Ensemble2
 from moonshine.filepath_tools import load_params
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch, \
-    dict_of_sequences_to_sequence_of_dicts_tf, numpify
+    dict_of_sequences_to_sequence_of_dicts_tf
+from moonshine.numpify import numpify
 
 
 class BaseDynamicsFunction:

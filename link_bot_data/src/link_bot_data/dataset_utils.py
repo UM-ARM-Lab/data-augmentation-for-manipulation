@@ -18,7 +18,8 @@ from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
 from link_bot_pycommon.serialization import dump_gzipped_pickle
 from moonshine.filepath_tools import load_params
-from moonshine.moonshine_utils import remove_batch, add_batch, numpify, to_list_of_strings
+from moonshine.moonshine_utils import remove_batch, add_batch, to_list_of_strings
+from moonshine.numpify import numpify
 from moveit_msgs.msg import PlanningScene
 
 NULL_PAD_VALUE = -10000

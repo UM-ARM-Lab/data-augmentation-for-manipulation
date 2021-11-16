@@ -17,7 +17,8 @@ from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import try_index_batched_dict
-from moonshine.moonshine_utils import remove_batch, numpify
+from moonshine.moonshine_utils import remove_batch
+from moonshine.numpify import numpify
 
 
 def unbatch_examples(example, actual_batch_size):

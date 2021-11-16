@@ -9,7 +9,7 @@ from link_bot_planning.my_planner import SharedPlanningStateOMPL
 from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.scenario_ompl import ScenarioOmpl
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 from tf import transformations
 
 with warnings.catch_warnings():

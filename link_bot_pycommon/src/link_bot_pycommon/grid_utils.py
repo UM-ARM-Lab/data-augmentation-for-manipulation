@@ -7,7 +7,8 @@ from deprecated import deprecated
 import ros_numpy
 import rospy
 from geometry_msgs.msg import TransformStamped
-from moonshine.moonshine_utils import swap_xy, numpify
+from moonshine.moonshine_utils import swap_xy
+from moonshine.numpify import numpify
 from rviz_voxelgrid_visuals import conversions
 from sensor_msgs.msg import PointCloud2
 

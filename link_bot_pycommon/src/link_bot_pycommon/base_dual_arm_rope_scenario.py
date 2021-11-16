@@ -19,7 +19,8 @@ from link_bot_pycommon.moveit_utils import make_joint_state
 from link_bot_pycommon.pycommon import densify_points
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
-from moonshine.moonshine_utils import numpify, to_list_of_strings
+from moonshine.moonshine_utils import to_list_of_strings
+from moonshine.numpify import numpify
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
 from sdf_tools import utils_3d
 from tf import transformations

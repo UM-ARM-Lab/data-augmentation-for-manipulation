@@ -6,7 +6,7 @@ import tensorflow as tf
 
 from link_bot_data.robot_points import batch_transform_robot_points, RobotVoxelgridInfo, batch_robot_state_to_transforms
 from link_bot_pycommon.pycommon import densify_points
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
 
 

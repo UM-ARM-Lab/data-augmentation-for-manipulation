@@ -3,7 +3,8 @@ from typing import Dict, List, OrderedDict
 import numpy as np
 import tensorflow as tf
 
-from moonshine.moonshine_utils import numpify, remove_batch, add_batch
+from moonshine.moonshine_utils import remove_batch, add_batch
+from moonshine.numpify import numpify
 
 
 # TODO: make all these indexing functions that take lists of keys have the "inclusive" argument

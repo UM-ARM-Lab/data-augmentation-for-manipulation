@@ -7,7 +7,8 @@ import tensorflow as tf
 from link_bot_data.dataset_utils import deserialize_scene_msg
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import add_batch, remove_batch, dict_of_sequences_to_sequence_of_dicts_tf, \
-    numpify, sequence_of_dicts_to_dict_of_tensors
+    sequence_of_dicts_to_dict_of_tensors
+from moonshine.numpify import numpify
 from state_space_dynamics.base_dynamics_function import DynamicsEnsemble
 
 

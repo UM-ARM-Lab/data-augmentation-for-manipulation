@@ -8,7 +8,8 @@ from matplotlib import cm
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningResult, MyPlanner, PlanningQuery
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from moonshine.moonshine_utils import dict_of_sequences_to_sequence_of_dicts, numpify, sequence_of_dicts_to_dict_of_tensors
+from moonshine.moonshine_utils import dict_of_sequences_to_sequence_of_dicts, sequence_of_dicts_to_dict_of_tensors
+from moonshine.numpify import numpify
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 from state_space_dynamics.base_filter_function import BaseFilterFunction, PassThroughFilter
 

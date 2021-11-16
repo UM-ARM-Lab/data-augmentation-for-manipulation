@@ -28,7 +28,7 @@ from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.pycommon import deal_with_exceptions
 from link_bot_pycommon.serialization import dump_gzipped_pickle, my_hdump
 from moonshine.filepath_tools import load_hjson
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 
 
 class EvaluatePlanning(plan_and_execute.PlanAndExecute):

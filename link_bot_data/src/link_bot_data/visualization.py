@@ -11,7 +11,8 @@ from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import vector_to_points_2d
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.indexing import index_time_with_metadata, index_state_action_with_metadata, try_index_time_with_metadata
-from moonshine.moonshine_utils import numpify, to_list_of_strings
+from moonshine.moonshine_utils import to_list_of_strings
+from moonshine.numpify import numpify
 from moveit_msgs.msg import RobotTrajectory
 from rospy import Publisher
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped

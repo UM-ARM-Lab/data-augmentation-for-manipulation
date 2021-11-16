@@ -20,7 +20,7 @@ from link_bot_pycommon.screen_recorder import ScreenRecorder
 from link_bot_pycommon.serialization import load_gzipped_pickle, my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_params, load_json_or_hjson
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 
 logger = logging.getLogger(__name__)
 

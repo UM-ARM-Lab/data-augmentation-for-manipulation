@@ -20,7 +20,8 @@ from link_bot_pycommon.serialization import load_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_time_with_metadata
-from moonshine.moonshine_utils import remove_batch, numpify
+from moonshine.moonshine_utils import remove_batch
+from moonshine.numpify import numpify
 from peter_msgs.msg import VizOptions
 from peter_msgs.srv import GetVizOptionsResponse, GetVizOptions, GetVizOptionsRequest
 

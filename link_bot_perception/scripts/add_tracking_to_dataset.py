@@ -15,7 +15,7 @@ from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.constants import KINECT_MAX_DEPTH
 from link_bot_pycommon.ros_pycommon import transform_points_to_robot_frame
 from moonshine.indexing import index_time_with_metadata
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 from rospy_message_converter import message_converter
 from sensor_msgs.msg import PointCloud2, Image, CameraInfo, JointState
 from tf import transformations

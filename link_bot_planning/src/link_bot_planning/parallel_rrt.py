@@ -19,7 +19,8 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32
-from moonshine.moonshine_utils import add_batch, repeat, sequence_of_dicts_to_dict_of_tensors, numpify
+from moonshine.moonshine_utils import add_batch, repeat, sequence_of_dicts_to_dict_of_tensors
+from moonshine.numpify import numpify
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 from state_space_dynamics.base_filter_function import BaseFilterFunction
 from tf import transformations

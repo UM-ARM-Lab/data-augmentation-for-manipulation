@@ -24,7 +24,8 @@ from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.pycommon import has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.spinners import SynchronousSpinner
-from moonshine.moonshine_utils import numpify, remove_batch, add_batch
+from moonshine.moonshine_utils import remove_batch, add_batch
+from moonshine.numpify import numpify
 
 
 def execute_actions(

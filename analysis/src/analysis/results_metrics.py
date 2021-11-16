@@ -12,7 +12,7 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.func_list_registrar import FuncListRegistrar
 from link_bot_pycommon.pycommon import has_keys, paths_from_json
 from moonshine.filepath_tools import load_hjson
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 
 logger = logging.getLogger(__file__)
 

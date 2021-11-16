@@ -9,7 +9,7 @@ from arc_utilities import ros_init
 from link_bot_data.dataset_utils import pprint_example, deserialize_scene_msg
 from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from link_bot_data.progressbar_widgets import mywidgets
-from moonshine.moonshine_utils import numpify
+from moonshine.numpify import numpify
 
 
 @ros_init.with_ros("visualize_dynamics_dataset")

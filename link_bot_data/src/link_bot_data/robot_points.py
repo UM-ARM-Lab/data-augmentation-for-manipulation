@@ -5,7 +5,8 @@ import pyjacobian_follower
 import tensorflow as tf
 
 from link_bot_pycommon.pycommon import unordered_pairs
-from moonshine.moonshine_utils import numpify, repeat_tensor
+from moonshine.moonshine_utils import repeat_tensor
+from moonshine.numpify import numpify
 
 
 class RobotVoxelgridInfo:
