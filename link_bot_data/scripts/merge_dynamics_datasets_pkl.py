@@ -4,7 +4,7 @@ import pathlib
 
 import colorama
 
-from link_bot_data.merge_pkls import merge_dynamics_datasets_pkl
+from link_bot_data.merge_dynamics_datasets_pkl import merge_dynamics_datasets_pkl
 
 
 def main():
@@ -12,7 +12,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("indirs", nargs="*", type=pathlib.Path)
     parser.add_argument("outdir", type=pathlib.Path)
-    parser.add_argument("--dry-run", action='store_true')
 
     args = parser.parse_args()
 
