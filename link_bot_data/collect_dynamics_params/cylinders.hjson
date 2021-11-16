@@ -3,8 +3,9 @@
   scenario: cylinders
   service_provider: mujoco
   steps_per_traj: 100
+  res: 0.005
   randomize_n: 1
-  num_objs: 20
+  num_objs: 9
   radius: 0.02
   height: 0.04
   extent: [
@@ -13,16 +14,15 @@
     0, 0.11
   ]
   objs_init_extent: [
-    -0.13, 0.13
-    -0.13, 0.13
+    -0.09, 0.09
+    -0.09, 0.09
     0, 0.05
   ]
   gripper_action_sample_extent: [
-    -0.1, 0.1
-    -0.1, 0.1
+    -0.08, 0.08
+    -0.08, 0.08
     0.001, 0.015
   ]
-  res: 0.005
   repeat_delta_gripper_motion_probability: 0.99
   max_distance_gripper_can_move: 0.005
   # unused
