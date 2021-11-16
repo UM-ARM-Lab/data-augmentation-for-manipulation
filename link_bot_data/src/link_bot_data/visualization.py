@@ -89,7 +89,6 @@ def plot_extents(ax, extent, linewidth=6, **kwargs):
 
 def dynamics_viz_t(metadata: Dict, state_metadata_keys, state_keys, action_keys, label='actual'):
     def _dynamics_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int):
-        print(example["traj_idx"], example['seed'])
         s_t = index_time_with_metadata(metadata, example, state_metadata_keys + state_keys, t=t)
         try_adding_aco(state=s_t, example=example)
         scenario.plot_state_rviz(s_t, label=label, color='#ff0000ff')

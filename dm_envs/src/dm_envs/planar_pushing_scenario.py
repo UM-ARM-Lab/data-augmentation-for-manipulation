@@ -220,7 +220,8 @@ class PlanarPushingScenario(ScenarioWithVisualization):
         # we picked a new end effector pose, now solve IK to turn that into a joint configuration
         success, target_joint_position = self.task.solve_position_ik(self.env.physics, target_cartesian_position)
         if not success:
-            rospy.logwarn("failed to solve IK! continuing anyways")
+            rospy.logwarn("failed to solve IK!")
+            return (end_trial := True)
 
         current_position = get_joint_position(state)
         kP = 10.0

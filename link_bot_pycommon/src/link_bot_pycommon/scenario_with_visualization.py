@@ -446,3 +446,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
     def plot_error_rviz(self, error):
         self.error_pub.publish(Float32(data=error))
+
+    def clear_action_sampling_state(self):
+        self.last_action = None
+

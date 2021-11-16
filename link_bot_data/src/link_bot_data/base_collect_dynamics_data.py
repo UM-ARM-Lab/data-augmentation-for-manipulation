@@ -54,7 +54,7 @@ class BaseDataCollector:
         states = {k: [] for k in self.params['state_keys'] + self.params['state_metadata_keys']}
         time_indices = []
 
-        self.scenario.last_action = None
+        self.scenario.clear_action_sampling_state()
 
         for time_idx in range(self.params['steps_per_traj']):
             # get current state and sample action
