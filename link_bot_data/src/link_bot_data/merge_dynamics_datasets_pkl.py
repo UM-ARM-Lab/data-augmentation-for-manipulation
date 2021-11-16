@@ -2,6 +2,7 @@ import pathlib
 from typing import List
 
 import hjson
+from tqdm import tqdm
 
 from arc_utilities.path_utils import rm_tree
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
@@ -40,7 +41,7 @@ def merge_dynamics_datasets_pkl(outdir: pathlib.Path, indirs: List[pathlib.Path]
         hjson.dump(hparams, new_hparams_file, indent=2)
     print(path, '-->', new_hparams_filename)
 
-    for traj_idx, e in enumerate(merged_dataset):
+    for traj_idx, e in enumerate(tqdm(merged_dataset)):
         e['traj_idx'] = traj_idx
         if "full_filename" in e:
             e.pop("full_filename")
