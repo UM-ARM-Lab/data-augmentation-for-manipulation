@@ -53,7 +53,9 @@ class BaseDataCollector:
         #  in most cases it could be considered part of the environment, but sometimes having it with state is better
         states = {k: [] for k in self.params['state_keys'] + self.params['state_metadata_keys']}
         time_indices = []
-        self.last_action = None
+
+        self.scenario.last_action = None
+
         for time_idx in range(self.params['steps_per_traj']):
             # get current state and sample action
             state = self.scenario.get_state()
@@ -126,28 +128,23 @@ class BaseDataCollector:
 
         combined_seeds = [traj_idx + 1000 * self.seed for traj_idx in range(n_trajs)]
         for traj_idx, seed in enumerate(tqdm(combined_seeds)):
-            invalid = False
-            for retry_idx in range(10):
-                # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
-                env_rng = np.random.RandomState(seed)
-                action_rng = np.random.RandomState(seed)
+            # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
+            env_rng = np.random.RandomState(seed)
+            action_rng = np.random.RandomState(seed)
 
-                # Randomize the environment
-                randomize = self.params["randomize_n"] and traj_idx % self.params["randomize_n"] == 0
-                state = self.scenario.get_state()
-                needs_reset = self.scenario.needs_reset(state, self.params)
-                if randomize or needs_reset:
-                    if needs_reset:
-                        rospy.logwarn("Reset required!")
-                    self.scenario.randomize_environment(env_rng, self.params)
+            # Randomize the environment
+            randomize = self.params["randomize_n"] and traj_idx % self.params["randomize_n"] == 0
+            state = self.scenario.get_state()
+            needs_reset = self.scenario.needs_reset(state, self.params)
+            if randomize or needs_reset:
+                if needs_reset:
+                    rospy.logwarn("Reset required!")
+                self.scenario.randomize_environment(env_rng, self.params)
 
-                # Generate a new trajectory
-                example, invalid = self.collect_trajectory(traj_idx=traj_idx, verbose=self.verbose,
-                                                           action_rng=action_rng)
-                example['seed'] = seed
-
-                if not invalid:
-                    break
+            # Generate a new trajectory
+            example, invalid = self.collect_trajectory(traj_idx=traj_idx, verbose=self.verbose,
+                                                       action_rng=action_rng)
+            example['seed'] = seed
 
             if invalid:
                 raise RuntimeError(f"Could not execute valid trajectory {traj_idx}")
