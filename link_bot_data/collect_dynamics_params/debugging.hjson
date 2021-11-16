@@ -14,8 +14,8 @@
     0, 0.11
   ]
   objs_init_extent: [
-    -0.08, 0.08
-    -0.08, 0.08
+    -0.09, 0.09
+    -0.09, 0.09
     0, 0.05
   ]
   gripper_action_sample_extent: [
