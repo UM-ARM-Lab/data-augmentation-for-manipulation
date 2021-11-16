@@ -53,6 +53,7 @@ class BaseDataCollector:
         #  in most cases it could be considered part of the environment, but sometimes having it with state is better
         states = {k: [] for k in self.params['state_keys'] + self.params['state_metadata_keys']}
         time_indices = []
+        self.last_action = None
         for time_idx in range(self.params['steps_per_traj']):
             # get current state and sample action
             state = self.scenario.get_state()
@@ -128,7 +129,6 @@ class BaseDataCollector:
             invalid = False
             for retry_idx in range(10):
                 # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
-                print(traj_idx, seed)
                 env_rng = np.random.RandomState(seed)
                 action_rng = np.random.RandomState(seed)
 
@@ -144,6 +144,8 @@ class BaseDataCollector:
                 # Generate a new trajectory
                 example, invalid = self.collect_trajectory(traj_idx=traj_idx, verbose=self.verbose,
                                                            action_rng=action_rng)
+                example['seed'] = seed
+
                 if not invalid:
                     break
 
