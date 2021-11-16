@@ -39,8 +39,8 @@ def train_main(dataset_dir: pathlib.Path,
                                        transform=transform)
 
     if take:
-        train_dataset_take = Subset(train_dataset, range(take))
-        val_dataset_take = Subset(val_dataset, range(take))
+        train_dataset_take = take_subset(train_dataset, take)
+        val_dataset_take = take_subset(val_dataset, take)
     else:
         train_dataset_take = train_dataset
         val_dataset_take = val_dataset
@@ -95,6 +95,11 @@ def train_main(dataset_dir: pathlib.Path,
                 train_loader,
                 val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
+
+
+def take_subset(dataset, take):
+    dataset_take = Subset(dataset, range(min(take, len(dataset))))
+    return dataset_take
 
 
 def eval_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, batch_size: int, **kwargs):
