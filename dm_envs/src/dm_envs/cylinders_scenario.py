@@ -67,7 +67,7 @@ def make_odd(x):
     return tf.where(tf.cast(x % 2, tf.bool), x, x + 1)
 
 
-NUM_POINTS = 400
+NUM_POINTS = 128
 cylinder_points_rng = np.random.RandomState(0)
 
 
