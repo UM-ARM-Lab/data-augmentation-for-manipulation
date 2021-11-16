@@ -7,9 +7,10 @@ import hjson
 
 from link_bot_data.dataset_utils import index_to_filename
 from link_bot_data.split_dataset import split_dataset
+from moonshine.filepath_tools import load_params
 
 
-def merge_pkls(outdir: pathlib.Path, indirs: List[pathlib.Path], dry_run: bool = False, quiet=False):
+def merge_dynamics_datasets_pkl(outdir: pathlib.Path, indirs: List[pathlib.Path], dry_run: bool = False, quiet=False):
     outdir.mkdir(exist_ok=True)
 
     if not dry_run:
@@ -19,6 +20,13 @@ def merge_pkls(outdir: pathlib.Path, indirs: List[pathlib.Path], dry_run: bool =
         # log this operation in the params!
         hparams = hjson.load(path.open('r'))
         hparams['created_by_merging'] = [str(indir) for indir in indirs]
+
+        total_n_trajs = 0
+        for indir in indirs:
+            p = load_params(indir)
+            total_n_trajs += p['n_trajs']
+        hparams['n_trajs'] = total_n_trajs
+
         with new_hparams_filename.open('w') as new_hparams_file:
             hjson.dump(hparams, new_hparams_file, indent=2)
         if not quiet:

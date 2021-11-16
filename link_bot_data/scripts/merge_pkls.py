@@ -4,7 +4,7 @@ import pathlib
 
 import colorama
 
-from link_bot_data.merge_pkls import merge_pkls
+from link_bot_data.merge_pkls import merge_dynamics_datasets_pkl
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
 
     args = parser.parse_args()
 
-    merge_pkls(**vars(args))
+    merge_dynamics_datasets_pkl(**vars(args))
 
 
 if __name__ == '__main__':

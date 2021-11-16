@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from arc_utilities.path_utils import rm_tree
 from dm_envs.add_velocity_to_dynamics_dataset import add_velocity_to_dataset
-from link_bot_data.merge_pkls import merge_pkls
+from link_bot_data.merge_pkls import merge_dynamics_datasets_pkl
 
 
 def _collect_dynamics_data(i, name, n_trajs_per, params, q):
@@ -67,7 +67,7 @@ def main():
     dataset_dirs = collect_data_in_parallel(args.j, args.n_trajs_total, args.name, args.params)
 
     outdir = pathlib.Path('fwd_model_data') / args.name
-    merge_pkls(outdir, dataset_dirs, quiet=True)
+    merge_dynamics_datasets_pkl(outdir, dataset_dirs, quiet=True)
     for dataset_dir in dataset_dirs:
         rm_tree(dataset_dir)
     outdir = add_velocity_to_dataset(outdir)
