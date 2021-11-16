@@ -66,11 +66,12 @@ def main():
 
     dataset_dirs = collect_data_in_parallel(args.j, args.n_trajs_total, args.name, args.params)
 
-    outdir = pathlib.Path('fwd_model_data') / args.name
-    merge_dynamics_datasets_pkl(outdir, dataset_dirs)
+    no_vel_outdir = pathlib.Path('fwd_model_data') / args.name
+    merge_dynamics_datasets_pkl(no_vel_outdir, dataset_dirs)
     for dataset_dir in dataset_dirs:
         rm_tree(dataset_dir)
-    outdir = add_velocity_to_dataset(outdir)
+    outdir = add_velocity_to_dataset(no_vel_outdir)
+    rm_tree(no_vel_outdir)
     print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
 
 
