@@ -1,12 +1,11 @@
 import numpy as np
+import tensorflow as tf
+import torch
 
 import genpy
 
 
 def numpify(x, dtype=np.float32):
-    import tensorflow as tf
-    import torch
-
     if isinstance(x, np.ndarray):
         return x
     elif isinstance(x, list):
