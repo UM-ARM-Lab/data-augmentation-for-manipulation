@@ -3,7 +3,7 @@
   scenario: cylinders
   service_provider: mujoco
   steps_per_traj: 100
-  res: 0.005
+  res: 0.01
   randomize_n: 1
   num_objs: 9
   radius: 0.02

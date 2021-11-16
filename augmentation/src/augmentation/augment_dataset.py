@@ -150,10 +150,12 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
 
     def out_examples_gen():
         for example in dataset:
-            # the original example should also be included!
             actual_batch_size = example['batch_size']
+
             for out_example in augment(example):
                 yield from unbatch_examples(out_example, actual_batch_size)
+
+            # the original example should also be included!
             yield from unbatch_examples(example, actual_batch_size)
 
     modify_hparams(dataset_dir, outdir, update={'used_augmentation': True})
