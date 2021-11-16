@@ -40,7 +40,8 @@ def main():
 
     train_parser = subparsers.add_parser('train')
     train_parser.add_argument('dataset_dir', type=pathlib.Path)
-    train_parser.add_argument('model_params', type=pathlib.Path)  # hparams/blocks.hjson
+    train_parser.add_argument('model_params', type=pathlib.Path)
+    train_parser.add_argument('nickname', type=str)
     train_parser.add_argument('--checkpoint', type=pathlib.Path)
     train_parser.add_argument('--batch-size', type=int, default=24)
     train_parser.add_argument('--take', type=int)

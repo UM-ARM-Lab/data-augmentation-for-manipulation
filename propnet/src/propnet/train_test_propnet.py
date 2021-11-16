@@ -20,6 +20,7 @@ from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
 def train_main(dataset_dir: pathlib.Path,
                model_params: pathlib.Path,
+               nickname: str,
                batch_size: int,
                epochs: int,
                seed: int,
@@ -78,10 +79,13 @@ def train_main(dataset_dir: pathlib.Path,
         ckpt_path = checkpoint.as_posix()
         model = PropNet.load_from_checkpoint(ckpt_path)
 
+    default_root_dir = pathlib.Path('lightning_logs') / nickname
+
     best_val_ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss",
                                                     filename="best-{epoch:02d}-{val_loss:.6f}")
     latest_ckpt_cb = pl.callbacks.ModelCheckpoint(filename='latest-{epoch:02d}', save_on_train_epoch_end=True)
-    early_stopping = pl.callbacks.EarlyStopping(monitor="val_loss", divergence_threshold=5e-3, patience=200)
+    early_stopping = pl.callbacks.EarlyStopping(divergence_threshold=5e-3,
+                                                patience=200)
     callbacks = [
         best_val_ckpt_cb,
         latest_ckpt_cb,
@@ -91,7 +95,8 @@ def train_main(dataset_dir: pathlib.Path,
                          enable_model_summary=False,
                          log_every_n_steps=1,
                          max_epochs=epochs,
-                         callbacks=callbacks)
+                         callbacks=callbacks,
+                         default_root_dir=default_root_dir)
     trainer.fit(model,
                 train_loader,
                 val_dataloaders=val_loader,

@@ -513,7 +513,8 @@ class CylindersScenario(PlanarPushingScenario):
                 self.plot_environment_rviz(env_b)
                 for t in range(time):
                     object_aug_update_b_t = {k: v[0].numpy() for k, v in object_aug_update_viz_b.items()}
-                self.plot_state_rviz(object_aug_update_b_t, label='aug_no_ik', color='white', id=t)
+                    self.plot_state_rviz(object_aug_update_b_t, label='aug_no_ik', color='white', id=t)
+
         return object_aug_update, None, None
 
     def aug_ik(self,
