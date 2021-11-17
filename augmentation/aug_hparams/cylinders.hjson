@@ -6,7 +6,7 @@
     target_trans_lim: 0.15
     not_progressing_threshold: 0.0005
     step_size_threshold: 0.0001
-    step_size: 0.8
+    step_size: 0.5
 
     # for the final check of the constraints
     delta_min_dist_threshold: 0.005

@@ -10,21 +10,19 @@ from arc_utilities import algorithms
 from link_bot_data.base_dataset import BaseDatasetLoader
 from link_bot_data.dataset_utils import write_example
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
+from moonshine.filepath_tools import load_params
 
 
 def modify_hparams(in_dir: pathlib.Path, out_dir: pathlib.Path, update: Optional[Dict] = None):
     if update is None:
         update = {}
     out_dir.mkdir(exist_ok=True, parents=False)
-    with (in_dir / 'hparams.hjson').open("r") as in_f:
-        in_hparams_str = in_f.read()
-    in_hparams = hjson.loads(in_hparams_str)
 
-    out_hparams = in_hparams
+    out_hparams = load_params(in_dir)
     algorithms.nested_dict_update(out_hparams, update)
-    out_hparams_str = hjson.dumps(out_hparams)
+
     with (out_dir / 'hparams.hjson').open("w") as out_f:
-        out_f.write(out_hparams_str)
+        hjson.dump(out_hparams, out_f)
 
 
 def modify_dataset(dataset_dir: pathlib.Path,

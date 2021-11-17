@@ -2,13 +2,15 @@ import pathlib
 from copy import deepcopy
 from typing import Dict, Callable, List
 
+import hjson
+from colorama import Fore
 from tqdm import tqdm
 
+from arc_utilities.algorithms import nested_dict_update
 from augmentation.aug_opt import AugmentationOptimization
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from link_bot_data.dataset_utils import write_example, add_predicted
 from link_bot_data.local_env_helper import LocalEnvHelper
-from link_bot_data.modify_dataset import modify_hparams
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.split_dataset import split_dataset
@@ -16,6 +18,7 @@ from link_bot_data.visualization import classifier_transition_viz_t, DebuggingVi
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
+from moonshine.filepath_tools import load_params
 from moonshine.indexing import try_index_batched_dict
 from moonshine.moonshine_utils import remove_batch
 from moonshine.numpify import numpify
@@ -125,6 +128,8 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
                                 save_format='pkl'):
     aug = make_aug_opt(scenario, dataset_loader, hparams, debug_state_keys, batch_size)
 
+    outdir.mkdir(exist_ok=True, parents=False)
+
     def augment(inputs):
         actual_batch_size = inputs['batch_size']
         if visualize:
@@ -156,16 +161,34 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
             # the original example should also be included!
             yield from unbatch_examples(example, actual_batch_size)
 
-    modify_hparams(dataset_dir, outdir, update={'used_augmentation': True})
     dataset = dataset_loader.get_datasets(mode='all')
     expected_total = (1 + n_augmentations) * len(dataset)
+
+    print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
 
     dataset = dataset.batch(batch_size)
     total_count = 0
     for out_example in tqdm(out_examples_gen(), total=expected_total):
+        if total_count == 0:
+            in_hparams = load_params(dataset_dir)
+            state_keys = in_hparams['data_collection_params']['state_keys']
+            aug_state_keys = list(set(out_example.keys()).intersection(state_keys))
+            update = {
+                'used_augmentation':      True,
+                'data_collection_params': {
+                    'state_keys': aug_state_keys,
+                }
+            }
+            out_hparams = deepcopy(in_hparams)
+            nested_dict_update(out_hparams, update)
+            with (outdir / 'hparams.hjson').open("w") as out_f:
+                hjson.dump(out_hparams, out_f)
+
         write_example(outdir, out_example, total_count, save_format)
         total_count += 1
     split_dataset(outdir, val_split=0, test_split=0)
+
+    print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
 
     return outdir
 
