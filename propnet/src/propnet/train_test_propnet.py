@@ -96,7 +96,7 @@ def train_main(dataset_dir: pathlib.Path,
                          enable_model_summary=False,
                          log_every_n_steps=1,
                          max_epochs=epochs,
-                         val_check_interval=10,
+                         check_val_every_n_epoch=10,
                          callbacks=callbacks,
                          gradient_clip_val=0.1,
                          default_root_dir=default_root_dir.as_posix())
