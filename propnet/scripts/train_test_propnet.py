@@ -44,7 +44,7 @@ def main():
     train_parser.add_argument('--checkpoint', type=pathlib.Path)
     train_parser.add_argument('--batch-size', type=int, default=24)
     train_parser.add_argument('--take', type=int)
-    train_parser.add_argument('--epochs', type=int, default=1000)
+    train_parser.add_argument('--epochs', type=int, default=2000)
     train_parser.add_argument('--no-validate', action='store_true')
     train_parser.add_argument('--seed', type=int, default=None)
     train_parser.set_defaults(func=train_main)
