@@ -469,6 +469,7 @@ class CylindersScenario(PlanarPushingScenario):
         """
         to_local_frame_expanded1 = to_local_frame[:, None]
         to_local_frame_expanded2 = to_local_frame[:, None, None]
+        zeros_expanded2 = tf.zeros([batch_size, 1, 1, 3])
         m_expanded = m[:, None]
         no_translation_mask = np.ones(m_expanded.shape)
         no_translation_mask[..., 0:3, 3] = 0
@@ -485,7 +486,7 @@ class CylindersScenario(PlanarPushingScenario):
         }
         for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(inputs, num_objs):
             pos_aug = _transform(m_expanded, pos, to_local_frame_expanded2)
-            vel_aug = _transform(m_expanded_no_translation, vel, to_local_frame_expanded2)
+            vel_aug = _transform(m_expanded_no_translation, vel, zeros_expanded2)
             object_aug_update[pos_k] = pos_aug
             object_aug_update[vel_k] = vel_aug
 
@@ -538,24 +539,18 @@ class CylindersScenario(PlanarPushingScenario):
 
         is_ik_valid = []
         joint_positions_aug = []
-        tcp_positions_aug = []
         for b in range(batch_size):
             tcp_pos_aug_b = tcp_pos_aug[b]
             is_ik_valid_b = True
             joint_positions_aug_b = []
-            tcp_positions_aug_b = []
             for t in range(tcp_pos_aug_b.shape[0]):
                 tcp_pos_aug_b_t = tcp_pos_aug_b[t]
                 success, joint_position_aug_b_t = self.task.solve_position_ik(self.env.physics, tcp_pos_aug_b_t)
                 joint_positions_aug_b.append(joint_position_aug_b_t)
-                raise NotImplementedError()
-                tcp_pos_b_t = 0  # run FK ???
-                tcp_positions_aug_b.append(tcp_pos_b_t)
                 if not success:
                     is_ik_valid_b = False
                     break
             joint_positions_aug.append(joint_positions_aug_b)
-            tcp_positions_aug.append(tcp_positions_aug_b)
             is_ik_valid.append(is_ik_valid_b)
 
         joint_positions_aug = tf.stack(joint_positions_aug)  # [b, T, 6]
@@ -564,15 +559,12 @@ class CylindersScenario(PlanarPushingScenario):
         joint_positions_aug_cos = tf.cos(joint_positions_aug)
         joint_positions_aug_sincos = tf.stack([joint_positions_aug_sin, joint_positions_aug_cos], -1)  # [b, T, 1, 6, 2]
         joint_positions_aug_sincos = tf.cast(joint_positions_aug_sincos, tf.float32)
-        tcp_positions_aug = tf.stack(tcp_positions_aug)  # [b, T, 6]
         is_ik_valid = tf.cast(tf.stack(is_ik_valid), tf.float32)
 
         joints_pos_k = f'{ARM_NAME}/joints_pos'
-        robot_pos_k = f"{ARM_HAND_NAME}/tcp_pos"
 
         inputs_aug.update({
             joints_pos_k: joint_positions_aug_sincos,
-            robot_pos_k:  tcp_positions_aug,
         })
         return is_ik_valid, [joints_pos_k]
 
