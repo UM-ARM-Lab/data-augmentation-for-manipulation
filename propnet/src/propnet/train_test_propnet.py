@@ -50,6 +50,7 @@ def train_main(dataset_dir: pathlib.Path,
                               batch_size=batch_size,
                               shuffle=True,
                               num_workers=get_num_workers(batch_size))
+
     val_loader = None
     if len(val_dataset) > 0 and not no_validate:
         val_loader = DataLoader(val_dataset,
@@ -100,6 +101,7 @@ def train_main(dataset_dir: pathlib.Path,
                          logger=loggers,
                          enable_model_summary=False,
                          max_epochs=epochs,
+                         log_every_n_steps=1,
                          check_val_every_n_epoch=10,
                          callbacks=callbacks,
                          default_root_dir='wandb',
