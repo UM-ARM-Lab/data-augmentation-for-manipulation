@@ -59,31 +59,34 @@ def train_main(dataset_dir: pathlib.Path,
                                 batch_size=batch_size,
                                 num_workers=get_num_workers(batch_size))
 
+    model_params = load_hjson(model_params)
+    model_params['num_objects'] = train_dataset.params['data_collection_params']['num_objs'] + 1
+    model_params['scenario'] = train_dataset.params['scenario']
+    # add some extra useful info here
+    stamp = "{:%B_%d_%H-%M-%S}".format(datetime.now())
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha[:10]
+    model_params['sha'] = sha
+    model_params['start-train-time'] = stamp
+    model_params['dataset_dir'] = dataset_dir.as_posix()
+    model_params['batch_size'] = batch_size
+    model_params['seed'] = seed
+    model_params['epochs'] = epochs
+    model_params['take'] = take
+    model_params['checkpoint'] = checkpoint
+    model_params['no_validate'] = no_validate
+
     if checkpoint is None:
-        model_params = load_hjson(model_params)
-        model_params['num_objects'] = train_dataset.params['data_collection_params']['num_objs'] + 1
-        model_params['scenario'] = train_dataset.params['scenario']
-        # add some extra useful info here
-        stamp = "{:%B_%d_%H-%M-%S}".format(datetime.now())
-        repo = git.Repo(search_parent_directories=True)
-        sha = repo.head.object.hexsha[:10]
-        model_params['sha'] = sha
-        model_params['start-train-time'] = stamp
-        model_params['dataset_dir'] = dataset_dir.as_posix()
-        model_params['batch_size'] = batch_size
-        model_params['seed'] = seed
-        model_params['epochs'] = epochs
-        model_params['take'] = take
-        model_params['checkpoint'] = checkpoint
-        model_params['no_validate'] = no_validate
-        model = PropNet(hparams=model_params)
         ckpt_path = None
     else:
         checkpoint_reference = f"petermitrano/{project}/{checkpoint}:latest"
         run = wandb.init(project=project)
         artifact = run.use_artifact(checkpoint_reference, type="model")
         artifact_dir = artifact.download()
-        model = PropNet.load_from_checkpoint(pathlib.Path(artifact_dir) / "model.ckpt")
+        ckpt_path = (pathlib.Path(artifact_dir) / "model.ckpt").as_posix()
+        wandb.finish()
+
+    model = PropNet(hparams=model_params)
 
     wb_logger = WandbLogger(project=project, log_model='all')
     loggers = [
