@@ -535,7 +535,7 @@ class CylindersScenario(PlanarPushingScenario):
             keys
 
         """
-        tcp_pos_aug = inputs[f'{ARM_HAND_NAME}/tcp_pos']
+        tcp_pos_aug = inputs_aug[f'{ARM_HAND_NAME}/tcp_pos']
 
         is_ik_valid = []
         joint_positions_aug = []
