@@ -22,7 +22,6 @@ from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
 def train_main(dataset_dir: pathlib.Path,
                model_params: pathlib.Path,
-               nickname: str,
                batch_size: int,
                epochs: int,
                seed: int,
