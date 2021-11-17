@@ -16,6 +16,7 @@ from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_o
 from link_bot_pycommon.grid_utils import extent_to_env_shape
 from link_bot_pycommon.pycommon import yaw_diff
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from moonshine.moonshine_utils import to_list_of_strings
 from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import Image, JointState
 from visualization_msgs.msg import MarkerArray
@@ -153,7 +154,7 @@ class PlanarPushingScenario(ScenarioWithVisualization):
 
     def get_joint_state_msg(self, state):
         joint_position = get_joint_position(state).tolist()
-        return self.joint_position_to_msg(joint_position, state['joint_names'])
+        return self.joint_position_to_msg(joint_position, to_list_of_strings(state['joint_names']))
 
     def joint_position_to_msg(self, joint_position, joint_names):
         joint_state = JointState()

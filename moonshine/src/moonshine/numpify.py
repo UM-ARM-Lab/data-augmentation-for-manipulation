@@ -44,6 +44,8 @@ def numpify(x, dtype=np.float32):
         return tuple(numpify(x_i) for x_i in x)
     elif isinstance(x, int):
         return x
+    elif isinstance(x, bytes):
+        return x
     elif isinstance(x, str):
         return x
     elif isinstance(x, float):

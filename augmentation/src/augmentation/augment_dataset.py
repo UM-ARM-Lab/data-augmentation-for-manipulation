@@ -132,7 +132,6 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
 
             inputs_viz = remove_batch(inputs)
             viz_f(scenario, inputs_viz, idx=0, color='g')
-            # viz_f(scenario, inputs_viz, t=1, idx=1, color='g')
 
         time = inputs['time_idx'].shape[1]
 
@@ -144,7 +143,6 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
                 for b in debug_viz_batch_indices(actual_batch_size):
                     output_b = try_index_batched_dict(output, b)
                     viz_f(scenario, output_b, idx=k, color='#0000ff88')
-                    # viz_f(scenario, remove_batch(output), t=1, idx=2 * k + 3, color='#0000ff88')
 
             yield output
 
