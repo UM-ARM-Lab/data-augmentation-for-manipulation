@@ -58,12 +58,10 @@ def iterative_projection(initial_value,
                 viz_func(i, x, initial_value, target, viz_vars)
             if can_terminate:
                 break
-        print(f'{j=}')
 
         # terminate early if we're not progressing
         not_progressing = x_distance(x, x_old) < not_progressing_threshold
         if not_progressing:
             break
 
-    print(f'{i=}')
     return x, viz_vars

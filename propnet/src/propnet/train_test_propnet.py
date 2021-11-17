@@ -8,6 +8,7 @@ from typing import Optional
 
 import git
 import pytorch_lightning as pl
+import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
@@ -25,9 +26,10 @@ def train_main(dataset_dir: pathlib.Path,
                batch_size: int,
                epochs: int,
                seed: int,
-               checkpoint: Optional[pathlib.Path] = None,
+               checkpoint: Optional = None,
                take: Optional[int] = None,
                no_validate: bool = False,
+               project='propnet',
                **kwargs):
     os.environ["WANDB_SILENT"] = "true"
     pl.seed_everything(seed, workers=True)
@@ -77,10 +79,13 @@ def train_main(dataset_dir: pathlib.Path,
         model = PropNet(hparams=model_params)
         ckpt_path = None
     else:
-        ckpt_path = checkpoint.as_posix()
-        model = PropNet.load_from_checkpoint(ckpt_path)
+        checkpoint_reference = f"petermitrano/{project}/{checkpoint}:latest"
+        run = wandb.init(project=project)
+        artifact = run.use_artifact(checkpoint_reference, type="model")
+        artifact_dir = artifact.download()
+        model = PropNet.load_from_checkpoint(pathlib.Path(artifact_dir) / "model.ckpt")
 
-    wb_logger = WandbLogger(project='propnet', log_model='all')
+    wb_logger = WandbLogger(project=project, log_model='all')
     loggers = [
         wb_logger,
     ]

@@ -553,7 +553,6 @@ class CylindersScenario(PlanarPushingScenario):
                 joint_positions_aug_b.append(joint_position_aug_b_t)
                 if not success:
                     is_ik_valid_b = False
-                    break
             joint_positions_aug.append(joint_positions_aug_b)
             is_ik_valid.append(is_ik_valid_b)
 
