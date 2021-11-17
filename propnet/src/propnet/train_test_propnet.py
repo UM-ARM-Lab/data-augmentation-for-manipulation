@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
 import multiprocessing
+import os
 import pathlib
 from datetime import datetime
 from typing import Optional
 
 import git
 import pytorch_lightning as pl
+from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 
@@ -28,6 +30,7 @@ def train_main(dataset_dir: pathlib.Path,
                take: Optional[int] = None,
                no_validate: bool = False,
                **kwargs):
+    os.environ["WANDB_SILENT"] = "true"
     pl.seed_everything(seed, workers=True)
 
     transform = transforms.Compose([
@@ -41,18 +44,16 @@ def train_main(dataset_dir: pathlib.Path,
 
     if take:
         train_dataset_take = take_subset(train_dataset, take)
-        val_dataset_take = take_subset(val_dataset, take)
     else:
         train_dataset_take = train_dataset
-        val_dataset_take = val_dataset
 
     train_loader = DataLoader(train_dataset_take,
                               batch_size=batch_size,
                               shuffle=True,
                               num_workers=get_num_workers(batch_size))
     val_loader = None
-    if len(val_dataset_take) > 0 and not no_validate:
-        val_loader = DataLoader(val_dataset_take,
+    if len(val_dataset) > 0 and not no_validate:
+        val_loader = DataLoader(val_dataset,
                                 batch_size=batch_size,
                                 num_workers=get_num_workers(batch_size))
 
@@ -79,31 +80,41 @@ def train_main(dataset_dir: pathlib.Path,
         ckpt_path = checkpoint.as_posix()
         model = PropNet.load_from_checkpoint(ckpt_path)
 
-    default_root_dir = pathlib.Path('lightning_logs') / nickname
+    wb_logger = WandbLogger(project='propnet', log_model='all')
+    loggers = [
+        wb_logger,
+    ]
 
-    best_val_ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss",
-                                                    filename="best-{epoch:02d}-{val_loss:.6f}")
-    latest_ckpt_cb = pl.callbacks.ModelCheckpoint(filename='latest-{epoch:02d}', save_on_train_epoch_end=True)
+    ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss",
+                                           save_top_k=-1,
+                                           filename='latest-{epoch:02d}',
+                                           save_on_train_epoch_end=True)
     early_stopping = pl.callbacks.EarlyStopping(monitor="val_loss",
                                                 divergence_threshold=5e-3,
                                                 patience=200)
     callbacks = [
-        best_val_ckpt_cb,
-        latest_ckpt_cb,
+        ckpt_cb,
         early_stopping
     ]
+
     trainer = pl.Trainer(gpus=1,
+                         logger=loggers,
                          enable_model_summary=False,
-                         log_every_n_steps=1,
                          max_epochs=epochs,
                          check_val_every_n_epoch=10,
                          callbacks=callbacks,
-                         gradient_clip_val=0.1,
-                         default_root_dir=default_root_dir.as_posix())
+                         default_root_dir='wandb',
+                         gradient_clip_val=0.1)
+
+    wb_logger.watch(model)
+
     trainer.fit(model,
                 train_loader,
                 val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
+
+    best_checkpoint = pathlib.Path(trainer.checkpoint_callback.best_model_path)
+    eval_main(dataset_dir, best_checkpoint, mode='val', batch_size=batch_size)
 
 
 def take_subset(dataset, take):
@@ -163,4 +174,3 @@ def viz_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, **k
 
 def get_num_workers(batch_size):
     return min(batch_size, multiprocessing.cpu_count())
-    # return 0

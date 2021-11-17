@@ -136,7 +136,7 @@ class PropNet(pl.LightningModule):
         return pred_vel_t
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=5e-3)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams['learning_rate'])
         return optimizer
 
     def forward(self, batch):

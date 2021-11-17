@@ -21,3 +21,4 @@ CATKIN_IGNORE
 **/classifier_data/*
 **/invariance_data/*
 lightning_logs
+wandb
