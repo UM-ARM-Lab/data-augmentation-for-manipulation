@@ -23,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('--n-augmentations', type=int, default=25)
+    parser.add_argument('--batch-size', type=int, default=128)
     parser.add_argument('--hparams', type=pathlib.Path, default=pathlib.Path("aug_hparams/rope.hjson"))
     parser.add_argument('--visualize', action='store_true')
 
@@ -41,6 +42,7 @@ def main():
     outdir = augment_classifier_dataset(dataset_dir=dataset_dir,
                                         hparams=hparams,
                                         outdir=outdir,
+                                        batch_size=args.batch_size,
                                         n_augmentations=args.n_augmentations,
                                         scenario=scenario)
 

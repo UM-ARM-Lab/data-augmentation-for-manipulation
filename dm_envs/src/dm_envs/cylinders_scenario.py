@@ -2,12 +2,14 @@ import re
 from copy import deepcopy
 from typing import Dict
 
+import hjson
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 import torch
 from pyjacobian_follower import IkParams
 
+from arc_utilities.algorithms import nested_dict_update
 from dm_envs import primitive_hand
 from dm_envs.cylinders_task import PlanarPushingCylindersTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario, ACTION_Z
@@ -16,6 +18,7 @@ from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.marker_index_generator import marker_index_generator
+from moonshine.filepath_tools import load_params
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
 from moonshine.moonshine_utils import repeat_tensor
 from std_msgs.msg import ColorRGBA
@@ -484,6 +487,7 @@ class CylindersScenario(PlanarPushingScenario):
         num_objs = inputs['num_objs'][0, 0, 0]
         object_aug_update = {
         }
+
         for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(inputs, num_objs):
             pos_aug = _transform(m_expanded, pos, to_local_frame_expanded2)
             vel_aug = _transform(m_expanded_no_translation, vel, zeros_expanded2)
@@ -609,3 +613,20 @@ class CylindersScenario(PlanarPushingScenario):
             'dt',
         ]
         return {k: inputs[k] for k in aug_copy_keys}
+
+    @staticmethod
+    def aug_merge_hparams(dataset_dir, out_example, outdir):
+        in_hparams = load_params(dataset_dir)
+        state_keys = in_hparams['data_collection_params']['state_keys']
+        aug_state_keys = list(set(out_example.keys()).intersection(state_keys))
+        update = {
+            'used_augmentation':      True,
+            'data_collection_params': {
+                'state_keys': aug_state_keys,
+            }
+        }
+        out_hparams = deepcopy(in_hparams)
+        nested_dict_update(out_hparams, update)
+        with (outdir / 'hparams.hjson').open("w") as out_f:
+            hjson.dump(out_hparams, out_f)
+

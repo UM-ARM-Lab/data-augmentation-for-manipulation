@@ -1,13 +1,16 @@
 import warnings
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import hjson
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from pyjacobian_follower import IkParams, JacobianFollower
 
 import rosnode
+from arc_utilities.algorithms import nested_dict_update
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
@@ -18,6 +21,7 @@ from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneSce
 from link_bot_pycommon.moveit_utils import make_joint_state
 from link_bot_pycommon.pycommon import densify_points
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
+from moonshine.filepath_tools import load_params
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
 from moonshine.moonshine_utils import to_list_of_strings
 from moonshine.numpify import numpify
@@ -524,12 +528,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             scene_msg_b.robot_state.joint_state.name = joint_names
             points_b = [_position_tensor_to_point(left_target_position[b]),
                         _position_tensor_to_point(right_target_position[b])]
-            robot_state_b = self.robot.j.compute_collision_free_point_ik(default_robot_state_b,
-                                                                         points_b,
-                                                                         group_name,
-                                                                         tip_names,
-                                                                         scene_msg_b,
-                                                                         ik_params)
+            robot_state_b = self.robot.jacobian_follower.compute_collision_free_point_ik(default_robot_state_b,
+                                                                                         points_b,
+                                                                                         group_name,
+                                                                                         tip_names,
+                                                                                         scene_msg_b,
+                                                                                         ik_params)
 
             reached.append(robot_state_b is not None)
             if robot_state_b is None:
@@ -678,3 +682,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             'time':                 inputs['time'],
             add_predicted('stdev'): inputs[add_predicted('stdev')],
         }
+
+    @staticmethod
+    def aug_merge_hparams(dataset_dir, out_example, outdir):
+        in_hparams = load_params(dataset_dir)
+        update = {
+            'used_augmentation': True,
+        }
+        out_hparams = deepcopy(in_hparams)
+        nested_dict_update(out_hparams, update)
+        with (outdir / 'hparams.hjson').open("w") as out_f:
+            hjson.dump(out_hparams, out_f)

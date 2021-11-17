@@ -2,7 +2,7 @@
   name: cylinders
   scenario: cylinders
   service_provider: mujoco
-  steps_per_traj: 100
+  steps_per_traj: 50
   res: 0.01
   randomize_n: 1
   num_objs: 9
