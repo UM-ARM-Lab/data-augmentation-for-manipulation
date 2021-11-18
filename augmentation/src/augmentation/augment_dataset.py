@@ -88,6 +88,8 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                                          batch_size,
                                          save_format)
 
+    return outdir
+
 
 def augment_classifier_dataset(dataset_dir: pathlib.Path,
                                hparams: Dict,
@@ -165,10 +167,15 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
             actual_batch_size = example['batch_size']
 
             for out_example in augment(example):
+                out_example_keys = list(out_example.keys())
                 yield from unbatch_examples(out_example, actual_batch_size)
 
             # the original example should also be included!
-            yield from unbatch_examples(example, actual_batch_size)
+            for original_example in unbatch_examples(example, actual_batch_size):
+                # we lose some information when we augment, so only keep the keys that we have in the augmented data
+                # for example, the image or the joint velocities.
+                original_example_subset = {k: original_example[k] for k in out_example_keys}
+                yield original_example_subset
 
     dataset = dataset_loader.get_datasets(mode=mode).take(take)
     dataset = dataset.batch(batch_size)
@@ -185,13 +192,20 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
         total_count += copy_modes(dataset_loader, mode, outdir, save_format)
 
     need_to_write_hparams = True
+    examples = []
     for out_example in tqdm(out_examples_gen(), total=expected_total):
         if need_to_write_hparams:
             scenario.aug_merge_hparams(dataset_dir, out_example, outdir)
             need_to_write_hparams = False
         write_example(outdir, out_example, total_count, save_format)
+        example_name = index_to_filename2(total_count, save_format)
+        examples.append(example_name)
         total_count += 1
     print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
+
+    if mode != 'all':
+        with (outdir / f'{mode}.txt').open("w") as remaining_mode_f:
+            remaining_mode_f.writelines([n + '\n' for n in mode])
 
     return outdir
 

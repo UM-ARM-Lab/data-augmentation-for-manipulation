@@ -150,10 +150,11 @@ def make_vel_arrow(position, velocity, height, color_msg, idx, ns, vel_scale=1.0
 class CylindersScenario(PlanarPushingScenario):
 
     def iter_keys(self, num_objs):
+        # NOTE: the robot goes first, this is relied on in apply_object_augmentation_no_ik
+        yield True, -1, ARM_HAND_NAME
         for obj_idx in range(num_objs):
             obj_k = f'obj{obj_idx}'
             yield False, obj_idx, obj_k
-        yield True, -1, ARM_HAND_NAME
 
     def iter_positions(self, inputs, num_objs):
         for is_robot, obj_idx, k in self.iter_keys(num_objs):
@@ -446,6 +447,7 @@ class CylindersScenario(PlanarPushingScenario):
         return xyzrpy_to_matrices(xyzrpy)
 
     def apply_object_augmentation_no_ik(self,
+                                        moved_mask,
                                         m,
                                         to_local_frame,
                                         inputs: Dict,
@@ -458,6 +460,7 @@ class CylindersScenario(PlanarPushingScenario):
         """
 
         Args:
+            moved_mask: [b, n_objects]
             m: [b, k, 4, 4]
             to_local_frame: [b, 3]
             inputs:
@@ -488,11 +491,14 @@ class CylindersScenario(PlanarPushingScenario):
         object_aug_update = {
         }
 
-        for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(inputs, num_objs):
+        moved_mask_expanded = moved_mask[:, :, None, None, None]
+        for j, pos_vel_data in enumerate(self.iter_positions_velocities(inputs, num_objs)):
+            is_robot, obj_idx, k, pos_k, vel_k, pos, vel = pos_vel_data
             pos_aug = _transform(m_expanded, pos, to_local_frame_expanded2)
             vel_aug = _transform(m_expanded_no_translation, vel, zeros_expanded2)
-            object_aug_update[pos_k] = pos_aug
-            object_aug_update[vel_k] = vel_aug
+            mmj = moved_mask_expanded[:, j]
+            object_aug_update[pos_k] = pos_aug * mmj + (1 - mmj) * pos
+            object_aug_update[vel_k] = vel_aug * mmj + (1 - mmj) * vel
 
         # apply transformations to the action
         gripper_position = inputs['gripper_position']
@@ -628,4 +634,3 @@ class CylindersScenario(PlanarPushingScenario):
         nested_dict_update(out_hparams, update)
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
-

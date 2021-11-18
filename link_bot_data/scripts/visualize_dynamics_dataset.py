@@ -27,9 +27,10 @@ def main():
     # load the dataset
     dataset_loader = get_dynamics_dataset_loader(args.dataset_dir)
     dataset = dataset_loader.get_datasets(mode=args.mode, take=args.take, shuffle=args.shuffle)
+    dataset = dataset.shard(60)
 
     # print info about shapes
-    dataset.pprint_example()
+    # dataset.pprint_example()
 
     s = dataset_loader.get_scenario()
     for i, example in enumerate(progressbar(dataset, widgets=mywidgets)):
@@ -42,6 +43,9 @@ def main():
 
         if args.plot_type == '3d':
             deserialize_scene_msg(example)
+            if 'augmented_from' in example:
+                print(example['augmented_from'])
+            # print(example['filename'])
             example = numpify(example)
             dataset_loader.anim_rviz(example)
         elif args.plot_type == 'sanity_check':

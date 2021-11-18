@@ -173,6 +173,7 @@ class AugmentationOptimization:
 
         # apply the transformations to some components of the state/action
         obj_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
+            moved_mask,
             transformation_matrices,
             to_local_frame,
             inputs,
@@ -342,8 +343,15 @@ class AugmentationOptimization:
             inputs_aug[k] = iv * inputs_aug[k] + (1 - iv) * inputs[k]
         return inputs_aug
 
-    def apply_object_augmentation_no_ik(self, transformation_matrices, to_local_frame, inputs, batch_size, time):
-        return self.scenario.apply_object_augmentation_no_ik(transformation_matrices,
+    def apply_object_augmentation_no_ik(self,
+                                        moved_mask,
+                                        transformation_matrices,
+                                        to_local_frame,
+                                        inputs,
+                                        batch_size,
+                                        time):
+        return self.scenario.apply_object_augmentation_no_ik(moved_mask,
+                                                             transformation_matrices,
                                                              to_local_frame,
                                                              inputs,
                                                              batch_size,

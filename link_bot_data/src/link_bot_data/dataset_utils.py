@@ -414,6 +414,8 @@ def coerce_types(d: Dict):
             out_d[k] = v
         elif isinstance(v, str):
             out_d[k] = v
+        elif isinstance(v, bytes):
+            out_d[k] = v
         elif isinstance(v, int):
             out_d[k] = v
         elif isinstance(v, float):
