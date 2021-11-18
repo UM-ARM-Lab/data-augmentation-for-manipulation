@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from augmentation.aug_opt import AugmentationOptimization
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
-from link_bot_data.dataset_utils import write_example, add_predicted
+from link_bot_data.dataset_utils import write_example, add_predicted, index_to_filename2
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
@@ -74,28 +74,28 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
         anim.play(example)
 
     debug_state_keys = dataset_loader.state_keys
-    return augment_dataset_from_loader(dataset_loader,
-                                       viz_f,
-                                       dataset_dir,
-                                       mode,
-                                       take,
-                                       hparams,
-                                       outdir,
-                                       n_augmentations,
-                                       debug_state_keys,
-                                       scenario,
-                                       visualize,
-                                       batch_size,
-                                       save_format)
+    outdir = augment_dataset_from_loader(dataset_loader,
+                                         viz_f,
+                                         dataset_dir,
+                                         mode,
+                                         take,
+                                         hparams,
+                                         outdir,
+                                         n_augmentations,
+                                         debug_state_keys,
+                                         scenario,
+                                         visualize,
+                                         batch_size,
+                                         save_format)
 
 
 def augment_classifier_dataset(dataset_dir: pathlib.Path,
-                               mode: str,
-                               take: Optional[int],
                                hparams: Dict,
                                outdir: pathlib.Path,
                                n_augmentations: int,
                                scenario,
+                               mode: str = 'all',
+                               take: Optional[int] = None,
                                visualize: bool = False,
                                batch_size: int = 128,
                                save_format='pkl'):
@@ -105,19 +105,21 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
                                         predicted_state_keys=dataset_loader.predicted_state_keys,
                                         true_state_keys=None)
     debug_state_keys = [add_predicted(k) for k in dataset_loader.state_keys]
-    return augment_dataset_from_loader(dataset_loader,
-                                       viz_f,
-                                       dataset_dir,
-                                       mode,
-                                       take,
-                                       hparams,
-                                       outdir,
-                                       n_augmentations,
-                                       debug_state_keys,
-                                       scenario,
-                                       visualize,
-                                       batch_size,
-                                       save_format)
+    outdir = augment_dataset_from_loader(dataset_loader,
+                                         viz_f,
+                                         dataset_dir,
+                                         mode,
+                                         take,
+                                         hparams,
+                                         outdir,
+                                         n_augmentations,
+                                         debug_state_keys,
+                                         scenario,
+                                         visualize,
+                                         batch_size,
+                                         save_format)
+    split_dataset(outdir, val_split=0, test_split=0)
+    return outdir
 
 
 def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
@@ -169,22 +171,47 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
             yield from unbatch_examples(example, actual_batch_size)
 
     dataset = dataset_loader.get_datasets(mode=mode).take(take)
+    dataset = dataset.batch(batch_size)
+
     expected_total = (1 + n_augmentations) * len(dataset)
 
     print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
 
-    dataset = dataset.batch(batch_size)
     total_count = 0
+
+    # copy in all of the data from modes we're not augmenting
+    if mode != 'all':
+        # += offsets example numbers so we don't overwrite the data we copy here with the augmentations
+        total_count += copy_modes(dataset_loader, mode, outdir, save_format)
+
+    need_to_write_hparams = True
     for out_example in tqdm(out_examples_gen(), total=expected_total):
-        if total_count == 0:
+        if need_to_write_hparams:
             scenario.aug_merge_hparams(dataset_dir, out_example, outdir)
+            need_to_write_hparams = False
         write_example(outdir, out_example, total_count, save_format)
         total_count += 1
-    split_dataset(outdir, val_split=0, test_split=0)
-
     print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
 
     return outdir
+
+
+def copy_modes(dataset_loader, mode, outdir, save_format):
+    total_count = 0
+    modes = ['train', 'val', 'test']
+    modes.remove(mode)
+    for remaining_mode in modes:
+        remaining_mode_examples = []
+        remaining_dataset = dataset_loader.get_datasets(mode=remaining_mode)
+        for remaining_mode_example in tqdm(remaining_dataset):
+            write_example(outdir, remaining_mode_example, total_count, save_format)
+            example_name = index_to_filename2(total_count, save_format)
+            remaining_mode_examples.append(example_name)
+            total_count += 1
+
+        with (outdir / f'{remaining_mode}.txt').open("w") as remaining_mode_f:
+            remaining_mode_f.writelines([n + '\n' for n in remaining_mode_examples])
+    return total_count
 
 
 def make_aug_opt(scenario: ScenarioWithVisualization,

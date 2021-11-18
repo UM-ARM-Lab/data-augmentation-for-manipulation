@@ -126,6 +126,12 @@ class AugmentationOptimization:
         origin_point = inputs['origin_point']
         env = inputs['env']
 
+        # to avoid confusion, just remove these from inputs
+        if 'sdf' in inputs:
+            inputs.pop("sdf")
+        if 'sdf_grad' in inputs:
+            inputs.pop("sdf_grad")
+
         n_interp = self.hparams['num_object_interp']
         obj_points = self.scenario.compute_obj_points(inputs, n_interp, batch_size)  # [b,m,T,num_points,3]
         # check which objects move over time

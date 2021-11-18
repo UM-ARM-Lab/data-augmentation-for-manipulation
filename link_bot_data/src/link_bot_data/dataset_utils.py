@@ -577,6 +577,13 @@ def index_to_filename(file_extension, traj_idx):
     return new_filename
 
 
+def index_to_filename2(traj_idx, save_format):
+    if save_format == 'pkl':
+        return index_to_filename('.pkl', traj_idx)
+    elif save_format == 'tfrecord':
+        return index_to_record_name(traj_idx)
+
+
 def train_test_split_counts(n: int, val_split: int = DEFAULT_VAL_SPLIT, test_split: int = DEFAULT_TEST_SPLIT):
     n_test = int(test_split * n)
     n_val = int(val_split * n)
@@ -620,9 +627,9 @@ def write_example(full_output_directory: pathlib.Path,
                   save_format: str,
                   extra_metadata_keys: Optional[List[str]] = None):
     if save_format == 'tfrecord':
-        tf_write_example(full_output_directory, example, example_idx)
+        return tf_write_example(full_output_directory, example, example_idx)
     elif save_format == 'pkl':
-        pkl_write_example(full_output_directory, example, example_idx, extra_metadata_keys)
+        return pkl_write_example(full_output_directory, example, example_idx, extra_metadata_keys)
     else:
         raise NotImplementedError()
 
