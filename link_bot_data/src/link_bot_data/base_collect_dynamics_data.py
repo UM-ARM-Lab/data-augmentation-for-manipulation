@@ -166,6 +166,10 @@ class BaseDataCollector:
 
             traj_idx += 1
 
+            if traj_idx == n_trajs:
+                break
+
+
         self.scenario.on_after_data_collection(self.params)
 
         print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)

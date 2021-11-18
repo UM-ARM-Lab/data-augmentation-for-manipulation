@@ -1,11 +1,10 @@
-from time import sleep
 from typing import Dict, Optional
 
 import numpy as np
 
 from dm_envs.cylinders_scenario import CylindersScenario
 from dm_envs.planar_pushing_scenario import get_tcp_pos, ACTION_Z
-from dm_envs.toy_example_task import ToyExampleTask
+from dm_envs.toy_example_task import ToyExampleTask, push
 from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds
 
@@ -34,9 +33,10 @@ class ToyExampleScenario(CylindersScenario):
             if out_of_bounds:
                 return action_dict, (invalid := True)  # this will cause the current trajectory to be thrown out
 
-        dx = action_rng.uniform(0, action_params['max_distance_gripper_can_move'])
+        distance = action_rng.uniform(0, action_params['max_distance_gripper_can_move'])
 
-        gripper_position = np.array([start_gripper_position[0] + dx, start_gripper_position[1], ACTION_Z])
+        angle = action_params['push_angle']
+        gripper_position = push(angle, start_gripper_position, distance, ACTION_Z)
 
         self.tf.send_transform(gripper_position, [0, 0, 0, 1], 'world', 'sample_action_gripper_position')
 
