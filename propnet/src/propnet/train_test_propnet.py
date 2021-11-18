@@ -12,6 +12,7 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
+from wandb.util import generate_id
 
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
@@ -90,7 +91,8 @@ def train_main(dataset_dir: pathlib.Path,
 
     model = PropNet(hparams=model_params)
 
-    wb_logger = WandbLogger(project=project, log_model='all')
+    run_id = generate_id()
+    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all')
     loggers = [
         wb_logger,
     ]
