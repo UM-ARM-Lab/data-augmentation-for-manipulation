@@ -6,6 +6,11 @@ from colorama import Fore
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 
 
+def make_toy_scenario():
+    from dm_envs.toy_example_scenario import ToyExampleScenario
+    return ToyExampleScenario
+
+
 def make_rope_dragging_scenario():
     from link_bot_pycommon.rope_dragging_scenario import RopeDraggingScenario
     return RopeDraggingScenario
@@ -82,6 +87,7 @@ scenario_map = {
     'real_val_with_robot_feasibility_checking':              make_real_val_with_robot_feasibility_checking,
     'blocks':                                                make_blocks_scenario,
     'cylinders':                                             make_cylinders_scenario,
+    'toy':                                                   make_toy_scenario,
 }
 
 

@@ -16,6 +16,16 @@ from link_bot_pycommon.get_service_provider import get_service_provider
 from link_bot_pycommon.serialization import my_hdump
 
 
+def idx_seed_gen(base_seed):
+    traj_idx = 0
+    while True:
+        # combine the trajectory idx and self.seed to make a unique seed for each trajectory/seed pair
+        seed = traj_idx + 1000 * base_seed
+        yield seed
+
+        traj_idx += 1
+
+
 class BaseDataCollector:
 
     def __init__(self,
@@ -67,7 +77,6 @@ class BaseDataCollector:
                                                           action_params=self.params,
                                                           validate=True)
             if invalid:
-                rospy.logwarn("unable to sample valid action")
                 return {}, invalid
 
             # Visualization
@@ -126,9 +135,8 @@ class BaseDataCollector:
 
         self.save_hparams(full_output_directory, n_trajs, nickname)
 
-        combined_seeds = [traj_idx + 1000 * self.seed for traj_idx in range(n_trajs)]
-        for traj_idx, seed in enumerate(tqdm(combined_seeds)):
-            # combine the trajectory idx and the overall "seed" to make a unique seed for each trajectory/seed pair
+        traj_idx = 0
+        for seed in tqdm(idx_seed_gen(self.seed), total=n_trajs):
             env_rng = np.random.RandomState(seed)
             action_rng = np.random.RandomState(seed)
 
@@ -147,13 +155,16 @@ class BaseDataCollector:
             example['seed'] = seed
 
             if invalid:
-                raise RuntimeError(f"Could not execute valid trajectory {traj_idx}")
+                rospy.logwarn(f"Could not execute valid trajectory")
+                continue
 
             # Save the data
             self.write_example(full_output_directory, example, traj_idx)
 
             # tell the caller that we've made progress
             yield None, traj_idx + 1
+
+            traj_idx += 1
 
         self.scenario.on_after_data_collection(self.params)
 

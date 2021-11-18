@@ -26,7 +26,7 @@ class PlanarPushingTask(composer.Task):
                  obs_settings=observations.VISION,
                  control_timestep=constants.CONTROL_TIMESTEP,
                  ):
-
+        self.params = params
         self._arena = arena
 
         if arm is None:

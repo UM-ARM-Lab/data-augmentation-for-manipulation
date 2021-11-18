@@ -95,9 +95,10 @@ class PlanarPushingScenario(ScenarioWithVisualization):
         self.env.reset()
         self.action_spec = self.env.action_spec()
 
-        # modified the input dict!
-        s = self.get_state()
+        self.update_params_hack(params)
 
+    def update_params_hack(self, params):
+        s = self.get_state()
         params['state_keys'] = list(s.keys())
         params['env_keys'] = [
             'res',
@@ -110,7 +111,6 @@ class PlanarPushingScenario(ScenarioWithVisualization):
         params['action_keys'] = ['gripper_position']
         params['state_metadata_keys'] = []
         params['gripper_keys'] = [f'{ARM_HAND_NAME}/tcp_pos', f'{ARM_HAND_NAME}/orientation']
-
         params['points_state_keys'] = list(filter(self.is_points_key, s.keys()))
 
     def get_environment(self, params: Dict, **kwargs):

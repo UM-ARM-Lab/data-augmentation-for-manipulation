@@ -1,4 +1,5 @@
 from dm_control import composer
+import numpy as np
 from dm_control import viewer
 
 from dm_envs.cylinders_task import PlanarPushingCylindersTask
@@ -33,7 +34,7 @@ def main():
         # return data['actions'][0]
         return np.zeros(6)
 
-    viewer.launch(env, policy=random_policy)
+    viewer.launch(env)
 
 
 if __name__ == '__main__':
