@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import logging
+import os
 import pathlib
 from time import time
 
@@ -67,7 +68,7 @@ def main():
     resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))
     torch.multiprocessing.set_sharing_strategy('file_system')
 
-
+    os.environ["WANDB_SILENT"] = "true"
     logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
 
     run_subparsers(parser)

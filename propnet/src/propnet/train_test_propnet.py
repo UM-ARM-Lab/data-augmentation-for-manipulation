@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import multiprocessing
-import os
 import pathlib
 from datetime import datetime
 from typing import Optional
@@ -21,6 +20,8 @@ from moonshine.torch_utils import my_collate
 from propnet.propnet_models import PropNet
 from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
+PROJECT = 'propnet'
+
 
 def train_main(dataset_dir: pathlib.Path,
                model_params: pathlib.Path,
@@ -30,9 +31,8 @@ def train_main(dataset_dir: pathlib.Path,
                checkpoint: Optional = None,
                take: Optional[int] = None,
                no_validate: bool = False,
-               project='propnet',
+               project=PROJECT,
                **kwargs):
-    os.environ["WANDB_SILENT"] = "true"
     pl.seed_everything(seed, workers=True)
 
     transform = transforms.Compose([
@@ -82,8 +82,8 @@ def train_main(dataset_dir: pathlib.Path,
     if checkpoint is None:
         ckpt_path = None
     else:
-        checkpoint_reference = f"petermitrano/{project}/{checkpoint}:latest"
         run = wandb.init(project=project)
+        checkpoint_reference = f"petermitrano/{project}/{checkpoint}:latest"
         artifact = run.use_artifact(checkpoint_reference, type="model")
         artifact_dir = artifact.download()
         ckpt_path = (pathlib.Path(artifact_dir) / "model.ckpt").as_posix()
@@ -135,12 +135,17 @@ def take_subset(dataset, take):
     return dataset_take
 
 
-def eval_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, batch_size: int, **kwargs):
+def eval_main(dataset_dir: pathlib.Path,
+              checkpoint: pathlib.Path,
+              mode: str,
+              batch_size: int,
+              project=PROJECT,
+              **kwargs):
     dataset = TorchDynamicsDataset(dataset_dir, mode)
 
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
 
-    model = PropNet.load_from_checkpoint(checkpoint.as_posix())
+    model = load_model_artifact(checkpoint, PropNet, project, 'best')
 
     trainer = pl.Trainer(gpus=1, enable_model_summary=False)
 
@@ -153,13 +158,17 @@ def eval_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, ba
     return metrics
 
 
-def viz_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, **kwargs):
+def viz_main(dataset_dir: pathlib.Path,
+             checkpoint: pathlib.Path,
+             mode: str,
+             project=PROJECT,
+             **kwargs):
     dataset = TorchDynamicsDataset(dataset_dir, mode)
     s = dataset.get_scenario()
 
     loader = DataLoader(dataset, collate_fn=my_collate)
 
-    model = PropNet.load_from_checkpoint(checkpoint.as_posix())
+    model = load_model_artifact(checkpoint, PropNet, project, 'best')
 
     for i, inputs in enumerate(loader):
         gt_vel, gt_pos, pred_vel, pred_pos = model(inputs)
@@ -187,3 +196,12 @@ def viz_main(dataset_dir: pathlib.Path, checkpoint: pathlib.Path, mode: str, **k
 
 def get_num_workers(batch_size):
     return min(batch_size, multiprocessing.cpu_count())
+
+
+def load_model_artifact(checkpoint, model_class, project, version, user='petermitrano'):
+    api = wandb.Api()
+    artifact = api.artifact(f'{user}/{project}/{checkpoint}:{version}')
+    artifact_dir = artifact.download()
+    local_ckpt_path = pathlib.Path(artifact_dir) / "model.ckpt"
+    model = model_class.load_from_checkpoint(local_ckpt_path.as_posix())
+    return model
