@@ -6,7 +6,7 @@
   res: 0.01
   randomize_n: 1
   num_objs: 1
-  radius: 0.1
+  radius: 0.08
   height: 0.04
   extent: [
     -0.5, 0.5

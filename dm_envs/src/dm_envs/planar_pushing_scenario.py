@@ -232,7 +232,6 @@ class PlanarPushingScenario(ScenarioWithVisualization):
             # p-control to achieve joint positions using the lower level velocity controller
             velocity_cmd = yaw_diff(target_joint_position, current_position) * kP
             self.env.step(velocity_cmd)
-            # save(self.env, velocity_cmd)
             state = self.get_state()
             # self.plot_state_rviz(state, label='actual')
 
