@@ -25,7 +25,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('--n-augmentations', type=int, default=25)
-    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--take', type=int)
+    parser.add_argument('--mode', type=str, default='all')
     parser.add_argument('--hparams', type=pathlib.Path, default=pathlib.Path("aug_hparams/cylinders.hjson"))
     parser.add_argument('--visualize', action='store_true')
 
@@ -42,6 +44,8 @@ def main():
 
     outdir = augment_dynamics_dataset(dataset_dir=dataset_dir,
                                       hparams=hparams,
+                                      mode=args.mode,
+                                      take=args.take,
                                       outdir=outdir,
                                       n_augmentations=args.n_augmentations,
                                       visualize=args.visualize,

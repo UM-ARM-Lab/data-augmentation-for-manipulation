@@ -1,6 +1,6 @@
 import pathlib
 from copy import deepcopy
-from typing import Dict, Callable, List
+from typing import Dict, Callable, List, Optional
 
 from colorama import Fore
 from tqdm import tqdm
@@ -39,6 +39,8 @@ def unbatch_examples(example, actual_batch_size):
 
 
 def augment_dynamics_dataset(dataset_dir: pathlib.Path,
+                             mode: str,
+                             take: Optional[int],
                              hparams: Dict,
                              outdir: pathlib.Path,
                              n_augmentations: int,
@@ -75,6 +77,8 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
     return augment_dataset_from_loader(dataset_loader,
                                        viz_f,
                                        dataset_dir,
+                                       mode,
+                                       take,
                                        hparams,
                                        outdir,
                                        n_augmentations,
@@ -86,6 +90,8 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
 
 
 def augment_classifier_dataset(dataset_dir: pathlib.Path,
+                               mode: str,
+                               take: Optional[int],
                                hparams: Dict,
                                outdir: pathlib.Path,
                                n_augmentations: int,
@@ -102,6 +108,8 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
     return augment_dataset_from_loader(dataset_loader,
                                        viz_f,
                                        dataset_dir,
+                                       mode,
+                                       take,
                                        hparams,
                                        outdir,
                                        n_augmentations,
@@ -115,6 +123,8 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
 def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
                                 viz_f: Callable,
                                 dataset_dir: pathlib.Path,
+                                mode: str,
+                                take: Optional[int],
                                 hparams: Dict,
                                 outdir: pathlib.Path,
                                 n_augmentations: int,
@@ -158,7 +168,7 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
             # the original example should also be included!
             yield from unbatch_examples(example, actual_batch_size)
 
-    dataset = dataset_loader.get_datasets(mode='all')
+    dataset = dataset_loader.get_datasets(mode=mode).take(take)
     expected_total = (1 + n_augmentations) * len(dataset)
 
     print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
