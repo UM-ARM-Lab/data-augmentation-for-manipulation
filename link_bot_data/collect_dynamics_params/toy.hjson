@@ -4,7 +4,7 @@
   service_provider: mujoco
   steps_per_traj: 50
   res: 0.01
-  push_angle: -1.5  # relative to the world x axis
+  push_angle: 0.0  # relative to the world x axis
   randomize_n: 1
   num_objs: 1
   radius: 0.08

@@ -6,7 +6,7 @@ import tensorflow as tf
 from progressbar import progressbar
 
 from arc_utilities import ros_init
-from link_bot_data.dataset_utils import pprint_example, deserialize_scene_msg
+from link_bot_data.dataset_utils import deserialize_scene_msg
 from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from link_bot_data.progressbar_widgets import mywidgets
 from moonshine.numpify import numpify
@@ -18,7 +18,8 @@ def main():
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory', nargs='+')
     parser.add_argument('--plot-type', choices=['3d', 'sanity_check', 'just_count'], default='3d')
     parser.add_argument('--take', type=int)
-    parser.add_argument('--start-at', type=int)
+    parser.add_argument('--skip', type=int)
+    parser.add_argument('--shard', type=int)
     parser.add_argument('--mode', choices=['train', 'test', 'val', 'all'], default='all', help='train test or val')
     parser.add_argument('--shuffle', action='store_true', help='shuffle')
 
@@ -27,16 +28,13 @@ def main():
     # load the dataset
     dataset_loader = get_dynamics_dataset_loader(args.dataset_dir)
     dataset = dataset_loader.get_datasets(mode=args.mode, take=args.take, shuffle=args.shuffle)
-    dataset = dataset.shard(60)
+    dataset = dataset.skip(args.skip).shard(args.shard)
 
     # print info about shapes
     # dataset.pprint_example()
 
     s = dataset_loader.get_scenario()
     for i, example in enumerate(progressbar(dataset, widgets=mywidgets)):
-        if args.start_at is not None and i < args.start_at:
-            continue
-
         if 'traj_idx' in example:
             traj_idx = example['traj_idx']
             s.plot_traj_idx_rviz(traj_idx)
