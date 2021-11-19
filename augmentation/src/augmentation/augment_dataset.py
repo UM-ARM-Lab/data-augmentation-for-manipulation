@@ -170,6 +170,9 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
                 out_example_keys = list(out_example.keys())
                 yield from unbatch_examples(out_example, actual_batch_size)
 
+            if 'batch_size' in out_example_keys:
+                out_example_keys.remove('batch_size')
+
             # the original example should also be included!
             for original_example in unbatch_examples(example, actual_batch_size):
                 # we lose some information when we augment, so only keep the keys that we have in the augmented data
@@ -178,9 +181,8 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
                 yield original_example_subset
 
     dataset = dataset_loader.get_datasets(mode=mode).take(take)
-    dataset = dataset.batch(batch_size)
-
     expected_total = (1 + n_augmentations) * len(dataset)
+    dataset = dataset.batch(batch_size)
 
     print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
 

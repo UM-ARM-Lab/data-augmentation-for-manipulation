@@ -91,7 +91,7 @@ def train_main(dataset_dir: pathlib.Path,
 
     model = PropNet(hparams=model_params)
 
-    run_id = generate_id()
+    run_id = generate_id(length=5)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all')
     loggers = [
         wb_logger,
@@ -199,6 +199,8 @@ def get_num_workers(batch_size):
 
 
 def load_model_artifact(checkpoint, model_class, project, version, user='petermitrano'):
+    if not checkpoint.startswith('model-'):
+        checkpoint = 'model-' + checkpoint
     api = wandb.Api()
     artifact = api.artifact(f'{user}/{project}/{checkpoint}:{version}')
     artifact_dir = artifact.download()

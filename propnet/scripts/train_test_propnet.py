@@ -52,13 +52,13 @@ def main():
 
     viz_parser = subparsers.add_parser('viz')
     viz_parser.add_argument('dataset_dir', type=pathlib.Path)
-    viz_parser.add_argument('checkpoint', type=pathlib.Path)
+    viz_parser.add_argument('checkpoint')
     viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     viz_parser.set_defaults(func=viz_main)
 
     eval_parser = subparsers.add_parser('eval')
     eval_parser.add_argument('dataset_dir', type=pathlib.Path)
-    eval_parser.add_argument('checkpoint', type=pathlib.Path)
+    eval_parser.add_argument('checkpoint')
     eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     eval_parser.add_argument('--batch-size', type=int, default=24)
     eval_parser.set_defaults(func=eval_main)
