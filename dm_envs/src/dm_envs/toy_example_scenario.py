@@ -23,6 +23,7 @@ class ToyExampleScenario(CylindersScenario):
 
         action_dict = {
             'gripper_position': start_gripper_position,
+            'distance':         0,
         }
 
         # first check if any objects are wayyy to far
@@ -33,7 +34,12 @@ class ToyExampleScenario(CylindersScenario):
             if out_of_bounds:
                 return action_dict, (invalid := True)  # this will cause the current trajectory to be thrown out
 
-        distance = action_rng.uniform(0, action_params['max_distance_gripper_can_move'])
+        repeat_probability = action_params['repeat_delta_gripper_motion_probability']
+        if self.last_action is not None and action_rng.uniform(0, 1) < repeat_probability:
+            distance = self.last_action['distance']
+        else:
+            distance = action_rng.uniform(-action_params['max_distance_gripper_can_move'],
+                                          action_params['max_distance_gripper_can_move'])
 
         angle = action_params['push_angle']
         gripper_position = push(angle, start_gripper_position, distance, ACTION_Z)
@@ -41,6 +47,9 @@ class ToyExampleScenario(CylindersScenario):
         self.tf.send_transform(gripper_position, [0, 0, 0, 1], 'world', 'sample_action_gripper_position')
 
         action_dict['gripper_position'] = gripper_position
+        action_dict['distance'] = distance
+
+        self.last_action = action_dict.copy()
 
         return action_dict, (invalid := False)
 
