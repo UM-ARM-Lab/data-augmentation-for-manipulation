@@ -16,11 +16,8 @@ from link_bot_data.dataset_utils import pkl_write_example, make_unique_outdir
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_gazebo.gazebo_services import GazeboServices, restore_gazebo
 from link_bot_pycommon.get_scenario import get_scenario
-from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.filepath_tools import load_hjson
 from moonshine.geometry import transform_dict_of_points_vectors
-
-DEBUG_VIZ = False
 
 
 def save_hparams(hparams, full_output_directory):
@@ -35,20 +32,20 @@ def sample_transform(rng, scaling):
     upper = np.array([a, a, a, np.pi, np.pi, np.pi])
     transform = rng.uniform(lower, upper).astype(np.float32) * scaling
     return transform
-    # return [0, 0, 0, 0, 0, np.pi / 4]
 
 
-@ros_init.with_ros("learn_invariance")
+@ros_init.with_ros("generate_invariance_dataset")
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', type=pathlib.Path)
     parser.add_argument('outdir', type=pathlib.Path)
     parser.add_argument('--n-output-examples', type=int, default=1000)
+    parser.add_argument('--visualize', action='store_true')
 
     args = parser.parse_args()
 
     dataset_loader = NewDynamicsDatasetLoader([args.dataset])
-    dataset = dataset_loader.batch(batch_size=1)
+    dataset = dataset_loader.get_datasets(mode='train')
 
     full_output_directory = make_unique_outdir(args.outdir)
 
@@ -71,8 +68,6 @@ def main():
     action_rng = np.random.RandomState(0)
 
     scaling_type = 'linear'
-
-    stepper = RvizSimpleStepper()
 
     infinite_dataset = cycle(dataset)
     scaling = 1e-6
@@ -124,7 +119,7 @@ def main():
         s.execute_action(environment, state_before_aug, action_aug)
         state_after_aug = s.get_state()
 
-        if DEBUG_VIZ:
+        if args.visualize:
             s.plot_state_rviz(state_before, label='state_before', color='#ff0000')
             s.plot_action_rviz(state_before, action, label='action', color='#ff0000')
             s.plot_state_rviz(state_after, label='state_after', color='#aa0000')
@@ -134,7 +129,6 @@ def main():
             s.plot_state_rviz(state_after_aug_expected, label='state_after_aug_expected', color='#ffffff')
             error_viz = s.classifier_distance(state_after_aug, state_after_aug_expected)
             s.plot_error_rviz(error_viz)
-            # stepper.step()
 
         out_example = {
             'state_before':             state_before,
