@@ -82,12 +82,7 @@ def train_main(dataset_dir: pathlib.Path,
     if checkpoint is None:
         ckpt_path = None
     else:
-        run = wandb.init(project=project)
-        checkpoint_reference = f"petermitrano/{project}/{checkpoint}:latest"
-        artifact = run.use_artifact(checkpoint_reference, type="model")
-        artifact_dir = artifact.download()
-        ckpt_path = (pathlib.Path(artifact_dir) / "model.ckpt").as_posix()
-        wandb.finish()
+        ckpt_path = model_artifact_path(checkpoint, project, version='latest', user='petermitrano')
 
     model = PropNet(hparams=model_params)
 
@@ -125,9 +120,6 @@ def train_main(dataset_dir: pathlib.Path,
                 train_loader,
                 val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
-
-    best_checkpoint = pathlib.Path(trainer.checkpoint_callback.best_model_path)
-    eval_main(dataset_dir, best_checkpoint, mode='val', batch_size=batch_size)
 
 
 def take_subset(dataset, take):
@@ -199,11 +191,16 @@ def get_num_workers(batch_size):
 
 
 def load_model_artifact(checkpoint, model_class, project, version, user='petermitrano'):
+    local_ckpt_path = model_artifact_path(checkpoint, project, version, user)
+    model = model_class.load_from_checkpoint(local_ckpt_path.as_posix())
+    return model
+
+
+def model_artifact_path(checkpoint, project, version, user='petermitrano'):
     if not checkpoint.startswith('model-'):
         checkpoint = 'model-' + checkpoint
     api = wandb.Api()
     artifact = api.artifact(f'{user}/{project}/{checkpoint}:{version}')
     artifact_dir = artifact.download()
     local_ckpt_path = pathlib.Path(artifact_dir) / "model.ckpt"
-    model = model_class.load_from_checkpoint(local_ckpt_path.as_posix())
-    return model
+    return local_ckpt_path
