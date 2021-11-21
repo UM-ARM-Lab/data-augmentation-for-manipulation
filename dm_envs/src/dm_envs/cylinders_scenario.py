@@ -152,7 +152,7 @@ def make_vel_arrow(position, velocity, height, color_msg, idx, ns, vel_scale=1.0
 class CylindersScenario(PlanarPushingScenario):
 
     def iter_keys(self, num_objs):
-        # NOTE: the robot goes first, this is relied on in apply_object_augmentation_no_ik
+        # NOTE: the robot goes first, this is relied on in aug_apply_no_ik
         yield True, -1, ARM_HAND_NAME
         for obj_idx in range(num_objs):
             obj_k = f'obj{obj_idx}'
@@ -454,17 +454,17 @@ class CylindersScenario(PlanarPushingScenario):
         xyzrpy = tf.concat([xy, zrp, theta], axis=-1)
         return xyzrpy_to_matrices(xyzrpy)
 
-    def apply_object_augmentation_no_ik(self,
-                                        moved_mask,
-                                        m,
-                                        to_local_frame,
-                                        inputs: Dict,
-                                        batch_size,
-                                        time,
-                                        h: int,
-                                        w: int,
-                                        c: int,
-                                        ):
+    def aug_apply_no_ik(self,
+                        moved_mask,
+                        m,
+                        to_local_frame,
+                        inputs: Dict,
+                        batch_size,
+                        time,
+                        h: int,
+                        w: int,
+                        c: int,
+                        ):
         """
 
         Args:
@@ -682,7 +682,7 @@ class CylindersScenario(PlanarPushingScenario):
 
     def tinv_apply_transformation(self, example: Dict, transform, visualize):
         # apply the se3 transformation to the positions of everything
-        self.apply_object_augmentation_no_ik()
+        self.aug_apply_no_ik()
         return example_aug
 
     def tinv_error(self, target: Dict, target_aug: Dict):

@@ -51,7 +51,7 @@ def opt_object_manual(self,
     to_local_frame = rope_points[0, 0][None, None]
 
     # this updates other representations of state/action that are fed into the network
-    _, object_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
+    _, object_aug_update, local_origin_point_aug, local_center_aug = self.aug_apply_no_ik(
         transformation_matrices,
         to_local_frame,
         inputs,

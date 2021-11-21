@@ -392,16 +392,16 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         return obj_points
 
-    def apply_object_augmentation_no_ik(self,
-                                        m,
-                                        to_local_frame,
-                                        inputs: Dict,
-                                        batch_size,
-                                        time,
-                                        h: int,
-                                        w: int,
-                                        c: int,
-                                        ):
+    def aug_apply_no_ik(self,
+                        m,
+                        to_local_frame,
+                        inputs: Dict,
+                        batch_size,
+                        time,
+                        h: int,
+                        w: int,
+                        c: int,
+                        ):
         """
 
         Args:

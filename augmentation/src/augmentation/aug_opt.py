@@ -172,7 +172,7 @@ class AugmentationOptimization:
             batch_size=batch_size)
 
         # apply the transformations to some components of the state/action
-        obj_aug_update, local_origin_point_aug, local_center_aug = self.apply_object_augmentation_no_ik(
+        obj_aug_update, local_origin_point_aug, local_center_aug = self.aug_apply_no_ik(
             moved_mask,
             transformation_matrices,
             to_local_frame,
@@ -343,22 +343,22 @@ class AugmentationOptimization:
             inputs_aug[k] = iv * inputs_aug[k] + (1 - iv) * inputs[k]
         return inputs_aug
 
-    def apply_object_augmentation_no_ik(self,
-                                        moved_mask,
-                                        transformation_matrices,
-                                        to_local_frame,
-                                        inputs,
-                                        batch_size,
-                                        time):
-        return self.scenario.apply_object_augmentation_no_ik(moved_mask,
-                                                             transformation_matrices,
-                                                             to_local_frame,
-                                                             inputs,
-                                                             batch_size,
-                                                             time,
-                                                             self.local_env_helper.h,
-                                                             self.local_env_helper.w,
-                                                             self.local_env_helper.c)
+    def aug_apply_no_ik(self,
+                        moved_mask,
+                        transformation_matrices,
+                        to_local_frame,
+                        inputs,
+                        batch_size,
+                        time):
+        return self.scenario.aug_apply_no_ik(moved_mask,
+                                             transformation_matrices,
+                                             to_local_frame,
+                                             inputs,
+                                             batch_size,
+                                             time,
+                                             self.local_env_helper.h,
+                                             self.local_env_helper.w,
+                                             self.local_env_helper.c)
 
     def do_augmentation(self):
         return self.hparams is not None

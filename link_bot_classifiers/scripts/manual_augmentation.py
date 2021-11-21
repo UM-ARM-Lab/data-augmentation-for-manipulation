@@ -129,14 +129,14 @@ def main():
                 transformation_matrix = tf.linalg.solve(world_to_original, marker_to_world)
                 transformation_matrices = tf.expand_dims(transformation_matrix, axis=0)
 
-                _, object_aug_update, _, _ = s.apply_object_augmentation_no_ik(transformation_matrices,
-                                                                               to_local_frame,
-                                                                               example,
-                                                                               batch_size=batch_size,
-                                                                               time=2,
-                                                                               h=44,
-                                                                               w=44,
-                                                                               c=44)
+                _, object_aug_update, _, _ = s.aug_apply_no_ik(transformation_matrices,
+                                                               to_local_frame,
+                                                               example,
+                                                               batch_size=batch_size,
+                                                               time=2,
+                                                               h=44,
+                                                               w=44,
+                                                               c=44)
                 object_aug_update = remove_batch(object_aug_update)
                 example_viz.update(object_aug_update)
 
