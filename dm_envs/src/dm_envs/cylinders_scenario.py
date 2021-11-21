@@ -17,18 +17,19 @@ from dm_envs.planar_pushing_scenario import PlanarPushingScenario, ACTION_Z
 from dm_envs.planar_pushing_task import ARM_HAND_NAME, ARM_NAME
 from link_bot_data.base_collect_dynamics_data import collect_trajectory
 from link_bot_data.color_from_kwargs import color_from_kwargs
+from link_bot_data.dataset_utils import coerce_types
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import int_frac_to_range
 from moonshine.filepath_tools import load_params
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
-from moonshine.moonshine_utils import repeat_tensor, add_batch
+from moonshine.moonshine_utils import repeat_tensor, add_batch, remove_batch
+from moonshine.numpify import numpify
 from std_msgs.msg import ColorRGBA
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
-DEBUG_VIZ_STATE_AUG = True
 TINV_TEST_OBJ_IDX = 0
 
 
@@ -501,17 +502,18 @@ class CylindersScenario(PlanarPushingScenario):
         for j, pos_vel_data in enumerate(self.iter_positions_velocities(inputs, num_objs)):
             is_robot, obj_idx, k, pos_k, vel_k, pos, vel = pos_vel_data
             pos_aug = _transform(m_expanded, pos, to_local_frame_expanded2)
-            vel_aug = _transform(m_expanded_no_translation, vel, zeros_expanded2)
             mmj = moved_mask_expanded[:, j]
             object_aug_update[pos_k] = pos_aug * mmj + (1 - mmj) * pos
-            object_aug_update[vel_k] = vel_aug * mmj + (1 - mmj) * vel
+            if vel is not None:
+                vel_aug = _transform(m_expanded_no_translation, vel, zeros_expanded2)
+                object_aug_update[vel_k] = vel_aug * mmj + (1 - mmj) * vel
 
         # apply transformations to the action
         gripper_position = inputs['gripper_position']
         gripper_position_aug = _transform(m, gripper_position, to_local_frame_expanded1)
         object_aug_update['gripper_position'] = gripper_position_aug
 
-        if DEBUG_VIZ_STATE_AUG:
+        if kwargs.get('visualize', False):
             for b in debug_viz_batch_indices(batch_size):
                 env_b = {
                     'env':          inputs['env'][b],
@@ -529,7 +531,8 @@ class CylindersScenario(PlanarPushingScenario):
 
                 self.plot_environment_rviz(env_b)
                 for t in range(time):
-                    object_aug_update_b_t = {k: v[0].numpy() for k, v in object_aug_update_viz_b.items()}
+                    object_aug_update_b_t = {k: v[0] for k, v in object_aug_update_viz_b.items()}
+                    object_aug_update_b_t = numpify(object_aug_update_b_t)
                     self.plot_state_rviz(object_aug_update_b_t, label='aug_no_ik', color='white', id=t)
 
         return object_aug_update, None, None
@@ -680,24 +683,41 @@ class CylindersScenario(PlanarPushingScenario):
 
     def tinv_apply_transformation(self, example: Dict, transform, visualize):
         # apply the se3 transformation to the positions of everything
-        num_objs = example['num_objs'][0, 0]
-        example_batch = add_batch(example)
-        moved_mask = np.zeros([1, num_objs])
-        moved_mask[:, TINV_TEST_OBJ_IDX] = 1
+
+        num_objs = example['num_objs'][0][0]
         time = example['time_idx'].shape[0]
+
+        example = coerce_types(example)
+        example_batch = add_batch(example)
+        moved_mask = np.zeros([1, num_objs + 1], np.float32)
+        moved_mask[:, 0] = 1  # the robot always moves
+        moved_mask[:, TINV_TEST_OBJ_IDX + 1] = 1
         example_aug = deepcopy(example)
-        m = self.transformation_params_to_matrices(add_batch(transform))
+        m = self.transformation_params_to_matrices(tf.convert_to_tensor(add_batch(transform), tf.float32))
         obj_points = self.compute_obj_points(example_batch, num_object_interp=1, batch_size=1)
         to_local_frame = get_local_frame(moved_mask, obj_points)
         example_aug_update, _, _ = self.aug_apply_no_ik(moved_mask, m, to_local_frame, example_batch,
-                                                        batch_size=1, time=time)
+                                                        batch_size=1, time=time, visualize=visualize)
+        example_aug_update = remove_batch(example_aug_update)
         example_aug = nested_dict_update(example_aug, example_aug_update)
+
         return example_aug
 
-    def tinv_error(self, target: Dict, target_aug: Dict):
+    def tinv_error(self, example: Dict, example_aug: Dict):
+        num_objs = example['num_objs'][0][0]
+        error = 0
+        for is_robot, obj_idx, k, pos_k, pos in self.iter_positions(example, num_objs):
+            if is_robot:
+                continue
+            # compute the per-object error and add it
+            pos_aug = example_aug[pos_k]
+            obj_error = tf.reduce_mean(tf.square(pos - pos_aug))
+            error += obj_error
+
         return error
 
     def tinv_viz(self, example_aug: Dict, label='aug', color='b'):
-        for t in range(None):
-            state_t = index_t(states, t)
-            self.plot_state_rviz(state_t, label=f'{label}_{t}')
+        pass
+        # for t in range(None):
+        #     state_t = index_t(states, t)
+        #     self.plot_state_rviz(state_t, label=f'{label}_{t}')
