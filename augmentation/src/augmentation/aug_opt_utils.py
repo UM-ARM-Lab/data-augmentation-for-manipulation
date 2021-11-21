@@ -65,10 +65,7 @@ def transform_obj_points(obj_points, moved_mask, transformation_matrices):
     Returns: [b,k,T,n_points,3], [b,3]
 
     """
-    to_local_frame = tf.reduce_mean(obj_points, axis=-2)  # [b,m,T,3]
-    to_local_frame = tf.reduce_mean(to_local_frame, axis=-2)  # [b,m,3]
-
-    to_local_frame_moved_mean = mean_over_moved(moved_mask, to_local_frame)  # [b, 3]
+    to_local_frame_moved_mean = get_local_frame(moved_mask, obj_points)
     to_local_frame_moved_mean_expanded = to_local_frame_moved_mean[:, None, None, None, :]
 
     obj_points_local_frame = obj_points - to_local_frame_moved_mean_expanded  # [b, m_objects, T, n_points, 3]
@@ -76,6 +73,13 @@ def transform_obj_points(obj_points, moved_mask, transformation_matrices):
     obj_points_aug_local_frame = transform_points_3d(transformation_matrices_expanded, obj_points_local_frame)
     obj_points_aug = obj_points_aug_local_frame + to_local_frame_moved_mean_expanded  # [b, m_objects, T, n_points, 3]
     return obj_points_aug, to_local_frame_moved_mean
+
+
+def get_local_frame(moved_mask, obj_points):
+    to_local_frame = tf.reduce_mean(obj_points, axis=-2)  # [b,m,T,3]
+    to_local_frame = tf.reduce_mean(to_local_frame, axis=-2)  # [b,m,3]
+    to_local_frame_moved_mean = mean_over_moved(moved_mask, to_local_frame)  # [b, 3]
+    return to_local_frame_moved_mean
 
 
 def sum_over_moved(moved_mask, x):

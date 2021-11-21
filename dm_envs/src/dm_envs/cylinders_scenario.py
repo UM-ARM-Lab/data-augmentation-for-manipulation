@@ -10,6 +10,7 @@ import torch
 from pyjacobian_follower import IkParams
 
 from arc_utilities.algorithms import nested_dict_update
+from augmentation.aug_opt_utils import get_local_frame
 from dm_envs import primitive_hand
 from dm_envs.cylinders_task import PlanarPushingCylindersTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario, ACTION_Z
@@ -22,12 +23,13 @@ from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import int_frac_to_range
 from moonshine.filepath_tools import load_params
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
-from moonshine.moonshine_utils import repeat_tensor
+from moonshine.moonshine_utils import repeat_tensor, add_batch
 from std_msgs.msg import ColorRGBA
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
 DEBUG_VIZ_STATE_AUG = True
+TINV_TEST_OBJ_IDX = 0
 
 
 def pos_to_vel(pos):
@@ -461,9 +463,8 @@ class CylindersScenario(PlanarPushingScenario):
                         inputs: Dict,
                         batch_size,
                         time,
-                        h: int,
-                        w: int,
-                        c: int,
+                        *args,
+                        **kwargs,
                         ):
         """
 
@@ -474,9 +475,6 @@ class CylindersScenario(PlanarPushingScenario):
             inputs:
             batch_size:
             time:
-            h: local env h
-            w: local env w
-            c: local env c
 
         Returns:
 
@@ -653,7 +651,7 @@ class CylindersScenario(PlanarPushingScenario):
             y = int_frac_to_range(i, len(self.task.objs), y_min, y_max)
             obj.set_pose(self.env.physics, position=[x, y, obj_z])
 
-        test_obj = self.task.objs[0]
+        test_obj = self.task.objs[TINV_TEST_OBJ_IDX]
         test_obj.set_pose(self.env.physics, position=[0, 0, obj_z])
 
         for _ in range(10):
@@ -682,7 +680,18 @@ class CylindersScenario(PlanarPushingScenario):
 
     def tinv_apply_transformation(self, example: Dict, transform, visualize):
         # apply the se3 transformation to the positions of everything
-        self.aug_apply_no_ik()
+        num_objs = example['num_objs'][0, 0]
+        example_batch = add_batch(example)
+        moved_mask = np.zeros([1, num_objs])
+        moved_mask[:, TINV_TEST_OBJ_IDX] = 1
+        time = example['time_idx'].shape[0]
+        example_aug = deepcopy(example)
+        m = self.transformation_params_to_matrices(add_batch(transform))
+        obj_points = self.compute_obj_points(example_batch, num_object_interp=1, batch_size=1)
+        to_local_frame = get_local_frame(moved_mask, obj_points)
+        example_aug_update, _, _ = self.aug_apply_no_ik(moved_mask, m, to_local_frame, example_batch,
+                                                        batch_size=1, time=time)
+        example_aug = nested_dict_update(example_aug, example_aug_update)
         return example_aug
 
     def tinv_error(self, target: Dict, target_aug: Dict):
