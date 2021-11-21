@@ -74,8 +74,11 @@ class BaseDataCollector:
 
         if predetermined_start_state is not None:
             self.scenario.set_state_from_dict(predetermined_start_state)
+            n_actions = len(predetermined_actions)
+        else:
+            n_actions = self.params['steps_per_traj']
 
-        for time_idx in range(self.params['steps_per_traj']):
+        for time_idx in range(n_actions):
             # get current state and sample action
             state = self.scenario.get_state()
 

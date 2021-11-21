@@ -261,7 +261,9 @@ class CylindersScenario(PlanarPushingScenario):
 
     def set_state_from_dict(self, predetermined_start_state: Dict):
         for obj in self.task.objs:
-            obj.set_pose()
+            if obj.name in predetermined_start_state:
+                obj.set_pose(self.env.physics, position=predetermined_start_state[obj.name])
+        self.env.step(np.zeros(self.action_spec.shape))
 
     @staticmethod
     def is_points_key(k):
