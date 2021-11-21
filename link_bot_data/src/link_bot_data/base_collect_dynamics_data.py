@@ -27,6 +27,90 @@ def idx_seed_gen(base_seed):
         traj_idx += 1
 
 
+def collect_trajectory(params,
+                       scenario,
+                       traj_idx: int,
+                       predetermined_start_state,
+                       predetermined_actions,
+                       verbose: int,
+                       action_rng: np.random.RandomState):
+    environment = scenario.get_environment(params)
+
+    example = {}
+    example.update(environment)
+    example['traj_idx'] = np.float32(traj_idx)
+
+    if verbose > 0:
+        scenario.plot_environment_rviz(environment)
+
+    actions = {k: [] for k in params['action_keys']}
+    # NOTE: state metadata is information that is constant, possibly non-numeric, and convenient to have with state
+    #  in most cases it could be considered part of the environment, but sometimes having it with state is better
+    states = {k: [] for k in params['state_keys'] + params['state_metadata_keys']}
+    time_indices = []
+
+    scenario.clear_action_sampling_state()
+
+    if predetermined_start_state is not None:
+        scenario.set_state_from_dict(predetermined_start_state)
+        n_actions = len(predetermined_actions)
+    else:
+        n_actions = params['steps_per_traj']
+
+    for time_idx in range(n_actions):
+        # get current state and sample action
+        state = scenario.get_state()
+
+        # TODO: sample the entire action sequence in advance?
+        if predetermined_actions is not None:
+            action = predetermined_actions[time_idx]
+            invalid = False
+        else:
+            action, invalid = scenario.sample_action(action_rng=action_rng,
+                                                     environment=environment,
+                                                     state=state,
+                                                     action_params=params,
+                                                     validate=True)
+        if invalid:
+            return {}, invalid
+
+        # Visualization
+        if verbose > 0:
+            scenario.plot_environment_rviz(environment)
+            scenario.plot_traj_idx_rviz(traj_idx)
+            scenario.plot_state_rviz(state, label='actual')
+            if time_idx < params['steps_per_traj'] - 1:  # skip the last action in visualization as well
+                scenario.plot_action_rviz(state, action)
+            scenario.plot_time_idx_rviz(time_idx)
+        # End Visualization
+
+        # execute action
+        try:
+            scenario.execute_action(environment, state, action)
+        except RobotPlanningError:
+            rospy.logwarn(f"error executing action {action}")
+            return {}, (invalid := True)
+
+        # add to the dataset
+        if time_idx < params['steps_per_traj'] - 1:  # skip the last action
+            for action_name in params['action_keys']:
+                action_component = action[action_name]
+                actions[action_name].append(action_component)
+        for state_component_name in params['state_keys'] + params['state_metadata_keys']:
+            state_component = state[state_component_name]
+            states[state_component_name].append(state_component)
+        time_indices.append(time_idx)
+
+    example.update(states)
+    example.update(actions)
+    example['time_idx'] = np.array(time_indices).astype(np.float32)
+
+    if verbose:
+        print(Fore.GREEN + "Trajectory {} Complete".format(traj_idx) + Fore.RESET)
+
+    return example, (invalid := False)
+
+
 class BaseDataCollector:
 
     def __init__(self,
@@ -55,81 +139,13 @@ class BaseDataCollector:
                            predetermined_actions,
                            verbose: int,
                            action_rng: np.random.RandomState):
-        environment = self.scenario.get_environment(self.params)
-
-        example = {}
-        example.update(environment)
-        example['traj_idx'] = np.float32(traj_idx)
-
-        if self.verbose > 0:
-            self.scenario.plot_environment_rviz(environment)
-
-        actions = {k: [] for k in self.params['action_keys']}
-        # NOTE: state metadata is information that is constant, possibly non-numeric, and convenient to have with state
-        #  in most cases it could be considered part of the environment, but sometimes having it with state is better
-        states = {k: [] for k in self.params['state_keys'] + self.params['state_metadata_keys']}
-        time_indices = []
-
-        self.scenario.clear_action_sampling_state()
-
-        if predetermined_start_state is not None:
-            self.scenario.set_state_from_dict(predetermined_start_state)
-            n_actions = len(predetermined_actions)
-        else:
-            n_actions = self.params['steps_per_traj']
-
-        for time_idx in range(n_actions):
-            # get current state and sample action
-            state = self.scenario.get_state()
-
-            # TODO: sample the entire action sequence in advance?
-            if predetermined_actions is not None:
-                action = predetermined_actions[time_idx]
-                invalid = False
-            else:
-                action, invalid = self.scenario.sample_action(action_rng=action_rng,
-                                                              environment=environment,
-                                                              state=state,
-                                                              action_params=self.params,
-                                                              validate=True)
-            if invalid:
-                return {}, invalid
-
-            # Visualization
-            if self.verbose > 0:
-                self.scenario.plot_environment_rviz(environment)
-                self.scenario.plot_traj_idx_rviz(traj_idx)
-                self.scenario.plot_state_rviz(state, label='actual')
-                if time_idx < self.params['steps_per_traj'] - 1:  # skip the last action in visualization as well
-                    self.scenario.plot_action_rviz(state, action)
-                self.scenario.plot_time_idx_rviz(time_idx)
-            # End Visualization
-
-            # execute action
-            try:
-                self.scenario.execute_action(environment, state, action)
-            except RobotPlanningError:
-                rospy.logwarn(f"error executing action {action}")
-                return {}, (invalid := True)
-
-            # add to the dataset
-            if time_idx < self.params['steps_per_traj'] - 1:  # skip the last action
-                for action_name in self.params['action_keys']:
-                    action_component = action[action_name]
-                    actions[action_name].append(action_component)
-            for state_component_name in self.params['state_keys'] + self.params['state_metadata_keys']:
-                state_component = state[state_component_name]
-                states[state_component_name].append(state_component)
-            time_indices.append(time_idx)
-
-        example.update(states)
-        example.update(actions)
-        example['time_idx'] = np.array(time_indices).astype(np.float32)
-
-        if verbose:
-            print(Fore.GREEN + "Trajectory {} Complete".format(traj_idx) + Fore.RESET)
-
-        return example, (invalid := False)
+        return collect_trajectory(self.params,
+                                  self.scenario,
+                                  traj_idx,
+                                  predetermined_start_state,
+                                  predetermined_actions,
+                                  verbose,
+                                  action_rng)
 
     def collect_data(self,
                      n_trajs: int,

@@ -491,3 +491,22 @@ def binary_search(n):
         elif high - low == 1:
             if high != 0 and high != n:
                 yield high
+
+
+def int_frac_to_range(i, n, low, high):
+    """
+    linearly maps an integer i out of [0, n) to the corresponding point  in [low, high]
+
+    Args:
+        i:
+        n:
+        low:
+        high:
+
+    Returns:
+
+    """
+    frac = i / n  # [0, 1]
+    frac *= (high - low)  # [0, range]
+    frac += low  # [low, high]
+    return frac

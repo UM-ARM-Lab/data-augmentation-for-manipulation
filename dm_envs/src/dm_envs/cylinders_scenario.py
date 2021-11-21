@@ -14,10 +14,12 @@ from dm_envs import primitive_hand
 from dm_envs.cylinders_task import PlanarPushingCylindersTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario, ACTION_Z
 from dm_envs.planar_pushing_task import ARM_HAND_NAME, ARM_NAME
+from link_bot_data.base_collect_dynamics_data import collect_trajectory
 from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.marker_index_generator import marker_index_generator
+from link_bot_pycommon.pycommon import int_frac_to_range
 from moonshine.filepath_tools import load_params
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
 from moonshine.moonshine_utils import repeat_tensor
@@ -640,3 +642,53 @@ class CylindersScenario(PlanarPushingScenario):
         nested_dict_update(out_hparams, update)
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
+
+    def tinv_set_state(self, params, state_rng, visualize):
+        obj_z = params['height'] / 2
+        # move all the cylinders except for one away
+        y_min = params['extent'][2]
+        y_max = params['extent'][3]
+        x = params['extent'][1] - params['radius']
+        for i, obj in enumerate(self.task.objs):
+            y = int_frac_to_range(i, len(self.task.objs), y_min, y_max)
+            obj.set_pose(self.env.physics, position=[x, y, obj_z])
+
+        test_obj = self.task.objs[0]
+        test_obj.set_pose(self.env.physics, position=[0, 0, obj_z])
+
+        for _ in range(10):
+            self.env.step(np.zeros(self.action_spec.shape))
+
+        if visualize:
+            state = self.get_state()
+            self.plot_state_rviz(state, label='tinv_set_state')
+
+    def tinv_generate_data(self, action_rng: np.random.RandomState, params, visualize):
+        example, _ = collect_trajectory(params=params,
+                                        scenario=self,
+                                        traj_idx=0,
+                                        predetermined_start_state=None,
+                                        predetermined_actions=None,
+                                        verbose=(1 if visualize else 0),
+                                        action_rng=action_rng)
+        return example
+
+    def tinv_sample_transform(self, transform_sampling_rng: np.random.RandomState, scaling: float):
+        trans = 1.0
+        euler = np.pi
+        lim = np.array([trans, trans, trans, euler, euler, euler]) * scaling
+        transform = transform_sampling_rng.uniform(-lim, lim)
+        return transform
+
+    def tinv_apply_transformation(self, example: Dict, transform, visualize):
+        # apply the se3 transformation to the positions of everything
+        self.apply_object_augmentation_no_ik()
+        return example_aug
+
+    def tinv_error(self, target: Dict, target_aug: Dict):
+        return error
+
+    def tinv_viz(self, example_aug: Dict, label='aug', color='b'):
+        for t in range(None):
+            state_t = index_t(states, t)
+            self.plot_state_rviz(state_t, label=f'{label}_{t}')
