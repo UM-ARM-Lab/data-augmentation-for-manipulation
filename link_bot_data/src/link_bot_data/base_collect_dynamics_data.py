@@ -14,6 +14,7 @@ from link_bot_data.split_dataset import split_dataset_via_files
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.get_service_provider import get_service_provider
 from link_bot_pycommon.serialization import my_hdump
+from moonshine.filepath_tools import load_hjson
 
 
 def idx_seed_gen(base_seed):
@@ -48,7 +49,12 @@ class BaseDataCollector:
                                         real_time_rate=self.params['real_time_rate'],
                                         max_step_size=self.params['max_step_size'])
 
-    def collect_trajectory(self, traj_idx: int, verbose: int, action_rng: np.random.RandomState):
+    def collect_trajectory(self,
+                           traj_idx: int,
+                           predetermined_start_state,
+                           predetermined_actions,
+                           verbose: int,
+                           action_rng: np.random.RandomState):
         environment = self.scenario.get_environment(self.params)
 
         example = {}
@@ -66,16 +72,23 @@ class BaseDataCollector:
 
         self.scenario.clear_action_sampling_state()
 
+        if predetermined_start_state is not None:
+            self.scenario.set_state_from_dict(predetermined_start_state)
+
         for time_idx in range(self.params['steps_per_traj']):
             # get current state and sample action
             state = self.scenario.get_state()
 
             # TODO: sample the entire action sequence in advance?
-            action, invalid = self.scenario.sample_action(action_rng=action_rng,
-                                                          environment=environment,
-                                                          state=state,
-                                                          action_params=self.params,
-                                                          validate=True)
+            if predetermined_actions is not None:
+                action = predetermined_actions[time_idx]
+                invalid = False
+            else:
+                action, invalid = self.scenario.sample_action(action_rng=action_rng,
+                                                              environment=environment,
+                                                              state=state,
+                                                              action_params=self.params,
+                                                              validate=True)
             if invalid:
                 return {}, invalid
 
@@ -118,6 +131,7 @@ class BaseDataCollector:
     def collect_data(self,
                      n_trajs: int,
                      nickname: str,
+                     states_and_actions: Optional = None,
                      root: Optional[pathlib.Path] = None,
                      ):
         if root is None:
@@ -135,6 +149,11 @@ class BaseDataCollector:
 
         self.save_hparams(full_output_directory, n_trajs, nickname)
 
+        predetermined_start_state = None
+        predetermined_actions = None
+        if states_and_actions is not None:
+            states_and_actions = load_hjson(states_and_actions)
+
         traj_idx = 0
         for seed in tqdm(idx_seed_gen(self.seed), total=n_trajs):
             env_rng = np.random.RandomState(seed)
@@ -149,8 +168,14 @@ class BaseDataCollector:
                     rospy.logwarn("Reset required!")
                 self.scenario.randomize_environment(env_rng, self.params)
 
+            if states_and_actions is not None:
+                predetermined_start_state, predetermined_actions = states_and_actions[traj_idx]
+
             # Generate a new trajectory
-            example, invalid = self.collect_trajectory(traj_idx=traj_idx, verbose=self.verbose,
+            example, invalid = self.collect_trajectory(traj_idx=traj_idx,
+                                                       predetermined_start_state=predetermined_start_state,
+                                                       predetermined_actions=predetermined_actions,
+                                                       verbose=self.verbose,
                                                        action_rng=action_rng)
             example['seed'] = seed
 
@@ -168,7 +193,6 @@ class BaseDataCollector:
 
             if traj_idx == n_trajs:
                 break
-
 
         self.scenario.on_after_data_collection(self.params)
 
@@ -243,17 +267,21 @@ def collect_dynamics_data(collect_dynamics_params: pathlib.Path,
                           verbose=0,
                           save_format: str = 'pkl',
                           seed: Optional[int] = None,
+                          states_and_actions: Optional = None,
                           **kwargs):
     with collect_dynamics_params.open("r") as f:
         collect_dynamics_params = hjson.load(f)
     DataCollectorClass, extension = get_data_collector_class(save_format)
     data_collector = DataCollectorClass(params=collect_dynamics_params,
+
                                         seed=seed,
                                         verbose=verbose)
 
     dataset_dir = None
     n_trajs_done = None
-    for dataset_dir, n_trajs_done in data_collector.collect_data(n_trajs=n_trajs, nickname=nickname):
+    for dataset_dir, n_trajs_done in data_collector.collect_data(n_trajs=n_trajs,
+                                                                 states_and_actions=states_and_actions,
+                                                                 nickname=nickname):
         if dataset_dir is not None:
             break
         else:

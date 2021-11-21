@@ -1,0 +1,30 @@
+[
+  # traj 0
+  [
+    {
+      # start state 0
+    }
+    [
+      {
+        # action 0
+      }
+      {
+        # action 1
+      }
+    ]
+  ]
+  # traj 1
+  [
+    {
+      # start state 1
+    }
+    [
+      {
+        # action 0
+      }
+      {
+        # action 1
+      }
+    ]
+  ]
+]

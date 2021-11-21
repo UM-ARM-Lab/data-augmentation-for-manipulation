@@ -15,7 +15,7 @@ def main():
     params = load_hjson(args.params)
 
     s = get_scenario(params['scenario'])
-    s.on_before_get_state_or_execute_action()
+    s.on_before_data_collection(params)
 
     viewer.launch(s.env)
 

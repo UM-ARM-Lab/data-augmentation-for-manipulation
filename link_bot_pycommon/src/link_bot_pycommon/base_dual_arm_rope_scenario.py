@@ -693,3 +693,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         nested_dict_update(out_hparams, update)
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
+
+    @staticmethod
+    def tinv_sample_transform(rng, scaling, a=0.25):
+        lower = np.array([-a, -a, -a, -np.pi, -np.pi, -np.pi])
+        upper = np.array([a, a, a, np.pi, np.pi, np.pi])
+        transform = rng.uniform(lower, upper).astype(np.float32) * scaling
+        return transform

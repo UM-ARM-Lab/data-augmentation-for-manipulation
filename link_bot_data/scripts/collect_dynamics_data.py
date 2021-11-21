@@ -15,6 +15,7 @@ def main():
     parser.add_argument("collect_dynamics_params", type=pathlib.Path, help="json file with envrionment parameters")
     parser.add_argument("n_trajs", type=int, help='how many trajectories to collect')
     parser.add_argument("nickname")
+    parser.add_argument("--states-and-actions", type=pathlib.Path)
     parser.add_argument("--seed", '-s', type=int, help='seed')
     parser.add_argument('--verbose', '-v', action='count', default=0)
     parser.add_argument('--save-format', choices=['pkl', 'h5', 'tfrecord'], default='pkl')
