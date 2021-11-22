@@ -11,6 +11,7 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
+from tqdm import tqdm
 from wandb.util import generate_id
 
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -135,15 +136,17 @@ def eval_main(dataset_dir: pathlib.Path,
 
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
 
-    model = load_model_artifact(checkpoint, PropNet, project, 'best')
+    run_id = f'eval-{generate_id(length=5)}'
+    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'])
+    trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
-    trainer = pl.Trainer(gpus=1, enable_model_summary=False)
+    model = load_model_artifact(checkpoint, PropNet, project, 'best')
 
     metrics = trainer.validate(model, loader, verbose=0)
 
     for metrics_i in metrics:
         for k, v in metrics_i.items():
-            print(f"{k:20s}: {v:0.4f}")
+            print(f"{k:20s}: {v:0.5f}")
 
     return metrics
 
@@ -160,7 +163,7 @@ def viz_main(dataset_dir: pathlib.Path,
 
     model = load_model_artifact(checkpoint, PropNet, project, 'best')
 
-    for i, inputs in enumerate(loader):
+    for i, inputs in enumerate(tqdm(loader)):
         gt_vel, gt_pos, pred_vel, pred_pos = model(inputs)
 
         n_time_steps = inputs['time_idx'].shape[1]
