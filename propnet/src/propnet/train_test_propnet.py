@@ -144,6 +144,7 @@ def eval_main(dataset_dir: pathlib.Path,
 
     metrics = trainer.validate(model, loader, verbose=0)
 
+    print(f'run_id: {run_id}')
     for metrics_i in metrics:
         for k, v in metrics_i.items():
             print(f"{k:20s}: {v:0.5f}")

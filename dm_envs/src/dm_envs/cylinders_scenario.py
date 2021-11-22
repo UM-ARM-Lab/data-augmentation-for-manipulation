@@ -206,11 +206,12 @@ class CylindersScenario(PlanarPushingScenario):
         for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(state, num_objs):
             if is_robot:
                 if pos is not None:
-                    pos[0, 2] = primitive_hand.HALF_HEIGHT + ACTION_Z
+                    robot_pos_viz = deepcopy(pos)
+                    robot_pos_viz[0, 2] = primitive_hand.HALF_HEIGHT + ACTION_Z
                     robot_color_msg = deepcopy(color_msg)
                     robot_color_msg.b = 1 - robot_color_msg.b
-                    marker = make_cylinder_marker(robot_color_msg, primitive_hand.HEIGHT, next(ig), ns + '_robot', pos,
-                                                  primitive_hand.RADIUS)
+                    marker = make_cylinder_marker(robot_color_msg, primitive_hand.HEIGHT, next(ig), ns + '_robot',
+                                                  robot_pos_viz, primitive_hand.RADIUS)
                     msg.markers.append(marker)
                 if pos is not None and vel is not None:
                     vel_marker = make_vel_arrow(pos, vel, primitive_hand.HEIGHT + 0.005, color_msg, next(ig),
