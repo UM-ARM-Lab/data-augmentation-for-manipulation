@@ -104,7 +104,7 @@ def train_main(dataset_dir: pathlib.Path,
         run_id = generate_id(length=5)
         wandb_kargs = {}
     else:
-        ckpt_path = model_artifact_path(checkpoint, project, version='latest', user='petermitrano')
+        ckpt_path = model_artifact_path(checkpoint, project, version='latest', user='armlab')
         run_id = checkpoint
         wandb_kargs = {
             'resume': True,
@@ -226,14 +226,14 @@ def get_num_workers(batch_size):
     return min(batch_size, multiprocessing.cpu_count())
 
 
-def load_model_artifact(checkpoint, model_class, project, version, user='petermitrano'):
+def load_model_artifact(checkpoint, model_class, project, version, user='armlab'):
     local_ckpt_path = model_artifact_path(checkpoint, project, version, user)
     print(f"Restoring from {local_ckpt_path}")
     model = model_class.load_from_checkpoint(local_ckpt_path.as_posix())
     return model
 
 
-def model_artifact_path(checkpoint, project, version, user='petermitrano'):
+def model_artifact_path(checkpoint, project, version, user='armlab'):
     if not checkpoint.startswith('model-'):
         checkpoint = 'model-' + checkpoint
     api = wandb.Api()
