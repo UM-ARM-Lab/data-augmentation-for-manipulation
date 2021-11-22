@@ -207,7 +207,7 @@ class CylindersScenario(PlanarPushingScenario):
             if is_robot:
                 if pos is not None:
                     robot_pos_viz = deepcopy(pos)
-                    robot_pos_viz[0, 2] = primitive_hand.HALF_HEIGHT + ACTION_Z
+                    robot_pos_viz[0, 2] += primitive_hand.HALF_HEIGHT
                     robot_color_msg = deepcopy(color_msg)
                     robot_color_msg.b = 1 - robot_color_msg.b
                     marker = make_cylinder_marker(robot_color_msg, primitive_hand.HEIGHT, next(ig), ns + '_robot',
