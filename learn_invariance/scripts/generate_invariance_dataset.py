@@ -69,22 +69,25 @@ def main():
     example_idx = 0
     for i in trange(args.n_test_states, position=1):
         s.tinv_set_state(params, state_rng, args.visualize)
+        example = s.tinv_generate_data(action_rng, params, args.visualize)
 
         for scaling in tqdm(scaling_gen(n_output_examples), position=2):
-            # NOTE: in general maybe we need a whole trajectory? it depends on the data right?
-            example = s.tinv_generate_data(action_rng, params, args.visualize)
-
+            print("FIXME:")
+            scaling = 0.1
             # sample a transformation
             transform = s.tinv_sample_transform(transform_sampling_rng, scaling)  # uniformly sample a transformation
 
-            # set the simulator to the augmented before state
-            example_aug = s.tinv_apply_transformation(example, transform, args.visualize)
+            example_aug_pred = s.tinv_apply_transformation(example, transform, args.visualize)
 
-            error = s.tinv_error(example, example_aug)
+            # test out the augmentation
+            s.tinv_set_state_from_aug_pred(example_aug_pred, args.visualize)
+            example_aug_actual = s.tinv_generate_data_from_aug_pred(example_aug_pred, args.visualize)
 
-            if args.visualize:
-                s.tinv_viz(example, label='', color='r')
-                s.tinv_viz(example_aug, label='aug', color='b')
+            error = s.tinv_error(example_aug_actual, example_aug_pred)
+
+            # if args.visualize:
+            #     s.tinv_viz(example, label='', color='r')
+            #     s.tinv_viz(example_aug, label='aug', color='b')
 
             out_example = {
                 'transform': transform,
