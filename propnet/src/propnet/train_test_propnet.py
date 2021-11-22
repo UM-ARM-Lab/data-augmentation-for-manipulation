@@ -29,7 +29,7 @@ def train_main(dataset_dir: pathlib.Path,
                batch_size: int,
                epochs: int,
                seed: int,
-               steps: Optional[int] = None,
+               steps: int = -1,
                checkpoint: Optional = None,
                take: Optional[int] = None,
                no_validate: bool = False,
@@ -82,12 +82,13 @@ def train_main(dataset_dir: pathlib.Path,
 
     if checkpoint is None:
         ckpt_path = None
+        run_id = generate_id(length=5)
     else:
         ckpt_path = model_artifact_path(checkpoint, project, version='latest', user='petermitrano')
+        run_id = checkpoint
 
     model = PropNet(hparams=model_params)
 
-    run_id = generate_id(length=5)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all')
     loggers = [
         wb_logger,
@@ -207,6 +208,7 @@ def get_num_workers(batch_size):
 
 def load_model_artifact(checkpoint, model_class, project, version, user='petermitrano'):
     local_ckpt_path = model_artifact_path(checkpoint, project, version, user)
+    print(f"Restoring from {local_ckpt_path}")
     model = model_class.load_from_checkpoint(local_ckpt_path.as_posix())
     return model
 
