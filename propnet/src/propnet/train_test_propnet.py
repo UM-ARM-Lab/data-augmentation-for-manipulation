@@ -24,6 +24,25 @@ from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 PROJECT = 'propnet'
 
 
+class MyModelCheckpoint(pl.callbacks.ModelCheckpoint):
+
+    def on_save_checkpoint(self, trainer, pl_module, checkpoint):
+        return {
+            "monitor":          self.monitor,
+            "best_model_score": self.best_model_score,
+            "best_model_path":  self.best_model_path,
+            "current_score":    self.current_score,
+            "dirpath":          self.dirpath,
+            "best_k_models":    self.best_k_models,
+        }
+
+    def on_load_checkpoint(self, trainer, pl_module, callback_state):
+        self.best_model_score = callback_state["best_model_score"]
+        self.best_model_path = callback_state["best_model_path"]
+        self.best_model_score = callback_state["best_model_score"]
+        self.best_k_models = callback_state["best_k_models"]
+
+
 def train_main(dataset_dir: pathlib.Path,
                model_params: pathlib.Path,
                batch_size: int,
@@ -83,21 +102,22 @@ def train_main(dataset_dir: pathlib.Path,
     if checkpoint is None:
         ckpt_path = None
         run_id = generate_id(length=5)
+        wandb_kargs = {}
     else:
         ckpt_path = model_artifact_path(checkpoint, project, version='latest', user='petermitrano')
         run_id = checkpoint
+        wandb_kargs = {
+            'resume': True,
+        }
 
     model = PropNet(hparams=model_params)
 
-    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all')
+    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     loggers = [
         wb_logger,
     ]
 
-    ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss",
-                                           save_top_k=-1,
-                                           filename='latest-{epoch:02d}',
-                                           save_on_train_epoch_end=True)
+    ckpt_cb = MyModelCheckpoint(monitor="val_loss", save_top_k=-1, filename='{epoch:02d}')
     callbacks = [
         ckpt_cb,
     ]

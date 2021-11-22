@@ -33,8 +33,8 @@ node_name = f"train_test_propnet_{int(time())}"
 
 @ros_init.with_ros(node_name)
 def main():
-    torch.set_printoptions(linewidth=250, precision=5, sci_mode=False)
-    np.set_printoptions(linewidth=250, precision=5, suppress=True)
+    torch.set_printoptions(linewidth=250, precision=7, sci_mode=False)
+    np.set_printoptions(linewidth=250, precision=7, suppress=True)
     parser = argparse.ArgumentParser()
 
     subparsers = parser.add_subparsers()
@@ -46,7 +46,7 @@ def main():
     train_parser.add_argument('--batch-size', type=int, default=24)
     train_parser.add_argument('--take', type=int)
     train_parser.add_argument('--epochs', type=int, default=2000)
-    train_parser.add_argument('--steps', type=int)
+    train_parser.add_argument('--steps', type=int, default=-1)
     train_parser.add_argument('--no-validate', action='store_true')
     train_parser.add_argument('--seed', type=int, default=None)
     train_parser.set_defaults(func=train_main)
