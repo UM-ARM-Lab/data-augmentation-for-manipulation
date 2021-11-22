@@ -74,6 +74,7 @@ def train_main(dataset_dir: pathlib.Path,
     model_params['batch_size'] = batch_size
     model_params['seed'] = seed
     model_params['max_epochs'] = epochs
+    model_params['max_steps'] = steps
     model_params['take'] = take
     model_params['mode'] = 'train'
     model_params['checkpoint'] = checkpoint
