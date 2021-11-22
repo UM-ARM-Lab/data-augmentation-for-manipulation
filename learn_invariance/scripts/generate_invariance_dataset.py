@@ -81,7 +81,7 @@ def main():
 
             # test out the augmentation
             s.tinv_set_state_from_aug_pred(example_aug_pred, args.visualize)
-            example_aug_actual = s.tinv_generate_data_from_aug_pred(example_aug_pred, args.visualize)
+            example_aug_actual = s.tinv_generate_data_from_aug_pred(params, example_aug_pred, args.visualize)
 
             error = s.tinv_error(example_aug_actual, example_aug_pred)
 

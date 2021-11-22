@@ -53,17 +53,22 @@ def collect_trajectory(params,
 
     if predetermined_start_state is not None:
         scenario.set_state_from_dict(predetermined_start_state)
-        n_actions = len(predetermined_actions)
-    else:
-        n_actions = params['steps_per_traj']
 
-    for time_idx in range(n_actions):
+    if predetermined_actions is not None:
+        n_steps = len(predetermined_actions) + 1
+    else:
+        n_steps = params['steps_per_traj']
+
+    for time_idx in range(n_steps):
         # get current state and sample action
         state = scenario.get_state()
 
         # TODO: sample the entire action sequence in advance?
         if predetermined_actions is not None:
-            action = predetermined_actions[time_idx]
+            if time_idx < n_steps - 1:
+                action = predetermined_actions[time_idx]
+            else:
+                action = predetermined_actions[-1]
             invalid = False
         else:
             action, invalid = scenario.sample_action(action_rng=action_rng,
@@ -79,7 +84,7 @@ def collect_trajectory(params,
             scenario.plot_environment_rviz(environment)
             scenario.plot_traj_idx_rviz(traj_idx)
             scenario.plot_state_rviz(state, label='actual')
-            if time_idx < params['steps_per_traj'] - 1:  # skip the last action in visualization as well
+            if time_idx < n_steps - 1:  # skip the last action in visualization as well
                 scenario.plot_action_rviz(state, action)
             scenario.plot_time_idx_rviz(time_idx)
         # End Visualization

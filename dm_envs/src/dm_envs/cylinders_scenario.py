@@ -13,7 +13,7 @@ from arc_utilities.algorithms import nested_dict_update
 from augmentation.aug_opt_utils import get_local_frame
 from dm_envs import primitive_hand
 from dm_envs.cylinders_task import PlanarPushingCylindersTask
-from dm_envs.planar_pushing_scenario import PlanarPushingScenario, ACTION_Z
+from dm_envs.planar_pushing_scenario import PlanarPushingScenario
 from dm_envs.planar_pushing_task import ARM_HAND_NAME, ARM_NAME
 from link_bot_data.base_collect_dynamics_data import collect_trajectory
 from link_bot_data.color_from_kwargs import color_from_kwargs
@@ -663,8 +663,7 @@ class CylindersScenario(PlanarPushingScenario):
         test_obj = self.task.objs[TINV_TEST_OBJ_IDX]
         test_obj.set_pose(self.env.physics, position=[0, 0, obj_z])
 
-        for _ in range(10):
-            self.env.step(np.zeros(self.action_spec.shape))
+        self.env.step(np.zeros(self.action_spec.shape))
 
         if visualize:
             state = self.get_state()
@@ -719,8 +718,9 @@ class CylindersScenario(PlanarPushingScenario):
                 continue
             # compute the per-object error and add it
             pos_aug = example_aug[pos_k]
-            obj_error = tf.reduce_mean(tf.square(pos - pos_aug))
+            obj_error = tf.reduce_mean(tf.linalg.norm(pos - pos_aug, axis=-1))
             error += obj_error
+        error /= num_objs
 
         return error
 
@@ -747,20 +747,26 @@ class CylindersScenario(PlanarPushingScenario):
         for joint_idx, joint_value in enumerate(joint_position_aug):
             self.env.physics.named.data.qpos[f'{ARM_NAME}/joint_{joint_idx + 1}'] = joint_value
 
-        for _ in range(10):
-            self.env.step(np.zeros(self.action_spec.shape))
+        self.env.step(np.zeros(self.action_spec.shape))
 
         if visualize:
             state = self.get_state()
             self.plot_state_rviz(state, label='tinv_set_state')
 
-    def tinv_generate_data_from_aug_pred(self, example_aug_pred, visualize):
-        predetermined_actions = example_aug_pred['gripper_position']
+    def tinv_generate_data_from_aug_pred(self, params, example_aug_pred, visualize):
+        unused_rng = np.random.RandomState(0)
+        action_k = 'gripper_position'
+        predetermined_actions = []
+        for action_t in example_aug_pred[action_k].numpy():
+            predetermined_actions.append({
+                action_k: action_t
+            })
+
         example_aug_actual, _ = collect_trajectory(params=params,
                                                    scenario=self,
                                                    traj_idx=0,
                                                    predetermined_start_state=None,
                                                    predetermined_actions=predetermined_actions,
                                                    verbose=(1 if visualize else 0),
-                                                   action_rng=action_rng)
+                                                   action_rng=unused_rng)
         return example_aug_actual
