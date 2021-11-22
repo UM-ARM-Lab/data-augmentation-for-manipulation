@@ -120,6 +120,11 @@ def train_main(dataset_dir: pathlib.Path,
                 val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
 
+    eval_main(dataset_dir,
+              run_id,
+              mode='test',
+              batch_size=batch_size)
+
 
 def take_subset(dataset, take):
     dataset_take = Subset(dataset, range(min(take, len(dataset))))
