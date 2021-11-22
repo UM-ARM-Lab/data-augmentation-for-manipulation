@@ -62,6 +62,7 @@ def main():
     eval_parser.add_argument('checkpoint')
     eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     eval_parser.add_argument('--batch-size', type=int, default=24)
+    eval_parser.add_argument('--take', type=int)
     eval_parser.set_defaults(func=eval_main)
 
     import resource

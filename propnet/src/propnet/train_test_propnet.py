@@ -46,10 +46,7 @@ def train_main(dataset_dir: pathlib.Path,
     val_dataset = TorchDynamicsDataset(dataset_dir, mode='val',
                                        transform=transform)
 
-    if take:
-        train_dataset_take = take_subset(train_dataset, take)
-    else:
-        train_dataset_take = train_dataset
+    train_dataset_take = take_subset(train_dataset, take)
 
     train_loader = DataLoader(train_dataset_take,
                               batch_size=batch_size,
@@ -128,24 +125,29 @@ def train_main(dataset_dir: pathlib.Path,
 
 
 def take_subset(dataset, take):
+    if take is None:
+        return dataset
+
     dataset_take = Subset(dataset, range(min(take, len(dataset))))
     return dataset_take
 
 
 def eval_main(dataset_dir: pathlib.Path,
-              checkpoint: pathlib.Path,
+              checkpoint: str,
               mode: str,
               batch_size: int,
+              take: int = None,
               project=PROJECT,
               **kwargs):
     dataset = TorchDynamicsDataset(dataset_dir, mode)
+    dataset = take_subset(dataset, take)
 
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
-        'checkpoint': checkpoint,
-        'mode':       mode,
+        'eval_checkpoint': checkpoint,
+        'eval_mode':       mode,
     }
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config)
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
