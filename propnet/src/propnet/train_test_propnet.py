@@ -97,12 +97,8 @@ def train_main(dataset_dir: pathlib.Path,
                                            save_top_k=-1,
                                            filename='latest-{epoch:02d}',
                                            save_on_train_epoch_end=True)
-    early_stopping = pl.callbacks.EarlyStopping(monitor="val_loss",
-                                                divergence_threshold=5e-3,
-                                                patience=200)
     callbacks = [
         ckpt_cb,
-        early_stopping
     ]
 
     trainer = pl.Trainer(gpus=1,
