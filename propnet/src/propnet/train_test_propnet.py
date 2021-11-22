@@ -78,6 +78,7 @@ def train_main(dataset_dir: pathlib.Path,
     model_params['seed'] = seed
     model_params['max_epochs'] = epochs
     model_params['take'] = take
+    model_params['mode'] = 'train'
     model_params['checkpoint'] = checkpoint
     model_params['no_validate'] = no_validate
 
@@ -142,7 +143,11 @@ def eval_main(dataset_dir: pathlib.Path,
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
 
     run_id = f'eval-{generate_id(length=5)}'
-    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'])
+    eval_config = {
+        'checkpoint': checkpoint,
+        'mode':       mode,
+    }
+    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config)
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
     model = load_model_artifact(checkpoint, PropNet, project, 'best')

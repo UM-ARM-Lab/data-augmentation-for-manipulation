@@ -72,28 +72,23 @@ def main():
         example = s.tinv_generate_data(action_rng, params, args.visualize)
 
         for scaling in tqdm(scaling_gen(n_output_examples), position=2):
-            print("FIXME:")
-            scaling = 0.1
-            # sample a transformation
             transform = s.tinv_sample_transform(transform_sampling_rng, scaling)  # uniformly sample a transformation
 
             example_aug_pred = s.tinv_apply_transformation(example, transform, args.visualize)
 
-            # test out the augmentation
             s.tinv_set_state_from_aug_pred(example_aug_pred, args.visualize)
             example_aug_actual = s.tinv_generate_data_from_aug_pred(params, example_aug_pred, args.visualize)
 
             error = s.tinv_error(example_aug_actual, example_aug_pred)
 
-            # if args.visualize:
-            #     s.tinv_viz(example, label='', color='r')
-            #     s.tinv_viz(example_aug, label='aug', color='b')
-
             out_example = {
-                'transform': transform,
-                'error':     error,
-                'state_i':   i,
-                'scaling':   scaling,
+                'example':            example,
+                'example_aug_pred':   example_aug_pred,
+                'example_aug_actual': example_aug_actual,
+                'transform':          transform,
+                'error':              error,
+                'state_i':            i,
+                'scaling':            scaling,
             }
             pkl_write_example(full_output_directory, out_example, example_idx)
             example_idx += 1
