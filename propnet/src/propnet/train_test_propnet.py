@@ -49,6 +49,7 @@ def train_main(dataset_dir: pathlib.Path,
                epochs: int,
                seed: int,
                steps: int = -1,
+               nickname: Optional[str] = "",
                checkpoint: Optional = None,
                take: Optional[int] = None,
                no_validate: bool = False,
@@ -101,7 +102,7 @@ def train_main(dataset_dir: pathlib.Path,
 
     if checkpoint is None:
         ckpt_path = None
-        run_id = generate_id(length=5)
+        run_id = '-'.join([nickname, generate_id(length=5)])
         wandb_kargs = {}
     else:
         ckpt_path = model_artifact_path(checkpoint, project, version='latest', user='armlab')
@@ -113,23 +114,17 @@ def train_main(dataset_dir: pathlib.Path,
     model = PropNet(hparams=model_params)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
-    loggers = [
-        wb_logger,
-    ]
 
     ckpt_cb = MyModelCheckpoint(monitor="val_loss", save_top_k=-1, filename='{epoch:02d}')
-    callbacks = [
-        ckpt_cb,
-    ]
 
     trainer = pl.Trainer(gpus=1,
-                         logger=loggers,
+                         logger=wb_logger,
                          enable_model_summary=False,
                          max_epochs=epochs,
                          max_steps=steps,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=10,
-                         callbacks=callbacks,
+                         callbacks=[ckpt_cb],
                          default_root_dir='wandb',
                          gradient_clip_val=0.1)
 
@@ -139,6 +134,8 @@ def train_main(dataset_dir: pathlib.Path,
                 train_loader,
                 val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
+
+    wandb.finish()
 
     eval_main(dataset_dir,
               run_id,
