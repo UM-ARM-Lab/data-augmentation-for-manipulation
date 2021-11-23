@@ -201,6 +201,7 @@ def viz_main(dataset_dir: pathlib.Path,
     loader = DataLoader(dataset, collate_fn=my_collate)
 
     model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
+    model.training = False
 
     for i, inputs in enumerate(tqdm(loader)):
         gt_vel, gt_pos, pred_vel, pred_pos = model(inputs)
