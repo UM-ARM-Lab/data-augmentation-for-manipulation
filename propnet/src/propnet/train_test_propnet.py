@@ -166,15 +166,16 @@ def eval_main(dataset_dir: pathlib.Path,
 
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
 
+    model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
+
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
+        'training_dataset': model.hparams.dataset_dir,
         'eval_checkpoint': checkpoint,
         'eval_mode':       mode,
     }
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config)
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
-
-    model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
 
     metrics = trainer.validate(model, loader, verbose=False)
 
