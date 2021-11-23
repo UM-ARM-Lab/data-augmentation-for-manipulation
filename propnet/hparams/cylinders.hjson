@@ -5,7 +5,6 @@
   action_keys: [
   ]
   learning_rate: 0.001
-  epochs: 100
   scheduled_sampling: true
   # params for propnet model
   attr_dim: 2
