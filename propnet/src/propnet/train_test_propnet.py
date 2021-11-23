@@ -103,7 +103,9 @@ def train_main(dataset_dir: pathlib.Path,
 
     if checkpoint is None:
         ckpt_path = None
-        run_id = '-'.join([nickname, generate_id(length=5)])
+        run_id = generate_id(length=5)
+        if nickname is not None:
+            run_id = nickname + '-' + run_id
         wandb_kargs = {}
     else:
         ckpt_path = model_artifact_path(checkpoint, project, version='latest', user=user)
@@ -171,8 +173,8 @@ def eval_main(dataset_dir: pathlib.Path,
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
         'training_dataset': model.hparams.dataset_dir,
-        'eval_checkpoint': checkpoint,
-        'eval_mode':       mode,
+        'eval_checkpoint':  checkpoint,
+        'eval_mode':        mode,
     }
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config)
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)

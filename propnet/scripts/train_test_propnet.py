@@ -42,7 +42,7 @@ def main():
     train_parser = subparsers.add_parser('train')
     train_parser.add_argument('dataset_dir', type=pathlib.Path)
     train_parser.add_argument('model_params', type=pathlib.Path)
-    train_parser.add_argument('--nickname', '-n', type=str, default='')
+    train_parser.add_argument('--nickname', '-n', type=str)
     train_parser.add_argument('--user', '-u', type=str, default='petermitrano')
     train_parser.add_argument('--checkpoint')
     train_parser.add_argument('--batch-size', type=int, default=24)
