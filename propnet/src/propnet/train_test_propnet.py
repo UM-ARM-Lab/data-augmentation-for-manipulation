@@ -48,6 +48,7 @@ def train_main(dataset_dir: pathlib.Path,
                batch_size: int,
                epochs: int,
                seed: int,
+               user: str,
                steps: int = -1,
                nickname: Optional[str] = "",
                checkpoint: Optional = None,
@@ -105,7 +106,7 @@ def train_main(dataset_dir: pathlib.Path,
         run_id = '-'.join([nickname, generate_id(length=5)])
         wandb_kargs = {}
     else:
-        ckpt_path = model_artifact_path(checkpoint, project, version='latest', user='armlab')
+        ckpt_path = model_artifact_path(checkpoint, project, version='latest', user=user)
         run_id = checkpoint
         wandb_kargs = {
             'resume': True,
@@ -115,7 +116,7 @@ def train_main(dataset_dir: pathlib.Path,
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
 
-    ckpt_cb = MyModelCheckpoint(monitor="val_loss", save_top_k=-1, filename='{epoch:02d}')
+    ckpt_cb = MyModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
 
     trainer = pl.Trainer(gpus=1,
                          logger=wb_logger,
@@ -140,6 +141,7 @@ def train_main(dataset_dir: pathlib.Path,
     eval_main(dataset_dir,
               run_id,
               mode='test',
+              user=user,
               batch_size=batch_size)
 
 
@@ -155,6 +157,7 @@ def eval_main(dataset_dir: pathlib.Path,
               checkpoint: str,
               mode: str,
               batch_size: int,
+              user: str,
               take: int = None,
               project=PROJECT,
               **kwargs):
@@ -171,9 +174,9 @@ def eval_main(dataset_dir: pathlib.Path,
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config)
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
-    model = load_model_artifact(checkpoint, PropNet, project, 'best')
+    model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
 
-    metrics = trainer.validate(model, loader, verbose=0)
+    metrics = trainer.validate(model, loader, verbose=False)
 
     print(f'run_id: {run_id}')
     for metrics_i in metrics:
@@ -184,8 +187,9 @@ def eval_main(dataset_dir: pathlib.Path,
 
 
 def viz_main(dataset_dir: pathlib.Path,
-             checkpoint: pathlib.Path,
+             checkpoint,
              mode: str,
+             user: str,
              project=PROJECT,
              **kwargs):
     dataset = TorchDynamicsDataset(dataset_dir, mode)
@@ -193,7 +197,7 @@ def viz_main(dataset_dir: pathlib.Path,
 
     loader = DataLoader(dataset, collate_fn=my_collate)
 
-    model = load_model_artifact(checkpoint, PropNet, project, 'best')
+    model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
 
     for i, inputs in enumerate(tqdm(loader)):
         gt_vel, gt_pos, pred_vel, pred_pos = model(inputs)
@@ -225,16 +229,19 @@ def get_num_workers(batch_size):
 
 def load_model_artifact(checkpoint, model_class, project, version, user='armlab'):
     local_ckpt_path = model_artifact_path(checkpoint, project, version, user)
-    print(f"Restoring from {local_ckpt_path}")
     model = model_class.load_from_checkpoint(local_ckpt_path.as_posix())
     return model
 
 
 def model_artifact_path(checkpoint, project, version, user='armlab'):
+    if ':' in checkpoint:
+        checkpoint, version = checkpoint.split(':')
+
     if not checkpoint.startswith('model-'):
         checkpoint = 'model-' + checkpoint
     api = wandb.Api()
     artifact = api.artifact(f'{user}/{project}/{checkpoint}:{version}')
     artifact_dir = artifact.download()
     local_ckpt_path = pathlib.Path(artifact_dir) / "model.ckpt"
+    print(f"Found artifact {local_ckpt_path}")
     return local_ckpt_path

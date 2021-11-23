@@ -43,6 +43,7 @@ def main():
     train_parser.add_argument('dataset_dir', type=pathlib.Path)
     train_parser.add_argument('model_params', type=pathlib.Path)
     train_parser.add_argument('--nickname', '-n', type=str, default='')
+    train_parser.add_argument('--user', '-u', type=str, default='petermitrano')
     train_parser.add_argument('--checkpoint')
     train_parser.add_argument('--batch-size', type=int, default=24)
     train_parser.add_argument('--take', type=int)
@@ -55,6 +56,7 @@ def main():
     viz_parser = subparsers.add_parser('viz')
     viz_parser.add_argument('dataset_dir', type=pathlib.Path)
     viz_parser.add_argument('checkpoint')
+    viz_parser.add_argument('--user', '-u', type=str, default='petermitrano')
     viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     viz_parser.set_defaults(func=viz_main)
 
@@ -63,6 +65,7 @@ def main():
     eval_parser.add_argument('checkpoint')
     eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     eval_parser.add_argument('--batch-size', type=int, default=24)
+    eval_parser.add_argument('--user', '-u', type=str, default='petermitrano')
     eval_parser.add_argument('--take', type=int)
     eval_parser.set_defaults(func=eval_main)
 
