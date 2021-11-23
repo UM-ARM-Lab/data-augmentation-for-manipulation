@@ -165,11 +165,6 @@ class PropNet(pl.LightningModule):
         pred_pos = [pred_pos_t.clone()]
         pred_vel = [pred_vel_t.clone()]
         for t in range(states.shape[1] - 1):
-            # compute the relations
-            Rs, Rr, Ra = self.scenario.propnet_rel(pred_pos_t, self.hparams.num_objects, self.hparams.relation_dim,
-                                                   is_close_threshold=self.hparams.is_close_threshold,
-                                                   device=self.device)
-
             # Integrate the velocity to produce the next positions
             # but only do this for the objects, not the robot. The robots position and velocity is known
             # over the entire prediction, because that is the "action". The robot must be at index 0 here.
@@ -180,11 +175,17 @@ class PropNet(pl.LightningModule):
             if self.hparams.get('scheduled_sampling', False) and self.training:
                 epslion_i = self.epsilon_schedule(self.global_step)
                 coin_flip_p = self.epsilon_rng.uniform(0, 1)
-                if coin_flip_p < epslion_i:
-                    pred_pos_t = gt_pos[:, t + 1]
-                    pred_vel_t = gt_vel[:, t]
+                use_gt_t = coin_flip_p < epslion_i
+                if use_gt_t:
+                    pred_pos_t = gt_pos[:, t + 1].clone()
+                    pred_vel_t = gt_vel[:, t].clone()
 
             pred_state_t = torch.cat([pred_pos_t, pred_vel_t], dim=-1)
+
+            # compute the relations
+            Rs, Rr, Ra = self.scenario.propnet_rel(pred_pos_t, self.hparams.num_objects, self.hparams.relation_dim,
+                                                   is_close_threshold=self.hparams.is_close_threshold,
+                                                   device=self.device)
 
             # now predict the next velocity, this is where the network is actually used
             pred_vel_t = self.one_step_forward(attr, pred_state_t, None, Rs, Rr, Ra)  # [b, n_objects, position_dim]
