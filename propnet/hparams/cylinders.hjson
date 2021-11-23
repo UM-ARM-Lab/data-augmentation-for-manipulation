@@ -6,6 +6,7 @@
   ]
   learning_rate: 0.001
   epochs: 100
+  scheduled_sampling: true
   # params for propnet model
   attr_dim: 2
   position_dim: 2  # also the output dim of propnet

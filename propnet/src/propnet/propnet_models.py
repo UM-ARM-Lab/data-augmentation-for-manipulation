@@ -1,3 +1,6 @@
+from math import exp
+
+import numpy as np
 import pytorch_lightning as pl
 import torch
 from torch.autograd import Variable
@@ -102,6 +105,14 @@ def normalize(x, mean, std):
     return (x - mean) / std
 
 
+class InverseSigmoidDecaySchedule:
+    def __init__(self, k=7000):
+        self.k = k
+
+    def __call__(self, i):
+        return self.k / (self.k + exp(i / self.k))
+
+
 # noinspection PyPep8Naming
 class PropNet(pl.LightningModule):
 
@@ -112,6 +123,10 @@ class PropNet(pl.LightningModule):
         self.scenario = get_scenario(self.hparams.scenario)
 
         self.model = PropModule(self.hparams, residual)
+
+        self.epsilon = None
+        self.epsilon_schedule = None
+        self.epsilon_rng = np.random.RandomState()
 
     def one_step_forward(self, attr, state, action, Rs, Rr, Ra):
         """
@@ -134,10 +149,6 @@ class PropNet(pl.LightningModule):
         pred_vel_t = self.model(object_observations, Rs, Rr, Ra, self.hparams['pstep'])
 
         return pred_vel_t
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams['learning_rate'])
-        return optimizer
 
     def forward(self, batch):
         batch_size = get_batch_size(batch)
@@ -166,8 +177,16 @@ class PropNet(pl.LightningModule):
             # copy in the robot position
             pred_pos_t[:, 0] = gt_pos[:, t + 1, 0]
 
-            # now predict the next velocity
+            if self.hparams.get('scheduled_sampling', False) and self.training:
+                epslion_i = self.epsilon_schedule(self.global_step)
+                coin_flip_p = self.epsilon_rng.uniform(0, 1)
+                if coin_flip_p < epslion_i:
+                    pred_pos_t = gt_pos[:, t + 1]
+                    pred_vel_t = gt_vel[:, t]
+
             pred_state_t = torch.cat([pred_pos_t, pred_vel_t], dim=-1)
+
+            # now predict the next velocity, this is where the network is actually used
             pred_vel_t = self.one_step_forward(attr, pred_state_t, None, Rs, Rr, Ra)  # [b, n_objects, position_dim]
 
             pred_vel_t[:, 0] = gt_vel[:, t + 1, 0]  # copy in the known robot position and velocity
@@ -201,6 +220,14 @@ class PropNet(pl.LightningModule):
         attrs = torch.stack(attrs, dim=1)  # [b, n_objects, 1]
         states = torch.stack(states, dim=2)  # [b, T, n_objects,  ...]
         return attrs, states
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+
+        # See https://arxiv.org/pdf/1506.03099.pdf for details on scheduled sampling
+        self.epsilon_schedule = InverseSigmoidDecaySchedule()
+
+        return optimizer
 
     def velocity_loss(self, gt_vel, pred_vel):
         loss = torch.norm(gt_vel - pred_vel, dim=-1)
