@@ -10,6 +10,7 @@ import torch
 from pyjacobian_follower import IkParams
 
 from arc_utilities.algorithms import nested_dict_update
+from augmentation.aug_opt import compute_moved_mask
 from augmentation.aug_opt_utils import get_local_frame
 from dm_envs import primitive_hand
 from dm_envs.cylinders_task import PlanarPushingCylindersTask
@@ -153,6 +154,7 @@ def make_vel_arrow(position, velocity, height, color_msg, idx, ns, vel_scale=1.0
 
 
 class CylindersScenario(PlanarPushingScenario):
+    tinv_dim = 3
 
     def iter_keys(self, num_objs):
         # NOTE: the robot goes first, this is relied on in aug_apply_no_ik
@@ -640,23 +642,20 @@ class CylindersScenario(PlanarPushingScenario):
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
 
-    def set_obj_poses(self, obj_positions, obj_quaternions):
-        for i, obj in enumerate(self.task.objs):
-            obj.set_pose(self.env.physics, position=obj_positions[i], quaternion=obj_quaternions[i])
-
     def tinv_set_state(self, params, state_rng, visualize):
+        self.randomize_environment(state_rng, params)
+
         obj_z = params['height'] / 2
-        # move all the cylinders except for one away
         y_min = params['extent'][2]
         y_max = params['extent'][3]
-        x = params['extent'][1] - params['radius']
-        obj_positions = [[x, int_frac_to_range(i, len(self.task.objs), y_min, y_max), obj_z] for i, obj in
-                         enumerate(self.task.objs)]
-        obj_quaternions = [[1, 0, 0, 0] for _ in self.task.objs]
-        self.set_obj_poses(obj_positions, obj_quaternions)
+        away_x = params['extent'][1] - params['radius']
 
-        test_obj = self.task.objs[TINV_TEST_OBJ_IDX]
-        test_obj.set_pose(self.env.physics, position=[0, 0, obj_z])
+        # move all the cylinders except for one away
+        for i, obj in enumerate(self.task.objs):
+            if i == TINV_TEST_OBJ_IDX:
+                continue
+            away_y = int_frac_to_range(i, len(self.task.objs), y_min, y_max)
+            obj.set_pose(self.env.physics, position=[away_x, away_y, obj_z], quaternion=[1, 0, 0, 0])
 
         self.env.step(np.zeros(self.action_spec.shape))
 
@@ -665,42 +664,39 @@ class CylindersScenario(PlanarPushingScenario):
             self.plot_state_rviz(state, label='tinv_set_state')
 
     def tinv_generate_data(self, action_rng: np.random.RandomState, params, visualize):
-        example, _ = collect_trajectory(params=params,
-                                        scenario=self,
-                                        traj_idx=0,
-                                        predetermined_start_state=None,
-                                        predetermined_actions=None,
-                                        verbose=(1 if visualize else 0),
-                                        action_rng=action_rng)
-        return example
+        example, invalid = collect_trajectory(params=params,
+                                              scenario=self,
+                                              traj_idx=0,
+                                              predetermined_start_state=None,
+                                              predetermined_actions=None,
+                                              verbose=(1 if visualize else 0),
+                                              action_rng=action_rng)
+        return example, invalid
 
     def tinv_sample_transform(self, transform_sampling_rng: np.random.RandomState, scaling: float):
-        trans = 1.0
+        trans = 0.25
         euler = np.pi
-        lim = np.array([trans, trans, trans, euler, euler, euler]) * scaling
+        lim = np.array([trans, trans, euler]) * scaling
         transform = transform_sampling_rng.uniform(-lim, lim)
         return transform
 
     def tinv_apply_transformation(self, example: Dict, transform, visualize):
-        # apply the se3 transformation to the positions of everything
-
-        num_objs = example['num_objs'][0][0]
         time = example['time_idx'].shape[0]
 
         example = coerce_types(example)
-        example_batch = add_batch(example)
-        moved_mask = np.zeros([1, num_objs + 1], np.float32)
-        moved_mask[:, 0] = 1  # the robot always moves
-        moved_mask[:, TINV_TEST_OBJ_IDX + 1] = 1
+
         example_aug = deepcopy(example)
-        # FIXME: we should be using self.transformation_params_to_matrices, but that currently only does x,y,yaw.
-        #  once the invariance learning is working, we should make the scenario do full xyzrpy and change this part
-        m = xyzrpy_to_matrices(tf.convert_to_tensor(add_batch(transform), tf.float32))
+
+        example_batch = add_batch(example)
         obj_points = self.compute_obj_points(example_batch, num_object_interp=1, batch_size=1)
+        moved_mask = compute_moved_mask(obj_points)
+
+        m = self.transformation_params_to_matrices(tf.convert_to_tensor(add_batch(transform), tf.float32))
         to_local_frame = get_local_frame(moved_mask, obj_points)
         example_aug_update, _, _ = self.aug_apply_no_ik(moved_mask, m, to_local_frame, example_batch,
                                                         batch_size=1, time=time, visualize=visualize)
         example_aug_update = remove_batch(example_aug_update)
+
         example_aug = nested_dict_update(example_aug, example_aug_update)
 
         return example_aug
@@ -719,12 +715,6 @@ class CylindersScenario(PlanarPushingScenario):
 
         return error
 
-    def tinv_viz(self, example_aug: Dict, label='aug', color='b'):
-        pass
-        # for t in range(None):
-        #     state_t = index_t(states, t)
-        #     self.plot_state_rviz(state_t, label=f'{label}_{t}')
-
     def tinv_set_state_from_aug_pred(self, example_aug_pred, visualize):
         for i, obj in enumerate(self.task.objs):
             # [0,0] because t=0 and extra dim of 1
@@ -736,7 +726,8 @@ class CylindersScenario(PlanarPushingScenario):
         success, joint_position_aug = self.task.solve_position_ik(self.env.physics, aug_tcp_pos)
 
         if not success:
-            raise RuntimeError(f"failed to solve ik to {aug_tcp_pos}")
+            print(f"failed to solve ik to {aug_tcp_pos}")
+            return (invalid := True)
 
         # teleports arm joints
         for joint_idx, joint_value in enumerate(joint_position_aug):
@@ -748,6 +739,8 @@ class CylindersScenario(PlanarPushingScenario):
             state = self.get_state()
             self.plot_state_rviz(state, label='tinv_set_state')
 
+        return (invalid := False)
+
     def tinv_generate_data_from_aug_pred(self, params, example_aug_pred, visualize):
         unused_rng = np.random.RandomState(0)
         action_k = 'gripper_position'
@@ -757,11 +750,11 @@ class CylindersScenario(PlanarPushingScenario):
                 action_k: action_t
             })
 
-        example_aug_actual, _ = collect_trajectory(params=params,
-                                                   scenario=self,
-                                                   traj_idx=0,
-                                                   predetermined_start_state=None,
-                                                   predetermined_actions=predetermined_actions,
-                                                   verbose=(1 if visualize else 0),
-                                                   action_rng=unused_rng)
-        return example_aug_actual
+        example_aug_actual, invalid = collect_trajectory(params=params,
+                                                         scenario=self,
+                                                         traj_idx=0,
+                                                         predetermined_start_state=None,
+                                                         predetermined_actions=predetermined_actions,
+                                                         verbose=(1 if visualize else 0),
+                                                         action_rng=unused_rng)
+        return example_aug_actual, invalid

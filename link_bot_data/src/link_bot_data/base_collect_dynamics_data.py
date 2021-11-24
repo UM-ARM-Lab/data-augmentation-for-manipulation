@@ -91,7 +91,10 @@ def collect_trajectory(params,
 
         # execute action
         try:
-            scenario.execute_action(environment, state, action)
+            invalid = scenario.execute_action(environment, state, action)
+            if invalid:
+                rospy.logwarn(f"error executing action {action}")
+                return {}, (invalid := True)
         except RobotPlanningError:
             rospy.logwarn(f"error executing action {action}")
             return {}, (invalid := True)

@@ -46,10 +46,11 @@ def main():
     full_output_directory.mkdir(exist_ok=True)
     print(Fore.GREEN + full_output_directory.as_posix() + Fore.RESET)
 
-    transformation_dim = 6
-    n_output_examples = int(np.sqrt(10 ** transformation_dim))
     params = load_hjson(args.data_collection_params)
     scenario_name = params['scenario']
+    s = get_scenario(scenario_name)
+    transformation_dim = s.tinv_dim
+    n_output_examples = int(np.sqrt(10 ** transformation_dim))
 
     hparams = {
         'scenario':               scenario_name,
@@ -59,25 +60,36 @@ def main():
     }
     save_hparams(hparams, full_output_directory)
 
-    s = get_scenario(scenario_name)
     s.on_before_data_collection(params)
 
     transform_sampling_rng = np.random.RandomState(0)
-    state_rng = np.random.RandomState(0)
-    action_rng = np.random.RandomState(0)
+    state_rng = np.random.RandomState(1)
+    action_rng = np.random.RandomState(2)
 
     example_idx = 0
     for i in trange(args.n_test_states, position=1):
         s.tinv_set_state(params, state_rng, args.visualize)
-        example = s.tinv_generate_data(action_rng, params, args.visualize)
+        while True:
+            # this will generate dfferent data each time because RNG is not reset
+            example, invalid = s.tinv_generate_data(action_rng, params, args.visualize)
+            if not invalid:
+                break
 
-        for scaling in tqdm(scaling_gen(n_output_examples), position=2):
+        for scaling in tqdm(scaling_gen(n_output_examples), total=n_output_examples, position=2):
             transform = s.tinv_sample_transform(transform_sampling_rng, scaling)  # uniformly sample a transformation
 
             example_aug_pred = s.tinv_apply_transformation(example, transform, args.visualize)
 
-            s.tinv_set_state_from_aug_pred(example_aug_pred, args.visualize)
-            example_aug_actual = s.tinv_generate_data_from_aug_pred(params, example_aug_pred, args.visualize)
+            invalid = s.tinv_set_state_from_aug_pred(example_aug_pred, args.visualize)
+            if invalid:
+                continue
+
+            example_aug_actual, invalid = s.tinv_generate_data_from_aug_pred(params, example_aug_pred, args.visualize)
+            if invalid:
+                # NOTE: there could be something interesting here where instead of throwing out this data,
+                #  we include it and label it has "high error", which might allows us to learn about reachability
+                #  but this would only make sense if we represent our transformations in the world frame, I think.
+                continue
 
             error = s.tinv_error(example_aug_actual, example_aug_pred)
 
