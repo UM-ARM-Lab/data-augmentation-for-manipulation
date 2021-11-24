@@ -90,6 +90,7 @@ def train_main(dataset_dir: pathlib.Path,
     model_params['sha'] = sha
     model_params['start-train-time'] = stamp
     model_params['dataset_dir'] = dataset_dir.as_posix()
+    model_params['n_train_trajs'] = train_dataset.params['n_train_trajs']
     model_params['train_dataset_size'] = len(train_dataset_take)
     model_params['val_dataset_size'] = len(val_dataset)
     model_params['batch_size'] = batch_size
