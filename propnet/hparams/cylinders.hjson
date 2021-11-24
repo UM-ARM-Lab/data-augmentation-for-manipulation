@@ -18,4 +18,10 @@
   nf_relation: 150
   pstep: 5
   verbose: 0
+  normalize_posvel: true
+  normalization: {
+    # these numbers are computed automatically with cylinders_normalization.py
+    mean: [0.0303, 0.0303, 0.0012, 0.0012]
+    std: [4.8671e-03, 4.9866e-03, 1.4573e-05, 1.5455e-05]
+  }
 }

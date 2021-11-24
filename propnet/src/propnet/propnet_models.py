@@ -29,12 +29,32 @@ def get_batch_size(batch):
     return batch_size
 
 
+def normalize(x, mean, std):
+    return (x - mean) / std
+
+
+def unnormalize(x, mean, std):
+    return x * std + mean
+
+
+class InverseSigmoidDecaySchedule:
+    def __init__(self, k=7000):
+        self.k = k
+
+    def __call__(self, i):
+        return self.k / (self.k + exp(i / self.k))
+
+
 # noinspection PyPep8Naming
 class PropModule(pl.LightningModule):
     def __init__(self, hparams, residual=False):
         super().__init__()
 
         self.save_hyperparameters(hparams)
+
+        if 'mean' in self.hparams.normalization and 'std' in self.hparams.normalization:
+            self.register_buffer('rel_posvel_mean', torch.Tensor(self.hparams.normalization['mean']))
+            self.register_buffer('rel_posvel_std', torch.Tensor(self.hparams.normalization['std']))
 
         self.residual = residual
         self.obj_input_dim = self.hparams.attr_dim + self.hparams.state_dim + self.hparams.action_dim
@@ -61,31 +81,44 @@ class PropModule(pl.LightningModule):
                                                     self.hparams.nf_effect,
                                                     self.output_dim)
 
-    def forward(self, state, Rr, Rs, Ra, pstep):
-        # calculate particle encoding
-        particle_effect = Variable(torch.zeros((state.size(0), state.size(1), self.hparams.nf_effect))).to(self.device)
+    @staticmethod
+    def relation_encoding(Rr_T, Rs_T, state):
+        state_r = Rr_T.bmm(state)  # basically copies the receiver states, [b, num_relations, obj_dim]
+        state_s = Rs_T.bmm(state)
 
-        # receiver_state, sender_state
-        Rrp = torch.transpose(Rr, 1, 2)
-        Rsp = torch.transpose(Rs, 1, 2)
-        state_r = Rrp.bmm(state)  # basically copies the receiver states, [b, num_relations, obj_dim]
-        state_s = Rsp.bmm(state)
-
-        # particle encode
-        particle_encode = self.particle_encoder(state)  # [b, n_objects, nf_particle]
-
-        # calculate relation encoding
         attr_r = state_r[:, :, :2]
         attr_s = state_s[:, :, :2]
         state_r_posvel = state_r[:, :, 2:]  # [b, num_relations, state_dim]
         state_s_posvel = state_s[:, :, 2:]
         state_rel_posvel = state_r_posvel - state_s_posvel  # use relative position and velocity
+
+        return attr_r, attr_s, state_rel_posvel
+
+    def forward(self, state, Rr, Rs, Ra, pstep):
+        # calculate particle encoding
+        particle_effect = Variable(torch.zeros((state.size(0), state.size(1), self.hparams.nf_effect))).to(self.device)
+
+        # receiver_state, sender_state
+        Rr_T = torch.transpose(Rr, 1, 2)
+        Rs_T = torch.transpose(Rs, 1, 2)
+
+        # particle encode
+        particle_encode = self.particle_encoder(state)  # [b, n_objects, nf_particle]
+
+        # calculate relation encoding
+        attr_r, attr_s, state_rel_posvel = self.relation_encoding(Rr_T, Rs_T, state)
+
+        if self.hparams.get('normalize_posvel', False):
+            state_rel_posvel = normalize(state_rel_posvel,
+                                         mean=self.rel_posvel_mean,
+                                         std=self.rel_posvel_std)
+
         relation_features = torch.cat([attr_r, attr_s, state_rel_posvel, Ra], dim=-1)
         relation_encode = self.relation_encoder(relation_features)  # [b, n_objects, nf_relation]
 
         for i in range(pstep):
-            effect_r = Rrp.bmm(particle_effect)
-            effect_s = Rsp.bmm(particle_effect)
+            effect_r = Rr_T.bmm(particle_effect)
+            effect_s = Rs_T.bmm(particle_effect)
 
             # calculate relation effect
             relation_effect = self.relation_propagator(torch.cat([relation_encode, effect_r, effect_s], dim=-1))
@@ -101,18 +134,6 @@ class PropModule(pl.LightningModule):
         return pred
 
 
-def normalize(x, mean, std):
-    return (x - mean) / std
-
-
-class InverseSigmoidDecaySchedule:
-    def __init__(self, k=7000):
-        self.k = k
-
-    def __call__(self, i):
-        return self.k / (self.k + exp(i / self.k))
-
-
 # noinspection PyPep8Naming
 class PropNet(pl.LightningModule):
 
@@ -125,7 +146,8 @@ class PropNet(pl.LightningModule):
         self.model = PropModule(self.hparams, residual)
 
         self.epsilon = None
-        self.epsilon_schedule = None
+        # See https://arxiv.org/pdf/1506.03099.pdf for details on scheduled sampling
+        self.epsilon_schedule = InverseSigmoidDecaySchedule()
         self.epsilon_rng = np.random.RandomState()
 
     def one_step_forward(self, attr, state, action, Rs, Rr, Ra):
@@ -209,13 +231,13 @@ class PropNet(pl.LightningModule):
         # It also has action and attribute=1
         # all of the object objects do not have action (zero value and attribute=0)
         # putting this _before_ the loops over objects means the robot is index=0, which we rely on elsewhere
-        robot_attr, robot_state, robot_action = self.scenario.propnet_robot_v(batch, batch_size, time, self.device)
+        robot_attr, robot_state = self.scenario.propnet_robot_v(batch, batch_size, time, self.device)
         attrs.append(robot_attr)
         states.append(robot_state)
 
         # loop over objects
         for obj_idx in range(num_objs):
-            obj_attr, obj_state, obj_action = self.scenario.propnet_obj_v(batch, batch_size, obj_idx, time, self.device)
+            obj_attr, obj_state = self.scenario.propnet_obj_v(batch, batch_size, obj_idx, time, self.device)
             attrs.append(obj_attr)
             states.append(obj_state)
         attrs = torch.stack(attrs, dim=1)  # [b, n_objects, 1]
@@ -225,8 +247,8 @@ class PropNet(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
 
-        # See https://arxiv.org/pdf/1506.03099.pdf for details on scheduled sampling
-        self.epsilon_schedule = InverseSigmoidDecaySchedule()
+        self.mean = torch.Tensor(self.hparams.normalization['mean']).to(self.device)
+        self.std = torch.Tensor(self.hparams.normalization['std']).to(self.device)
 
         return optimizer
 

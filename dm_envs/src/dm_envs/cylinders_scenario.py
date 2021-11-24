@@ -297,7 +297,6 @@ class CylindersScenario(PlanarPushingScenario):
         Returns:
             obj_attr [b, T, n_attr]
             obj_state [b, T, n_state]
-            obj_action [b, T, n_action]
 
         """
         is_robot = torch.zeros([batch_size, 1], device=device)
@@ -314,9 +313,7 @@ class CylindersScenario(PlanarPushingScenario):
 
         obj_state = torch.cat([obj_pos, obj_vel], dim=-1)  # [b, T, 4]
 
-        obj_action = torch.zeros([batch_size, time - 1, 0], device=device)
-
-        return obj_attr, obj_state, obj_action
+        return obj_attr, obj_state
 
     def propnet_robot_v(self, batch, batch_size, time, device):
         is_robot = torch.ones([batch_size, 1], device=device)
@@ -333,9 +330,7 @@ class CylindersScenario(PlanarPushingScenario):
 
         robot_state = torch.cat([robot_pos, robot_vel], dim=-1)  # [b, T, 4]
 
-        robot_action = torch.zeros([batch_size, time - 1, 0], device=device)
-
-        return robot_attr, robot_state, robot_action
+        return robot_attr, robot_state
 
     def propnet_add_vel(self, example: Dict):
         num_objs = example['num_objs'][0, 0]  # assumed fixed across time
