@@ -177,7 +177,10 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
             for original_example in unbatch_examples(example, actual_batch_size):
                 # we lose some information when we augment, so only keep the keys that we have in the augmented data
                 # for example, the image or the joint velocities.
-                original_example_subset = {k: original_example[k] for k in out_example_keys}
+                original_example_subset = {}
+                for k in out_example_keys:
+                    if k in original_example:
+                        original_example_subset[k] = original_example[k]
                 yield original_example_subset
 
     dataset = dataset_loader.get_datasets(mode=mode).take(take)
