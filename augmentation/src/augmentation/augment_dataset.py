@@ -197,20 +197,20 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
         total_count += copy_modes(dataset_loader, mode, outdir, save_format)
 
     need_to_write_hparams = True
-    examples = []
+    examples_names = []
     for out_example in tqdm(out_examples_gen(), total=expected_total):
         if need_to_write_hparams:
             scenario.aug_merge_hparams(dataset_dir, out_example, outdir)
             need_to_write_hparams = False
         write_example(outdir, out_example, total_count, save_format)
         example_name = index_to_filename2(total_count, save_format)
-        examples.append(example_name)
+        examples_names.append(example_name)
         total_count += 1
     print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
 
     if mode != 'all':
         with (outdir / f'{mode}.txt').open("w") as remaining_mode_f:
-            remaining_mode_f.writelines([n + '\n' for n in mode])
+            remaining_mode_f.writelines([n + '\n' for n in examples_names])
 
     return outdir
 
