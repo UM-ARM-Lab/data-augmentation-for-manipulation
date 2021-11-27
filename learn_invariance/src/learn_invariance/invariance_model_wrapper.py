@@ -29,7 +29,7 @@ class InvarianceModelWrapper:
 
         """
         inputs = {
-            'transformation': transformations
+            'transform': transformations
         }
         outputs = self.model(inputs)
         return tf.squeeze(outputs['predicted_error'], axis=-1)

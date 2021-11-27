@@ -645,17 +645,11 @@ class CylindersScenario(PlanarPushingScenario):
     def tinv_set_state(self, params, state_rng, visualize):
         self.randomize_environment(state_rng, params)
 
-        obj_z = params['height'] / 2
-        y_min = params['extent'][2]
-        y_max = params['extent'][3]
-        away_x = params['extent'][1] - params['radius']
-
         # move all the cylinders except for one away
-        for i, obj in enumerate(self.task.objs):
-            if i == TINV_TEST_OBJ_IDX:
-                continue
-            away_y = int_frac_to_range(i, len(self.task.objs), y_min, y_max)
-            obj.set_pose(self.env.physics, position=[away_x, away_y, obj_z], quaternion=[1, 0, 0, 0])
+        # for i, obj in enumerate(self.task.objs):
+        #     if i == TINV_TEST_OBJ_IDX:
+        #         continue
+        #     obj.set_pose(self.env.physics, position=[away_x, away_y, obj_z], quaternion=[1, 0, 0, 0])
 
         self.env.step(np.zeros(self.action_spec.shape))
 
@@ -684,7 +678,6 @@ class CylindersScenario(PlanarPushingScenario):
         time = example['time_idx'].shape[0]
 
         example = coerce_types(example)
-
         example_aug = deepcopy(example)
 
         example_batch = add_batch(example)
@@ -699,13 +692,13 @@ class CylindersScenario(PlanarPushingScenario):
 
         example_aug = nested_dict_update(example_aug, example_aug_update)
 
-        return example_aug
+        return example_aug, moved_mask
 
-    def tinv_error(self, example: Dict, example_aug: Dict):
+    def tinv_error(self, example: Dict, example_aug: Dict, moved_mask):
         num_objs = example['num_objs'][0][0]
         error = 0
         for is_robot, obj_idx, k, pos_k, pos in self.iter_positions(example, num_objs):
-            if is_robot:
+            if is_robot or moved_mask[0, obj_idx+1] == 0:
                 continue
             # compute the per-object error and add it
             pos_aug = example_aug[pos_k]
@@ -715,11 +708,21 @@ class CylindersScenario(PlanarPushingScenario):
 
         return error
 
-    def tinv_set_state_from_aug_pred(self, example_aug_pred, visualize):
+    def tinv_set_state_from_aug_pred(self, params, example_aug_pred, moved_mask, visualize):
+        away_z = params['height'] / 2
+        y_min = params['extent'][2]
+        y_max = params['extent'][3]
+        away_x = params['extent'][1] - params['radius']
+
         for i, obj in enumerate(self.task.objs):
             # [0,0] because t=0 and extra dim of 1
-            pos = example_aug_pred[f'obj{i}/position'][0, 0]
-            quat = example_aug_pred[f'obj{i}/orientation'][0, 0]
+            if moved_mask[0, i+1]:
+                pos = example_aug_pred[f'obj{i}/position'][0, 0]
+                quat = example_aug_pred[f'obj{i}/orientation'][0, 0]
+            else:
+                away_y = int_frac_to_range(i, len(self.task.objs), y_min, y_max)
+                pos = [away_x, away_y, away_z]
+                quat = [1,0,0,0]
             obj.set_pose(self.env.physics, position=pos, quaternion=quat)
 
         aug_tcp_pos = example_aug_pred[f'{ARM_HAND_NAME}/tcp_pos'][0, 0]

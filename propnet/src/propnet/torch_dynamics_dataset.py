@@ -47,12 +47,6 @@ class TorchDynamicsDataset(Dataset):
         self.env_keys = self.data_collection_params['env_keys']
         self.action_keys = self.data_collection_params['action_keys']
 
-        self.stats = None
-        self.stats_filename = dataset_dir / 'stats.pkl'
-        if self.stats_filename.exists():
-            with self.stats_filename.open("rb") as f:
-                self.stats = pickle.load(f)
-
     def __len__(self):
         return len(self.metadata_filenames)
 
@@ -62,12 +56,6 @@ class TorchDynamicsDataset(Dataset):
 
         metadata_filename = self.metadata_filenames[idx]
         example = load_single(metadata_filename)
-
-        if self.add_stats:
-            if self.stats is None:
-                logging.getLogger(__file__).warning('no stats in this dataset?!')
-            else:
-                example = add_stats_to_example(example, self.stats)
 
         if self.transform:
             example = self.transform(example)

@@ -33,10 +33,10 @@ class InvarianceModel(MyKerasModel):
                                       activation='relu'))
         self.sequential = tf.keras.Sequential(fc_layers)
 
-        self.inputs_keys = ['transformation']
+        self.inputs_keys = ['transform']
 
     def compute_loss(self, inputs, outputs):
-        true_error = compute_transformation_invariance_error(inputs, self.scenario)
+        true_error = inputs['error']
         true_error = tf.expand_dims(true_error, axis=-1)
         loss = tf.losses.MSE(true_error, outputs['predicted_error'])
         return {
@@ -51,7 +51,7 @@ class InvarianceModel(MyKerasModel):
 
     # @tf.function
     def call(self, inputs: Dict, training, **kwargs):
-        predicted_error = self.sequential(inputs['transformation'])
+        predicted_error = self.sequential(inputs['transform'])
         return {
             'predicted_error': predicted_error,
         }
