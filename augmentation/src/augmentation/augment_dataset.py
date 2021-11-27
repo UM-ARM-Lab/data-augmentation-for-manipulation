@@ -199,6 +199,10 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
     need_to_write_hparams = True
     examples_names = []
     for out_example in tqdm(out_examples_gen(), total=expected_total):
+        if 'sdf' in out_example:
+            out_example.pop("sdf")
+        if 'sdf_grad' in out_example:
+            out_example.pop("sdf_grad")
         if need_to_write_hparams:
             scenario.aug_merge_hparams(dataset_dir, out_example, outdir)
             need_to_write_hparams = False
