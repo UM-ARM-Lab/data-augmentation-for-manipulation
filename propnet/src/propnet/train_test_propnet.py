@@ -59,7 +59,7 @@ def train_main(dataset_dir: pathlib.Path,
     pl.seed_everything(seed, workers=True)
 
     transform = transforms.Compose([
-        remove_keys('filename', 'full_filename', 'joint_names', 'metadata'),
+        remove_keys('filename', 'full_filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from'),
     ])
 
     train_dataset = TorchDynamicsDataset(dataset_dir, mode='train',
