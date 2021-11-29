@@ -85,16 +85,15 @@ class AugmentationOptimization:
                  scenario: ScenarioWithVisualization,
                  debug: DebuggingViz,
                  local_env_helper: LocalEnvHelper,
-                 points_state_keys: List[str],
                  hparams: Dict,
                  batch_size: int,
                  state_keys: List[str],
                  action_keys: List[str],
+                 points_state_keys: List[str] = None,
                  ):
         self.state_keys = state_keys
         self.action_keys = action_keys
         self.hparams = hparams.get('augmentation', None)
-        self.points_state_keys = points_state_keys
         self.batch_size = batch_size
         self.scenario = scenario
         self.debug = debug
