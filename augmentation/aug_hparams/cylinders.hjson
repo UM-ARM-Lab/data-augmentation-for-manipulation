@@ -12,7 +12,7 @@
     delta_min_dist_threshold: 0.005
 
     # misc
-    invariance_model: invariance_trials/cylinders/November_27_09-31-18_4ce1404d44/best_checkpoint
+    invariance_model: /media/shared/invariance_trials/cylinders1/best_checkpoint
 
     viz: {
       scale: 0.007
