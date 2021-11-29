@@ -3,12 +3,11 @@ from typing import Dict
 
 from colorama import Style
 from matplotlib import pyplot as plt, colors
-from progressbar import progressbar
 from scipy import stats
+from tqdm import tqdm
 
 import rospy
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
-from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.grid_utils import environment_to_vg_msg
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
@@ -16,7 +15,6 @@ from link_bot_pycommon.pycommon import print_dict
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import remove_batch
 from std_msgs.msg import ColorRGBA
-from visualization_msgs.msg import Marker
 
 
 def visualize_dataset(args, dataset_loader):
@@ -26,6 +24,7 @@ def visualize_dataset(args, dataset_loader):
     print('*' * 100)
 
     dataset = dataset.take(args.take)
+    dataset = dataset.skip(args.skip)
     dataset = dataset.shard(args.shard)
 
     t0 = perf_counter()
@@ -48,9 +47,7 @@ def visualize_dataset(args, dataset_loader):
     stdevs_for_negative = []
     stdevs_for_positive = []
 
-    for i, example in enumerate(progressbar(dataset, widgets=mywidgets)):
-        if i < args.start_at:
-            continue
+    for i, example in enumerate(tqdm(dataset)):
 
         deserialize_scene_msg(example)
 
@@ -141,7 +138,7 @@ def compare_examples_from_datasets(args, classifier_dataset1, classifier_dataset
     tf_dataset2 = tf_dataset2.batch(1)
 
     datasets = tf_dataset1.zip(tf_dataset2)
-    for i, (example1, example2) in enumerate(progressbar(datasets, widgets=mywidgets)):
+    for i, (example1, example2) in enumerate(tqdm(datasets)):
         print(i, args.example_indices)
 
         example1 = remove_batch(example1)

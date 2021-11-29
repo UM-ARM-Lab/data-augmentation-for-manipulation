@@ -28,7 +28,7 @@ def main():
     parser.add_argument('--shard', type=int)
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--threshold', type=float, default=None)
-    parser.add_argument('--start-at', type=int, default=0)
+    parser.add_argument('--skip', type=int, default=0)
     parser.add_argument('--take', type=int)
     parser.add_argument('--only-negative', action='store_true')
     parser.add_argument('--only-positive', action='store_true')

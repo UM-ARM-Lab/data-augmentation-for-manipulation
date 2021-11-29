@@ -393,6 +393,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         return obj_points
 
     def aug_apply_no_ik(self,
+                        moved_mask,
                         m,
                         to_local_frame,
                         inputs: Dict,
