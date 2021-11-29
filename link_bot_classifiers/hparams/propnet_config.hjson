@@ -1,0 +1,22 @@
+{
+  runs: {
+    'Baseline': [
+      eval-4aw2y
+      eval-axelq
+      eval-8235z
+      eval-1orha
+      eval-9duto
+      eval-4lf5p
+    ]
+    'Our Method': [
+      eval-15e4c
+      eval-42g00
+    ]
+    'Oracle': [
+      eval-1jjqm
+      eval-480kf
+      eval-cvu2j
+      eval-87zgn
+    ]
+  }
+}
