@@ -95,7 +95,7 @@ class IterativeFineTuning:
         self.initial_planner_params = load_planner_params(planner_params_filename)
 
         self.job_chunker.store_result('from_env', 'untrained')
-        self.job_chunker.store_result('to_env', 'car3')
+        self.job_chunker.store_result('to_env', 'car')
 
         self.ift_uuid = self.job_chunker.get('ift_uuid', str(uuid4()))
         self.n_augmentations = self.job_chunker.get('n_augmentations')
