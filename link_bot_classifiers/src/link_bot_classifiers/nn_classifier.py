@@ -99,17 +99,18 @@ class NNClassifier(MyKerasModel):
                                      include_robot_geometry=self.include_robot_geometry
                                      )
 
-        self.aug = AugmentationOptimization(scenario=self.scenario, debug=self.debug,
-                                            local_env_helper=self.local_env_helper,
-                                            hparams=self.hparams,
-                                            batch_size=self.batch_size,
-                                            state_keys=self.state_keys,
-                                            action_keys=self.action_keys)
         if self.verbose > 0:
-            if self.aug.do_augmentation():
+            if self.do_augmentation():
                 rospy.loginfo("Using augmentation during training")
+                self.aug = AugmentationOptimization(scenario=self.scenario, debug=self.debug,
+                                                    local_env_helper=self.local_env_helper,
+                                                    hparams=self.hparams,
+                                                    batch_size=self.batch_size,
+                                                    state_keys=self.state_keys,
+                                                    action_keys=self.action_keys)
             else:
                 rospy.loginfo("Not using augmentation during training")
+                self.aug = None
 
     def preprocess_no_gradient(self, inputs, training: bool):
         batch_size = inputs['batch_size']
@@ -136,7 +137,7 @@ class NNClassifier(MyKerasModel):
                 origin_point_b = inputs['origin_point'][b].numpy().tolist()
                 self.debug.send_position_transform(origin_point_b, 'origin_point')
 
-        if training and self.aug.do_augmentation():
+        if training and self.do_augmentation():
             # returns a copy, does NOT modify inputs in-place
             inputs = self.aug.aug_opt(inputs, batch_size, time)
 
@@ -349,3 +350,6 @@ class NNClassifier(MyKerasModel):
             self.debug.plot_state_rviz(inputs, b, t, 'inputs')
 
             anim.step()
+
+    def do_augmentation(self):
+        return 'augmentation' in self.hparams
