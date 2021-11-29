@@ -51,7 +51,7 @@ def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool = F
                 df_i = pickle.load(f)
         dfs.append(df_i)
 
-    df = pd.concat(dfs)
+    df = pd.concat(dfs, ignore_index=True)
     df.columns = column_names
     return df
 

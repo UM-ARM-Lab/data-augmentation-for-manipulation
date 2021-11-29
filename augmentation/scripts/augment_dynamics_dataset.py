@@ -41,6 +41,7 @@ def main():
     common_hparams = load_hjson(pathlib.Path("aug_hparams/common.hjson"))
     hparams = load_hjson(args.hparams)
     hparams = nested_dict_update(common_hparams, hparams)
+    hparams['n_augmentations'] = args.n_augmentations
 
     outdir = augment_dynamics_dataset(dataset_dir=dataset_dir,
                                       hparams=hparams,
