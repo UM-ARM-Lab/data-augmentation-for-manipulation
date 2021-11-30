@@ -15,6 +15,7 @@ from more_itertools import chunked
 from analysis.results_utils import list_all_planning_results_trials
 from arc_utilities.algorithms import nested_dict_update
 from augmentation.augment_dataset import augment_classifier_dataset
+from augmentation.load_aug_params import load_aug_params
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
 from link_bot_classifiers.fine_tune_recovery import fine_tune_recovery
 from link_bot_gazebo import gazebo_services
@@ -304,7 +305,8 @@ class IterativeFineTuning:
 
             aug_outdir = self.outdir / 'classifier_datasets_aug' / f'iteration_{i:04d}_dataset'
             aug_outdir.mkdir(exist_ok=True, parents=True)
-            hparams = load_hjson(pathlib.Path("hparams/classifier/aug.hjson"))
+            aug_params_filename = pathlib.Path("aug_hparams/rope.hjson")
+            hparams = load_aug_params(aug_params_filename)
             print(Fore.MAGENTA + "Creating augmentations" + Fore.RESET)
             new_aug_dataset_dir = augment_classifier_dataset(dataset_dir=new_dataset_dir,
                                                              hparams=hparams,
