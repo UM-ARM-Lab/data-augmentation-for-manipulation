@@ -37,7 +37,8 @@ def main():
 
     outdir = dataset_dir.parent / f"{dataset_dir.name}+{suffix}"
 
-    hparams = load_aug_params(args)
+    hparams_filename = pathlib.Path("aug_hparams/common.hjson")
+    hparams = load_aug_params(hparams_filename)
     hparams['n_augmentations'] = args.n_augmentations
 
     outdir = augment_dynamics_dataset(dataset_dir=dataset_dir,
