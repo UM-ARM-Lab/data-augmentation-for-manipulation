@@ -52,9 +52,10 @@ class PropModule(pl.LightningModule):
 
         self.save_hyperparameters(hparams)
 
-        if 'mean' in self.hparams.normalization and 'std' in self.hparams.normalization:
-            self.register_buffer('rel_posvel_mean', torch.Tensor(self.hparams.normalization['mean']))
-            self.register_buffer('rel_posvel_std', torch.Tensor(self.hparams.normalization['std']))
+        if 'normalization' in self.hparams:
+            if 'mean' in self.hparams.normalization and 'std' in self.hparams.normalization:
+                self.register_buffer('rel_posvel_mean', torch.Tensor(self.hparams.normalization['mean']))
+                self.register_buffer('rel_posvel_std', torch.Tensor(self.hparams.normalization['std']))
 
         self.residual = residual
         self.obj_input_dim = self.hparams.attr_dim + self.hparams.state_dim + self.hparams.action_dim
