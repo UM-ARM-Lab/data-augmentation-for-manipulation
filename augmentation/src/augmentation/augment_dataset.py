@@ -27,6 +27,8 @@ def unbatch_examples(example, actual_batch_size):
         example_copy.pop('batch_size')
     if 'time' in example_copy:
         example_copy.pop('time')
+
+    # FIXME: this is a bad hack!
     if 'metadata' in example_copy:
         example_copy.pop('metadata')
     for b in range(actual_batch_size):
@@ -165,9 +167,11 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
     def out_examples_gen():
         for example in dataset:
             actual_batch_size = example['batch_size']
+            out_example_keys = None
 
             for out_example in augment(example):
-                out_example_keys = list(out_example.keys())
+                if out_example_keys is None:
+                    out_example_keys = list(out_example.keys())
                 yield from unbatch_examples(out_example, actual_batch_size)
 
             if 'batch_size' in out_example_keys:

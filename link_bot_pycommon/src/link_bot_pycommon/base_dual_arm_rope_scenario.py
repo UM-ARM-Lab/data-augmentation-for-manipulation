@@ -676,6 +676,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     @staticmethod
     def aug_copy_inputs(inputs):
         return {
+            'metadata':             inputs['metadata'],
             'error':                inputs['error'],
             'is_close':             inputs['is_close'],
             'joint_names':          inputs['joint_names'],
