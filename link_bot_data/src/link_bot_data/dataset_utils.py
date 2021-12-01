@@ -280,6 +280,10 @@ def add_predicted(feature_name: str):
     return PREDICTED_PREFIX + feature_name
 
 
+def add_predicted_cond(feature_name: str, cond):
+    return PREDICTED_PREFIX + feature_name if cond else feature_name
+
+
 def add_new(feature_name: str):
     return NEW_PREFIX + feature_name
 

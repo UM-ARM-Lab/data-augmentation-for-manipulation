@@ -232,11 +232,11 @@ def add_time_dim(*xs, batch_axis=1):
         return [add_batch_single(x, batch_axis) for x in xs]
 
 
-def add_batch(*xs, batch_axis=0):
+def add_batch(*xs, batch_axis=0, keys=None):
     if len(xs) == 1:
-        return add_batch_single(xs[0], batch_axis)
+        return add_batch_single(xs[0], batch_axis, keys=None)
     else:
-        return [add_batch_single(x, batch_axis) for x in xs]
+        return [add_batch_single(x, batch_axis, keys=None) for x in xs]
 
 
 def remove_batch_single(x):
@@ -257,7 +257,7 @@ def remove_batch_single(x):
         return x[0]
 
 
-def add_batch_single(x, batch_axis=0):
+def add_batch_single(x, batch_axis=0, keys=None):
     if isinstance(x, np.ndarray):
         return np.expand_dims(x, axis=batch_axis)
     elif isinstance(x, list) and isinstance(x[0], dict):
@@ -269,7 +269,15 @@ def add_batch_single(x, batch_axis=0):
         x = tf.expand_dims(x, axis=batch_axis)
         return x
     elif isinstance(x, dict):
-        return {k: add_batch_single(v, batch_axis) for k, v in x.items()}
+        out = {}
+        for k, v in x.items():
+            if keys is not None and k in keys:
+                out[k] = add_batch_single(v, batch_axis)
+            elif keys is not None and k not in keys:
+                out[k] = v
+            elif keys is None:
+                out[k] = add_batch_single(v, batch_axis)
+        return out
     else:
         return np.array([x])
 

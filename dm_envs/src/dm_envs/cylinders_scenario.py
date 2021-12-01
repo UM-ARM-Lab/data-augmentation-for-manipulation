@@ -674,40 +674,6 @@ class CylindersScenario(PlanarPushingScenario):
         transform = transform_sampling_rng.uniform(-lim, lim)
         return transform
 
-    def tinv_apply_transformation(self, example: Dict, transform, visualize):
-        time = example['time_idx'].shape[0]
-
-        example = coerce_types(example)
-        example_aug = deepcopy(example)
-
-        example_batch = add_batch(example)
-        obj_points = self.compute_obj_points(example_batch, num_object_interp=1, batch_size=1)
-        moved_mask = compute_moved_mask(obj_points)
-
-        m = self.transformation_params_to_matrices(tf.convert_to_tensor(add_batch(transform), tf.float32))
-        to_local_frame = get_local_frame(moved_mask, obj_points)
-        example_aug_update, _, _ = self.aug_apply_no_ik(moved_mask, m, to_local_frame, example_batch,
-                                                        batch_size=1, time=time, visualize=visualize)
-        example_aug_update = remove_batch(example_aug_update)
-
-        example_aug = nested_dict_update(example_aug, example_aug_update)
-
-        return example_aug, moved_mask
-
-    def tinv_error(self, example: Dict, example_aug: Dict, moved_mask):
-        num_objs = example['num_objs'][0][0]
-        error = 0
-        for is_robot, obj_idx, k, pos_k, pos in self.iter_positions(example, num_objs):
-            if is_robot or moved_mask[0, obj_idx+1] == 0:
-                continue
-            # compute the per-object error and add it
-            pos_aug = example_aug[pos_k]
-            obj_error = tf.reduce_mean(tf.linalg.norm(pos - pos_aug, axis=-1))
-            error += obj_error
-        error /= num_objs
-
-        return error
-
     def tinv_set_state_from_aug_pred(self, params, example_aug_pred, moved_mask, visualize):
         away_z = params['height'] / 2
         y_min = params['extent'][2]
@@ -716,13 +682,13 @@ class CylindersScenario(PlanarPushingScenario):
 
         for i, obj in enumerate(self.task.objs):
             # [0,0] because t=0 and extra dim of 1
-            if moved_mask[0, i+1]:
+            if moved_mask[0, i + 1]:
                 pos = example_aug_pred[f'obj{i}/position'][0, 0]
                 quat = example_aug_pred[f'obj{i}/orientation'][0, 0]
             else:
                 away_y = int_frac_to_range(i, len(self.task.objs), y_min, y_max)
                 pos = [away_x, away_y, away_z]
-                quat = [1,0,0,0]
+                quat = [1, 0, 0, 0]
             obj.set_pose(self.env.physics, position=pos, quaternion=quat)
 
         aug_tcp_pos = example_aug_pred[f'{ARM_HAND_NAME}/tcp_pos'][0, 0]
@@ -761,3 +727,37 @@ class CylindersScenario(PlanarPushingScenario):
                                                          verbose=(1 if visualize else 0),
                                                          action_rng=unused_rng)
         return example_aug_actual, invalid
+
+    def tinv_apply_transformation(self, example: Dict, transform, visualize):
+        time = example['time_idx'].shape[0]
+
+        example = coerce_types(example)
+        example_aug = deepcopy(example)
+
+        example_batch = add_batch(example)
+        obj_points = self.compute_obj_points(example_batch, num_object_interp=1, batch_size=1)
+        moved_mask = compute_moved_mask(obj_points)
+
+        m = self.transformation_params_to_matrices(tf.convert_to_tensor(add_batch(transform), tf.float32))
+        to_local_frame = get_local_frame(moved_mask, obj_points)
+        example_aug_update, _, _ = self.aug_apply_no_ik(moved_mask, m, to_local_frame, example_batch,
+                                                        batch_size=1, time=time, visualize=visualize)
+        example_aug_update = remove_batch(example_aug_update)
+
+        example_aug = nested_dict_update(example_aug, example_aug_update)
+
+        return example_aug, moved_mask
+
+    def tinv_error(self, example: Dict, example_aug: Dict, moved_mask):
+        num_objs = example['num_objs'][0][0]
+        error = 0
+        for is_robot, obj_idx, k, pos_k, pos in self.iter_positions(example, num_objs):
+            if is_robot or moved_mask[0, obj_idx + 1] == 0:
+                continue
+            # compute the per-object error and add it
+            pos_aug = example_aug[pos_k]
+            obj_error = tf.reduce_mean(tf.linalg.norm(pos - pos_aug, axis=-1))
+            error += obj_error
+        error /= num_objs
+
+        return error

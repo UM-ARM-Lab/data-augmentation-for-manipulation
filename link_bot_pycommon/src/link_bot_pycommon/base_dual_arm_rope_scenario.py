@@ -12,7 +12,9 @@ from pyjacobian_follower import IkParams, JacobianFollower
 import rosnode
 from arc_utilities.algorithms import nested_dict_update
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
-from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
+from augmentation.aug_opt import compute_moved_mask
+from augmentation.aug_opt_utils import get_local_frame
+from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, coerce_types, add_predicted_cond
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.get_dual_arm_robot_state import GetDualArmRobotState
 from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
@@ -23,10 +25,10 @@ from link_bot_pycommon.pycommon import densify_points
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.filepath_tools import load_params
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
-from moonshine.moonshine_utils import to_list_of_strings
+from moonshine.moonshine_utils import to_list_of_strings, remove_batch, add_batch
 from moonshine.numpify import numpify
+from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
-from sdf_tools import utils_3d
 from tf import transformations
 from trajectory_msgs.msg import JointTrajectoryPoint
 
@@ -45,8 +47,6 @@ from arm_gazebo_msgs.srv import ExcludeModels, ExcludeModelsRequest, ExcludeMode
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState, PointCloud2
 from tf.transformations import quaternion_from_euler
-
-DEBUG_VIZ_STATE_AUG = False
 
 
 def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, robot_state: RobotState):
@@ -249,12 +249,13 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         env = {}
         env.update({k: np.array(v).astype(np.float32) for k, v in voxel_grid_env.items()})
-        sdf, sdf_grad = utils_3d.compute_sdf_and_gradient(voxel_grid_env['env'],
-                                                          voxel_grid_env['res'],
-                                                          voxel_grid_env['origin_point'])
+        sdf, sdf_grad = remove_batch(*compute_sdf_and_gradient_batch(*add_batch(voxel_grid_env['env'],
+                                                                                voxel_grid_env['res'])))
+        sdf = numpify(sdf)
+        sdf_grad = numpify(sdf_grad)
         env['sdf'] = sdf
         env['sdf_grad'] = sdf_grad
-        print("Computing SDF and SDF Grad")
+
         env.update(MoveitPlanningSceneScenarioMixin.get_environment(self))
 
         return env
@@ -369,8 +370,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         return transformation_params
 
-    def compute_obj_points(self, inputs: Dict, num_object_interp: int, batch_size: int):
-        keys = [add_predicted('rope'), add_predicted('left_gripper'), add_predicted('right_gripper')]
+    def compute_obj_points(self, inputs: Dict, num_object_interp: int, batch_size: int, use_predicted: bool = True):
+        keys = ['rope', 'left_gripper', 'right_gripper']
+        if use_predicted:
+            keys = [add_predicted(k) for k in keys]
 
         def _make_points(k, t):
             v = inputs[k][:, t]
@@ -402,6 +405,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                         h: int,
                         w: int,
                         c: int,
+                        use_predicted: bool = True,
+                        visualize: bool = False,
+                        *args,
+                        **kwargs,
                         ):
         """
 
@@ -422,9 +429,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         m_expanded = m[:, None]
 
         # apply those to the rope and grippers
-        rope_points = tf.reshape(inputs[add_predicted('rope')], [batch_size, time, -1, 3])
-        left_gripper_point = inputs[add_predicted('left_gripper')]
-        right_gripper_point = inputs[add_predicted('right_gripper')]
+        rope_k = add_predicted_cond('rope', use_predicted)
+        rope_points = tf.reshape(inputs[rope_k], [batch_size, time, -1, 3])
+        left_gripper_k = add_predicted_cond('left_gripper', use_predicted)
+        left_gripper_point = inputs[left_gripper_k]
+        right_gripper_k = add_predicted_cond('right_gripper', use_predicted)
+        right_gripper_point = inputs[right_gripper_k]
         left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
         right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
 
@@ -460,14 +470,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
 
         object_aug_update = {
-            add_predicted('rope'):          rope_aug,
-            add_predicted('left_gripper'):  left_gripper_aug,
-            add_predicted('right_gripper'): right_gripper_aug,
-            'left_gripper_position':        left_gripper_position_aug,
-            'right_gripper_position':       right_gripper_position_aug,
+            rope_k:                   rope_aug,
+            left_gripper_k:           left_gripper_aug,
+            right_gripper_k:          right_gripper_aug,
+            'left_gripper_position':  left_gripper_position_aug,
+            'right_gripper_position': right_gripper_position_aug,
         }
 
-        if DEBUG_VIZ_STATE_AUG:
+        if visualize:
             stepper = RvizSimpleStepper()
             for b in debug_viz_batch_indices(batch_size):
                 env_b = {
@@ -702,3 +712,33 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         upper = np.array([a, a, a, np.pi, np.pi, np.pi])
         transform = rng.uniform(lower, upper).astype(np.float32) * scaling
         return transform
+
+    def tinv_apply_transformation(self, example: Dict, transform, visualize):
+        time = 1
+
+        example = coerce_types(example)
+        example_aug = deepcopy(example)
+
+        time_indexed_keys = ['gt_rope', 'rope', 'left_gripper', 'right_griper', 'joint_positions']
+        example_w_time = add_batch(example, keys=time_indexed_keys)  # add time dimension
+        example_batch = add_batch(example_w_time)  # add batch
+        obj_points = self.compute_obj_points(example_batch, num_object_interp=1, batch_size=1, use_predicted=False)
+        moved_mask = compute_moved_mask(obj_points)
+
+        m = self.transformation_params_to_matrices(tf.convert_to_tensor(add_batch(transform), tf.float32))
+        to_local_frame = get_local_frame(moved_mask, obj_points)
+        example_aug_update, _, _ = self.aug_apply_no_ik(moved_mask, m, to_local_frame, example_batch,
+                                                        batch_size=1, time=time, visualize=visualize,
+                                                        use_predicted=False,
+                                                        h=64,  # FIXME: hardcoded!!!
+                                                        w=64,
+                                                        c=64,
+                                                        )
+        example_aug_update = remove_batch(example_aug_update)
+
+        example_aug = nested_dict_update(example_aug, example_aug_update)
+        return example_aug, moved_mask
+
+    def tinv_error(self, example: Dict, example_aug: Dict, moved_mask):
+        error = self.classifier_distance(example, example_aug)
+        return error
