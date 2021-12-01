@@ -449,6 +449,8 @@ def coerce_types(d: Dict):
                     out_d[k] = np.array(v).astype(np.float32)
                 else:
                     out_d[k] = np.array(v)
+            elif isinstance(v0, tf.Tensor):
+                out_d[k] = tf.convert_to_tensor(v)
             else:
                 raise NotImplementedError(f"{k} {type(v)} {v}")
         elif isinstance(v, dict):
