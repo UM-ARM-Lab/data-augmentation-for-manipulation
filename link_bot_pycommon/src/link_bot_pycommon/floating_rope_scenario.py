@@ -41,7 +41,7 @@ from link_bot_pycommon.pycommon import default_if_none, densify_points
 from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
-from moonshine.geometry import xyzrpy_to_matrices, transform_points_3d, transform_dict_of_points_vectors
+from moonshine.geometry import xyzrpy_to_matrices, transform_points_3d
 from moonshine.moonshine_utils import remove_batch, add_batch
 from moonshine.numpify import numpify
 from peter_msgs.srv import *
@@ -55,6 +55,7 @@ rope_key_name = 'rope'
 
 
 class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenarioMixin):
+    link_states_k = 'link_states'
     tinv_dim = 6  # SE(3)
     DISABLE_CDCPD = True
     IMAGE_H = 90
@@ -993,19 +994,17 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return transform
 
     def tinv_set_state(self, params, state_rng, visualize):
-        environment = self.get_environment(params)
-        state = self.get_state()
-        extent = np.array(params['extent']).reshape(3, 2)
-        action = {
-            'left_gripper_position':  state_rng.uniform(extent[:, 0], extent[:, 1]),
-            'right_gripper_position': state_rng.uniform(extent[:, 0], extent[:, 1]),
-        }
-        self.execute_action(environment, state, action)
-
-        if visualize:
-            state = self.get_state()
-            self.plot_environment_rviz(environment)
-            self.plot_state_rviz(state, label='tinv_set_state')
+        self.randomize_environment(state_rng, params)
+        # this just basically sets a random-ish state by taking random actions
+        _params = deepcopy(params)
+        _params['steps_per_traj'] = 10
+        collect_trajectory(params=_params,
+                           scenario=self,
+                           traj_idx=0,
+                           predetermined_start_state=None,
+                           predetermined_actions=None,
+                           verbose=(1 if visualize else 0),
+                           action_rng=state_rng)
 
     def tinv_generate_data(self, action_rng: np.random.RandomState, params, visualize):
         example, invalid = collect_trajectory(params=params,
@@ -1115,6 +1114,22 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             'right_gripper_position': right_gripper_position_aug,
         }
 
+        # also apply m to the link states, if they are present
+        has_link_states = self.link_states_k in inputs
+        if has_link_states:
+            link_states = inputs[self.link_states_k]
+            link_states_aug = []
+            for b in range(batch_size):
+                link_states_aug_b = []
+                link_states_b = link_states[b]
+                for t in range(time):
+                    link_states_b_t = link_states_b[t]
+                    link_states_b_t_aug = transform_link_states(m[b], link_states_b_t)
+                    link_states_aug_b.append(link_states_b_t_aug)
+                link_states_aug.append(link_states_aug_b)
+            link_states_aug = np.array(link_states_aug)
+            object_aug_update[self.link_states_k] = link_states_aug
+
         if visualize:
             for b in debug_viz_batch_indices(batch_size):
                 env_b = {
@@ -1132,7 +1147,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return object_aug_update, local_origin_point_aug, local_center_aug
 
     def tinv_apply_transformation(self, example: Dict, transform, visualize):
-        time = 1
+        time = 2
 
         example = coerce_types(example)
         example_aug = deepcopy(example)
@@ -1157,17 +1172,17 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
     def tinv_set_state_from_aug_pred(self, params, example_aug_pred, moved_mask, visualize):
         # set the simulator state to make the augmented state
-        link_states_aug_pred_w_time = example_aug_pred['link_states']
+        link_states_aug_pred_w_time = example_aug_pred[self.link_states_k]
         link_states_aug_pred = link_states_aug_pred_w_time[0]
 
         restore_gazebo(self.gz, link_states_aug_pred, self)
 
         if visualize:
             state = self.get_state()
-            self.plot_state_rviz(state, label='tinv_set_state')
+            self.plot_state_rviz(state, label='tinv_set_state', color='m')
 
         return (invalid := False)
 
     def tinv_error(self, example: Dict, example_aug: Dict, moved_mask):
-        error = self.classifier_distance(example, example_aug)
+        error = self.classifier_distance(example, example_aug)[-1]
         return error
