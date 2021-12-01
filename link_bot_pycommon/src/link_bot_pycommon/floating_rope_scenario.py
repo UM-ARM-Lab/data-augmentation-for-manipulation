@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Dict, Optional, List
 
 import numpy as np
@@ -6,23 +7,31 @@ from matplotlib import colors
 
 import ros_numpy
 import rospy
+from arc_utilities.algorithms import nested_dict_update
 from arc_utilities.listener import Listener
 from arc_utilities.marker_utils import scale_marker_array
+from augmentation.aug_opt import compute_moved_mask
+from augmentation.aug_opt_utils import get_local_frame
 from geometry_msgs.msg import Point, Vector3
 from jsk_recognition_msgs.msg import BoundingBox
-from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted
+from learn_invariance.transform_link_states import transform_link_states
+from link_bot_data.base_collect_dynamics_data import collect_trajectory
+from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted, coerce_types, \
+    add_predicted_cond
 from link_bot_data.rviz_arrow import rviz_arrow
-from link_bot_gazebo.gazebo_services import gz_scope
+from link_bot_gazebo.gazebo_services import gz_scope, restore_gazebo, GazeboServices
 from link_bot_gazebo.gazebo_utils import get_gazebo_kinect_pose
 from link_bot_gazebo.position_3d import Position3D
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_marker_utils import make_box_marker_from_extents
 from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.collision_checking import inflate_tf_3d
+from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds, sample_delta_position
 from link_bot_pycommon.get_cdcpd_state import GetCdcpdState
 from link_bot_pycommon.get_link_states import GetLinkStates
-from link_bot_pycommon.grid_utils import extent_to_env_shape, extent_res_to_origin_point
+from link_bot_pycommon.grid_utils import extent_to_env_shape, extent_res_to_origin_point, \
+    batch_center_res_shape_to_origin_point
 from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
@@ -32,6 +41,7 @@ from link_bot_pycommon.pycommon import default_if_none, densify_points
 from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
+from moonshine.geometry import xyzrpy_to_matrices, transform_points_3d, transform_dict_of_points_vectors
 from moonshine.moonshine_utils import remove_batch, add_batch
 from moonshine.numpify import numpify
 from peter_msgs.srv import *
@@ -45,6 +55,7 @@ rope_key_name = 'rope'
 
 
 class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenarioMixin):
+    tinv_dim = 6  # SE(3)
     DISABLE_CDCPD = True
     IMAGE_H = 90
     IMAGE_W = 160
@@ -61,6 +72,9 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         'max_x': 960,
     }
     ROPE_NAMESPACE = 'rope_3d'
+    # FIXME: this is defined in multiple places
+    state_keys = ['left_gripper', 'right_gripper', 'rope']
+    action_keys = ['left_gripper_position', 'right_gripper_position']
 
     def __init__(self):
         ScenarioWithVisualization.__init__(self)
@@ -71,6 +85,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         self.state_color_viz_pub = rospy.Publisher("state_color_viz", Image, queue_size=10, latch=True)
         self.state_depth_viz_pub = rospy.Publisher("state_depth_viz", Image, queue_size=10, latch=True)
         self.last_action = None
+        self.gz = None
         self.get_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_dual_gripper_points"),
                                                           GetDualGripperPoints)
         self.get_rope_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_rope_state"), GetRopeState,
@@ -132,6 +147,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
     def on_before_data_collection(self, params: Dict):
         self.on_before_action()
+
+        self.gz = GazeboServices()
 
         left_gripper_position = np.array([-0.25, 0.2, 1.0])
         right_gripper_position = np.array([0.25, 0.2, 1.0])
@@ -926,3 +943,231 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         msg.points.append(left_gripper_vec3)
         msg.points.append(right_gripper_vec3)
         return msg
+
+    def debug_viz_state_action(self, inputs, b, label: str, color='red', use_predicted: bool = True):
+        state_0 = numpify({k: inputs[add_predicted_cond(k, use_predicted)][b, 0] for k in self.state_keys})
+        action_0 = numpify({k: inputs[k][b, 0] for k in self.action_keys})
+        state_1 = numpify({k: inputs[add_predicted_cond(k, use_predicted)][b, 1] for k in self.state_keys})
+        self.plot_state_rviz(state_0, idx=0, label=label, color=color)
+        self.plot_state_rviz(state_1, idx=1, label=label, color=color)
+        self.plot_action_rviz(state_0, action_0, idx=1, label=label, color=color)
+        if 'is_close' in inputs:
+            self.plot_is_close(inputs['is_close'][b, 1])
+        if 'error' in inputs:
+            error_t = inputs['error'][b, 1]
+            self.plot_error_rviz(error_t)
+
+    def transformation_params_to_matrices(self, obj_transforms):
+        return xyzrpy_to_matrices(obj_transforms)
+
+    def compute_obj_points(self, inputs: Dict, num_object_interp: int, batch_size: int, use_predicted: bool = True):
+        keys = ['rope', 'left_gripper', 'right_gripper']
+        if use_predicted:
+            keys = [add_predicted(k) for k in keys]
+
+        def _make_points(k, t):
+            v = inputs[k][:, t]
+            points = tf.reshape(v, [batch_size, -1, 3])
+            points = densify_points(batch_size, points)
+            return points
+
+        obj_points_0 = {k: _make_points(k, 0) for k in keys}
+        obj_points_1 = {k: _make_points(k, 1) for k in keys}
+
+        def _linspace(k):
+            return tf.linspace(obj_points_0[k], obj_points_1[k], num_object_interp, axis=1)
+
+        swept_obj_points = tf.concat([_linspace(k) for k in keys], axis=2)
+
+        # TODO: include the robot as an object here?
+        # obj_points = tf.concat([robot_points, swept_obj_points], axis=1)
+        obj_points = tf.expand_dims(swept_obj_points, axis=1)
+
+        return obj_points
+
+    @staticmethod
+    def tinv_sample_transform(rng, scaling, a=0.25):
+        lower = np.array([-a, -a, -a, -np.pi, -np.pi, -np.pi])
+        upper = np.array([a, a, a, np.pi, np.pi, np.pi])
+        transform = rng.uniform(lower, upper).astype(np.float32) * scaling
+        return transform
+
+    def tinv_set_state(self, params, state_rng, visualize):
+        environment = self.get_environment(params)
+        state = self.get_state()
+        extent = np.array(params['extent']).reshape(3, 2)
+        action = {
+            'left_gripper_position':  state_rng.uniform(extent[:, 0], extent[:, 1]),
+            'right_gripper_position': state_rng.uniform(extent[:, 0], extent[:, 1]),
+        }
+        self.execute_action(environment, state, action)
+
+        if visualize:
+            state = self.get_state()
+            self.plot_environment_rviz(environment)
+            self.plot_state_rviz(state, label='tinv_set_state')
+
+    def tinv_generate_data(self, action_rng: np.random.RandomState, params, visualize):
+        example, invalid = collect_trajectory(params=params,
+                                              scenario=self,
+                                              traj_idx=0,
+                                              predetermined_start_state=None,
+                                              predetermined_actions=None,
+                                              verbose=(1 if visualize else 0),
+                                              action_rng=action_rng)
+        return example, invalid
+
+    def tinv_generate_data_from_aug_pred(self, params, example_aug_pred, visualize):
+        unused_rng = np.random.RandomState(0)
+        action_ks = ['left_gripper_position', 'right_gripper_position']
+        predetermined_action = {}
+        for k in action_ks:
+            predetermined_action[k] = example_aug_pred[k][0]  # is there a time dim? or batch?
+
+        example_aug_actual, invalid = collect_trajectory(params=params,
+                                                         scenario=self,
+                                                         traj_idx=0,
+                                                         predetermined_start_state=None,
+                                                         predetermined_actions=[predetermined_action],
+                                                         verbose=(1 if visualize else 0),
+                                                         action_rng=unused_rng)
+        return example_aug_actual, invalid
+
+    def aug_apply_no_ik(self,
+                        moved_mask,
+                        m,
+                        to_local_frame,
+                        inputs: Dict,
+                        batch_size,
+                        time,
+                        h: int,
+                        w: int,
+                        c: int,
+                        use_predicted: bool = True,
+                        visualize: bool = False,
+                        *args,
+                        **kwargs,
+                        ):
+        """
+
+        Args:
+            m: [b, k, 4, 4]
+            to_local_frame: [b, 3]  the 1 can also be equal to time
+            inputs:
+            batch_size:
+            time:
+            h:
+            w:
+            c:
+
+        Returns:
+
+        """
+        to_local_frame_expanded = to_local_frame[:, None, None]
+        m_expanded = m[:, None]
+
+        # apply those to the rope and grippers
+        rope_k = add_predicted_cond('rope', use_predicted)
+        rope_points = tf.reshape(inputs[rope_k], [batch_size, time, -1, 3])
+        left_gripper_k = add_predicted_cond('left_gripper', use_predicted)
+        left_gripper_point = inputs[left_gripper_k]
+        right_gripper_k = add_predicted_cond('right_gripper', use_predicted)
+        right_gripper_point = inputs[right_gripper_k]
+        left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
+        right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
+
+        def _transform(_m, points, _to_local_frame):
+            points_local_frame = points - _to_local_frame
+            points_local_frame_aug = transform_points_3d(_m, points_local_frame)
+            return points_local_frame_aug + _to_local_frame
+
+        # m is expanded to broadcast across batch & num_points dimensions
+        rope_points_aug = _transform(m_expanded, rope_points, to_local_frame_expanded)
+        left_gripper_points_aug = _transform(m_expanded, left_gripper_points, to_local_frame_expanded)
+        right_gripper_points_aug = _transform(m_expanded, right_gripper_points, to_local_frame_expanded)
+
+        # compute the new action
+        left_gripper_position = inputs['left_gripper_position']
+        right_gripper_position = inputs['right_gripper_position']
+        # m is expanded to broadcast across batch dimensions
+        left_gripper_position_aug = _transform(m, left_gripper_position, tf.expand_dims(to_local_frame, -2))
+        right_gripper_position_aug = _transform(m, right_gripper_position, tf.expand_dims(to_local_frame, -2))
+
+        rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
+        left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
+        right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
+
+        # Now that we've updated the state/action in inputs, compute the local origin point
+        state_aug_0 = {
+            'left_gripper':  left_gripper_aug[:, 0],
+            'right_gripper': right_gripper_aug[:, 0],
+            'rope':          rope_aug[:, 0]
+        }
+        local_center_aug = self.local_environment_center_differentiable(state_aug_0)
+        res = tf.cast(inputs['res'], tf.float32)
+        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
+
+        object_aug_update = {
+            rope_k:                   rope_aug,
+            left_gripper_k:           left_gripper_aug,
+            right_gripper_k:          right_gripper_aug,
+            'left_gripper_position':  left_gripper_position_aug,
+            'right_gripper_position': right_gripper_position_aug,
+        }
+
+        if visualize:
+            for b in debug_viz_batch_indices(batch_size):
+                env_b = {
+                    'env':          inputs['env'][b],
+                    'res':          res[b],
+                    'extent':       inputs['extent'][b],
+                    'origin_point': inputs['origin_point'][b],
+                }
+
+                self.plot_environment_rviz(env_b)
+                state_0 = numpify({k: inputs[add_predicted_cond(k, use_predicted)][b, 0] for k in self.state_keys})
+                action_0 = numpify({k: inputs[k][b, 0] for k in self.action_keys})
+                self.plot_state_rviz(state_0, idx=0, label='apply_aug', color='pink')
+                self.plot_action_rviz(state_0, action_0, idx=1, label='apply_aug', color='white')
+        return object_aug_update, local_origin_point_aug, local_center_aug
+
+    def tinv_apply_transformation(self, example: Dict, transform, visualize):
+        time = 1
+
+        example = coerce_types(example)
+        example_aug = deepcopy(example)
+
+        example_batch = add_batch(example)  # add batch
+        obj_points = self.compute_obj_points(example_batch, num_object_interp=1, batch_size=1, use_predicted=False)
+        moved_mask = compute_moved_mask(obj_points)
+
+        m = self.transformation_params_to_matrices(tf.convert_to_tensor(add_batch(transform), tf.float32))
+        to_local_frame = get_local_frame(moved_mask, obj_points)
+        example_aug_update, _, _ = self.aug_apply_no_ik(moved_mask, m, to_local_frame, example_batch,
+                                                        batch_size=1, time=time, visualize=visualize,
+                                                        use_predicted=False,
+                                                        h=64,  # FIXME: hardcoded!!!
+                                                        w=64,
+                                                        c=64,
+                                                        )
+        example_aug_update = remove_batch(example_aug_update)
+
+        example_aug = nested_dict_update(example_aug, example_aug_update)
+        return example_aug, moved_mask
+
+    def tinv_set_state_from_aug_pred(self, params, example_aug_pred, moved_mask, visualize):
+        # set the simulator state to make the augmented state
+        link_states_aug_pred_w_time = example_aug_pred['link_states']
+        link_states_aug_pred = link_states_aug_pred_w_time[0]
+
+        restore_gazebo(self.gz, link_states_aug_pred, self)
+
+        if visualize:
+            state = self.get_state()
+            self.plot_state_rviz(state, label='tinv_set_state')
+
+        return (invalid := False)
+
+    def tinv_error(self, example: Dict, example_aug: Dict, moved_mask):
+        error = self.classifier_distance(example, example_aug)
+        return error

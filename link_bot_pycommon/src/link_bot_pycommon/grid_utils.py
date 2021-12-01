@@ -235,12 +235,11 @@ def batch_extent_to_origin_point_tf(extent, res):
     return center_xyz - (tf.cast(shape_xyz, tf.float32) * tf.expand_dims(res, axis=-1) / 2)
 
 
-@deprecated
 def extent_res_to_origin_point(extent, res):
     """
 
     Args:
-        extent: [minx, maxx, miny, maxy, minz, maxz
+        extent: [minx, maxx, miny, maxy, minz, maxz]
         res: scalar
 
     Returns: the origin point is the x, y, z translation

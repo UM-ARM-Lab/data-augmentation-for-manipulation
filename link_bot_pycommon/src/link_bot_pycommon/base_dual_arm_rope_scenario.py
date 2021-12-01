@@ -12,16 +12,13 @@ from pyjacobian_follower import IkParams, JacobianFollower
 import rosnode
 from arc_utilities.algorithms import nested_dict_update
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
-from augmentation.aug_opt import compute_moved_mask
-from augmentation.aug_opt_utils import get_local_frame
-from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, coerce_types, add_predicted_cond
+from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, add_predicted_cond
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.get_dual_arm_robot_state import GetDualArmRobotState
 from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
 from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
-from link_bot_pycommon.pycommon import densify_points
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.filepath_tools import load_params
 from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
@@ -370,128 +367,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         return transformation_params
 
-    def compute_obj_points(self, inputs: Dict, num_object_interp: int, batch_size: int, use_predicted: bool = True):
-        keys = ['rope', 'left_gripper', 'right_gripper']
-        if use_predicted:
-            keys = [add_predicted(k) for k in keys]
-
-        def _make_points(k, t):
-            v = inputs[k][:, t]
-            points = tf.reshape(v, [batch_size, -1, 3])
-            points = densify_points(batch_size, points)
-            return points
-
-        obj_points_0 = {k: _make_points(k, 0) for k in keys}
-        obj_points_1 = {k: _make_points(k, 1) for k in keys}
-
-        def _linspace(k):
-            return tf.linspace(obj_points_0[k], obj_points_1[k], num_object_interp, axis=1)
-
-        swept_obj_points = tf.concat([_linspace(k) for k in keys], axis=2)
-
-        # TODO: include the robot as an object here?
-        # obj_points = tf.concat([robot_points, swept_obj_points], axis=1)
-        obj_points = tf.expand_dims(swept_obj_points, axis=1)
-
-        return obj_points
-
-    def aug_apply_no_ik(self,
-                        moved_mask,
-                        m,
-                        to_local_frame,
-                        inputs: Dict,
-                        batch_size,
-                        time,
-                        h: int,
-                        w: int,
-                        c: int,
-                        use_predicted: bool = True,
-                        visualize: bool = False,
-                        *args,
-                        **kwargs,
-                        ):
-        """
-
-        Args:
-            m: [b, k, 4, 4]
-            to_local_frame: [b, 3]  the 1 can also be equal to time
-            inputs:
-            batch_size:
-            time:
-            h:
-            w:
-            c:
-
-        Returns:
-
-        """
-        to_local_frame_expanded = to_local_frame[:, None, None]
-        m_expanded = m[:, None]
-
-        # apply those to the rope and grippers
-        rope_k = add_predicted_cond('rope', use_predicted)
-        rope_points = tf.reshape(inputs[rope_k], [batch_size, time, -1, 3])
-        left_gripper_k = add_predicted_cond('left_gripper', use_predicted)
-        left_gripper_point = inputs[left_gripper_k]
-        right_gripper_k = add_predicted_cond('right_gripper', use_predicted)
-        right_gripper_point = inputs[right_gripper_k]
-        left_gripper_points = tf.expand_dims(left_gripper_point, axis=-2)
-        right_gripper_points = tf.expand_dims(right_gripper_point, axis=-2)
-
-        def _transform(_m, points, _to_local_frame):
-            points_local_frame = points - _to_local_frame
-            points_local_frame_aug = transform_points_3d(_m, points_local_frame)
-            return points_local_frame_aug + _to_local_frame
-
-        # m is expanded to broadcast across batch & num_points dimensions
-        rope_points_aug = _transform(m_expanded, rope_points, to_local_frame_expanded)
-        left_gripper_points_aug = _transform(m_expanded, left_gripper_points, to_local_frame_expanded)
-        right_gripper_points_aug = _transform(m_expanded, right_gripper_points, to_local_frame_expanded)
-
-        # compute the new action
-        left_gripper_position = inputs['left_gripper_position']
-        right_gripper_position = inputs['right_gripper_position']
-        # m is expanded to broadcast across batch dimensions
-        left_gripper_position_aug = _transform(m, left_gripper_position, tf.expand_dims(to_local_frame, -2))
-        right_gripper_position_aug = _transform(m, right_gripper_position, tf.expand_dims(to_local_frame, -2))
-
-        rope_aug = tf.reshape(rope_points_aug, [batch_size, time, -1])
-        left_gripper_aug = tf.reshape(left_gripper_points_aug, [batch_size, time, -1])
-        right_gripper_aug = tf.reshape(right_gripper_points_aug, [batch_size, time, -1])
-
-        # Now that we've updated the state/action in inputs, compute the local origin point
-        state_aug_0 = {
-            'left_gripper':  left_gripper_aug[:, 0],
-            'right_gripper': right_gripper_aug[:, 0],
-            'rope':          rope_aug[:, 0]
-        }
-        local_center_aug = self.local_environment_center_differentiable(state_aug_0)
-        res = inputs['res']
-        local_origin_point_aug = batch_center_res_shape_to_origin_point(local_center_aug, res, h, w, c)
-
-        object_aug_update = {
-            rope_k:                   rope_aug,
-            left_gripper_k:           left_gripper_aug,
-            right_gripper_k:          right_gripper_aug,
-            'left_gripper_position':  left_gripper_position_aug,
-            'right_gripper_position': right_gripper_position_aug,
-        }
-
-        if visualize:
-            stepper = RvizSimpleStepper()
-            for b in debug_viz_batch_indices(batch_size):
-                env_b = {
-                    'env':          inputs['env'][b],
-                    'res':          res[b],
-                    'extent':       inputs['extent'][b],
-                    'origin_point': inputs['origin_point'][b],
-                }
-
-                self.plot_environment_rviz(env_b)
-                self.debug_viz_state_action(object_aug_update, b, 'aug', color='white')
-                stepper.step()
-        return object_aug_update, local_origin_point_aug, local_center_aug
-
     def debug_viz_state_action(self, inputs, b, label: str, color='red'):
         state_keys = ['left_gripper', 'right_gripper', 'rope', 'joint_positions']
         action_keys = ['left_gripper_position', 'right_gripper_position']
@@ -666,9 +541,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
     def aug_target_pos(self, target):
         return target[:3]
 
-    def transformation_params_to_matrices(self, obj_transforms):
-        return xyzrpy_to_matrices(obj_transforms)
-
     def aug_transformation_jacobian(self, obj_transforms):
         return transformation_jacobian(obj_transforms)
 
@@ -705,40 +577,3 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         nested_dict_update(out_hparams, update)
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
-
-    @staticmethod
-    def tinv_sample_transform(rng, scaling, a=0.25):
-        lower = np.array([-a, -a, -a, -np.pi, -np.pi, -np.pi])
-        upper = np.array([a, a, a, np.pi, np.pi, np.pi])
-        transform = rng.uniform(lower, upper).astype(np.float32) * scaling
-        return transform
-
-    def tinv_apply_transformation(self, example: Dict, transform, visualize):
-        time = 1
-
-        example = coerce_types(example)
-        example_aug = deepcopy(example)
-
-        time_indexed_keys = ['gt_rope', 'rope', 'left_gripper', 'right_griper', 'joint_positions']
-        example_w_time = add_batch(example, keys=time_indexed_keys)  # add time dimension
-        example_batch = add_batch(example_w_time)  # add batch
-        obj_points = self.compute_obj_points(example_batch, num_object_interp=1, batch_size=1, use_predicted=False)
-        moved_mask = compute_moved_mask(obj_points)
-
-        m = self.transformation_params_to_matrices(tf.convert_to_tensor(add_batch(transform), tf.float32))
-        to_local_frame = get_local_frame(moved_mask, obj_points)
-        example_aug_update, _, _ = self.aug_apply_no_ik(moved_mask, m, to_local_frame, example_batch,
-                                                        batch_size=1, time=time, visualize=visualize,
-                                                        use_predicted=False,
-                                                        h=64,  # FIXME: hardcoded!!!
-                                                        w=64,
-                                                        c=64,
-                                                        )
-        example_aug_update = remove_batch(example_aug_update)
-
-        example_aug = nested_dict_update(example_aug, example_aug_update)
-        return example_aug, moved_mask
-
-    def tinv_error(self, example: Dict, example_aug: Dict, moved_mask):
-        error = self.classifier_distance(example, example_aug)
-        return error

@@ -645,12 +645,6 @@ class CylindersScenario(PlanarPushingScenario):
     def tinv_set_state(self, params, state_rng, visualize):
         self.randomize_environment(state_rng, params)
 
-        # move all the cylinders except for one away
-        # for i, obj in enumerate(self.task.objs):
-        #     if i == TINV_TEST_OBJ_IDX:
-        #         continue
-        #     obj.set_pose(self.env.physics, position=[away_x, away_y, obj_z], quaternion=[1, 0, 0, 0])
-
         self.env.step(np.zeros(self.action_spec.shape))
 
         if visualize:
