@@ -96,13 +96,8 @@ def main():
             error = s.tinv_error(example_aug_actual, example_aug_pred, moved_mask)
 
             out_example = {
-                'example':            example,
-                'example_aug_pred':   example_aug_pred,
-                'example_aug_actual': example_aug_actual,
-                'transform':          transform,
-                'error':              error,
-                'state_i':            i,
-                'scaling':            scaling,
+                'transform': transform,
+                'error':     error,
             }
 
             if error < min_tinv_error:

@@ -71,7 +71,7 @@ def viz_main(dataset_dirs: List[pathlib.Path],
              mode: str,
              **kwargs,
              ):
-    dataset_loader = NewDynamicsDatasetLoader(dataset_dirs=dataset_dirs)
+    dataset_loader = NewBaseDatasetLoader(dataset_dirs=dataset_dirs)
     dataset = dataset_loader.batch(batch_size=1).shuffle()
 
     s = dataset_loader.get_scenario()
