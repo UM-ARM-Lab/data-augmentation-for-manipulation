@@ -9,6 +9,7 @@ from tqdm import trange, tqdm
 
 from arc_utilities import ros_init
 from link_bot_data.dataset_utils import pkl_write_example, make_unique_outdir
+from link_bot_data.split_dataset import split_dataset
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson
 
@@ -109,6 +110,8 @@ def main():
                 min_tinv_example = out_example
         pkl_write_example(full_output_directory, min_tinv_example, example_idx)
         example_idx += 1
+
+    split_dataset(full_output_directory)
 
 
 if __name__ == '__main__':
