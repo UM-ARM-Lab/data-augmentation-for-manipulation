@@ -22,7 +22,6 @@ add_message_files(
 
 add_service_files(
         FILES
-        ComputeOccupancy.srv
         DualGripperTrajectory.srv
         GetAnimControllerState.srv
         GetBool.srv

@@ -403,7 +403,7 @@ def get_all_results_subdirs(dirs: Union[pathlib.Path, List[pathlib.Path]]):
         else:
             results_subdirs_in_dir = []
             for (root, dirs, files) in os.walk(dir.as_posix()):
-                if 'dataset' in root:
+                if 'classifier_datasets' in root or root == 'training_logdir':
                     continue
                 for f in files:
                     if '_metrics.pkl.gz' in f:

@@ -29,8 +29,12 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         self.plan_srv = rospy.ServiceProxy("/hdt_michigan/plan_kinematic_path", GetMotionPlan)
 
     def on_before_data_collection(self, params: Dict):
-        current_joint_positions = np.array(self.robot.get_joint_positions(self.robot.get_both_arm_joints()))
-        near_start = np.max(np.abs(np.array(params['reset_joint_config']) - current_joint_positions)) < 0.02
+        self.on_before_get_state_or_execute_action()
+
+        joint_names = self.robot.get_joint_names('both_arms')
+        current_joint_positions = np.array(self.robot.get_joint_positions(joint_names))
+        reset_joint_config = np.array([params['reset_joint_config'][n] for n in joint_names])
+        near_start = np.max(np.abs(reset_joint_config - current_joint_positions)) < 0.02
         grippers_are_closed = self.robot.is_left_gripper_closed() and self.robot.is_right_gripper_closed()
         if not near_start or not grippers_are_closed:
             # let go
@@ -41,6 +45,8 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
             self.robot.speak("press enter to close grippers")
             input("press enter to close grippers")
+            rospy.sleep(1)
+            self.robot.close_left_gripper()
 
         self.robot.speak("press enter to begin")
         input("press enter to begin")

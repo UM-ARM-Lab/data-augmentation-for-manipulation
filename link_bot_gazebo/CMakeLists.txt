@@ -64,9 +64,6 @@ gazebo_plugin(rope_plugin src/rope_plugin.cpp src/gazebo_plugin_utils.cpp)
 
 gazebo_plugin(stepping_plugin src/stepping_plugin.cpp)
 
-gazebo_plugin(collision_map_plugin src/collision_map_plugin.cpp)
-target_link_libraries(collision_map_plugin cnpy::cnpy stdc++fs)
-
 gazebo_plugin(position_3d_plugin
         src/position_3d_plugin.cpp
         src/base_link_position_controller.cpp
