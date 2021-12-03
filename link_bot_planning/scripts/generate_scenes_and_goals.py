@@ -77,7 +77,7 @@ def generate_saved_goals(method: str,
     for trial_idx in trials:
         # restore
         bagfile_name = scenes_dir / f'scene_{trial_idx:04d}.bag'
-        if bagfile_name.exists():
+        if bagfile_name.exists() and not scenario.real:
             rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}" + Fore.RESET)
 
             def _restore():
@@ -107,8 +107,7 @@ def generate_saved_goals(method: str,
         elif method == 'rviz_marker':
             if current_goal is not None:
                 goal_im.set_pose(Pose(position=ros_numpy.msgify(Point, current_goal['point'])))
-            # input("press enter to save")
-            rospy.sleep(10)
+            input("press enter to save")
             goal = rviz_marker_goal(goal_im)
         else:
             raise NotImplementedError()

@@ -19,5 +19,5 @@ class GetCdcpdState:
         cdcpd_vector = points.flatten()
 
         return {
-            key: cdcpd_vector,
+            self.key: cdcpd_vector,
         }

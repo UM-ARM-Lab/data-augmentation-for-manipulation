@@ -21,6 +21,8 @@ logger = logging.getLogger(__file__)
 
 
 class MockRobot:
+    real = False
+
     def __init__(self):
         self.robot_namespace = 'mock_robot'
 

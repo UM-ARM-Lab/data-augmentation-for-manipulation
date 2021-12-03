@@ -15,6 +15,8 @@ from moveit_msgs.srv import GetMotionPlan, GetMotionPlanResponse
 
 
 class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
+    real = True
+
     COLOR_IMAGE_TOPIC = "/kinect2_tripodA/qhd/image_color_rect"
     DEPTH_IMAGE_TOPIC = "/kinect2_tripodA/qhd/image_depth_rect"
 
@@ -44,9 +46,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             self.robot.plan_to_joint_config("both_arms", params['reset_joint_config'])
 
             self.robot.speak("press enter to close grippers")
-            input("press enter to close grippers")
-            rospy.sleep(1)
-            self.robot.close_left_gripper()
+            print("Use the gamepad to close the left gripper")
 
         self.robot.speak("press enter to begin")
         input("press enter to begin")
