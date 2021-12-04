@@ -149,6 +149,8 @@ def train_main(dataset_dir: pathlib.Path,
               user=user,
               batch_size=batch_size)
 
+    return run_id
+
 
 def take_subset(dataset, take):
     if take is None:

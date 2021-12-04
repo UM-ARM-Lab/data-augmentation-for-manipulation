@@ -42,10 +42,10 @@ def unbatch_examples(example, actual_batch_size):
 
 def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              mode: str,
-                             take: Optional[int],
                              hparams: Dict,
                              outdir: pathlib.Path,
                              n_augmentations: int,
+                             take: Optional[int] = None,
                              scenario=None,
                              visualize: bool = False,
                              batch_size: int = 32,

@@ -86,6 +86,7 @@ class AugProjOpt(BaseProjectOpt):
         self.no_invariance = has_keys(self.hparams, ['ablations', 'no_invariance'], False)
         self.no_occupancy = has_keys(self.hparams, ['ablations', 'no_occupancy'], False)
         self.no_min_delta_dist = has_keys(self.hparams, ['ablations', 'no_min_delta_dist'], False)
+        rospy.loginfo_once(f'{self.no_invariance=} {self.no_occupancy=} {self.no_min_delta_dist=}')
 
     def make_opt(self):
         lr = tf.keras.optimizers.schedules.ExponentialDecay(self.hparams['step_size'],
@@ -186,16 +187,14 @@ class AugProjOpt(BaseProjectOpt):
         variables = [obj_transforms]
         tape_gradients = tape.gradient(loss, variables)
 
-        gradients = [tape_gradients[0]]
-        if not self.no_occupancy:
-            gradients.append(moved_attract_repel_sdf_grad_mean)
-        if not self.no_min_delta_dist:
-            gradients.append(delta_min_dist_grad_dparams)
-
         # combine with the gradient for the other aspects of the loss, those computed by tf.gradient
-        gradients = tf.add_n(gradients)
+        gradients = tape_gradients[0]
+        if not self.no_occupancy:
+            gradients += moved_attract_repel_sdf_grad_mean
+        if not self.no_min_delta_dist:
+            gradients += delta_min_dist_grad_dparams
 
-        clipped_grads_and_vars = self.clip_env_aug_grad(gradients, variables)
+        clipped_grads_and_vars = self.clip_env_aug_grad([gradients], variables)
         opt.apply_gradients(grads_and_vars=clipped_grads_and_vars)
         lr = opt._decayed_lr(tf.float32)
         can_terminate = self.can_terminate(lr, gradients)
