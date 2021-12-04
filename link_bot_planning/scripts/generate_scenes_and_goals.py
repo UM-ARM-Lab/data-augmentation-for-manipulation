@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 import argparse
-import logging
 import pathlib
 import pickle
 from typing import Optional, Dict, List
 
 import numpy as np
-import tensorflow as tf
 from colorama import Fore
 
 import ros_numpy
@@ -77,7 +75,7 @@ def generate_saved_goals(method: str,
     for trial_idx in trials:
         # restore
         bagfile_name = scenes_dir / f'scene_{trial_idx:04d}.bag'
-        if bagfile_name.exists() and not scenario.real:
+        if bagfile_name.exists():
             rospy.loginfo(Fore.GREEN + f"Restoring scene {bagfile_name}" + Fore.RESET)
 
             def _restore():
