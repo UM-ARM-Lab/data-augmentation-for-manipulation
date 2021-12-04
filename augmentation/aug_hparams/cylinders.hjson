@@ -19,5 +19,11 @@
       arrows_scale: 0.004
       min_delta_dist_grad_scale: 2
     }
+
+    ablations: {
+       no_occupancy: true
+       no_invariance: false
+       no_min_delta_dist: false
+    }
   }
 }
