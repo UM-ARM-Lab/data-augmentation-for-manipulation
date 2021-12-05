@@ -120,7 +120,6 @@ def train_main(dataset_dir: pathlib.Path,
 
     model = PropNet(hparams=model_params)
 
-    print(run_id)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
 
     ckpt_cb = MyModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
