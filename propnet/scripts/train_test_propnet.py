@@ -11,6 +11,7 @@ import torch
 from arc_utilities import ros_init
 from link_bot_pycommon.args import run_subparsers
 from propnet import train_test_propnet
+from propnet.magic import wand_lightning_magic
 
 
 def train_main(args):
@@ -69,13 +70,7 @@ def main():
     eval_parser.add_argument('--take', type=int)
     eval_parser.set_defaults(func=eval_main)
 
-    import resource
-    rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
-    resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))
-    torch.multiprocessing.set_sharing_strategy('file_system')
-
-    os.environ["WANDB_SILENT"] = "true"
-    logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
+    wand_lightning_magic()
 
     run_subparsers(parser)
 

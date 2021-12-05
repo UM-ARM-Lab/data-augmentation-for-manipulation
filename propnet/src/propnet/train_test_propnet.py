@@ -50,7 +50,7 @@ def train_main(dataset_dir: pathlib.Path,
                seed: int,
                user: str,
                steps: int = -1,
-               nickname: Optional[str] = "",
+               nickname: Optional[str] = None,
                checkpoint: Optional = None,
                take: Optional[int] = None,
                no_validate: bool = False,
@@ -109,16 +109,18 @@ def train_main(dataset_dir: pathlib.Path,
         run_id = generate_id(length=5)
         if nickname is not None:
             run_id = nickname + '-' + run_id
-        wandb_kargs = {}
+        wandb_kargs = {'entity': user}
     else:
         ckpt_path = model_artifact_path(checkpoint, project, version='latest', user=user)
         run_id = checkpoint
         wandb_kargs = {
+            'entity': user,
             'resume': True,
         }
 
     model = PropNet(hparams=model_params)
 
+    print(run_id)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
 
     ckpt_cb = MyModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')

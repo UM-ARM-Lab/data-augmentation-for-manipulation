@@ -6,6 +6,7 @@ from arc_utilities import ros_init
 from augmentation.augment_dataset import augment_dynamics_dataset
 from augmentation.load_aug_params import load_aug_params
 from link_bot_pycommon.job_chunking import JobChunker
+from propnet.magic import wand_lightning_magic
 from propnet.train_test_propnet import train_main
 
 
@@ -17,8 +18,9 @@ def main():
     parser.add_argument('aug_hparams', type=pathlib.Path)
     parser.add_argument('--model-hparams', type=pathlib.Path, default='hparams/cylinders.hjson')
     parser.add_argument('--visualize', action='store_true')
+    parser.add_argument('--take', type=int)
     parser.add_argument('--n-augmentations', '-n', type=int, default=25)
-    parser.add_argument('--train-n-models', '-m', type=int, default=3)
+    parser.add_argument('--train-m-models', '-m', type=int, default=3)
     parser.add_argument('--training-steps', '-t', type=int, default=125_000)
 
     args = parser.parse_args()
@@ -36,12 +38,15 @@ def main():
         augment_dynamics_dataset(args.dataset_dir,
                                  mode='train',
                                  hparams=aug_hparams,
+                                 take=args.take,  # for debugging
                                  outdir=aug_dataset_dir,
                                  visualize=args.visualize,
                                  n_augmentations=args.n_augmentations)
-        c.store_result('aug_dataset_dir', aug_dataset_dir)
+        c.store_result('aug_dataset_dir', aug_dataset_dir.as_posix())
 
-    for model_seed in range(args.m):
+    wand_lightning_magic()
+
+    for model_seed in range(args.train_m_models):
         result_k = f'run_id-{model_seed}'
         run_id = c.get_result(result_k, None)
         if run_id is None:
