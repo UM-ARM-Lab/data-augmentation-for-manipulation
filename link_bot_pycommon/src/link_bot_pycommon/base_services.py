@@ -5,7 +5,8 @@ import rospy
 from arm_video_recorder.srv import TriggerVideoRecording, TriggerVideoRecordingRequest
 from gazebo_msgs.srv import GetPhysicsProperties, SetPhysicsProperties
 from geometry_msgs.msg import Pose
-from peter_msgs.srv import ComputeOccupancy, WorldControl, WorldControlRequest
+from peter_msgs.srv import WorldControl, WorldControlRequest
+from arm_gazebo_msgs.srv import ComputeOccupancy
 
 
 class BaseServices:
