@@ -28,12 +28,13 @@ class MyModelCheckpoint(pl.callbacks.ModelCheckpoint):
 
     def on_save_checkpoint(self, trainer, pl_module, checkpoint):
         return {
-            "monitor":          self.monitor,
-            "best_model_score": self.best_model_score,
-            "best_model_path":  self.best_model_path,
-            "current_score":    self.current_score,
-            "dirpath":          self.dirpath,
-            "best_k_models":    self.best_k_models,
+            "monitor":             self.monitor,
+            "best_model_score":    self.best_model_score,
+            "best_model_path":     self.best_model_path,
+            "current_score":       self.current_score,
+            "dirpath":             self.dirpath,
+            "best_k_models":       self.best_k_models,
+            "kth_best_model_path": self.kth_best_model_path,
         }
 
     def on_load_checkpoint(self, trainer, pl_module, callback_state):
@@ -41,6 +42,7 @@ class MyModelCheckpoint(pl.callbacks.ModelCheckpoint):
         self.best_model_path = callback_state["best_model_path"]
         self.best_model_score = callback_state["best_model_score"]
         self.best_k_models = callback_state["best_k_models"]
+        self.kth_best_model_path = callback_state["kth_best_model_path"]
 
 
 def train_main(dataset_dir: pathlib.Path,
