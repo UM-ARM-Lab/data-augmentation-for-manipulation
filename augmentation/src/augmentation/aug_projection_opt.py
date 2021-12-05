@@ -79,14 +79,14 @@ class AugProjOpt(BaseProjectOpt):
         viz_params = self.hparams.get('viz', {})
         self.viz_scale = viz_params.get('scale', 1.0)
         self.viz_arrow_scale = viz_params.get('arrow_scale', 1.0)
-        self.viz_min_delta_dist_grad_scale = viz_params.get('min_delta_dist_grad_scale', 4.0)
+        self.viz_delta_min_dist_grad_scale = viz_params.get('delta_min_dist_grad_scale', 4.0)
         self.viz_grad_epsilon = viz_params.get('viz_grad_epsilon', 1e-6)
 
         # ablations
         self.no_invariance = has_keys(self.hparams, ['ablations', 'no_invariance'], False)
         self.no_occupancy = has_keys(self.hparams, ['ablations', 'no_occupancy'], False)
-        self.no_min_delta_dist = has_keys(self.hparams, ['ablations', 'no_min_delta_dist'], False)
-        rospy.loginfo_once(f'{self.no_invariance=} {self.no_occupancy=} {self.no_min_delta_dist=}')
+        self.no_delta_min_dist = has_keys(self.hparams, ['ablations', 'no_delta_min_dist'], False)
+        rospy.loginfo_once(f'{self.no_invariance=} {self.no_occupancy=} {self.no_delta_min_dist=}')
 
     def make_opt(self):
         lr = tf.keras.optimizers.schedules.ExponentialDecay(self.hparams['step_size'],
@@ -191,7 +191,7 @@ class AugProjOpt(BaseProjectOpt):
         gradients = tape_gradients[0]
         if not self.no_occupancy:
             gradients += moved_attract_repel_sdf_grad_mean
-        if not self.no_min_delta_dist:
+        if not self.no_delta_min_dist:
             gradients += delta_min_dist_grad_dparams
 
         clipped_grads_and_vars = self.clip_env_aug_grad([gradients], variables)
@@ -312,7 +312,7 @@ class AugProjOpt(BaseProjectOpt):
             min_dist_points_aug_b = v.min_dist_points_aug[b]  # [3]
             delta_min_dist_grad_dpoint_b = -v.delta_min_dist_grad_dpoint[b]  # [3]
             s.plot_arrow_rviz(min_dist_points_aug_b.numpy(),
-                              delta_min_dist_grad_dpoint_b.numpy() * self.viz_min_delta_dist_grad_scale,
+                              delta_min_dist_grad_dpoint_b.numpy() * self.viz_delta_min_dist_grad_scale,
                               label=f'delta_min_dist_grad_{moved_obj_i}',
                               color='pink',
                               scale=self.viz_arrow_scale)

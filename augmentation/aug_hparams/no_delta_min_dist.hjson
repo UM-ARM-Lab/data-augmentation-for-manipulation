@@ -1,0 +1,27 @@
+{
+  augmentation: {
+    invariance_weight: 1.0
+
+    # hyperparameters of the optimization loop
+    target_trans_lim: 0.15
+    not_progressing_threshold: 0.0005
+    step_size_threshold: 0.0001
+    step_size: 0.5
+
+    # for the final check of the constraints
+    delta_min_dist_threshold: 0.005
+
+    # misc
+    invariance_model: /media/shared/invariance_trials/cylinders1/best_checkpoint
+
+    viz: {
+      scale: 0.007
+      arrows_scale: 0.004
+      min_delta_dist_grad_scale: 2
+    }
+
+    ablations: {
+       no_delta_min_dist: true
+    }
+  }
+}
