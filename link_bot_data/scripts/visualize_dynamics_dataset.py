@@ -42,8 +42,7 @@ def main():
         if args.plot_type == '3d':
             deserialize_scene_msg(example)
             if 'augmented_from' in example:
-                print(example['augmented_from'])
-            # print(example['filename'])
+                print(f"augmented from: {example['augmented_from']}")
             example = numpify(example)
             dataset_loader.anim_rviz(example)
         elif args.plot_type == 'sanity_check':
