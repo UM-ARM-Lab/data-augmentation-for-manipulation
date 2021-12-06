@@ -25,9 +25,10 @@ def remove_main(args):
 def print_main(args):
     scenes = get_all_scenes(args.dirname)
     for s in scenes:
-        print(s.idx)
-        print(s.links_states)
-        print(s.joint_state)
+        if s.idx == args.idx:
+            print(s.idx)
+            print(s.links_states)
+            print(s.joint_state)
 
 
 def list_main(args):
