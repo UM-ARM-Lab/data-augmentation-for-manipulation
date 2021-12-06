@@ -4,10 +4,10 @@ from typing import List, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import transformations
+from tqdm import tqdm
 
 from learn_invariance.invariance_model import InvarianceModel, compute_transformation_invariance_error
 from learn_invariance.invariance_model_wrapper import InvarianceModelWrapper
-from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine import common_train_hparams
@@ -107,6 +107,10 @@ def dim_viz_main(checkpoint: pathlib.Path, **kwargs):
     n = 100
 
     fig, axes = plt.subplots(1, 2, sharey=True)
+    axes[0].set_ylim([0, 1])
+    axes[1].set_ylim([0, 1])
+    axes[0].axhline(0.1, color='black', linestyle='--')
+    axes[1].axhline(0.1, color='black', linestyle='--')
     fig.suptitle("Predicted Error of Augmentation")
 
     plot_angle_invariance(axes[0], m, n)
@@ -136,6 +140,9 @@ def plot_angle_invariance(ax, m, n):
         for i in [3, 4, 5]:
             if i != param_idx:
                 transformation_params[:, i] = 0
+        transformation_params[:, 0] = 0
+        transformation_params[:, 1] = 0
+        transformation_params[:, 2] = 0
         angles = transformation_params[:, param_idx]
         errors = viz_eval(m, transformation_params)
         angles_deg = np.rad2deg(angles)
@@ -166,6 +173,9 @@ def plot_position_invariance(ax, m, n):
         for i in [0, 1, 2]:
             if i != param_idx:
                 transformation_params[:, i] = 0
+        transformation_params[:, 3] = 0
+        transformation_params[:, 4] = 0
+        transformation_params[:, 5] = 0
         positions = transformation_params[:, param_idx]
         errors = viz_eval(m, transformation_params)
 
@@ -175,3 +185,22 @@ def plot_position_invariance(ax, m, n):
     _plot_by_axis("y")
     _plot_by_axis("z")
     ax.legend()
+
+
+def sorted_by_errror():
+    l = []
+    for e in tqdm(train_dataset):
+        for e_i, t_i in zip(e['error'], e['transform']):
+            l.append(np.concatenate([[e_i.numpy()], np.abs(t_i.numpy())]))
+    l_np = np.array(l)
+
+    high_trans = l_np[np.where(np.all(np.abs(l_np[:, 0:3]) > 0.05, axis=1))]
+    high_trans_and_small_roll_or_pitch = l_np[np.where(
+        np.logical_and(np.all(np.abs(l_np[:, 0:3]) > 0.05, axis=1), np.all(np.abs(l_np[:, 4:6]) < 0.2, axis=1)))]
+
+    high_roll_or_pitch = l_np[np.where(np.all(np.abs(l_np[:, 4:6]) > 0.05, axis=1))]
+
+    small_roll_or_pitch = l_np[np.where(np.all(np.abs(l_np[:, 4:6]) < 0.05, axis=1))]
+
+    import matplotlib.pyplot as plt
+    plt.scatter()

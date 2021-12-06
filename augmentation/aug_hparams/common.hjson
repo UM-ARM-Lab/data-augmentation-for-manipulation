@@ -34,6 +34,5 @@
     # misc
     num_object_interp: 2
     good_enough_percentile: 1.0  # 1 accept all target transforms, 0.1 means use the top 10%
-    invariance_model: /media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint
   }
 }

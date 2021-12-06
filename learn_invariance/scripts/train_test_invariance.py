@@ -7,6 +7,9 @@ import tensorflow as tf
 
 from arc_utilities import ros_init
 from learn_invariance import train_test_invariance
+from moonshine.gpu_config import limit_gpu_mem
+
+limit_gpu_mem(None)
 
 
 def train_main(args):
