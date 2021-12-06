@@ -1,10 +1,10 @@
 import numpy as np
 
 import ros_numpy
+from arm_gazebo_msgs.srv import ComputeOccupancyRequest
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.grid_utils import extent_to_center, extent_to_env_shape
-from peter_msgs.srv import ComputeOccupancyRequest
 
 
 def get_occupancy(service_provider,
