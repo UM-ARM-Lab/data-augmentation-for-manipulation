@@ -12,16 +12,14 @@ from pyjacobian_follower import IkParams, JacobianFollower
 import rosnode
 from arc_utilities.algorithms import nested_dict_update
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
-from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg, add_predicted_cond
-from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
+from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
 from link_bot_pycommon.get_dual_arm_robot_state import GetDualArmRobotState
-from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point
 from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
-from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
+from link_bot_pycommon.point_to_robot import point_to_root
 from moonshine.filepath_tools import load_params
-from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
+from moonshine.geometry import transformation_jacobian, euler_angle_diff
 from moonshine.moonshine_utils import to_list_of_strings, remove_batch, add_batch
 from moonshine.numpify import numpify
 from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
@@ -158,14 +156,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         exclude.model_names.append(self.robot_namespace)
         self.exclude_from_planning_scene_srv(exclude)
 
-    def on_before_data_collection(self, params: Dict):
-        self.on_before_get_state_or_execute_action()
-
         # Set the preferred tool orientations
         self.robot.store_tool_orientations({
             self.robot.left_tool_name:  self.left_preferred_tool_orientation,
             self.robot.right_tool_name: self.right_preferred_tool_orientation,
         })
+
+    def on_before_data_collection(self, params: Dict):
+        self.on_before_get_state_or_execute_action()
 
     def get_n_joints(self):
         return len(self.get_joint_names())
@@ -301,7 +299,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         desired_tool_positions = [action['left_gripper_position'], action['right_gripper_position']]
         pred_tool_positions = self.robot.jacobian_follower.get_tool_positions(tool_names, predicted_robot_state)
         for pred_tool_position, desired_tool_position in zip(pred_tool_positions, desired_tool_positions):
-            reached = np.allclose(desired_tool_position, pred_tool_position, atol=5e-3)
+            desired_tool_position_root = self.point_to_root(desired_tool_position, 'hdt_michigan_root')
+            reached = np.allclose(desired_tool_position_root, pred_tool_position, atol=5e-3)
             if not reached:
                 return False
         return True
@@ -325,9 +324,10 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             joint_names_t = example['joint_names'][b, 0]
             joint_names = [joint_names_t]
             for t in range(input_sequence_length):
-                left_gripper_points = [example['left_gripper_position'][b, t]]
-                right_gripper_points = [example['right_gripper_position'][b, t]]
-                grippers = [left_gripper_points, right_gripper_points]
+                # Transform into the right frame
+                left_gripper_point = self.point_to_root(example['left_gripper_position'][b, t], 'hdt_michigan_root')
+                right_gripper_point = self.point_to_root(example['right_gripper_position'][b, t], 'hdt_michigan_root')
+                grippers = [[left_gripper_point], [right_gripper_point]]
 
                 joint_state_b_t = make_joint_state(pred_joint_positions_t, to_list_of_strings(joint_names_t))
                 scene_msg_b, robot_state = merge_joint_state_and_scene_msg(scene_msg_b, joint_state_b_t)
@@ -577,3 +577,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         nested_dict_update(out_hparams, update)
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
+
+    def point_to_root(self, point, src: str):
+        return point_to_root(self.robot, self.tf, point, src)

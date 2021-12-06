@@ -7,11 +7,13 @@ import ros_numpy
 import rospy
 from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
+from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
 from link_bot_pycommon.get_cdcpd_state import GetCdcpdState
 from link_bot_pycommon.get_joint_state import GetJointState
 from moveit_msgs.msg import MotionPlanRequest, Constraints, OrientationConstraint, \
     PositionConstraint, JointConstraint, MoveItErrorCodes
 from moveit_msgs.srv import GetMotionPlan, GetMotionPlanResponse
+from tf.transformations import quaternion_from_euler
 
 
 class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
@@ -22,6 +24,9 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('hdt_michigan')
+        self.left_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, -np.pi / 4, 0)
+        self.right_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, np.pi / 4, 0)
+
         self.my_closed = -0.11
         self.get_joint_state = GetJointState(self.robot)
         self.get_cdcpd_state = GetCdcpdState(self.tf)
@@ -30,8 +35,11 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
         self.plan_srv = rospy.ServiceProxy("/hdt_michigan/plan_kinematic_path", GetMotionPlan)
 
+    def execute_action(self, environment, state, action: Dict):
+        return dual_arm_rope_execute_action(self.robot, self.tf, environment, state, action, check_overstretching=False)
+
     def on_before_data_collection(self, params: Dict):
-        self.on_before_get_state_or_execute_action()
+        super().on_before_data_collection(params)
 
         joint_names = self.robot.get_joint_names('both_arms')
         current_joint_positions = np.array(self.robot.get_joint_positions(joint_names))
@@ -50,10 +58,6 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
         self.robot.speak("press enter to begin")
         input("press enter to begin")
-
-    def on_before_get_state_or_execute_action(self):
-        self.robot.connect()
-        self.add_boxes_around_tools()
 
     def get_state(self):
         state = {}

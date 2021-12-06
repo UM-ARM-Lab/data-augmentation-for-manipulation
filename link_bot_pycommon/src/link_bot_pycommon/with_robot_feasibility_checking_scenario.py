@@ -13,6 +13,9 @@ class DualArmRopeSimValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobot
     def simple_name(self):
         return "dual_arm_rope_sim_val_with_robot_feasibility_checking"
 
+    def __repr__(self):
+        return self.simple_name()
+
 
 class DualArmRopeRealValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobotFeasibilityCheckingScenario,
                                                              DualArmRealValRopeScenario):
@@ -22,3 +25,6 @@ class DualArmRopeRealValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobo
 
     def simple_name(self):
         return "real_val_with_robot_feasibility_checking"
+
+    def __repr__(self):
+        return self.simple_name()

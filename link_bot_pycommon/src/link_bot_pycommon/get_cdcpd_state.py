@@ -14,7 +14,7 @@ class GetCdcpdState:
     def get_state(self):
         cdcpd_msg: PointCloud2 = self.cdcpd_listener.get()
 
-        points = transform_points_to_robot_frame(self.tf, cdcpd_msg)
+        points = transform_points_to_robot_frame(self.tf, cdcpd_msg, robot_frame_id='hdt_michigan_root')
 
         cdcpd_vector = points.flatten()
 
