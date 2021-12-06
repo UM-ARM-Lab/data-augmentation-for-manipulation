@@ -143,7 +143,6 @@ def train_main(dataset_dir: pathlib.Path,
                 train_loader,
                 val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
-
     wandb.finish()
 
     eval_main(dataset_dir,
@@ -188,6 +187,7 @@ def eval_main(dataset_dir: pathlib.Path,
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
     metrics = trainer.validate(model, loader, verbose=False)
+    wandb.finish()
 
     print(f'run_id: {run_id}')
     for metrics_i in metrics:
