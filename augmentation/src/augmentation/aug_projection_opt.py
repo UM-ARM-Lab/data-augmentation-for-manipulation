@@ -11,7 +11,6 @@ from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_point_to_idx
-from link_bot_pycommon.pycommon import has_keys
 from moonshine.geometry import homogeneous
 from visualization_msgs.msg import Marker
 
@@ -82,12 +81,6 @@ class AugProjOpt(BaseProjectOpt):
         self.viz_delta_min_dist_grad_scale = viz_params.get('delta_min_dist_grad_scale', 4.0)
         self.viz_grad_epsilon = viz_params.get('viz_grad_epsilon', 1e-6)
 
-        # ablations
-        self.no_invariance = has_keys(self.hparams, ['ablations', 'no_invariance'], False)
-        self.no_occupancy = has_keys(self.hparams, ['ablations', 'no_occupancy'], False)
-        self.no_delta_min_dist = has_keys(self.hparams, ['ablations', 'no_delta_min_dist'], False)
-        rospy.loginfo_once(f'{self.no_invariance=} {self.no_occupancy=} {self.no_delta_min_dist=}')
-
     def make_opt(self):
         lr = tf.keras.optimizers.schedules.ExponentialDecay(self.hparams['step_size'],
                                                             self.hparams['lr_decay_steps'],
@@ -155,7 +148,7 @@ class AugProjOpt(BaseProjectOpt):
             bbox_loss = tf.reduce_mean(bbox_loss, axis=-1)  # [b]
 
             losses = [bbox_loss]
-            if not self.no_invariance:
+            if not self.aug_opt.no_invariance:
                 losses.append(invariance_loss)
             losses_sum = tf.add_n(losses)
             loss = tf.reduce_mean(losses_sum)
@@ -189,9 +182,9 @@ class AugProjOpt(BaseProjectOpt):
 
         # combine with the gradient for the other aspects of the loss, those computed by tf.gradient
         gradients = tape_gradients[0]
-        if not self.no_occupancy:
+        if not self.aug_opt.no_occupancy:
             gradients += moved_attract_repel_sdf_grad_mean
-        if not self.no_delta_min_dist:
+        if not self.aug_opt.no_delta_min_dist:
             gradients += delta_min_dist_grad_dparams
 
         clipped_grads_and_vars = self.clip_env_aug_grad([gradients], variables)

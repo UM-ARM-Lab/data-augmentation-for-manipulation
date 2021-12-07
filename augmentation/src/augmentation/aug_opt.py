@@ -6,6 +6,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from pyjacobian_follower import IkParams
 
+import rospy
 from augmentation.aug_opt_utils import debug_aug, debug_input, debug_ik, check_env_constraints, pick_best_params, \
     transform_obj_points, sum_over_moved
 from augmentation.aug_projection_opt import AugProjOpt
@@ -16,6 +17,7 @@ from link_bot_data.visualization import DebuggingViz
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg
+from link_bot_pycommon.pycommon import has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
 from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
@@ -115,6 +117,12 @@ class AugmentationOptimization:
                 invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
                 self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
                                                                        self.scenario)
+
+            # ablations
+            self.no_invariance = has_keys(self.hparams, ['ablations', 'no_invariance'], False)
+            self.no_occupancy = has_keys(self.hparams, ['ablations', 'no_occupancy'], False)
+            self.no_delta_min_dist = has_keys(self.hparams, ['ablations', 'no_delta_min_dist'], False)
+            rospy.loginfo_once(f'{self.no_invariance=} {self.no_occupancy=} {self.no_delta_min_dist=}')
 
     def aug_opt(self, inputs: Dict, batch_size: int, time: int):
         if debug_aug():
@@ -302,18 +310,24 @@ class AugmentationOptimization:
         bbox_loss_batch = tf.reduce_max(bbox_loss_batch, axis=-1)
         bbox_constraint_satisfied = tf.cast(bbox_loss_batch < self.hparams['max_bbox_violation'], tf.float32)
 
-        env_constraints_satisfied_ = check_env_constraints(obj_occupancy, sdf_aug)  # [b, m, T, n]
-        num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=-1)
-        num_env_constraints_violated = tf.reduce_sum(num_env_constraints_violated, axis=-1)
-        num_env_constraints_violated_moved = sum_over_moved(moved_mask, num_env_constraints_violated)
-        env_constraints_satisfied = num_env_constraints_violated_moved < self.hparams['max_env_violations']
-        env_constraints_satisfied = tf.cast(env_constraints_satisfied, tf.float32)
+        if self.no_occupancy:
+            env_constraints_satisfied = 1.0
+        else:
+            env_constraints_satisfied_ = check_env_constraints(obj_occupancy, sdf_aug)  # [b, m, T, n]
+            num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=-1)
+            num_env_constraints_violated = tf.reduce_sum(num_env_constraints_violated, axis=-1)
+            num_env_constraints_violated_moved = sum_over_moved(moved_mask, num_env_constraints_violated)
+            env_constraints_satisfied = num_env_constraints_violated_moved < self.hparams['max_env_violations']
+            env_constraints_satisfied = tf.cast(env_constraints_satisfied, tf.float32)
 
-        delta_dist = tf.abs(sdf - sdf_aug)
-        delta_min_dist = tf.reduce_min(delta_dist, axis=-1)
-        delta_min_dist = tf.reduce_min(delta_min_dist, axis=-1)
-        delta_min_dist = tf.reduce_min(delta_min_dist, axis=-1)
-        delta_min_dist_satisfied = tf.cast(delta_min_dist < self.hparams['delta_min_dist_threshold'], tf.float32)
+        if self.no_delta_min_dist:
+            delta_min_dist_satisfied = 1.0
+        else:
+            delta_dist = tf.abs(sdf - sdf_aug)
+            delta_min_dist = tf.reduce_min(delta_dist, axis=-1)
+            delta_min_dist = tf.reduce_min(delta_min_dist, axis=-1)
+            delta_min_dist = tf.reduce_min(delta_min_dist, axis=-1)
+            delta_min_dist_satisfied = tf.cast(delta_min_dist < self.hparams['delta_min_dist_threshold'], tf.float32)
 
         constraints_satisfied = env_constraints_satisfied * bbox_constraint_satisfied * delta_min_dist_satisfied
         return constraints_satisfied
