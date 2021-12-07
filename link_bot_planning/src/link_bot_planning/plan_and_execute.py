@@ -78,7 +78,7 @@ def execute_actions(
 
     if plot and after_state:
         scenario.plot_environment_rviz(environment)
-        scenario.plot_state_rviz(after_state, label='actual')
+        scenario.plot_state_rviz(after_state, label='actual', color='pink')
 
     if not stopped:
         spinner.stop()

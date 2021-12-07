@@ -182,6 +182,7 @@ def eval_main(dataset_dir: pathlib.Path,
         'training_dataset': model.hparams.dataset_dir,
         'eval_checkpoint':  checkpoint,
         'eval_mode':        mode,
+        'entity':           user,
     }
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config)
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
