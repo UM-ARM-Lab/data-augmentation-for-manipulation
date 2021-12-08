@@ -85,7 +85,7 @@ class IterativeFineTuning:
         self.initial_recovery_checkpoint = pathify(self.job_chunker.load_prompt('initial_recovery_checkpoint', None))
         planner_params_filename = lpf('planner_params_filename', 'planner_configs/val_car/random_accept.hjson')
         self.test_scenes_dir = lpf('test_scenes_dir', 'test_scenes/car0-sm')
-        self.test_scenes_indices = int_setify(self.job_chunker.load_prompt('test_scenes_indices', 0))
+        self.test_scenes_indices = int_setify(self.job_chunker.load_prompt('test_scenes_indices', None))
 
         if not self.job_chunker.has_result('labeling_params_update'):
             ift_config = load_hjson(ift_config_filename)
