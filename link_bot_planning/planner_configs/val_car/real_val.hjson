@@ -10,4 +10,12 @@
     recovery_model_dir: /media/shared/recovery_trials/random/none
     use_recovery: true
   }
+  extent: [
+    -0.6
+    0.6
+    0.25
+    1.25
+    -0.4
+    0.6
+  ]
 }

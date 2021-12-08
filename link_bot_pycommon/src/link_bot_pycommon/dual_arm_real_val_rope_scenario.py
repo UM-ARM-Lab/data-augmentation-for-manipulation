@@ -24,8 +24,8 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('hdt_michigan')
-        self.left_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, -np.pi / 4, 0)
-        self.right_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, np.pi / 4, 0)
+        self.left_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, -np.pi / 4, -np.pi / 2)
+        self.right_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, np.pi / 4, -np.pi / 2)
 
         self.my_closed = -0.11
         self.get_joint_state = GetJointState(self.robot)
@@ -36,7 +36,13 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         self.plan_srv = rospy.ServiceProxy("/hdt_michigan/plan_kinematic_path", GetMotionPlan)
 
     def execute_action(self, environment, state, action: Dict):
-        return dual_arm_rope_execute_action(self.robot, self.tf, environment, state, action, check_overstretching=False)
+        return dual_arm_rope_execute_action(self.robot,
+                                            self.tf,
+                                            environment,
+                                            state,
+                                            action,
+                                            vel_scaling=1.0,
+                                            check_overstretching=False)
 
     def on_before_data_collection(self, params: Dict):
         super().on_before_data_collection(params)

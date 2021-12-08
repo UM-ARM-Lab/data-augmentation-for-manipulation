@@ -16,8 +16,12 @@ with warnings.catch_warnings():
     from arm_robots.robot import MoveitEnabledRobot
 
 
-def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, tf_wrapper: TF2Wrapper, environment: Dict, state: Dict,
+def dual_arm_rope_execute_action(robot: MoveitEnabledRobot,
+                                 tf_wrapper: TF2Wrapper,
+                                 environment: Dict,
+                                 state: Dict,
                                  action: Dict,
+                                 vel_scaling=0.1,
                                  check_overstretching=True):
     tool_names = [robot.left_tool_name, robot.right_tool_name]
 
@@ -48,6 +52,7 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot, tf_wrapper: TF2Wrapp
                                                                     joint_state=joint_state,
                                                                     tool_names=tool_names,
                                                                     points=grippers,
+                                                                    vel_scaling=vel_scaling,
                                                                     stop_condition=_stop_condition)
 
     if check_overstretching:

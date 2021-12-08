@@ -485,7 +485,10 @@ class OmplRRTWrapper(MyPlanner):
             if shortcut_min_t >= shortcut_max_t:
                 rospy.logerr(f"smoothing sampling bug?! {start_t=}, {plan_length=}")
                 continue
-            end_t = smoothing_rng.randint(shortcut_min_t, shortcut_max_t)
+            if j == 0:
+                end_t = shortcut_max_t
+            else:
+                end_t = smoothing_rng.randint(shortcut_min_t, shortcut_max_t + 1)  # +1 to make it inclusive
 
             # interpolate the grippers to make a new action sequence
             start_state = state_sequence[start_t]
@@ -502,15 +505,15 @@ class OmplRRTWrapper(MyPlanner):
                                                                             proposed_action_seq_to_end)
             # copy the old/new accept probabilites in the states, cuz propagate produces state w/o accept probabilities
             proposed_state_seq_to_end[0]['accept_probability'] = state_sequence[start_t]['accept_probability']
-            for j, proposed_state_j in enumerate(proposed_state_seq_to_end[1:]):
+            for k, proposed_state_k in enumerate(proposed_state_seq_to_end[1:]):
                 if 'NNClassifierWrapper' in accept_probabilities:
-                    proposed_state_j['accept_probability'] = np.array([accept_probabilities['NNClassifierWrapper'][j]],
+                    proposed_state_k['accept_probability'] = np.array([accept_probabilities['NNClassifierWrapper'][k]],
                                                                       np.float32)
                 elif 'NNClassifier2Wrapper' in accept_probabilities:
-                    proposed_state_j['accept_probability'] = np.array([accept_probabilities['NNClassifier2Wrapper'][j]],
+                    proposed_state_k['accept_probability'] = np.array([accept_probabilities['NNClassifier2Wrapper'][k]],
                                                                       np.float32)
                 else:
-                    proposed_state_j['accept_probability'] = np.array([-1], np.float32)
+                    proposed_state_k['accept_probability'] = np.array([-1], np.float32)
             proposed_state_seq = state_sequence[:start_t] + proposed_state_seq_to_end
 
             # NOTE: we don't check this because smoothing is run even when we Timeout and the goal wasn't reached
