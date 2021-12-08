@@ -90,6 +90,19 @@ def to_point_msg(v):
     return Point(x=v[0], y=v[1], z=v[2])
 
 
+def joint_positions_with_defaults(joint_names, joint_names_subset, joint_positions_subset, default_robot_state):
+    end_joint_positions_b = []
+    for joint_name in joint_names:
+        if joint_name in joint_names_subset:
+            joint_index = joint_names_subset.index(joint_name)
+            end_position = joint_positions_subset[joint_index]
+        else:
+            joint_index = default_robot_state.joint_state.name.index(joint_name)
+            end_position = default_robot_state.joint_state.position[joint_index]
+        end_joint_positions_b.append(end_position)
+    return end_joint_positions_b
+
+
 class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioMixin):
     DISABLE_CDCPD = True
     ROPE_NAMESPACE = 'rope_3d'
@@ -461,7 +474,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                                                  right_target_position=right_gripper_points_aug[:, 0],
                                                                  ik_params=ik_params,
                                                                  batch_size=batch_size)
-        joint_positions_aug_start = joint_positions_aug_
+        joint_positions_aug_start = joint_positions_aug_  # [b, n_joints]
 
         # then run the jacobian follower to compute the second new position
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
@@ -486,12 +499,17 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                 max_acceleration_scaling_factor=0.1,
             )
             planned_to_end_points = plan_to_end.joint_trajectory.points
+            planned_joint_names = plan_to_end.joint_trajectory.joint_names
             if len(planned_to_end_points) > 0:
-                end_joint_state_b = planned_to_end_points[-1].positions
+                planned_joint_positions = planned_to_end_points[-1].positions
+                end_joint_positions_b = joint_positions_with_defaults(joint_names=joint_names,
+                                                                      joint_names_subset=planned_joint_names,
+                                                                      joint_positions_subset=planned_joint_positions,
+                                                                      default_robot_state=start_robot_state_b)
             else:
-                end_joint_state_b = joint_positions_aug_start_b  # just a filler
+                end_joint_positions_b = joint_positions_aug_start_b  # just a filler
 
-            joint_positions_aug_b = tf.stack([joint_positions_aug_start_b, end_joint_state_b])
+            joint_positions_aug_b = tf.stack([joint_positions_aug_start_b, end_joint_positions_b])
             joint_positions_aug.append(joint_positions_aug_b)
             reached.append(reached_end_b)
         reached = tf.stack(reached, axis=0)

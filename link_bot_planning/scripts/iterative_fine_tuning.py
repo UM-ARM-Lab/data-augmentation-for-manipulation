@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 import argparse
+from datetime import datetime
 import itertools
 import logging
 import pathlib
 import warnings
 from dataclasses import dataclass
 from time import perf_counter
+from types import TracebackType
 from typing import List
 from uuid import uuid4
 
@@ -14,6 +16,7 @@ from more_itertools import chunked
 
 from analysis.results_utils import list_all_planning_results_trials
 from arc_utilities.algorithms import nested_dict_update
+from arc_utilities.ros_init import rospy_and_cpp_init, shutdown
 from augmentation.augment_dataset import augment_classifier_dataset
 from augmentation.load_aug_params import load_aug_params
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
@@ -38,7 +41,6 @@ import tensorflow as tf
 from colorama import Fore, Style
 
 import rospy
-from arc_utilities import ros_init
 from link_bot_data.load_dataset import compute_batch_size
 from link_bot_planning.planning_evaluation import load_planner_params, EvaluatePlanning
 from link_bot_pycommon.job_chunking import JobChunker
@@ -162,6 +164,7 @@ class IterativeFineTuning:
                                    scenario=self.scenario)
 
     def run(self, n_iters: int):
+
         initial_classifier_checkpoint = pathify(self.job_chunker.get('initial_classifier_checkpoint'))
         initial_recovery_checkpoint = pathify(self.job_chunker.get('initial_recovery_checkpoint'))
 
@@ -207,6 +210,8 @@ class IterativeFineTuning:
             print(Style.BRIGHT + end_iter_msg + Style.RESET_ALL)
 
         [p.kill() for p in self.gazebo_processes]
+
+        self.recorder.stop()
 
     def plan_and_execute(self, iteration_data: IterationData):
         i = iteration_data.iteration
@@ -420,7 +425,21 @@ class IterativeFineTuning:
         return new_latest_checkpoint_dir
 
 
-@ros_init.with_ros("iterative_fine_tuning")
+class RosRecorderContext:
+    def __init__(self, name, outdir, service_provider):
+        rospy_and_cpp_init(name)
+        self.s = service_provider
+        filename = outdir / f"capture-{str(datetime.now())}"
+        self.s.start_record_trial(filename)
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, type, value, tb: TracebackType):
+        self.s.stop_record_trial()
+        shutdown()
+
+
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
@@ -436,7 +455,9 @@ def main():
     args = parser.parse_args()
 
     ift = IterativeFineTuning(args.outdir, on_exception=args.on_exception)
-    ift.run(n_iters=args.n_iters)
+
+    with RosRecorderContext('ift', args.outdir, ift.service_provider):
+        ift.run(n_iters=args.n_iters)
 
 
 if __name__ == '__main__':
