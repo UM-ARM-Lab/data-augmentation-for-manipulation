@@ -25,7 +25,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
     def __init__(self):
         super().__init__('hdt_michigan')
         self.left_preferred_tool_orientation = quaternion_from_euler(-1.779, -1.043, -1.408)
-        self.right_preferred_tool_orientation = quaternion_from_euler(1.991, -1.021, -2.101)
+        self.right_preferred_tool_orientation = quaternion_from_euler(-np.pi / 2, 0, -1.8)
 
         self.my_closed = -0.11
         self.get_joint_state = GetJointState(self.robot)

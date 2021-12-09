@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 import argparse
-from datetime import datetime
 import itertools
 import logging
 import pathlib
 import warnings
 from dataclasses import dataclass
+from datetime import datetime
 from time import perf_counter
-from types import TracebackType
 from typing import List
 from uuid import uuid4
 
@@ -425,21 +424,6 @@ class IterativeFineTuning:
         return new_latest_checkpoint_dir
 
 
-class RosRecorderContext:
-    def __init__(self, name, outdir, service_provider):
-        rospy_and_cpp_init(name)
-        self.s = service_provider
-        filename = outdir / f"capture-{str(datetime.now())}"
-        self.s.start_record_trial(filename)
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, type, value, tb: TracebackType):
-        self.s.stop_record_trial()
-        shutdown()
-
-
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
@@ -454,10 +438,19 @@ def main():
 
     args = parser.parse_args()
 
-    ift = IterativeFineTuning(args.outdir, on_exception=args.on_exception)
+    rospy_and_cpp_init('ift')
 
-    with RosRecorderContext('ift', args.outdir, ift.service_provider):
+    ift = IterativeFineTuning(args.outdir, on_exception=args.on_exception)
+    if ift.scenario.real:
+        filename = args.outdir / f"capture-{str(datetime.now())}"
+        ift.service_provider.start_record_trial(filename)
+
+    try:
         ift.run(n_iters=args.n_iters)
+    except Exception:
+        if ift.scenario.real:
+            ift.service_provider.stop_record_trial()
+        shutdown()
 
 
 if __name__ == '__main__':
