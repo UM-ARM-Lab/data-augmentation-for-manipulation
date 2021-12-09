@@ -88,6 +88,7 @@ class IterativeFineTuning:
         self.test_scenes_dir = lpf('test_scenes_dir', 'test_scenes/car0-sm')
         self.test_scenes_indices = int_setify(self.job_chunker.load_prompt('test_scenes_indices', None))
 
+        # FIXME: what the heck is this if condition?
         if not self.job_chunker.has_result('labeling_params_update'):
             ift_config = load_hjson(ift_config_filename)
             self.job_chunker.store_results(ift_config)

@@ -2,7 +2,7 @@
     <env name="ROSCONSOLE_CONFIG_FILE" value="$(find link_bot_perception)/custom_rosconsole.conf"/>
 
     <param name="rope_num_points" value="25"/>
-    <param name="rope_length" value="0.78"/>
+    <param name="rope_length" value="0.8"/>
     <node pkg="cdcpd" type="cdcpd_node" name="cdcpd_node" respawn="false" output="screen">
         <param name="kinect_channel" value="qhd"/>
         <param name="kinect_name" value="kinect2_victor_head"/>
