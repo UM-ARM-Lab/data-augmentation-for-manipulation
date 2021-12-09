@@ -103,6 +103,24 @@ def joint_positions_with_defaults(joint_names, joint_names_subset, joint_positio
     return end_joint_positions_b
 
 
+def joint_positions_in_order(joint_names, robot_state_b):
+    """
+
+    Args:
+        joint_names: the names in the order you want them
+        robot_state_b: the robot state you want the joint positions to come from
+
+    Returns:
+        joint positions, in the order of joint_names
+
+    """
+    joint_positions = []
+    for joint_name in joint_names:
+        robot_state_b_joint_idx = robot_state_b.joint_state.name.index(joint_name)
+        joint_positions.append(robot_state_b.joint_state.position[robot_state_b_joint_idx])
+    return joint_positions
+
+
 class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioMixin):
     DISABLE_CDCPD = True
     ROPE_NAMESPACE = 'rope_3d'
@@ -414,9 +432,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         joint_positions = []
         reached = []
 
-        def _position_tensor_to_point(_positions):
-            return Point(*_positions.numpy())
-
         for b in range(batch_size):
             scene_msg_b = scene_msg[b]
 
@@ -425,8 +440,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             default_robot_state_b.joint_state.name = joint_names
             scene_msg_b.robot_state.joint_state.position = default_robot_positions[b].numpy().tolist()
             scene_msg_b.robot_state.joint_state.name = joint_names
-            points_b = [_position_tensor_to_point(left_target_position[b]),
-                        _position_tensor_to_point(right_target_position[b])]
+
+            left_target_position_b = self.point_to_root(left_target_position[b], 'hdt_michigan_root')
+            right_target_position_b = self.point_to_root(right_target_position[b], 'hdt_michigan_root')
+            points_b = [Point(*left_target_position_b), Point(*right_target_position_b)]
+
             robot_state_b = self.robot.jacobian_follower.compute_collision_free_point_ik(default_robot_state_b,
                                                                                          points_b,
                                                                                          group_name,
@@ -438,7 +456,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             if robot_state_b is None:
                 joint_position_b = default_robot_state_b.joint_state.position
             else:
-                joint_position_b = robot_state_b.joint_state.position
+                joint_position_b = joint_positions_in_order(joint_names, robot_state_b)
             joint_positions.append(tf.convert_to_tensor(joint_position_b, dtype=tf.float32))
 
         joint_positions = tf.stack(joint_positions, axis=0)
@@ -483,11 +501,15 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         reached = []
         for b in range(batch_size):
             scene_msg_b = scene_msg[b]
-            grippers_end_b = [left_gripper_points_aug[b, 1][None].numpy(), right_gripper_points_aug[b, 1][None].numpy()]
             joint_positions_aug_start_b = joint_positions_aug_start[b]
             start_joint_state_b = JointState(name=joint_names, position=joint_positions_aug_start_b.numpy())
             empty_scene_msg_b, start_robot_state_b = merge_joint_state_and_scene_msg(scene_msg_b,
                                                                                      start_joint_state_b)
+
+            left_gripper_point_aug_b_end = self.point_to_root(left_gripper_points_aug[b, 1], 'hdt_michigan_root')
+            right_gripper_point_aug_b_end = self.point_to_root(right_gripper_points_aug[b, 1], 'hdt_michigan_root')
+            grippers_end_b = [[left_gripper_point_aug_b_end], [right_gripper_point_aug_b_end]]
+
             plan_to_end, reached_end_b = self.robot.jacobian_follower.plan(
                 group_name='whole_body',
                 tool_names=tool_names,

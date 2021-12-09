@@ -441,15 +441,22 @@ def main():
 
     ift = IterativeFineTuning(args.outdir, on_exception=args.on_exception)
     if ift.scenario.real:
-        filename = args.outdir / f"capture-{datetime.now().strftime('%b%d_%H-%M-%S')}"
+        filename = args.outdir / f"capture-{datetime.now().strftime('%b%d_%H-%M-%S')}.mp4"
         ift.service_provider.start_record_trial(filename.as_posix())
 
-    try:
+    def _run():
         ift.run(n_iters=args.n_iters)
-    except Exception:
+
+    def _exception_cb():
         if ift.scenario.real:
             ift.service_provider.stop_record_trial()
+        ift.scenario.robot.disconnect()
         shutdown()
+
+    deal_with_exceptions(how_to_handle=args.on_exception,
+                         function=_run,
+                         exception_callback=_exception_cb,
+                         print_exception=True)
 
 
 if __name__ == '__main__':

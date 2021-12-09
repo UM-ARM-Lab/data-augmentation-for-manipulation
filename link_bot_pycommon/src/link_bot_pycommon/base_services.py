@@ -36,6 +36,7 @@ class BaseServices:
         pass
 
     def start_record_trial(self, filename):
+        print("Starting recording!")
         start_msg = TriggerVideoRecordingRequest()
         start_msg.record = True
         start_msg.filename = filename
@@ -43,6 +44,7 @@ class BaseServices:
         self.record(start_msg)
 
     def stop_record_trial(self):
+        print("Stopping recording!")
         stop_msg = TriggerVideoRecordingRequest()
         stop_msg.record = False
         self.record(stop_msg)
