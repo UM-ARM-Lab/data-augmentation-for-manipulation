@@ -84,8 +84,8 @@ class IterativeFineTuning:
         default_classifier_checkpoint = '/media/shared/cl_trials/untrained-1/August_13_17-03-09_45c09348d1'
         self.initial_classifier_checkpoint = lpf('initial_classifier_checkpoint', default_classifier_checkpoint)
         self.initial_recovery_checkpoint = pathify(self.job_chunker.load_prompt('initial_recovery_checkpoint', None))
-        planner_params_filename = lpf('planner_params_filename', 'planner_configs/val_car/random_accept.hjson')
-        self.test_scenes_dir = lpf('test_scenes_dir', 'test_scenes/car0-sm')
+        planner_params_filename = lpf('planner_params_filename', 'planner_configs/val_car/real_val.hjson')
+        self.test_scenes_dir = lpf('test_scenes_dir', 'test_scenes/real_val_empty')
         self.test_scenes_indices = int_setify(self.job_chunker.load_prompt('test_scenes_indices', None))
 
         # FIXME: what the heck is this if condition?
@@ -210,8 +210,6 @@ class IterativeFineTuning:
             print(Style.BRIGHT + end_iter_msg + Style.RESET_ALL)
 
         [p.kill() for p in self.gazebo_processes]
-
-        self.recorder.stop()
 
     def plan_and_execute(self, iteration_data: IterationData):
         i = iteration_data.iteration
@@ -443,8 +441,8 @@ def main():
 
     ift = IterativeFineTuning(args.outdir, on_exception=args.on_exception)
     if ift.scenario.real:
-        filename = args.outdir / f"capture-{str(datetime.now())}"
-        ift.service_provider.start_record_trial(filename)
+        filename = args.outdir / f"capture-{datetime.now().strftime('%b%d_%H-%M-%S')}"
+        ift.service_provider.start_record_trial(filename.as_posix())
 
     try:
         ift.run(n_iters=args.n_iters)

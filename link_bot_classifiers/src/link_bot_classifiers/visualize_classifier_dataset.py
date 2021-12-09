@@ -88,6 +88,8 @@ def visualize_dataset(args, dataset_loader):
         if args.display_type == 'just_count':
             continue
         elif args.display_type == '3d':
+            if 'augmented_from' in example:
+                print(f"augmented from: {example['augmented_from']}")
             dataset_loader.get_scenario().plot_traj_idx_rviz(i)
             dataset_loader.anim_transition_rviz(example)
 
