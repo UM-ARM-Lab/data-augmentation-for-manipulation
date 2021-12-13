@@ -300,11 +300,15 @@ def send_voxelgrid_tf_extent_res(broadcaster, extent, res, frame: str = 'vg'):
     send_voxelgrid_tf_origin_point_res(broadcaster, origin_point, res, frame)
 
 
-def send_voxelgrid_tf_origin_point_res(broadcaster, origin_point, res, frame: str = 'vg'):
+def send_voxelgrid_tf_origin_point_res(broadcaster,
+                                       origin_point,
+                                       res,
+                                       child_frame_id: str = 'vg',
+                                       parent_frame_id: str = 'world'):
     transform = TransformStamped()
     transform.header.stamp = rospy.Time.now()
-    transform.header.frame_id = "world"
-    transform.child_frame_id = frame
+    transform.header.frame_id = parent_frame_id
+    transform.child_frame_id = child_frame_id
 
     origin_xyz = origin_point - (res / 2)
     origin_xyz = numpify(origin_xyz)

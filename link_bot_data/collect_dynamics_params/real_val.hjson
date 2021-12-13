@@ -1,0 +1,74 @@
+{
+  name: real_val
+  scenario: real_val_with_robot_feasibility_checking
+  service_provider: gazebo
+  reset_joint_config: {
+    joint1: 0
+    joint2: 0
+    joint3: 0
+    joint4: 0
+    joint41: 0
+    joint42: 0
+    joint43: 0
+    joint44: 0
+    joint45: 0
+    joint46: 0
+    joint47: 1.5707
+    joint5: 0
+    joint56: 0
+    joint57: 0
+    joint6: 0
+    joint7: 1.5707
+ }
+  extent: [
+    -0.5
+    0.5
+    0
+    1
+    -0.4
+    0.6
+  ]
+  left_gripper_action_sample_extent: [
+    -0.5
+    0.5
+    0
+    1
+    -0.1
+    0.6
+  ]
+  right_gripper_action_sample_extent: [
+    -0.5
+    0.5
+    0
+    1
+    -0.1
+    0.6
+  ]
+  res: 0.02
+  max_step_size: 0.01
+  real_time_rate: 0.0
+  steps_per_traj: 10
+  randomize_n: null
+  repeat_delta_gripper_motion_probability: 0.8
+  max_distance_gripper_can_move: 0.10
+  max_distance_between_grippers: 0.55
+  state_keys: [
+    rope
+    joint_positions
+    left_gripper
+    right_gripper
+  ]
+  state_metadata_keys: [
+    joint_names
+  ]
+  action_keys: [
+    left_gripper_position
+    right_gripper_position
+  ]
+  env_keys: [
+    env
+    origin_point
+    extent
+    res
+  ]
+}

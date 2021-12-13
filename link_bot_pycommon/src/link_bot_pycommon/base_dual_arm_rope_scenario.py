@@ -9,6 +9,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from pyjacobian_follower import IkParams, JacobianFollower
 
+import ros_numpy
 import rosnode
 from arc_utilities.algorithms import nested_dict_update
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
@@ -34,7 +35,7 @@ with warnings.catch_warnings():
 
 import rospy
 from arc_utilities.listener import Listener
-from geometry_msgs.msg import PoseStamped, Point
+from geometry_msgs.msg import PoseStamped, Point, PointStamped
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
@@ -268,7 +269,11 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             res = default_res
         else:
             res = params["res"]
-        voxel_grid_env = get_environment_for_extents_3d(extent=params['extent'],
+
+        # Transform from hdt_michigan_root into base_link frame
+        extent_base = self.transform_extent_to_root(params)
+
+        voxel_grid_env = get_environment_for_extents_3d(extent=extent_base,
                                                         res=res,
                                                         service_provider=self.service_provider,
                                                         excluded_models=self.get_excluded_models_for_env())
@@ -285,6 +290,21 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         env.update(MoveitPlanningSceneScenarioMixin.get_environment(self))
 
         return env
+
+    def transform_extent_to_root(self, params):
+        extent_hdt_michigan_root = np.array(params['extent'])
+        extent_low_hdt_michigan_root = extent_hdt_michigan_root[0::2]
+        extent_1_base = self.point_to_root(extent_low_hdt_michigan_root, 'hdt_michigan_root')
+        extent_high_hdt_michigan_root = extent_hdt_michigan_root[1::2]
+        extent_2_base = self.point_to_root(extent_high_hdt_michigan_root, 'hdt_michigan_root')
+        # this min/stack ensures the low is actually lower, because transforming might not preserve that
+        extent_low_base = np.minimum(extent_1_base, extent_2_base)
+        extent_high_base = np.maximum(extent_1_base, extent_2_base)
+        extent_base = np.stack([extent_low_base, extent_high_base], axis=1).flatten()
+        return extent_base
+
+    def base_link_frame(self):
+        return self.robot.robot_commander.get_root_link()
 
     @staticmethod
     def robot_name():

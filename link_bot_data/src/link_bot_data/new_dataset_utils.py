@@ -7,6 +7,10 @@ from moonshine.filepath_tools import load_hjson
 UNUSED_COMPAT = None
 
 
+class EmptyDatasetException(Exception):
+    pass
+
+
 def load_mode_filenames(d: pathlib.Path, filenames_filename: pathlib.Path):
     with filenames_filename.open("r") as filenames_file:
         filenames = [l.strip("\n") for l in filenames_file.readlines()]

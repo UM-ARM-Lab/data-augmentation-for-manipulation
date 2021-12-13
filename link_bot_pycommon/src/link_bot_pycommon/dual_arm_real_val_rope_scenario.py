@@ -57,7 +57,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             self.robot.open_left_gripper()
 
             # move to init positions
-            self.robot.plan_to_joint_config("both_arms", params['reset_joint_config'])
+            self.robot.plan_to_joint_config("both_arms", reset_joint_config.tolist())
 
             self.robot.speak("press enter to close grippers")
             print("Use the gamepad to close the left gripper")
@@ -79,22 +79,26 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         debug_config = {
-            "joint56": 0.24281,
-            "joint57": -0.21781,
-            "joint41": 0.48918,
-            "joint42": 0.5666,
-            "joint43": -0.9950,
-            "joint44": -0.2901,
-            "joint45": 3.530,
-            "joint46": -0.3788,
-            "joint47": 5.2794,
-            "joint1":  -4.942,
-            "joint2":  0.044203,
-            "joint3":  -2.6656,
-            "joint4":  0.07798,
-            "joint5":  -1.4342,
-            "joint6":  1.34,
-            "joint7":  2.5994,
+            'joint1':        1.8632683753967285,
+            'joint2':        -0.41303694248199463,
+            'joint3':        4.000552177429199,
+            'joint4':        -2.913118600845337,
+            'joint41':       0.6370049715042114,
+            'joint42':       0.37008416652679443,
+            'joint43':       -2.312930107116699,
+            'joint44':       -0.6924217343330383,
+            'joint45':       3.9165642261505127,
+            'joint46':       1.1946239471435547,
+            'joint47':       -0.8995154500007629,
+            'joint5':        -2.5706467628479004,
+            'joint56':       -0.03163931891322136,
+            'joint57':       -0.14113053679466248,
+            'joint6':        -1.3265503644943237,
+            'joint7':        5.59172248840332,
+            'leftgripper':   0.12905007600784302,
+            'leftgripper2':  0.12905007600784302,
+            'rightgripper':  0.03911770507693291,
+            'rightgripper2': 0.03911770507693291,
         }
         self.robot.plan_to_joint_config("both_arms", debug_config)
 
@@ -210,3 +214,10 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         positions = self.robot.get_joint_positions(['leftgripper', 'leftgripper2'])
         p1, p2 = positions
         return p1 > self.my_closed + 0.01 and p2 > self.my_closed + 0.01
+
+    def needs_reset(self, state: Dict, params: Dict):
+        # FIXME:
+        return False
+
+    def on_after_data_collection(self, params):
+        self.robot.disconnect()

@@ -30,7 +30,6 @@ def main():
     parser.add_argument('--yes', '-y', action='store_true')
     parser.add_argument('--use-gt-rope', action='store_true')
     parser.add_argument('--visualize', action='store_true')
-    parser.add_argument('--save-format', choices=['pkl', 'h5', 'tfrecord'], default='pkl')
 
     args = parser.parse_args()
 
@@ -47,7 +46,7 @@ def main():
                             outdir=outdir,
                             use_gt_rope=args.use_gt_rope,
                             visualize=args.visualize,
-                            save_format=args.save_format,
+                            save_format='pkl',
                             batch_size=args.batch_size,
                             start_at=args.start_at,
                             custom_threshold=args.threshold,

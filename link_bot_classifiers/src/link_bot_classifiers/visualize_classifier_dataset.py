@@ -211,6 +211,6 @@ def viz_compare_example(s: ScenarioWithVisualization,
     grid_utils.send_voxelgrid_tf_origin_point_res(s.tf.tf_broadcaster,
                                                   env['origin_point'],
                                                   env['res'],
-                                                  frame=frame)
+                                                  child_frame_id=frame)
     s.tf.send_transform(env['origin_point'], [0, 0, 0, 1], 'world', child='origin_point')
     s.plot_is_close(e['is_close'][1])

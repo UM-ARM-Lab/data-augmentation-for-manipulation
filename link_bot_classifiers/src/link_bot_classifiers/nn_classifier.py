@@ -313,7 +313,7 @@ class NNClassifier(MyKerasModel):
                 send_voxelgrid_tf_origin_point_res(self.scenario.tf.tf_broadcaster,
                                                    origin_point=local_origin_point[b],
                                                    res=inputs['res'][b],
-                                                   frame='local_env_vg')
+                                                   child_frame_id='local_env_vg')
 
             bbox_msg = grid_to_bbox(rows=self.local_env_h_rows,
                                     cols=self.local_env_w_cols,

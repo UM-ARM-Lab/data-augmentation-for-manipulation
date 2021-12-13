@@ -134,7 +134,7 @@ def main():
         plot_points_rviz(sdf_pub, points_flat, colors, label='sdf', frame_id=frame)
 
         env_viz_pub.publish(env_msg)
-        grid_utils.send_voxelgrid_tf_origin_point_res(tf.tf_broadcaster, origin_point, res, frame=frame)
+        grid_utils.send_voxelgrid_tf_origin_point_res(tf.tf_broadcaster, origin_point, res, child_frame_id=frame)
         tf.send_transform(origin_point, [0, 0, 0, 1], 'world', child='origin_point')
 
 

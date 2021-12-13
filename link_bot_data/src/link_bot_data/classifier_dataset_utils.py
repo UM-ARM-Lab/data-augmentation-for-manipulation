@@ -1,6 +1,5 @@
 import pathlib
 from dataclasses import dataclass
-from time import perf_counter
 from typing import Dict, List, Optional
 
 import hjson
@@ -8,10 +7,10 @@ import tensorflow as tf
 from progressbar import progressbar
 
 import rospy
-from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import add_predicted, add_label, write_example, deserialize_scene_msg
 from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
+from link_bot_data.new_dataset_utils import EmptyDatasetException
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
@@ -105,25 +104,20 @@ def make_classifier_dataset_from_params_dict(dataset_dir: pathlib.Path,
 
     # because we're currently making this dataset, we can't call "get_dataset" but we can still use it to visualize
     # a bit hacky...
-    if save_format == 'tfrecord':
-        classifier_dataset_for_viz = ClassifierDatasetLoader([outdir], use_gt_rope=use_gt_rope)
-    else:
-        classifier_dataset_for_viz = NewClassifierDatasetLoader([outdir], use_gt_rope=use_gt_rope)
+    classifier_dataset_for_viz = NewClassifierDatasetLoader([outdir], use_gt_rope=use_gt_rope)
 
     if custom_threshold is not None:
         labeling_params['threshold'] = custom_threshold
 
     total_example_idx = 0
     for mode in ['train', 'val', 'test']:
-        dataset = dataset_loader.get_datasets(mode=mode, take=take)
+        try:
+            dataset = dataset_loader.get_datasets(mode=mode, take=take)
+        except EmptyDatasetException:
+            print(f"Mode {mode} is empty, continuing.")
+            continue
 
-        if save_format == 'tfrecords':
-            full_output_directory = outdir / mode
-            full_output_directory.mkdir(parents=True, exist_ok=True)
-        elif save_format == 'pkl':
-            full_output_directory = outdir
-        else:
-            raise NotImplementedError()
+        full_output_directory = outdir
 
         out_examples_gen = generate_classifier_examples(fwd_models, dataset, dataset_loader, labeling_params,
                                                         batch_size)

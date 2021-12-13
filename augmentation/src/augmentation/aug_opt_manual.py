@@ -37,7 +37,7 @@ def opt_object_manual(self,
             send_voxelgrid_tf_origin_point_res(self.broadcaster,
                                                origin_point=new_env['origin_point'],
                                                res=res[b],
-                                               frame='new_env_aug_vg')
+                                               child_frame_id='new_env_aug_vg')
             # stepper.step()
 
     # manual_transforms_filename = pathlib.Path(

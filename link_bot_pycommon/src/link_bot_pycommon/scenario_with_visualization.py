@@ -89,25 +89,30 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.tree_action_idx = 0
         self.sample_idx = 0
 
-    def plot_environment_rviz(self, environment: Dict, **kwargs):
-        frame = 'env_vg'
+    def base_link_frame(self):
+        return 'world'
 
-        env_msg = environment_to_vg_msg(environment, frame=frame)
+    def plot_environment_rviz(self, environment: Dict, **kwargs):
+        env_frame_id = self.base_link_frame()
+        vg_frame_id = 'env_vg'
+
+        env_msg = environment_to_vg_msg(environment, frame=vg_frame_id)
         self.env_viz_pub.publish(env_msg)
 
-        self.send_occupancy_tf(environment, frame)
-        self.tf.send_transform(environment['origin_point'], [0, 0, 0, 1], 'world', child='origin_point')
+        self.send_occupancy_tf(environment, parent_frame_id=env_frame_id, child_frame_id=vg_frame_id)
+        self.tf.send_transform(environment['origin_point'], [0, 0, 0, 1], env_frame_id, child='origin_point')
 
         if 'extent' in environment:
             bbox_msg = extent_to_bbox(environment['extent'])
-            bbox_msg.header.frame_id = 'world'
+            bbox_msg.header.frame_id = env_frame_id
             self.env_bbox_pub.publish(bbox_msg)
 
-    def send_occupancy_tf(self, environment: Dict, frame):
+    def send_occupancy_tf(self, environment: Dict, parent_frame_id, child_frame_id):
         grid_utils.send_voxelgrid_tf_origin_point_res(self.tf.tf_broadcaster,
                                                       environment['origin_point'],
                                                       environment['res'],
-                                                      frame=frame)
+                                                      child_frame_id=child_frame_id,
+                                                      parent_frame_id=parent_frame_id)
 
     def plot_executed_action(self, state: Dict, action: Dict, **kwargs):
         self.plot_action_rviz(state, action, label='executed action', color="#3876EB", idx1=1, idx2=1, **kwargs)
@@ -449,4 +454,3 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
     def clear_action_sampling_state(self):
         self.last_action = None
-
