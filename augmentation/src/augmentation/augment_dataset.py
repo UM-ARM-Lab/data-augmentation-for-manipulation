@@ -6,6 +6,7 @@ from colorama import Fore
 from tqdm import tqdm
 
 from augmentation.aug_opt import AugmentationOptimization
+from augmentation.gaussian_noise_augmentation import GaussianNoiseAugmentation
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from link_bot_data.dataset_utils import write_example, add_predicted, index_to_filename2
 from link_bot_data.local_env_helper import LocalEnvHelper
@@ -14,6 +15,7 @@ from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.split_dataset import split_dataset
 from link_bot_data.visualization import classifier_transition_viz_t, DebuggingViz, init_viz_env, dynamics_viz_t
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
+from link_bot_pycommon.pycommon import has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import try_index_batched_dict
@@ -246,17 +248,20 @@ def make_aug_opt(scenario: ScenarioWithVisualization,
                  hparams: Dict,
                  debug_state_keys: List[str],
                  batch_size: int):
-    debug = DebuggingViz(scenario, debug_state_keys, dataset_loader.action_keys)
-    local_env_helper = LocalEnvHelper(h=hparams['local_env_h_rows'],
-                                      w=hparams['local_env_w_cols'],
-                                      c=hparams['local_env_c_channels'])
-    aug = AugmentationOptimization(scenario=scenario,
-                                   debug=debug,
-                                   local_env_helper=local_env_helper,
-                                   hparams=hparams,
-                                   batch_size=batch_size,
-                                   state_keys=dataset_loader.state_keys,
-                                   action_keys=dataset_loader.action_keys,
-                                   points_state_keys=dataset_loader.points_state_keys,
-                                   )
+    if has_keys(hparams, 'augmentation', 'gaussian_noise'):
+        aug = GaussianNoiseAugmentation(hparams['augmentation']['gaussian_noise'])
+    else:
+        debug = DebuggingViz(scenario, debug_state_keys, dataset_loader.action_keys)
+        local_env_helper = LocalEnvHelper(h=hparams['local_env_h_rows'],
+                                          w=hparams['local_env_w_cols'],
+                                          c=hparams['local_env_c_channels'])
+        aug = AugmentationOptimization(scenario=scenario,
+                                       debug=debug,
+                                       local_env_helper=local_env_helper,
+                                       hparams=hparams,
+                                       batch_size=batch_size,
+                                       state_keys=dataset_loader.state_keys,
+                                       action_keys=dataset_loader.action_keys,
+                                       points_state_keys=dataset_loader.points_state_keys,
+                                       )
     return aug
