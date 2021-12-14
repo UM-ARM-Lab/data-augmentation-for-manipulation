@@ -22,6 +22,7 @@ def main():
 
     args = parser.parse_args()
 
+    # list to actually execute the generator
     list(collect_dynamics_data(**vars(args)))
 
 

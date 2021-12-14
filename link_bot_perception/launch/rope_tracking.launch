@@ -2,15 +2,24 @@
     <env name="ROSCONSOLE_CONFIG_FILE" value="$(find link_bot_perception)/custom_rosconsole.conf"/>
 
     <param name="rope_num_points" value="25"/>
-    <param name="rope_length" value="0.75"/>
+    <!--
+        I've found that it's better to under-estimate the length of the rope, because rope_length is a "max" constraint,
+        not a term in the objective. So the rope can be as long as rope_length * lambda,
+        but it can be shorter if that's what best explains the point cloud
+    -->
+    <param name="max_rope_length" value="0.82"/>
     <node pkg="cdcpd" type="cdcpd_node" name="cdcpd_node" respawn="false" output="screen">
         <param name="kinect_channel" value="qhd"/>
         <param name="kinect_name" value="kinect2_victor_head"/>
-        <param name="left_tf_name" value="left_tool"/>
-        <param name="right_tf_name" value="right_tool"/>
+        <!--        <param name="left_tf_name" value="left_tool"/>-->
+        <!--        <param name="right_tf_name" value="right_tool"/>-->
+        <param name="left_tf_name" value="mocap_left_tool"/>
+        <param name="right_tf_name" value="mocap_right_tool"/>
+        <param name="use_gripper_constraints" value="true"/>
         <param name="obstacle_cost_weight" value="0.0"/>
+        <param name="fixed_points_weight" value="1.0"/>
         <param name="min_distance_threshold" value="0.01"/>
-        <param name="lambda" value="1.2"/>
+        <param name="lambda" value="1.0"/>
         <param name="left_node_idx" value="0"/>
         <param name="right_node_idx" value="24"/>
     </node>

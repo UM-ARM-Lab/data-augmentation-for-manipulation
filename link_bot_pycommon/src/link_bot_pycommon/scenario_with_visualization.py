@@ -96,11 +96,13 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         env_frame_id = self.base_link_frame()
         vg_frame_id = 'env_vg'
 
-        env_msg = environment_to_vg_msg(environment, frame=vg_frame_id)
-        self.env_viz_pub.publish(env_msg)
+        if 'env' in environment:
+            env_msg = environment_to_vg_msg(environment, frame=vg_frame_id)
+            self.env_viz_pub.publish(env_msg)
 
-        self.send_occupancy_tf(environment, parent_frame_id=env_frame_id, child_frame_id=vg_frame_id)
-        self.tf.send_transform(environment['origin_point'], [0, 0, 0, 1], env_frame_id, child='origin_point')
+        if 'origin_point' in environment:
+            self.send_occupancy_tf(environment, parent_frame_id=env_frame_id, child_frame_id=vg_frame_id)
+            self.tf.send_transform(environment['origin_point'], [0, 0, 0, 1], env_frame_id, child='origin_point')
 
         if 'extent' in environment:
             bbox_msg = extent_to_bbox(environment['extent'])

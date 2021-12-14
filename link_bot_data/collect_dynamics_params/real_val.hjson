@@ -18,7 +18,7 @@
     joint56: 0
     joint57: 0
     joint6: 0
-    joint7: 1.5707
+    joint7: -1.5707
  }
   extent: [
     -0.5
@@ -70,5 +70,6 @@
     origin_point
     extent
     res
+    scene_msg
   ]
 }

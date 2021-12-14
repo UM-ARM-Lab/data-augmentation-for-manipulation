@@ -11,11 +11,12 @@ import rospy
 import state_space_dynamics
 from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
+from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine import filepath_tools, common_train_hparams
 from moonshine.indexing import index_time_batched
 from moonshine.model_runner import ModelRunner
-from moonshine.moonshine_utils import remove_batch
+from moonshine.moonshine_utils import remove_batch, add_batch
 from moonshine.numpify import numpify
 from state_space_dynamics import dynamics_utils
 
@@ -194,32 +195,41 @@ def viz_dataset(dataset_dirs: List[pathlib.Path],
                 viz_func: Callable,
                 **kwargs,
                 ):
-    test_dataset = DynamicsDatasetLoader(dataset_dirs)
+    loader = get_dynamics_dataset_loader(dataset_dirs)
 
-    test_tf_dataset = test_dataset.get_datasets(mode=mode)
-    test_tf_dataset = batch_tf_dataset(test_tf_dataset, 1, drop_remainder=True)
+    dataset = loader.get_datasets(mode=mode).batch(1)
 
     model = dynamics_utils.load_generic_model(checkpoint)
 
-    for i, batch in enumerate(test_tf_dataset):
-        batch.update(test_dataset.batch_metadata)
-        outputs, _ = model.propagate_from_example(batch, training=False)
+    for i, e in enumerate(dataset):
+        e.update(loader.batch_metadata)
+        outputs, _ = model.propagate_from_example(e, training=False)
 
-        viz_func(batch, outputs, test_dataset, model)
+        viz_func(e, outputs, loader, model)
 
 
-def viz_example(example, outputs, test_dataset: DynamicsDatasetLoader, model):
+def viz_example(example, outputs, loader, model):
+    threshold = 0.1
+    rospy.loginfo_once(f"Using {threshold=}")
+
     deserialize_scene_msg(example)
-    test_dataset.scenario.plot_environment_rviz(remove_batch(example))
-    anim = RvizAnimationController(np.arange(test_dataset.steps_per_traj))
+    s = loader.get_scenario()
+    s.plot_environment_rviz(remove_batch(example))
+    anim = RvizAnimationController(np.arange(loader.steps_per_traj))
     while not anim.done:
         t = anim.t()
-        actual_t = test_dataset.index_time_batched(example, t)
-        test_dataset.scenario.plot_state_rviz(actual_t, label='actual', color='red')
-        test_dataset.scenario.plot_action_rviz(actual_t, actual_t, color='gray')
+        actual_t = loader.index_time_batched(example, t)
+        s.plot_state_rviz(actual_t, label='actual', color='red')
+        s.plot_action_rviz(actual_t, actual_t, color='gray')
 
         model_state_keys = model.state_keys + model.state_metadata_keys
         prediction_t = numpify(remove_batch(index_time_batched(outputs, model_state_keys, t, False)))
-        test_dataset.scenario.plot_state_rviz(prediction_t, label='predicted', color='blue')
+        s.plot_state_rviz(prediction_t, label='predicted', color='blue')
+
+        error_t = s.classifier_distance(actual_t, prediction_t)
+
+        s.plot_error_rviz(error_t)
+        label_t = error_t < threshold
+        s.plot_is_close(label_t)
 
         anim.step()

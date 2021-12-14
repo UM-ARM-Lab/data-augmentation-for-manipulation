@@ -25,7 +25,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
     def __init__(self):
         super().__init__('hdt_michigan')
         self.left_preferred_tool_orientation = quaternion_from_euler(-1.779, -1.043, -1.408)
-        self.right_preferred_tool_orientation = quaternion_from_euler(0, 1.8, 0)
+        self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, -1.408, 0)
 
         self.my_closed = -0.11
         self.get_joint_state = GetJointState(self.robot)
@@ -36,11 +36,20 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         self.plan_srv = rospy.ServiceProxy("/hdt_michigan/plan_kinematic_path", GetMotionPlan)
 
     def execute_action(self, environment, state, action: Dict):
+        robot_state = self.get_robot_state.get_state()
+        left_gripper_delta_position = action['left_gripper_position'] - state['left_gripper']
+        left_gripper_position_fk = robot_state['left_gripper']
+        right_gripper_delta_position = action['right_gripper_position'] - state['right_gripper']
+        right_gripper_position_fk = robot_state['right_gripper']
+        action_fk = {
+            'left_gripper_position':  left_gripper_position_fk + left_gripper_delta_position,
+            'right_gripper_position': right_gripper_position_fk + right_gripper_delta_position,
+        }
         return dual_arm_rope_execute_action(self.robot,
                                             self.tf,
                                             environment,
                                             state,
-                                            action,
+                                            action_fk,
                                             vel_scaling=1.0,
                                             check_overstretching=False)
 
@@ -54,7 +63,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         grippers_are_closed = self.robot.is_left_gripper_closed() and self.robot.is_right_gripper_closed()
         if not near_start or not grippers_are_closed:
             # let go
-            self.robot.open_left_gripper()
+            # self.robot.open_left_gripper()
 
             # move to init positions
             self.robot.plan_to_joint_config("both_arms", reset_joint_config.tolist())
@@ -72,6 +81,9 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         state = {}
         state.update(self.get_robot_state.get_state())
         state.update(self.get_cdcpd_state.get_state())
+        state['left_gripper'] = self.tf.get_transform("world", "mocap_RightHand0_RightHand0")[:3, 3]
+        state['right_gripper'] = self.tf.get_transform("world", "mocap_Pelvis1_Pelvis1")[:3, 3]
+
         return state
 
     def get_excluded_models_for_env(self):

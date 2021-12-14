@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 import argparse
+import logging
 import pathlib
 from time import time
 
 import numpy as np
+import tensorflow
 import tensorflow as tf
 
 from arc_utilities import ros_init
@@ -40,6 +42,7 @@ node_name = f"train_test_{now}"
 @ros_init.with_ros(node_name)
 def main():
     parser = argparse.ArgumentParser()
+    tensorflow.get_logger().setLevel(logging.ERROR)
 
     subparsers = parser.add_subparsers()
 
