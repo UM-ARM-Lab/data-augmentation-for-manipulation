@@ -642,6 +642,36 @@ class CylindersScenario(PlanarPushingScenario):
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
 
+    def simple_noise(self, rng: np.random.RandomState, example, k: str, v, noise_params):
+        mean = 0
+        # if k == 'env':
+        #     p_flip = noise_params['env']
+        #     flip_mask = (rng.rand(*v.shape) < p_flip).astype(np.float32)
+        #     v_out = flip_mask * (1 - v) + (1 - flip_mask) * v
+        if k in noise_params:
+            std = noise_params[k]
+            noise = rng.randn(*v.shape) * std + mean
+            v_out = v + noise
+        elif 'obj' in k and 'position' in k:
+            std = noise_params['obj_position']
+            noise = rng.randn(*v.shape) * std + mean
+            v_out = v + noise
+        elif 'obj' in k and 'linear_velocity' in k:
+            std = noise_params['obj_linear_velocity']
+            noise = rng.randn(*v.shape) * std + mean
+            v_out = v + noise
+        elif 'tcp_pos' in k:
+            std = noise_params['tcp_pos']
+            noise = rng.randn(*v.shape) * std + mean
+            v_out = v + noise
+        elif 'tcp_vel' in k:
+            std = noise_params['tcp_vel']
+            noise = rng.randn(*v.shape) * std + mean
+            v_out = v + noise
+        else:
+            v_out = v
+        return v_out
+
     def tinv_set_state(self, params, state_rng, visualize):
         self.randomize_environment(state_rng, params)
 

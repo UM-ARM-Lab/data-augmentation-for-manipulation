@@ -1,10 +1,11 @@
 {
   augmentation: {
     gaussian_noise: {
-      rope: 0.01
-      left_gripper: 0.01
-      right_gripper: 0.01
-      env: 0.005  # p of flipping a voxel
+      gripper_position: 0.001
+      tcp_pos: 0.001
+      tcp_vel: 0.0001
+      obj_linear_velocity: 0.0001
+      obj_position: 0.001
     }
 
     viz: {

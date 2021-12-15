@@ -6,7 +6,7 @@ from colorama import Fore
 from tqdm import tqdm
 
 from augmentation.aug_opt import AugmentationOptimization
-from augmentation.gaussian_noise_augmentation import GaussianNoiseAugmentation
+from augmentation.simple_noise_augmentation import SimpleNoiseAugmentation
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from link_bot_data.dataset_utils import write_example, add_predicted, index_to_filename2
 from link_bot_data.local_env_helper import LocalEnvHelper
@@ -248,8 +248,8 @@ def make_aug_opt(scenario: ScenarioWithVisualization,
                  hparams: Dict,
                  debug_state_keys: List[str],
                  batch_size: int):
-    if has_keys(hparams, 'augmentation', 'gaussian_noise'):
-        aug = GaussianNoiseAugmentation(hparams['augmentation']['gaussian_noise'])
+    if has_keys(hparams, ['augmentation', 'gaussian_noise']):
+        aug = SimpleNoiseAugmentation(scenario, hparams['augmentation']['gaussian_noise'])
     else:
         debug = DebuggingViz(scenario, debug_state_keys, dataset_loader.action_keys)
         local_env_helper = LocalEnvHelper(h=hparams['local_env_h_rows'],
