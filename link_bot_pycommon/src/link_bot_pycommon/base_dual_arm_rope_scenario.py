@@ -394,8 +394,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                          max_acceleration_scaling_factor=0.1)
                 pred_joint_positions_t = get_joint_positions_given_state_and_plan(plan, robot_state)
 
-                self.robot.display_robot_state(robot_state, label='debugging')
-
                 target_reached.append(reached_t)
                 pred_joint_positions.append(pred_joint_positions_t)
                 joint_names.append(joint_names_t)
