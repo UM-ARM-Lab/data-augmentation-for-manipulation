@@ -1,6 +1,5 @@
 {
   n_augmentations: 25
-  aug_hparams_filename: aug_hparams/rope_no_occupancy.hjson
   full_retrain_classifier: false
   trials_per_iteration: 1
   trials_generator_type: random

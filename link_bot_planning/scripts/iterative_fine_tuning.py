@@ -299,6 +299,7 @@ class IterativeFineTuning:
         else:
             new_dataset_dir = self.outdir / new_dataset_dir
 
+        # NOTE: this skips augmentation
         if self.n_augmentations is None:
             return new_dataset_dir
 
@@ -308,7 +309,7 @@ class IterativeFineTuning:
 
             aug_outdir = self.outdir / 'classifier_datasets_aug' / f'iteration_{i:04d}_dataset'
             aug_outdir.mkdir(exist_ok=True, parents=True)
-            aug_params_filename = pathlib.Path("aug_hparams/rope.hjson")
+            aug_params_filename = pathify(self.job_chunker.get('aug_params_filename', 'aug_hparams/rope.hjson'))
             hparams = load_aug_params(aug_params_filename)
             print(Fore.MAGENTA + "Creating augmentations" + Fore.RESET)
             new_aug_dataset_dir = augment_classifier_dataset(dataset_dir=new_dataset_dir,

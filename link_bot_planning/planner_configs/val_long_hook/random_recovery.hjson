@@ -1,7 +1,0 @@
-{
-  method_name: random recovery
-  recovery: {
-    recovery_model_dir: /media/shared/recovery_trials/random/none
-    use_recovery: true
-  }
-}
