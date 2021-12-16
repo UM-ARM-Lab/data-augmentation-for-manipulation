@@ -21,13 +21,14 @@ logger = logging.getLogger(__file__)
 
 
 class MockRobot:
-    real = False
 
     def __init__(self):
         self.robot_namespace = 'mock_robot'
 
 
 class ExperimentScenario:
+    real = False
+
     def __init__(self):
         self.tf_features_converters = {}
         self.time_viz_pub = rospy.Publisher("rviz_anim/time", Int64, queue_size=10, latch=True)
