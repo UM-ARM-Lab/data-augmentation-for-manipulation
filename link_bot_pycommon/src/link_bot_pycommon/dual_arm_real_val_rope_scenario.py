@@ -7,12 +7,14 @@ import ros_numpy
 import rospy
 from geometry_msgs.msg import Pose, Point, Quaternion
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
+from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
 from link_bot_pycommon.get_cdcpd_state import GetCdcpdState
 from link_bot_pycommon.get_joint_state import GetJointState
 from moveit_msgs.msg import MotionPlanRequest, Constraints, OrientationConstraint, \
-    PositionConstraint, JointConstraint, MoveItErrorCodes
+    PositionConstraint, JointConstraint, MoveItErrorCodes, PlanningScene
 from moveit_msgs.srv import GetMotionPlan, GetMotionPlanResponse
+from rosgraph.names import ns_join
 from tf.transformations import quaternion_from_euler
 
 
@@ -89,65 +91,59 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
     def get_excluded_models_for_env(self):
         return []
 
-    def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
-        debug_config = {
-            'joint1':        1.8632683753967285,
-            'joint2':        -0.41303694248199463,
-            'joint3':        4.000552177429199,
-            'joint4':        -2.913118600845337,
-            'joint41':       0.6370049715042114,
-            'joint42':       0.37008416652679443,
-            'joint43':       -2.312930107116699,
-            'joint44':       -0.6924217343330383,
-            'joint45':       3.9165642261505127,
-            'joint46':       1.1946239471435547,
-            'joint47':       -0.8995154500007629,
-            'joint5':        -2.5706467628479004,
-            'joint56':       -0.03163931891322136,
-            'joint57':       -0.14113053679466248,
-            'joint6':        -1.3265503644943237,
-            'joint7':        5.59172248840332,
-            'leftgripper':   0.12905007600784302,
-            'leftgripper2':  0.12905007600784302,
-            'rightgripper':  0.03911770507693291,
-            'rightgripper2': 0.03911770507693291,
-        }
-        self.robot.plan_to_joint_config("both_arms", debug_config)
+    def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
+        service_provider.restore_from_bag(bagfile_name)
 
+        joint_names = self.robot.get_joint_names('both_arms')
+        current_joint_positions = np.array(self.robot.get_joint_positions(joint_names))
+        reset_joint_dict = {n: params['real_val_rope_reset_joint_config'][n] for n in joint_names}
+        reset_joint_config = np.array(list(reset_joint_dict.values()))
+        near_start = np.max(np.abs(reset_joint_config - current_joint_positions)) < 0.02
+        grippers_are_closed = self.robot.is_left_gripper_closed() and self.robot.is_right_gripper_closed()
+        if not near_start or not grippers_are_closed:
+            # open gripper
+            self.robot.set_left_gripper(1.0)
+
+            # move to init positions
+            self.robot.plan_to_joint_config("both_arms", reset_joint_dict)
+
+            print("Use the gamepad to close the left gripper")
+            input("press enter to begin")
+
+    def restore_from_bag_v2(self, service_provider: BaseServices, params: Dict, bagfile_name):
+        service_provider.restore_from_bag(bagfile_name)
+
+        # reset
+        root = self.robot.robot_commander.get_root_link()
         self.robot.set_left_gripper(1.0)
+        self.robot.plan_to_joint_config("both_arms", params['real_val_rope_reset_joint_config'])
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
-        self.robot.store_current_tool_orientations(tool_names)
         left_tool_orientation = self.robot.stored_tool_orientations['left_tool']
         right_tool_orientation = self.robot.stored_tool_orientations['right_tool']
-        # up_and_away_position = np.array([0.5, -0.25, 1.5])  # for the real robot
-        up_and_away_position = np.array([0.25, 0.35, 0.8])  # for simulation
+        up_and_away_position = self.tf.get_transform("world", "mocap_right_tool")[:3, 3]
 
         robot_state = self.robot.get_state()
-        scene_msg = self.robot.jacobian_follower.get_scene()
+        scene_msg = rospy.wait_for_message(ns_join(self.robot_namespace, 'planning_scene'), PlanningScene)
 
         while True:
-            # find rope point from rope tracking
-            # FIXME: do rope tracking
-            # sensed_rope_state = self.get_cdcpd_state()
-            # rope_point_to_grasp = sensed_rope_state[0]
-
             # FIXME: just debugging
             rope_point_to_pre_grasp = deepcopy(up_and_away_position)
-            rope_point_to_pre_grasp[2] -= 0.5
+            rope_point_to_pre_grasp[2] -= 0.83
 
             # go a little past...
-            # rope_point_to_pre_grasp = rope_point_to_pre_grasp + np.array([0.08, -0.08, 0.05])  # for real robot
-            rope_point_to_pre_grasp = rope_point_to_pre_grasp + np.array([0.08, 0.08, 0.05])  # for sim
+            rope_point_to_pre_grasp = rope_point_to_pre_grasp + np.array([0.08, 0.08, 0.05])
+            rope_point_to_pre_grasp_root = self.point_to_root(rope_point_to_pre_grasp, 'hdt_michigan_root')
             rope_point_to_pre_grasp_pose = Pose()
-            rope_point_to_pre_grasp_pose.position = ros_numpy.msgify(Point, rope_point_to_pre_grasp)
+            rope_point_to_pre_grasp_pose.position = ros_numpy.msgify(Point, rope_point_to_pre_grasp_root)
             rope_point_to_pre_grasp_pose.orientation = ros_numpy.msgify(Quaternion, left_tool_orientation)
 
+            up_and_away_position_root = self.point_to_root(up_and_away_position, 'hdt_michigan_root')
             up_and_away_pose = Pose()
-            up_and_away_pose.position = ros_numpy.msgify(Point, up_and_away_position)
+            up_and_away_pose.position = ros_numpy.msgify(Point, up_and_away_position_root)
             up_and_away_pose.orientation = ros_numpy.msgify(Quaternion, right_tool_orientation)
 
-            self.robot.display_goal_pose(rope_point_to_pre_grasp_pose, 'left goal')
-            self.robot.display_goal_pose(up_and_away_pose, 'right goal')
+            self.tf.send_transform_from_pose_msg(rope_point_to_pre_grasp_pose, root, 'left_goal')
+            self.tf.send_transform_from_pose_msg(up_and_away_pose, root, 'right_goal')
 
             ik_sln = self.robot.jacobian_follower.compute_collision_free_pose_ik(robot_state,
                                                                                  [rope_point_to_pre_grasp_pose,
@@ -221,6 +217,9 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             grasped = self.is_left_grasped()
             if grasped:
                 break
+
+    def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
+        raise NotImplementedError()
 
     def is_left_grasped(self):
         positions = self.robot.get_joint_positions(['leftgripper', 'leftgripper2'])

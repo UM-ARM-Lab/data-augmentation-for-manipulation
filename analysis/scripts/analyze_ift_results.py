@@ -32,29 +32,45 @@ def metrics_main(args):
     # ax.set_ylim(-0.01, 1.01)
 
     # compute rolling average per run
-    agg = {
-        'success':                     'mean',
-        'task_error':                  'mean',
-        'normalized_model_error':      'mean',
-        'combined_error':              'mean',
-        'min_error_discrepancy':       'mean',
-        'total_time':                  'mean',
-        'min_planning_error':          'mean',
-        'mean_error_accept_agreement': 'mean',
-        'mean_accept_probability':     'mean',
-        'used_augmentation':           rlast,
-        iter_key:                      rlast,
+
+    method_name_map = {
+        '/media/shared/ift/small-hooks-diverse-aug':    'Augmentation (full method)',
+        '/media/shared/ift/small-hooks-diverse-no-aug': 'No Augmentation (baseline)',
+        '/media/shared/ift_ablations/no_occupancy':     'Augmentation (No Occupancy)',
     }
+
+    for i, k in enumerate(method_name_map.keys()):
+        indices, = np.where(df['data_filename'].str.startswith(k))
+        df.loc[indices, 'method_idx'] = i
+
+    agg = {
+        'success':    'mean',
+        'task_error': 'mean',
+        # 'normalized_model_error':      'mean',
+        # 'combined_error':              'mean',
+        # 'min_error_discrepancy':       'mean',
+        # 'total_time':                  'mean',
+        # 'min_planning_error':          'mean',
+        # 'mean_error_accept_agreement': 'mean',
+        # 'mean_accept_probability':     'mean',
+        # 'used_augmentation':           rlast,
+        'method_idx': rlast,
+        iter_key:     rlast,
+    }
+
     df_r = df.sort_values(iter_key).groupby('ift_uuid').rolling(w).agg(agg)
     # hack for the fact that for iter=0 used_augmentation is always 0, even on runs where augmentation is used.
-    df_r = df_r.loc[(df_r['used_augmentation'] == 0.0) | (df_r['used_augmentation'] == 1.0)]
+    method_name_indices = df['method_idx'].values.astype(np.int64)
+    method_name_keys = np.array(list(method_name_map.keys()))[method_name_indices]
+    method_name_values = [method_name_map[k] for k in method_name_keys]
+    df_r['method_name'] = method_name_values
 
     # fig, ax = lineplot(df, iter_key, 'success', 'Success', hue='used_augmentation')
     # ax.set_xlim(-0.01, x_max)
     # ax.set_ylim(-0.01, 1.01)
     # plt.savefig(outdir / f'success.png')
 
-    fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='used_augmentation', ci=ci)
+    fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='method_name', ci=ci)
     ax.set_xlim(-0.01, x_max)
     ax.set_ylim(-0.01, 1.01)
     # ax.axhline(0.8125, color='black', linewidth=4, label='heuristic classifier')
@@ -71,12 +87,12 @@ def metrics_main(args):
     # ax.axhline(0.045, color='black', linewidth=3, label='goal threshold')
     # ax.set_xlim(-0.01, x_max)
 
-    fig, ax = lineplot(df_r, iter_key, 'task_error', f'Task Error (rolling={w})', hue='used_augmentation', ci=ci)
-    ax.set_xlim(-0.01, x_max)
-    ax.axhline(0.045, color='black', linewidth=3, label='goal threshold')
-    ax.legend()
-    plt.savefig(outdir / f'task_error_rolling.png')
-
+    # fig, ax = lineplot(df_r, iter_key, 'task_error', f'Task Error (rolling={w})', hue='used_augmentation', ci=ci)
+    # ax.set_xlim(-0.01, x_max)
+    # ax.axhline(0.045, color='black', linewidth=3, label='goal threshold')
+    # ax.legend()
+    # plt.savefig(outdir / f'task_error_rolling.png')
+    #
     # fig, ax = lineplot(df_r, iter_key, 'combined_error', f'Combined Score (rolling={w})', hue='used_augmentation')
     # ax.set_xlim(-0.01, x_max)
     # plt.savefig(outdir / f'combined_error_rolling.png')
