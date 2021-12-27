@@ -1,0 +1,16 @@
+{
+  augmentation: {
+    # misc
+    invariance_model: /media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint
+
+    viz: {
+      scale: 0.01
+      arrows_scale: 1.0
+      min_delta_dist_grad_scale: 4.0
+    }
+
+    ablations: {
+       no_delta_min_dist: true
+    }
+  }
+}
