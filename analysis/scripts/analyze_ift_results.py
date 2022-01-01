@@ -37,6 +37,9 @@ def metrics_main(args):
         '/media/shared/ift/small-hooks-diverse-aug':    'Augmentation (full method)',
         '/media/shared/ift/small-hooks-diverse-no-aug': 'No Augmentation (baseline)',
         '/media/shared/ift_ablations/no_occupancy':     'Augmentation (No Occupancy)',
+        '/media/shared/ift_ablations/no_invariance': 'Augmentation (No Invariance)',
+        '/media/shared/ift_ablations/no_delta_min_dist': 'Augmentation (No Delta Min Dist)',
+        '/media/shared/ift_ablations/no_min_delta_dist': 'Augmentation (No Delta Min Dist)',
     }
 
     for i, k in enumerate(method_name_map.keys()):
@@ -44,8 +47,8 @@ def metrics_main(args):
         df.loc[indices, 'method_idx'] = i
 
     agg = {
-        'success':    'mean',
-        'task_error': 'mean',
+        'success':           'mean',
+        'task_error':        'mean',
         # 'normalized_model_error':      'mean',
         # 'combined_error':              'mean',
         # 'min_error_discrepancy':       'mean',
@@ -53,16 +56,20 @@ def metrics_main(args):
         # 'min_planning_error':          'mean',
         # 'mean_error_accept_agreement': 'mean',
         # 'mean_accept_probability':     'mean',
-        # 'used_augmentation':           rlast,
-        'method_idx': rlast,
-        iter_key:     rlast,
+        'used_augmentation': rlast,
+        'method_idx':        rlast,
+        iter_key:            rlast,
     }
 
     df_r = df.sort_values(iter_key).groupby('ift_uuid').rolling(w).agg(agg)
     # hack for the fact that for iter=0 used_augmentation is always 0, even on runs where augmentation is used.
-    method_name_indices = df['method_idx'].values.astype(np.int64)
-    method_name_keys = np.array(list(method_name_map.keys()))[method_name_indices]
-    method_name_values = [method_name_map[k] for k in method_name_keys]
+    method_name_values = []
+    for method_idx in df_r['method_idx'].values:
+        if np.isnan(method_idx):
+            method_name_values.append(np.nan)
+        else:
+            k = list(method_name_map.keys())[int(method_idx)]
+            method_name_values.append(method_name_map[k])
     df_r['method_name'] = method_name_values
 
     # fig, ax = lineplot(df, iter_key, 'success', 'Success', hue='used_augmentation')
@@ -71,6 +78,7 @@ def metrics_main(args):
     # plt.savefig(outdir / f'success.png')
 
     fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='method_name', ci=ci)
+    # fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='used_augmentation', ci=ci)
     ax.set_xlim(-0.01, x_max)
     ax.set_ylim(-0.01, 1.01)
     # ax.axhline(0.8125, color='black', linewidth=4, label='heuristic classifier')

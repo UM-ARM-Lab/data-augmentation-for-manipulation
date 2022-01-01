@@ -156,6 +156,7 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
         time = inputs['time_idx'].shape[1]
 
         for k in range(n_augmentations):
+            scenario.heartbeat()
             output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)
             output['augmented_from'] = inputs['full_filename']
 
