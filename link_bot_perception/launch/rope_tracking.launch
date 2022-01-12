@@ -10,7 +10,7 @@
     <param name="max_rope_length" value="0.82"/>
     <node pkg="cdcpd" type="cdcpd_node" name="cdcpd_node" respawn="false" output="screen">
         <param name="kinect_channel" value="qhd"/>
-        <param name="kinect_name" value="kinect2_victor_head"/>
+        <param name="kinect_name" value="kinect2_tripodA"/>
         <!--        <param name="left_tf_name" value="left_tool"/>-->
         <!--        <param name="right_tf_name" value="right_tool"/>-->
         <param name="left_tf_name" value="mocap_left_tool"/>
