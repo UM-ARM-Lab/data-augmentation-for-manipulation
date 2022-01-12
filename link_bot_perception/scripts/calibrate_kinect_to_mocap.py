@@ -53,7 +53,6 @@ def main():
         kinect2mocap_original = data['mocap_to_kinect_original']
     else:
         mocap_world_frame = 'mocap_world'
-        print(f"Make sure to set the rviz global/fixed frame to rgb optical frame")
 
         radius = 0.006
 
