@@ -37,7 +37,7 @@ def main():
                     process_example=_process_example,
                     hparams_update=hparams_update,
                     save_format=args.save_format)
-    split_dataset_via_files(args.dataset_dir, 'pkl')
+    split_dataset_via_files(outdir, 'pkl')
 
 
 if __name__ == '__main__':

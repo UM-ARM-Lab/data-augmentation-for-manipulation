@@ -58,7 +58,7 @@ def train_main(args):
                          trial_path=trial_path)
 
     train_tf_dataset, val_tf_dataset = train_test_dynamics.setup_datasets(model_hparams=params, batch_size=batch_size,
-                                                                          train_dataset=train_dataset, val_dataset=val_dataset,
+                                                                          train_loader=train_dataset, val_loader=val_dataset,
                                                                           take=)
 
     runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)

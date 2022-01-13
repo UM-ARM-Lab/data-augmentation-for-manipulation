@@ -257,7 +257,7 @@ class ModelRunner:
                 done = self.train_epoch(train_dataset, val_dataset, train_full_metrics, train_metrics, val_metrics)
                 self.latest_checkpoint_manager.save()
                 save_path = self.latest_checkpoint_manager.save()
-                print(Fore.CYAN + "Saving " + save_path + Fore.RESET)
+                print("Saving " + save_path)
 
                 # Validation at end of epoch
                 self.val_epoch(val_dataset, val_metrics)

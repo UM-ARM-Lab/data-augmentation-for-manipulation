@@ -105,6 +105,7 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
     def dynamics_viz_t(self):
         return dynamics_viz_t(metadata=self.scenario_metadata,
                               state_metadata_keys=self.state_metadata_keys,
+                              label='dataset',
                               state_keys=self.state_keys,
                               action_keys=self.action_keys)
 

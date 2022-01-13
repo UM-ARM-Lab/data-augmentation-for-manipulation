@@ -243,8 +243,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
                 self.last_action = action
                 return action, (invalid := False)
 
-        # TODO: return a bool indicated this error so calling code can handle it
-        rospy.logwarn("Could not find a valid action, executing an invalid one")
+        rospy.logwarn("Could not find a valid action, returning a zero action")
         zero_action = {
             'left_gripper_position':        state['left_gripper'],
             'right_gripper_position':       state['right_gripper'],

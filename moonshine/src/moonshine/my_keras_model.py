@@ -5,6 +5,8 @@ import tensorflow as tf
 from colorama import Fore
 from tensorflow.keras.metrics import Metric
 
+from moonshine.metrics import LossMetric
+
 
 class MyKerasModel(tf.keras.Model):
 
@@ -105,7 +107,9 @@ class MyKerasModel(tf.keras.Model):
     def create_metrics(self):
         if self.verbose > -1:
             print(Fore.YELLOW + "Creating Metrics")
-        return {}
+        return {
+            'loss': LossMetric(),
+        }
 
     def on_end_epoch(self):
         pass

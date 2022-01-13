@@ -21,6 +21,12 @@ from moonshine.numpify import numpify
 from state_space_dynamics import dynamics_utils
 
 
+def _remove_scene_msg(e):
+    if 'scene_msg' in e:
+        e.pop("scene_msg")
+    return e
+
+
 def train_main(dataset_dirs: List[pathlib.Path],
                model_hparams: pathlib.Path,
                log: str,
@@ -37,11 +43,11 @@ def train_main(dataset_dirs: List[pathlib.Path],
     model_hparams = hjson.load(model_hparams.open('r'))
     model_class = state_space_dynamics.get_model(model_hparams['model_class'])
 
-    train_dataset = get_dynamics_dataset_loader(dataset_dirs)
-    val_dataset = get_dynamics_dataset_loader(dataset_dirs)
+    train_loader = get_dynamics_dataset_loader(dataset_dirs)
+    val_loader = get_dynamics_dataset_loader(dataset_dirs)
 
-    model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset))
-    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset.scenario)
+    model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_loader))
+    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_loader.get_scenario())
 
     trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)
 
@@ -49,12 +55,14 @@ def train_main(dataset_dirs: List[pathlib.Path],
                          training=True,
                          params=model_hparams,
                          checkpoint=checkpoint,
-                         batch_metadata=train_dataset.batch_metadata,
+                         batch_metadata=train_loader.batch_metadata,
                          trial_path=trial_path)
 
-    train_tf_dataset, val_tf_dataset = setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take)
+    train_dataset, val_dataset = setup_datasets(model_hparams, batch_size, train_loader, val_loader, take)
 
-    runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
+    print("MANUALLY RESETTING \"BEST\"!!!")
+    runner.reset_best_ket_metric_value()
+    runner.train(train_dataset, val_dataset, num_epochs=epochs)
 
     return trial_path
 
@@ -71,29 +79,36 @@ def setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensem
     return trial_path
 
 
-def setup_hparams(batch_size, dataset_dirs, seed, train_dataset):
-    hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_dataset)
+def setup_hparams(batch_size, dataset_dirs, seed, train_loader):
+    hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_loader)
+    try:
+        params = train_loader.hparams
+    except AttributeError:
+        params = train_loader.params
     hparams.update({
-        'dynamics_dataset_hparams': train_dataset.params,
+        'dynamics_dataset_hparams': params,
     })
     return hparams
 
 
-def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: Optional[int] = None):
+def setup_datasets(model_hparams, batch_size, train_loader, val_loader, take: Optional[int] = None):
     # Dataset preprocessing
-    train_tf_dataset = train_dataset.get_datasets(mode='train', take=take)
-    val_tf_dataset = val_dataset.get_datasets(mode='val')
+    train_dataset = train_loader.get_datasets(mode='train', take=take)
+    val_dataset = val_loader.get_datasets(mode='val')
 
     # mix up examples before batching
-    train_tf_dataset = train_tf_dataset.shuffle(model_hparams['shuffle_buffer_size'])
+    train_dataset = train_dataset.shuffle(model_hparams['shuffle_buffer_size'])
 
-    train_tf_dataset = batch_tf_dataset(train_tf_dataset, batch_size, drop_remainder=True)
-    val_tf_dataset = batch_tf_dataset(val_tf_dataset, batch_size, drop_remainder=True)
+    train_dataset = batch_tf_dataset(train_dataset, batch_size, drop_remainder=False)
+    val_dataset = batch_tf_dataset(val_dataset, batch_size, drop_remainder=False)
 
-    train_tf_dataset = train_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    val_tf_dataset = val_tf_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    train_dataset = train_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    val_dataset = val_dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
-    return train_tf_dataset, val_tf_dataset
+    train_dataset = train_dataset.map(_remove_scene_msg)
+    val_dataset = val_dataset.map(_remove_scene_msg)
+
+    return train_dataset, val_dataset
 
 
 def compute_classifier_threshold(dataset_dirs: List[pathlib.Path],
@@ -101,28 +116,28 @@ def compute_classifier_threshold(dataset_dirs: List[pathlib.Path],
                                  mode: str,
                                  batch_size: int,
                                  ):
-    test_dataset = get_dynamics_dataset_loader(dataset_dirs)
+    loader = get_dynamics_dataset_loader(dataset_dirs)
 
     trials_directory = pathlib.Path('trials').absolute()
     trial_path = checkpoint.parent.absolute()
     _, params = filepath_tools.create_or_load_trial(trial_path=trial_path, trials_directory=trials_directory)
     model = state_space_dynamics.get_model(params['model_class'])
-    net = model(hparams=params, batch_size=batch_size, scenario=test_dataset.scenario)
+    net = model(hparams=params, batch_size=batch_size, scenario=loader.scenario)
 
     runner = ModelRunner(model=net,
                          training=False,
                          checkpoint=checkpoint,
-                         batch_metadata=test_dataset.batch_metadata,
+                         batch_metadata=loader.batch_metadata,
                          trial_path=trial_path,
                          params=params)
 
-    test_tf_dataset = test_dataset.get_datasets(mode=mode)
-    test_tf_dataset = batch_tf_dataset(test_tf_dataset, batch_size, drop_remainder=True)
+    dataset = loader.get_datasets(mode=mode)
+    dataset = batch_tf_dataset(dataset, batch_size, drop_remainder=False)
 
     all_errors = None
-    for batch in test_tf_dataset:
+    for batch in dataset:
         outputs = runner.model(batch, training=False)
-        errors_for_batch = test_dataset.scenario.classifier_distance(batch, outputs)
+        errors_for_batch = loader.scenario.classifier_distance(batch, outputs)
         if all_errors is not None:
             all_errors = tf.concat([all_errors, errors_for_batch], axis=0)
         else:
@@ -138,48 +153,46 @@ def eval_main(dataset_dirs: List[pathlib.Path],
               mode: str,
               batch_size: int,
               ):
-    dataset_loader = get_dynamics_dataset_loader(dataset_dirs)
+    loader = get_dynamics_dataset_loader(dataset_dirs)
 
     trials_directory = pathlib.Path('trials').absolute()
     trial_path = checkpoint.parent.absolute()
     _, params = filepath_tools.create_or_load_trial(trial_path=trial_path, trials_directory=trials_directory)
     model = state_space_dynamics.get_model(params['model_class'])
-    scenario = dataset_loader.get_scenario()
+    scenario = loader.get_scenario()
     net = model(hparams=params, batch_size=batch_size, scenario=scenario)
 
     runner = ModelRunner(model=net,
                          training=False,
                          checkpoint=checkpoint,
-                         batch_metadata=dataset_loader.batch_metadata,
+                         batch_metadata=loader.batch_metadata,
                          trial_path=trial_path,
                          params=params)
 
-    test_dataset = dataset_loader.get_datasets(mode=mode)
-    test_dataset = batch_tf_dataset(test_dataset, batch_size, drop_remainder=True)
+    dataset = loader.get_datasets(mode=mode)
+    dataset = batch_tf_dataset(dataset, batch_size, drop_remainder=False)
     val_metrics = {
         'loss': LossMetric(),
     }
-    def _remove_scene_msg(e):
-        e.pop("scene_msg")
-        return e
-    test_dataset = test_dataset.map(_remove_scene_msg)
-    runner.val_epoch(test_dataset, val_metrics)
+
+    dataset = dataset.map(_remove_scene_msg)
+    runner.val_epoch(dataset, val_metrics)
     for name, value in val_metrics.items():
-        print(f"{name}: {value.result():.4f}")
+        print(f"{name}: {value.result():.6f}")
 
     # more metrics that can't be expressed as just an average over metrics on each batch
     all_errors = None
-    for batch in test_dataset:
+    for batch in dataset:
         outputs = runner.model(batch, training=False)
         errors_for_batch = scenario.classifier_distance(outputs, batch)
         if all_errors is not None:
             all_errors = tf.concat([all_errors, errors_for_batch], axis=0)
         else:
             all_errors = errors_for_batch
-    print(f"90th percentile {np.percentile(all_errors.numpy(), 90)}")
-    print(f"95th percentile {np.percentile(all_errors.numpy(), 95)}")
-    print(f"99th percentile {np.percentile(all_errors.numpy(), 99)}")
-    print(f"max {np.max(all_errors.numpy())}")
+    print(f"90th percentile {np.percentile(all_errors.numpy(), 90):.6f}")
+    print(f"95th percentile {np.percentile(all_errors.numpy(), 95):.6f}")
+    print(f"99th percentile {np.percentile(all_errors.numpy(), 99):.6f}")
+    print(f"max {np.max(all_errors.numpy()):.6f}")
 
 
 def viz_main(dataset_dirs: List[pathlib.Path],
@@ -201,7 +214,9 @@ def viz_dataset(dataset_dirs: List[pathlib.Path],
                 ):
     loader = get_dynamics_dataset_loader(dataset_dirs)
 
-    dataset = loader.get_datasets(mode=mode).batch(1)
+    dataset = loader.get_datasets(mode=mode)
+    dataset = dataset.map(_remove_scene_msg)
+    dataset = dataset.batch(1)
 
     model = dynamics_utils.load_generic_model(checkpoint)
 

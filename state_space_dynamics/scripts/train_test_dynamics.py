@@ -8,7 +8,10 @@ import numpy as np
 import tensorflow
 
 from arc_utilities import ros_init
+from moonshine.gpu_config import limit_gpu_mem
 from state_space_dynamics import train_test_dynamics
+
+limit_gpu_mem(None)
 
 
 def train_main(args, seed: int):
