@@ -374,3 +374,5 @@ def sample_delta_position(action_params: Dict, action_rng: np.random.RandomState
     gripper_delta_position_homo = rotation_matrix @ np.array([1, 0, 0, 1], np.float32) * displacement
     gripper_delta_position = gripper_delta_position_homo[:3]
     return gripper_delta_position
+    # print("HACKING!!!")
+    # return (np.array([0, 0.03, -0.06]) + action_rng.uniform(0, 0.01)).astype(np.float32)
