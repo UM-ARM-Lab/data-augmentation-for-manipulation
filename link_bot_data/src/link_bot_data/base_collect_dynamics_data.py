@@ -94,9 +94,11 @@ def collect_trajectory(params,
             invalid = scenario.execute_action(environment, state, action)
             if invalid:
                 rospy.logwarn(f"error executing action {action}")
+                scenario.last_action = None  # to avoid repeating the action that failed
                 return {}, (invalid := True)
         except RobotPlanningError:
             rospy.logwarn(f"error executing action {action}")
+            scenario.last_action = None  # to avoid repeating the action that failed
             return {}, (invalid := True)
 
         # add to the dataset

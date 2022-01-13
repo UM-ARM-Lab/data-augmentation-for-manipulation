@@ -38,15 +38,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         self.plan_srv = rospy.ServiceProxy("/hdt_michigan/plan_kinematic_path", GetMotionPlan)
 
     def execute_action(self, environment, state, action: Dict):
-        robot_state = self.get_robot_state.get_state()
-        left_gripper_delta_position = action['left_gripper_position'] - state['left_gripper']
-        left_gripper_position_fk = robot_state['left_gripper']
-        right_gripper_delta_position = action['right_gripper_position'] - state['right_gripper']
-        right_gripper_position_fk = robot_state['right_gripper']
-        action_fk = {
-            'left_gripper_position':  left_gripper_position_fk + left_gripper_delta_position,
-            'right_gripper_position': right_gripper_position_fk + right_gripper_delta_position,
-        }
+        action_fk = self.action_relative_to_fk(action, state)
         return dual_arm_rope_execute_action(self.robot,
                                             self.tf,
                                             environment,
@@ -54,6 +46,22 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
                                             action_fk,
                                             vel_scaling=1.0,
                                             check_overstretching=False)
+
+    def action_relative_to_fk(self, action, state):
+        robot_state = self.get_robot_state.get_state()
+        # so state gets the gripper positions via the mocap markers
+        left_gripper_position_mocap = state['left_gripper']
+        right_gripper_position_mocap = state['right_gripper']
+        left_gripper_delta_position = action['left_gripper_position'] - left_gripper_position_mocap
+        # whereas this is via fk
+        left_gripper_position_fk = robot_state['left_gripper']
+        right_gripper_delta_position = action['right_gripper_position'] - right_gripper_position_mocap
+        right_gripper_position_fk = robot_state['right_gripper']
+        action_fk = {
+            'left_gripper_position':  left_gripper_position_fk + left_gripper_delta_position,
+            'right_gripper_position': right_gripper_position_fk + right_gripper_delta_position,
+        }
+        return action_fk
 
     def on_before_data_collection(self, params: Dict):
         super().on_before_data_collection(params)
