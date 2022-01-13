@@ -38,14 +38,14 @@
   ]
   left_gripper_action_sample_extent: [
     -0.5
-    0.5
+    0.0
     0
     1
     -0.1
     1.0
   ]
   right_gripper_action_sample_extent: [
-    -0.5
+    0.0
     0.5
     0
     1
