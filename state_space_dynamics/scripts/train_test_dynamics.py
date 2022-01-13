@@ -6,7 +6,6 @@ from time import time
 
 import numpy as np
 import tensorflow
-import tensorflow as tf
 
 from arc_utilities import ros_init
 from state_space_dynamics import train_test_dynamics
@@ -22,13 +21,12 @@ def train_main(args, seed: int):
                                    seed=seed,
                                    ensemble_idx=args.ensemble_idx,
                                    trials_directory=pathlib.Path('trials'),
-                                   use_gt_rope=args.use_gt_rope,
                                    take=args.take,
                                    )
 
 
 def eval_main(args, seed: int):
-    train_test_dynamics.eval_main(args.dataset_dirs, args.checkpoint, args.mode, args.batch_size, args.use_gt_rope)
+    train_test_dynamics.eval_main(args.dataset_dirs, args.checkpoint, args.mode, args.batch_size)
 
 
 def viz_main(args, seed: int):
@@ -67,7 +65,7 @@ def main():
     eval_parser = subparsers.add_parser('eval')
     eval_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
     eval_parser.add_argument('checkpoint', type=pathlib.Path)
-    eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val'], default='test')
+    eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='test')
     eval_parser.add_argument('--batch-size', type=int, default=32)
     eval_parser.add_argument('--verbose', '-v', action='count', default=0)
     eval_parser.add_argument('--seed', type=int, default=None)
@@ -77,7 +75,7 @@ def main():
     viz_parser = subparsers.add_parser('viz')
     viz_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
     viz_parser.add_argument('checkpoint', type=pathlib.Path)
-    viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val'], default='test')
+    viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='test')
     viz_parser.add_argument('--verbose', '-v', action='count', default=0)
     viz_parser.add_argument('--seed', type=int, default=None)
     viz_parser.add_argument('--use-gt-rope', action='store_true')
