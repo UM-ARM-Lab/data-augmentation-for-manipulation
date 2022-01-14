@@ -14,5 +14,7 @@
   <depend>rospy</depend>
   <depend>cdcpd</depend>
   <depend>link_bot_data</depend>
+  <build_depend>libpcl-all-dev</build_depend>
+  <exec_depend>libpcl-all</exec_depend>
 
 </package>

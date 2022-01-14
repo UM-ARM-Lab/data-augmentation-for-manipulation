@@ -19,4 +19,9 @@
     -0.4
     1.0
   ]
+  goal_params: {
+    type: saved
+    goal_type: any_point
+    threshold: 0.04
+  }
 }

@@ -8,7 +8,8 @@
         but it can be shorter if that's what best explains the point cloud
     -->
     <param name="max_rope_length" value="0.82"/>
-    <node pkg="cdcpd" type="cdcpd_node" name="cdcpd_node" respawn="false" output="screen" launch-prefix="gdb -ex run --args">
+<!--    <node pkg="cdcpd" type="cdcpd_node" name="cdcpd_node" respawn="false" output="screen" launch-prefix="gdb -ex run &#45;&#45;args">-->
+    <node pkg="cdcpd" type="cdcpd_node" name="cdcpd_node" respawn="false" output="screen">
         <param name="kinect_channel" value="qhd"/>
         <param name="kinect_name" value="kinect2_tripodA"/>
         <!--        <param name="left_tf_name" value="left_tool"/>-->
