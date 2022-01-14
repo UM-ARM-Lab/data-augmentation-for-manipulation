@@ -1,11 +1,11 @@
 {
   augmentation: {
     gaussian_noise: {
-      gripper_position: 0.001
-      tcp_pos: 0.001
-      tcp_vel: 0.0001
-      obj_linear_velocity: 0.0001
-      obj_position: 0.001
+      rope: 0.005
+      left_gripper: 0.005
+      right_gripper: 0.005
+      right_gripper_position: 0.005
+      left_gripper_position: 0.005
     }
 
 
