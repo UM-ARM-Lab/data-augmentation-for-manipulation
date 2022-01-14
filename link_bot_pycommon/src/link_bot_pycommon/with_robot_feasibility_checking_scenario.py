@@ -1,3 +1,6 @@
+from typing import Dict
+
+from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
 from link_bot_pycommon.dual_arm_real_val_rope_scenario import DualArmRealValRopeScenario
 from link_bot_pycommon.dual_arm_rope_with_robot_feasibility_checking_scenario import \
     DualArmRopeWithRobotFeasibilityCheckingScenario
@@ -25,6 +28,17 @@ class DualArmRopeRealValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobo
 
     def simple_name(self):
         return "real_val_with_robot_feasibility_checking"
+
+    def is_action_valid(self, environment: Dict, state: Dict, action: Dict, action_params: Dict):
+        valid = BaseDualArmRopeScenario.is_action_valid(self, environment, state, action, action_params)
+        if not valid:
+            return False
+
+        action_fk = self.action_relative_to_fk(action, state)
+        target_reached = self.is_motion_feasible(action_fk, environment, state)
+
+        return target_reached
+
 
     def __repr__(self):
         return self.simple_name()

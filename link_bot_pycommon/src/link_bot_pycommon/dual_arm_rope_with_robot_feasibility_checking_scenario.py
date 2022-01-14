@@ -14,8 +14,7 @@ class DualArmRopeWithRobotFeasibilityCheckingScenario:
         if not valid:
             return False
 
-        action_fk = self.action_relative_to_fk(action, state)
-        target_reached = self.is_motion_feasible(action_fk, environment, state)
+        target_reached = self.is_motion_feasible(action, environment, state)
 
         return target_reached
 
