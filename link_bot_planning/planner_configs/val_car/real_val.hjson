@@ -1,7 +1,7 @@
 {
   scenario: real_val_with_robot_feasibility_checking
   method_name: real_val
-  fwd_model_dir: trials/real_val_ensemble
+  fwd_model_dir: dy_trials/real_val_ensemble/none
   classifier_model_dir: [
     /media/shared/cl_trials/cc_baseline/none
     /media/shared/cl_trials/gd_baseline/none
