@@ -1,0 +1,32 @@
+{
+  n_augmentations: 25
+  aug_params_filename: aug_hparams/rope_simple_noise.hjson
+  full_retrain_classifier: false
+  trials_per_iteration: 1
+  trials_generator_type: random
+  fine_tune_classifier: {
+    fine_tune_conv: true
+    fine_tune_dense: true
+    fine_tune_lstm: true
+    fine_tune_output: true
+    learning_rate: 0.001
+    epochs: 5
+    early_stopping: false
+  }
+  fine_tune_recovery: null
+  planner_params_update: {
+    termination_criteria:
+    {
+    }
+  }
+  results_to_classifier_dataset: {
+    val_split: 0.0
+    test_split: 0.0
+  }
+  results_to_recovery_dataset: null
+  model_params_update: {
+    termination_criteria: {
+      accuracy: 0.995
+    }
+  }
+}

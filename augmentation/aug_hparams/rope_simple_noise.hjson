@@ -8,10 +8,11 @@
       obj_position: 0.001
     }
 
+
     viz: {
-      scale: 0.007
-      arrows_scale: 0.004
-      min_delta_dist_grad_scale: 2
+      scale: 0.01
+      arrows_scale: 1.0
+      min_delta_dist_grad_scale: 4.0
     }
   }
 }
