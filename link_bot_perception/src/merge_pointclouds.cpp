@@ -1,98 +1,146 @@
 #include <iostream>
+#include <tf2_eigen/tf2_eigen.h>
 #include <string>
 
-#include <pcl/io/ply_io.h>
+#include <ros/ros.h>
+#include <pcl/conversions.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <message_filters/subscriber.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <tf/transform_listener.h>
+
+#include <message_filters/time_synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 #include <pcl/point_types.h>
+#include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-typedef pcl::PointXYZ PointT;
+typedef pcl::PointXYZRGB PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
 
-void
-print4x4Matrix(const Eigen::Matrix4d &matrix) {
-    printf("Rotation matrix :\n");
-    printf("    | %6.3f %6.3f %6.3f | \n", matrix(0, 0), matrix(0, 1), matrix(0, 2));
-    printf("R = | %6.3f %6.3f %6.3f | \n", matrix(1, 0), matrix(1, 1), matrix(1, 2));
-    printf("    | %6.3f %6.3f %6.3f | \n", matrix(2, 0), matrix(2, 1), matrix(2, 2));
-    printf("Translation vector :\n");
-    printf("t = < %6.3f, %6.3f, %6.3f >\n\n", matrix(0, 3), matrix(1, 3), matrix(2, 3));
+const std::string LOGNAME = "merge_pointclouds";
+
+
+auto filter(const PointCloudT::ConstPtr &points) {
+    auto points_filtered = boost::make_shared<PointCloudT>();
+
+    pcl::RadiusOutlierRemoval<PointT> outrem;
+    outrem.setInputCloud(points);
+    outrem.setRadiusSearch(0.8);
+    outrem.setMinNeighborsInRadius(2);
+    outrem.setKeepOrganized(true);
+    outrem.filter(*points_filtered);
+
+    return points_filtered;
 }
 
 int main(int argc, char *argv[]) {
-    // The point clouds we will be using
-    PointCloudT::Ptr cloud_in(new PointCloudT);  // Original point cloud
-    PointCloudT::Ptr cloud_tr(new PointCloudT);  // Transformed point cloud
-    PointCloudT::Ptr cloud_icp(new PointCloudT);  // ICP output point cloud
+    ros::init(argc, argv, "merge_pointclouds");
 
-    // Defining a rotation matrix and translation vector
-    Eigen::Matrix4d transformation_matrix = Eigen::Matrix4d::Identity();
+    ros::NodeHandle nh;
+    tf::TransformListener listener;
 
-    // Executing the transformation
-    pcl::transformPointCloud(*cloud_in, *cloud_icp, transformation_matrix);
-    *cloud_tr = *cloud_icp;  // We backup cloud_icp into cloud_tr for later use
+    auto const pub = nh.advertise<sensor_msgs::PointCloud2>("merged_points", 1);
 
-    // The Iterative Closest Point algorithm
-    pcl::IterativeClosestPoint<PointT, PointT> icp;
-    icp.setMaximumIterations(1);
-    icp.setInputSource(cloud_icp);
-    icp.setInputTarget(cloud_in);
-    icp.align(*cloud_icp);
-    icp.setMaximumIterations(1);  // We set this variable to 1 for the next time we will call .align () function
+    auto callback = [&](const sensor_msgs::PointCloud2ConstPtr &points1_msg,
+                        const sensor_msgs::PointCloud2ConstPtr &points2_msg) -> void {
+        pcl::PCLPointCloud2 points1_v2;
+        pcl::PCLPointCloud2 points2_v2;
+        PointCloudT points1;
+        PointCloudT points2;
+        auto points1_nonan = boost::make_shared<PointCloudT>();
+        auto points2_nonan = boost::make_shared<PointCloudT>();
+        PointCloudT points2_icp;
+        PointCloudT points1_icp;
 
-    if (icp.hasConverged()) {
-        std::cout << "\nICP has converged, score is " << icp.getFitnessScore() << std::endl;
-        std::cout << "\nICP transformation: cloud_icp -> cloud_in" << std::endl;
-        transformation_matrix = icp.getFinalTransformation().cast<double>();
-        print4x4Matrix(transformation_matrix);
-    } else {
-        PCL_ERROR ("\nICP has not converged.\n");
-        return (-1);
-    }
+        pcl_conversions::toPCL(*points1_msg, points1_v2);
+        pcl_conversions::toPCL(*points2_msg, points2_v2);
 
-    // Visualization
-    pcl::visualization::PCLVisualizer viewer("ICP demo");
-    // Create two vertically separated viewports
-    int v1(0);
-    int v2(1);
-    viewer.createViewPort(0.0, 0.0, 0.5, 1.0, v1);
-    viewer.createViewPort(0.5, 0.0, 1.0, 1.0, v2);
+        pcl::fromPCLPointCloud2(points1_v2, points1);
+        pcl::fromPCLPointCloud2(points2_v2, points2);
 
-    // The color we will be using
-    float bckgr_gray_level = 0.f;  // Black
-    float txt_gray_lvl = 1.f - bckgr_gray_level;
+        pcl::Indices indices;
+        pcl::removeNaNFromPointCloud(points1, *points1_nonan, indices);
+        pcl::removeNaNFromPointCloud(points2, *points2_nonan, indices);
 
-    // Original point cloud is white
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_in_color_h(cloud_in, (int) 255 * txt_gray_lvl,
-                                                                              (int) 255 * txt_gray_lvl,
-                                                                              (int) 255 * txt_gray_lvl);
-    viewer.addPointCloud(cloud_in, cloud_in_color_h, "cloud_in_v1", v1);
-    viewer.addPointCloud(cloud_in, cloud_in_color_h, "cloud_in_v2", v2);
+        if (points1_nonan->empty()) {
+            ROS_ERROR_STREAM("points1 is empty");
+            return;
+        }
 
-    // Transformed point cloud is green
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_tr_color_h(cloud_tr, 20, 180, 20);
-    viewer.addPointCloud(cloud_tr, cloud_tr_color_h, "cloud_tr_v1", v1);
+        if (points2_nonan->empty()) {
+            ROS_ERROR_STREAM("points2 is empty");
+            return;
+        }
 
-    // ICP aligned point cloud is red
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_icp_color_h(cloud_icp, 180, 20, 20);
-    viewer.addPointCloud(cloud_icp, cloud_icp_color_h, "cloud_icp_v2", v2);
+        const auto points1_filtered = filter(points1_nonan);
+        const auto points2_filtered = filter(points2_nonan);
 
-    // Adding text descriptions in each viewport
-    viewer.addText("White: Original point cloud\nGreen: Matrix transformed point cloud", 10, 15, 16, txt_gray_lvl,
-                   txt_gray_lvl, txt_gray_lvl, "icp_info_1", v1);
-    viewer.addText("White: Original point cloud\nRed: ICP aligned point cloud", 10, 15, 16, txt_gray_lvl, txt_gray_lvl,
-                   txt_gray_lvl, "icp_info_2", v2);
+        ROS_INFO_STREAM("filtered points " << points1_filtered->size() << ", " << points2_filtered->size());
 
-    // Set background color
-    viewer.setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, v1);
-    viewer.setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, v2);
+        tf::StampedTransform points2_to_points1_stamped;
+        try {
+            listener.lookupTransform(points1_msg->header.frame_id, points2_msg->header.frame_id, ros::Time(0),
+                                     points2_to_points1_stamped);
+        }
+        catch (tf::TransformException const &ex) {
+            ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to lookup TF:" << ex.what());
+        }
 
-    // Set camera position and orientation
-    viewer.setCameraPosition(-3.68332, 2.94092, 5.71266, 0.289847, 0.921947, -0.256907, 0);
-    viewer.setSize(1280, 1024);  // Visualiser window size
+        geometry_msgs::TransformStamped points2_to_points1_stamped_msg;
+        tf::transformStampedTFToMsg(points2_to_points1_stamped, points2_to_points1_stamped_msg);
+        const auto points2_to_points1 = tf2::transformToEigen(points2_to_points1_stamped_msg);
+        ROS_INFO_STREAM_NAMED(LOGNAME, "2to1 transform: \n" << points2_to_points1.matrix());
 
-    viewer.spin();
+        auto points2_in_points1_frame = boost::make_shared<PointCloudT>();
+        pcl::transformPointCloud(*points2_filtered, *points2_in_points1_frame, points2_to_points1.matrix());
+        ROS_INFO_STREAM(points2_filtered->at(0).getVector3fMap());
+        ROS_INFO_STREAM(points2_in_points1_frame->at(0).getVector3fMap());
 
-    return 0;
+//        // The Iterative Closest Point algorithm
+//        Eigen::Matrix4d transformation_matrix = Eigen::Matrix4d::Identity();
+//        pcl::IterativeClosestPoint<PointT, PointT> icp;
+//        icp.setMaximumIterations(1);
+//        icp.setInputSource(points1_filtered);
+//        icp.setInputTarget(points2_filtered);
+//        icp.align(points2_icp);
+//        icp.setMaximumIterations(1);  // We set this variable to 1 for the next time we will call .align () function
+//
+//        if (icp.hasConverged()) {
+//            ROS_DEBUG_STREAM_NAMED(LOGNAME, "ICP has converged, score is " << icp.getFitnessScore());
+//            const auto matrix = icp.getFinalTransformation().cast<double>();
+//            ROS_DEBUG_STREAM_NAMED(LOGNAME, "Transformation:\n" << matrix);
+//        } else {
+//            ROS_ERROR_NAMED(LOGNAME, "ICP did not converge");
+//        }
+
+        points1_icp = *points1_filtered;
+        points2_icp = *points2_filtered;
+
+        const auto merged_points = *points2_in_points1_frame + points1_icp;
+//        const auto merged_points = points1;
+        pcl::PCLPointCloud2 merged_points_v2;
+        pcl::toPCLPointCloud2(merged_points, merged_points_v2);
+
+        sensor_msgs::PointCloud2 output;
+        pcl_conversions::fromPCL(merged_points_v2, output);
+        output.header.frame_id = points1.header.frame_id;
+
+        pub.publish(output);
+    };
+
+    message_filters::Subscriber<sensor_msgs::PointCloud2> sub1(nh, "points1", 10);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> sub2(nh, "points2", 10);
+
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> ApproxSyncPolicy;
+    message_filters::Synchronizer<ApproxSyncPolicy> sync(ApproxSyncPolicy(10), sub1, sub2);
+
+    sync.registerCallback(boost::bind<void>(callback, _1, _2));
+
+
+    ros::spin();
+
+    return EXIT_SUCCESS;
 }
 

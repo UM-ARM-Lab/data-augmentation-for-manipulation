@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(link_bot_perception)
 
-find_package(catkin REQUIRED rospy link_bot_data cdcpd)
+find_package(catkin REQUIRED rospy link_bot_data cdcpd sensor_msgs message_filters eigen_conversions tf2_eigen tf_conversions)
 
 catkin_package(
 #  INCLUDE_DIRS include

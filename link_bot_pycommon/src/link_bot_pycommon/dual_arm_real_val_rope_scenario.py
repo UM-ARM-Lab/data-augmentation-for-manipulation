@@ -39,13 +39,16 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
     def execute_action(self, environment, state, action: Dict):
         action_fk = self.action_relative_to_fk(action, state)
-        return dual_arm_rope_execute_action(self.robot,
-                                            self.tf,
-                                            environment,
-                                            state,
-                                            action_fk,
-                                            vel_scaling=1.0,
-                                            check_overstretching=False)
+        try:
+            dual_arm_rope_execute_action(self.robot,
+                                         self.tf,
+                                         environment,
+                                         state,
+                                         action_fk,
+                                         vel_scaling=1.0,
+                                         check_overstretching=False)
+        except RuntimeError as e:
+            print(e)
 
     def action_relative_to_fk(self, action, state):
         robot_state = self.get_robot_state.get_state()
