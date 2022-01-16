@@ -40,11 +40,29 @@ int main(int argc, char *argv[]) {
 
     ros::NodeHandle nh;
     tf::TransformListener listener;
+    bool has_transform = false;
+    Eigen::Isometry3d points2_to_points1;
 
     auto const pub = nh.advertise<sensor_msgs::PointCloud2>("merged_points", 1);
 
     auto callback = [&](const sensor_msgs::PointCloud2ConstPtr &points1_msg,
                         const sensor_msgs::PointCloud2ConstPtr &points2_msg) -> void {
+        if (not has_transform) {
+            tf::StampedTransform points2_to_points1_stamped;
+            try {
+                listener.lookupTransform(points1_msg->header.frame_id, points2_msg->header.frame_id, ros::Time(0),
+                                         points2_to_points1_stamped);
+                geometry_msgs::TransformStamped points2_to_points1_stamped_msg;
+                tf::transformStampedTFToMsg(points2_to_points1_stamped, points2_to_points1_stamped_msg);
+                points2_to_points1 = tf2::transformToEigen(points2_to_points1_stamped_msg);
+                ROS_DEBUG_STREAM_NAMED(LOGNAME, "2to1 transform: \n" << points2_to_points1.matrix());
+                has_transform = true;
+            }
+            catch (tf::TransformException const &ex) {
+                ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to lookup TF:" << ex.what());
+                return;
+            }
+        }
 
         const auto start = ros::WallTime::now();
 
@@ -52,8 +70,8 @@ int main(int argc, char *argv[]) {
         pcl::PCLPointCloud2 points2_v2;
         PointCloudT points1;
         PointCloudT points2;
-        auto points1_nonan = boost::make_shared<PointCloudT>();
-        auto points2_nonan = boost::make_shared<PointCloudT>();
+//        auto points1_nonan = boost::make_shared<PointCloudT>();
+//        auto points2_nonan = boost::make_shared<PointCloudT>();
         PointCloudT points2_icp;
 
         pcl_conversions::toPCL(*points1_msg, points1_v2);
@@ -63,42 +81,28 @@ int main(int argc, char *argv[]) {
         pcl::fromPCLPointCloud2(points2_v2, points2);
 
         pcl::Indices indices;
-        pcl::removeNaNFromPointCloud(points1, *points1_nonan, indices);
-        pcl::removeNaNFromPointCloud(points2, *points2_nonan, indices);
+//        pcl::removeNaNFromPointCloud(points1, *points1_nonan, indices);
+//        pcl::removeNaNFromPointCloud(points2, *points2_nonan, indices);
 
-        if (points1_nonan->empty()) {
+        if (points1.empty()) {
             ROS_ERROR_STREAM("points1 is empty");
             return;
         }
 
-        if (points2_nonan->empty()) {
+        if (points2.empty()) {
             ROS_ERROR_STREAM("points2 is empty");
             return;
         }
 
 //        const auto points1_filtered = filter(points1_nonan);
 //        const auto points2_filtered = filter(points2_nonan);
-        const auto points1_filtered = points1_nonan;
-        const auto points2_filtered = points2_nonan;
+        const auto points1_filtered = points1;
+        const auto points2_filtered = points2;
 
-        ROS_DEBUG_STREAM("filtered points " << points1_filtered->size() << ", " << points2_filtered->size());
-
-        tf::StampedTransform points2_to_points1_stamped;
-        try {
-            listener.lookupTransform(points1_msg->header.frame_id, points2_msg->header.frame_id, ros::Time(0),
-                                     points2_to_points1_stamped);
-        }
-        catch (tf::TransformException const &ex) {
-            ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to lookup TF:" << ex.what());
-        }
-
-        geometry_msgs::TransformStamped points2_to_points1_stamped_msg;
-        tf::transformStampedTFToMsg(points2_to_points1_stamped, points2_to_points1_stamped_msg);
-        const auto points2_to_points1 = tf2::transformToEigen(points2_to_points1_stamped_msg);
-        ROS_DEBUG_STREAM_NAMED(LOGNAME, "2to1 transform: \n" << points2_to_points1.matrix());
+        ROS_DEBUG_STREAM("filtered points " << points1_filtered.size() << ", " << points2_filtered.size());
 
         auto points2_in_points1_frame = boost::make_shared<PointCloudT>();
-        pcl::transformPointCloud(*points2_filtered, *points2_in_points1_frame, points2_to_points1.matrix());
+        pcl::transformPointCloud(points2_filtered, *points2_in_points1_frame, points2_to_points1.matrix());
 
         // The Iterative Closest Point algorithm
 //        Eigen::Matrix4d transformation_matrix = Eigen::Matrix4d::Identity();
@@ -117,7 +121,7 @@ int main(int argc, char *argv[]) {
 //        }
         points2_icp = *points2_in_points1_frame;
 
-        const auto merged_points = points2_icp + *points1_filtered;
+        const auto merged_points = points2_icp + points1_filtered;
         pcl::PCLPointCloud2 merged_points_v2;
         pcl::toPCLPointCloud2(merged_points, merged_points_v2);
 
