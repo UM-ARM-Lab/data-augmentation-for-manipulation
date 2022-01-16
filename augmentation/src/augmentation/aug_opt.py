@@ -1,4 +1,5 @@
 import pathlib
+from time import perf_counter
 from typing import Dict, List, Callable
 
 import numpy as np
@@ -166,6 +167,7 @@ class AugmentationOptimization:
         def _viz_cb(_b):
             self.plot_stationary_vg(_b, env_stationary, extent, origin_point, res)
 
+        t0 = perf_counter()
         transformation_matrices, to_local_frame, is_obj_aug_valid = self.aug_obj_transform(
             res=res,
             extent=extent,
@@ -177,6 +179,7 @@ class AugmentationOptimization:
             obj_occupancy=obj_occupancy,
             viz_cb=_viz_cb,
             batch_size=batch_size)
+        print('aug_opt::aug_obj', perf_counter() - t0)
 
         # apply the transformations to some components of the state/action
         obj_aug_update, local_origin_point_aug, local_center_aug = self.aug_apply_no_ik(

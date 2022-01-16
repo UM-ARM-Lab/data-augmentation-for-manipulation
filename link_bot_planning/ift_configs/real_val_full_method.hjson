@@ -1,5 +1,6 @@
 {
   n_augmentations: 20  # lowered from 25 to save, speed things up
+  aug_params_filename: aug_hparams/real_val_rope.hjson
   full_retrain_classifier: false
   trials_per_iteration: 1
   trials_generator_type: random

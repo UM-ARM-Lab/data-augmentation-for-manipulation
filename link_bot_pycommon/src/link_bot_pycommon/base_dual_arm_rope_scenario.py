@@ -505,6 +505,9 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         scene_msg = inputs_aug['scene_msg']
         joint_names = to_list_of_strings(inputs_aug['joint_names'][0, 0].numpy().tolist())
+        print(batch_size)
+        from time import perf_counter
+        t0 = perf_counter()
         joint_positions_aug_, is_ik_valid = self.aug_ik_to_start(scene_msg=scene_msg,
                                                                  joint_names=joint_names,
                                                                  default_robot_positions=default_robot_positions,
@@ -512,6 +515,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                                                  right_target_position=right_gripper_points_aug[:, 0],
                                                                  ik_params=ik_params,
                                                                  batch_size=batch_size)
+        print('aug_ik::to_start', perf_counter() - t0)
         joint_positions_aug_start = joint_positions_aug_  # [b, n_joints]
 
         # then run the jacobian follower to compute the second new position
@@ -519,6 +523,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
         joint_positions_aug = []
         reached = []
+        t0 = perf_counter()
         for b in range(batch_size):
             scene_msg_b = scene_msg[b]
             joint_positions_aug_start_b = joint_positions_aug_start[b]
@@ -557,6 +562,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         reached = tf.stack(reached, axis=0)
         joint_positions_aug = tf.stack(joint_positions_aug, axis=0)
         is_ik_valid = tf.cast(tf.logical_and(is_ik_valid, reached), tf.float32)
+        print('aug_ik::to_end', perf_counter() - t0)
 
         joints_pos_k = add_predicted('joint_positions')
         inputs_aug.update({

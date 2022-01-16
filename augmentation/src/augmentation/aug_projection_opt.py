@@ -131,8 +131,6 @@ class AugProjOpt(BaseProjectOpt):
                        sdf_aug=obj_sdf_aug)
 
     def step(self, _: int, opt, obj_transforms: tf.Variable):
-        from time import perf_counter
-        t0 = perf_counter()
         s = self.aug_opt.scenario
         tape = tf.GradientTape()
 
@@ -195,8 +193,6 @@ class AugProjOpt(BaseProjectOpt):
         can_terminate = self.can_terminate(lr, gradients)
 
         x_out = tf.identity(obj_transforms)
-
-        print('aug_projection_opt::step ', perf_counter() - t0)
         return x_out, can_terminate, v
 
     def clip_env_aug_grad(self, gradients, variables):

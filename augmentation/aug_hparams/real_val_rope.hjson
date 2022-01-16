@@ -1,0 +1,17 @@
+{
+  augmentation: {
+    # misc
+    invariance_model: /media/shared/invariance_trials/relu/July_16_11-30-35_47c46e451e/best_checkpoint
+
+    # IK
+    rand_dist: 0.1
+    # I find that it either solves it on the first try or never solves it, so setting this low is probably ok
+    max_collision_check_attempts: 10
+
+    viz: {
+      scale: 0.01
+      arrows_scale: 1.0
+      min_delta_dist_grad_scale: 4.0
+    }
+  }
+}

@@ -247,7 +247,7 @@ class IterativeFineTuning:
             #  but a consistent random when the script is run multiple times
             recovery_seed = self.seed + i
 
-            filename = planning_results_dir / f"capture-{datetime.now().strftime('%b%d_%H-%M-%S')}.mp4"
+            filename = planning_results_dir / f"capture-{i:03d}-{datetime.now().strftime('%b%d_%H-%M-%S')}.mp4"
             self.service_provider.start_record_trial(filename.as_posix())
 
             runner = EvaluatePlanning(planner=self.planner,
