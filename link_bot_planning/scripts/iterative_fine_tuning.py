@@ -246,6 +246,10 @@ class IterativeFineTuning:
             # NOTE: this way "random" recovery is a different random at each iteration
             #  but a consistent random when the script is run multiple times
             recovery_seed = self.seed + i
+
+            filename = planning_results_dir / f"capture-{datetime.now().strftime('%b%d_%H-%M-%S')}.mp4"
+            self.service_provider.start_record_trial(filename.as_posix())
+
             runner = EvaluatePlanning(planner=self.planner,
                                       service_provider=self.service_provider,
                                       job_chunker=planning_chunker,
@@ -260,6 +264,8 @@ class IterativeFineTuning:
 
             deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)
             [p.suspend() for p in self.gazebo_processes]
+
+            self.service_provider.stop_record_trial()
 
         print(Fore.CYAN + f"Iteration {i}")
         return planning_results_dir
@@ -441,16 +447,11 @@ def main():
     rospy_and_cpp_init('ift')
 
     ift = IterativeFineTuning(args.outdir, on_exception=args.on_exception)
-    if ift.scenario.real:
-        filename = args.outdir / f"capture-{datetime.now().strftime('%b%d_%H-%M-%S')}.mp4"
-        ift.service_provider.start_record_trial(filename.as_posix())
 
     def _run():
         ift.run(n_iters=args.n_iters)
 
     def _exception_cb():
-        if ift.scenario.real:
-            ift.service_provider.stop_record_trial()
         ift.scenario.robot.disconnect()
         shutdown()
 

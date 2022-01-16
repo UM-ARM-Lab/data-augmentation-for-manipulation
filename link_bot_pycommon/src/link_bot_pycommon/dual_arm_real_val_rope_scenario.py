@@ -50,6 +50,10 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         except RuntimeError as e:
             print(e)
 
+        # NOTE sleeping because CDCPD is laggy.
+        #  We sleep here instead of in get_state because we only need to sleep after we've moved
+        rospy.sleep(6)
+
     def action_relative_to_fk(self, action, state):
         robot_state = self.get_robot_state.get_state()
         # so state gets the gripper positions via the mocap markers
@@ -88,9 +92,6 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         input("press enter to begin")
 
     def get_state(self):
-        # FIXME: seems like cdcpd is laggy, so delay here?
-        rospy.sleep(5)
-
         state = {}
         state.update(self.get_robot_state.get_state())
         state.update(self.get_cdcpd_state.get_state())

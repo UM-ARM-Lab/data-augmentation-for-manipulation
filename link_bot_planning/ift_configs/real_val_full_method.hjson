@@ -1,5 +1,5 @@
 {
-  n_augmentations: 25
+  n_augmentations: 20  # lowered from 25 to save, speed things up
   full_retrain_classifier: false
   trials_per_iteration: 1
   trials_generator_type: random

@@ -7,6 +7,12 @@
     /media/shared/cl_trials/gd_baseline/none
     /media/shared/cl_trials/new_feasibility_baseline/none
   ]
+  termination_criteria: {
+    # lower than sim to speed things up
+    total_timeout: 300
+    timeout: 300
+    attempted_extensions_threshold: 32
+  }
   recovery: {
     recovery_model_dir: /media/shared/recovery_trials/random/none
     use_recovery: true
