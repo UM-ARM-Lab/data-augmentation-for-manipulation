@@ -117,6 +117,8 @@ def generate_saved_goals(method: str,
 
         save(scenes_dir, trial_idx, goal)
 
+    scenario.robot.disconnect()
+
 
 def sketchy_default_params():
     params = {
@@ -157,6 +159,7 @@ def sketchy_default_params():
             'threshold': 0.045,
         }
     }
+    params['real_val_rope_reset_joint_config'] = params['reset_joint_config']
     return params
 
 
