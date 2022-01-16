@@ -85,7 +85,7 @@ class IterativeFineTuning:
         self.initial_classifier_checkpoint = lpf('initial_classifier_checkpoint', default_classifier_checkpoint)
         self.initial_recovery_checkpoint = pathify(self.job_chunker.load_prompt('initial_recovery_checkpoint', None))
         planner_params_filename = lpf('planner_params_filename', 'planner_configs/val_car/real_val.hjson')
-        self.test_scenes_dir = lpf('test_scenes_dir', 'test_scenes/real_val_car1')
+        self.test_scenes_dir = lpf('test_scenes_dir', 'test_scenes/real_val_car2')
         self.test_scenes_indices = int_setify(self.job_chunker.load_prompt('test_scenes_indices', None))
 
         # FIXME: what the heck is this if condition?

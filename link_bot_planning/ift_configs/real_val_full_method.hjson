@@ -29,6 +29,6 @@
     }
   }
   labeling_params_update: {
-    threshold: 0.1
+    threshold: 0.15
   }
 }
