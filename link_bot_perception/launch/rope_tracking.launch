@@ -9,10 +9,10 @@
     -->
     <param name="max_rope_length" value="0.82"/>
 
-    <node pkg="link_bot_perception" type="merge_pointclouds" name="merge_pointclouds"
+    <node pkg="link_bot_perception" type="merge_pointclouds" name="merge_pointclouds" output="screen"
           args="points1:=/kinect2_tripodA/qhd/points points2:=/kinect2_victor_head/qhd/points"/>
 
-<!--        <node pkg="cdcpd" type="cdcpd_node" name="cdcpd_node" respawn="false" output="screen" launch-prefix="gdb -ex start &#45;&#45;args">-->
+    <!--        <node pkg="cdcpd" type="cdcpd_node" name="cdcpd_node" respawn="false" output="screen" launch-prefix="gdb -ex start &#45;&#45;args">-->
     <node pkg="cdcpd" type="cdcpd_node" name="cdcpd_node" respawn="false" output="screen">
         <param name="kinect_channel" value="qhd"/>
         <param name="kinect_name" value="kinect2_tripodA"/>

@@ -40,29 +40,27 @@ int main(int argc, char *argv[]) {
 
     ros::NodeHandle nh;
     tf::TransformListener listener;
-    bool has_transform = false;
     Eigen::Isometry3d points2_to_points1;
 
     auto const pub = nh.advertise<sensor_msgs::PointCloud2>("merged_points", 1);
 
     auto callback = [&](const sensor_msgs::PointCloud2ConstPtr &points1_msg,
                         const sensor_msgs::PointCloud2ConstPtr &points2_msg) -> void {
-        if (not has_transform) {
-            tf::StampedTransform points2_to_points1_stamped;
-            try {
-                listener.lookupTransform(points1_msg->header.frame_id, points2_msg->header.frame_id, ros::Time(0),
-                                         points2_to_points1_stamped);
-                geometry_msgs::TransformStamped points2_to_points1_stamped_msg;
-                tf::transformStampedTFToMsg(points2_to_points1_stamped, points2_to_points1_stamped_msg);
-                points2_to_points1 = tf2::transformToEigen(points2_to_points1_stamped_msg);
-                ROS_DEBUG_STREAM_NAMED(LOGNAME, "2to1 transform: \n" << points2_to_points1.matrix());
-                has_transform = true;
-            }
-            catch (tf::TransformException const &ex) {
-                ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to lookup TF:" << ex.what());
-                return;
-            }
+        auto const t0 = ros::Time::now();
+        tf::StampedTransform points2_to_points1_stamped;
+        try {
+            listener.lookupTransform(points1_msg->header.frame_id, points2_msg->header.frame_id, ros::Time(0),
+                                     points2_to_points1_stamped);
+            geometry_msgs::TransformStamped points2_to_points1_stamped_msg;
+            tf::transformStampedTFToMsg(points2_to_points1_stamped, points2_to_points1_stamped_msg);
+            points2_to_points1 = tf2::transformToEigen(points2_to_points1_stamped_msg);
+            ROS_DEBUG_STREAM_NAMED(LOGNAME, "2to1 transform: \n" << points2_to_points1.matrix());
         }
+        catch (tf::TransformException const &ex) {
+            ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to lookup TF:" << ex.what());
+            return;
+        }
+        ROS_DEBUG_STREAM_NAMED(LOGNAME + ".perf", "time to get TF " << ros::Time::now() - t0);
 
         const auto start = ros::WallTime::now();
 
@@ -133,7 +131,7 @@ int main(int argc, char *argv[]) {
 
         const auto end = ros::WallTime::now();
         const auto execution_time = (end - start).toNSec() * 1e-6;
-        ROS_INFO_STREAM_NAMED(LOGNAME + ".dt", "dt (ms): " << execution_time);
+        ROS_INFO_STREAM_NAMED(LOGNAME + ".perf", "dt (ms): " << execution_time);
     };
 
     message_filters::Subscriber<sensor_msgs::PointCloud2> sub1(nh, "points1", 10);
