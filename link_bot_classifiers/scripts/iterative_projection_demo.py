@@ -13,7 +13,7 @@ class ProjectOpt(BaseProjectOpt):
     def make_opt(self):
         return tf.optimizers.Adam(0.05)
 
-    def step(self, _, opt, x_var: tf.Variable):
+    def project(self, _, opt, x_var: tf.Variable):
         variables = [x_var]
         with tf.GradientTape() as tape:
             loss = tf.square(x_var[1])

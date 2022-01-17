@@ -131,7 +131,7 @@ class AugProjOpt(BaseProjectOpt):
                        attract_repel_dpoint=attract_repel_dpoint,
                        sdf_aug=obj_sdf_aug)
 
-    def step(self, _: int, opt, obj_transforms: tf.Variable):
+    def project(self, _: int, opt, obj_transforms: tf.Variable):
         s = self.aug_opt.scenario
         tape = tf.GradientTape()
 

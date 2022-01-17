@@ -13,7 +13,7 @@ class BaseProjectOpt:
     def make_opt(self):
         return tf.optimizers.Adam()
 
-    def step(self, i: int, opt, x_var: tf.Variable):
+    def project(self, i: int, opt, x_var: tf.Variable):
         raise NotImplementedError()
 
 
@@ -28,6 +28,7 @@ def iterative_projection(initial_value,
                          not_progressing_threshold: float,
                          m_last=None,
                          ):
+    # in the paper x is $T$, the transformation we apply to the moved points
     x = initial_value
 
     if debug_aug():
@@ -53,7 +54,7 @@ def iterative_projection(initial_value,
 
         x_var = tf.Variable(x)
         for j in range(_m):
-            x, can_terminate, viz_vars = project_opt.step(j, opt, x_var)
+            x, can_terminate, viz_vars = project_opt.project(j, opt, x_var)
             if debug_aug():
                 viz_func(i, x, initial_value, target, viz_vars)
             if can_terminate:
