@@ -120,8 +120,11 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             # move to init positions
             self.robot.plan_to_joint_config("both_arms", reset_joint_dict)
 
-            input("Use the gamepad to close the left gripper, then press enter to begin")
-            print("done")
+            print("Use the gamepad to close the left gripper.")
+            while True:
+                k = input("Done? [y]")
+                if k in ['y', 'Y']:
+                    break
 
     def restore_from_bag_v2(self, service_provider: BaseServices, params: Dict, bagfile_name):
         service_provider.restore_from_bag(bagfile_name)
