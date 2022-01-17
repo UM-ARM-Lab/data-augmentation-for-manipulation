@@ -29,28 +29,28 @@
       rightgripper: -0.03259808570146561
  }
   extent: [
+    0.5
+    1.5
     -0.5
     0.5
-    0
-    1
     -0.4
-    1.0
+    1.1
   ]
   left_gripper_action_sample_extent: [
-    -0.5
-    0.0
-    0.2
-    1
-    -0.1
-    0.8
-  ]
-  right_gripper_action_sample_extent: [
+    0.5
+    1.0
     0.0
     0.5
-    0.2
-    1
-    -0.1
-    0.8
+    0.9
+    1.05
+  ]
+  right_gripper_action_sample_extent: [
+    0.5
+    1.0
+    -0.5
+    0.0
+    0.9
+    1.05
   ]
   res: 0.02
   max_step_size: 0.01

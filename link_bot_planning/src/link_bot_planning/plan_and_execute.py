@@ -51,7 +51,7 @@ def execute_actions(
 
         if plot:
             scenario.plot_environment_rviz(environment)
-            scenario.plot_state_rviz(before_state, label='actual')
+            scenario.plot_state_rviz(before_state, label='actual', color='pink')
             scenario.plot_executed_action(before_state, action)
 
         try:

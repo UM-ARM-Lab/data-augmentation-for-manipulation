@@ -69,6 +69,10 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             'left_gripper_position':  left_gripper_position_fk + left_gripper_delta_position,
             'right_gripper_position': right_gripper_position_fk + right_gripper_delta_position,
         }
+        self.tf.send_transform(action_fk['left_gripper_position'], [0, 0, 0, 1], parent=self.root_link,
+                               child='left_gripper_position_fk', is_static=True)
+        self.tf.send_transform(action_fk['right_gripper_position'], [0, 0, 0, 1], parent=self.root_link,
+                               child='right_gripper_position_fk', is_static=True)
         return action_fk
 
     def on_before_data_collection(self, params: Dict):
@@ -90,7 +94,11 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             print("Use the gamepad to close the left gripper")
 
         self.robot.speak("press enter to begin")
-        input("press enter to begin")
+        while True:
+            k = input("Ready to begin? [y]")
+            if k in ['y', 'Y']:
+                break
+        print("Done.")
 
     def get_state(self):
         state = {}

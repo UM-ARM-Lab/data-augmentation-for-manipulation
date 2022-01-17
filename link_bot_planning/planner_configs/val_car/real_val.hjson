@@ -9,8 +9,9 @@
   ]
   termination_criteria: {
     # lower than sim to speed things up
-    total_timeout: 600
-    timeout: 600
+    # FIXME: DEBUGGING!!!
+    total_timeout: 30
+    timeout: 30
     max_attempts: 4
     max_planning_attempts: 4
     attempted_extensions_threshold: 32
