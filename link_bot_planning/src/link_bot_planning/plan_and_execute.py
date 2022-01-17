@@ -117,7 +117,18 @@ class PlanAndExecute:
         self.extra_end_conditions = extra_end_conditions
         if has_keys(self.planner_params, ['recovery', 'use_recovery']):
             recovery_model_dir = pathlib.Path(self.planner_params['recovery']['recovery_model_dir'])
-            update_hparams = {'extent': self.planner_params['extent']}
+
+            update_hparams = {
+                'extent': self.planner_params['extent'],
+            }
+            left_gripper_action_sample_extent = has_keys(self.planner_params,
+                                                         ['recovery', 'left_gripper_action_sample_extent'])
+            if left_gripper_action_sample_extent:
+                update_hparams['left_gripper_action_sample_extent'] = left_gripper_action_sample_extent
+            right_gripper_action_sample_extent = has_keys(self.planner_params,
+                                                          ['recovery', 'right_gripper_action_sample_extent'])
+            if right_gripper_action_sample_extent:
+                update_hparams['right_gripper_action_sample_extent'] = right_gripper_action_sample_extent
             self.recovery_policy = recovery_policy_utils.load_generic_model(path=recovery_model_dir,
                                                                             scenario=self.scenario,
                                                                             rng=self.recovery_rng,

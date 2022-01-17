@@ -31,7 +31,8 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
         self.my_closed = -0.11
         self.get_joint_state = GetJointState(self.robot)
-        self.get_cdcpd_state = GetCdcpdState(self.tf)
+        self.root_link = self.robot.robot_commander.get_root_link()
+        self.get_cdcpd_state = GetCdcpdState(self.tf, self.root_link)
 
         self.reset_move_group = 'both_arms'
 
@@ -95,8 +96,8 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         state = {}
         state.update(self.get_robot_state.get_state())
         state.update(self.get_cdcpd_state.get_state())
-        state['left_gripper'] = self.tf.get_transform("world", "mocap_RightHand0_RightHand0")[:3, 3]
-        state['right_gripper'] = self.tf.get_transform("world", "mocap_Pelvis1_Pelvis1")[:3, 3]
+        state['left_gripper'] = self.tf.get_transform(self.root_link, "mocap_RightHand0_RightHand0")[:3, 3]
+        state['right_gripper'] = self.tf.get_transform(self.root_link, "mocap_Pelvis1_Pelvis1")[:3, 3]
 
         return state
 
@@ -126,7 +127,6 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         service_provider.restore_from_bag(bagfile_name)
 
         # reset
-        root = self.robot.robot_commander.get_root_link()
         self.robot.set_left_gripper(1.0)
         self.robot.plan_to_joint_config("both_arms", params['real_val_rope_reset_joint_config'])
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
@@ -154,8 +154,8 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             up_and_away_pose.position = ros_numpy.msgify(Point, up_and_away_position_root)
             up_and_away_pose.orientation = ros_numpy.msgify(Quaternion, right_tool_orientation)
 
-            self.tf.send_transform_from_pose_msg(rope_point_to_pre_grasp_pose, root, 'left_goal')
-            self.tf.send_transform_from_pose_msg(up_and_away_pose, root, 'right_goal')
+            self.tf.send_transform_from_pose_msg(rope_point_to_pre_grasp_pose, self.root_link, 'left_goal')
+            self.tf.send_transform_from_pose_msg(up_and_away_pose, self.root_link, 'right_goal')
 
             ik_sln = self.robot.jacobian_follower.compute_collision_free_pose_ik(robot_state,
                                                                                  [rope_point_to_pre_grasp_pose,
@@ -166,7 +166,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             self.robot.display_robot_state(ik_sln, 'ik_sln')
 
             right_ee_position_path_constraint = PositionConstraint()
-            right_ee_position_path_constraint.header.frame_id = 'robot_root'
+            right_ee_position_path_constraint.header.frame_id = self.root_link
             right_ee_position_path_constraint.link_name = 'right_tool'
             right_ee_position_path_constraint.target_point_offset = rope_point_to_pre_grasp_pose
 
@@ -187,7 +187,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             req.goal_constraints.append(joint_goal_constraints)
             #  - right tool maintains orientation the whole time
             right_ee_orientation_path_constraint = OrientationConstraint()
-            right_ee_orientation_path_constraint.header.frame_id = 'robot_root'
+            right_ee_orientation_path_constraint.header.frame_id = self.root_link
             right_ee_orientation_path_constraint.link_name = 'right_tool'
             right_ee_orientation_path_constraint.weight = 1.0
             right_ee_orientation_path_constraint.orientation = ros_numpy.msgify(Quaternion, left_tool_orientation)

@@ -51,6 +51,7 @@ class AugProjOpt(BaseProjectOpt):
         self.res_expanded2 = res[:, None, None]
         self.res_expanded3 = res[:, None, None, None]
         self.batch_size = batch_size
+        # NOTE: this extent must be in the same frame as the object points
         self.extent = extent
         self.obj_points = obj_points
         self.moved_mask = moved_mask
@@ -138,6 +139,7 @@ class AugProjOpt(BaseProjectOpt):
 
         with tape:
             invariance_loss = self.aug_opt.invariance_model_wrapper.evaluate(obj_transforms)  # [b, k_transforms]
+            # when the constant is larger, this kills the gradient
             invariance_loss = tf.maximum(self.hparams['invariance_threshold'], invariance_loss)
             invariance_loss = self.hparams['invariance_weight'] * invariance_loss
             invariance_loss = tf.reduce_mean(invariance_loss, axis=-1)  # [b]

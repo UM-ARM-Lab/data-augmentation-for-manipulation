@@ -41,13 +41,19 @@ class BaseServices:
         start_msg.record = True
         start_msg.filename = filename
         start_msg.timeout_in_sec = 600.0
-        self.record(start_msg)
+        try:
+            self.record(start_msg)
+        except rospy.ServiceException:
+            rospy.logerr("Recording failed!")
 
     def stop_record_trial(self):
         print("Stopping recording!")
         stop_msg = TriggerVideoRecordingRequest()
         stop_msg.record = False
-        self.record(stop_msg)
+        try:
+            self.record(stop_msg)
+        except rospy.ServiceException:
+            rospy.logerr("Recording failed!")
 
     def setup_env(self, verbose: int, real_time_rate: float, max_step_size: float):
         raise NotImplementedError()

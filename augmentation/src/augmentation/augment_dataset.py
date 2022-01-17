@@ -157,10 +157,7 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
 
         for k in range(n_augmentations):
             scenario.heartbeat()
-            from time import perf_counter
-            t0 = perf_counter()
             output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)
-            print('aug_opt::total', perf_counter() - t0)
             output['augmented_from'] = inputs['full_filename']
 
             if visualize:

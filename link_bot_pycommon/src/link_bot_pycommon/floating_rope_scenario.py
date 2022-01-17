@@ -96,7 +96,6 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         self.set_rope_state_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set_rope_state"), SetRopeState)
         self.reset_srv = rospy.ServiceProxy("/gazebo/reset_simulation", Empty)
 
-        self.get_cdcpd_state = Lazy(GetCdcpdState, self.tf, rope_key_name)
         self.get_links_states = Lazy(GetLinkStates)
 
         self.left_gripper_bbox_pub = rospy.Publisher('/left_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)

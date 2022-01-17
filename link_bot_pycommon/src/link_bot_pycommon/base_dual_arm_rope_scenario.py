@@ -123,7 +123,6 @@ def joint_positions_in_order(joint_names, robot_state_b):
 
 
 class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioMixin):
-    DISABLE_CDCPD = True
     ROPE_NAMESPACE = 'rope_3d'
 
     def __init__(self, robot_namespace: str):
@@ -207,14 +206,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         gt_rope_state_vector = self.get_gazebo_rope_state()
         gt_rope_state_vector = np.array(gt_rope_state_vector, np.float32)
 
-        if self.DISABLE_CDCPD:
-            cdcpd_rope_state_vector = gt_rope_state_vector
-        else:
-            cdcpd_rope_state_vector = self.get_cdcpd_state()
-
         state = {
-            'gt_rope': gt_rope_state_vector,
-            'rope':    cdcpd_rope_state_vector,
+            'rope':    gt_rope_state_vector,
         }
         state.update(self.get_robot_state.get_state())
 
@@ -270,10 +263,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         else:
             res = params["res"]
 
-        # Transform from hdt_michigan_root into base_link frame
-        extent_base = self.transform_extent_to_root(params)
-
-        voxel_grid_env = get_environment_for_extents_3d(extent=extent_base,
+        voxel_grid_env = get_environment_for_extents_3d(extent=params['extent'],
                                                         res=res,
                                                         service_provider=self.service_provider,
                                                         excluded_models=self.get_excluded_models_for_env())
@@ -290,18 +280,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         env.update(MoveitPlanningSceneScenarioMixin.get_environment(self))
 
         return env
-
-    def transform_extent_to_root(self, params):
-        extent_hdt_michigan_root = np.array(params['extent'])
-        extent_low_hdt_michigan_root = extent_hdt_michigan_root[0::2]
-        extent_1_base = self.point_to_root(extent_low_hdt_michigan_root, 'hdt_michigan_root')
-        extent_high_hdt_michigan_root = extent_hdt_michigan_root[1::2]
-        extent_2_base = self.point_to_root(extent_high_hdt_michigan_root, 'hdt_michigan_root')
-        # this min/stack ensures the low is actually lower, because transforming might not preserve that
-        extent_low_base = np.minimum(extent_1_base, extent_2_base)
-        extent_high_base = np.maximum(extent_1_base, extent_2_base)
-        extent_base = np.stack([extent_low_base, extent_high_base], axis=1).flatten()
-        return extent_base
 
     def base_link_frame(self):
         return self.robot.robot_commander.get_root_link()
@@ -505,9 +483,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         scene_msg = inputs_aug['scene_msg']
         joint_names = to_list_of_strings(inputs_aug['joint_names'][0, 0].numpy().tolist())
-        print(batch_size)
-        from time import perf_counter
-        t0 = perf_counter()
         joint_positions_aug_, is_ik_valid = self.aug_ik_to_start(scene_msg=scene_msg,
                                                                  joint_names=joint_names,
                                                                  default_robot_positions=default_robot_positions,
@@ -515,7 +490,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
                                                                  right_target_position=right_gripper_points_aug[:, 0],
                                                                  ik_params=ik_params,
                                                                  batch_size=batch_size)
-        print('aug_ik::to_start', perf_counter() - t0)
         joint_positions_aug_start = joint_positions_aug_  # [b, n_joints]
 
         # then run the jacobian follower to compute the second new position
@@ -523,7 +497,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         preferred_tool_orientations = self.get_preferred_tool_orientations(tool_names)
         joint_positions_aug = []
         reached = []
-        t0 = perf_counter()
         for b in range(batch_size):
             scene_msg_b = scene_msg[b]
             joint_positions_aug_start_b = joint_positions_aug_start[b]
@@ -562,7 +535,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         reached = tf.stack(reached, axis=0)
         joint_positions_aug = tf.stack(joint_positions_aug, axis=0)
         is_ik_valid = tf.cast(tf.logical_and(is_ik_valid, reached), tf.float32)
-        print('aug_ik::to_end', perf_counter() - t0)
 
         joints_pos_k = add_predicted('joint_positions')
         inputs_aug.update({
