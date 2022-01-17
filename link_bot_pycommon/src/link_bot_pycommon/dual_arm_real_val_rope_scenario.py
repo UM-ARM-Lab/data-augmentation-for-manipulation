@@ -125,6 +125,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
                 k = input("Done? [y]")
                 if k in ['y', 'Y']:
                     break
+            print("Done.")
 
     def restore_from_bag_v2(self, service_provider: BaseServices, params: Dict, bagfile_name):
         service_provider.restore_from_bag(bagfile_name)

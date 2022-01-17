@@ -185,7 +185,7 @@ class ModelRunner:
         train_full_metrics_results = {k: m.result() for k, m in train_full_metrics.items()}
         if 'termination_criteria' in self.params:
             for k, v in self.params['termination_criteria'].items():
-                print(k, train_full_metrics_results[k].numpy(), v)
+                print(f"{k} {train_full_metrics_results[k].numpy():.4f} {v:.4f}")
                 if train_full_metrics_results[k] > v:
                     done = True
                     break
