@@ -23,11 +23,14 @@
         <param name="right_tf_name" value="mocap_right_tool"/>
         <param name="use_gripper_constraints" value="true"/>
         <param name="obstacle_cost_weight" value="0.01"/>
-        <param name="fixed_points_weight" value="1.0"/>
+        <param name="fixed_points_weight" value="10.0"/>
         <param name="min_distance_threshold" value="0.01"/>
         <param name="lambda" value="1.0"/>
         <param name="left_node_idx" value="0"/>
         <param name="right_node_idx" value="24"/>
         <param name="moveit_enabled" value="true"/>
     </node>
+
+    <node pkg="link_bot_perception" type="rope_endpoint_tf.py" name="rope_endpoint_tf"/>
 </launch>
+
