@@ -33,7 +33,7 @@ class GetDualArmRobotState:
     def _gripper(self, robot_state, name):
         while True:
             gripper = self.robot.jacobian_follower.fk(robot_state, f"{name}_tool")
-            gripper_root = self.robot.tf_wrapper.transform_to_frame(gripper, "hdt_michigan_root")
+            gripper_root = self.robot.tf_wrapper.transform_to_frame(gripper, self.robot.robot_commander.get_root_link())
             gripper_root = ros_numpy.numpify(gripper_root.pose.position).astype(np.float32)
             if not np.any(np.abs(gripper_root) > 1e6):
                 return gripper_root

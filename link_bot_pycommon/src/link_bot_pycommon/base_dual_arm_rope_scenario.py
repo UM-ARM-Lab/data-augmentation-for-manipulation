@@ -328,7 +328,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         desired_tool_positions = [action['left_gripper_position'], action['right_gripper_position']]
         pred_tool_positions = self.robot.jacobian_follower.get_tool_positions(tool_names, predicted_robot_state)
         for pred_tool_position, desired_tool_position in zip(pred_tool_positions, desired_tool_positions):
-            desired_tool_position_root = self.point_to_root(desired_tool_position, 'hdt_michigan_root')
+            desired_tool_position_root = desired_tool_position
             reached = np.allclose(desired_tool_position_root, pred_tool_position, atol=5e-3)
             if not reached:
                 return False
@@ -354,8 +354,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             joint_names = [joint_names_t]
             for t in range(input_sequence_length):
                 # Transform into the right frame
-                left_gripper_point = self.point_to_root(example['left_gripper_position'][b, t], 'hdt_michigan_root')
-                right_gripper_point = self.point_to_root(example['right_gripper_position'][b, t], 'hdt_michigan_root')
+                left_gripper_point = example['left_gripper_position'][b, t]
+                right_gripper_point = example['right_gripper_position'][b, t]
                 grippers = [[left_gripper_point], [right_gripper_point]]
 
                 joint_state_b_t = make_joint_state(pred_joint_positions_t, to_list_of_strings(joint_names_t))
@@ -439,8 +439,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             scene_msg_b.robot_state.joint_state.position = default_robot_positions[b].numpy().tolist()
             scene_msg_b.robot_state.joint_state.name = joint_names
 
-            left_target_position_b = self.point_to_root(left_target_position[b], 'hdt_michigan_root')
-            right_target_position_b = self.point_to_root(right_target_position[b], 'hdt_michigan_root')
+            left_target_position_b = left_target_position[b]
+            right_target_position_b = right_target_position[b]
             points_b = [Point(*left_target_position_b), Point(*right_target_position_b)]
 
             robot_state_b = self.robot.jacobian_follower.compute_collision_free_point_ik(default_robot_state_b,
@@ -504,8 +504,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             empty_scene_msg_b, start_robot_state_b = merge_joint_state_and_scene_msg(scene_msg_b,
                                                                                      start_joint_state_b)
 
-            left_gripper_point_aug_b_end = self.point_to_root(left_gripper_points_aug[b, 1], 'hdt_michigan_root')
-            right_gripper_point_aug_b_end = self.point_to_root(right_gripper_points_aug[b, 1], 'hdt_michigan_root')
+            left_gripper_point_aug_b_end = left_gripper_points_aug[b, 1]
+            right_gripper_point_aug_b_end = right_gripper_points_aug[b, 1]
             grippers_end_b = [[left_gripper_point_aug_b_end], [right_gripper_point_aug_b_end]]
 
             plan_to_end, reached_end_b = self.robot.jacobian_follower.plan(
@@ -615,6 +615,3 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         nested_dict_update(out_hparams, update)
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
-
-    def point_to_root(self, point, src: str):
-        return point_to_root(self.robot, self.tf, point, src)

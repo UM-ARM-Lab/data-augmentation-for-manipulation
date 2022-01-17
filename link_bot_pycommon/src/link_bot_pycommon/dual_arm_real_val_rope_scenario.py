@@ -144,12 +144,12 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
             # go a little past...
             rope_point_to_pre_grasp = rope_point_to_pre_grasp + np.array([0.08, 0.08, 0.05])
-            rope_point_to_pre_grasp_root = self.point_to_root(rope_point_to_pre_grasp, 'hdt_michigan_root')
+            rope_point_to_pre_grasp_root = rope_point_to_pre_grasp
             rope_point_to_pre_grasp_pose = Pose()
             rope_point_to_pre_grasp_pose.position = ros_numpy.msgify(Point, rope_point_to_pre_grasp_root)
             rope_point_to_pre_grasp_pose.orientation = ros_numpy.msgify(Quaternion, left_tool_orientation)
 
-            up_and_away_position_root = self.point_to_root(up_and_away_position, 'hdt_michigan_root')
+            up_and_away_position_root = up_and_away_position
             up_and_away_pose = Pose()
             up_and_away_pose.position = ros_numpy.msgify(Point, up_and_away_position_root)
             up_and_away_pose.orientation = ros_numpy.msgify(Quaternion, right_tool_orientation)

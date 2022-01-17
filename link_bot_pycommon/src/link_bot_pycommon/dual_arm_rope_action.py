@@ -6,7 +6,6 @@ import rospy
 from actionlib_msgs.msg import GoalStatus
 from arc_utilities.tf2wrapper import TF2Wrapper
 from link_bot_pycommon.base_dual_arm_rope_scenario import joint_state_msg_from_state_dict
-from link_bot_pycommon.point_to_robot import point_to_root
 from peter_msgs.srv import GetOverstretching, GetOverstretchingResponse, GetOverstretchingRequest
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState
@@ -27,8 +26,8 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot,
 
     start_left_gripper_pos, start_right_gripper_pos = robot.get_gripper_positions()
 
-    left_gripper_point = point_to_root(robot, tf_wrapper, action['left_gripper_position'], 'hdt_michigan_root')
-    right_gripper_point = point_to_root(robot, tf_wrapper, action['right_gripper_position'], 'hdt_michigan_root')
+    left_gripper_point = action['left_gripper_position']
+    right_gripper_point = action['right_gripper_position']
     grippers = [[left_gripper_point], [right_gripper_point]]
 
     if check_overstretching:

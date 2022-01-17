@@ -70,7 +70,7 @@ class IterativeFineTuning:
         self.no_execution = no_execution
         self.on_exception = on_exception
         self.log_full_tree = False
-        self.verbose = 2
+        self.verbose = -1
 
         logfile_name = outdir / 'logfile.hjson'
         self.outdir.mkdir(exist_ok=True, parents=True)
