@@ -105,9 +105,11 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         state.update(self.get_robot_state.get_state())
         state.update(self.get_cdcpd_state.get_state())
         # I'm pretty sure that specifying time as now() is necessary to ensure we get the absolute latest transform
-        state['left_gripper'] = self.tf.get_transform(self.root_link, "mocap_RightHand0_RightHand0",
+        left_gripper_mocap = "mocap_RightHand0_RightHand0"
+        right_gripper_mocap = "mocap_Pelvis1_Pelvis1"
+        state['left_gripper'] = self.tf.get_transform(self.root_link, left_gripper_mocap,
                                                       time=rospy.Time.now())[:3, 3]
-        state['right_gripper'] = self.tf.get_transform(self.root_link, "mocap_Pelvis1_Pelvis1", time=rospy.Time.now())[
+        state['right_gripper'] = self.tf.get_transform(self.root_link, right_gripper_mocap, time=rospy.Time.now())[
                                  :3, 3]
 
         return state

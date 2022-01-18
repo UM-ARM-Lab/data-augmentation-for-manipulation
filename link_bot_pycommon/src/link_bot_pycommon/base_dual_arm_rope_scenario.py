@@ -615,3 +615,14 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         nested_dict_update(out_hparams, update)
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
+
+    def simple_noise(self, rng: np.random.RandomState, example, k: str, v, noise_params):
+        mean = 0
+        if k in noise_params:
+            std = noise_params[k]
+            noise = rng.randn(*v.shape) * std + mean
+            v_out = v + noise
+        else:
+            v_out = v
+        return v_out
+

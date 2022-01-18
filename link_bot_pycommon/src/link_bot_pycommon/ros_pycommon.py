@@ -42,7 +42,7 @@ def get_camera_params(camera_name: str):
 
 def transform_points_to_robot_frame(tf: TF2Wrapper, cdcpd_msg: PointCloud2, robot_frame_id: str = 'robot_root'):
     """ transform into robot-frame """
-    transform = tf.get_transform_msg(robot_frame_id, cdcpd_msg.header.frame_id, time=rospy.Time(0))
+    transform = tf.get_transform_msg(robot_frame_id, cdcpd_msg.header.frame_id, time=rospy.Time.now())
     cdcpd_points_robot_frame = tf2_sensor_msgs.do_transform_cloud(cdcpd_msg, transform)
     cdcpd_points_array = ros_numpy.numpify(cdcpd_points_robot_frame)
     x = cdcpd_points_array['x']
