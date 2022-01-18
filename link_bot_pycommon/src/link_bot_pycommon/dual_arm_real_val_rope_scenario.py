@@ -125,8 +125,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         near_start = np.max(np.abs(reset_joint_config - current_joint_positions)) < 0.02
         grippers_are_closed = self.robot.is_left_gripper_closed() and self.robot.is_right_gripper_closed()
         if not near_start or not grippers_are_closed:
-            # open gripper
-            self.robot.set_left_gripper(1.0)
+            self.robot.set_left_gripper(0.1)
 
             # move to init positions
             self.robot.plan_to_joint_config("both_arms", reset_joint_dict)

@@ -22,7 +22,7 @@
         <param name="left_tf_name" value="mocap_left_tool"/>
         <param name="right_tf_name" value="mocap_right_tool"/>
         <param name="use_gripper_constraints" value="true"/>
-        <param name="obstacle_cost_weight" value="0.01"/>
+        <param name="obstacle_cost_weight" value="0.02"/>
         <param name="fixed_points_weight" value="10.0"/>
         <param name="min_distance_threshold" value="0.01"/>
         <param name="lambda" value="1.0"/>
