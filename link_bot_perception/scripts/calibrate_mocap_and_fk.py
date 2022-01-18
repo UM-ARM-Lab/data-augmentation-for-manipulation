@@ -32,8 +32,11 @@ def main():
         (np.array([0.9, 0.2, 0.7]), np.array([0.9, -0.25, 0.7])),
     ]
     calibrated_transforms = []
+    mocap2base_markers_list = []
     for left_target, right_target in targets:
         mocap2base_markers = tf.get_transform('mocap_world', 'mocap_val_root_val_root', time=rospy.Time.now())
+        mocap2base_markers_list.append(mocap2base_markers)
+
         joint_state = val.get_state('both_arms')
         joint_angles = joint_state.joint_state.position
         joint_names = joint_state.joint_state.name
@@ -57,10 +60,13 @@ def main():
         # move to next pose
         val.follow_jacobian_to_position('both_arms', tool_names, [[left_target], [right_target]])
 
-    print(np.mean(calibrated_transforms))
-    clibrated_mocap_to_base = mocap2base_markers @ np.mean(calibrated_transforms)
-    print(np.rad2deg(transformations.euler_from_matrix(clibrated_mocap_to_base)))
-    print(transformations.translation_from_matrix(clibrated_mocap_to_base) * 1000)
+        rospy.sleep(5)
+
+    # yes I know averaging transformation matrices is a bad idea but whatever it's fine
+    mean_calibrated_transform = np.mean(calibrated_transforms, axis=0)
+    p = np.concatenate((transformations.translation_from_matrix(mean_calibrated_transform), transformations.euler_from_matrix(mean_calibrated_transform)))
+    print("Use this in mocap_to_val_static_transform.launch")
+    print(p)
 
     val.disconnect()
 
