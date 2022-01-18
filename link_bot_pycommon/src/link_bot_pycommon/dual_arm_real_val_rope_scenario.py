@@ -107,10 +107,8 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         # I'm pretty sure that specifying time as now() is necessary to ensure we get the absolute latest transform
         left_gripper_mocap = "mocap_RightHand0_RightHand0"
         right_gripper_mocap = "mocap_Pelvis1_Pelvis1"
-        state['left_gripper'] = self.tf.get_transform(self.root_link, left_gripper_mocap,
-                                                      time=rospy.Time.now())[:3, 3]
-        state['right_gripper'] = self.tf.get_transform(self.root_link, right_gripper_mocap, time=rospy.Time.now())[
-                                 :3, 3]
+        state['left_gripper'] = self.tf.get_transform(self.root_link, left_gripper_mocap)[:3, 3]
+        state['right_gripper'] = self.tf.get_transform(self.root_link, right_gripper_mocap)[:3, 3]
 
         return state
 
@@ -149,7 +147,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         tool_names = [self.robot.left_tool_name, self.robot.right_tool_name]
         left_tool_orientation = self.robot.stored_tool_orientations['left_tool']
         right_tool_orientation = self.robot.stored_tool_orientations['right_tool']
-        up_and_away_position = self.tf.get_transform("world", "mocap_right_tool", time=rospy.Time.now())[:3, 3]
+        up_and_away_position = self.tf.get_transform("world", "mocap_right_tool")[:3, 3]
 
         robot_state = self.robot.get_state()
         scene_msg = rospy.wait_for_message(ns_join(self.robot_namespace, 'planning_scene'), PlanningScene)

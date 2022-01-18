@@ -34,18 +34,18 @@ def main():
     calibrated_transforms = []
     mocap2base_markers_list = []
     for left_target, right_target in targets:
-        mocap2base_markers = tf.get_transform('mocap_world', 'mocap_val_root_val_root', time=rospy.Time.now())
+        mocap2base_markers = tf.get_transform('mocap_world', 'mocap_val_root_val_root')
         mocap2base_markers_list.append(mocap2base_markers)
 
         joint_state = val.get_state('both_arms')
         joint_angles = joint_state.joint_state.position
         joint_names = joint_state.joint_state.name
 
-        mocap2left_tool = tf.get_transform('mocap_world', 'left_tool', time=rospy.Time.now())
+        mocap2left_tool = tf.get_transform('mocap_world', 'left_tool')
         base_fk_to_left_tool = numpify(
             PoseToTransform(val.jacobian_follower.fk(joint_angles, joint_names, 'left_tool').pose))
 
-        mocap2right_tool = tf.get_transform('mocap_world', 'right_tool', time=rospy.Time.now())
+        mocap2right_tool = tf.get_transform('mocap_world', 'right_tool')
         base_fk_to_right_tool = numpify(
             PoseToTransform(val.jacobian_follower.fk(joint_angles, joint_names, 'right_tool').pose))
 
