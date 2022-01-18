@@ -31,6 +31,6 @@
         <param name="moveit_enabled" value="true"/>
     </node>
 
-    <node pkg="link_bot_perception" type="rope_endpoint_tf.py" name="rope_endpoint_tf"/>
+    <node pkg="link_bot_perception" type="rope_endpoint_tf.py" name="rope_endpoint_tf" required="true"/>
 </launch>
 
