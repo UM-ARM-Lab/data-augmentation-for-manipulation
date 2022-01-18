@@ -70,7 +70,7 @@ class IterativeFineTuning:
         self.no_execution = no_execution
         self.on_exception = on_exception
         self.log_full_tree = False
-        self.verbose = 2
+        self.verbose = -1
 
         logfile_name = outdir / 'logfile.hjson'
         self.outdir.mkdir(exist_ok=True, parents=True)
@@ -247,15 +247,13 @@ class IterativeFineTuning:
             #  but a consistent random when the script is run multiple times
             recovery_seed = self.seed + i
 
-            filename = planning_results_dir / f"capture-{i:03d}-{datetime.now().strftime('%b%d_%H-%M-%S')}.mp4"
-            self.service_provider.start_record_trial(filename.as_posix())
-
             runner = EvaluatePlanning(planner=self.planner,
                                       service_provider=self.service_provider,
                                       job_chunker=planning_chunker,
                                       verbose=self.verbose,
                                       planner_params=planner_params,
                                       outdir=planning_results_dir,
+                                      record=True,
                                       trials=trials,
                                       test_scenes_dir=self.test_scenes_dir,
                                       seed=self.seed,
@@ -264,8 +262,6 @@ class IterativeFineTuning:
 
             deal_with_exceptions(how_to_handle=self.on_exception, function=runner.run)
             [p.suspend() for p in self.gazebo_processes]
-
-            self.service_provider.stop_record_trial()
 
         print(Fore.CYAN + f"Iteration {i}")
         return planning_results_dir

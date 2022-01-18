@@ -97,16 +97,12 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
 
     def on_start_trial(self, trial_idx: int):
         if self.record:
-            filename = self.outdir.absolute() / 'plan-{}.avi'.format(trial_idx)
+            filename = self.outdir.absolute() / f"trial{trial_idx:04d}.avi"
             self.service_provider.start_record_trial(str(filename))
-            bagname = self.outdir.absolute() / f"follow_joint_trajectory_goal_{trial_idx}.bag"
-            rospy.loginfo(Fore.YELLOW + f"Saving bag file name: {bagname.as_posix()}")
-            self.bag = rosbag.Bag(bagname, 'w')
 
     def follow_joint_trajectory_goal_callback(self, goal_msg):
         if self.record:
-            self.bag.write('/both_arms_controller/follow_joint_trajectory/goal', goal_msg)
-            self.bag.flush()
+            self.service_provider.stop_record_trial()
 
     def on_trial_complete(self, trial_data: Dict, trial_idx: int):
         extra_trial_data = {
