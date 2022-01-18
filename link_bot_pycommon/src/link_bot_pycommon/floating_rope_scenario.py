@@ -197,7 +197,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         kinect_pose = get_gazebo_kinect_pose()
         kinect_params = get_camera_params(self.KINECT_NAME)
         metadata.update({
-            'world_to_rgb_optical_frame': self.tf.get_transform(parent='world', child='kinect2_rgb_optical_frame'),
+            'world_to_rgb_optical_frame': self.tf.get_transform(parent='world', child='kinect2_rgb_optical_frame',
+                                                                time=rospy.Time.now()),
             'kinect_pose':                ros_numpy.numpify(kinect_pose),
             'kinect_params':              kinect_params,
         })

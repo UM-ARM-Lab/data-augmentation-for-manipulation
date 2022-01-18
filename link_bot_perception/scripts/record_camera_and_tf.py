@@ -33,7 +33,7 @@ def main():
     def callback(img_msg: ImageMsg):
         nonlocal idx
         idx += 1
-        mocap_transform = tf.get_transform(parent=args.parent, child=args.child)
+        mocap_transform = tf.get_transform(parent=args.parent, child=args.child, time=rospy.Time.now())
 
         img_filename = root_dir / 'images' / f'frame{idx}.png'
         transform_filename = root_dir / 'transforms' / f'transform{idx}.txt'

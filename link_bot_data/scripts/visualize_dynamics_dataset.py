@@ -31,7 +31,7 @@ def main():
     dataset = dataset.skip(args.skip).shard(args.shard)
 
     # print info about shapes
-    # dataset.pprint_example()
+    dataset.pprint_example()
 
     s = dataset_loader.get_scenario()
     for i, example in enumerate(progressbar(dataset, widgets=mywidgets)):

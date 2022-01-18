@@ -21,12 +21,14 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset, example: Dict):
-        keys = ['error', 'transform']
-        out = {}
-        for k in keys:
-            if k in example:
-                out[k] = example[k]
-        yield out
+        example.pop('env')
+        example.pop('origin_point')
+        example.pop('res')
+        example.pop('extent')
+        example.pop('sdf')
+        example.pop('sdf_grad')
+        example.pop('scene_msg')
+        yield example
 
     hparams_update = {}
 
@@ -38,6 +40,7 @@ def main():
                     hparams_update=hparams_update,
                     save_format=args.save_format)
     split_dataset_via_files(outdir, 'pkl')
+    print(outdir)
 
 
 if __name__ == '__main__':

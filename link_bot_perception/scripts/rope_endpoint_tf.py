@@ -22,7 +22,7 @@ def main():
 def _rope_endpoint_tf(tf, d, mocap_gripper_frame, rope_endpoint_frame):
     zero_q = [0, 0, 0, 1]
     zero_t = [0, 0, 0]
-    mocap_to_world = tf.get_transform(parent='world', child=mocap_gripper_frame)
+    mocap_to_world = tf.get_transform(parent='world', child=mocap_gripper_frame, time=rospy.Time.now())
     world_orientation = t.quaternion_inverse(t.quaternion_from_matrix(mocap_to_world))
     tf.send_transform(zero_t, world_orientation,
                       parent=mocap_gripper_frame,

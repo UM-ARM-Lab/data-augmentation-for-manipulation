@@ -87,7 +87,7 @@ def main():
                 pc_points.append(im_point_kinect_frame)
                 mocap_points_in_mocap_world.append(point_mocap_frame)
 
-        kinect2mocap_original = tf.get_transform(mocap_world_frame, args.kinect_tf_name)
+        kinect2mocap_original = tf.get_transform(mocap_world_frame, args.kinect_tf_name, time=rospy.Time.now())
         with open("calib.npz", 'wb') as file:
             np.savez(file, mocap_points=mocap_points_in_mocap_world, pc_points=pc_points,
                      mocap_to_kinect_original=kinect2mocap_original)
