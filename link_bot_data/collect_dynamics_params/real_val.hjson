@@ -34,7 +34,7 @@
     -0.5
     0.5
     -0.4
-    1.1
+    1.2
   ]
   left_gripper_action_sample_extent: [
     0.5
@@ -42,7 +42,7 @@
     0.0
     0.5
     0.9
-    1.05
+    1.15
   ]
   right_gripper_action_sample_extent: [
     0.5
@@ -50,7 +50,7 @@
     -0.5
     0.0
     0.9
-    1.05
+    1.15
   ]
   res: 0.02
   max_step_size: 0.01
