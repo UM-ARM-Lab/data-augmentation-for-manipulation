@@ -6,7 +6,6 @@ from deprecated import deprecated
 
 import ros_numpy
 import rospy
-from geometry_msgs.msg import TransformStamped
 from moonshine.moonshine_utils import swap_xy
 from moonshine.numpify import numpify
 from rviz_voxelgrid_visuals import conversions
@@ -305,23 +304,11 @@ def send_voxelgrid_tf_origin_point_res(broadcaster,
                                        res,
                                        child_frame_id: str = 'vg',
                                        parent_frame_id: str = 'world'):
-    transform = TransformStamped()
-    transform.header.stamp = rospy.Time.now()
-    transform.header.frame_id = parent_frame_id
-    transform.child_frame_id = child_frame_id
-
     origin_xyz = origin_point - (res / 2)
     origin_xyz = numpify(origin_xyz)
     # the rviz plugin displays the boxes with the corner at the given translation, not the center
     # but the origin_point is at the center, so this offsets things correctly
-    transform.transform.translation.x = origin_xyz[0]
-    transform.transform.translation.y = origin_xyz[1]
-    transform.transform.translation.z = origin_xyz[2]
-    transform.transform.rotation.x = 0
-    transform.transform.rotation.y = 0
-    transform.transform.rotation.z = 0
-    transform.transform.rotation.w = 1
-    broadcaster.sendTransform(transform)
+    broadcaster.sendTransform(origin_xyz, [0, 0, 0, 1], rospy.Time.now(), parent=parent_frame_id, child=child_frame_id)
 
 
 def compute_extent(rows: int,

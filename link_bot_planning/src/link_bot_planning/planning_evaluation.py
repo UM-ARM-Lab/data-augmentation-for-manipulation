@@ -97,6 +97,7 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
 
     def on_start_trial(self, trial_idx: int):
         if self.record:
+            self.service_provider.stop_record_trial()
             filename = self.outdir.absolute() / f"trial{trial_idx:04d}.avi"
             self.service_provider.start_record_trial(str(filename))
 
@@ -120,7 +121,6 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             # TODO: maybe make this happen async?
             sleep(1)
             self.service_provider.stop_record_trial()
-            self.bag.close()
 
         # print some useful information
         goal = trial_data['planning_queries'][0].goal
