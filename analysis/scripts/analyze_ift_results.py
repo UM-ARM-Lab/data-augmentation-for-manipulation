@@ -9,7 +9,8 @@ import seaborn as sns
 from analysis.analyze_results import planning_results
 from analysis.results_figures import lineplot
 from arc_utilities import ros_init
-from link_bot_pycommon.pandas_utils import rlast
+from link_bot_pycommon.metric_utils import dict_to_pvalue_table
+from link_bot_pycommon.pandas_utils import rlast, df_where
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -34,10 +35,10 @@ def metrics_main(args):
     # compute rolling average per run
 
     method_name_map = {
-        '/media/shared/ift/small-hooks-diverse-aug':    'Augmentation (full method)',
-        '/media/shared/ift/small-hooks-diverse-no-aug': 'No Augmentation (baseline)',
-        '/media/shared/ift_ablations/no_occupancy':     'Augmentation (No Occupancy)',
-        '/media/shared/ift_ablations/no_invariance': 'Augmentation (No Invariance)',
+        '/media/shared/ift/small-hooks-diverse-aug':     'Augmentation (full method)',
+        '/media/shared/ift/small-hooks-diverse-no-aug':  'No Augmentation (baseline)',
+        '/media/shared/ift_ablations/no_occupancy':      'Augmentation (No Occupancy)',
+        '/media/shared/ift_ablations/no_invariance':     'Augmentation (No Invariance)',
         '/media/shared/ift_ablations/no_delta_min_dist': 'Augmentation (No Delta Min Dist)',
         '/media/shared/ift_ablations/no_min_delta_dist': 'Augmentation (No Delta Min Dist)',
     }
@@ -72,6 +73,9 @@ def metrics_main(args):
             method_name_values.append(method_name_map[k])
     df_r['method_name'] = method_name_values
 
+    pvalues_at_iter(df_r, method_name_values, 99)
+    pvalues_at_iter(df_r, method_name_values, 50)
+
     # fig, ax = lineplot(df, iter_key, 'success', 'Success', hue='used_augmentation')
     # ax.set_xlim(-0.01, x_max)
     # ax.set_ylim(-0.01, 1.01)
@@ -83,7 +87,7 @@ def metrics_main(args):
     ax.set_ylim(-0.01, 1.01)
     # ax.axhline(0.8125, color='black', linewidth=4, label='heuristic classifier')
     ax.legend()
-    plt.savefig(outdir / f'success_rate_rolling.png')
+    plt.savefig(outdir / f'success_rate_rolling.png', dpi=180)
 
     # fig, ax = lineplot(df, iter_key, 'any_solved', 'Any Solved', hue='used_augmentation')
     # plt.savefig(outdir / f'any_solved.png')
@@ -132,6 +136,17 @@ def metrics_main(args):
 
     if not args.no_plot:
         plt.show()
+
+
+def pvalues_at_iter(df_r, method_name_values, ift_iter):
+    final_metrics = df_where(df_r, 'ift_iteration', ift_iter)
+    final_success_dict = {}
+    for n in np.unique(method_name_values):
+        if n == 'nan':
+            continue
+        success_rates = final_metrics.loc[final_metrics['method_name'] == n]['success'].values
+        final_success_dict[n] = success_rates
+    print(dict_to_pvalue_table(final_success_dict))
 
 
 @ros_init.with_ros("analyse_ift_results")

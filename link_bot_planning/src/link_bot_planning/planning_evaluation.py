@@ -99,6 +99,7 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
         if self.record:
             self.service_provider.stop_record_trial()
             filename = pathlib.Path('/media/shared/captures') / self.outdir / f"trial{trial_idx:04d}.avi"
+            filename.parent.mkdir(exist_ok=True, parents=True)
             self.service_provider.start_record_trial(str(filename))
 
     def follow_joint_trajectory_goal_callback(self, goal_msg):
