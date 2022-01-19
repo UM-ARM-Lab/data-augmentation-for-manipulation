@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 import pathlib
 
-import numpy as np
-
 from arc_utilities import ros_init
+from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson
 
@@ -12,11 +11,12 @@ from moonshine.filepath_tools import load_hjson
 def main():
     s = get_scenario("real_val_with_robot_feasibility_checking")
     s.on_before_get_state_or_execute_action()
-    env_rng = np.random.RandomState(0)
 
     params = load_hjson(pathlib.Path("../link_bot_planning/planner_configs/val_car/common.hjson"))
 
-    s.randomize_environment(env_rng, params)
+    services = BaseServices()
+    bagfile_name = 'test_scenes/real_val_car2/scene_0000.bag'
+    s.restore_from_bag(services, params, bagfile_name)
 
     s.robot.disconnect()
 

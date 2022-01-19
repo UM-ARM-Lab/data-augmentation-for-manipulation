@@ -984,52 +984,6 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         return obj_points
 
-    @staticmethod
-    def tinv_sample_transform(rng, scaling, a=0.25):
-        lower = np.array([-a, -a, -a, -np.pi, -np.pi, -np.pi])
-        upper = np.array([a, a, a, np.pi, np.pi, np.pi])
-        transform = rng.uniform(lower, upper).astype(np.float32) * scaling
-        return transform
-
-    def tinv_set_state(self, params, state_rng, visualize):
-        self.randomize_environment(state_rng, params)
-        # this just basically sets a random-ish state by taking random actions
-        _params = deepcopy(params)
-        _params['steps_per_traj'] = 10
-        collect_trajectory(params=_params,
-                           scenario=self,
-                           traj_idx=0,
-                           predetermined_start_state=None,
-                           predetermined_actions=None,
-                           verbose=(1 if visualize else 0),
-                           action_rng=state_rng)
-
-    def tinv_generate_data(self, action_rng: np.random.RandomState, params, visualize):
-        example, invalid = collect_trajectory(params=params,
-                                              scenario=self,
-                                              traj_idx=0,
-                                              predetermined_start_state=None,
-                                              predetermined_actions=None,
-                                              verbose=(1 if visualize else 0),
-                                              action_rng=action_rng)
-        return example, invalid
-
-    def tinv_generate_data_from_aug_pred(self, params, example_aug_pred, visualize):
-        unused_rng = np.random.RandomState(0)
-        action_ks = ['left_gripper_position', 'right_gripper_position']
-        predetermined_action = {}
-        for k in action_ks:
-            predetermined_action[k] = example_aug_pred[k][0]  # is there a time dim? or batch?
-
-        example_aug_actual, invalid = collect_trajectory(params=params,
-                                                         scenario=self,
-                                                         traj_idx=0,
-                                                         predetermined_start_state=None,
-                                                         predetermined_actions=[predetermined_action],
-                                                         verbose=(1 if visualize else 0),
-                                                         action_rng=unused_rng)
-        return example_aug_actual, invalid
-
     def aug_apply_no_ik(self,
                         moved_mask,
                         m,
@@ -1143,6 +1097,52 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
                 self.plot_state_rviz(state_0, idx=0, label='apply_aug', color='pink')
                 self.plot_action_rviz(state_0, action_0, idx=1, label='apply_aug', color='white')
         return object_aug_update, local_origin_point_aug, local_center_aug
+
+    @staticmethod
+    def tinv_sample_transform(rng, scaling, a=0.25):
+        lower = np.array([-a, -a, -a, -np.pi, -np.pi, -np.pi])
+        upper = np.array([a, a, a, np.pi, np.pi, np.pi])
+        transform = rng.uniform(lower, upper).astype(np.float32) * scaling
+        return transform
+
+    def tinv_set_state(self, params, state_rng, visualize):
+        self.randomize_environment(state_rng, params)
+        # this just basically sets a random-ish state by taking random actions
+        _params = deepcopy(params)
+        _params['steps_per_traj'] = 10
+        collect_trajectory(params=_params,
+                           scenario=self,
+                           traj_idx=0,
+                           predetermined_start_state=None,
+                           predetermined_actions=None,
+                           verbose=(1 if visualize else 0),
+                           action_rng=state_rng)
+
+    def tinv_generate_data(self, action_rng: np.random.RandomState, params, visualize):
+        example, invalid = collect_trajectory(params=params,
+                                              scenario=self,
+                                              traj_idx=0,
+                                              predetermined_start_state=None,
+                                              predetermined_actions=None,
+                                              verbose=(1 if visualize else 0),
+                                              action_rng=action_rng)
+        return example, invalid
+
+    def tinv_generate_data_from_aug_pred(self, params, example_aug_pred, visualize):
+        unused_rng = np.random.RandomState(0)
+        action_ks = ['left_gripper_position', 'right_gripper_position']
+        predetermined_action = {}
+        for k in action_ks:
+            predetermined_action[k] = example_aug_pred[k][0]  # is there a time dim? or batch?
+
+        example_aug_actual, invalid = collect_trajectory(params=params,
+                                                         scenario=self,
+                                                         traj_idx=0,
+                                                         predetermined_start_state=None,
+                                                         predetermined_actions=[predetermined_action],
+                                                         verbose=(1 if visualize else 0),
+                                                         action_rng=unused_rng)
+        return example_aug_actual, invalid
 
     def tinv_apply_transformation(self, example: Dict, transform, visualize):
         time = 2

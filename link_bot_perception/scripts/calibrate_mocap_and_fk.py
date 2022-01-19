@@ -54,12 +54,13 @@ def main():
         mocap_to_base_fk_2 = mocap2right_tool @ transformations.inverse_matrix(base_fk_to_right_tool)
         base_markers_to_base_2 = np.linalg.solve(mocap2base_markers, mocap_to_base_fk_2)
 
+
+
         calibrated_transforms.append(base_markers_to_base_1)
         calibrated_transforms.append(base_markers_to_base_2)
 
         # move to next pose
         val.follow_jacobian_to_position('both_arms', tool_names, [[left_target], [right_target]])
-
         rospy.sleep(5)
 
     # yes I know averaging transformation matrices is a bad idea but whatever it's fine
