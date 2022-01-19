@@ -15,10 +15,10 @@ from moveit_msgs.srv import GetMotionPlan
 from tf.transformations import quaternion_from_euler
 
 
-def wiggle_positions(current, n, s=0.05):
+def wiggle_positions(current, n, s=0.04):
     rng = np.random.RandomState(0)
     for i in range(n):
-        delta = rng.uniform([-s, -s, -s], [s, s, s])
+        delta = rng.uniform([-s, -s, -s * 0.5], [s, s, s])
         yield current + delta
 
 
@@ -168,7 +168,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         current_left_pos = ros_numpy.numpify(self.robot.get_link_pose('left_tool').position)
         current_right_pos = ros_numpy.numpify(self.robot.get_link_pose('right_tool').position)
 
-        for p in wiggle_positions(current_left_pos, 10):
+        for p in wiggle_positions(current_left_pos, 20):
             try:
                 self.robot.follow_jacobian_to_position('both_arms', tool_names, [[p], [current_right_pos]])
             except RobotPlanningError:

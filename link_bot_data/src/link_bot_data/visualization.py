@@ -129,7 +129,6 @@ def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_s
             scenario.plot_state_rviz(true_t, label='actual', scale=1.1, color=true_s_color, **kwargs)
 
         if add_predicted('accept_probability') in example:
-            rospy.loginfo_once("warning! you might not want this?")
             p_t = example[add_predicted('accept_probability')][t, 0]
             scenario.plot_accept_probability(p_t)
 

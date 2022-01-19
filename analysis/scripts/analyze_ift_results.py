@@ -74,7 +74,6 @@ def metrics_main(args):
     df_r['method_name'] = method_name_values
 
     pvalues_at_iter(df_r, method_name_values, 99)
-    pvalues_at_iter(df_r, method_name_values, 50)
 
     # fig, ax = lineplot(df, iter_key, 'success', 'Success', hue='used_augmentation')
     # ax.set_xlim(-0.01, x_max)
