@@ -21,6 +21,7 @@ def analyze_planning_results(args):
         return shorten(c.split('/')[0])[:16]
 
     df['x_name'] = df['classifier_name'].map(_shorten)
+    print(df['any_solved'])
 
     hue = 'used_augmentation'
 
