@@ -52,6 +52,10 @@
     joint57: 0.0004871437759357278,
     joint6: 1.0175395063376493,
     joint7: 2.173908028268774,
+    leftgripper: 0,
+    leftgripper2: 0,
+    rightgripper: 0,
+    rightgripper2: 0,
   }
   extent: [
     -0.6
