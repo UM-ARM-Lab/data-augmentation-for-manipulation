@@ -175,7 +175,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
                 pass
 
         # move up
-        left_up = ros_numpy.numpify(self.robot.get_link_pose('left_tool').position) + np.array([0, 0, 0.05])
+        left_up = ros_numpy.numpify(self.robot.get_link_pose('left_tool').position) + np.array([0, 0, 0.1])
         self.robot.follow_jacobian_to_position('both_arms', tool_names, [[left_up], [current_right_pos]])
 
         # go to the start config
@@ -184,6 +184,9 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         # restore old tool orientations
         if old_tool_orientations is not None:
             self.robot.store_tool_orientations(old_tool_orientations)
+
+        # wait for CDCPD to catch up
+        rospy.sleep(15)
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         raise NotImplementedError()

@@ -95,16 +95,12 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
         if self.verbose >= 1:
             rospy.loginfo("End randomizing env")
 
-    def on_start_trial(self, trial_idx: int):
+    def on_after_planning(self, trial_idx):
         if self.record:
             self.service_provider.stop_record_trial()
             filename = pathlib.Path('/media/shared/captures') / self.outdir / f"trial{trial_idx:04d}.avi"
             filename.parent.mkdir(exist_ok=True, parents=True)
             self.service_provider.start_record_trial(str(filename))
-
-    def follow_joint_trajectory_goal_callback(self, goal_msg):
-        if self.record:
-            self.service_provider.stop_record_trial()
 
     def on_trial_complete(self, trial_data: Dict, trial_idx: int):
         extra_trial_data = {
@@ -119,7 +115,6 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
         dump_gzipped_pickle(trial_data, full_data_filename)
 
         if self.record:
-            # TODO: maybe make this happen async?
             sleep(1)
             self.service_provider.stop_record_trial()
 

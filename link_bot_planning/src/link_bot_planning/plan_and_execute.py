@@ -249,6 +249,8 @@ class PlanAndExecute:
 
             planning_result = self.plan(planning_query)
 
+            self.on_after_planning(trial_idx)
+
             time_since_start = time.perf_counter() - start_time
 
             attempt_idx += 1
@@ -509,4 +511,7 @@ class PlanAndExecute:
         pass
 
     def on_complete(self):
+        pass
+
+    def on_after_planning(self, trial_idx):
         pass
