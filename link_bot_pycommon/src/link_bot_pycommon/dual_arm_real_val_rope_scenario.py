@@ -186,7 +186,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
             self.robot.store_tool_orientations(old_tool_orientations)
 
         # wait for CDCPD to catch up
-        rospy.sleep(15)
+        rospy.sleep(30)
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         raise NotImplementedError()

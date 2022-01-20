@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 import os
 import pathlib
 import re
@@ -12,7 +13,7 @@ import rospy
 from arc_utilities.algorithms import zip_repeat_shorter
 from link_bot_planning.my_planner import PlanningResult
 from link_bot_planning.trial_result import ExecutionResult, planning_trial_name
-from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.get_scenario import get_scenario_cached
 from link_bot_pycommon.grid_utils import extent_res_to_origin_point
 from link_bot_pycommon.pycommon import paths_from_json, has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -90,7 +91,9 @@ def labeling_params_from_planner_params(planner_params, fallback_labeling_params
     representative_classifier_model_dir = classifier_model_dirs[0]
     classifier_hparams = try_load_classifier_params(representative_classifier_model_dir)
 
-    if 'labeling_params' in classifier_hparams:
+    if 'threshold' in classifier_hparams:
+        labeling_params = {'threshold': classifier_hparams['threshold']}
+    elif 'labeling_params' in classifier_hparams:
         labeling_params = classifier_hparams['labeling_params']
     else:
         labeling_params = has_keys(classifier_hparams, ['classifier_dataset_hparams', 'labeling_params'])
@@ -215,7 +218,7 @@ def get_transitions(datum: Dict):
 
 def get_scenario_and_metadata(results_dir: pathlib.Path):
     metadata = load_json_or_hjson(results_dir, 'metadata')
-    scenario = get_scenario(metadata['scenario'])
+    scenario = get_scenario_cached(metadata['scenario'])
     return scenario, metadata
 
 
@@ -355,7 +358,7 @@ def plot_steps(scenario: ScenarioWithVisualization,
 
         if s_t_pred is not None:
             if 'accept_probability' in s_t_pred:
-                accept_probability_t = s_t_pred['accept_probability']
+                accept_probability_t = np.squeeze(s_t_pred['accept_probability'])
             else:
                 accept_probability_t = -1
         else:

@@ -28,7 +28,7 @@ def main():
 
     classifier_params = classifier_params_from_planner_params(metadata['planner_params'])
     if args.threshold is None:
-        threshold = classifier_params['classifier_dataset_hparams']['labeling_params']['threshold']
+        threshold = classifier_params['threshold']
     else:
         threshold = args.threshold
 

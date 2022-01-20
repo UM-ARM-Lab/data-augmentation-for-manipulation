@@ -23,8 +23,6 @@ def metrics_main(args):
     max_iter = 100
     x_max = max_iter + 0.01
     ci = 95
-    te_max = 0.25
-    nme_max = 1.2
     iter_key = 'ift_iteration'
 
     # z2 = df.groupby(iter_key).agg('mean').rolling(w).agg('mean')  # groupby iter_key also sorts by default

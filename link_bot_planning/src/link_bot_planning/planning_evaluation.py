@@ -95,10 +95,10 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
         if self.verbose >= 1:
             rospy.loginfo("End randomizing env")
 
-    def on_after_planning(self, trial_idx):
+    def on_after_planning(self, trial_idx, attempt_idx):
         if self.record:
             self.service_provider.stop_record_trial()
-            filename = pathlib.Path('/media/shared/captures') / self.outdir / f"trial{trial_idx:04d}.avi"
+            filename = pathlib.Path('/media/shared/captures') / self.outdir / f"{trial_idx:04d}-{attempt_idx:04d}.avi"
             filename.parent.mkdir(exist_ok=True, parents=True)
             self.service_provider.start_record_trial(str(filename))
 
