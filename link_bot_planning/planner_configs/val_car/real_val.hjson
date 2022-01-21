@@ -3,13 +3,11 @@
   method_name: real_val
   fwd_model_dir: dy_trials/real_val_ensemble/none
   classifier_model_dir: [
-    /media/shared/cl_trials/cc_baseline/none
-    /media/shared/cl_trials/gd_baseline/none
     /media/shared/cl_trials/new_feasibility_baseline/none
   ]
   termination_criteria: {
-    total_timeout: 900
-    timeout: 900
+    total_timeout: 600
+    timeout: 600
     # lower than sim to speed things up
     max_attempts: 4
     max_planning_attempts: 4

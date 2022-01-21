@@ -3,10 +3,11 @@
   classifier_model_dir: [
     cl_trials/real_val_aug_5_iter35/latest_checkpoint
     /media/shared/cl_trials/new_feasibility_baseline/none
+    /media/shared/cl_trials/gd_baseline/none
   ]
   termination_criteria: {
-    total_timeout: 600
-    timeout: 600
+    total_timeout: 800
+    timeout: 800
     # lower than sim to speed things up
     max_attempts: 4
     max_planning_attempts: 4
@@ -17,7 +18,7 @@
     0.6
     0.25
     1.25
-    -0.3
+    -0.2
     1.0
   ]
   state_sampler_extent: [
@@ -36,6 +37,6 @@
   goal_params: {
     type: saved
     goal_type: any_point
-    threshold: 0.05
+    threshold: 0.06
   }
 }
