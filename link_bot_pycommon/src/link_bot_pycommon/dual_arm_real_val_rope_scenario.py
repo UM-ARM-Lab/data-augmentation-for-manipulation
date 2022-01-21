@@ -15,10 +15,10 @@ from moveit_msgs.srv import GetMotionPlan
 from tf.transformations import quaternion_from_euler
 
 
-def wiggle_positions(current, n, s=0.04):
+def wiggle_positions(current, n, s=0.02):
     rng = np.random.RandomState(0)
     for i in range(n):
-        delta = rng.uniform([-s, -s, -s * 0.5], [s, s, s])
+        delta = rng.uniform([-s, -s, -s], [s, s, s])
         yield current + delta
 
 
@@ -141,7 +141,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
                     break
             print("Done.")
 
-    def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
+    def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name, force=False):
         service_provider.restore_from_bag(bagfile_name)
 
         # reset
@@ -151,7 +151,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         reset_joint_positions = np.array(list(reset_config.values()))
         near_start = np.max(np.abs(reset_joint_positions - current_joint_positions)) < 0.02
         grippers_are_closed = self.robot.is_left_gripper_closed() and self.robot.is_right_gripper_closed()
-        if near_start and grippers_are_closed:
+        if near_start and grippers_are_closed and not force:
             return
 
         # move to reset position

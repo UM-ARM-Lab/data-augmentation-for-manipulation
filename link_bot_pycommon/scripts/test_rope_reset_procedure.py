@@ -16,7 +16,7 @@ def main():
 
     services = BaseServices()
     bagfile_name = 'test_scenes/real_val_car2/scene_0000.bag'
-    s.restore_from_bag(services, params, bagfile_name)
+    s.restore_from_bag(services, params, bagfile_name, force=True)
 
     s.robot.disconnect()
 
