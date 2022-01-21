@@ -38,7 +38,7 @@ def metrics_main(args):
         '/media/shared/ift/small-hooks-diverse-aug':     'Augmentation (full method)',
         '/media/shared/ift/small-hooks-diverse-no-aug':  'No Augmentation (baseline)',
         '/media/shared/ift_ablations/no_occupancy':      'Augmentation (No Occupancy)',
-        '/media/shared/ift_ablations/no_invariance':     'Augmentation (No Invariance)',
+        '/media/shared/ift_ablations/no_invariance':     'Augmentation (No Transf. Val.)',
         '/media/shared/ift_ablations/no_delta_min_dist': 'Augmentation (No Delta Min Dist)',
         '/media/shared/ift_ablations/no_min_delta_dist': 'Augmentation (No Delta Min Dist)',
         '../link_bot_planning/real_val_ift/aug': 'Augmentation (full method)'
@@ -145,7 +145,7 @@ def print_values_for_ablations_table(df_r, method_name_values, ift_iter):
         if n == 'nan':
             continue
         success_rates = final_metrics.loc[final_metrics['method_name'] == n]['success'].values
-        print(n, np.mean(success_rates), np.std(success_rates))
+        print(f"{n:30s} {np.mean(success_rates):.4f} {np.std(success_rates):.4f}")
 
 
 def pvalues_at_iter(df_r, method_name_values, ift_iter):

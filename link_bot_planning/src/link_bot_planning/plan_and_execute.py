@@ -198,6 +198,8 @@ class PlanAndExecute:
         self.gazebo_processes = get_gazebo_processes()
 
     def run(self):
+        self.on_before_run()
+
         self.scenario.randomization_initialization(params=self.planner_params)
         for trial_idx in self.trials:
             self.plan_and_execute(trial_idx)
@@ -514,4 +516,7 @@ class PlanAndExecute:
         pass
 
     def on_after_planning(self, trial_idx, attempt_idx):
+        pass
+
+    def on_before_run(self):
         pass

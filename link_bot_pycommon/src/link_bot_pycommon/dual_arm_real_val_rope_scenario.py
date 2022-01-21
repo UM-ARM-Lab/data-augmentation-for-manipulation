@@ -158,7 +158,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         graph_rope_config = dict(params['real_val_rope_reset_joint_config2'])
         self.robot.plan_to_joint_config("both_arms", graph_rope_config)
 
-        rospy.sleep(5)
+        rospy.sleep(7)
 
         # wiggle around
         tool_names = ['left_tool', 'right_tool']
@@ -173,6 +173,8 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
                 self.robot.follow_jacobian_to_position('both_arms', tool_names, [[p], [current_right_pos]])
             except RobotPlanningError:
                 pass
+
+        rospy.sleep(5)
 
         # move up
         left_up = ros_numpy.numpify(self.robot.get_link_pose('left_tool').position) + np.array([0, 0, 0.1])
@@ -202,3 +204,6 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
     def on_after_data_collection(self, params):
         self.robot.disconnect()
+
+    def grasp_rope_endpoints(self, *args, **kwargs):
+        pass

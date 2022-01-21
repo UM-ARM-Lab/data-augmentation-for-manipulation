@@ -13,6 +13,7 @@ from arc_utilities import ros_init
 from arm_robots.robot import RobotPlanningError
 from geometry_msgs.msg import Point, Pose
 from link_bot_gazebo import gazebo_services
+from link_bot_gazebo.gazebo_utils import get_gazebo_processes
 from link_bot_planning.test_scenes import get_states_to_save, save_test_scene, get_all_scene_indices
 from link_bot_pycommon.args import int_set_arg
 from link_bot_pycommon.basic_3d_pose_marker import Basic3DPoseInteractiveMarker
@@ -45,6 +46,8 @@ def generate_saved_goals(method: str,
                          scenes_dir: Optional[pathlib.Path] = None
                          ):
     scenes_dir.mkdir(exist_ok=True, parents=True)
+
+    [p.resume() for p in get_gazebo_processes()]
 
     scenario = get_scenario(scenario)
     service_provider = gazebo_services.GazeboServices()
@@ -90,7 +93,9 @@ def generate_saved_goals(method: str,
                                  exceptions=(RobotPlanningError,))
 
         environment = scenario.get_environment(params)
-        scenario.plot_environment_rviz(environment)
+        for _ in range(3):
+            scenario.plot_environment_rviz(environment)
+            rospy.sleep(0.1)
 
         current_goal = load(scenes_dir, trial_idx)
         state = scenario.get_state()

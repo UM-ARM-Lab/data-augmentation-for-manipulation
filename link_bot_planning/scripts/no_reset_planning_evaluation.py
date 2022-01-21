@@ -2,20 +2,28 @@
 import argparse
 import logging
 import pathlib
+import warnings
 
 import colorama
 import tensorflow as tf
 
 from arc_utilities import ros_init
 from link_bot_data.dataset_utils import make_unique_outdir
-from link_bot_planning.planning_evaluation import evaluate_multiple_planning, load_planner_params
+from link_bot_planning.no_reset_planning_evaluation import NoResetEvaluatePlanning
+from link_bot_planning.planning_evaluation import load_planner_params, evaluate_planning
 from link_bot_planning.test_scenes import get_all_scene_indices
 from link_bot_pycommon.args import int_set_arg
+from link_bot_pycommon.job_chunking import JobChunker
 from moonshine.gpu_config import limit_gpu_mem
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    from ompl import util as ou
 
 limit_gpu_mem(None)
 
-@ros_init.with_ros("planning_evaluation")
+
+@ros_init.with_ros("no_reset_planning_evaluation")
 def main():
     colorama.init(autoreset=True)
     tf.get_logger().setLevel(logging.ERROR)
@@ -33,24 +41,17 @@ def main():
     parser.add_argument('--record', action='store_true', help='record')
     parser.add_argument('--no-use-gt-rope', action='store_true', help='use ground truth rope state')
     parser.add_argument('--classifier', type=pathlib.Path)
-    parser.add_argument('--recovery', type=pathlib.Path)
-    parser.add_argument('--continue-from', type=pathlib.Path)
 
     args = parser.parse_args()
 
-    if args.continue_from is not None:
-        print(f"Ignoring nickname {args.outdir}")
-        outdir = args.continue_from
-    else:
-        outdir = make_unique_outdir(args.outdir)
+    outdir = make_unique_outdir(args.outdir)
 
     planner_params = load_planner_params(args.planner_params)
     planner_params['method_name'] = args.outdir.name
+
     if args.classifier:
         planner_params["classifier_model_dir"] = [args.classifier,
                                                   pathlib.Path("cl_trials/new_feasibility_baseline/none")]
-    if args.recovery:
-        planner_params["recovery"]["recovery_model_dir"] = args.recovery
 
     if not args.test_scenes_dir.exists():
         print(f"Test scenes dir {args.test_scenes_dir} does not exist")
@@ -58,21 +59,27 @@ def main():
 
     if args.trials is None:
         args.trials = list(get_all_scene_indices(args.test_scenes_dir))
-        print(args.trials)
+        print('trials:', args.trials)
 
-    evaluate_multiple_planning(outdir=outdir,
-                               planners_params=[(args.planner_params.stem, planner_params)],
-                               trials=args.trials,
-                               how_to_handle=args.on_exception,
-                               use_gt_rope=not args.no_use_gt_rope,
-                               verbose=args.verbose,
-                               timeout=args.timeout,
-                               test_scenes_dir=args.test_scenes_dir,
-                               no_execution=args.no_execution,
-                               logfile_name=None,
-                               record=args.record,
-                               seed=args.seed,
-                               )
+    logfile_name = outdir / f'logfile.hjson'
+    print(f'logfile: {logfile_name}')
+    job_chunker = JobChunker(logfile_name=logfile_name)
+
+    ou.setLogLevel(ou.LOG_ERROR)
+
+    evaluate_planning(planner_params=planner_params,
+                      job_chunker=job_chunker,
+                      trials=args.trials,
+                      outdir=outdir,
+                      verbose=args.verbose,
+                      record=args.record,
+                      no_execution=args.no_execution,
+                      timeout=args.timeout,
+                      test_scenes_dir=args.test_scenes_dir,
+                      seed=args.seed,
+                      how_to_handle=args.on_exception,
+                      eval_class_type=NoResetEvaluatePlanning,
+                      )
 
 
 if __name__ == '__main__':

@@ -15,7 +15,6 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
     from ompl import util as ou
 
-import rosbag
 import rospy
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_data.dataset_utils import git_sha
@@ -168,6 +167,7 @@ def evaluate_planning(planner_params: Dict,
                       recovery_seed: int = 0,
                       log_full_tree: bool = True,
                       how_to_handle: str = 'retry',
+                      eval_class_type=EvaluatePlanning,
                       ):
     # override some arguments
     if timeout is not None:
@@ -192,20 +192,20 @@ def evaluate_planning(planner_params: Dict,
 
     planner.scenario.on_before_get_state_or_execute_action()
 
-    runner = EvaluatePlanning(planner=planner,
-                              service_provider=service_provider,
-                              job_chunker=job_chunker,
-                              trials=trials,
-                              verbose=verbose,
-                              planner_params=planner_params,
-                              outdir=outdir,
-                              use_gt_rope=use_gt_rope,
-                              record=record,
-                              no_execution=no_execution,
-                              test_scenes_dir=test_scenes_dir,
-                              seed=seed,
-                              recovery_seed=recovery_seed,
-                              )
+    runner = eval_class_type(planner=planner,
+                             service_provider=service_provider,
+                             job_chunker=job_chunker,
+                             trials=trials,
+                             verbose=verbose,
+                             planner_params=planner_params,
+                             outdir=outdir,
+                             use_gt_rope=use_gt_rope,
+                             record=record,
+                             no_execution=no_execution,
+                             test_scenes_dir=test_scenes_dir,
+                             seed=seed,
+                             recovery_seed=recovery_seed,
+                             )
 
     def _on_exception():
         pass
