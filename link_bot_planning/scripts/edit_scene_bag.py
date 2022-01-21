@@ -27,6 +27,20 @@ def adjust_trash_pos(s: TestScene):
     return adjust_link_pos(s, "trash::body", 0.01, 0, 0)
 
 
+def remove(s: TestScene):
+    removes = [
+        'left_wall::link',
+        'right_wall::link',
+        'front_wall::link',
+        'back_wall::link',
+    ]
+    for n in removes :
+        if n in s.links_states.name:
+            s.links_states.name.remove(n)
+            print("Removed ", n)
+    return s
+
+
 def rename(s: TestScene):
     renames = [
         ('car_engine3::body', 'car_engine2::body'),
@@ -64,13 +78,13 @@ def main():
 
     args = parser.parse_args()
 
-    scene_indices = range(0, 100)
+    scene_indices = range(0, 1)
 
 
     for scene_idx in scene_indices:
         s = TestScene(args.scenes_dir, scene_idx)
 
-        s = rename(s)
+        s = remove(s)
         s.save(force=True)
 
 

@@ -36,7 +36,7 @@
         <plugin name="collision_map_plugin" filename="libcollision_map_plugin.so"/>
 
         <include>
-            <uri>model://my_ground_plane</uri>
+            <uri>model://box_floor</uri>
             <pose>0 0 -0.415 0 0 0</pose>
         </include>
 
@@ -47,7 +47,7 @@
         <include>
           <name>engine4</name>
           <uri>model://car_engine4</uri>
-          <pose>0.06 0.95 -0.12 0 0 0</pose>
+          <pose>0.04 0.95 -0.12 0 0 0</pose>
         </include>
 
         <include>
