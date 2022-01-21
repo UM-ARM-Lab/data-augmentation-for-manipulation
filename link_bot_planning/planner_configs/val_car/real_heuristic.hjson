@@ -1,0 +1,60 @@
+{
+  scenario: real_val_with_robot_feasibility_checking
+  method_name: real_val_heuristic
+  fwd_model_dir: dy_trials/real_val_ensemble/none
+  classifier_model_dir: [
+    /media/shared/cl_trials/cc_baseline/none
+    /media/shared/cl_trials/gd_baseline/none
+    /media/shared/cl_trials/new_feasibility_baseline/none
+  ]
+  termination_criteria: {
+    total_timeout: 900
+    timeout: 900
+    # lower than sim to speed things up
+    max_attempts: 4
+    max_planning_attempts: 4
+    attempted_extensions_threshold: 32
+  }
+  recovery: {
+    recovery_model_dir: /media/shared/recovery_trials/random/none
+    use_recovery: true
+    left_gripper_action_sample_extent: [
+      0.40
+      1.3
+      -0.5
+      0.4
+      0.0
+      1.2
+    ]
+    right_gripper_action_sample_extent: [
+      0.40
+      1.3
+      -0.5
+      0.4
+      0.0
+      1.2
+    ]
+  }
+  extent: [
+    0.51079195
+    1.5592851
+    -0.60457629
+    0.59532272
+    -0.07350324
+    1.29064649
+  ]
+  state_sampler_extent: [
+    # this is set to be a bit more conservative than "extent" to avoid annoying out-of-bounds edge cases
+    0.5747681
+    1.39362055
+    -0.50459225
+    0.49532888
+    0.32450214
+    0.84617102
+  ]
+  goal_params: {
+    type: saved
+    goal_type: any_point
+    threshold: 0.055
+  }
+}
