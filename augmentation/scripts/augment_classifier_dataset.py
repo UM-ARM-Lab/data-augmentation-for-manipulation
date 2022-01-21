@@ -44,6 +44,7 @@ def main():
                                         outdir=outdir,
                                         batch_size=args.batch_size,
                                         n_augmentations=args.n_augmentations,
+                                        visualize=args.visualize,
                                         scenario=scenario)
 
     print(Fore.CYAN + outdir.as_posix() + Fore.RESET)

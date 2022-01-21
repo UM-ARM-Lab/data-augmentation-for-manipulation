@@ -59,10 +59,10 @@ def main():
         ax.set_title(title)
         plt.savefig(f"/media/shared/cylinders_{title.lower().replace(' ', '')}-{v}.png", dpi=200)
 
-    barplot("Mean Position Error", main_order, 'Position Error', 'main')
-    barplot("Mean Position Error", ablation_order, 'Position Error', 'ablations')
-    barplot("Mean Velocity Error", main_order, 'Velocity Error', 'main')
-    barplot("Mean Velocity Error", ablation_order, 'Velocity Error', 'ablations')
+    barplot("Mean Position Error", main_order, 'Planar Pushing, Position Error', 'main')
+    barplot("Mean Position Error", ablation_order, 'Planar Pushing, Position Error', 'ablations')
+    barplot("Mean Velocity Error", main_order, 'Planar Pushing, Velocity Error', 'main')
+    barplot("Mean Velocity Error", ablation_order, 'Planar Pushing, Velocity Error', 'ablations')
 
     plt.close()
 

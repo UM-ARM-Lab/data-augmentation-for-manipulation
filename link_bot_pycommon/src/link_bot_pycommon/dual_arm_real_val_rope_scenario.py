@@ -30,10 +30,9 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('hdt_michigan')
-        self.left_preferred_tool_orientation = quaternion_from_euler(-1.779, -1.043, -1.408)
-        self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, -1.408, 0)
+        self.left_preferred_tool_orientation = quaternion_from_euler(-1.779, -1.043, -2.0)
+        self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, -1.408, 1.0)
 
-        self.my_closed = -0.11
         self.get_joint_state = GetJointState(self.robot)
         self.root_link = self.robot.robot_commander.get_root_link()
         self.get_cdcpd_state = GetCdcpdState(self.tf, self.root_link)
@@ -192,11 +191,6 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         raise NotImplementedError()
-
-    def is_left_grasped(self):
-        positions = self.robot.get_joint_positions(['leftgripper', 'leftgripper2'])
-        p1, p2 = positions
-        return p1 > self.my_closed + 0.01 and p2 > self.my_closed + 0.01
 
     def needs_reset(self, state: Dict, params: Dict):
         # FIXME:
