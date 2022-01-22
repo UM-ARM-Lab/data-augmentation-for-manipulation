@@ -2,6 +2,7 @@
 import argparse
 import logging
 import pathlib
+from copy import deepcopy
 from time import time
 
 import tensorflow as tf
@@ -47,11 +48,6 @@ def main():
     aug = make_aug_opt(scenario, dataset_loader, hparams, debug_state_keys, 1)
 
     dataset = dataset_loader.get_datasets('all').skip(args.in_idx).take(1).batch(1)
-    original = next(iter(dataset))
-
-    time = original['time_idx'].shape[1]
-    output = aug.aug_opt(original, batch_size=1, time=time)
-    output = remove_batch(output)
 
     # plot the environment, rope at t=0, and rope at t=1
     viz_f = classifier_transition_viz_t(metadata={},
@@ -59,17 +55,28 @@ def main():
                                         predicted_state_keys=dataset_loader.predicted_state_keys,
                                         true_state_keys=None)
 
-    input("press enter to show the input")
+    original = next(iter(dataset))
+    original_no_batch = deepcopy(remove_batch(original))
+
     scenario.reset_viz()
-    scenario.plot_environment_rviz(output)
-    viz_f(scenario, original, t=0, label='0')
-    viz_f(scenario, original, t=1, label='1')
+    for _ in range(3):
+        scenario.plot_environment_rviz(original_no_batch)
+        viz_f(scenario, original_no_batch, t=0, label='0')
+        viz_f(scenario, original_no_batch, t=1, label='1')
+
+    scenario.reset_viz()
+
+    input("press enter to start the animation")
+    time = original['time_idx'].shape[1]
+    output = aug.aug_opt(original, batch_size=1, time=time)
+    output = remove_batch(output)
 
     input("press enter to show the output")
     scenario.reset_viz()
-    scenario.plot_environment_rviz(output)
-    viz_f(scenario, output, t=0, label='0')
-    viz_f(scenario, output, t=1, label='1')
+    for _ in range(3):
+        scenario.plot_environment_rviz(output)
+        viz_f(scenario, output, t=0, label='0')
+        viz_f(scenario, output, t=1, label='1')
 
 
 if __name__ == '__main__':
