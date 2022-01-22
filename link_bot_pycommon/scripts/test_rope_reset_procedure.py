@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import pathlib
 
 from arc_utilities import ros_init
@@ -9,7 +10,10 @@ from moonshine.filepath_tools import load_hjson
 
 @ros_init.with_ros("test_rope_reset_procedure")
 def main():
-    s = get_scenario("real_val_with_robot_feasibility_checking")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('scenario')
+    args = parser.parse_args()
+    s = get_scenario(args.scenario)
     s.on_before_get_state_or_execute_action()
 
     params = load_hjson(pathlib.Path("../link_bot_planning/planner_configs/val_car/common.hjson"))

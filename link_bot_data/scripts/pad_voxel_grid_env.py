@@ -3,43 +3,42 @@ import argparse
 import pathlib
 from typing import Dict
 
-import colorama
-
-import rospy
-from link_bot_data.classifier_dataset import ClassifierDatasetLoader
+from arc_utilities import ros_init
 from link_bot_data.dataset_utils import modify_pad_env
-from link_bot_data.modify_dataset import modify_dataset
-from link_bot_pycommon.args import my_formatter
+from link_bot_data.modify_dataset import modify_dataset2
+from link_bot_data.new_base_dataset import NewBaseDatasetLoader
+from link_bot_data.split_dataset import split_dataset_via_files
 
 
+@ros_init.with_ros("modify_dataset")
 def main():
-    colorama.init(autoreset=True)
-
-    parser = argparse.ArgumentParser(formatter_class=my_formatter)
+    parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
-    parser.add_argument('x', type=int, help='x')
-    parser.add_argument('y', type=int, help='y')
-    parser.add_argument('z', type=int, help='z')
+    parser.add_argument('suffix', type=str, help='string added to the new dataset name')
+    parser.add_argument('x', type=int)
+    parser.add_argument('y', type=int)
+    parser.add_argument('z', type=int)
+    parser.add_argument('--save-format', type=str, choices=['pkl', 'tfrecord'], default='pkl')
 
     args = parser.parse_args()
 
-    rospy.init_node("modify_dynamics_dataset")
+    outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
-    outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.x}x{args.y}x{args.z}"
-
-    def _process_example(dataset: ClassifierDatasetLoader, example: Dict):
+    def _process_example(dataset, example: Dict):
         example = modify_pad_env(example, args.x, args.y, args.z)
         yield example
 
     hparams_update = {}
 
-    dataset = ClassifierDatasetLoader([args.dataset_dir], use_gt_rope=False, load_true_states=True)
-    modify_dataset(dataset_dir=args.dataset_dir,
-                   dataset=dataset,
-                   outdir=outdir,
-                   process_example=_process_example,
-                   hparams_update=hparams_update,
-                   slow=False)
+    dataset = NewBaseDatasetLoader([args.dataset_dir])
+    modify_dataset2(dataset_dir=args.dataset_dir,
+                    dataset=dataset,
+                    outdir=outdir,
+                    process_example=_process_example,
+                    hparams_update=hparams_update,
+                    save_format=args.save_format)
+    split_dataset_via_files(outdir, 'pkl')
+    print(outdir)
 
 
 if __name__ == '__main__':

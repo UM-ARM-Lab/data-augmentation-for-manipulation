@@ -12,6 +12,7 @@ import tensorflow as tf
 from colorama import Fore
 
 import genpy
+import rospy
 from arc_utilities.filesystem_utils import mkdir_and_ask
 from link_bot_data.ros_msg_serialization import ros_msg_to_bytes_tensor, bytes_to_ros_msg
 from link_bot_pycommon import pycommon
@@ -377,6 +378,7 @@ def use_gt_rope(example: Dict):
 
 
 def add_label(example: Dict, threshold: float):
+    rospy.loginfo_once(f"Using threshold {threshold}")
     is_close = example['error'] < threshold
     example['is_close'] = tf.cast(is_close, dtype=tf.float32)
 

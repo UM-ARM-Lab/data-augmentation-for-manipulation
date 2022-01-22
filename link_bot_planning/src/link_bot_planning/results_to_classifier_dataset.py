@@ -42,6 +42,7 @@ class ResultsToClassifierDataset:
                  visualize: bool = False,
                  save_format: str = 'pkl',
                  full_tree: bool = False,
+                 retrace: bool = False,
                  regenerate: bool = False,
                  verbose: int = 1,
                  only_rejected_transitions: bool = False,
@@ -55,6 +56,7 @@ class ResultsToClassifierDataset:
         self.rng = np.random.RandomState(0)
         self.service_provider = GazeboServices()
         self.full_tree = full_tree
+        self.retrace = retrace
         self.results_dir = results_dir
         self.outdir = outdir
         self.trial_indices = trial_indices

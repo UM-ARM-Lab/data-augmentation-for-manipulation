@@ -428,7 +428,7 @@ class OmplRRTWrapper(MyPlanner):
             raise ValueError(f"invalid planner status {planner_status}")
 
         if self.verbose >= 0:
-            self.plot_path(state_sequence=planned_path, action_sequence=actions)
+            self.plot_path(state_sequence=planned_path, action_sequence=actions, label='final')
 
         self.spinner.stop()
         return PlanningResult(status=planner_status,

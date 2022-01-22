@@ -174,7 +174,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.service_provider.play()
 
     @Halo(text='Restoring', spinner='dots')
-    def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name):
+    def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name, force=False):
         self.heartbeat()
         self.service_provider.play()
 

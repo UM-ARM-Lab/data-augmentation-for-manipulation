@@ -61,6 +61,8 @@ def batch_examples_dicts(examples: List):
                 examples_batch[k] = tf.stack(values, axis=0, name='convert_batched')
         else:
             with tf.device('/CPU:0'):
+                if k == 'env':
+                    print(k, [v.shape for v in values])
                 examples_batch[k] = tf.convert_to_tensor(np.array(values), name='convert_batched')
     return examples_batch
 

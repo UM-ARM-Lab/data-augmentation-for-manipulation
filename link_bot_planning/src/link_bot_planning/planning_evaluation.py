@@ -149,6 +149,16 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             return
         super().plan_and_execute(trial_idx=trial_idx)
 
+    def setup_test_scene(self, trial_idx: int):
+        if self.record:
+            self.service_provider.stop_record_trial()
+            filename = pathlib.Path('/media/shared/captures') / self.outdir / f"{trial_idx:04d}-reset.avi"
+            filename.parent.mkdir(exist_ok=True, parents=True)
+            self.service_provider.start_record_trial(str(filename))
+        super().setup_test_scene(trial_idx)
+        if self.record:
+            self.service_provider.stop_record_trial()
+
     def on_complete(self):
         self.job_chunker.store_result('planning_results_dir', self.outdir.as_posix())
 

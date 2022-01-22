@@ -14,6 +14,7 @@ def main():
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
     parser.add_argument("outdir", type=pathlib.Path, help='output directory')
     parser.add_argument('--full-tree', action=BooleanOptionalAction)
+    parser.add_argument('--retrace', action='store_true')
     parser.add_argument("--labeling-params", type=pathlib.Path, help='labeling params')
     parser.add_argument("--visualize", action='store_true', help='visualize')
     parser.add_argument("--regenerate", action='store_true', help='regenerate')
@@ -34,6 +35,7 @@ def main():
                                    save_format=args.save_format,
                                    fwd_model=fwd_model,
                                    full_tree=args.full_tree,
+                                   retrace=args.retrace,
                                    regenerate=args.regenerate,
                                    only_rejected_transitions=args.only_rejected_transitions,
                                    max_examples_per_trial=None)

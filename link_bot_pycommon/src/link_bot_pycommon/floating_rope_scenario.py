@@ -560,6 +560,21 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         distance2 = tf.linalg.norm(goal['right_gripper'] - right_gripper)
         return tf.math.maximum(tf.math.maximum(distance1, distance2), rope_distance)
 
+    @staticmethod
+    def distance_grippers_and_any_point_box_goal(state: Dict, goal: Dict):
+        rope_points = tf.reshape(state[rope_key_name], [-1, 3])
+        # well ok not _any_ node, but ones near the middle
+        n_from_ends = 5
+        distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
+                                   rope_points, axis=1, ord=np.inf)[n_from_ends:-n_from_ends]
+        rope_distance = tf.reduce_min(distances)
+
+        left_gripper = state['left_gripper']
+        right_gripper = state['right_gripper']
+        distance1 = tf.linalg.norm(goal['left_gripper'] - left_gripper)
+        distance2 = tf.linalg.norm(goal['right_gripper'] - right_gripper)
+        return tf.math.maximum(tf.math.maximum(distance1, distance2), rope_distance)
+
     def distance_to_any_point_goal(self, state: Dict, goal: Dict):
         rope_points = tf.reshape(state[rope_key_name], [-1, 3])
         # NOTE: well ok not _any_ node, but ones near the middle
@@ -585,6 +600,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             return self.distance_to_midpoint_goal(state, goal)
         elif goal['goal_type'] == 'any_point':
             return self.distance_to_any_point_goal(state, goal)
+        elif goal['goal_type'] == 'any_pont_box':
+            return self.distance_grippers_and_any_point_box_goal(state, goal)
         elif goal['goal_type'] == 'grippers':
             return self.distance_to_gripper_goal(state, goal)
         elif goal['goal_type'] == 'grippers_and_point':

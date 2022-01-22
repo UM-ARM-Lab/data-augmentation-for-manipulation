@@ -300,6 +300,14 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
                                           goal=goal,
                                           shared_planning_state=self.sps,
                                           plot=plot)
+        elif goal['goal_type'] == 'any_point_box':
+            return RopeAnyPointBoxGoalRegion(si=si,
+                                          scenario_ompl=self,
+                                          rng=rng,
+                                          threshold=params['goal_params']['threshold'],
+                                          goal=goal,
+                                          shared_planning_state=self.sps,
+                                          plot=plot)
         else:
             raise NotImplementedError()
 
@@ -381,3 +389,19 @@ class RopeAnyPointGoalRegion(floating_rope_ompl.RopeAnyPointGoalRegion):
             'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
         }
         return goal_state_np
+
+
+# noinspection PyMethodOverriding
+class RopeAnyPointBoxGoalRegion(RopeAnyPointGoalRegion):
+
+    def __init__(self,
+                 si: oc.SpaceInformation,
+                 scenario_ompl: FloatingRopeOmpl,
+                 rng: np.random.RandomState,
+                 threshold: float,
+                 goal: Dict,
+                 shared_planning_state: SharedPlanningStateOMPL,
+                 plot: bool,
+                 ):
+        super().__init__(si, scenario_ompl, rng, threshold, goal, shared_planning_state, plot)
+        self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()

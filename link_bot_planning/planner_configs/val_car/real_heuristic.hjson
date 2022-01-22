@@ -8,8 +8,8 @@
     /media/shared/cl_trials/new_feasibility_baseline/none
   ]
   termination_criteria: {
-    total_timeout: 900
-    timeout: 900
+    total_timeout: 600
+    timeout: 600
     # lower than sim to speed things up
     max_attempts: 4
     max_planning_attempts: 4
@@ -36,25 +36,27 @@
     ]
   }
   extent: [
-    0.51079195
-    1.5592851
-    -0.60457629
-    0.59532272
-    -0.07350324
-    1.29064649
+    0.5
+    1.2
+    -0.3
+    0.6
+    -0.07
+    1.0
   ]
   state_sampler_extent: [
     # this is set to be a bit more conservative than "extent" to avoid annoying out-of-bounds edge cases
-    0.5747681
-    1.39362055
-    -0.50459225
-    0.49532888
+    0.55
+    1.1
+    -0.25
+    0.5
     0.32450214
-    0.84617102
+    0.85
   ]
   goal_params: {
     type: saved
     goal_type: any_point
-    threshold: 0.055
+    threshold: 0.05
+    # goal_type: any_point_box
+    # threshold_box: [0.045, 0.045, 0.06]
   }
 }

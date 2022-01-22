@@ -31,7 +31,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
     def __init__(self):
         super().__init__('hdt_michigan')
         self.left_preferred_tool_orientation = quaternion_from_euler(-1.779, -1.043, -2.0)
-        self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, -1.408, 1.0)
+        self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, -1.408, 0.9)
 
         self.get_joint_state = GetJointState(self.robot)
         self.root_link = self.robot.robot_commander.get_root_link()
@@ -157,23 +157,13 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         graph_rope_config = dict(params['real_val_rope_reset_joint_config2'])
         self.robot.plan_to_joint_config("both_arms", graph_rope_config)
 
-        rospy.sleep(7)
+        rospy.sleep(15)
 
-        # wiggle around
         tool_names = ['left_tool', 'right_tool']
 
         old_tool_orientations = deepcopy(self.robot.stored_tool_orientations)
         self.robot.store_current_tool_orientations(tool_names)
-        current_left_pos = ros_numpy.numpify(self.robot.get_link_pose('left_tool').position)
         current_right_pos = ros_numpy.numpify(self.robot.get_link_pose('right_tool').position)
-
-        for p in wiggle_positions(current_left_pos, 20):
-            try:
-                self.robot.follow_jacobian_to_position('both_arms', tool_names, [[p], [current_right_pos]])
-            except RobotPlanningError:
-                pass
-
-        rospy.sleep(5)
 
         # move up
         left_up = ros_numpy.numpify(self.robot.get_link_pose('left_tool').position) + np.array([0, 0, 0.1])

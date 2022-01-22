@@ -4,6 +4,7 @@ import pathlib
 from typing import Dict
 
 from arc_utilities import ros_init
+from link_bot_data.dataset_utils import modify_pad_env
 from link_bot_data.modify_dataset import modify_dataset2
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
 from link_bot_data.split_dataset import split_dataset_via_files
@@ -21,13 +22,7 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset, example: Dict):
-        example.pop('env')
-        example.pop('origin_point')
-        example.pop('res')
-        example.pop('extent')
-        example.pop('sdf')
-        example.pop('sdf_grad')
-        example.pop('scene_msg')
+        example = modify_pad_env(example, args.x, args.y, args.z)
         yield example
 
     hparams_update = {}

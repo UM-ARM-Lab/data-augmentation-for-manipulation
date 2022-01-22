@@ -14,7 +14,7 @@ def main():
 
     r = rospy.Rate(10)
     while not rospy.is_shutdown():
-        _rope_endpoint_tf(tfw, [-0.01, 0, -0.01], left_mocap, 'mocap_left_tool')
+        _rope_endpoint_tf(tfw, [-0.01, 0.01, -0.01], left_mocap, 'mocap_left_tool')
         _rope_endpoint_tf(tfw, [0, 0, -0.01], right_mocap, 'mocap_right_tool')
 
         r.sleep()
