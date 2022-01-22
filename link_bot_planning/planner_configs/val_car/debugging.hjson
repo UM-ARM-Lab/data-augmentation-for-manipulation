@@ -1,13 +1,17 @@
 {
   method_name: debugging
   classifier_model_dir: [
-    cl_trials/real_val_aug_5_iter35/latest_checkpoint
+    # cl_trials/real_val_aug_5_iter35/latest_checkpoint
+    # /media/shared/cl_trials/cc_baseline/none
+    # /media/shared/cl_trials/strict_gd_baseline/none
+    cl_trials/real_val_ift_aug0/January_21_13-06-23_3c53b51b58/latest_checkpoint
+    # cl_trials/real_val_ift_no_aug0/January_21_11-45-54_3c53b51b58/latest_checkpoint
+    # /home/peter/catkin_ws/src/link_bot/link_bot_planning/real_val_ift/aug-5/training_logdir/iteration_0040_classifier_training_logdir/January_20_19-20-16_dda5d1f756/latest_checkpoint
     /media/shared/cl_trials/new_feasibility_baseline/none
-    /media/shared/cl_trials/gd_baseline/none
   ]
   termination_criteria: {
-    total_timeout: 800
-    timeout: 800
+    total_timeout: 600
+    timeout: 600
     # lower than sim to speed things up
     max_attempts: 4
     max_planning_attempts: 4
@@ -17,18 +21,18 @@
     -0.6
     0.6
     0.25
-    1.25
+    1.15
     -0.2
-    1.0
+    0.9
   ]
   state_sampler_extent: [
     # this is set to be a bit more conservative than "extent" to avoid annoying out-of-bounds edge cases
     -0.5
     0.5
     0.3
-    1.1
-    0.0
-    0.9
+    1.0
+    -0.1
+    0.8
   ]
   recovery: {
     recovery_model_dir: /media/shared/recovery_trials/random/none
@@ -36,7 +40,7 @@
   }
   goal_params: {
     type: saved
-    goal_type: any_point
-    threshold: 0.06
+    goal_type: grippers
+    threshold: 0.04
   }
 }

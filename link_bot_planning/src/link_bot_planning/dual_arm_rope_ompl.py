@@ -6,7 +6,7 @@ import numpy as np
 from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
 from link_bot_planning import floating_rope_ompl
 from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl, DualGripperControlSampler, \
-    make_random_rope_and_grippers_for_goal_point, sample_rope_and_grippers_from_extent
+    make_random_rope_and_grippers_for_goal_point, sample_rope_and_grippers_from_extent, DualGripperGoalRegion
 from link_bot_planning.my_planner import SharedPlanningStateOMPL
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 
@@ -302,12 +302,20 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
                                           plot=plot)
         elif goal['goal_type'] == 'any_point_box':
             return RopeAnyPointBoxGoalRegion(si=si,
-                                          scenario_ompl=self,
-                                          rng=rng,
-                                          threshold=params['goal_params']['threshold'],
-                                          goal=goal,
-                                          shared_planning_state=self.sps,
-                                          plot=plot)
+                                             scenario_ompl=self,
+                                             rng=rng,
+                                             threshold=params['goal_params']['threshold'],
+                                             goal=goal,
+                                             shared_planning_state=self.sps,
+                                             plot=plot)
+        elif goal['goal_type'] == 'grippers':
+            return DualGripperGoalRegion(si=si,
+                                         scenario_ompl=self,
+                                         rng=rng,
+                                         threshold=params['goal_params']['threshold'],
+                                         goal=goal,
+                                         shared_planning_state=self.sps,
+                                         plot=plot)
         else:
             raise NotImplementedError()
 

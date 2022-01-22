@@ -16,6 +16,9 @@ def main():
     s = get_scenario(args.scenario)
     s.on_before_get_state_or_execute_action()
 
+    # random_config = s.robot.get_move
+    # s.robot.plan_to_joint_config(random_config)
+
     params = load_hjson(pathlib.Path("../link_bot_planning/planner_configs/val_car/common.hjson"))
 
     services = BaseServices()

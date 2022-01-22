@@ -488,13 +488,16 @@ class DualGripperGoalRegion(ob.GoalSampleableRegion):
                  rng: RandomState,
                  threshold: float,
                  goal: Dict,
+                 shared_planning_state: SharedPlanningStateOMPL,
                  plot: bool):
         super(DualGripperGoalRegion, self).__init__(si)
+        self.sps = shared_planning_state
         self.setThreshold(threshold)
         self.goal = goal
         self.scenario_ompl = scenario_ompl
         self.rng = rng
         self.plot = plot
+        self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
     def distanceGoal(self, state: ob.CompoundState):
         """
@@ -523,11 +526,12 @@ class DualGripperGoalRegion(ob.GoalSampleableRegion):
                                     FloatingRopeScenario.n_links)
 
         goal_state_np = {
-            'left_gripper':  self.goal['left_gripper'],
-            'right_gripper': self.goal['right_gripper'],
-            'rope':          rope.flatten(),
-            'num_diverged':  np.zeros(1, dtype=np.float64),
-            'stdev':         np.zeros(1, dtype=np.float64),
+            'left_gripper':    self.goal['left_gripper'],
+            'right_gripper':   self.goal['right_gripper'],
+            'rope':            rope.flatten(),
+            'num_diverged':    np.zeros(1, dtype=np.float64),
+            'stdev':           np.zeros(1, dtype=np.float64),
+            'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
         }
 
         self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
