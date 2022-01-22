@@ -113,11 +113,12 @@ def recovery_transition_viz_t(metadata: Dict, state_keys: List[str]):
 
 def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_state_keys, true_state_keys: Optional):
     def _classifier_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int, **kwargs):
+        label_extra = kwargs.pop("label", "")
         pred_t = try_index_time_with_metadata(metadata, example, state_metadata_keys + predicted_state_keys, t=t)
         try_adding_aco(state=pred_t, example=example)
         kw_color = kwargs.pop('color', None)
         pred_s_color = kw_color if kw_color is not None else '#0000ffff'
-        scenario.plot_state_rviz(pred_t, label='predicted', color=pred_s_color, **kwargs)
+        scenario.plot_state_rviz(pred_t, label='predicted' + label_extra, color=pred_s_color, **kwargs)
 
         label_t = example['is_close'][t]
         scenario.plot_is_close(label_t)
@@ -126,7 +127,7 @@ def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_s
             true_t = try_index_time_with_metadata(metadata, example, state_metadata_keys + true_state_keys, t=t)
             try_adding_aco(state=true_t, example=example)
             true_s_color = kw_color if kw_color is not None else '#ff0000ff'
-            scenario.plot_state_rviz(true_t, label='actual', scale=1.1, color=true_s_color, **kwargs)
+            scenario.plot_state_rviz(true_t, label='actual' + label_extra, scale=1.1, color=true_s_color, **kwargs)
 
         if add_predicted('accept_probability') in example:
             p_t = example[add_predicted('accept_probability')][t, 0]

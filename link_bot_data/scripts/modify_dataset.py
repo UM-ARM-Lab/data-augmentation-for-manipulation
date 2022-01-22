@@ -22,7 +22,13 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset, example: Dict):
-        example = modify_pad_env(example, args.x, args.y, args.z)
+        example.pop('env')
+        example.pop('origin_point')
+        example.pop('res')
+        example.pop('extent')
+        example.pop('sdf')
+        example.pop('sdf_grad')
+        example.pop('scene_msg')
         yield example
 
     hparams_update = {}

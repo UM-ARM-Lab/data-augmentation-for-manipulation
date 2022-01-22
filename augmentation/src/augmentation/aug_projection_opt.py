@@ -290,9 +290,9 @@ class AugProjOpt(BaseProjectOpt):
             s.arrows_pub.publish(make_delete_markerarray(ns=attract_grad_ns))
             s.arrows_pub.publish(make_delete_markerarray(ns=repel_grad_ns))
 
-            attract_grad_nonzero_b_indices = tf.where(tf.linalg.norm(attract_grad_b, axis=-1) > self.viz_grad_epsilon)
-            attract_points_aug_nonzero = tf.gather(attract_points_aug, attract_grad_nonzero_b_indices)
-            attract_grad_nonzero_b = tf.gather(attract_grad_b, attract_grad_nonzero_b_indices, axis=0)
+            attract_grad_nonzero_b_indices = np.where(np.linalg.norm(attract_grad_b, axis=-1) > self.viz_grad_epsilon)
+            attract_points_aug_nonzero = attract_points_aug[attract_grad_nonzero_b_indices]
+            attract_grad_nonzero_b = attract_grad_b[attract_grad_nonzero_b_indices]
 
             repel_grad_nonzero_b_indices = np.where(np.linalg.norm(repel_grad_b, axis=-1) > self.viz_grad_epsilon)
             repel_points_aug_nonzero = repel_points_aug[repel_grad_nonzero_b_indices]

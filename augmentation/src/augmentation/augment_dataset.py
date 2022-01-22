@@ -128,6 +128,53 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
     return outdir
 
 
+def augment(scenario, aug, n_augmentations, inputs, visualize, viz_f):
+    actual_batch_size = inputs['batch_size']
+    if visualize:
+        scenario.reset_viz()
+
+        inputs_viz = remove_batch(inputs)
+        viz_f(scenario, inputs_viz, idx=0, color='g')
+
+    time = inputs['time_idx'].shape[1]
+
+    for k in range(n_augmentations):
+        scenario.heartbeat()
+        output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)
+        output['augmented_from'] = inputs['full_filename']
+
+        if visualize:
+            for b in debug_viz_batch_indices(actual_batch_size):
+                output_b = try_index_batched_dict(output, b)
+                viz_f(scenario, output_b, idx=k, color='#0000ff88')
+
+        yield output
+
+
+def out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f):
+    for example in dataset:
+        actual_batch_size = example['batch_size']
+        out_example_keys = None
+
+        for out_example in augment(scenario, aug, n_augmentations, example, visualize, viz_f):
+            if out_example_keys is None:
+                out_example_keys = list(out_example.keys())
+            yield from unbatch_examples(out_example, actual_batch_size)
+
+        if 'batch_size' in out_example_keys:
+            out_example_keys.remove('batch_size')
+
+        # the original example should also be included!
+        for original_example in unbatch_examples(example, actual_batch_size):
+            # we lose some information when we augment, so only keep the keys that we have in the augmented data
+            # for example, the image or the joint velocities.
+            original_example_subset = {}
+            for k in out_example_keys:
+                if k in original_example:
+                    original_example_subset[k] = original_example[k]
+            yield original_example_subset
+
+
 def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
                                 viz_f: Callable,
                                 dataset_dir: pathlib.Path,
@@ -144,52 +191,6 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
     aug = make_aug_opt(scenario, dataset_loader, hparams, debug_state_keys, batch_size)
 
     outdir.mkdir(exist_ok=True, parents=False)
-
-    def augment(inputs):
-        actual_batch_size = inputs['batch_size']
-        if visualize:
-            scenario.reset_viz()
-
-            inputs_viz = remove_batch(inputs)
-            viz_f(scenario, inputs_viz, idx=0, color='g')
-
-        time = inputs['time_idx'].shape[1]
-
-        for k in range(n_augmentations):
-            scenario.heartbeat()
-            output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)
-            output['augmented_from'] = inputs['full_filename']
-
-            if visualize:
-                for b in debug_viz_batch_indices(actual_batch_size):
-                    output_b = try_index_batched_dict(output, b)
-                    viz_f(scenario, output_b, idx=k, color='#0000ff88')
-
-            yield output
-
-    def out_examples_gen():
-        for example in dataset:
-            actual_batch_size = example['batch_size']
-            out_example_keys = None
-
-            for out_example in augment(example):
-                if out_example_keys is None:
-                    out_example_keys = list(out_example.keys())
-                yield from unbatch_examples(out_example, actual_batch_size)
-
-            if 'batch_size' in out_example_keys:
-                out_example_keys.remove('batch_size')
-
-            # the original example should also be included!
-            for original_example in unbatch_examples(example, actual_batch_size):
-                # we lose some information when we augment, so only keep the keys that we have in the augmented data
-                # for example, the image or the joint velocities.
-                original_example_subset = {}
-                for k in out_example_keys:
-                    if k in original_example:
-                        original_example_subset[k] = original_example[k]
-                yield original_example_subset
-
     dataset = dataset_loader.get_datasets(mode=mode).take(take)
     expected_total = (1 + n_augmentations) * len(dataset)
     dataset = dataset.batch(batch_size)
@@ -205,7 +206,8 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
 
     need_to_write_hparams = True
     examples_names = []
-    for out_example in tqdm(out_examples_gen(), total=expected_total):
+    for out_example in tqdm(out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f),
+                            total=expected_total):
         if 'sdf' in out_example:
             out_example.pop("sdf")
         if 'sdf_grad' in out_example:

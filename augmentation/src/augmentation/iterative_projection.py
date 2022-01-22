@@ -33,13 +33,16 @@ def iterative_projection(initial_value,
 
     if debug_aug():
         viz_func(None, x, initial_value, target, None)
+        input("post init. press enter")
 
     for i in range(n):
         x_old = tf.identity(x)  # make a copy
 
         x, viz_vars = step_towards_target(target, x)
         if debug_aug():
-            viz_func(i, x, initial_value, target, viz_vars)
+            for _ in range(3):
+                viz_func(i, x, initial_value, target, viz_vars)
+            input("post step. press enter")
 
         opt = project_opt.make_opt()
 
@@ -56,9 +59,12 @@ def iterative_projection(initial_value,
         for j in range(_m):
             x, can_terminate, viz_vars = project_opt.project(j, opt, x_var)
             if debug_aug():
-                viz_func(i, x, initial_value, target, viz_vars)
+                for _ in range(3):
+                    viz_func(i, x, initial_value, target, viz_vars)
             if can_terminate:
                 break
+        if debug_aug():
+            input("post project. press enter")
 
         # terminate early if we're not progressing
         not_progressing = x_distance(x, x_old) < not_progressing_threshold

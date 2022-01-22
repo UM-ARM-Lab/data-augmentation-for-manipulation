@@ -347,6 +347,8 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
                     self.plot_action_rviz(s_t_planned, actions[t])
                 else:
                     self.plot_action_rviz(planned_path[t - 1], actions[t - 1])
+            if 'accept_probability' in s_t_planned:
+                self.plot_accept_probability(s_t_planned['accept_probability'][0])
 
             anim.step()
 

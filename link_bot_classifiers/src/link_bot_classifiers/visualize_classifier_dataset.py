@@ -1,4 +1,5 @@
 from time import perf_counter
+import numpy as np
 from typing import Dict
 
 from colorama import Style
@@ -52,6 +53,13 @@ def visualize_dataset(args, dataset_loader):
         deserialize_scene_msg(example)
 
         is_close = example['is_close'].numpy().squeeze()
+
+        y_coordinates = example[add_predicted('rope')][0][1::3]
+        z_coordinates = example[add_predicted('rope')][0][2::3]
+        max_y = np.max(y_coordinates)
+        min_z = np.min(z_coordinates)
+        if max_y > -0.2 or min_z > 0.4:
+            continue
 
         starts_far = is_close[0] == 0
         positive = bool(is_close[1])

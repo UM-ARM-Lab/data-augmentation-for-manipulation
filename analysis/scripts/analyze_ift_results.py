@@ -37,10 +37,11 @@ def metrics_main(args):
     method_name_map = {
         '/media/shared/ift/small-hooks-diverse-aug':     'Augmentation (full method)',
         '/media/shared/ift/small-hooks-diverse-no-aug':  'No Augmentation (baseline)',
-        '/media/shared/ift_ablations/no_occupancy':      'Augmentation (No Occupancy)',
-        '/media/shared/ift_ablations/no_invariance':     'Augmentation (No Transf. Val.)',
-        '/media/shared/ift_ablations/no_delta_min_dist': 'Augmentation (No Delta Min Dist)',
-        '/media/shared/ift_ablations/no_min_delta_dist': 'Augmentation (No Delta Min Dist)',
+        '/media/shared/ift_ablations/no_occupancy':      'Augmentation (No occupancy)',
+        '/media/shared/ift_ablations/no_invariance':     'Augmentation (No transf. Val.)',
+        '/media/shared/ift_ablations/no_delta_min_dist': 'Augmentation (No delta min dist)',
+        '/media/shared/ift_ablations/no_min_delta_dist': 'Augmentation (No delta min dist)',
+        '/media/shared/ift_ablations/noise': 'Gaussian Noise (baseline)',
         '../link_bot_planning/real_val_ift/aug': 'Augmentation (full method)'
     }
 
@@ -82,10 +83,11 @@ def metrics_main(args):
     # ax.set_ylim(-0.01, 1.01)
     # plt.savefig(outdir / f'success.png')
 
-    fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='method_name', ci=ci)
+    fig, ax = lineplot(df_r, iter_key, 'success', f'Rope Manipulation, Rolling Avg. Success', hue='method_name', ci=ci)
     # fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='used_augmentation', ci=ci)
     ax.set_xlim(-0.01, x_max)
     ax.set_ylim(-0.01, 1.01)
+    ax.set_xlabel("Iteration")
     # ax.axhline(0.8125, color='black', linewidth=4, label='heuristic classifier')
     ax.legend()
     plt.savefig(outdir / f'success_rate_rolling.png', dpi=180)
