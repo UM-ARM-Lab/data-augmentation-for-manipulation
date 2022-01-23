@@ -8,6 +8,7 @@ from moonshine.filepath_tools import load_hjson
 
 s = 100
 w = 0.96
+text_y = 2.06
 
 
 def extent_for_pos(row, col):
@@ -31,13 +32,13 @@ def main():
     plt.figure(figsize=(12, 6))
     ax = plt.gca()
     ax.set_xlim(0, 4 * s)
-    ax.set_ylim(0, 2.05 * s)
+    ax.set_ylim(0, text_y * s)
     ax.axis('off')
     ax.axvline(s, color='k', linewidth=s * 0.05)
 
-    ax.text(0.5 * s, 2.05 * s, "Original", horizontalalignment='center', verticalalignment='center')
+    ax.text(0.5 * s, text_y * s, "Original", horizontalalignment='center', verticalalignment='center')
 
-    ax.text(2.5 * s, 2.05 * s, "Augmentations", horizontalalignment='center', verticalalignment='center')
+    ax.text(2.5 * s, text_y * s, "Augmentations", horizontalalignment='center', verticalalignment='center')
 
     for row, filenames in enumerate(out_info.values()):
         original_filename = filenames['original']

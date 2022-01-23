@@ -64,8 +64,6 @@ class AugProjOpt(BaseProjectOpt):
         self.lr_decay = 0.90
         self.lr_decay_steps = 10
 
-        self.aug_dir_pub = rospy.Publisher('aug_dir', Marker, queue_size=10)
-
         # precompute stuff
         obj_point_indices = batch_point_to_idx(self.obj_points, self.res_expanded3, self.origin_point_expanded3)
         obj_sdf = tf.gather_nd(self.sdf, obj_point_indices, batch_dims=1)  # will be zero if index OOB
@@ -239,10 +237,9 @@ class AugProjOpt(BaseProjectOpt):
             s.plot_transform(k, obj_transforms_b_i, f'aug_opt_current_{k}')
             s.plot_transform(k, target_b_i, f'aug_opt_target_{k}')
 
-            dir_msg = rviz_arrow([0, 0, 0], target_pos_b_i.numpy(), scale=self.viz_arrow_scale * 2)
-            dir_msg.header.frame_id = f'aug_opt_initial_{k}'
-            dir_msg.id = k
-            self.aug_dir_pub.publish(dir_msg)
+            s.aug_plot_dir_arrow(target_pos_b_i.numpy(),
+                                 scale=self.viz_arrow_scale * 2,
+                                 frame_id=f'aug_opt_initial_{k}', k=k)
 
             moved_obj_indices_b = tf.squeeze(tf.where(moved_mask_b))
             moved_obj_points_b = tf.gather(obj_points_b, moved_obj_indices_b)
@@ -314,7 +311,6 @@ class AugProjOpt(BaseProjectOpt):
     def clear_viz(self):
         s = self.aug_opt.scenario
         for _ in range(3):
-            self.aug_dir_pub.publish(make_delete_marker(ns='arrow'))
             s.point_pub.publish(make_delete_marker(ns='attract'))
             s.point_pub.publish(make_delete_marker(ns='repel'))
             s.point_pub.publish(make_delete_marker(ns='attract_aug'))

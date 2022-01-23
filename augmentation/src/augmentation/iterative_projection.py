@@ -44,8 +44,7 @@ def iterative_projection(initial_value,
 
         x, viz_vars = step_towards_target(target, x)
         if debug_aug():
-            for _ in range(3):
-                viz_func(i, x, initial_value, target, viz_vars)
+            viz_func(i, x, initial_value, target, viz_vars)
             post_step_cb(i)
 
         opt = project_opt.make_opt()
@@ -63,8 +62,7 @@ def iterative_projection(initial_value,
         for j in range(_m):
             x, can_terminate, viz_vars = project_opt.project(j, opt, x_var)
             if debug_aug():
-                for _ in range(3):
-                    viz_func(i, x, initial_value, target, viz_vars)
+                viz_func(i, x, initial_value, target, viz_vars)
             if can_terminate:
                 break
 

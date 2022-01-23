@@ -7,7 +7,7 @@
   ]
   termination_criteria: {
     total_timeout: 600
-    timeout: 600
+    timeout: 500
     # lower than sim to speed things up
     max_attempts: 4
     max_planning_attempts: 4

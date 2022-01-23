@@ -14,6 +14,7 @@ import rosnode
 from arc_utilities.algorithms import nested_dict_update
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
 from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
+from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.get_dual_arm_robot_state import GetDualArmRobotState
 from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
@@ -207,7 +208,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         gt_rope_state_vector = np.array(gt_rope_state_vector, np.float32)
 
         state = {
-            'rope':    gt_rope_state_vector,
+            'rope': gt_rope_state_vector,
         }
         state.update(self.get_robot_state.get_state())
 
@@ -616,6 +617,12 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
 
+    def aug_plot_dir_arrow(self, target_pos, scale, frame_id, k):
+        dir_msg = rviz_arrow([0, 0, 0], target_pos, scale=scale)
+        dir_msg.header.frame_id = frame_id
+        dir_msg.id = k
+        self.aug_dir_pub.publish(dir_msg)
+
     def simple_noise(self, rng: np.random.RandomState, example, k: str, v, noise_params):
         mean = 0
         if k in noise_params:
@@ -625,4 +632,3 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         else:
             v_out = v
         return v_out
-

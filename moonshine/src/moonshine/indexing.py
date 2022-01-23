@@ -35,8 +35,35 @@ def index_time_np(e: Dict, time_indexed_keys: List[str], t: int, inclusive: bool
     return numpify(index_time(e, time_indexed_keys, t, inclusive=inclusive))
 
 
+def try_index_time(e: Dict, time_indexed_keys: List[str], t: int, inclusive: bool):
+    return remove_batch(try_index_time_batched(add_batch(e), time_indexed_keys, t, inclusive=inclusive))
+
+
 def index_time(e: Dict, time_indexed_keys: List[str], t: int, inclusive: bool):
     return remove_batch(index_time_batched(add_batch(e), time_indexed_keys, t, inclusive=inclusive))
+
+
+def try_index_time_batched(e: Dict, time_indexed_keys: List[str], t: int, inclusive: bool):
+    """
+    Args:
+        e:
+        time_indexed_keys: keys for which the indexing [:, t] should be performed
+        t:
+        inclusive: If true, any key not listed in time_indexed_keys will still be included as-is in the output
+
+    Returns:
+
+    """
+    e_t = {}
+    if inclusive:
+        for k, v in e.items():
+            e_t[k] = index_time_batched_kv_if_time_indexed(k, v, t, time_indexed_keys)
+    else:
+        for k in time_indexed_keys:
+            if k in e:
+                v = e[k]
+                e_t[k] = index_time_batched_kv_if_time_indexed(k, v, t, time_indexed_keys)
+    return e_t
 
 
 def index_time_batched(e: Dict, time_indexed_keys: List[str], t: int, inclusive: bool):

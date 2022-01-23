@@ -17,6 +17,7 @@ from link_bot_pycommon.grid_utils import extent_to_env_shape
 from link_bot_pycommon.pycommon import yaw_diff
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import to_list_of_strings
+from moonshine.numpify import numpify
 from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import Image, JointState
 from visualization_msgs.msg import MarkerArray
@@ -145,7 +146,7 @@ class PlanarPushingScenario(ScenarioWithVisualization):
             self.joint_states_pub.publish(joint_state)
 
         if 'front_close' in state:
-            img = state['front_close'][0]
+            img = numpify(state['front_close'][0])
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 img_msg = ros_numpy.msgify(Image, img, encoding='rgb8')

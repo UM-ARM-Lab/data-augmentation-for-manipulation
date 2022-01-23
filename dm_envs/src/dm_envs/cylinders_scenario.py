@@ -642,6 +642,13 @@ class CylindersScenario(PlanarPushingScenario):
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
 
+    def aug_plot_dir_arrow(self, target_pos, scale, frame_id, k):
+        z_offset = 0.09
+        dir_msg = rviz_arrow([0, 0, z_offset], target_pos + np.array([0, 0, z_offset]), scale=scale)
+        dir_msg.header.frame_id = frame_id
+        dir_msg.id = k
+        self.aug_dir_pub.publish(dir_msg)
+
     def simple_noise(self, rng: np.random.RandomState, example, k: str, v, noise_params):
         mean = 0
         # if k == 'env':

@@ -15,7 +15,7 @@
     invariance_model: /media/shared/invariance_trials/cylinders1/best_checkpoint
 
     viz: {
-      scale: 0.007
+      scale: 0.006
       arrows_scale: 0.004
       min_delta_dist_grad_scale: 2
     }

@@ -48,6 +48,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.error_pub = rospy.Publisher("error", Float32, queue_size=10)
         self.point_pub = rospy.Publisher("point", Marker, queue_size=10)
         self.arrows_pub = rospy.Publisher("arrows", MarkerArray, queue_size=10)
+        self.aug_dir_pub = rospy.Publisher('aug_dir', Marker, queue_size=10)
 
         self.sampled_goal_marker_idx = 0
         self.tree_state_idx = 0
@@ -83,6 +84,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.action_viz_pub.publish(clear_msg)
         self.point_pub.publish(clear_marker_msg)
         self.arrows_pub.publish(clear_msg)
+        self.aug_dir_pub.publish(clear_marker_msg)
         self.sampled_goal_marker_idx = 0
         self.tree_state_idx = 0
         self.rejected_state_idx = 0
