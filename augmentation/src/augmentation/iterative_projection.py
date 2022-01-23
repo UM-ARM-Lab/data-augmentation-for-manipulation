@@ -3,6 +3,7 @@ from typing import Callable
 import tensorflow as tf
 
 from augmentation.aug_opt_utils import debug_aug
+from link_bot_pycommon.pycommon import empty_callable
 
 
 class BaseProjectOpt:
@@ -26,6 +27,9 @@ def iterative_projection(initial_value,
                          viz_func: Callable,
                          x_distance: Callable,
                          not_progressing_threshold: float,
+                         post_init_cb: Callable = empty_callable,
+                         post_step_cb: Callable = empty_callable,
+                         post_project_cb: Callable = empty_callable,
                          m_last=None,
                          ):
     # in the paper x is $T$, the transformation we apply to the moved points
@@ -33,7 +37,7 @@ def iterative_projection(initial_value,
 
     if debug_aug():
         viz_func(None, x, initial_value, target, None)
-        input("post init. press enter")
+    post_init_cb()
 
     for i in range(n):
         x_old = tf.identity(x)  # make a copy
@@ -42,7 +46,7 @@ def iterative_projection(initial_value,
         if debug_aug():
             for _ in range(3):
                 viz_func(i, x, initial_value, target, viz_vars)
-            input("post step. press enter")
+            post_step_cb(i)
 
         opt = project_opt.make_opt()
 
@@ -63,8 +67,8 @@ def iterative_projection(initial_value,
                     viz_func(i, x, initial_value, target, viz_vars)
             if can_terminate:
                 break
-        if debug_aug():
-            input("post project. press enter")
+
+        post_project_cb(i)
 
         # terminate early if we're not progressing
         not_progressing = x_distance(x, x_old) < not_progressing_threshold

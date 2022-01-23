@@ -17,7 +17,7 @@ from link_bot_data.visualization import DebuggingViz
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg
-from link_bot_pycommon.pycommon import has_keys
+from link_bot_pycommon.pycommon import has_keys, empty_callable
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
 from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
@@ -93,6 +93,9 @@ class AugmentationOptimization:
                  state_keys: List[str],
                  action_keys: List[str],
                  points_state_keys: List[str] = None,
+                 post_init_cb: Callable = empty_callable,
+                 post_step_cb: Callable = empty_callable,
+                 post_project_cb: Callable = empty_callable,
                  ):
         self.state_keys = state_keys
         self.action_keys = action_keys
@@ -102,6 +105,9 @@ class AugmentationOptimization:
         self.debug = debug
         self.local_env_helper = local_env_helper
         self.broadcaster = self.scenario.tf.tf_broadcaster
+        self.post_init_cb = post_init_cb
+        self.post_step_cb = post_step_cb
+        self.post_project_cb = post_project_cb
 
         self.seed_int = 4 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.gen = tf.random.Generator.from_seed(self.seed_int)
@@ -289,7 +295,10 @@ class AugmentationOptimization:
                                                         project_opt=project_opt,
                                                         x_distance=self.scenario.aug_distance,
                                                         not_progressing_threshold=not_progressing_threshold,
-                                                        viz_func=project_opt.viz_func)
+                                                        viz_func=project_opt.viz_func,
+                                                        post_init_cb=self.post_init_cb,
+                                                        post_step_cb=self.post_step_cb,
+                                                        post_project_cb=self.post_project_cb)
 
         transformation_matrices = self.scenario.transformation_params_to_matrices(obj_transforms)
         # NOTE: to_local_frame is [b, 3] but technically it should be [b, k, 3]
@@ -301,6 +310,8 @@ class AugmentationOptimization:
                                        extent=extent,
                                        sdf=project_opt.obj_sdf_moved,
                                        sdf_aug=viz_vars.sdf_aug)
+        if debug_aug():
+            project_opt.clear_viz()
 
         return transformation_matrices, to_local_frame, is_valid
 

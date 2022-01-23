@@ -510,3 +510,6 @@ def int_frac_to_range(i, n, low, high):
     frac *= (high - low)  # [0, range]
     frac += low  # [low, high]
     return frac
+
+def empty_callable():
+    pass

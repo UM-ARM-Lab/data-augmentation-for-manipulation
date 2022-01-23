@@ -15,7 +15,7 @@ from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.split_dataset import split_dataset
 from link_bot_data.visualization import classifier_transition_viz_t, DebuggingViz, init_viz_env, dynamics_viz_t
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.pycommon import has_keys
+from link_bot_pycommon.pycommon import has_keys, empty_callable
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import try_index_batched_dict
@@ -250,7 +250,11 @@ def make_aug_opt(scenario: ScenarioWithVisualization,
                  dataset_loader: NewBaseDatasetLoader,
                  hparams: Dict,
                  debug_state_keys: List[str],
-                 batch_size: int):
+                 batch_size: int,
+                 post_init_cb: Callable = empty_callable,
+                 post_step_cb: Callable = empty_callable,
+                 post_project_cb: Callable = empty_callable,
+                 ):
     if has_keys(hparams, ['augmentation', 'gaussian_noise']):
         aug = SimpleNoiseAugmentation(scenario, hparams['augmentation']['gaussian_noise'])
     else:
@@ -266,5 +270,8 @@ def make_aug_opt(scenario: ScenarioWithVisualization,
                                        state_keys=dataset_loader.state_keys,
                                        action_keys=dataset_loader.action_keys,
                                        points_state_keys=dataset_loader.points_state_keys,
+                                       post_init_cb=post_init_cb,
+                                       post_step_cb=post_step_cb,
+                                       post_project_cb=post_project_cb,
                                        )
     return aug

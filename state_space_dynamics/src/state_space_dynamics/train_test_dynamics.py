@@ -189,10 +189,10 @@ def eval_main(dataset_dirs: List[pathlib.Path],
             all_errors = tf.concat([all_errors, errors_for_batch], axis=0)
         else:
             all_errors = errors_for_batch
-    print(f"90th percentile {np.percentile(all_errors.numpy(), 90):.6f}")
-    print(f"95th percentile {np.percentile(all_errors.numpy(), 95):.6f}")
-    print(f"99th percentile {np.percentile(all_errors.numpy(), 99):.6f}")
-    print(f"max {np.max(all_errors.numpy()):.6f}")
+    print(f"90th percentile {np.percentile(all_errors, 90):.6f}")
+    print(f"95th percentile {np.percentile(all_errors, 95):.6f}")
+    print(f"99th percentile {np.percentile(all_errors, 99):.6f}")
+    print(f"max {np.max(all_errors):.6f}")
 
 
 def viz_main(dataset_dirs: List[pathlib.Path],

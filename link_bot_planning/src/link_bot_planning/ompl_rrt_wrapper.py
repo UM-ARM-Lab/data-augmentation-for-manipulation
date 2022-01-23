@@ -519,8 +519,6 @@ class OmplRRTWrapper(MyPlanner):
             # NOTE: we don't check this because smoothing is run even when we Timeout and the goal wasn't reached
             distance_to_goal = self.scenario.distance_to_goal(proposed_state_seq[-1], goal)
             much_further_from_goal = distance_to_goal - initial_distance_to_goal > 0.03  # FIXME: hardcoded parameter
-            if classifier_accept and much_further_from_goal:
-                rospy.logwarn("smoothing would have made distance to goal higher")
 
             # if the shortcut was successful, save that as the new path
             accept = tf.logical_and(classifier_accept, tf.logical_not(much_further_from_goal))

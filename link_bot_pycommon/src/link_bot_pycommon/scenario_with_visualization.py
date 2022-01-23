@@ -82,6 +82,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.state_viz_pub.publish(clear_msg)
         self.action_viz_pub.publish(clear_msg)
         self.point_pub.publish(clear_marker_msg)
+        self.arrows_pub.publish(clear_msg)
         self.sampled_goal_marker_idx = 0
         self.tree_state_idx = 0
         self.rejected_state_idx = 0
