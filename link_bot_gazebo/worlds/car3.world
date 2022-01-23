@@ -83,10 +83,5 @@
             <uri>model://rope_3d</uri>
             <pose>-0.36 0.63 0.37 0 0 0</pose>
         </include>
-
-        <include>
-            <uri>model://arm_kinect</uri>
-            <pose>0.77 -0.16 0.7 0 0.45 2.21</pose>
-        </include>
     </world>
 </sdf>
