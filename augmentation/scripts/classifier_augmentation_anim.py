@@ -2,6 +2,7 @@
 import argparse
 import logging
 import pathlib
+import sys
 from copy import deepcopy
 from datetime import datetime
 from time import sleep
@@ -31,6 +32,12 @@ def main():
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('in_idx', type=int)
     parser.add_argument('aug_seed', type=int)
+    parser.add_argument('tx', type=float)
+    parser.add_argument('ty', type=float)
+    parser.add_argument('tz', type=float)
+    parser.add_argument('r', type=float)
+    parser.add_argument('p', type=float)
+    parser.add_argument('y', type=float)
     parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--hparams', type=pathlib.Path, default=pathlib.Path("aug_hparams/rope.hjson"))
 
@@ -39,19 +46,30 @@ def main():
     dataset_dir = args.dataset_dir
 
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
+
+    for _ in range(20):
+        scenario.tf.send_transform([args.tx, args.ty, args.tz],
+                                   quaternion_from_euler(args.r, args.p, args.y),
+                                   'hdt_michigan_root', 'anim_camera')
+        sleep(0.1)
+
     common_hparams = load_hjson(pathlib.Path("aug_hparams/common.hjson"))
     hparams = load_hjson(args.hparams)
     hparams = nested_dict_update(common_hparams, hparams)
-    hparams['seed'] = args.aug_seed
+    hparams['augmentation']['seed'] = args.aug_seed
 
     dataset_loader = NewClassifierDatasetLoader([dataset_dir])
     debug_state_keys = [add_predicted(k) for k in dataset_loader.state_keys]
 
     date_str = datetime.now().strftime('%H-%M-%S')
-    outdir = pathlib.Path('anims') / f"{args.dataset_dir.name}_{date_str}"
+    outdir = pathlib.Path('anims') / f"{args.dataset_dir.name}_ex{args.in_idx}_aug{args.aug_seed}_{date_str}"
     outdir.mkdir(exist_ok=True, parents=True)
 
-    region = (800, 100, 900, 900)
+    with (outdir/'args.txt').open("w") as f:
+        f.write(' '.join(sys.argv))
+        f.write('\n')
+
+    region = (400, 100, 900, 900)
 
     def post_init_cb():
         sleep(0.5)
@@ -69,8 +87,6 @@ def main():
                        post_init_cb, post_step_cb, post_project_cb)
 
     dataset = dataset_loader.get_datasets('all').skip(args.in_idx).take(1).batch(1)
-
-    scenario.tf.send_transform([-1, 0, 1], quaternion_from_euler(0, 0, 0), 'hdt_michigan_root', 'anim_camera')
 
     # plot the environment, rope at t=0, and rope at t=1
     viz_f = classifier_transition_viz_t(metadata={},
@@ -94,6 +110,8 @@ def main():
 
     time = original['time_idx'].shape[1]
     output = aug.aug_opt(original, batch_size=1, time=time)
+    if not output['is_valid']:
+        print("WARNING!!!! NO AUGMENTATION OCCURED")
     output = remove_batch(output)
     aug.delete_state_action_markers()
 
