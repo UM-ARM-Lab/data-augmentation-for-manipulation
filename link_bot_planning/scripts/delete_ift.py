@@ -2,8 +2,11 @@
 import argparse
 import pathlib
 
+import hjson
+
 from arc_utilities.path_utils import rm_tree
 from link_bot_pycommon.args import int_set_arg
+from moonshine.filepath_tools import load_hjson
 
 
 def main():
@@ -13,6 +16,8 @@ def main():
 
     args = parser.parse_args()
 
+    logfilename = args.dir / 'logfile.hjson'
+    log = load_hjson(logfilename)
     for i in args.iters:
         planning_dir = args.dir / "planning_results" / f"iteration_{i:04d}_planning"
         training_dir = args.dir / "training_logdir" / f"iteration_{i:04d}_classifier_training_logdir"
@@ -35,6 +40,13 @@ def main():
                     pass
             else:
                 print(f"{d} does not exist")
+
+        key = f'iteration {i}'
+        if key in log:
+            log.pop(key)
+
+    with logfilename.open("w") as f:
+        hjson.dump(log, f)
 
 
 if __name__ == '__main__':

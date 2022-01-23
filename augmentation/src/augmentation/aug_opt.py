@@ -19,6 +19,7 @@ from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import lookup_points_in_vg
 from link_bot_pycommon.pycommon import has_keys, empty_callable
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from moonshine.numpify import numpify
 from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
 from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
 from visualization_msgs.msg import MarkerArray
@@ -218,10 +219,10 @@ class AugmentationOptimization:
                 self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug_after', color='blue')
                 self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
                 env_b = {
-                    'env':          env[b].numpy(),
-                    'res':          res[b].numpy(),
-                    'origin_point': origin_point[b].numpy(),
-                    'extent':       extent[b].numpy(),
+                    'env':          numpify(env[b]),
+                    'res':          numpify(res[b]),
+                    'origin_point': numpify(origin_point[b]),
+                    'extent':       numpify(extent[b]),
                 }
                 self.scenario.plot_environment_rviz(env_b)
                 self.debug.send_position_transform(origin_point[b], 'origin_point')
@@ -250,10 +251,10 @@ class AugmentationOptimization:
 
     def plot_stationary_vg(self, b, env_stationary, extent, origin_point, res):
         env_stationary_b = {
-            'env':          env_stationary[b].numpy(),
-            'res':          res[b].numpy(),
-            'origin_point': origin_point[b].numpy(),
-            'extent':       extent[b].numpy(),
+            'env':          numpify(env_stationary[b]),
+            'res':          numpify(res[b]),
+            'origin_point': numpify(origin_point[b]),
+            'extent':       numpify(extent[b]),
         }
         self.scenario.plot_environment_rviz(env_stationary_b)
         self.debug.send_position_transform(origin_point[b], 'origin_point')

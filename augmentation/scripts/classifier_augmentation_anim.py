@@ -4,9 +4,9 @@ import logging
 import pathlib
 import sys
 from copy import deepcopy
-from datetime import datetime
 from time import sleep
 
+import numpy as np
 import pyautogui as pyautogui
 import tensorflow as tf
 
@@ -30,72 +30,66 @@ def main():
     tf.get_logger().setLevel(logging.FATAL)
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
-    parser.add_argument('in_idx', type=int)
-    parser.add_argument('aug_seed', type=int)
-    parser.add_argument('tx', type=float)
-    parser.add_argument('ty', type=float)
-    parser.add_argument('tz', type=float)
-    parser.add_argument('r', type=float)
-    parser.add_argument('p', type=float)
-    parser.add_argument('y', type=float)
-    parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--hparams', type=pathlib.Path, default=pathlib.Path("aug_hparams/rope.hjson"))
 
     args = parser.parse_args()
 
     dataset_dir = args.dataset_dir
+    loader = NewClassifierDatasetLoader([dataset_dir])
 
     scenario = get_scenario("dual_arm_rope_sim_val_with_robot_feasibility_checking")
 
-    for _ in range(20):
-        scenario.tf.send_transform([args.tx, args.ty, args.tz],
-                                   quaternion_from_euler(args.r, args.p, args.y),
-                                   'hdt_michigan_root', 'anim_camera')
+    figures_info = np.loadtxt("figures_info.txt")
+
+    for figure_info_i in figures_info:
+        in_idx, aug_seed, tx, ty, tz, r, p, y = figure_info_i
+        in_idx = int(in_idx)
+        aug_seed = int(aug_seed)
+        take_screenshots(dataset_dir, loader, scenario, args.hparams, in_idx, aug_seed, tx, ty, tz, r, p, y)
+
+
+def take_screenshots(dataset_dir, loader, scenario, hparams_filename, in_idx, aug_seed, tx, ty, tz, r, p, y):
+    for _ in range(10):
+        scenario.tf.send_transform([tx, ty, tz], quaternion_from_euler(r, p, y), 'hdt_michigan_root', 'anim_camera')
         sleep(0.1)
 
     common_hparams = load_hjson(pathlib.Path("aug_hparams/common.hjson"))
-    hparams = load_hjson(args.hparams)
+    hparams = load_hjson(hparams_filename)
     hparams = nested_dict_update(common_hparams, hparams)
-    hparams['augmentation']['seed'] = args.aug_seed
-
-    dataset_loader = NewClassifierDatasetLoader([dataset_dir])
-    debug_state_keys = [add_predicted(k) for k in dataset_loader.state_keys]
-
-    date_str = datetime.now().strftime('%H-%M-%S')
-    outdir = pathlib.Path('anims') / f"{args.dataset_dir.name}_ex{args.in_idx}_aug{args.aug_seed}_{date_str}"
+    hparams['augmentation']['seed'] = aug_seed
+    debug_state_keys = [add_predicted(k) for k in loader.state_keys]
+    q = f"ex{in_idx}_aug{aug_seed}"
+    outdir = pathlib.Path('anims') / f"{dataset_dir.name}_{q}"
     outdir.mkdir(exist_ok=True, parents=True)
-
-    with (outdir/'args.txt').open("w") as f:
+    with (outdir / 'args.txt').open("w") as f:
         f.write(' '.join(sys.argv))
         f.write('\n')
 
-    region = (400, 100, 900, 900)
+    def screenshot(filename):
+        region = (400, 100, 1000, 900)
+        sleep(0.5)
+        full_filename = outdir / filename
+        full_filename.unlink(missing_ok=True)
+        pyautogui.screenshot(full_filename, region=region)
 
     def post_init_cb():
-        sleep(0.5)
-        pyautogui.screenshot(outdir / f"post_init.png", region=region)
+        screenshot(f"post_init_{q}.png")
 
     def post_step_cb(i):
-        sleep(0.5)
-        pyautogui.screenshot(outdir / f"post_step_{i}.png", region=region)
+        screenshot(f"post_step_{i}_{q}.png")
 
     def post_project_cb(i):
-        sleep(0.5)
-        pyautogui.screenshot(outdir / f"post_project_{i}.png", region=region)
+        screenshot(f"post_project_{i}_{q}.png")
 
-    aug = make_aug_opt(scenario, dataset_loader, hparams, debug_state_keys, 1,
-                       post_init_cb, post_step_cb, post_project_cb)
-
-    dataset = dataset_loader.get_datasets('all').skip(args.in_idx).take(1).batch(1)
-
+    aug = make_aug_opt(scenario, loader, hparams, debug_state_keys, 1, post_init_cb, post_step_cb, post_project_cb)
     # plot the environment, rope at t=0, and rope at t=1
     viz_f = classifier_transition_viz_t(metadata={},
-                                        state_metadata_keys=dataset_loader.state_metadata_keys,
-                                        predicted_state_keys=dataset_loader.predicted_state_keys,
+                                        state_metadata_keys=loader.state_metadata_keys,
+                                        predicted_state_keys=loader.predicted_state_keys,
                                         true_state_keys=None)
 
-    original = next(iter(dataset))
-    original_no_batch = deepcopy(remove_batch(original))
+    original = next(iter(loader.get_datasets('all').skip(in_idx).batch(1)))
+    original_no_batch = remove_batch(deepcopy(original))
 
     scenario.reset_viz()
     for _ in range(3):
@@ -103,26 +97,22 @@ def main():
         viz_f(scenario, original_no_batch, t=0, label='0')
         viz_f(scenario, original_no_batch, t=1, label='1')
 
-    sleep(0.5)
-    pyautogui.screenshot(outdir / "original.png", region=region)
+    screenshot(f"original_{q}.png")
 
     scenario.reset_viz()
-
     time = original['time_idx'].shape[1]
     output = aug.aug_opt(original, batch_size=1, time=time)
     if not output['is_valid']:
         print("WARNING!!!! NO AUGMENTATION OCCURED")
     output = remove_batch(output)
     aug.delete_state_action_markers()
-
     scenario.reset_viz()
     for _ in range(3):
         scenario.plot_environment_rviz(output)
         viz_f(scenario, output, t=0, label='0')
         viz_f(scenario, output, t=1, label='1')
 
-    sleep(0.5)
-    pyautogui.screenshot(outdir / "output.png", region=region)
+    screenshot(f"output_{q}.png")
 
 
 if __name__ == '__main__':
