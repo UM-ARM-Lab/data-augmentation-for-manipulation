@@ -399,6 +399,29 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
                                           **kwargs))
         self.arrows_pub.publish(msg)
 
+    def plot_line_strip_rviz(self, positions, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+        color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
+
+        scale = kwargs.get('scale', 0.02)
+
+        msg = Marker()
+        msg.header.frame_id = frame_id
+        msg.header.stamp = rospy.Time.now()
+        msg.ns = label
+        msg.id = id
+        msg.type = Marker.LINE_STRIP
+        msg.action = Marker.ADD
+        msg.pose.orientation.w = 1
+        msg.scale.x = scale
+        msg.scale.y = scale
+        msg.scale.z = scale
+        msg.color = color_msg
+        for position in positions:
+            p = Point(x=position[0], y=position[1], z=position[2])
+            msg.points.append(p)
+
+        self.point_pub.publish(msg)
+
     def plot_points_rviz(self, positions, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
         color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
 

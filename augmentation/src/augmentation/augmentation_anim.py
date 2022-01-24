@@ -27,7 +27,7 @@ def take_screenshots(name, outdir, loader, scenario, hparams_filename, identifie
 
     for _ in range(15):
         scenario.tf.send_transform([tx, ty, tz], quaternion_from_euler(r, p, y), 'world', 'anim_camera')
-        scenario.tf.send_transform([1.00, 0.5, 0.6], quaternion_from_euler(-0.63, 0, 1.4), 'world', 'anim_camera')
+        # scenario.tf.send_transform([1.00, 0.5, 0.6], quaternion_from_euler(-0.63, 0, 1.4), 'world', 'anim_camera')
         sleep(0.1)
 
     common_hparams = load_hjson(pathlib.Path("aug_hparams/common.hjson"))

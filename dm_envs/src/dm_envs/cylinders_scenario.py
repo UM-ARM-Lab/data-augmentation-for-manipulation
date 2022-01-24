@@ -194,6 +194,7 @@ class CylindersScenario(PlanarPushingScenario):
     def plot_state_rviz(self, state: Dict, **kwargs):
         super().plot_state_rviz(state, **kwargs)
 
+        no_robot = kwargs.get("no_robot", False)
         ns = kwargs.get("label", "")
         idx = kwargs.get("idx", 0)
         color_msg = color_from_kwargs(kwargs, 1.0, 0, 0.0)
@@ -207,7 +208,7 @@ class CylindersScenario(PlanarPushingScenario):
 
         for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(state, num_objs):
             if is_robot:
-                if pos is not None:
+                if not no_robot and pos is not None:
                     robot_pos_viz = deepcopy(pos)
                     robot_pos_viz[0, 2] += primitive_hand.HALF_HEIGHT
                     robot_color_msg = deepcopy(color_msg)
@@ -215,22 +216,22 @@ class CylindersScenario(PlanarPushingScenario):
                     marker = make_cylinder_marker(robot_color_msg, primitive_hand.HEIGHT, next(ig), ns + '_robot',
                                                   robot_pos_viz, primitive_hand.RADIUS)
                     msg.markers.append(marker)
-                if pos is not None and vel is not None:
-                    vel_marker = make_vel_arrow(pos, vel, primitive_hand.HEIGHT + 0.005, color_msg, next(ig),
-                                                ns + '_robot')
-                    msg.markers.append(vel_marker)
+                # if pos is not None and vel is not None:
+                #     vel_marker = make_vel_arrow(pos, vel, primitive_hand.HEIGHT + 0.005, color_msg, next(ig),
+                #                                 ns + '_robot')
+                #     msg.markers.append(vel_marker)
             else:
                 if pos is not None:
                     obj_marker = make_cylinder_marker(color_msg, height, next(ig), ns, pos, radius)
                     msg.markers.append(obj_marker)
-                if vel is not None:
-                    if np.linalg.norm(vel) < 1e-4:
-                        # move it out of the view by moving it way up
-                        up = np.array([0, 0, 10])
-                        obj_vel_marker = make_vel_arrow(pos + up, vel, height, color_msg, next(ig), ns)
-                    else:
-                        obj_vel_marker = make_vel_arrow(pos, vel, height, color_msg, next(ig), ns)
-                    msg.markers.append(obj_vel_marker)
+                # if pos is not None and vel is not None:
+                #     if np.linalg.norm(vel) < 1e-4:
+                #         # move it out of the view by moving it way up
+                #         up = np.array([0, 0, 10])
+                #         obj_vel_marker = make_vel_arrow(pos + up, vel, height, color_msg, next(ig), ns)
+                #     else:
+                #         obj_vel_marker = make_vel_arrow(pos, vel, height, color_msg, next(ig), ns)
+                #     msg.markers.append(obj_vel_marker)
 
         self.state_viz_pub.publish(msg)
 
