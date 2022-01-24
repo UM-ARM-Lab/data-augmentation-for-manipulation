@@ -1,82 +1,33 @@
 #!/usr/bin/env python
-import argparse
-import logging
 import pathlib
 import sys
 from copy import deepcopy
 from time import sleep
 
-import numpy as np
-import pyautogui as pyautogui
-import tensorflow as tf
+import pyautogui
 
-from arc_utilities import ros_init
+import rospy
 from arc_utilities.algorithms import nested_dict_update
 from augmentation.augment_dataset import make_aug_opt
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_data.load_dataset import guess_dataset_loader
 from link_bot_data.visualization import classifier_transition_viz_t
-from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
-from moonshine.gpu_config import limit_gpu_mem
 from moonshine.indexing import try_index_time
 from moonshine.moonshine_utils import remove_batch
 from moonshine.numpify import numpify
 from tf.transformations import quaternion_from_euler
 
-limit_gpu_mem(None)
+
+def make_identifier(in_idx, aug_seed):
+    return f"ex{in_idx}_aug{aug_seed}"
 
 
-@ros_init.with_ros("augmentation_anim")
-def main():
-    tf.get_logger().setLevel(logging.FATAL)
-    parser = argparse.ArgumentParser()
-    parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
-    parser.add_argument('name')
-    parser.add_argument('aug_hparams', type=pathlib.Path)
-    parser.add_argument('data_collection_params', type=pathlib.Path)
+def take_screenshots(name, outdir, loader, scenario, hparams_filename, identifier, in_idx, aug_seed, tx, ty, tz, r, p, y):
+    rospy.set_param("DEBUG_AUG", True)
 
-    args = parser.parse_args()
-
-    dataset_dir = args.dataset_dir
-    loader = guess_dataset_loader(dataset_dir)
-    scenario = loader.get_scenario()
-    params = load_hjson(args.data_collection_params)
-    scenario.on_before_data_collection(params)
-
-    figures_info = np.loadtxt(f"{args.name}_figures_info.txt")
-    figures_info = np.atleast_2d(figures_info)
-    root = pathlib.Path('anims') / args.name
-
-    out_info = {}
-    for figure_info_i in figures_info:
-        in_idx, aug_seed, tx, ty, tz, r, p, y = figure_info_i
-
-        in_idx = int(in_idx)
-        aug_seed = int(aug_seed)
-
-        q = f"ex{in_idx}_aug{aug_seed}"
-        outdir = root / f"{dataset_dir.name}_{q}"
-        outdir.mkdir(exist_ok=True, parents=True)
-
-        original_filename, output_filename, success = take_screenshots(args.name, outdir, q, loader, scenario,
-                                                                       args.aug_hparams,
-                                                                       in_idx,
-                                                                       aug_seed, tx, ty, tz, r, p, y)
-
-        if in_idx not in out_info:
-            out_info[in_idx] = {}
-            out_info[in_idx]['outputs'] = []
-        out_info[in_idx]['original'] = original_filename
-        out_info[in_idx]['outputs'].append(output_filename)
-
-    with (root / 'out_info.txt').open("w") as f:
-        my_hdump(out_info, f)
-
-
-def take_screenshots(name, outdir, q, loader, scenario, hparams_filename, in_idx, aug_seed, tx, ty, tz, r, p, y):
-    for _ in range(10):
+    for _ in range(15):
         scenario.tf.send_transform([tx, ty, tz], quaternion_from_euler(r, p, y), 'world', 'anim_camera')
+        scenario.tf.send_transform([1.00, 0.5, 0.6], quaternion_from_euler(-0.63, 0, 1.4), 'world', 'anim_camera')
         sleep(0.1)
 
     common_hparams = load_hjson(pathlib.Path("aug_hparams/common.hjson"))
@@ -92,7 +43,7 @@ def take_screenshots(name, outdir, q, loader, scenario, hparams_filename, in_idx
         f.write(' '.join(sys.argv))
         f.write('\n')
 
-    if name =='rope':
+    if name == 'rope':
         region = (450, 100, 900, 900)
     else:
         region = (450, 150, 900, 800)
@@ -105,13 +56,13 @@ def take_screenshots(name, outdir, q, loader, scenario, hparams_filename, in_idx
         return full_filename
 
     def post_init_cb():
-        screenshot(f"post_init_{q}.png")
+        screenshot(f"post_init_{identifier}.png")
 
     def post_step_cb(i):
-        screenshot(f"post_step_{i}_{q}.png")
+        screenshot(f"post_step_{i}_{identifier}.png")
 
     def post_project_cb(i):
-        screenshot(f"post_project_{i}_{q}.png")
+        screenshot(f"post_project_{i}_{identifier}.png")
 
     aug = make_aug_opt(scenario, loader, hparams, debug_state_keys, 1, post_init_cb, post_step_cb, post_project_cb)
 
@@ -122,7 +73,7 @@ def take_screenshots(name, outdir, q, loader, scenario, hparams_filename, in_idx
 
     classifier_viz(name, original_no_batch, scenario, loader)
 
-    original_img_filename = screenshot(f"original_{q}.png")
+    original_img_filename = screenshot(f"original_{identifier}.png")
 
     scenario.reset_viz()
     time = original['time_idx'].shape[1]
@@ -137,7 +88,7 @@ def take_screenshots(name, outdir, q, loader, scenario, hparams_filename, in_idx
     aug.delete_state_action_markers()
     classifier_viz(name, output, scenario, loader)
 
-    output_img_filename = screenshot(f"output_{q}.png")
+    output_img_filename = screenshot(f"output_{identifier}.png")
 
     return original_img_filename, output_img_filename, success
 
@@ -175,7 +126,3 @@ def classifier_viz(name, example, scenario, loader):
             viz_f(scenario, example, t=1, label='1')
     else:
         raise NotImplementedError()
-
-
-if __name__ == '__main__':
-    main()

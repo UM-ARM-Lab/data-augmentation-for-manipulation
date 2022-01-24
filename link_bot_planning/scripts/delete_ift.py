@@ -21,7 +21,7 @@ def main():
     for i in args.iters:
         planning_dir = args.dir / "planning_results" / f"iteration_{i:04d}_planning"
         training_dir = args.dir / "training_logdir" / f"iteration_{i:04d}_classifier_training_logdir"
-        dataset_dir = args.dir / "classifier_dataset" / f"iteration_{i:04d}_dataset"
+        dataset_dir = args.dir / "classifier_datasets" / f"iteration_{i:04d}_dataset"
         dataset_aug_dir = args.dir / "classifier_datasets_aug" / f"iteration_{i:04d}_dataset"
 
         dirs_to_remove = [

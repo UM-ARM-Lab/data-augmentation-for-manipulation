@@ -25,7 +25,7 @@ class PrimitiveHand(RobotHand, Primitive):
                          size=size,
                          name=hand_name,
                          pos=[0, 0, HALF_HEIGHT],
-                         rgba=[0, 1, 0, 1])
+                         rgba=[1, 0, 1, 1])
         self._tool_center_point = self.mjcf_model.worldbody.add('site', name='tcp', pos=[0, 0, HEIGHT], euler=[0, 0, 0])
 
     def _build_observables(self):

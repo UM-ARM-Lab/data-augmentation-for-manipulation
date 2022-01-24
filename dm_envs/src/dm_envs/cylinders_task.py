@@ -16,6 +16,7 @@ class PlanarPushingCylindersTask(PlanarPushingTask):
         _objs = []
         for i in range(params['num_objs']):
             obj = Cylinder(radius=params['radius'], half_length=params['height'] / 2, name=f'obj{i}')
+            obj._geom.rgba = [1,0,0,1]
             self._arena.add_free_entity(obj)
             _objs.append(obj)
         return _objs

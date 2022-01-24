@@ -7,12 +7,10 @@ import tensorflow as tf
 import rospy
 from augmentation.aug_opt_utils import transform_obj_points, dpoint_to_dparams, mean_over_moved
 from augmentation.iterative_projection import BaseProjectOpt
-from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.grid_utils import batch_point_to_idx
 from moonshine.geometry import homogeneous
-from visualization_msgs.msg import Marker
 
 
 @dataclass
@@ -300,13 +298,14 @@ class AugProjOpt(BaseProjectOpt):
             s.plot_arrows_rviz(repel_points_aug_nonzero, repel_grad_nonzero_b, repel_grad_ns,
                                color='r', scale=self.viz_arrow_scale)
 
-            min_dist_points_aug_b = v.min_dist_points_aug[b]  # [3]
-            delta_min_dist_grad_dpoint_b = -v.delta_min_dist_grad_dpoint[b]  # [3]
-            s.plot_arrow_rviz(min_dist_points_aug_b.numpy(),
-                              delta_min_dist_grad_dpoint_b.numpy() * self.viz_delta_min_dist_grad_scale,
-                              label=f'delta_min_dist_grad_{moved_obj_i}',
-                              color='pink',
-                              scale=self.viz_arrow_scale)
+            if not self.aug_opt.no_delta_min_dist:
+                min_dist_points_aug_b = v.min_dist_points_aug[b]  # [3]
+                delta_min_dist_grad_dpoint_b = -v.delta_min_dist_grad_dpoint[b]  # [3]
+                s.plot_arrow_rviz(min_dist_points_aug_b.numpy(),
+                                  delta_min_dist_grad_dpoint_b.numpy() * self.viz_delta_min_dist_grad_scale,
+                                  label=f'delta_min_dist_grad_{moved_obj_i}',
+                                  color='pink',
+                                  scale=self.viz_arrow_scale)
 
     def clear_viz(self):
         s = self.aug_opt.scenario
