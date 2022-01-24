@@ -224,7 +224,12 @@ class CylindersScenario(PlanarPushingScenario):
                     obj_marker = make_cylinder_marker(color_msg, height, next(ig), ns, pos, radius)
                     msg.markers.append(obj_marker)
                 if vel is not None:
-                    obj_vel_marker = make_vel_arrow(pos, vel, height, color_msg, next(ig), ns)
+                    if np.linalg.norm(vel) < 1e-4:
+                        # move it out of the view by moving it way up
+                        up = np.array([0, 0, 10])
+                        obj_vel_marker = make_vel_arrow(pos + up, vel, height, color_msg, next(ig), ns)
+                    else:
+                        obj_vel_marker = make_vel_arrow(pos, vel, height, color_msg, next(ig), ns)
                     msg.markers.append(obj_vel_marker)
 
         self.state_viz_pub.publish(msg)

@@ -9,7 +9,6 @@ from time import sleep
 import numpy as np
 import pyautogui as pyautogui
 import tensorflow as tf
-from matplotlib import cm
 
 from arc_utilities import ros_init
 from arc_utilities.algorithms import nested_dict_update
@@ -60,9 +59,11 @@ def main():
         outdir = root / f"{dataset_dir.name}_{q}"
         outdir.mkdir(exist_ok=True, parents=True)
 
-        original_filename, output_filename = take_screenshots(args.name, outdir, q, loader, scenario, args.aug_hparams,
-                                                              in_idx,
-                                                              aug_seed, tx, ty, tz, r, p, y)
+        original_filename, output_filename, success = take_screenshots(args.name, outdir, q, loader, scenario,
+                                                                       args.aug_hparams,
+                                                                       in_idx,
+                                                                       aug_seed, tx, ty, tz, r, p, y)
+
         if in_idx not in out_info:
             out_info[in_idx] = {}
             out_info[in_idx]['outputs'] = []
@@ -82,7 +83,7 @@ def take_screenshots(name, outdir, q, loader, scenario, hparams_filename, in_idx
     hparams = load_hjson(hparams_filename)
     if name == 'cylinders':
         # for better visualization and to make it run faster
-        hparams['augmentation']['sdf_grad_weight'] = 4.0
+        hparams['augmentation']['sdf_grad_weight'] = 5.0
 
     hparams = nested_dict_update(common_hparams, hparams)
     hparams['augmentation']['seed'] = aug_seed
@@ -91,8 +92,12 @@ def take_screenshots(name, outdir, q, loader, scenario, hparams_filename, in_idx
         f.write(' '.join(sys.argv))
         f.write('\n')
 
-    def screenshot(filename):
+    if name =='rope':
         region = (450, 100, 900, 900)
+    else:
+        region = (450, 150, 900, 800)
+
+    def screenshot(filename):
         sleep(0.5)
         full_filename = outdir / filename
         full_filename.unlink(missing_ok=True)
@@ -111,6 +116,8 @@ def take_screenshots(name, outdir, q, loader, scenario, hparams_filename, in_idx
     aug = make_aug_opt(scenario, loader, hparams, debug_state_keys, 1, post_init_cb, post_step_cb, post_project_cb)
 
     original = next(iter(loader.get_datasets('all').skip(in_idx).batch(1)))
+    # for viz purposes
+    # original['res'] = tf.constant([0.008], tf.float32)
     original_no_batch = numpify(remove_batch(deepcopy(original)))
 
     classifier_viz(name, original_no_batch, scenario, loader)
@@ -120,6 +127,7 @@ def take_screenshots(name, outdir, q, loader, scenario, hparams_filename, in_idx
     scenario.reset_viz()
     time = original['time_idx'].shape[1]
     output = aug.aug_opt(original, batch_size=1, time=time)
+    success = output['is_valid']
     if not output['is_valid']:
         print("WARNING!!!! NO AUGMENTATION OCCURRED", in_idx, aug_seed)
     else:
@@ -131,7 +139,7 @@ def take_screenshots(name, outdir, q, loader, scenario, hparams_filename, in_idx
 
     output_img_filename = screenshot(f"output_{q}.png")
 
-    return original_img_filename, output_img_filename
+    return original_img_filename, output_img_filename, success
 
 
 def classifier_viz(name, example, scenario, loader):
@@ -140,8 +148,8 @@ def classifier_viz(name, example, scenario, loader):
 
         def time_color(_t):
             alpha_offset = 20
-            color = list(cm.Reds(_t / T))
-            color[-1] = (_t + alpha_offset) / (T + alpha_offset)
+            alpha = (_t + alpha_offset) / (T + alpha_offset)
+            color = [1, 0, 0, alpha]
             return color
 
         def viz_cylinders_t(_t):
@@ -151,7 +159,7 @@ def classifier_viz(name, example, scenario, loader):
         scenario.reset_viz()
         for _ in range(3):
             scenario.plot_environment_rviz(example)
-            for t in range(0, T, 5):
+            for t in range(0, T, 2):
                 viz_cylinders_t(t)
 
     elif name == 'rope':

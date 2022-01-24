@@ -137,9 +137,11 @@ def expand_to_match(a, b):
 
 
 def check_env_constraints(attract_mask, min_dist):
-    # we don't need to worry about equality because the (discrete) sdf is never exactly 0
+    # NOTE: SDF can be exactly 0 if OOB lookup was done.
+    #  We want OOB to count as free-space, so repel satisfied should be 1 if min_dist == 0
+    #  attract satisfied should be 0 if min_dist == 0
     attract_satisfied = tf.cast(min_dist < 0, tf.float32)
-    repel_satisfied = tf.cast(min_dist > 0, tf.float32)
+    repel_satisfied = tf.cast(min_dist >= 0, tf.float32)
     constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
     return constraints_satisfied
 

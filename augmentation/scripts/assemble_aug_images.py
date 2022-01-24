@@ -6,22 +6,25 @@ from matplotlib import pyplot as plt
 
 from moonshine.filepath_tools import load_hjson
 
-s = 100
-w = 0.96
-text_y = 2.06
+fill = 0.96
+scale = 6
 
 
-def extent_for_pos(row, col):
-    y = row * s
-    yc = y + s / 2
-    x = col * s
-    xc = x + s / 2
-    return [xc - s * w / 2, xc + s * w / 2, yc - s * w / 2, yc + s * w / 2]
+def extent_for_pos(w, h, row, col):
+    y = row * h
+    yc = y + h / 2
+    x = col * w
+    xc = x + w / 2
+    return [xc - w * fill / 2,
+            xc + w * fill / 2,
+            yc - h * fill / 2,
+            yc + h * fill / 2]
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('name')
+    parser.add_argument('--crop')
     args = parser.parse_args()
 
     root = pathlib.Path("anims")
@@ -29,25 +32,52 @@ def main():
 
     plt.style.use("paper")
 
-    plt.figure(figsize=(12, 6))
-    ax = plt.gca()
-    ax.set_xlim(0, 4 * s)
-    ax.set_ylim(0, text_y * s)
-    ax.axis('off')
-    ax.axvline(s, color='k', linewidth=s * 0.05)
+    def _crop(img):
+        if args.crop:
+            w, h = img.size
+            left, right, top, bottom = [int(s) for s in args.crop.split(",")]
+            return img.crop([left, top, w - right, h - bottom])
+        return img
 
-    ax.text(0.5 * s, text_y * s, "Original", horizontalalignment='center', verticalalignment='center')
-
-    ax.text(2.5 * s, text_y * s, "Augmentations", horizontalalignment='center', verticalalignment='center')
-
+    images = {}
     for row, filenames in enumerate(out_info.values()):
         original_filename = filenames['original']
         output_filenames = filenames['outputs']
-        original_img = PIL.Image.open(original_filename)
-        ax.imshow(original_img, extent=extent_for_pos(row, 0))
+        original_img = _crop(PIL.Image.open(original_filename))
+        images[row] = {
+            'original': original_img,
+            'outputs':  [
+            ]
+        }
         for col, f in enumerate(output_filenames):
-            output_img = PIL.Image.open(f)
-            ax.imshow(output_img, extent=extent_for_pos(row, col + 1))
+            output_img = _crop(PIL.Image.open(f))
+            images[row]['outputs'].append(output_img)
+
+    n_rows = len(images)
+    img_w, img_h = original_img.size
+    img_w /= scale
+    img_h /= scale
+    text_y = n_rows * img_h + 8
+
+    plt.figure(figsize=(12, 6))
+    ax = plt.gca()
+    ax.set_xlim(0, 4 * img_w)
+    ax.set_ylim(0, text_y)
+    ax.axis('off')
+    ax.axvline(img_w, color='k', linewidth=img_w * 0.05)
+
+    ax.text(0.5 * img_w, text_y, "Original",
+            horizontalalignment='center', verticalalignment='center', fontsize=24)
+
+    ax.text(2.5 * img_w, text_y, "Augmentations",
+            horizontalalignment='center', verticalalignment='center', fontsize=24)
+
+    for row, images_row in images.items():
+        original_img = images_row['original']
+        outputs = images_row['outputs']
+        ax.imshow(original_img, extent=extent_for_pos(img_w, img_h, row, 0))
+        for col, output_img in enumerate(outputs):
+            ax.imshow(output_img, extent=extent_for_pos(img_w, img_h, row, col + 1))
 
     fig_filename = root / f"{args.name}_aug_examples.png"
     plt.savefig(fig_filename.as_posix(), dpi=200)

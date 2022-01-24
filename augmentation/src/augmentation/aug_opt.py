@@ -111,7 +111,6 @@ class AugmentationOptimization:
         self.post_project_cb = post_project_cb
 
         self.seed_int = 4 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
-        self.gen = tf.random.Generator.from_seed(self.seed_int)
         self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
         self.ik_params = IkParams(rng_dist=self.hparams.get("rand_dist", 0.1),
                                   max_collision_check_attempts=self.hparams.get("max_collision_check_attempts", 1))
