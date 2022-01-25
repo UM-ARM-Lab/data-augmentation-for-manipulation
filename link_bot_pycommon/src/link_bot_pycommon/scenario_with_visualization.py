@@ -345,6 +345,9 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         while not anim.done:
             t = anim.t()
             s_t_planned = planned_path[t]
+            if 'scene_msg' in environment:
+                aco = environment['scene_msg'].robot_state.attached_collision_objects
+                s_t_planned['attached_collision_objects'] = aco
             self.plot_state_rviz(s_t_planned, label='planned', color='#FF4616')
             if len(actions) > 0:
                 if t < anim.max_t:

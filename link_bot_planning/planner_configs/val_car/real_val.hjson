@@ -4,7 +4,6 @@
   fwd_model_dir: dy_trials/real_val_ensemble/none
   classifier_model_dir: [
     /media/shared/cl_trials/new_feasibility_baseline/none
-    real_val_ift/aug-7/training_logdir/iteration_0029_classifier_training_logdir/January_23_19-44-05_b7cb6933e0/latest_checkpoint
   ]
   termination_criteria: {
     total_timeout: 600
