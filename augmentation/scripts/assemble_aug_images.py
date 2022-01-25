@@ -64,7 +64,7 @@ def main():
     ax.set_xlim(0, 4 * img_w)
     ax.set_ylim(0, text_y)
     ax.axis('off')
-    ax.axvline(img_w, color='k', linewidth=img_w * 0.05)
+    ax.axvline(img_w, color='k', linewidth=img_w * 0.02)
 
     ax.text(0.5 * img_w, text_y, "Original",
             horizontalalignment='center', verticalalignment='center', fontsize=24)
