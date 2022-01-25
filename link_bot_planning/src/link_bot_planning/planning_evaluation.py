@@ -24,7 +24,7 @@ from link_bot_planning.get_planner import get_planner
 from link_bot_planning.my_planner import MyPlanner
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.job_chunking import JobChunker
-from link_bot_pycommon.pycommon import deal_with_exceptions
+from link_bot_pycommon.pycommon import deal_with_exceptions, empty_callable
 from link_bot_pycommon.serialization import dump_gzipped_pickle, my_hdump
 from moonshine.filepath_tools import load_hjson
 from moonshine.numpify import numpify
@@ -179,6 +179,7 @@ def evaluate_planning(planner_params: Dict,
                       log_full_tree: bool = True,
                       how_to_handle: str = 'retry',
                       eval_class_type=EvaluatePlanning,
+                      on_scenario_cb=empty_callable,
                       ):
     # override some arguments
     if timeout is not None:
@@ -195,6 +196,7 @@ def evaluate_planning(planner_params: Dict,
     service_provider = gazebo_services.GazeboServices()
     service_provider.play()  # time needs to be advancing while we setup the planner so it can use ROS to query things
     planner = get_planner(planner_params=planner_params, verbose=verbose, log_full_tree=log_full_tree)
+    on_scenario_cb(planner.scenario)
 
     service_provider.setup_env(verbose=verbose,
                                real_time_rate=planner_params['real_time_rate'],
@@ -243,6 +245,7 @@ def evaluate_multiple_planning(outdir: pathlib.Path,
                                test_scenes_dir: Optional[pathlib.Path] = None,
                                seed: int = 0,
                                log_full_tree: bool = True,
+                               on_scenario_cb=empty_callable,
                                ):
     ou.setLogLevel(ou.LOG_ERROR)
 
@@ -285,6 +288,7 @@ def evaluate_multiple_planning(outdir: pathlib.Path,
                           seed=seed,
                           log_full_tree=log_full_tree,
                           how_to_handle=how_to_handle,
+                          on_scenario_cb=on_scenario_cb,
                           )
 
         rospy.loginfo(f"Results written to {outdir}")

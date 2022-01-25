@@ -30,6 +30,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
 
     def __init__(self):
         super().__init__('hdt_michigan')
+        self.fast = False
         self.left_preferred_tool_orientation = quaternion_from_euler(-1.779, -1.043, -2.0)
         self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, -1.408, 0.9)
 
@@ -54,9 +55,10 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         except RuntimeError as e:
             print(e)
 
-        # NOTE sleeping because CDCPD is laggy.
-        #  We sleep here instead of in get_state because we only need to sleep after we've moved
-        rospy.sleep(4)
+        if not self.fast:
+            # NOTE sleeping because CDCPD is laggy.
+            #  We sleep here instead of in get_state because we only need to sleep after we've moved
+            rospy.sleep(4)
 
     def action_relative_to_fk(self, action, state):
         robot_state = self.get_robot_state.get_state()

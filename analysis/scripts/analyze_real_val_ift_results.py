@@ -39,7 +39,7 @@ def metrics_main(args):
         '/media/shared/ift_ablations/no_invariance':     'Augmentation (No Invariance)',
         '/media/shared/ift_ablations/no_delta_min_dist': 'Augmentation (No Delta Min Dist)',
         '/media/shared/ift_ablations/no_min_delta_dist': 'Augmentation (No Delta Min Dist)',
-        '../link_bot_planning/real_val_ift/aug': 'Augmentation (full method)'
+        'real_val_ift/aug': 'Augmentation (full method)'
     }
 
     for i, k in enumerate(method_name_map.keys()):
@@ -61,7 +61,9 @@ def metrics_main(args):
         iter_key:            rlast,
     }
 
-    df_r = df.sort_values(iter_key).groupby('ift_uuid').rolling(w).agg(agg)
+    df = df.sort_values(iter_key)
+    print(df[[iter_key, 'success']].to_string(index=False))
+    df_r = df.groupby('ift_uuid').rolling(w).agg(agg)
     # hack for the fact that for iter=0 used_augmentation is always 0, even on runs where augmentation is used.
     method_name_values = []
     for method_idx in df_r['method_idx'].values:
@@ -72,8 +74,8 @@ def metrics_main(args):
             method_name_values.append(method_name_map[k])
     df_r['method_name'] = method_name_values
 
-    pvalues_at_iter(df_r, method_name_values, 99)
-    print_values_for_ablations_table(df_r, method_name_values, 99)
+    pvalues_at_iter(df_r, method_name_values, args.eval_iter)
+    print_values_for_ablations_table(df_r, method_name_values, args.eval_iter)
 
     # fig, ax = lineplot(df, iter_key, 'success', 'Success', hue='used_augmentation')
     # ax.set_xlim(-0.01, x_max)
@@ -163,6 +165,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('results_dirs', help='results directory', type=pathlib.Path, nargs='+')
+    parser.add_argument('--eval-iter', type=int, default=99)
     parser.add_argument('--tables-config', type=pathlib.Path,
                         default=pathlib.Path("tables_configs/planning_evaluation.hjson"))
     parser.add_argument('--analysis-params', type=pathlib.Path,

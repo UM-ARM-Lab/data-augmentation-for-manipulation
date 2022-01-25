@@ -211,6 +211,8 @@ class IterativeFineTuning:
 
         [p.kill() for p in self.gazebo_processes]
 
+        self.scenario.robot.disconnect()
+
     def plan_and_execute(self, iteration_data: IterationData):
         i = iteration_data.iteration
         # always last the best checkpoint at iteration 0, that's the pretrained model

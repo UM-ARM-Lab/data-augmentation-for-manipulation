@@ -31,6 +31,7 @@ def main():
     parser.add_argument("--on-exception", choices=['raise', 'catch', 'retry'], default='retry')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
     parser.add_argument('--record', action='store_true', help='record')
+    parser.add_argument('--fast', action='store_true', help='for real val this will remove the sleeps')
     parser.add_argument('--no-use-gt-rope', action='store_true', help='use ground truth rope state')
     parser.add_argument('--classifier', type=pathlib.Path)
     parser.add_argument('--recovery', type=pathlib.Path)
@@ -60,6 +61,11 @@ def main():
         args.trials = list(get_all_scene_indices(args.test_scenes_dir))
         print(args.trials)
 
+    def _on_scenario_cb(scenario):
+        if args.fast and hasattr(scenario, 'fast'):
+            print("SPEEEEEEEED!")
+            scenario.fast = True
+
     evaluate_multiple_planning(outdir=outdir,
                                planners_params=[(args.planner_params.stem, planner_params)],
                                trials=args.trials,
@@ -72,6 +78,7 @@ def main():
                                logfile_name=None,
                                record=args.record,
                                seed=args.seed,
+                               on_scenario_cb=_on_scenario_cb,
                                )
 
 
