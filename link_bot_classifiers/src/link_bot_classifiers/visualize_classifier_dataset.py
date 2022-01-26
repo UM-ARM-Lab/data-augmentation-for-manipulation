@@ -35,6 +35,8 @@ def visualize_dataset(args, dataset_loader):
     starts_far_count = 0
     count = 0
 
+    s = dataset_loader.get_scenario()
+
     def _make_stats_dict():
         return {
             'count':            count,
@@ -95,12 +97,18 @@ def visualize_dataset(args, dataset_loader):
         #############################
         if args.display_type == 'just_count':
             continue
+        elif args.display_type == 'volume':
+            positions = [
+                example[add_predicted('rope')].reshape([-1, 25, 3])[0, 12],
+                example[add_predicted('left_gripper')][0],
+                example[add_predicted('right_gripper')][0],
+            ]
+            s.plot_points_rviz(positions, label=f"{i}")
         elif args.display_type == '3d':
             if 'augmented_from' in example:
                 print(f"augmented from: {example['augmented_from']}")
-            dataset_loader.get_scenario().plot_traj_idx_rviz(i)
+            s.plot_traj_idx_rviz(i)
             dataset_loader.anim_transition_rviz(example)
-
         elif args.display_type == 'stdev':
             for t in range(1, dataset_loader.horizon):
                 stdev_t = example[add_predicted('stdev')][t, 0].numpy()

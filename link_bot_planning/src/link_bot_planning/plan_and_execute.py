@@ -4,6 +4,7 @@ import pickle
 import time
 from typing import Dict, List, Optional, Callable
 
+import hjson
 import numpy as np
 from colorama import Fore
 
@@ -17,7 +18,7 @@ from link_bot_data import dataset_utils
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_gazebo.gazebo_utils import get_gazebo_processes
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, SetupInfo
-from link_bot_planning.test_scenes import get_all_scenes
+from link_bot_planning.test_scenes import get_all_scenes, TestScene
 from link_bot_planning.trial_result import TrialStatus, ExecutionResult
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
@@ -37,6 +38,9 @@ def execute_actions(
         stop_condition: Optional[Callable] = None,
         plot: bool = False):
     spinner = SynchronousSpinner('Executing actions')
+
+    # FIXME hacky
+    scenario.robot.jacobian_not_reached_is_failure = False
 
     before_state = start_state
     actual_path = [before_state]
@@ -84,6 +88,8 @@ def execute_actions(
         spinner.stop()
 
     time.sleep(2)  # FIXME: hack for CDCPD to catch up, only needed in the real world
+    # FIXME hacky reset
+    scenario.robot.jacobian_not_reached_is_failure = True
 
     execution_result = ExecutionResult(path=actual_path, end_trial=end_trial, stopped=stopped, end_t=t)
     return execution_result
@@ -165,9 +171,8 @@ class PlanAndExecute:
             self.goal_generator = _fixed_goal_gen
         elif goal_params['type'] == 'saved':
             def _saved_goals_gen(trial_idx: int, _: Dict):
-                saved_goal_filename = self.test_scenes_dir / f'goal_{trial_idx:04d}.pkl'
-                with saved_goal_filename.open('rb') as goal_file:
-                    goal = pickle.load(goal_file)
+                scene = TestScene(self.test_scenes_dir, trial_idx)
+                goal = scene.goal
                 goal['goal_type'] = goal_params['goal_type']
                 return goal
 

@@ -9,6 +9,9 @@ from arc_utilities import ros_init
 from link_bot_planning.trial_result import TrialStatus
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
+from moonshine.gpu_config import limit_gpu_mem
+
+limit_gpu_mem(None)
 
 
 @ros_init.with_ros("plot_results")

@@ -6,7 +6,8 @@ import numpy as np
 from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
 from link_bot_planning import floating_rope_ompl
 from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl, DualGripperControlSampler, \
-    make_random_rope_and_grippers_for_goal_point, sample_rope_and_grippers_from_extent, DualGripperGoalRegion
+    make_random_rope_and_grippers_for_goal_point, sample_rope_and_grippers_from_extent, DualGripperGoalRegion, \
+    RopeAndGrippersGoalRegion
 from link_bot_planning.my_planner import SharedPlanningStateOMPL
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 
@@ -293,21 +294,21 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
                                           shared_planning_state=self.sps,
                                           plot=plot)
         elif goal['goal_type'] == 'any_point':
-            return RopeAnyPointGoalRegion(si=si,
-                                          scenario_ompl=self,
-                                          rng=rng,
-                                          threshold=params['goal_params']['threshold'],
-                                          goal=goal,
-                                          shared_planning_state=self.sps,
-                                          plot=plot)
-        elif goal['goal_type'] == 'any_point_box':
-            return RopeAnyPointBoxGoalRegion(si=si,
-                                             scenario_ompl=self,
-                                             rng=rng,
-                                             threshold=params['goal_params']['threshold'],
-                                             goal=goal,
-                                             shared_planning_state=self.sps,
-                                             plot=plot)
+            return DualRopeAnyPointGoalRegion(si=si,
+                                              scenario_ompl=self,
+                                              rng=rng,
+                                              threshold=params['goal_params']['threshold'],
+                                              goal=goal,
+                                              shared_planning_state=self.sps,
+                                              plot=plot)
+        elif goal['goal_type'] == 'grippers_and_point':
+            return DualRopeAndGrippersGoalRegion(si=si,
+                                                 scenario_ompl=self,
+                                                 rng=rng,
+                                                 threshold=params['goal_params']['threshold'],
+                                                 goal=goal,
+                                                 shared_planning_state=self.sps,
+                                                 plot=plot)
         elif goal['goal_type'] == 'grippers':
             return DualGripperGoalRegion(si=si,
                                          scenario_ompl=self,
@@ -371,7 +372,7 @@ class RopeMidpointGoalRegion(floating_rope_ompl.RopeMidpointGoalRegion):
 
 
 # noinspection PyMethodOverriding
-class RopeAnyPointGoalRegion(floating_rope_ompl.RopeAnyPointGoalRegion):
+class DualRopeAndGrippersGoalRegion(floating_rope_ompl.RopeAndGrippersGoalRegion):
 
     def __init__(self,
                  si: oc.SpaceInformation,
@@ -386,21 +387,13 @@ class RopeAnyPointGoalRegion(floating_rope_ompl.RopeAnyPointGoalRegion):
         self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
     def make_goal_state(self, random_point: np.array):
-        left_gripper, random_rope, right_gripper = make_random_rope_and_grippers_for_goal_point(self.rng, random_point)
-
-        goal_state_np = {
-            'left_gripper':    left_gripper,
-            'right_gripper':   right_gripper,
-            'rope':            random_rope,
-            'num_diverged':    np.zeros(1, dtype=np.float64),
-            'stdev':           np.zeros(1, dtype=np.float64),
-            'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
-        }
+        goal_state_np = super().make_goal_state(random_point)
+        goal_state_np['joint_positions'] = np.zeros(self.n_joints, dtype=np.float64)
         return goal_state_np
 
 
 # noinspection PyMethodOverriding
-class RopeAnyPointBoxGoalRegion(RopeAnyPointGoalRegion):
+class DualRopeAnyPointGoalRegion(floating_rope_ompl.RopeAnyPointGoalRegion):
 
     def __init__(self,
                  si: oc.SpaceInformation,
@@ -413,3 +406,8 @@ class RopeAnyPointBoxGoalRegion(RopeAnyPointGoalRegion):
                  ):
         super().__init__(si, scenario_ompl, rng, threshold, goal, shared_planning_state, plot)
         self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
+
+    def make_goal_state(self, random_point: np.array):
+        goal_state_np = super().make_goal_state(random_point)
+        goal_state_np['joint_positions'] = np.zeros(self.n_joints, dtype=np.float64)
+        return goal_state_np

@@ -22,7 +22,7 @@ def main():
     np.set_printoptions(suppress=True, linewidth=200, precision=3)
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
-    parser.add_argument('--display-type', choices=['just_count', '3d', 'stdev'], default='3d')
+    parser.add_argument('--display-type', choices=['just_count', '3d', 'stdev', 'volume'], default='3d')
     parser.add_argument('--mode', choices=['train', 'val', 'test', 'all'], default='all')
     parser.add_argument('--shuffle', action='store_true')
     parser.add_argument('--shard', type=int)

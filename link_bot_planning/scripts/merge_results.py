@@ -18,8 +18,6 @@ def main():
 
     args = parser.parse_args()
 
-    args.outdir.mkdir(exist_ok=True)
-
     file_extension = ".pkl.gz"
     metadata_filename = 'metadata.hjson'
 

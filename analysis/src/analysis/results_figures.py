@@ -33,8 +33,8 @@ def lineplot(df,
     return fig, ax
 
 
-def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None):
-    fig, ax = plt.subplots(figsize=(12, 8))
+def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True):
+    fig, ax = plt.subplots(figsize=(8, 8))
     sns.violinplot(
         ax=ax,
         data=df,
@@ -45,7 +45,8 @@ def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None
         linewidth=4,
     )
     ax.set_title(title)
-    plt.savefig(outdir / f'{y}.png')
+    if save:
+        plt.savefig(outdir / f'{y}.png')
     return fig, ax
 
 

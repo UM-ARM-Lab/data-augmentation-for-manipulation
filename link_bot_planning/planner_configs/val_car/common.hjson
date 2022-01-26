@@ -11,10 +11,10 @@
    joint45: 2.644280195236206
    joint46: 0.10929946601390839
    joint47: 0.013422741554677486
-   joint5: -2.3
+   joint5: -2.1
    joint56: -0.3288571834564209
    joint57: 0.19
-   joint6: 1.26
+   joint6: 1.19
    joint7: 0.08609730005264282
   }
   real_val_rope_reset_joint_config: {

@@ -5,6 +5,7 @@
   classifier_model_dir: [
     /media/shared/cl_trials/new_feasibility_baseline/none
   ]
+  # accept_threshold: 0.9
   termination_criteria: {
     total_timeout: 600
     timeout: 500
@@ -52,7 +53,9 @@
   ]
   goal_params: {
     type: saved
-    goal_type: any_point
-    threshold: 0.045
+    # goal_type: any_point
+    # threshold: 0.045
+    goal_type: grippers_and_point
+    threshold: 0.08
   }
 }

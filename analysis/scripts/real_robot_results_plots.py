@@ -11,16 +11,12 @@ from arc_utilities import ros_init
 from link_bot_pycommon.string_utils import shorten
 from moonshine.gpu_config import limit_gpu_mem
 
-limit_gpu_mem(0.1)
+limit_gpu_mem(None)
 
 
 def analyze_planning_results(args):
     outdir, df, table_format = planning_results(args.results_dirs, args.regenerate)
-
-    def _shorten(c):
-        return shorten(c.split('/')[0])[:16]
-
-    df['x_name'] = df['classifier_name'].map(_shorten)
+    df = df.sort_values("method_name", ascending=False)
 
     print(df[['any_solved']].to_string(index=False))
     print(df[['success']].to_string(index=False))
@@ -29,25 +25,18 @@ def analyze_planning_results(args):
     total = df['success'].count()
     print(f"{successes}/{total} = {successes / total}")
 
-    hue = 'used_augmentation'
-
-    _, ax = violinplot(df, outdir, hue, 'task_error', "Task Error")
+    _, ax = violinplot(df, outdir, 'method_name', 'task_error', "Task Error", save=False)
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
-    #
-    # _, ax = violinplot(df, outdir, hue, 'normalized_model_error', 'Normalized Model Error')
-    # _, ymax = ax.get_ylim()
-    # ax.set_ylim([0, ymax])
-    #
-    # _, ax = violinplot(df, outdir, hue, 'combined_error', 'Combined Error')
-    # _, ymax = ax.get_ylim()
-    # ax.set_ylim([0, ymax])
-    #
-    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.set_ylabel('task error')
+    ax.set_xlabel('')
+    plt.savefig(outdir / f'real_robot_task_error.png')
+
+    fig, ax = plt.subplots(figsize=(8, 8))
     sns.barplot(
         ax=ax,
         data=df,
-        x='used_augmentation',
+        x='method_name',
         y='success',
         palette='colorblind',
         linewidth=5,
@@ -59,15 +48,11 @@ def analyze_planning_results(args):
         value = '{:.2f}'.format(p.get_height())
         ax.text(_x, _y, value, ha="center")
     ax.set_ylim(0, 1.0)
-    ax.set_title('success')
-    plt.savefig(outdir / f'success.png')
-    #
-    # _, ax = violinplot(df, outdir, hue, 'min_planning_error', "Planning Error")
-    #
-    # _, ax = violinplot(df, outdir, hue, 'min_error_discrepancy', "Error Discrepancy")
-    #
-    if not args.no_plot:
-        plt.show()
+    ax.set_xlabel('')
+    ax.set_title('Success Rate')
+    plt.savefig(outdir / f'real_robot_success.png')
+
+    plt.show()
 
 
 @ros_init.with_ros("analyse_planning_results")

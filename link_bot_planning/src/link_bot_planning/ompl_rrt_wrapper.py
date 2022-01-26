@@ -464,7 +464,7 @@ class OmplRRTWrapper(MyPlanner):
         initial_distance_to_goal = self.scenario.distance_to_goal(initial_final_state, goal)
 
         if self.verbose >= 2:
-            self.plot_path(state_sequence=state_sequence, action_sequence=action_sequence)
+            self.plot_path(state_sequence=state_sequence, action_sequence=action_sequence, label='pre_smoothing')
 
         smoothing_rng = np.random.RandomState(0)
         n_shortcut_attempts = self.params.get('n_shortcut_attempts', 50)

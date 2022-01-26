@@ -19,6 +19,7 @@ import link_bot_classifiers.get_model
 import ros_numpy
 import rospy
 from analysis.results_utils import try_load_classifier_params
+from arc_utilities.algorithms import nested_dict_update
 from geometry_msgs.msg import Point
 from link_bot_classifiers import classifier_utils
 from augmentation.add_augmentation_configs import add_augmentation_configs_to_dataset
@@ -121,7 +122,7 @@ def train_main(dataset_dirs: List[pathlib.Path],
 
     model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_dataset_loader, use_gt_rope))
     if threshold is not None:
-        model_hparams['labeling_params']['threshold'] = threshold
+        model_hparams = nested_dict_update(model_hparams, {'labeling_params': {'threshold': threshold}})
     model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_dataset_loader.get_scenario())
 
     trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)

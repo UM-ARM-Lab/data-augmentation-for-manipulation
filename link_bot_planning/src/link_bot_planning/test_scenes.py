@@ -1,5 +1,5 @@
 import pathlib
-import pickle
+import hjson
 import re
 from typing import Optional
 
@@ -8,6 +8,8 @@ import numpy as np
 import rosbag
 import rospy
 from gazebo_msgs.msg import LinkStates
+from link_bot_pycommon.serialization import my_hdump
+from moonshine.filepath_tools import load_hjson
 from sensor_msgs.msg import JointState
 
 
@@ -17,7 +19,7 @@ def make_scene_filename(root, idx):
 
 
 def make_goal_filename(root, idx):
-    in_goal_file = root / f'goal_{idx:04d}.pkl'
+    in_goal_file = root / f'goal_{idx:04d}.hjson'
     return in_goal_file
 
 
@@ -50,8 +52,8 @@ class TestScene:
             self.joint_state = next(iter(bag.read_messages(topics=['joint_state'])))[1]
             self.links_states = next(iter(bag.read_messages(topics=['links_states'])))[1]
 
-        with goal_filename.open("rb") as goal_file:
-            self.goal = pickle.load(goal_file)
+        goal = load_hjson(goal_filename)
+        self.goal = {k: np.array(v, dtype=np.float32) for k, v in goal.items()}
 
     def get_scene_filename(self):
         scene_filename = make_scene_filename(self.root, self.idx)
@@ -64,8 +66,7 @@ class TestScene:
                                    links_states=self.links_states,
                                    bagfile_name=scene_filename,
                                    force=force)
-        with goal_filename.open("wb") as saved_goal_file:
-            pickle.dump(self.goal, saved_goal_file)
+        my_hdump(self.goal, goal_filename.open("w"))
 
     def delete(self):
         goal_filename = make_goal_filename(self.root, self.idx)
