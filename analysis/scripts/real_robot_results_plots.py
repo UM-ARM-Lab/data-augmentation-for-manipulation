@@ -32,6 +32,13 @@ def analyze_planning_results(args):
     ax.set_xlabel('')
     plt.savefig(outdir / f'real_robot_task_error.png')
 
+    _, ax = violinplot(df, outdir, 'method_name', 'normalized_model_error', "Model Error", save=False)
+    _, ymax = ax.get_ylim()
+    ax.set_ylim([0, ymax])
+    ax.set_ylabel('error between planned and executed states')
+    ax.set_xlabel('')
+    plt.savefig(outdir / f'real_robot_nme.png')
+
     fig, ax = plt.subplots(figsize=(8, 8))
     sns.barplot(
         ax=ax,
