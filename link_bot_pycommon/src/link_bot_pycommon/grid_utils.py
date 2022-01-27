@@ -480,3 +480,7 @@ if __name__ == '__main__':
     pub.publish(msg)
 
     rospy.sleep(1)
+
+
+def dist_to_bbox(point, lower, upper):
+    return tf.maximum(tf.maximum(tf.reduce_max(point - upper), 0), tf.maximum(tf.reduce_max(lower - point), 0))

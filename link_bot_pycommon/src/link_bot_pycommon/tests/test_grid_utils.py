@@ -3,7 +3,7 @@ from unittest import TestCase
 import numpy as np
 
 from link_bot_pycommon.grid_utils import compute_extent_3d, extent_to_env_size, idx_to_point_3d_from_extent, \
-    extent_to_env_shape, extent_res_to_origin_point, voxel_grid_to_pc2
+    extent_to_env_shape, extent_res_to_origin_point, dist_to_bbox
 
 
 class Test(TestCase):
@@ -71,3 +71,25 @@ class Test(TestCase):
         res = 0.1
         origin_point = extent_res_to_origin_point(extent, res)
         np.testing.assert_allclose(origin_point, np.array([0.30, 0.0, 0.255]))
+
+    def test_dist_to_bbox(self):
+        lower = np.array([0.0, 0.0, 0.0])
+        upper = np.array([1.0, 1.0, 1.0])
+        d = dist_to_bbox(np.array([0.0, 0.0, 0.0]), lower, upper).numpy()
+        self.assertEqual(d, 0)
+        d = dist_to_bbox(np.array([1.0, 0.0, 0.0]), lower, upper).numpy()
+        self.assertEqual(d, 0)
+        d = dist_to_bbox(np.array([1.0, 1.0, 0.0]), lower, upper).numpy()
+        self.assertEqual(d, 0)
+        d = dist_to_bbox(np.array([1.0, 1.0, 1.0]), lower, upper).numpy()
+        self.assertEqual(d, 0)
+        d = dist_to_bbox(np.array([0.2, 0.2, 0.0]), lower, upper).numpy()
+        self.assertEqual(d, 0)
+        d = dist_to_bbox(np.array([1.0, 0.2, 0.2]), lower, upper).numpy()
+        self.assertEqual(d, 0)
+        d = dist_to_bbox(np.array([0.2, 1.0, 0.2]), lower, upper).numpy()
+        self.assertEqual(d, 0)
+        d = dist_to_bbox(np.array([1.1, 0.0, 0.0]), lower, upper).numpy()
+        self.assertAlmostEqual(d, 0.1)
+        d = dist_to_bbox(np.array([1.0, -0.43, 0.0]), lower, upper).numpy()
+        self.assertAlmostEqual(d, 0.43)

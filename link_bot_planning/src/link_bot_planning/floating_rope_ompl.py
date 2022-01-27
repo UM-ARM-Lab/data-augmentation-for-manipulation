@@ -669,6 +669,68 @@ class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
 
 
 # noinspection PyMethodOverriding
+class RopeAndGrippersGoalRegion2(ob.GoalSampleableRegion):
+
+    def __init__(self,
+                 si: oc.SpaceInformation,
+                 scenario_ompl: FloatingRopeOmpl,
+                 rng: RandomState,
+                 goal: Dict,
+                 shared_planning_state: SharedPlanningStateOMPL,
+                 plot: bool):
+        super(RopeAndGrippersGoalRegion2, self).__init__(si)
+        self.sps = shared_planning_state
+        self.goal = goal
+        self.scenario_ompl = scenario_ompl
+        self.rng = rng
+        self.plot = plot
+
+    def distanceGoal(self, state: ob.CompoundState):
+        state_np = self.scenario_ompl.ompl_state_to_numpy(state)
+        distance = float(self.scenario_ompl.s.distance_grippers_and_any_point_goal2(state_np, self.goal).numpy())
+
+        # this ensures the goal must have num_diverged = 0
+        if state_np['num_diverged'] > 0:
+            distance = 1e9
+        return distance
+
+    def sampleGoal(self, state_out: ob.CompoundState):
+        self.sps.just_sampled_goal = True
+
+        # attempt to sample "legit" rope states
+        kd = 0.05
+        rope = sample_rope_and_grippers(
+            self.rng, self.goal['left_gripper'], self.goal['right_gripper'], self.goal['point'],
+            FloatingRopeScenario.n_links,
+            kd)
+
+        goal_state_np = self.make_goal_state(rope)
+
+        self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
+
+        if self.plot:
+            self.scenario_ompl.s.plot_sampled_goal_state(goal_state_np)
+
+    def make_goal_state(self, rope):
+        goal_state_np = {
+            'left_gripper':  self.goal['left_gripper'],
+            'right_gripper': self.goal['right_gripper'],
+            'rope':          rope.flatten(),
+            'num_diverged':  np.zeros(1, dtype=np.float64),
+            'stdev':         np.zeros(1, dtype=np.float64),
+        }
+        return goal_state_np
+
+    def maxSampleCount(self):
+        return 1000
+
+    def isSatisfied2(self, s):
+        d = self.distanceGoal(s)
+        satisfied = d < 0
+        return ob.SolvedDist(satisfied, d)
+
+
+# noinspection PyMethodOverriding
 class RopeAndGrippersGoalRegion(ob.GoalSampleableRegion):
 
     def __init__(self,

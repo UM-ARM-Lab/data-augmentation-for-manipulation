@@ -28,10 +28,9 @@ from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.collision_checking import inflate_tf_3d
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds, sample_delta_position
-from link_bot_pycommon.get_cdcpd_state import GetCdcpdState
 from link_bot_pycommon.get_link_states import GetLinkStates
 from link_bot_pycommon.grid_utils import extent_to_env_shape, extent_res_to_origin_point, \
-    batch_center_res_shape_to_origin_point
+    batch_center_res_shape_to_origin_point, dist_to_bbox
 from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator
@@ -547,45 +546,47 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
     @staticmethod
     def distance_grippers_and_any_point_goal(state: Dict, goal: Dict):
-        rope_points = tf.reshape(state[rope_key_name], [-1, 3])
-        # well ok not _any_ node, but ones near the middle
         n_from_ends = 7
-        distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
-                                   rope_points, axis=1)[n_from_ends:-n_from_ends]
-        rope_distance = tf.reduce_min(distances)
+        middle_rope_points = tf.reshape(state[rope_key_name], [-1, 3])[n_from_ends: -n_from_ends]
+        middle_rope_point_distances = dist_to_bbox(point=middle_rope_points,
+                                                   lower=goal['rope'][:3],
+                                                   upper=goal['rope'][3:])
+        rope_d = tf.reduce_min(middle_rope_point_distances)
 
-        left_gripper = tf.cast(state['left_gripper'], tf.float32)
-        right_gripper = tf.cast(state['right_gripper'], tf.float32)
-        distance_left = tf.linalg.norm(goal['left_gripper'] - left_gripper)
-        distance_right = tf.linalg.norm(goal['right_gripper'] - right_gripper)
-        d = tf.math.maximum(tf.math.maximum(distance_left, distance_right), rope_distance)
-        return d
+        left_gripper_d = dist_to_bbox(point=state['left_gripper'],
+                                      lower=goal['left_gripper'][:3],
+                                      upper=goal['left_gripper'][3:])
+        right_gripper_d = dist_to_bbox(point=state['right_gripper'],
+                                       lower=goal['right_gripper'][:3],
+                                       upper=goal['right_gripper'][3:])
+
+        return tf.math.maximum(tf.math.maximum(left_gripper_d, right_gripper_d), rope_d)
 
     @staticmethod
-    def distance_grippers_and_any_point_box_goal(state: Dict, goal: Dict):
-        rope_points = tf.reshape(state[rope_key_name], [-1, 3])
-        # well ok not _any_ node, but ones near the middle
+    def distance_grippers_and_any_point_goal2(state: Dict, goal: Dict):
         n_from_ends = 7
-        distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
-                                   rope_points, axis=1, ord=np.inf)[n_from_ends:-n_from_ends]
-        rope_distance = tf.reduce_min(distances)
+        middle_rope_points = tf.reshape(state[rope_key_name], [-1, 3])[n_from_ends: -n_from_ends]
+        middle_rope_point_distances = dist_to_bbox(point=middle_rope_points,
+                                                   lower=goal['rope'][:3],
+                                                   upper=goal['rope'][3:])
+        rope_d = tf.reduce_min(middle_rope_point_distances)
 
-        left_gripper = state['left_gripper']
-        right_gripper = state['right_gripper']
-        distance1 = tf.linalg.norm(goal['left_gripper'] - left_gripper)
-        distance2 = tf.linalg.norm(goal['right_gripper'] - right_gripper)
-        return tf.math.maximum(tf.math.maximum(distance1, distance2), rope_distance)
+        left_gripper_d = dist_to_bbox(point=state['left_gripper'],
+                                      lower=goal['left_gripper'][:3],
+                                      upper=goal['left_gripper'][3:])
+        right_gripper_d = dist_to_bbox(point=state['right_gripper'],
+                                       lower=goal['right_gripper'][:3],
+                                       upper=goal['right_gripper'][3:])
 
-    def distance_to_any_point_goal(self, state: Dict, goal: Dict):
+        return tf.math.maximum(tf.math.maximum(left_gripper_d, right_gripper_d), rope_d)
+
+    @staticmethod
+    def distance_to_any_point_goal(state: Dict, goal: Dict):
         rope_points = tf.reshape(state[rope_key_name], [-1, 3])
         # NOTE: well ok not _any_ node, but ones near the middle
         n_from_ends = 7
         distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
                                    rope_points, axis=1)[n_from_ends:-n_from_ends]
-        # min_idx = tf.argmin(distances)
-        # min_rope_point = rope_points[n_from_ends + min_idx]
-        # debug_opt_dist_m = MarkerArray(markers=[rviz_arrow(goal['point'], min_rope_point, label='debug-opt-dist')])
-        # self.action_viz_pub.publish(debug_opt_dist_m)
         min_distance = tf.reduce_min(distances)
         return min_distance
 
@@ -601,12 +602,12 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             return self.distance_to_midpoint_goal(state, goal)
         elif goal['goal_type'] == 'any_point':
             return self.distance_to_any_point_goal(state, goal)
-        elif goal['goal_type'] == 'any_pont_box':
-            return self.distance_grippers_and_any_point_box_goal(state, goal)
         elif goal['goal_type'] == 'grippers':
             return self.distance_to_gripper_goal(state, goal)
         elif goal['goal_type'] == 'grippers_and_point':
             return self.distance_grippers_and_any_point_goal(state, goal)
+        elif goal['goal_type'] == 'grippers_and_point2':
+            return self.distance_grippers_and_any_point_goal2(state, goal)
         else:
             raise NotImplementedError()
 

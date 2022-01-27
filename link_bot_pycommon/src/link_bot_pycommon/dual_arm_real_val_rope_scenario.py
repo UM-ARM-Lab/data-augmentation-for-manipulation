@@ -151,8 +151,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         current_joint_positions = np.array(self.robot.get_joint_positions(reset_config.keys()))
         reset_joint_positions = np.array(list(reset_config.values()))
         near_start = np.max(np.abs(reset_joint_positions - current_joint_positions)) < 0.02
-        grippers_are_closed = self.robot.is_left_gripper_closed() and self.robot.is_right_gripper_closed()
-        if near_start and grippers_are_closed and not force:
+        if near_start and self.robot.is_right_gripper_closed() and not force:
             return
 
         # move to reset position
