@@ -18,12 +18,16 @@ def analyze_planning_results(args):
     outdir, df, table_format = planning_results(args.results_dirs, args.regenerate)
     df = df.sort_values("method_name", ascending=False)
 
-    print(df[['any_solved']].to_string(index=False))
-    print(df[['success']].to_string(index=False))
+    print(df[['method_name', 'success']])
 
-    successes = (df['success'] == 1).sum()
-    total = df['success'].count()
-    print(f"{successes}/{total} = {successes / total}")
+    aug = df.loc[df['method_name'] == 'Augmentation'][:20]
+    no_aug = df.loc[df['method_name'] == 'No Augmentation'][:20]
+    aug_successes = (aug['success'] == 1).sum()
+    aug_total = aug['success'].count()
+    print(f"{aug_successes}/{aug_total} = {aug_successes / aug_total}")
+    no_aug_successes = (no_aug['success'] == 1).sum()
+    no_aug_total = no_aug['success'].count()
+    print(f"{no_aug_successes}/{no_aug_total} = {no_aug_successes / no_aug_total}")
 
     _, ax = violinplot(df, outdir, 'method_name', 'task_error', "Task Error", save=False)
     _, ymax = ax.get_ylim()

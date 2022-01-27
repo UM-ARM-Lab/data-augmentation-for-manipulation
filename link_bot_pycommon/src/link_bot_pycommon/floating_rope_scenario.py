@@ -546,21 +546,20 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
     @staticmethod
     def distance_grippers_and_any_point_goal(state: Dict, goal: Dict):
+        rope_points = tf.reshape(state[rope_key_name], [-1, 3])
+        # well ok not _any_ node, but ones near the middle
         n_from_ends = 7
-        middle_rope_points = tf.reshape(state[rope_key_name], [-1, 3])[n_from_ends: -n_from_ends]
-        middle_rope_point_distances = dist_to_bbox(point=middle_rope_points,
-                                                   lower=goal['rope'][:3],
-                                                   upper=goal['rope'][3:])
-        rope_d = tf.reduce_min(middle_rope_point_distances)
+        distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
+                                   rope_points, axis=1)[n_from_ends:-n_from_ends]
+        rope_distance = tf.reduce_min(distances)
 
-        left_gripper_d = dist_to_bbox(point=state['left_gripper'],
-                                      lower=goal['left_gripper'][:3],
-                                      upper=goal['left_gripper'][3:])
-        right_gripper_d = dist_to_bbox(point=state['right_gripper'],
-                                       lower=goal['right_gripper'][:3],
-                                       upper=goal['right_gripper'][3:])
+        left_gripper = tf.cast(state['left_gripper'], tf.float32)
+        right_gripper = tf.cast(state['right_gripper'], tf.float32)
+        distance_left = tf.linalg.norm(goal['left_gripper'] - left_gripper)
+        distance_right = tf.linalg.norm(goal['right_gripper'] - right_gripper)
+        d = tf.math.maximum(tf.math.maximum(distance_left, distance_right), rope_distance)
 
-        return tf.math.maximum(tf.math.maximum(left_gripper_d, right_gripper_d), rope_d)
+        return d
 
     @staticmethod
     def distance_grippers_and_any_point_goal2(state: Dict, goal: Dict):
