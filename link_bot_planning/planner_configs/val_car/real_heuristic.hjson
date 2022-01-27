@@ -56,7 +56,5 @@
     type: saved
     goal_type: any_point
     threshold: 0.05
-    # goal_type: any_point_box
-    # threshold_box: [0.045, 0.045, 0.06]
   }
 }

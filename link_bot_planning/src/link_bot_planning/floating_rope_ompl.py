@@ -203,12 +203,12 @@ class FloatingRopeOmpl(ScenarioOmpl):
                                           shared_planning_state=self.sps,
                                           plot=plot)
         elif goal['goal_type'] == 'grippers':
-            return DualGripperGoalRegion(si=si,
-                                         scenario_ompl=self,
-                                         rng=rng,
-                                         threshold=params['goal_params']['threshold'],
-                                         goal=goal,
-                                         plot=plot)
+            return GripperGoalRegion(si=si,
+                                     scenario_ompl=self,
+                                     rng=rng,
+                                     threshold=params['goal_params']['threshold'],
+                                     goal=goal,
+                                     plot=plot)
         elif goal['goal_type'] == 'grippers_and_point':
             return RopeAndGrippersGoalRegion(si=si,
                                              scenario_ompl=self,
@@ -480,7 +480,7 @@ class DualGripperStateSampler(ob.CompoundStateSampler):
 
 
 # noinspection PyMethodOverriding
-class DualGripperGoalRegion(ob.GoalSampleableRegion):
+class GripperGoalRegion(ob.GoalSampleableRegion):
 
     def __init__(self,
                  si: oc.SpaceInformation,
@@ -490,7 +490,7 @@ class DualGripperGoalRegion(ob.GoalSampleableRegion):
                  goal: Dict,
                  shared_planning_state: SharedPlanningStateOMPL,
                  plot: bool):
-        super(DualGripperGoalRegion, self).__init__(si)
+        super(GripperGoalRegion, self).__init__(si)
         self.sps = shared_planning_state
         self.setThreshold(threshold)
         self.goal = goal
@@ -504,7 +504,7 @@ class DualGripperGoalRegion(ob.GoalSampleableRegion):
         Uses the distance between a specific point in a specific subspace and the goal point
         """
         state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = float(self.scenario_ompl.s.distance_to_gripper_goal(state_np, self.goal).numpy())
+        distance = float(self.scenario_ompl.s.distance_to_grippers_goal(state_np, self.goal).numpy())
 
         # this ensures the goal must have num_diverged = 0
         if state_np['num_diverged'] > 0:

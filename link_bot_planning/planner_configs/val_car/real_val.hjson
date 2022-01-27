@@ -53,9 +53,7 @@
   ]
   goal_params: {
     type: saved
-    # goal_type: any_point
-    # threshold: 0.045
-    goal_type: grippers_and_point
-    threshold: 0.08
+    goal_type: any_point
+    threshold: 0.05
   }
 }

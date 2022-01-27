@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import pickle
 from typing import Optional, Dict, List
 
 import numpy as np
@@ -14,7 +13,8 @@ from arm_robots.robot import RobotPlanningError
 from geometry_msgs.msg import Point, Pose
 from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_utils import get_gazebo_processes
-from link_bot_planning.test_scenes import get_states_to_save, save_test_scene, get_all_scene_indices
+from link_bot_planning.test_scenes import get_states_to_save, save_test_scene, get_all_scene_indices, \
+    make_goal_filename, load_goal, save_goal
 from link_bot_pycommon.args import int_set_arg
 from link_bot_pycommon.basic_3d_pose_marker import Basic3DPoseInteractiveMarker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -119,8 +119,7 @@ def generate_saved_goals(method: str,
         joint_state, links_states = get_states_to_save()
 
         save_test_scene(joint_state, links_states, scenes_dir, trial_idx, force=True)
-
-        save(scenes_dir, trial_idx, goal)
+        save_goal(goal, scenes_dir, trial_idx)
 
     scenario.robot.disconnect()
 
@@ -133,22 +132,22 @@ def sketchy_default_params():
             },
         },
         'reset_joint_config':        {
-            'joint1':            1.5,
-            'joint2':            0.00019175345369149,
-            'joint3':            0.06807247549295425,
-            'joint4':            -1.0124582052230835,
-            'joint41':           1.5,
-            'joint42':           0.0,
-            'joint43':           0.1562790721654892,
-            'joint44':           -0.9140887260437012,
-            'joint45':           1.601524829864502,
-            'joint46':           -1.2170592546463013,
-            'joint47':           -0.016490796580910683,
-            'joint56':           0.0,
-            'joint57':           -0.3,
-            'joint5':            -1.5196460485458374,
-            'joint6':            1.3154287338256836,
-            'joint7':            -0.01706605777144432,
+            'joint1':  1.5,
+            'joint2':  0.00019175345369149,
+            'joint3':  0.06807247549295425,
+            'joint4':  -1.0124582052230835,
+            'joint41': 1.5,
+            'joint42': 0.0,
+            'joint43': 0.1562790721654892,
+            'joint44': -0.9140887260437012,
+            'joint45': 1.601524829864502,
+            'joint46': -1.2170592546463013,
+            'joint47': -0.016490796580910683,
+            'joint56': 0.0,
+            'joint57': -0.3,
+            'joint5':  -1.5196460485458374,
+            'joint6':  1.3154287338256836,
+            'joint7':  -0.01706605777144432,
         },
         'res':                       0.02,
         'extent':                    [-0.6, 0.6, 0.25, 1.15, -0.3, 0.6],
@@ -181,19 +180,11 @@ def rejection_sample_goal(scenario: ExperimentScenario, params: Dict, planner_pa
 
 
 def load(save_test_scenes_dir: pathlib.Path, trial_idx: int):
-    saved_goal_filename = save_test_scenes_dir / f'goal_{trial_idx:04d}.pkl'
+    saved_goal_filename = make_goal_filename(save_test_scenes_dir, trial_idx)
     if saved_goal_filename.exists():
-        with saved_goal_filename.open("rb") as saved_goal_file:
-            goal = pickle.load(saved_goal_file)
-        return goal
+        return load_goal(save_test_scenes_dir, trial_idx)
     else:
         return None
-
-
-def save(save_test_scenes_dir: pathlib.Path, trial_idx: int, goal: Dict):
-    saved_goal_filename = save_test_scenes_dir / f'goal_{trial_idx:04d}.pkl'
-    with saved_goal_filename.open("wb") as saved_goal_file:
-        pickle.dump(goal, saved_goal_file)
 
 
 if __name__ == '__main__':

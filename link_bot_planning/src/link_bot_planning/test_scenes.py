@@ -1,5 +1,4 @@
 import pathlib
-import hjson
 import re
 from typing import Optional
 
@@ -10,6 +9,7 @@ import rospy
 from gazebo_msgs.msg import LinkStates
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
+from moonshine.numpify import numpify
 from sensor_msgs.msg import JointState
 
 
@@ -39,12 +39,24 @@ def get_all_scenes(dirname: pathlib.Path):
     return scenes
 
 
+def save_goal(goal, root, idx):
+    goal_filename = make_goal_filename(root, idx)
+    my_hdump(goal, goal_filename.open("w"))
+
+
+def load_goal(root, idx):
+    goal_filename = make_goal_filename(root, idx)
+    goal = load_hjson(goal_filename)
+    return numpify(goal)
+
+
 class TestScene:
 
     def __init__(self, root: pathlib.Path, idx: int):
         self.root = root
         self.idx = idx
-        goal_filename = make_goal_filename(self.root, self.idx)
+        goal = load_goal(self.root, self.idx)
+
         scene_filename = make_scene_filename(self.root, self.idx)
 
         # read the data
@@ -52,7 +64,6 @@ class TestScene:
             self.joint_state = next(iter(bag.read_messages(topics=['joint_state'])))[1]
             self.links_states = next(iter(bag.read_messages(topics=['links_states'])))[1]
 
-        goal = load_hjson(goal_filename)
         self.goal = {k: np.array(v, dtype=np.float32) for k, v in goal.items()}
 
     def get_scene_filename(self):
@@ -60,13 +71,12 @@ class TestScene:
         return scene_filename
 
     def save(self, force: Optional[bool] = False):
-        goal_filename = make_goal_filename(self.root, self.idx)
+        save_goal(self.goal, self.root, self.idx)
         scene_filename = make_scene_filename(self.root, self.idx)
         save_test_scene_given_name(joint_state=self.joint_state,
                                    links_states=self.links_states,
                                    bagfile_name=scene_filename,
                                    force=force)
-        my_hdump(self.goal, goal_filename.open("w"))
 
     def delete(self):
         goal_filename = make_goal_filename(self.root, self.idx)

@@ -537,7 +537,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
                 return goal
 
     @staticmethod
-    def distance_to_gripper_goal(state: Dict, goal: Dict):
+    def distance_to_grippers_goal(state: Dict, goal: Dict):
         left_gripper = state['left_gripper']
         right_gripper = state['right_gripper']
         distance1 = tf.linalg.norm(goal['left_gripper'] - left_gripper)
@@ -602,7 +602,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         elif goal['goal_type'] == 'any_point':
             return self.distance_to_any_point_goal(state, goal)
         elif goal['goal_type'] == 'grippers':
-            return self.distance_to_gripper_goal(state, goal)
+            return self.distance_to_grippers_goal(state, goal)
         elif goal['goal_type'] == 'grippers_and_point':
             return self.distance_grippers_and_any_point_goal(state, goal)
         elif goal['goal_type'] == 'grippers_and_point2':

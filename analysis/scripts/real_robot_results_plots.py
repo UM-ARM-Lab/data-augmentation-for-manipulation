@@ -3,6 +3,7 @@ import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 
 from analysis.analyze_results import planning_results
@@ -20,8 +21,11 @@ def analyze_planning_results(args):
 
     print(df[['method_name', 'success']])
 
-    aug = df.loc[df['method_name'] == 'Augmentation'][:20]
-    no_aug = df.loc[df['method_name'] == 'No Augmentation'][:20]
+    aug = df.loc[df['method_name'] == 'Augmentation']
+    no_aug = df.loc[df['method_name'] == 'No Augmentation']
+    lim = min(len(aug), len(no_aug))
+    aug = aug[:lim]
+    no_aug = no_aug[:lim]
     aug_successes = (aug['success'] == 1).sum()
     aug_total = aug['success'].count()
     print(f"{aug_successes}/{aug_total} = {aug_successes / aug_total}")

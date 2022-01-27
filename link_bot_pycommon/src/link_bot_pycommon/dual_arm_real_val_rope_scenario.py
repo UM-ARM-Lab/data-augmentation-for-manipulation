@@ -4,6 +4,7 @@ from typing import Dict
 import numpy as np
 
 import ros_numpy
+import rosbag
 import rospy
 from arm_robots.robot import RobotPlanningError
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
@@ -12,6 +13,7 @@ from link_bot_pycommon.dual_arm_rope_action import dual_arm_rope_execute_action
 from link_bot_pycommon.get_cdcpd_state import GetCdcpdState
 from link_bot_pycommon.get_joint_state import GetJointState
 from moveit_msgs.srv import GetMotionPlan
+from sensor_msgs.msg import JointState
 from tf.transformations import quaternion_from_euler
 
 
@@ -81,7 +83,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         return action_fk
 
     def on_before_data_collection(self, params: Dict):
-        super().on_before_data_collection(params)
+        super().on_before_data_collection(params)  # FIXME: this method could use the automatic procedure?
 
         joint_names = self.robot.get_joint_names('both_arms')
         current_joint_positions = np.array(self.robot.get_joint_positions(joint_names))
@@ -120,28 +122,6 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
     def get_excluded_models_for_env(self):
         return []
 
-    def restore_from_bag_alt(self, service_provider: BaseServices, params: Dict, bagfile_name):
-        service_provider.restore_from_bag(bagfile_name)
-
-        joint_names = self.robot.get_joint_names('both_arms')
-        current_joint_positions = np.array(self.robot.get_joint_positions(joint_names))
-        reset_joint_dict = {n: params['real_val_rope_reset_joint_config'][n] for n in joint_names}
-        reset_joint_config = np.array(list(reset_joint_dict.values()))
-        near_start = np.max(np.abs(reset_joint_config - current_joint_positions)) < 0.02
-        grippers_are_closed = self.robot.is_left_gripper_closed() and self.robot.is_right_gripper_closed()
-        if not near_start or not grippers_are_closed:
-            self.robot.set_left_gripper(0.1)
-
-            # move to init positions
-            self.robot.plan_to_joint_config("both_arms", reset_joint_dict)
-
-            print("Use the gamepad to close the left gripper.")
-            while True:
-                k = input("Done? [y]")
-                if k in ['y', 'Y']:
-                    break
-            print("Done.")
-
     def restore_from_bag(self, service_provider: BaseServices, params: Dict, bagfile_name, force=False):
         service_provider.restore_from_bag(bagfile_name)
 
@@ -151,34 +131,44 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         current_joint_positions = np.array(self.robot.get_joint_positions(reset_config.keys()))
         reset_joint_positions = np.array(list(reset_config.values()))
         near_start = np.max(np.abs(reset_joint_positions - current_joint_positions)) < 0.02
-        if near_start and self.robot.is_right_gripper_closed() and not force:
-            return
+        if not near_start or not self.robot.is_right_gripper_closed() or force:
+            # move to reset position
+            graph_rope_config = dict(params['real_val_rope_reset_joint_config2'])
+            self.robot.plan_to_joint_config("both_arms", graph_rope_config)
 
-        # move to reset position
-        graph_rope_config = dict(params['real_val_rope_reset_joint_config2'])
-        self.robot.plan_to_joint_config("both_arms", graph_rope_config)
+            rospy.sleep(15)
 
-        rospy.sleep(15)
+            tool_names = ['left_tool', 'right_tool']
 
-        tool_names = ['left_tool', 'right_tool']
+            old_tool_orientations = deepcopy(self.robot.stored_tool_orientations)
+            self.robot.store_current_tool_orientations(tool_names)
+            current_right_pos = ros_numpy.numpify(self.robot.get_link_pose('right_tool').position)
 
-        old_tool_orientations = deepcopy(self.robot.stored_tool_orientations)
-        self.robot.store_current_tool_orientations(tool_names)
-        current_right_pos = ros_numpy.numpify(self.robot.get_link_pose('right_tool').position)
+            # move up
+            left_up = ros_numpy.numpify(self.robot.get_link_pose('left_tool').position) + np.array([0, 0, 0.1])
+            self.robot.follow_jacobian_to_position('both_arms', tool_names, [[left_up], [current_right_pos]])
 
-        # move up
-        left_up = ros_numpy.numpify(self.robot.get_link_pose('left_tool').position) + np.array([0, 0, 0.1])
-        self.robot.follow_jacobian_to_position('both_arms', tool_names, [[left_up], [current_right_pos]])
+            # go to the start config
+            self.robot.plan_to_joint_config("both_arms", reset_config)
 
-        # go to the start config
-        self.robot.plan_to_joint_config("both_arms", reset_config)
+            # restore old tool orientations
+            if old_tool_orientations is not None:
+                self.robot.store_tool_orientations(old_tool_orientations)
 
-        # restore old tool orientations
-        if old_tool_orientations is not None:
-            self.robot.store_tool_orientations(old_tool_orientations)
+        self.plan_to_bag_joint_config(bagfile_name)
 
         # wait for CDCPD to catch up
         rospy.sleep(30)
+
+    def plan_to_bag_joint_config(self, bagfile_name):
+        with rosbag.Bag(bagfile_name) as bag:
+            joint_state: JointState = next(iter(bag.read_messages(topics=['joint_state'])))[1]
+        joint_config = {}
+        # NOTE: this will not work on victor because grippers don't work the same way
+        for joint_name in self.robot.get_joint_names("both_arms"):
+            index_of_joint_name_in_state_msg = joint_state.name.index(joint_name)
+            joint_config[joint_name] = joint_state.position[index_of_joint_name_in_state_msg]
+        self.robot.plan_to_joint_config("both_arms", joint_config)
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
         raise NotImplementedError()

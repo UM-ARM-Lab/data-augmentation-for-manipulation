@@ -8,6 +8,7 @@ import colorama
 import numpy as np
 import tensorflow as tf
 
+from link_bot_planning.test_scenes import load_goal, save_goal
 from link_bot_pycommon.args import my_formatter, int_set_arg
 
 
@@ -26,9 +27,7 @@ def main():
     args = parser.parse_args()
 
     for trial_idx in args.trial_indices:
-        goal_filename = args.goal_dirname / f'goal_{trial_idx:04d}.pkl'
-        with goal_filename.open("rb") as saved_goal_file:
-            goal = pickle.load(saved_goal_file)
+        goal = load_goal(args.goal_dirname, trial_idx)
 
         print(f'Trial: {trial_idx} loaded goal: {goal}')
 
@@ -52,9 +51,8 @@ def main():
 
         goal[out_key] = p.astype(np.float32)
 
-        with goal_filename.open("wb") as saved_goal_file:
-            print(f'Trial: {trial_idx} new goal: {goal}')
-            pickle.dump(goal, saved_goal_file)
+        print("saving", goal)
+        save_goal(goal, args.goal_dirname, trial_idx)
 
 
 if __name__ == '__main__':
