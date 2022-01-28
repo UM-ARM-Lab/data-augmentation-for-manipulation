@@ -46,10 +46,10 @@ def take_screenshots(name, outdir, loader, scenario, hparams_filename, identifie
     if name == 'rope':
         region = (450, 100, 900, 900)
     else:
-        region = (450, 150, 900, 800)
+        region = (500, 150, 900, 800)
 
     def screenshot(filename):
-        sleep(0.5)
+        sleep(1.0)
         full_filename = outdir / filename
         full_filename.unlink(missing_ok=True)
         pyautogui.screenshot(full_filename, region=region)
@@ -106,11 +106,12 @@ def classifier_viz(name, example, scenario, loader):
         def viz_cylinders_t(_t):
             s_t = try_index_time(example, loader.state_keys, t=_t, inclusive=False)
             scenario.plot_state_rviz(s_t, label=f'pred{_t}', color=time_color(_t))
+            rospy.sleep(0.05)
 
         scenario.reset_viz()
         for _ in range(3):
             scenario.plot_environment_rviz(example)
-            for t in range(0, T, 2):
+            for t in range(0, T):
                 viz_cylinders_t(t)
 
     elif name == 'rope':

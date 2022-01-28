@@ -39,7 +39,8 @@ def metrics_main(args):
         '/media/shared/ift_ablations/no_invariance':     'Augmentation (No Invariance)',
         '/media/shared/ift_ablations/no_delta_min_dist': 'Augmentation (No Delta Min Dist)',
         '/media/shared/ift_ablations/no_min_delta_dist': 'Augmentation (No Delta Min Dist)',
-        'real_val_ift/aug': 'Augmentation (full method)'
+        'real_val_ift/aug':                              'Augmentation (full method)',
+        'real_val_ift/no-aug':                              'No Augmentation (baseline)',
     }
 
     for i, k in enumerate(method_name_map.keys()):

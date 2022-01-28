@@ -355,7 +355,7 @@ class CylindersScenario(PlanarPushingScenario):
             vel_state_keys.append(obj_vel_k)
         return example, vel_state_keys
 
-    def propnet_outputs_to_state(self, inputs, pred_vel, pred_pos, b, t):
+    def propnet_outputs_to_state(self, inputs, pred_vel, pred_pos, b, t, obj_dz=0):
         pred_state_t = {}
         height_b_t = inputs['height'][b, t]
         pred_state_t['height'] = height_b_t
@@ -373,7 +373,7 @@ class CylindersScenario(PlanarPushingScenario):
 
         for j in range(num_objs):
             pred_pos_b_t_2d = pred_pos[b, t, j + 1]
-            pred_pos_b_t_3d = torch.cat([pred_pos_b_t_2d, height_b_t / 2])
+            pred_pos_b_t_3d = torch.cat([pred_pos_b_t_2d, height_b_t / 2 + obj_dz])
             pred_vel_b_t_2d = pred_vel[b, t, j + 1]
             pred_vel_b_t_3d = torch.cat([pred_vel_b_t_2d, torch.zeros(1)])
             pred_state_t[f'obj{j}/position'] = torch.unsqueeze(pred_pos_b_t_3d, 0).detach()

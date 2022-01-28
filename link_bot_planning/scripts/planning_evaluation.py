@@ -32,7 +32,6 @@ def main():
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
     parser.add_argument('--record', action='store_true', help='record')
     parser.add_argument('--fast', action='store_true', help='for real val this will remove the sleeps')
-    parser.add_argument('--no-use-gt-rope', action='store_true', help='use ground truth rope state')
     parser.add_argument('--classifier', type=pathlib.Path)
     parser.add_argument('--recovery', type=pathlib.Path)
     parser.add_argument('--continue-from', type=pathlib.Path)
@@ -70,7 +69,7 @@ def main():
                                planners_params=[(args.planner_params.stem, planner_params)],
                                trials=args.trials,
                                how_to_handle=args.on_exception,
-                               use_gt_rope=not args.no_use_gt_rope,
+                               use_gt_rope=True,
                                verbose=args.verbose,
                                timeout=args.timeout,
                                test_scenes_dir=args.test_scenes_dir,
