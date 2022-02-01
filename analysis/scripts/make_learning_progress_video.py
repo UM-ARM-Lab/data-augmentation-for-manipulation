@@ -24,17 +24,13 @@ def make_learning_progress_video(args):
 
         iter_txt = TextClip(f'Iteration {iteration + 1}',
                             font='Ubuntu-Bold',
-                            fontsize=50,
-                            color='black',
-                            stroke_color='white',
-                            stroke_width=1.0)
+                            fontsize=90,
+                            color='white')
         iter_txt = iter_txt.set_pos((int(w - iter_txt.w / 2 + 40), 0))
         speedup_txt = TextClip(f'{speed}x',
                                font='Ubuntu-Bold',
-                               fontsize=40,
-                               color='black',
-                               stroke_color='white',
-                               stroke_width=1.0)
+                               fontsize=60,
+                               color='white')
 
         first_vid = next(iter(method_iteration_videos_held.values()))
         method_iteration_videos_positioned = []
@@ -42,7 +38,7 @@ def make_learning_progress_video(args):
             method_iteration_videos_positioned.append(
                 method_iteration_video_held.set_pos((int(hspacing * w * i), iter_txt.h)))
 
-        full_size = (int(hspacing * 2 * w), first_vid.h + iter_txt.h)
+        full_size = (int(hspacing * 2 * w), int(first_vid.h + iter_txt.h))
         iteration_video = CompositeVideoClip(method_iteration_videos_positioned + [speedup_txt, iter_txt],
                                              size=full_size)
         iteration_video.duration = max_duration
@@ -56,7 +52,7 @@ def make_learning_progress_video(args):
 
 
 def add_holds(method_iteration_videos):
-    max_duration = max([v.duration for v in method_iteration_videos.values()]) + 3
+    max_duration = max([v.duration for v in method_iteration_videos.values()]) + 1
     method_iteration_videos_held = {}
     for method_name, method_iteration_video in method_iteration_videos.items():
         method_iteration_video_held = freeze(method_iteration_video, t='end', total_duration=max_duration,
@@ -83,20 +79,19 @@ def make_method_iteration_video(iteration, root, method_name, speed, w):
     method_iteration_clips = []
     for iteration_video_filename in iteration_video_filenames:
         method_iteration_clip = VideoFileClip(iteration_video_filename.as_posix(), audio=False)
-        method_iteration_clip = method_iteration_clip.resize(width=w).speedx(speed)
+        method_iteration_clip = method_iteration_clip.crop(x1=260).resize(width=w).speedx(speed)
         method_iteration_clips.append(method_iteration_clip)
     method_iteration_video = concatenate_videoclips(method_iteration_clips)
 
     method_name_txt = TextClip(method_name,
                                font='Ubuntu-Bold',
-                               fontsize=50,
-                               color='black',
-                               stroke_color='white',
-                               stroke_width=1.0)
+                               fontsize=90,
+                               color='white')
 
     h = method_iteration_video.h
-    method_name_txt = method_name_txt.set_pos((w / 2 - method_name_txt.w / 2, h - method_name_txt.h / 2 - 40))
-    method_iteration_video_w_txt = CompositeVideoClip([method_iteration_video, method_name_txt])
+    method_name_txt = method_name_txt.set_pos((w / 2 - method_name_txt.w / 2, h - 10))
+    size = (method_iteration_video.w, method_iteration_video.h + method_name_txt.h)
+    method_iteration_video_w_txt = CompositeVideoClip([method_iteration_video, method_name_txt], size=size)
     method_iteration_video_w_txt = method_iteration_video_w_txt.set_duration(method_iteration_video.duration)
 
     return method_iteration_video_w_txt

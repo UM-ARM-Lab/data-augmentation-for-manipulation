@@ -123,7 +123,7 @@ def classifier_viz(name, example, scenario, loader):
         scenario.reset_viz()
         for _ in range(3):
             scenario.plot_environment_rviz(example)
-            viz_f(scenario, example, t=0, label='0')
-            viz_f(scenario, example, t=1, label='1')
+            viz_f(scenario, example, t=0, label='0', color='#000099')
+            viz_f(scenario, example, t=1, label='1', color='#5555ff')
     else:
         raise NotImplementedError()

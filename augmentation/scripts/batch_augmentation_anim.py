@@ -31,7 +31,7 @@ def main():
     loader = guess_dataset_loader(dataset_dir)
     scenario = loader.get_scenario()
     params = load_hjson(args.data_collection_params)
-    scenario.on_before_data_collection(params)
+    # scenario.on_before_data_collection(params)
 
     figures_info = np.loadtxt(f"{args.name}_figures_info.txt")
     figures_info = np.atleast_2d(figures_info)

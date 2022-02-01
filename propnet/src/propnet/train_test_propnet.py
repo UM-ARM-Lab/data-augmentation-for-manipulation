@@ -228,7 +228,8 @@ def viz_main(dataset_dir: pathlib.Path,
 
             s.plot_state_rviz(state_t, label='actual', color='#ff0000aa')
 
-            pred_state_t = s.propnet_outputs_to_state(inputs=inputs, pred_vel=pred_vel, pred_pos=pred_pos, b=b, t=t)
+            pred_state_t = s.propnet_outputs_to_state(inputs=inputs, pred_vel=pred_vel, pred_pos=pred_pos, b=b, t=t,
+                                                      obj_dz=0.01)
 
             s.plot_state_rviz(pred_state_t, label='predicted', color='#0000ffaa')
 
