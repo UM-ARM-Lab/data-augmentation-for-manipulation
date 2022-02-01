@@ -8,6 +8,7 @@ from torch.nn import functional as F
 
 from link_bot_pycommon.get_scenario import get_scenario
 from propnet.component_models import ParticleEncoder, RelationEncoder, Propagator, ParticlePredictor
+from propnet.torch_dynamics_dataset import get_batch_size
 
 
 def pos_to_vel(pos):
@@ -22,11 +23,6 @@ def pos_to_vel(pos):
     vel = pos[:, 1:] - pos[:, :-1]
     vel = F.pad(vel, [0, 0, 1, 0])
     return vel
-
-
-def get_batch_size(batch):
-    batch_size = len(batch['time_idx'])
-    return batch_size
 
 
 def normalize(x, mean, std):
@@ -140,7 +136,7 @@ class PropNet(pl.LightningModule):
 
     def __init__(self, hparams, residual=False):
         super().__init__()
-        self.save_hyperparameters(hparams)  # this allows us to access kwargs['foo'] like self.hparams.foo
+        self.save_hyperparameters(hparams)  # this allows us to access kwargs['foo'] like self.model_hparams.foo
 
         self.scenario = get_scenario(self.hparams.scenario)
 

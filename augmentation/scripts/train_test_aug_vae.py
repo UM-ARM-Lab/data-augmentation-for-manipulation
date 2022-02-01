@@ -8,7 +8,7 @@ import torch
 
 from arc_utilities import ros_init
 from link_bot_pycommon.args import run_subparsers
-from propnet import train_test_propnet
+from augmentation import train_test_aug_vae
 from moonshine.magic import wandb_lightning_magic
 
 
@@ -16,18 +16,18 @@ def train_main(args):
     if args.seed is None:
         args.seed = np.random.randint(0, 10000)
 
-    train_test_propnet.train_main(**vars(args))
+    train_test_aug_vae.train_main(**vars(args))
 
 
 def eval_main(args):
-    train_test_propnet.eval_main(**vars(args))
+    train_test_aug_vae.eval_main(**vars(args))
 
 
 def viz_main(args):
-    train_test_propnet.viz_main(**vars(args))
+    train_test_aug_vae.viz_main(**vars(args))
 
 
-node_name = f"train_test_propnet_{int(time())}"
+node_name = f"train_test_aug_vae_{int(time())}"
 
 
 @ros_init.with_ros(node_name)
@@ -40,7 +40,7 @@ def main():
 
     train_parser = subparsers.add_parser('train')
     train_parser.add_argument('dataset_dir', type=pathlib.Path)
-    train_parser.add_argument('model_params', type=pathlib.Path)
+    train_parser.add_argument('model_params_path', type=pathlib.Path)
     train_parser.add_argument('--nickname', '-n', type=str)
     train_parser.add_argument('--user', '-u', type=str, default='armlab')
     train_parser.add_argument('--checkpoint')

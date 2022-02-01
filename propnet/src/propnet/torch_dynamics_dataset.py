@@ -67,3 +67,8 @@ class TorchDynamicsDataset(Dataset):
             self.scenario = get_scenario(self.params['scenario'])
 
         return self.scenario
+
+
+def get_batch_size(batch):
+    batch_size = len(batch['time_idx'])
+    return batch_size

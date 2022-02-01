@@ -1,53 +1,32 @@
 #!/usr/bin/env python
-
 import multiprocessing
 import pathlib
 from datetime import datetime
 from typing import Optional
 
 import git
+import numpy as np
 import pytorch_lightning as pl
 import wandb
+from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 from wandb.util import generate_id
 
-from merrrt_visualization.rviz_animation_controller import RvizAnimationController
+from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson
-from moonshine.numpify import numpify
 from moonshine.torch_datasets_utils import take_subset
 from moonshine.torch_utils import my_collate
-from propnet.propnet_models import PropNet
+from moonshine.vae import MyVAE
 from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
-PROJECT = 'propnet'
-
-
-class MyModelCheckpoint(pl.callbacks.ModelCheckpoint):
-
-    def on_save_checkpoint(self, trainer, pl_module, checkpoint):
-        return {
-            "monitor":             self.monitor,
-            "best_model_score":    self.best_model_score,
-            "best_model_path":     self.best_model_path,
-            "current_score":       self.current_score,
-            "dirpath":             self.dirpath,
-            "best_k_models":       self.best_k_models,
-            "kth_best_model_path": self.kth_best_model_path,
-        }
-
-    def on_load_checkpoint(self, trainer, pl_module, callback_state):
-        self.best_model_score = callback_state["best_model_score"]
-        self.best_model_path = callback_state["best_model_path"]
-        self.best_model_score = callback_state["best_model_score"]
-        self.best_k_models = callback_state["best_k_models"]
-        self.kth_best_model_path = callback_state["kth_best_model_path"]
+PROJECT = 'aug_vae'
 
 
 def train_main(dataset_dir: pathlib.Path,
-               model_params: pathlib.Path,
+               model_params_path: pathlib.Path,
                batch_size: int,
                epochs: int,
                seed: int,
@@ -61,8 +40,21 @@ def train_main(dataset_dir: pathlib.Path,
                **kwargs):
     pl.seed_everything(seed, workers=True)
 
+    model_params = load_hjson(model_params_path)
+    s = get_scenario(model_params['scenario'])
+
+    def _example_dict_to_flat_vector(example):
+        num_objs = example['num_objs'][0, 0]
+        posvels = []
+        for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in s.iter_positions_velocities(example, num_objs):
+            posvel = np.concatenate([pos, vel], axis=-1)
+            posvels.append(posvel)
+        posvels = np.stack(posvels)
+        return posvels.flatten()
+
     transform = transforms.Compose([
         remove_keys('filename', 'full_filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from'),
+        _example_dict_to_flat_vector,
     ])
 
     train_dataset = TorchDynamicsDataset(dataset_dir, mode='train',
@@ -83,7 +75,6 @@ def train_main(dataset_dir: pathlib.Path,
                                 batch_size=batch_size,
                                 num_workers=get_num_workers(batch_size))
 
-    model_params = load_hjson(model_params)
     model_params['num_objects'] = train_dataset.params['data_collection_params']['num_objs'] + 1
     model_params['scenario'] = train_dataset.params['scenario']
     # add some extra useful info here
@@ -121,11 +112,11 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = PropNet(hparams=model_params)
+    model = MyVAE(hparams=model_params)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
 
-    ckpt_cb = MyModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
+    ckpt_cb = ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
 
     trainer = pl.Trainer(gpus=1,
                          logger=wb_logger,
@@ -201,32 +192,11 @@ def viz_main(dataset_dir: pathlib.Path,
 
     loader = DataLoader(dataset, collate_fn=my_collate)
 
-    model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, MyVAE, project, version='best', user=user)
     model.training = False
 
     for i, inputs in enumerate(tqdm(loader)):
-        gt_vel, gt_pos, pred_vel, pred_pos = model(inputs)
-
-        n_time_steps = inputs['time_idx'].shape[1]
-        b = 0
-        anim = RvizAnimationController(n_time_steps=n_time_steps)
-
-        while not anim.done:
-            t = anim.t()
-            # FIXME: this is scenario specific!!!
-            state_t = {}
-            for k in dataset.state_keys:
-                if k in inputs:
-                    state_t[k] = numpify(inputs[k][b, t])
-
-            s.plot_state_rviz(state_t, label='actual', color='#ff0000aa')
-
-            pred_state_t = s.propnet_outputs_to_state(inputs=inputs, pred_vel=pred_vel, pred_pos=pred_pos, b=b, t=t,
-                                                      obj_dz=0.01)
-
-            s.plot_state_rviz(pred_state_t, label='predicted', color='#0000ffaa')
-
-            anim.step()
+        pass
 
 
 def get_num_workers(batch_size):
