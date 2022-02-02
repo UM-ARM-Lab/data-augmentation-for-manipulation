@@ -1,7 +1,7 @@
 {
   augmentation: {
     # misc
-    vae_model: debugging-77qqb
+    vae_model: ae-2dvag
 
     viz: {
       scale: 0.006

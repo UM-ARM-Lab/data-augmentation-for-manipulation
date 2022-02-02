@@ -115,7 +115,7 @@ def train_main(dataset_dir: pathlib.Path,
                          max_epochs=epochs,
                          max_steps=steps,
                          log_every_n_steps=1,
-                         check_val_every_n_epoch=10,
+                         check_val_every_n_epoch=50,
                          callbacks=[ckpt_cb],
                          default_root_dir='wandb',
                          gradient_clip_val=0.1)
@@ -145,7 +145,7 @@ def eval_main(dataset_dir: pathlib.Path,
               take: int = None,
               project=PROJECT,
               **kwargs):
-    model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, MyVAE, project, version='best', user=user)
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
