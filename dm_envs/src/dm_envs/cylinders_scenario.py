@@ -1,5 +1,4 @@
 import re
-import tempfile
 from copy import deepcopy
 from typing import Dict
 
@@ -321,8 +320,8 @@ class CylindersScenario(PlanarPushingScenario):
 
             for is_robot, obj_idx, k, pos_k, pos in self.iter_positions(example, num_objs):
                 radius = example['radius'][t, 0]
-                x = pos[t, 0, 0].cpu().detach().numpy()
-                y = pos[t, 0, 1].cpu().detach().numpy()
+                x = pos[t, 0, 0]
+                y = pos[t, 0, 1]
                 if is_robot:
                     p = Circle((x, y), radius, color=[1, 0, 1])
                 else:
@@ -330,9 +329,6 @@ class CylindersScenario(PlanarPushingScenario):
                 ax.add_patch(p)
 
         anim = FuncAnimation(fig=fig, func=_func, frames=time)
-        plt.show()
-        filename = tempfile.mktemp(suffix='.gif')
-        anim.save(filename, writer='imagemagick', fps=60)
         return anim
 
     def propnet_obj_v(self, batch, batch_size, obj_idx, time, device):
@@ -846,11 +842,11 @@ class CylindersScenario(PlanarPushingScenario):
         num_objs = example['num_objs'][0, 0, 0]
         posvels = []
         for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(example, num_objs):
-            posvel = np.concatenate([pos, vel], axis=-1)
+            posvel = torch.cat([pos, vel], dim=-1)
             posvels.append(posvel)
-        posvels = np.stack(posvels, axis=1)  # [batch_size, m_objects, horizon, 1, pos_vel_dim]
+        posvels = torch.stack(posvels, dim=1)  # [batch_size, m_objects, horizon, 1, pos_vel_dim]
         batch_size = posvels.shape[0]
-        return np.reshape(posvels, [batch_size, -1])
+        return torch.reshape(posvels, [batch_size, -1])
 
     def flat_vector_to_example_dict(self, example, flat_vector_aug):
         pos_vel_dim = 6
