@@ -16,7 +16,6 @@ from wandb.util import generate_id
 
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson
-from moonshine.moonshine_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset
 from moonshine.torch_utils import my_collate
 from moonshine.vae import MyVAE
@@ -41,11 +40,10 @@ def train_main(dataset_dir: pathlib.Path,
     pl.seed_everything(seed, workers=True)
 
     model_params = load_hjson(model_params_path)
-    s = get_scenario(model_params['scenario'])
+    scenario = get_scenario(model_params['scenario'])
 
     transform = transforms.Compose([
         remove_keys('filename', 'full_filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from'),
-        lambda e: remove_batch(s.example_dict_to_flat_vector(add_batch(e))),
     ])
 
     train_dataset = TorchDynamicsDataset(dataset_dir, mode='train',
@@ -103,7 +101,7 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = MyVAE(hparams=model_params)
+    model = MyVAE(scenario=scenario, hparams=model_params)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
 

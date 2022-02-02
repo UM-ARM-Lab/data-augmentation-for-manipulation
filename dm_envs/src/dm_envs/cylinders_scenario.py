@@ -1,4 +1,5 @@
 import re
+import tempfile
 from copy import deepcopy
 from typing import Dict
 
@@ -7,6 +8,9 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 import torch
+from matplotlib import pyplot as plt
+from matplotlib.animation import FuncAnimation
+from matplotlib.patches import Circle
 from pyjacobian_follower import IkParams
 
 from arc_utilities.algorithms import nested_dict_update
@@ -297,6 +301,39 @@ class CylindersScenario(PlanarPushingScenario):
 
     def __repr__(self):
         return "cylinders"
+
+    def example_to_gif(self, batch):
+        example = remove_batch(batch)
+        time = example['time_idx'].shape[0]
+        num_objs = example['num_objs'][0, 0]
+
+        fig = plt.figure()
+        ax = plt.gca()
+        ax.set_aspect("equal")
+        s = 0.15
+        ax.set_xlim([-s, s])
+        ax.set_ylim([-s, s])
+
+        def _func(t):
+            # https://stackoverflow.com/questions/49791848/matplotlib-remove-all-patches-from-figure
+            for p in reversed(ax.patches):
+                p.remove()
+
+            for is_robot, obj_idx, k, pos_k, pos in self.iter_positions(example, num_objs):
+                radius = example['radius'][t, 0]
+                x = pos[t, 0, 0].cpu().detach().numpy()
+                y = pos[t, 0, 1].cpu().detach().numpy()
+                if is_robot:
+                    p = Circle((x, y), radius, color=[1, 0, 1])
+                else:
+                    p = Circle((x, y), radius, color='red')
+                ax.add_patch(p)
+
+        anim = FuncAnimation(fig=fig, func=_func, frames=time)
+        plt.show()
+        filename = tempfile.mktemp(suffix='.gif')
+        anim.save(filename, writer='imagemagick', fps=60)
+        return anim
 
     def propnet_obj_v(self, batch, batch_size, obj_idx, time, device):
         """
@@ -815,7 +852,7 @@ class CylindersScenario(PlanarPushingScenario):
         batch_size = posvels.shape[0]
         return np.reshape(posvels, [batch_size, -1])
 
-    def flat_vector_to_aug_example_dict(self, example, flat_vector_aug):
+    def flat_vector_to_example_dict(self, example, flat_vector_aug):
         pos_vel_dim = 6
         num_objs = example['num_objs'][0, 0, 0]
         time = example['num_objs'].shape[1]
