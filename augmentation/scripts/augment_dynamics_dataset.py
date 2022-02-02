@@ -25,6 +25,7 @@ def main():
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('--n-augmentations', type=int, default=25)
     parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--nickname', '-n', help='a string to add on to the output dir name', default='')
     parser.add_argument('--take', type=int)
     parser.add_argument('--mode', type=str, default='all')
     parser.add_argument('--hparams', type=pathlib.Path, default=pathlib.Path("aug_hparams/cylinders.hjson"))
@@ -35,7 +36,7 @@ def main():
     suffix = f"aug-{args.n_augmentations}-{int(time())}"
     dataset_dir = args.dataset_dir
 
-    outdir = dataset_dir.parent / f"{dataset_dir.name}+{suffix}"
+    outdir = dataset_dir.parent / f"{dataset_dir.name}+{suffix}+{args.nickname}"
 
     hparams = load_aug_params(args.hparams)
     hparams['n_augmentations'] = args.n_augmentations

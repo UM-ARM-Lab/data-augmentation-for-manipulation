@@ -11,7 +11,8 @@ from moonshine.indexing import try_index_time
 from moonshine.torch_utils import my_collate
 from propnet.propnet_models import PropNet
 from propnet.torch_dynamics_dataset import TorchDynamicsDataset
-from propnet.train_test_propnet import load_model_artifact, PROJECT
+from propnet.train_test_propnet import PROJECT
+from link_bot_pycommon.load_wandb_model import load_model_artifact
 from propnet.visualization import plot_cylinders_paths
 from tf.transformations import quaternion_from_euler
 

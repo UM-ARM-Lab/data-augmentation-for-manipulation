@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Optional
 
 import git
-import numpy as np
 import pytorch_lightning as pl
 import wandb
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -17,6 +16,7 @@ from wandb.util import generate_id
 
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson
+from moonshine.moonshine_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset
 from moonshine.torch_utils import my_collate
 from moonshine.vae import MyVAE
@@ -43,18 +43,9 @@ def train_main(dataset_dir: pathlib.Path,
     model_params = load_hjson(model_params_path)
     s = get_scenario(model_params['scenario'])
 
-    def _example_dict_to_flat_vector(example):
-        num_objs = example['num_objs'][0, 0]
-        posvels = []
-        for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in s.iter_positions_velocities(example, num_objs):
-            posvel = np.concatenate([pos, vel], axis=-1)
-            posvels.append(posvel)
-        posvels = np.stack(posvels)
-        return posvels.flatten()
-
     transform = transforms.Compose([
         remove_keys('filename', 'full_filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from'),
-        _example_dict_to_flat_vector,
+        lambda e: remove_batch(s.example_dict_to_flat_vector(add_batch(e))),
     ])
 
     train_dataset = TorchDynamicsDataset(dataset_dir, mode='train',

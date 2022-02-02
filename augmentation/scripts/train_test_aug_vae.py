@@ -7,8 +7,8 @@ import numpy as np
 import torch
 
 from arc_utilities import ros_init
-from link_bot_pycommon.args import run_subparsers
 from augmentation import train_test_aug_vae
+from link_bot_pycommon.args import run_subparsers
 from moonshine.magic import wandb_lightning_magic
 
 
@@ -17,14 +17,6 @@ def train_main(args):
         args.seed = np.random.randint(0, 10000)
 
     train_test_aug_vae.train_main(**vars(args))
-
-
-def eval_main(args):
-    train_test_aug_vae.eval_main(**vars(args))
-
-
-def viz_main(args):
-    train_test_aug_vae.viz_main(**vars(args))
 
 
 node_name = f"train_test_aug_vae_{int(time())}"
@@ -44,29 +36,13 @@ def main():
     train_parser.add_argument('--nickname', '-n', type=str)
     train_parser.add_argument('--user', '-u', type=str, default='armlab')
     train_parser.add_argument('--checkpoint')
-    train_parser.add_argument('--batch-size', type=int, default=24)
+    train_parser.add_argument('--batch-size', type=int, default=60)
     train_parser.add_argument('--take', type=int)
     train_parser.add_argument('--epochs', type=int, default=-1)
-    train_parser.add_argument('--steps', type=int, default=125_000)
+    train_parser.add_argument('--steps', type=int, default=1_000)
     train_parser.add_argument('--no-validate', action='store_true')
     train_parser.add_argument('--seed', type=int, default=None)
     train_parser.set_defaults(func=train_main)
-
-    viz_parser = subparsers.add_parser('viz')
-    viz_parser.add_argument('dataset_dir', type=pathlib.Path)
-    viz_parser.add_argument('checkpoint')
-    viz_parser.add_argument('--user', '-u', type=str, default='armlab')
-    viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
-    viz_parser.set_defaults(func=viz_main)
-
-    eval_parser = subparsers.add_parser('eval')
-    eval_parser.add_argument('dataset_dir', type=pathlib.Path)
-    eval_parser.add_argument('checkpoint')
-    eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
-    eval_parser.add_argument('--batch-size', type=int, default=24)
-    eval_parser.add_argument('--user', '-u', type=str, default='armlab')
-    eval_parser.add_argument('--take', type=int)
-    eval_parser.set_defaults(func=eval_main)
 
     wandb_lightning_magic()
 

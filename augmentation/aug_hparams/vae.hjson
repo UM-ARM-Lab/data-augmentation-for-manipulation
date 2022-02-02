@@ -1,0 +1,10 @@
+{
+  augmentation: {
+    # misc
+    vae_model: debugging-77qqb
+
+    viz: {
+      scale: 0.006
+    }
+  }
+}

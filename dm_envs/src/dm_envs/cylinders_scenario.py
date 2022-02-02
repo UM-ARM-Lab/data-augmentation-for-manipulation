@@ -163,6 +163,12 @@ class CylindersScenario(PlanarPushingScenario):
             obj_k = f'obj{obj_idx}'
             yield False, obj_idx, obj_k
 
+    def iter_keys_pos_vel(self, num_objs):
+        yield ARM_HAND_NAME + '/tcp_pos', ARM_HAND_NAME + '/tcp_vel'
+        for obj_idx in range(num_objs):
+            obj_k = f'obj{obj_idx}'
+            yield obj_k + '/position', obj_k + "/linear_velocity"
+
     def iter_positions(self, inputs, num_objs):
         for is_robot, obj_idx, k in self.iter_keys(num_objs):
             if is_robot:
@@ -798,3 +804,28 @@ class CylindersScenario(PlanarPushingScenario):
         error /= num_objs
 
         return error
+
+    def example_dict_to_flat_vector(self, example):
+        num_objs = example['num_objs'][0, 0, 0]
+        posvels = []
+        for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(example, num_objs):
+            posvel = np.concatenate([pos, vel], axis=-1)
+            posvels.append(posvel)
+        posvels = np.stack(posvels, axis=1)  # [batch_size, m_objects, horizon, 1, pos_vel_dim]
+        batch_size = posvels.shape[0]
+        return np.reshape(posvels, [batch_size, -1])
+
+    def flat_vector_to_aug_example_dict(self, example, flat_vector_aug):
+        pos_vel_dim = 6
+        num_objs = example['num_objs'][0, 0, 0]
+        time = example['num_objs'].shape[1]
+        batch_size = example['num_objs'].shape[0]
+        matrix_aug = flat_vector_aug.view([batch_size, num_objs + 1, time, 1, pos_vel_dim])
+        example_aug = deepcopy(example)
+        for i, (pos_k, vel_k) in enumerate(self.iter_keys_pos_vel(num_objs)):
+            v = matrix_aug[:, i]
+            pos = v[..., :3]
+            vel = v[..., 3:]
+            example_aug[pos_k] = pos.cpu().detach().numpy()
+            example_aug[vel_k] = vel.cpu().detach().numpy()
+        return example_aug

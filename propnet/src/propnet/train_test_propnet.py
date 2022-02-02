@@ -14,6 +14,7 @@ from torchvision import transforms
 from tqdm import tqdm
 from wandb.util import generate_id
 
+from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.numpify import numpify
@@ -231,23 +232,3 @@ def viz_main(dataset_dir: pathlib.Path,
 
 def get_num_workers(batch_size):
     return min(batch_size, multiprocessing.cpu_count())
-
-
-def load_model_artifact(checkpoint, model_class, project, version, user='armlab'):
-    local_ckpt_path = model_artifact_path(checkpoint, project, version, user)
-    model = model_class.load_from_checkpoint(local_ckpt_path.as_posix())
-    return model
-
-
-def model_artifact_path(checkpoint, project, version, user='armlab'):
-    if ':' in checkpoint:
-        checkpoint, version = checkpoint.split(':')
-
-    if not checkpoint.startswith('model-'):
-        checkpoint = 'model-' + checkpoint
-    api = wandb.Api()
-    artifact = api.artifact(f'{user}/{project}/{checkpoint}:{version}')
-    artifact_dir = artifact.download()
-    local_ckpt_path = pathlib.Path(artifact_dir) / "model.ckpt"
-    print(f"Found artifact {local_ckpt_path}")
-    return local_ckpt_path
