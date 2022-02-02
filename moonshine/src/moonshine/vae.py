@@ -70,25 +70,27 @@ class MyVAE(pl.LightningModule):
         return torch.norm(batch - reconstruction)
 
     def training_step(self, train_batch, batch_idx):
-        x = torch.tensor(self.scenario.example_dict_to_flat_vector(train_batch))
+        x = self.scenario.example_dict_to_flat_vector(train_batch)
         x_reconstruction = self.flat_vector_forward(x)
         loss = self.loss(x, x_reconstruction)
         self.log('train_loss', loss)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        input_anim = self.scenario.example_to_gif(val_batch)
+        input_anim, fig = self.scenario.example_to_gif(val_batch)
         input_gif_filename = tempfile.mktemp(suffix=f'.{video_format}')
         input_anim.save(input_gif_filename, writer='imagemagick', fps=fps)
+        input_anim._fig.close()
 
         x = self.scenario.example_dict_to_flat_vector(val_batch)
         x_reconstruction = self.flat_vector_forward(x)
         reconstruction_dict = self.scenario.flat_vector_to_example_dict(val_batch, x_reconstruction)
         loss = self.loss(x, x_reconstruction)
 
-        reconstruction_anim = self.scenario.example_to_gif(reconstruction_dict)
+        reconstruction_anim, fig = self.scenario.example_to_gif(reconstruction_dict)
         reconstruction_gif_filename = tempfile.mktemp(suffix=f'.{video_format}')
         reconstruction_anim.save(reconstruction_gif_filename, writer='imagemagick', fps=fps)
+        reconstruction_anim._fig.close()
 
         self.log('val_loss', loss)
         wandb.log({
