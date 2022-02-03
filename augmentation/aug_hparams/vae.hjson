@@ -1,7 +1,7 @@
 {
   augmentation: {
     # misc
-    vae_model: ae-2dvag
+    vae_model: vae-73sr7
 
     viz: {
       scale: 0.006

@@ -3,6 +3,7 @@ from copy import deepcopy
 from typing import Dict, Callable, List, Optional
 
 from colorama import Fore
+from torchvision.transforms import transforms
 from tqdm import tqdm
 
 from augmentation.aug_opt import AugmentationOptimization
@@ -53,16 +54,22 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              visualize: bool = False,
                              batch_size: int = 32,
                              save_format='pkl'):
-    dataset_loader = NewDynamicsDatasetLoader([dataset_dir])
+    # loader = NewDynamicsDatasetLoader([dataset_dir])
+    from propnet.torch_dynamics_dataset import remove_keys
+    from propnet.torch_dynamics_dataset import TorchDynamicsDataset
+    transform = transforms.Compose([
+        remove_keys('filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from'),
+    ])
+    loader = TorchDynamicsDataset(dataset_dir, mode=mode, transform=transform)
     if scenario is None:
-        scenario = dataset_loader.get_scenario()
+        scenario = loader.get_scenario()
 
     # current needed because mujoco IK requires a fully setup simulation...
-    scenario.on_before_data_collection(dataset_loader.data_collection_params)
+    scenario.on_before_data_collection(loader.data_collection_params)
 
     def viz_f(_scenario, example, **kwargs):
         example = numpify(example)
-        state_keys = list(filter(lambda k: k in example, dataset_loader.state_keys))
+        state_keys = list(filter(lambda k: k in example, loader.state_keys))
         anim = RvizAnimation(_scenario,
                              n_time_steps=example['time_idx'].size,
                              init_funcs=[
@@ -72,14 +79,14 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                                  init_viz_env,
                                  dynamics_viz_t(metadata={},
                                                 label='aug',
-                                                state_metadata_keys=dataset_loader.state_metadata_keys,
+                                                state_metadata_keys=loader.state_metadata_keys,
                                                 state_keys=state_keys,
-                                                action_keys=dataset_loader.action_keys),
+                                                action_keys=loader.action_keys),
                              ])
         anim.play(example)
 
-    debug_state_keys = dataset_loader.state_keys
-    outdir = augment_dataset_from_loader(dataset_loader,
+    debug_state_keys = loader.state_keys
+    outdir = augment_dataset_from_loader(loader,
                                          viz_f,
                                          dataset_dir,
                                          mode,
@@ -106,13 +113,13 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
                                visualize: bool = False,
                                batch_size: int = 128,
                                save_format='pkl'):
-    dataset_loader = NewClassifierDatasetLoader([dataset_dir])
+    loader = NewClassifierDatasetLoader([dataset_dir])
     viz_f = classifier_transition_viz_t(metadata={},
-                                        state_metadata_keys=dataset_loader.state_metadata_keys,
-                                        predicted_state_keys=dataset_loader.predicted_state_keys,
+                                        state_metadata_keys=loader.state_metadata_keys,
+                                        predicted_state_keys=loader.predicted_state_keys,
                                         true_state_keys=None)
-    debug_state_keys = [add_predicted(k) for k in dataset_loader.state_keys]
-    outdir = augment_dataset_from_loader(dataset_loader,
+    debug_state_keys = [add_predicted(k) for k in loader.state_keys]
+    outdir = augment_dataset_from_loader(loader,
                                          viz_f,
                                          dataset_dir,
                                          mode,
@@ -176,7 +183,7 @@ def out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f):
             yield original_example_subset
 
 
-def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
+def augment_dataset_from_loader(loader: NewBaseDatasetLoader,
                                 viz_f: Callable,
                                 dataset_dir: pathlib.Path,
                                 mode: str,
@@ -189,10 +196,10 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
                                 visualize: bool = False,
                                 batch_size: int = 128,
                                 save_format='pkl'):
-    aug = make_aug_opt(scenario, dataset_loader, hparams, debug_state_keys, batch_size)
+    aug = make_aug_opt(scenario, loader, hparams, debug_state_keys, batch_size)
 
     outdir.mkdir(exist_ok=True, parents=False)
-    dataset = dataset_loader.get_datasets(mode=mode).take(take)
+    dataset = loader.get_datasets(mode=mode).take(take)
     expected_total = (1 + n_augmentations) * len(dataset)
     dataset = dataset.batch(batch_size)
 
@@ -203,7 +210,7 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
     # copy in all of the data from modes we're not augmenting
     if mode != 'all':
         # += offsets example numbers so we don't overwrite the data we copy here with the augmentations
-        total_count += copy_modes(dataset_loader, mode, outdir, save_format)
+        total_count += copy_modes(loader, mode, outdir, save_format)
 
     need_to_write_hparams = True
     examples_names = []
@@ -229,13 +236,13 @@ def augment_dataset_from_loader(dataset_loader: NewBaseDatasetLoader,
     return outdir
 
 
-def copy_modes(dataset_loader, mode, outdir, save_format):
+def copy_modes(loader, mode, outdir, save_format):
     total_count = 0
     modes = ['train', 'val', 'test']
     modes.remove(mode)
     for remaining_mode in modes:
         remaining_mode_examples = []
-        remaining_dataset = dataset_loader.get_datasets(mode=remaining_mode)
+        remaining_dataset = loader.get_datasets(mode=remaining_mode)
         for remaining_mode_example in tqdm(remaining_dataset):
             write_example(outdir, remaining_mode_example, total_count, save_format)
             example_name = index_to_filename2(total_count, save_format)
@@ -248,7 +255,7 @@ def copy_modes(dataset_loader, mode, outdir, save_format):
 
 
 def make_aug_opt(scenario: ScenarioWithVisualization,
-                 dataset_loader: NewBaseDatasetLoader,
+                 loader: NewBaseDatasetLoader,
                  hparams: Dict,
                  debug_state_keys: List[str],
                  batch_size: int,
@@ -261,7 +268,7 @@ def make_aug_opt(scenario: ScenarioWithVisualization,
     elif vae_model := has_keys(hparams, ['augmentation', 'vae_model']):
         aug = VAEAugmentation(scenario, vae_model)
     else:
-        debug = DebuggingViz(scenario, debug_state_keys, dataset_loader.action_keys)
+        debug = DebuggingViz(scenario, debug_state_keys, loader.action_keys)
         local_env_helper = LocalEnvHelper(h=hparams['local_env_h_rows'],
                                           w=hparams['local_env_w_cols'],
                                           c=hparams['local_env_c_channels'])
@@ -270,9 +277,9 @@ def make_aug_opt(scenario: ScenarioWithVisualization,
                                        local_env_helper=local_env_helper,
                                        hparams=hparams,
                                        batch_size=batch_size,
-                                       state_keys=dataset_loader.state_keys,
-                                       action_keys=dataset_loader.action_keys,
-                                       points_state_keys=dataset_loader.points_state_keys,
+                                       state_keys=loader.state_keys,
+                                       action_keys=loader.action_keys,
+                                       points_state_keys=loader.points_state_keys,
                                        post_init_cb=post_init_cb,
                                        post_step_cb=post_step_cb,
                                        post_project_cb=post_project_cb,

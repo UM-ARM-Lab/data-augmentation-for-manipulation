@@ -10,7 +10,12 @@ from moonshine.vae import MyVAE
 class VAEAugmentation:
 
     def __init__(self, scenario: ScenarioWithVisualization, model_path):
-        self.model = load_model_artifact(model_path, model_class=MyVAE, project=PROJECT, version='best', user='armlab')
+        self.model = load_model_artifact(model_path,
+                                         model_class=MyVAE,
+                                         project=PROJECT,
+                                         version='best',
+                                         user='armlab')
+        self.model.scenario = scenario
         self.scenario = scenario
         self.rng = np.random.RandomState(0)
 

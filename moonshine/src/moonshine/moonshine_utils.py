@@ -1,3 +1,4 @@
+import multiprocessing
 import pathlib
 from typing import Dict, Optional, List, Callable
 
@@ -413,3 +414,7 @@ def possibly_none_concat(old, new, axis: int):
         return new
     else:
         return tf.concat([old, new], axis=axis)
+
+
+def get_num_workers(batch_size):
+    return min(batch_size, multiprocessing.cpu_count())

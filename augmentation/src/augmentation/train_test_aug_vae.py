@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import multiprocessing
 import pathlib
 from datetime import datetime
 from typing import Optional
@@ -16,6 +15,7 @@ from wandb.util import generate_id
 
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson
+from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_datasets_utils import take_subset
 from moonshine.torch_utils import my_collate
 from moonshine.vae import MyVAE
@@ -126,12 +126,6 @@ def train_main(dataset_dir: pathlib.Path,
                 ckpt_path=ckpt_path)
     wandb.finish()
 
-    eval_main(dataset_dir,
-              run_id,
-              mode='test',
-              user=user,
-              batch_size=batch_size)
-
     return run_id
 
 
@@ -188,13 +182,9 @@ def viz_main(dataset_dir: pathlib.Path,
         pass
 
 
-def get_num_workers(batch_size):
-    return min(batch_size, multiprocessing.cpu_count())
-
-
-def load_model_artifact(checkpoint, model_class, project, version, user='armlab'):
+def load_model_artifact(checkpoint, model_class, project, version, user='armlab', **kwargs):
     local_ckpt_path = model_artifact_path(checkpoint, project, version, user)
-    model = model_class.load_from_checkpoint(local_ckpt_path.as_posix())
+    model = model_class.load_from_checkpoint(local_ckpt_path.as_posix(), **kwargs)
     return model
 
 

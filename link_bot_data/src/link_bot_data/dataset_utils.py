@@ -9,6 +9,7 @@ from typing import Optional, Dict, List, Sequence
 import git
 import numpy as np
 import tensorflow as tf
+import torch
 from colorama import Fore
 
 import genpy
@@ -407,6 +408,17 @@ def coerce_types(d: Dict):
             out_d[k] = v
         elif isinstance(v, tf.Tensor):
             v = v.numpy()
+            if isinstance(v, np.ndarray):
+                if v.dtype == np.float64:
+                    out_d[k] = v.astype(np.float32)
+                else:
+                    out_d[k] = v
+            elif isinstance(v, np.float64):
+                out_d[k] = np.float32(v)
+            else:
+                out_d[k] = v
+        elif isinstance(v, torch.Tensor):
+            v = v.cpu().detach().numpy()
             if isinstance(v, np.ndarray):
                 if v.dtype == np.float64:
                     out_d[k] = v.astype(np.float32)

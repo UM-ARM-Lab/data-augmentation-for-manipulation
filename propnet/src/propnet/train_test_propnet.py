@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import multiprocessing
 import pathlib
 from datetime import datetime
 from typing import Optional
@@ -17,6 +16,7 @@ from wandb.util import generate_id
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
+from moonshine.moonshine_utils import get_num_workers
 from moonshine.numpify import numpify
 from moonshine.torch_datasets_utils import take_subset
 from moonshine.torch_utils import my_collate
@@ -228,7 +228,3 @@ def viz_main(dataset_dir: pathlib.Path,
             s.plot_state_rviz(pred_state_t, label='predicted', color='#0000ffaa')
 
             anim.step()
-
-
-def get_num_workers(batch_size):
-    return min(batch_size, multiprocessing.cpu_count())
