@@ -1,17 +1,10 @@
 import logging
-import tempfile
 
-import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 import torch
-import wandb
 from torch import nn
 
 logger = logging.getLogger(__file__)
-
-video_format = 'gif'
-fps = 60
-train_gif_log_idx = 0
 
 
 # noinspection PyAbstractClass
@@ -62,49 +55,21 @@ class MyAE(pl.LightningModule):
     def training_step(self, train_batch, batch_idx):
         x = self.scenario.example_dict_to_flat_vector(train_batch)
         x_reconstruction = self.flat_vector_forward(x)
-        reconstruction_dict = self.scenario.flat_vector_to_example_dict(train_batch, x_reconstruction)
         loss = self.loss(x, x_reconstruction)
-
         self.log('train_loss', loss)
-        self.log_dict({
-            'myvid': 3,
-        })
 
-        # # HACK!!!
-        # global train_gif_log_idx
-        # if train_gif_log_idx % 50 == 0:
-        #     input_anim = self.scenario.example_to_gif(train_batch)
-        #     input_gif_filename = tempfile.mktemp(suffix=f'.{video_format}')
-        #     input_anim.save(input_gif_filename, writer='imagemagick', fps=fps)
-        #     plt.close(input_anim._fig)
-        #     reconstruction_anim = self.scenario.example_to_gif(reconstruction_dict)
-        #     reconstruction_gif_filename = tempfile.mktemp(suffix=f'.{video_format}')
-        #     reconstruction_anim.save(reconstruction_gif_filename, writer='imagemagick', fps=fps)
-        #     plt.close(reconstruction_anim._fig)
-        #     wandb.log({
-        #         'train_input_gif':          wandb.Video(input_gif_filename, fps=fps, format=video_format),
-        #         'train_reconstruction_gif': wandb.Video(reconstruction_gif_filename, fps=fps, format=video_format),
-        #     })
-        # train_gif_log_idx += 1
-        return loss
+        return {
+            'loss':             loss,
+            'x_reconstruction': x_reconstruction.detach(),
+        }
 
     def validation_step(self, val_batch, batch_idx):
         x = self.scenario.example_dict_to_flat_vector(val_batch)
         x_reconstruction = self.flat_vector_forward(x)
-        reconstruction_dict = self.scenario.flat_vector_to_example_dict(val_batch, x_reconstruction)
         loss = self.loss(x, x_reconstruction)
         self.log('val_loss', loss)
 
-        input_anim = self.scenario.example_to_gif(val_batch)
-        input_gif_filename = tempfile.mktemp(suffix=f'.{video_format}')
-        input_anim.save(input_gif_filename, writer='imagemagick', fps=fps)
-        plt.close(input_anim._fig)
-        reconstruction_anim = self.scenario.example_to_gif(reconstruction_dict)
-        reconstruction_gif_filename = tempfile.mktemp(suffix=f'.{video_format}')
-        reconstruction_anim.save(reconstruction_gif_filename, writer='imagemagick', fps=fps)
-        plt.close(reconstruction_anim._fig)
-
-        wandb.log({
-            'val_input_gif':          wandb.Video(input_gif_filename, fps=fps, format=video_format),
-            'val_reconstruction_gif': wandb.Video(reconstruction_gif_filename, fps=fps, format=video_format),
-        })
+        return {
+            'loss':             loss,
+            'x_reconstruction': x_reconstruction.detach(),
+        }

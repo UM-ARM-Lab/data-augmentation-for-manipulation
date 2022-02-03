@@ -14,11 +14,11 @@ from tqdm import tqdm
 from wandb.util import generate_id
 
 from link_bot_pycommon.get_scenario import get_scenario
+from moonshine.dynamics_aes import DynamicsVAE
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_datasets_utils import take_subset
 from moonshine.torch_utils import my_collate
-from moonshine.vae import MyVAE
 from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
 PROJECT = 'aug_vae'
@@ -101,7 +101,7 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = MyVAE(scenario=scenario, hparams=model_params)
+    model = DynamicsVAE(scenario=scenario, hparams=model_params)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
 
@@ -137,7 +137,7 @@ def eval_main(dataset_dir: pathlib.Path,
               take: int = None,
               project=PROJECT,
               **kwargs):
-    model = load_model_artifact(checkpoint, MyVAE, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, DynamicsVAE, project, version='best', user=user)
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
@@ -175,7 +175,7 @@ def viz_main(dataset_dir: pathlib.Path,
 
     loader = DataLoader(dataset, collate_fn=my_collate)
 
-    model = load_model_artifact(checkpoint, MyVAE, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, DynamicsVAE, project, version='best', user=user)
     model.training = False
 
     for i, inputs in enumerate(tqdm(loader)):

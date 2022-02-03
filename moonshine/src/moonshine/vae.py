@@ -1,17 +1,10 @@
 import logging
-import tempfile
 
-import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 import torch
-import wandb
 from torch import nn
 
 logger = logging.getLogger(__file__)
-
-video_format = 'gif'
-fps = 60
-train_gif_log_idx = 0
 
 
 def reparametrize(mu, log_var):
@@ -77,7 +70,7 @@ class MyVAE(pl.LightningModule):
 
         return {
             'loss':             loss,
-            'x_reconstruction': x_reconstruction,
+            'x_reconstruction': x_reconstruction.detach(),
         }
 
     def validation_step(self, val_batch, batch_idx):
@@ -86,28 +79,7 @@ class MyVAE(pl.LightningModule):
         loss = self.loss(x, x_reconstruction)
         self.log('val_loss', loss)
 
-        return x_reconstruction
-
-    def on_train_batch_end(self, outputs, batch, batch_idx):
-        if self.current_epoch % 50 == 0:
-            self.log_gifs(batch, outputs, 'train')
-
-    def on_validation_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
-        if batch_idx == 0:
-            self.log_gifs(batch, outputs, 'train')
-
-    def log_gifs(self, batch, outputs, prefix):
-        x_reconstruction = outputs['x_reconstruction']
-        input_anim = self.scenario.example_to_gif(batch)
-        input_gif_filename = tempfile.mktemp(suffix=f'.{video_format}')
-        input_anim.save(input_gif_filename, writer='imagemagick', fps=fps)
-        plt.close(input_anim._fig)
-        reconstruction_dict = self.scenario.flat_vector_to_example_dict(batch, x_reconstruction)
-        reconstruction_anim = self.scenario.example_to_gif(reconstruction_dict)
-        reconstruction_gif_filename = tempfile.mktemp(suffix=f'.{video_format}')
-        reconstruction_anim.save(reconstruction_gif_filename, writer='imagemagick', fps=fps)
-        plt.close(reconstruction_anim._fig)
-        wandb.log({
-            f'{prefix}_input_gif':          wandb.Video(input_gif_filename, fps=fps, format=video_format),
-            f'{prefix}_reconstruction_gif': wandb.Video(reconstruction_gif_filename, fps=fps, format=video_format),
-        })
+        return {
+            'loss':             loss,
+            'x_reconstruction': x_reconstruction.detach(),
+        }
