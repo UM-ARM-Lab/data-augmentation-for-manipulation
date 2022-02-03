@@ -30,6 +30,7 @@ def main():
     parser.add_argument('--mode', type=str, default='all')
     parser.add_argument('--hparams', type=pathlib.Path, default=pathlib.Path("aug_hparams/cylinders.hjson"))
     parser.add_argument('--visualize', action='store_true')
+    parser.add_argument('--use-torch', action='store_true')
 
     args = parser.parse_args()
 
@@ -47,6 +48,7 @@ def main():
                                       take=args.take,
                                       outdir=outdir,
                                       n_augmentations=args.n_augmentations,
+                                      use_torch=args.use_torch,
                                       visualize=args.visualize,
                                       batch_size=args.batch_size)
 

@@ -50,12 +50,10 @@ class MyVAE(pl.LightningModule):
 
     def flat_vector_forward(self, x):
         h = self.encoder(x)
-        # hidden = h[..., :int(self.hparams.latent_dim)]
         mu = h[..., :int(self.hparams.latent_dim)]
         log_var = h[..., int(self.hparams.latent_dim):]
         hidden = reparametrize(mu, log_var)
         output = self.decoder(hidden)
-        # return mu, log_var, output
         return output
 
     def forward(self, example):

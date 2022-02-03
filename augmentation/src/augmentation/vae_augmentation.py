@@ -13,7 +13,7 @@ class VAEAugmentation:
         self.model = load_model_artifact(model_path,
                                          model_class=MyVAE,
                                          project=PROJECT,
-                                         version='best',
+                                         version='latest',
                                          user='armlab')
         self.model.scenario = scenario
         self.scenario = scenario

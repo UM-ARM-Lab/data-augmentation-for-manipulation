@@ -8,6 +8,9 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern, default_co
 
 def my_collate(batch):
     """ Copied from the default_collate """
+    if isinstance(batch, collections.abc.Mapping):
+        return batch
+
     elem = batch[0]
     elem_type = type(elem)
     if isinstance(elem, torch.Tensor):

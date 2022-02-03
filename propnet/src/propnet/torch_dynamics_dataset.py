@@ -10,6 +10,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_params
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_datasets_utils import take_subset
+from moonshine.torch_utils import my_collate
 
 logger = logging.getLogger(__file__)
 
@@ -46,6 +47,7 @@ class TorchLoaderWrapped:
         loader = DataLoader(dataset=self.dataset,
                             batch_size=batch_size,
                             shuffle=True,
+                            collate_fn=my_collate,
                             num_workers=get_num_workers(batch_size=batch_size))
         for example in loader:
             actual_batch_size = list(example.values())[0].shape[0]

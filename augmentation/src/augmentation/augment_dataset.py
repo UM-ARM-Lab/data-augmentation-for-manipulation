@@ -23,6 +23,8 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import try_index_batched_dict
 from moonshine.moonshine_utils import remove_batch
 from moonshine.numpify import numpify
+from propnet.torch_dynamics_dataset import TorchDynamicsDataset
+from propnet.torch_dynamics_dataset import remove_keys
 
 
 def unbatch_examples(example, actual_batch_size):
@@ -53,14 +55,12 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              scenario=None,
                              visualize: bool = False,
                              batch_size: int = 32,
+                             use_torch: bool = True,
                              save_format='pkl'):
-    # loader = NewDynamicsDatasetLoader([dataset_dir])
-    from propnet.torch_dynamics_dataset import remove_keys
-    from propnet.torch_dynamics_dataset import TorchDynamicsDataset
-    transform = transforms.Compose([
-        remove_keys('filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from'),
-    ])
-    loader = TorchDynamicsDataset(dataset_dir, mode=mode, transform=transform)
+    if use_torch:
+        loader = TorchDynamicsDataset(dataset_dir, mode=mode)
+    else:
+        loader = NewDynamicsDatasetLoader([dataset_dir])
     if scenario is None:
         scenario = loader.get_scenario()
 
