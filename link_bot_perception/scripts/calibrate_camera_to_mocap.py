@@ -46,7 +46,6 @@ def main():
             rospy.sleep(0.1)
 
         mocap2fiducial_markers = tf.get_transform(mocap_world_frame, f"mocap_calib{i}_calib{i}")
-        # TODO: make sure this is right
         mocap2fiducial = mocap2fiducial_markers @ transformations.inverse_matrix(fiducial_center_to_fiducial_mocap)
         camera2fiducial = tf.get_transform(args.camera_tf_name, f"fiducial_{i}")
         fiducial2camera = transformations.inverse_matrix(camera2fiducial)
@@ -55,17 +54,6 @@ def main():
         mocap2camera_sensor_offset = np.linalg.solve(mocap2camera_markers, mocap2camera_sensor_detected)
 
         offsets.append(mocap2camera_sensor_offset)
-
-        for _ in range(3):
-            # these are for debugging
-            tf.send_transform_matrix(mocap2fiducial, mocap_world_frame, f'mocap_fiducial_{i}_{t}')
-            tf.send_transform_matrix(camera2fiducial, args.camera_tf_name, f'fiducial_{i}_{t}')
-            tf.send_transform_matrix(mocap2camera_markers, mocap_world_frame, f'camera_a_{t}')
-            tf.send_transform_matrix(mocap2camera_sensor_detected, mocap_world_frame, f'camera_b_{t}')
-            rospy.sleep(0.2)
-        q = input("press enter to capture")
-        if q == 'q':
-            break
 
     average_offset = average_transformation_matrices(offsets)
     trans = transformations.translation_from_matrix(average_offset)
