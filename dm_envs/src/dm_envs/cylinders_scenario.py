@@ -323,7 +323,7 @@ class CylindersScenario(PlanarPushingScenario):
                 x = pos[t, 0, 0]
                 y = pos[t, 0, 1]
                 if is_robot:
-                    p = Circle((x, y), radius, color=[1, 0, 1])
+                    p = Circle((x, y), primitive_hand.RADIUS, color=[1, 0, 1])
                 else:
                     p = Circle((x, y), radius, color='red')
                 ax.add_patch(p)

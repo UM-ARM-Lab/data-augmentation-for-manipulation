@@ -16,6 +16,7 @@ def main():
         'no_invariance':     'Augmentation (no transf. val.)',
         'no_delta_min_dist': 'Augmentation (no delta min dist)',
         'noise':             'Gaussian Noise (baseline)',
+        'vae':             'VAE (baseline)',
     }
 
     palette = {
@@ -25,6 +26,7 @@ def main():
         'Augmentation (no transf. val.)':   '#f0e442',
         'Augmentation (no delta min dist)': '#009e73',
         'Gaussian Noise (baseline)':        '#aaaaaa',
+        'VAE (baseline)':                   '#eeee99',
     }
 
     for k, v in method_name_map.items():
@@ -67,18 +69,6 @@ def main():
     plt.close()
 
 
-def print_metrics(df, method_name_map, metric_name):
-    print()
-    print()
-    mpe_dict = {}
-    for n in np.unique(list(method_name_map.values())):
-        if n == 'nan':
-            continue
-        success_rates = df.loc[df['method_name'] == n][metric_name].values
-        mpe_dict[n] = success_rates
-        print(f"{n:30s} {np.mean(success_rates):.4f} {np.std(success_rates):.4f}")
-    print()
-    print(dict_to_pvalue_table(mpe_dict))
 
 
 if __name__ == '__main__':

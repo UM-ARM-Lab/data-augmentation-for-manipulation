@@ -1,0 +1,10 @@
+{
+  augmentation: {
+    # misc
+    vae_model: toy-vae-9snu4
+
+    viz: {
+      scale: 0.006
+    }
+  }
+}

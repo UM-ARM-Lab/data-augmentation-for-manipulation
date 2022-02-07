@@ -1,0 +1,7 @@
+{
+  input_dim: 600
+  latent_dim: 600
+  hidden_dim: 600
+  learning_rate: 1e-3
+  scenario: cylinders
+}
