@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from arc_utilities import ros_init
 from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from moonshine.indexing import try_index_time
-from moonshine.torch_utils import my_collate
+from moonshine.torch_datasets_utils import my_collate
 from propnet.propnet_models import PropNet
 from propnet.torch_dynamics_dataset import TorchDynamicsDataset
 from propnet.train_test_propnet import PROJECT

@@ -6,7 +6,7 @@ import pyautogui
 from torch.utils.data import DataLoader
 
 from arc_utilities import ros_init
-from moonshine.torch_utils import my_collate
+from moonshine.torch_datasets_utils import my_collate
 from propnet.propnet_models import PropNet
 from propnet.torch_dynamics_dataset import TorchDynamicsDataset
 from link_bot_pycommon.load_wandb_model import load_model_artifact

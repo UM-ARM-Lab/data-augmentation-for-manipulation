@@ -18,8 +18,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.numpify import numpify
-from moonshine.torch_datasets_utils import take_subset
-from moonshine.torch_utils import my_collate
+from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
 from propnet.propnet_models import PropNet
 from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
@@ -161,7 +160,8 @@ def eval_main(dataset_dir: pathlib.Path,
               mode: str,
               batch_size: int,
               user: str,
-              take: int = None,
+              take: Optional[int] = None,
+              skip: Optional[int] = None,
               project=PROJECT,
               **kwargs):
     model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
@@ -174,11 +174,12 @@ def eval_main(dataset_dir: pathlib.Path,
         'eval_mode':        mode,
     }
 
-    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity=user)
+    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity='armlab')
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
     dataset = TorchDynamicsDataset(dataset_dir, mode)
     dataset = take_subset(dataset, take)
+    dataset = dataset_skip(dataset, skip)
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
     metrics = trainer.validate(model, loader, verbose=False)
     wandb.finish()
@@ -195,12 +196,14 @@ def viz_main(dataset_dir: pathlib.Path,
              checkpoint,
              mode: str,
              user: str,
+             skip: Optional[int] = None,
              project=PROJECT,
              **kwargs):
     dataset = TorchDynamicsDataset(dataset_dir, mode)
     s = dataset.get_scenario()
 
-    loader = DataLoader(dataset, collate_fn=my_collate)
+    dataset_ = dataset_skip(dataset, skip)
+    loader = DataLoader(dataset_, collate_fn=my_collate)
 
     model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
     model.training = False

@@ -11,7 +11,7 @@ def wandb_to_df(user='armlab', project='propnet'):
 
 
 def runs_to_columns(runs):
-    columns = ['tags']
+    columns = ['tags', 'run_id']
     for run in runs:
         for k in run.config.keys():
             if k not in columns:
@@ -40,14 +40,16 @@ def wandb_to_df_with_config(config, user='armlab', project='propnet'):
 def runs_to_df(runs, columns):
     df = []
     for run in runs:
-        row = [run.tags]
+        row = []
         for k in columns:
             if k in run.config:
                 row.append(run.config[k])
             elif k in run.summary:
                 row.append(run.summary[k])
             elif k == 'tags':
-                pass
+                row.append(run.tags)
+            elif k == 'run_id':
+                row.append(run.id)
             else:
                 row.append(None)
         df.append(row)

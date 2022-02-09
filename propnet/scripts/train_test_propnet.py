@@ -46,6 +46,7 @@ def main():
     train_parser.add_argument('--checkpoint')
     train_parser.add_argument('--batch-size', type=int, default=24)
     train_parser.add_argument('--take', type=int)
+    train_parser.add_argument('--skip', type=int)
     train_parser.add_argument('--epochs', type=int, default=-1)
     train_parser.add_argument('--steps', type=int, default=125_000)
     train_parser.add_argument('--no-validate', action='store_true')
@@ -57,6 +58,7 @@ def main():
     viz_parser.add_argument('checkpoint')
     viz_parser.add_argument('--user', '-u', type=str, default='armlab')
     viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
+    viz_parser.add_argument('--skip', type=int)
     viz_parser.set_defaults(func=viz_main)
 
     eval_parser = subparsers.add_parser('eval')

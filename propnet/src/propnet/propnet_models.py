@@ -7,6 +7,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 
 from link_bot_pycommon.get_scenario import get_scenario
+from moonshine.torch_geometry import pairwise_squared_distances_self
 from propnet.component_models import ParticleEncoder, RelationEncoder, Propagator, ParticlePredictor
 from propnet.torch_dynamics_dataset import get_batch_size
 
@@ -136,7 +137,7 @@ class PropNet(pl.LightningModule):
 
     def __init__(self, hparams, residual=False):
         super().__init__()
-        self.save_hyperparameters(hparams)  # this allows us to access kwargs['foo'] like self.model_hparams.foo
+        self.save_hyperparameters(hparams)  # this allows us to access kwargs['foo'] like self.hparams.foo
 
         self.scenario = get_scenario(self.hparams.scenario)
 
@@ -285,6 +286,15 @@ class PropNet(pl.LightningModule):
         error_pos = error_pos
         return error_pos
 
+    def penetration(self, radius, dist_to_nearest):
+        penetration_batch_time_objs = -(dist_to_nearest - 2 * radius).minimum(torch.zeros_like(radius))
+        return penetration_batch_time_objs.mean() * 1000
+
+    def spooky_action(self, radius, dist_to_nearest, pred_vel):
+        positive_distance = (dist_to_nearest - 2 * radius).maximum(torch.zeros_like(radius))
+        spooky_action = (pred_vel.norm(dim=-1) * positive_distance).mean()
+        return spooky_action * 1000  # I hate looking at decimals
+
     def training_step(self, train_batch, batch_idx):
         gt_vel, gt_pos, pred_vel, pred_pos = self.forward(train_batch)
         loss = self.velocity_loss(gt_vel, pred_vel)
@@ -301,3 +311,10 @@ class PropNet(pl.LightningModule):
         self.log('max_error_pos', max_error_pos)
         mean_error_pos = self.mean_error_pos(gt_pos, pred_pos)
         self.log('mean_error_pos', mean_error_pos)
+
+        radius = val_batch['radius'][0, 0, 0]
+        dist_matrix = pairwise_squared_distances_self(pred_pos).sqrt()
+        dist_to_nearest, _ = dist_matrix.min(dim=-1)
+
+        self.log("penetration", self.penetration(radius, dist_to_nearest))
+        self.log("spooky_action", self.spooky_action(radius, dist_to_nearest, pred_vel))

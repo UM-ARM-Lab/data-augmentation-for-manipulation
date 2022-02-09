@@ -9,8 +9,7 @@ from link_bot_data.new_dataset_utils import get_filenames, load_single
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_params
 from moonshine.moonshine_utils import get_num_workers
-from moonshine.torch_datasets_utils import take_subset
-from moonshine.torch_utils import my_collate
+from moonshine.torch_datasets_utils import take_subset, my_collate
 
 logger = logging.getLogger(__file__)
 
@@ -106,7 +105,7 @@ class TorchDynamicsDataset(Dataset):
 
     def get_datasets(self, mode=None):
         if mode != self.mode:
-            logger.warning("the mode must be set when constructing the Dataset, not when calling get_datasets")
+            raise RuntimeError("the mode must be set when constructing the Dataset, not when calling get_datasets")
         return TorchLoaderWrapped(dataset=self)
 
 

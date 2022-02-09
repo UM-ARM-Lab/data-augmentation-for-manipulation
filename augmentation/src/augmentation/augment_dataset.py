@@ -3,7 +3,6 @@ from copy import deepcopy
 from typing import Dict, Callable, List, Optional
 
 from colorama import Fore
-from torchvision.transforms import transforms
 from tqdm import tqdm
 
 from augmentation.aug_opt import AugmentationOptimization
@@ -23,8 +22,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import try_index_batched_dict
 from moonshine.moonshine_utils import remove_batch
 from moonshine.numpify import numpify
-from propnet.torch_dynamics_dataset import TorchDynamicsDataset
-from propnet.torch_dynamics_dataset import remove_keys
+from moonshine.torchify import torchify
 
 
 def unbatch_examples(example, actual_batch_size):
@@ -57,10 +55,7 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              batch_size: int = 32,
                              use_torch: bool = True,
                              save_format='pkl'):
-    if use_torch:
-        loader = TorchDynamicsDataset(dataset_dir, mode=mode)
-    else:
-        loader = NewDynamicsDatasetLoader([dataset_dir])
+    loader = NewDynamicsDatasetLoader([dataset_dir])
     if scenario is None:
         scenario = loader.get_scenario()
 
@@ -98,6 +93,7 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                                          scenario,
                                          visualize,
                                          batch_size,
+                                         use_torch,
                                          save_format)
 
     return outdir
@@ -131,12 +127,13 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
                                          scenario,
                                          visualize,
                                          batch_size,
+                                         False,
                                          save_format)
     split_dataset(outdir, val_split=0, test_split=0)
     return outdir
 
 
-def augment(scenario, aug, n_augmentations, inputs, visualize, viz_f):
+def augment(scenario, aug, n_augmentations, inputs, visualize, viz_f, use_torch):
     actual_batch_size = inputs['batch_size']
     if visualize:
         scenario.reset_viz()
@@ -148,6 +145,8 @@ def augment(scenario, aug, n_augmentations, inputs, visualize, viz_f):
 
     for k in range(n_augmentations):
         scenario.heartbeat()
+        if use_torch:
+            inputs = torchify(inputs)
         output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)
         output['augmented_from'] = inputs['full_filename']
 
@@ -159,12 +158,12 @@ def augment(scenario, aug, n_augmentations, inputs, visualize, viz_f):
         yield output
 
 
-def out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f):
+def out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f, use_torch):
     for example in dataset:
         actual_batch_size = example['batch_size']
         out_example_keys = None
 
-        for out_example in augment(scenario, aug, n_augmentations, example, visualize, viz_f):
+        for out_example in augment(scenario, aug, n_augmentations, example, visualize, viz_f, use_torch):
             if out_example_keys is None:
                 out_example_keys = list(out_example.keys())
             yield from unbatch_examples(out_example, actual_batch_size)
@@ -195,6 +194,7 @@ def augment_dataset_from_loader(loader: NewBaseDatasetLoader,
                                 scenario,
                                 visualize: bool = False,
                                 batch_size: int = 128,
+                                use_torch: bool = False,
                                 save_format='pkl'):
     aug = make_aug_opt(scenario, loader, hparams, debug_state_keys, batch_size)
 
@@ -214,7 +214,7 @@ def augment_dataset_from_loader(loader: NewBaseDatasetLoader,
 
     need_to_write_hparams = True
     examples_names = []
-    for out_example in tqdm(out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f),
+    for out_example in tqdm(out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f, use_torch),
                             total=expected_total):
         if 'sdf' in out_example:
             out_example.pop("sdf")
