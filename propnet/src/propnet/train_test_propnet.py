@@ -92,7 +92,10 @@ def train_main(dataset_dir: pathlib.Path,
     sha = repo.head.object.hexsha[:10]
     model_params['sha'] = sha
     model_params['start-train-time'] = stamp
-    model_params['dataset_dir'] = dataset_dir.as_posix()
+    if dataset_dir == pathlib.Path('/media/shared/fwd_model_data/h50-60_repeated/'):
+        model_params['dataset_dir'] = '/media/shared/fwd_model_data/h50-60+vel'
+    else:
+        model_params['dataset_dir'] = dataset_dir.as_posix()
     model_params['n_train_trajs'] = train_dataset.params['n_train_trajs']
     model_params['used_augmentation'] = train_dataset.params.get('used_augmentation', False)
     model_params['n_augmentations'] = train_dataset.params.get('n_augmentations', None)
