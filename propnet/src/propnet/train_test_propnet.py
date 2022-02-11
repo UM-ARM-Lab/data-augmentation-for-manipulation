@@ -195,6 +195,46 @@ def eval_main(dataset_dir: pathlib.Path,
     return metrics
 
 
+def eval_versions_main(dataset_dir: pathlib.Path,
+                       checkpoint: str,
+                       versions_str: str,
+                       mode: str,
+                       batch_size: int,
+                       user: str,
+                       take: Optional[int] = None,
+                       skip: Optional[int] = None,
+                       project=PROJECT,
+                       **kwargs):
+    eval_versions = eval(versions_str.strip("'\""))
+    trainer = pl.Trainer(gpus=1, enable_model_summary=False)
+    dataset = TorchDynamicsDataset(dataset_dir, mode)
+    dataset = take_subset(dataset, take)
+    dataset = dataset_skip(dataset, skip)
+    loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
+    metrics_over_time = {}
+    for version in eval_versions:
+        metrics = eval_version(trainer, loader, checkpoint, project, user, version)
+        for k, v in metrics.items():
+            if k not in metrics_over_time:
+                metrics_over_time[k] = []
+            metrics_over_time[k].append(v)
+
+    import matplotlib.pyplot as plt
+    for k, v in metrics_over_time.items():
+        plt.figure()
+        plt.plot(eval_versions, v)
+        plt.ylabel(k)
+
+    plt.show()
+
+
+def eval_version(trainer, loader, checkpoint, project, user, version):
+    model = load_model_artifact(checkpoint, PropNet, project, f"v{version}", user=user)
+    metrics = trainer.validate(model, loader, verbose=False)
+    metrics0 = metrics[0]
+    return metrics0
+
+
 def viz_main(dataset_dir: pathlib.Path,
              checkpoint,
              mode: str,

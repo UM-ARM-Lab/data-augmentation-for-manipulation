@@ -8,8 +8,8 @@ import torch
 
 from arc_utilities import ros_init
 from link_bot_pycommon.args import run_subparsers
-from propnet import train_test_propnet
 from moonshine.magic import wandb_lightning_magic
+from propnet import train_test_propnet
 
 
 def train_main(args):
@@ -21,6 +21,10 @@ def train_main(args):
 
 def eval_main(args):
     train_test_propnet.eval_main(**vars(args))
+
+
+def eval_versions_main(args):
+    train_test_propnet.eval_versions_main(**vars(args))
 
 
 def viz_main(args):
@@ -69,6 +73,16 @@ def main():
     eval_parser.add_argument('--user', '-u', type=str, default='armlab')
     eval_parser.add_argument('--take', type=int)
     eval_parser.set_defaults(func=eval_main)
+
+    eval_versions_parser = subparsers.add_parser('eval_versions')
+    eval_versions_parser.add_argument('dataset_dir', type=pathlib.Path)
+    eval_versions_parser.add_argument('checkpoint')
+    eval_versions_parser.add_argument('versions_str', help='python string defining the versions, ex: [0,1]')
+    eval_versions_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
+    eval_versions_parser.add_argument('--batch-size', type=int, default=24)
+    eval_versions_parser.add_argument('--user', '-u', type=str, default='armlab')
+    eval_versions_parser.add_argument('--take', type=int)
+    eval_versions_parser.set_defaults(func=eval_versions_main)
 
     wandb_lightning_magic()
 
