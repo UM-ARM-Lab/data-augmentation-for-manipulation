@@ -75,12 +75,14 @@ def train_main(dataset_dir: pathlib.Path,
     train_loader = DataLoader(train_dataset_take,
                               batch_size=batch_size,
                               shuffle=True,
+                              collate_fn=my_collate,
                               num_workers=get_num_workers(batch_size))
 
     val_loader = None
     if len(val_dataset) > 0 and not no_validate:
         val_loader = DataLoader(val_dataset,
                                 batch_size=batch_size,
+                                collate_fn=my_collate,
                                 num_workers=get_num_workers(batch_size))
 
     model_params = load_hjson(model_params)

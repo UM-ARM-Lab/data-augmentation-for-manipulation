@@ -48,7 +48,7 @@ def my_collate(batch):
 
             return my_collate([torch.as_tensor(b) for b in batch])
         elif elem.shape == ():  # scalars
-            return torch.as_tensor(batch)
+            return torch.as_tensor(np.array(batch))
     elif isinstance(elem, float):
         return torch.tensor(batch, dtype=torch.float64)
     elif isinstance(elem, int):

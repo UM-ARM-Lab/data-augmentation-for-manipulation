@@ -23,12 +23,14 @@ def main():
     }
     df = df.loc[df['dataset_dir'].isin(method_name_map.keys())]
     metric_name = 'mean_error_pos'
-    df = df.loc[df[metric_name] != None]
-    df = df.loc[df['penetration'] != None]
+    df = df.loc[~df[metric_name].isna()]
+    df = df.loc[~df['penetration'].isna()]
+    df[metric_name] = df[metric_name].astype(np.float32)
+    df['penetration'] = df['penetration'].astype(np.float32)
     df = df.loc[df['scenario'] == 'cylinders']
     df = df.loc[df['tags'].apply(lambda l: 'eval' in l and 'odd' not in l and 'bad' not in l)]
     df[m] = df['dataset_dir'].map(method_name_map)
-    df[metric_name] = df[metric_name].astype(np.float32)
+    df = df.drop(list(filter(lambda c: 'gradient' in c, df.columns)), axis=1)
 
     print_metrics(df, method_name_map, metric_name)
 
