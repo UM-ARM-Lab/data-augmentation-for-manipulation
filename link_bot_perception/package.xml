@@ -12,6 +12,8 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>cdcpd</depend>
+  <depend>octomap_msgs</depend>
+  <depend>octomap</depend>
   <depend>link_bot_data</depend>
   <depend>message_filters</depend>
   <depend>moveit_msgs</depend>

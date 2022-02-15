@@ -1,5 +1,7 @@
 #include <message_filters/subscriber.h>
+//#include <octomap_ros
 #include <moveit_msgs/PlanningScene.h>
+#include <octomap_msgs/conversions.h>
 #include <pcl/conversions.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
@@ -10,6 +12,7 @@
 
 #include <iostream>
 #include <string>
+#include <pcl/filters/filter.h>
 
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
@@ -34,16 +37,17 @@ class Listener {
   }
 
   void callback(T const &msg) {
-    ROS_DEBUG_STREAM_NAMED(LOGNAME + ".callback", "got msg");
     std::lock_guard<std::mutex> lock(mutex);
     latest_msg = msg;
   }
 
   T get() {
     while (true) {
-      //      std::lock_guard<std::mutex> lock(mutex);
-      if (latest_msg) {
-        return latest_msg;
+      {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (latest_msg) {
+          return latest_msg;
+        }
       }
       ros::Duration(0.1).sleep();
     }
@@ -62,6 +66,7 @@ int main(int argc, char *argv[]) {
   auto ps_pub = nh.advertise<moveit_msgs::PlanningScene>("/hdt_michigan/planning_scene", 10);
 
   std::string const robot_root_frame = "base_link";
+  double const res = 0.01;
 
   if (argc != 2) {
     ROS_WARN_STREAM_NAMED(LOGNAME, "Usage: env_tracker_node path/to/obj.py");
@@ -88,7 +93,18 @@ int main(int argc, char *argv[]) {
     PointCloudT pc_v1;
     pcl::fromPCLPointCloud2(pc_v2, pc_v1);
 
-    ROS_WARN_STREAM_NAMED(LOGNAME, "pc_v1 size: " << pc_v1.size());
+    pcl::Indices indices;
+    PointCloudT pc_v1_nonan;
+    pcl::removeNaNFromPointCloud(pc_v1, pc_v1_nonan, indices);
+
+    ROS_WARN_STREAM_NAMED(LOGNAME, "pc_v1 size: " << pc_v1_nonan.size());
+
+    octomap::OcTree tree(res);
+    for (auto const &point : pc_v1_nonan.points) {
+      octomap::point3d octo_point(point.x, point.y, point.z);
+      ROS_DEBUG_STREAM_NAMED(LOGNAME, "point: " << point);
+      tree.updateNode(octo_point, true);
+    }
 
     //    auto points= boost::make_shared<PointCloudT>();
     //    pcl::transformPointCloud(points2_filtered, *points2_in_points1_frame, points2_to_points1.matrix());
@@ -108,24 +124,13 @@ int main(int argc, char *argv[]) {
     //        ROS_ERROR_NAMED(LOGNAME, "ICP did not converge");
     //    }
     moveit_msgs::PlanningScene ps_update;
+    auto const now = ros::Time::now();
     ps_update.is_diff = true;
     ps_update.robot_model_name = "husky";
-    ps_update.world.octomap.header.stamp = ros::Time::now();
-    moveit_msgs::CollisionObject co;
-    co.id = "debugging";
-    co.header.frame_id = robot_root_frame;
-    co.header.stamp = ros::Time::now();
-    co.operation = moveit_msgs::CollisionObject::ADD;
-    co.pose.orientation.w = 1;
-    geometry_msgs::Pose pose;
-    pose.position.z = static_cast<double>(rand()) / static_cast<double>(RAND_MAX) * 2.0;
-    pose.orientation.w = 1;
-    co.primitive_poses.emplace_back(pose);
-    shape_msgs::SolidPrimitive sphere;
-    sphere.type = shape_msgs::SolidPrimitive::SPHERE;
-    sphere.dimensions = std::vector<double>{0.1};
-    co.primitives.emplace_back(sphere);
-    ps_update.world.collision_objects.emplace_back(co);
+    ps_update.world.octomap.header.stamp = now;
+    ps_update.world.octomap.header.frame_id = robot_root_frame;
+
+    octomap_msgs::binaryMapToMsg(tree, ps_update.world.octomap.octomap);
     ps_pub.publish(ps_update);
 
     r.sleep();
