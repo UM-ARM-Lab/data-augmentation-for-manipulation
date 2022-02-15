@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import argparse
+
 import rospy
 from arc_utilities.tf2wrapper import TF2Wrapper
 # NOTE: this is the right one to import, don't change it
@@ -6,6 +8,12 @@ from tf import transformations as t
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--no-left', action='store_true')
+    parser.add_argument('--no-right', action='store_true')
+
+    args = parser.parse_args(rospy.myargv()[1:])
+
     rospy.init_node("rope_endpoint_tf")
     tfw = TF2Wrapper()
 
@@ -14,8 +22,10 @@ def main():
 
     r = rospy.Rate(10)
     while not rospy.is_shutdown():
-        _rope_endpoint_tf(tfw, [-0.01, 0.01, -0.01], left_mocap, 'mocap_left_tool')
-        _rope_endpoint_tf(tfw, [0, 0, -0.01], right_mocap, 'mocap_right_tool')
+        if not args.no_left:
+            _rope_endpoint_tf(tfw, [-0.01, 0.01, -0.01], left_mocap, 'mocap_left_tool')
+        if not args.no_right:
+            _rope_endpoint_tf(tfw, [0, 0, -0.01], right_mocap, 'mocap_right_tool')
 
         r.sleep()
 
