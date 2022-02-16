@@ -79,10 +79,11 @@
             <arg name="moveit_controller_manager" default="gazebo"/>
             <arg name="info" value="true"/>
             <arg name="debug" value="$(arg debug_moveit)"/>
+            <arg name="with_husky" value="true"/>
         </include>
 
         <!-- spawn the robot -->
         <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
-              args="-urdf -model $(arg robot_name) -param $(arg robot_name)/robot_description -z 0"/>
+              args="-urdf -model $(arg robot_name) -param $(arg robot_name)/robot_description -z 0.145"/>
     </group>
 </launch>

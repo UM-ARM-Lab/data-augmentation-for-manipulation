@@ -15,11 +15,4 @@
         <arg name="debug_gazebo" value="$(arg debug_gazebo)"/>
         <arg name="debug_moveit" value="false"/>
     </include>
-
-    <include file="$(find link_bot_gazebo)/launch/kinect_static_transforms.launch"/>
-
-    <group if="$(arg use_cdcpd)">
-        <include file="$(find link_bot_perception)/launch/rope_tracking.launch">
-        </include>
-    </group>
 </launch>
