@@ -4,7 +4,7 @@ import pathlib
 
 import hjson
 
-from arc_utilities.path_utils import rm_tree
+from arc_utilities.filesystem_utils import rm_tree
 from link_bot_pycommon.args import int_set_arg
 from moonshine.filepath_tools import load_hjson
 

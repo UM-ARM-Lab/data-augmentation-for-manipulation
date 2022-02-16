@@ -10,7 +10,7 @@ import numpy as np
 from colorama import Fore
 from tqdm import tqdm
 
-from arc_utilities.path_utils import rm_tree
+from arc_utilities.filesystem_utils import rm_tree
 from dm_envs.add_velocity_to_dynamics_dataset import add_velocity_to_dataset
 from link_bot_data.merge_dynamics_datasets_pkl import merge_dynamics_datasets_pkl
 
