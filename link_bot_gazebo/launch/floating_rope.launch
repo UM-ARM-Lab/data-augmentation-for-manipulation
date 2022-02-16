@@ -15,13 +15,6 @@
         <arg name="debug_moveit" value="false"/>
     </include>
 
-    <include file="$(find link_bot_gazebo)/launch/kinect_static_transforms.launch"/>
-
-    <group if="$(arg use_cdcpd)">
-        <include file="$(find link_bot_perception)/launch/rope_tracking.launch">
-        </include>
-    </group>
-
     <group ns="static_transform_publishers">
         <node pkg="tf2_ros" type="static_transform_publisher" name="left_tool"
               args="0 0 0 0 0 0 gazebo/rope_3d/left_gripper left_tool">

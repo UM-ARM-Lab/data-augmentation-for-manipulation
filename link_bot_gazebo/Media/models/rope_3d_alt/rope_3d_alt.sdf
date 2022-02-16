@@ -3,7 +3,7 @@
     <model name="rope_3d">
         <allow_auto_disable>true</allow_auto_disable>
         <pose frame="">0 0 0 0 0 0</pose>
-
+        
         <link name="rope_link_1">
             <pose frame="">0.016 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -115,7 +115,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_2">
             <pose frame="">0.048 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -227,7 +227,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_3">
             <pose frame="">0.08 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -339,7 +339,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_4">
             <pose frame="">0.112 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -451,7 +451,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_5">
             <pose frame="">0.14400000000000002 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -563,7 +563,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_6">
             <pose frame="">0.176 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -675,7 +675,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_7">
             <pose frame="">0.20800000000000002 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -787,7 +787,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_8">
             <pose frame="">0.24 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -899,7 +899,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_9">
             <pose frame="">0.272 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -1011,7 +1011,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_10">
             <pose frame="">0.30400000000000005 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -1123,7 +1123,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_11">
             <pose frame="">0.336 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -1235,7 +1235,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_12">
             <pose frame="">0.368 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -1347,7 +1347,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_13">
             <pose frame="">0.4 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -1459,7 +1459,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_14">
             <pose frame="">0.43200000000000005 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -1571,7 +1571,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_15">
             <pose frame="">0.464 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -1683,7 +1683,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_16">
             <pose frame="">0.496 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -1795,7 +1795,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_17">
             <pose frame="">0.528 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -1907,7 +1907,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_18">
             <pose frame="">0.56 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -2019,7 +2019,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_19">
             <pose frame="">0.5920000000000001 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -2131,7 +2131,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_20">
             <pose frame="">0.624 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -2243,7 +2243,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_21">
             <pose frame="">0.656 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -2355,7 +2355,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_22">
             <pose frame="">0.6880000000000001 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -2467,7 +2467,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_23">
             <pose frame="">0.72 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -2579,7 +2579,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_24">
             <pose frame="">0.752 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -2691,7 +2691,7 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
+        
         <link name="rope_link_25">
             <pose frame="">0.784 0 0 3.14159 -1.57079 3.14159</pose>
             <inertial>
@@ -2803,8 +2803,8 @@
             </visual>
             <self_collide>1</self_collide>
         </link>
-
-
+        
+        
         <joint name="joint_1" type="universal">
             <parent>rope_link_2</parent>
             <child>rope_link_1</child>
@@ -2832,7 +2832,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_2" type="universal">
             <parent>rope_link_3</parent>
             <child>rope_link_2</child>
@@ -2860,7 +2860,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_3" type="universal">
             <parent>rope_link_4</parent>
             <child>rope_link_3</child>
@@ -2888,7 +2888,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_4" type="universal">
             <parent>rope_link_5</parent>
             <child>rope_link_4</child>
@@ -2916,7 +2916,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_5" type="universal">
             <parent>rope_link_6</parent>
             <child>rope_link_5</child>
@@ -2944,7 +2944,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_6" type="universal">
             <parent>rope_link_7</parent>
             <child>rope_link_6</child>
@@ -2972,7 +2972,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_7" type="universal">
             <parent>rope_link_8</parent>
             <child>rope_link_7</child>
@@ -3000,7 +3000,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_8" type="universal">
             <parent>rope_link_9</parent>
             <child>rope_link_8</child>
@@ -3028,7 +3028,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_9" type="universal">
             <parent>rope_link_10</parent>
             <child>rope_link_9</child>
@@ -3056,7 +3056,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_10" type="universal">
             <parent>rope_link_11</parent>
             <child>rope_link_10</child>
@@ -3084,7 +3084,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_11" type="universal">
             <parent>rope_link_12</parent>
             <child>rope_link_11</child>
@@ -3112,7 +3112,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_12" type="universal">
             <parent>rope_link_13</parent>
             <child>rope_link_12</child>
@@ -3140,7 +3140,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_13" type="universal">
             <parent>rope_link_14</parent>
             <child>rope_link_13</child>
@@ -3168,7 +3168,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_14" type="universal">
             <parent>rope_link_15</parent>
             <child>rope_link_14</child>
@@ -3196,7 +3196,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_15" type="universal">
             <parent>rope_link_16</parent>
             <child>rope_link_15</child>
@@ -3224,7 +3224,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_16" type="universal">
             <parent>rope_link_17</parent>
             <child>rope_link_16</child>
@@ -3252,7 +3252,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_17" type="universal">
             <parent>rope_link_18</parent>
             <child>rope_link_17</child>
@@ -3280,7 +3280,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_18" type="universal">
             <parent>rope_link_19</parent>
             <child>rope_link_18</child>
@@ -3308,7 +3308,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_19" type="universal">
             <parent>rope_link_20</parent>
             <child>rope_link_19</child>
@@ -3336,7 +3336,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_20" type="universal">
             <parent>rope_link_21</parent>
             <child>rope_link_20</child>
@@ -3364,7 +3364,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_21" type="universal">
             <parent>rope_link_22</parent>
             <child>rope_link_21</child>
@@ -3392,7 +3392,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_22" type="universal">
             <parent>rope_link_23</parent>
             <child>rope_link_22</child>
@@ -3420,7 +3420,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_23" type="universal">
             <parent>rope_link_24</parent>
             <child>rope_link_23</child>
@@ -3448,7 +3448,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <joint name="joint_24" type="universal">
             <parent>rope_link_25</parent>
             <child>rope_link_24</child>
@@ -3476,7 +3476,7 @@
                 </ode>
             </physics>
         </joint>
-
+        
         <link name='left_gripper'>
             <pose frame=''>0 0 0 0 0 0 </pose>
             <inertial>
@@ -3522,7 +3522,7 @@
                 </geometry>
                 <material>
                     <script>
-                        <name>Gazebo/Red</name>
+                        <name>Gazebo/Blue</name>
                         <uri>file://media/materials/scripts/gazebo.material</uri>
                     </script>
                 </material>
@@ -3600,7 +3600,7 @@
                 </geometry>
                 <material>
                     <script>
-                        <name>Gazebo/Red</name>
+                        <name>Gazebo/Yellow</name>
                         <uri>file://media/materials/scripts/gazebo.material</uri>
                     </script>
                 </material>
@@ -3634,7 +3634,7 @@
         </joint>
         <plugin name='rope_plugin' filename='librope_plugin.so'>
             <num_links>25</num_links>
-            <overstretching_factor>1.05</overstretching_factor>
+            <overstretching_factor>1.04</overstretching_factor>
         </plugin>
     </model>
 </sdf>

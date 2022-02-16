@@ -38,6 +38,7 @@ const float max_correspondence_dist = 0.05f;
 const int nr_iters = 500;
 
 // ICP parameters (explanation below)
+const int ransac_iterations = 50;
 const float max_correspondence_distance = 0.1f;
 const float outlier_rejection_threshold = 0.1f;
 const float transformation_epsilon = 0;
@@ -251,18 +252,15 @@ PointCloud icp(PointCloud const &src_pc, PointCloud const &target_pc) {
   auto src_pc_ptr = boost::make_shared<PointCloud>(src_pc);
   auto target_pc_ptr = boost::make_shared<PointCloud>(target_pc);
   pcl::IterativeClosestPoint<PointT, PointT> icp;
-  icp.setMaximumIterations(max_iterations);
+//  icp.setMaximumIterations(max_iterations);
 //  icp.setMaxCorrespondenceDistance(max_correspondence_distance);
 //  icp.setRANSACOutlierRejectionThreshold(outlier_rejection_threshold);
+//  icp.setRANSACIterations(ransac_iterations);
 //  icp.setTransformationEpsilon(transformation_epsilon);
   icp.setUseReciprocalCorrespondences(true);
   icp.setInputSource(src_pc_ptr);
   icp.setInputTarget(target_pc_ptr);
-  Eigen::Isometry3f initial_guess{Eigen::Isometry3f::Identity()};
-  initial_guess.translation().x() += 0.4;
-  initial_guess.translation().y() += 0.6;
-  initial_guess.translation().z() -= 0.3;
-  icp.align(src_pc_aligned, initial_guess.matrix());
+  icp.align(src_pc_aligned);
 
   if (icp.hasConverged()) {
     ROS_INFO_STREAM_NAMED(LOGNAME + ".icp", "ICP has converged, score is " << icp.getFitnessScore());
@@ -279,7 +277,7 @@ PointCloud remove_outliers(PointCloud const &pc) {
   auto const pc_ptr = boost::make_shared<PointCloud>(pc);
   sor.setInputCloud(pc_ptr);
   sor.setMeanK(50);
-  sor.setStddevMulThresh(0.1);
+  sor.setStddevMulThresh(0.8);
   sor.filter(pc_out);
 
   return pc_out;
@@ -296,7 +294,27 @@ auto downsample(PointCloud const &pc, double const res) {
 };
 
 auto simplify(PointCloud const &pc, double const res) {
-  return remove_outliers(downsample(remove_outliers(pc), 2 * res));
+  return remove_outliers(downsample(remove_outliers(pc), res));
+}
+
+auto mean_center(PointCloud const &pc) {
+  Eigen::Vector4f centroid;
+  pcl::compute3DCentroid(pc, centroid);
+  Eigen::Isometry3f transform{Eigen::Isometry3f::Identity()};
+  transform.translate(-centroid.head<3>());
+  PointCloud centered;
+  pcl::transformPointCloud(pc, centered, transform.matrix());
+  return centered;
+}
+
+auto scale(PointCloud const &pc, float const x, float const y, float const z) {
+  Eigen::Isometry3f transform{Eigen::Isometry3f::Identity()};
+  transform(0, 0) = x;
+  transform(1, 1) = y;
+  transform(2, 2) = z;
+  PointCloud scaled;
+  pcl::transformPointCloud(pc, scaled, transform.matrix());
+  return scaled;
 }
 
 int main(int argc, char *argv[]) {
@@ -325,7 +343,8 @@ int main(int argc, char *argv[]) {
   }
 
   auto const env_pc_downsampled = simplify(env_pc, res);
-  ROS_INFO_STREAM_NAMED(LOGNAME, "Loaded file " << ply_filename << " (" << env_pc_downsampled.size() << " points)");
+  auto const env_pc_centered = mean_center(env_pc_downsampled);
+  ROS_INFO_STREAM_NAMED(LOGNAME, "Loaded file " << ply_filename << " (" << env_pc_centered.size() << " points)");
 
   ros::AsyncSpinner spinner(1);
   spinner.start();
@@ -389,7 +408,23 @@ int main(int argc, char *argv[]) {
     ROS_WARN_STREAM_NAMED(LOGNAME, "pc size: " << observed_pc.size());
 
     PointCloud env_pc_robot_frame;
-    pcl::transformPointCloud(env_pc_downsampled, env_pc_robot_frame, camera2robot_root.cast<float>());
+    Eigen::Isometry3f initial_guess{Eigen::Isometry3f::Identity()};
+    nh.getParam("x", initial_guess.translation().x());
+    nh.getParam("y", initial_guess.translation().y());
+    nh.getParam("z", initial_guess.translation().z());
+    double angular_r = 0, angular_p = 0, angular_y = 0;
+    float s = 1;
+    nh.getParam("scale", s);
+    nh.getParam("roll", angular_r);
+    nh.getParam("pitch", angular_p);
+    nh.getParam("yaw", angular_y);
+    Eigen::Matrix3f rot;
+    rot = Eigen::AngleAxisf(angular_y, Eigen::Vector3f::UnitZ()) *
+          Eigen::AngleAxisf(angular_p, Eigen::Vector3f::UnitY()) *
+          Eigen::AngleAxisf(angular_r, Eigen::Vector3f::UnitX());
+    initial_guess.rotate(rot);
+    pcl::transformPointCloud(env_pc_centered, env_pc_robot_frame, initial_guess.matrix());
+    env_pc_robot_frame = scale(env_pc_robot_frame, s, s, s);
 
     debug_pub(icp_src_pub, env_pc_robot_frame, robot_root_frame);
     debug_pub(icp_target_pub, observed_pc, robot_root_frame);
@@ -397,6 +432,6 @@ int main(int argc, char *argv[]) {
 
     publish(env_pc_aligned);
 
-    r.sleep();
+    //    r.sleep();
   }
 }
