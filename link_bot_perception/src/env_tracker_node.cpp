@@ -41,7 +41,7 @@ const int nr_iters = 500;
 const float max_correspondence_distance = 0.1f;
 const float outlier_rejection_threshold = 0.1f;
 const float transformation_epsilon = 0;
-const int max_iterations = 50;
+const int max_iterations = 100;
 // --------------------
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
@@ -252,10 +252,17 @@ PointCloud icp(PointCloud const &src_pc, PointCloud const &target_pc) {
   auto target_pc_ptr = boost::make_shared<PointCloud>(target_pc);
   pcl::IterativeClosestPoint<PointT, PointT> icp;
   icp.setMaximumIterations(max_iterations);
+//  icp.setMaxCorrespondenceDistance(max_correspondence_distance);
+//  icp.setRANSACOutlierRejectionThreshold(outlier_rejection_threshold);
+//  icp.setTransformationEpsilon(transformation_epsilon);
   icp.setUseReciprocalCorrespondences(true);
   icp.setInputSource(src_pc_ptr);
   icp.setInputTarget(target_pc_ptr);
-  icp.align(src_pc_aligned);
+  Eigen::Isometry3f initial_guess{Eigen::Isometry3f::Identity()};
+  initial_guess.translation().x() += 0.4;
+  initial_guess.translation().y() += 0.6;
+  initial_guess.translation().z() -= 0.3;
+  icp.align(src_pc_aligned, initial_guess.matrix());
 
   if (icp.hasConverged()) {
     ROS_INFO_STREAM_NAMED(LOGNAME + ".icp", "ICP has converged, score is " << icp.getFitnessScore());
@@ -372,7 +379,7 @@ int main(int argc, char *argv[]) {
     debug_pub(out_pub, final_pc, robot_root_frame);
   };
 
-  ros::Rate r(0.1);
+  ros::Rate r(1);
   while (ros::ok()) {
     auto const camera2robot_root_msg =
         tf_buffer.lookupTransform(robot_root_frame, camera_frame, ros::Time(0), ros::Duration(5));
@@ -386,7 +393,7 @@ int main(int argc, char *argv[]) {
 
     debug_pub(icp_src_pub, env_pc_robot_frame, robot_root_frame);
     debug_pub(icp_target_pub, observed_pc, robot_root_frame);
-    auto const env_pc_aligned = icp2(env_pc_robot_frame, observed_pc);
+    auto const env_pc_aligned = icp(env_pc_robot_frame, observed_pc);
 
     publish(env_pc_aligned);
 
