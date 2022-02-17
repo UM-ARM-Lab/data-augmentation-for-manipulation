@@ -24,13 +24,13 @@ from visualization_msgs.msg import Marker
 
 class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
-    def __init__(self, robot_namespace):
-        super().__init__(robot_namespace)
+    def __init__(self, robot_namespace, params):
+        super().__init__(robot_namespace, params)
 
         self.reset_move_group = 'both_arms'
         self.service_provider = GazeboServices()
 
-        self.set_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set"), Position3DAction)
+        self.set_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.params['rope_name'], "set"), Position3DAction)
 
     def execute_action(self, environment, state, action: Dict):
         return dual_arm_rope_execute_action(self.robot, self.tf, environment, state, action)
@@ -104,14 +104,14 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
     def move_rope_out_of_the_scene(self):
         set_req = Position3DActionRequest()
-        set_req.scoped_link_name = gz_scope(self.ROPE_NAMESPACE, "left_gripper")
+        set_req.scoped_link_name = gz_scope(self.params['rope_name'], "left_gripper")
         set_req.position.x = 1.3
         set_req.position.y = 0.3
         set_req.position.z = 1.3
         self.pos3d.set(set_req)
 
         set_req = Position3DActionRequest()
-        set_req.scoped_link_name = gz_scope(self.ROPE_NAMESPACE, "right_gripper")
+        set_req.scoped_link_name = gz_scope(self.params['rope_name'], "right_gripper")
         set_req.position.x = 1.3
         set_req.position.y = -0.3
         set_req.position.z = 1.3
@@ -119,7 +119,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
     def detach_rope_from_gripper(self, rope_link_name: str):
         enable_req = Position3DEnableRequest()
-        enable_req.scoped_link_name = gz_scope(self.ROPE_NAMESPACE, rope_link_name)
+        enable_req.scoped_link_name = gz_scope(self.params['rope_name'], rope_link_name)
         enable_req.enable = False
         self.pos3d.enable(enable_req)
 
@@ -224,8 +224,8 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
 
 class SimVictorDualArmRopeScenario(SimDualArmRopeScenario):
 
-    def __init__(self):
-        super().__init__('victor')
+    def __init__(self, params):
+        super().__init__('victor', params)
         self.left_preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
         self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, 0, 0)
 
@@ -243,8 +243,8 @@ class SimVictorDualArmRopeScenario(SimDualArmRopeScenario):
 
 class SimValDualArmRopeScenario(SimDualArmRopeScenario):
 
-    def __init__(self):
-        super().__init__('hdt_michigan')
+    def __init__(self, params):
+        super().__init__('hdt_michigan', params)
         self.left_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, -np.pi / 4, 0)
         self.right_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, np.pi / 4, 0)
 

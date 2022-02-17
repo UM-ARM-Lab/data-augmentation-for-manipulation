@@ -12,7 +12,8 @@ from analysis.results_utils import NoTransitionsError, dynamics_dataset_params_f
     classifier_params_from_planner_params, fwd_model_params_from_planner_params
 from arm_robots.robot import RobotPlanningError
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
-from link_bot_data.dataset_utils import add_predicted, write_example, DEFAULT_VAL_SPLIT, DEFAULT_TEST_SPLIT
+from link_bot_data.dataset_utils import add_predicted, DEFAULT_VAL_SPLIT, DEFAULT_TEST_SPLIT
+from link_bot_data.tf_dataset_utils import write_example
 from link_bot_data.split_dataset import split_dataset
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.execute_full_tree import store_bagfile

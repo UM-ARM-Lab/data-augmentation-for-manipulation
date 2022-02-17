@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Optional
 
 from colorama import Fore
 
@@ -88,13 +89,15 @@ scenario_map = {
 }
 
 
-def get_scenario(scenario_name: str):
+def get_scenario(scenario_name: str, params=None):
     """ With this approach, we only ever import the scenario we want to use. Nice! """
+    if params is None:
+        params = {}
     if scenario_name == 'dual_arm':
         print(Fore.YELLOW + "Please update the scenario name! dual_arm is deprecated because it's not specific enough")
     if scenario_name not in scenario_map:
         raise NotImplementedError(scenario_name)
-    return scenario_map[scenario_name]()()
+    return scenario_map[scenario_name]()(params)
 
 
 @lru_cache

@@ -29,7 +29,10 @@ class MockRobot:
 class ExperimentScenario:
     real = False
 
-    def __init__(self):
+    def __init__(self, params=None):
+        if params is None:
+            params = {}
+        self.params = params
         self.tf_features_converters = {}
         self.time_viz_pub = rospy.Publisher("rviz_anim/time", Int64, queue_size=10, latch=True)
         self.traj_idx_viz_pub = rospy.Publisher("traj_idx_viz", Float32, queue_size=10, latch=True)

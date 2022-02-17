@@ -8,9 +8,9 @@ from typing import List, Optional, Dict, Callable, Any
 import numpy as np
 import tensorflow as tf
 
-from link_bot_data.dataset_utils import parse_and_deserialize, parse_and_slow_deserialize, merge_hparams_dicts, \
+from link_bot_data.dataset_utils import merge_hparams_dicts, \
     pprint_example
-from link_bot_data.tf_dataset_utils import add_batch_map, label_is
+from link_bot_data.tf_dataset_utils import add_batch_map, label_is, parse_and_deserialize, parse_and_slow_deserialize
 
 SORT_FILE_NAME = 'sort_order.csv'
 

@@ -38,8 +38,8 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
     we introduce this class. This class can safely depend on all sorts of visualization code
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, params):
+        super().__init__(params)
         self.world_control_srv = rospy.ServiceProxy("gz_world_control", WorldControl)
         self.env_viz_pub = rospy.Publisher('occupancy', VoxelgridStamped, queue_size=10)
         self.env_bbox_pub = rospy.Publisher('env_bbox', BoundingBox, queue_size=10)

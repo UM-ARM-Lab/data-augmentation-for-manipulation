@@ -7,8 +7,8 @@ import tensorflow as tf
 from progressbar import progressbar
 
 import rospy
-from link_bot_data.dataset_utils import add_predicted, write_example
-from link_bot_data.tf_dataset_utils import add_label, deserialize_scene_msg
+from link_bot_data.dataset_utils import add_predicted
+from link_bot_data.tf_dataset_utils import add_label, deserialize_scene_msg, write_example
 from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader
 from link_bot_data.new_dataset_utils import EmptyDatasetException

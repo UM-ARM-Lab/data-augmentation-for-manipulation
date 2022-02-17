@@ -1,40 +1,24 @@
 #!/usr/bin/env python
 import os
 import pathlib
-import pickle
 import time
 from collections import OrderedDict
-from typing import Optional, Dict, List, Sequence
+from typing import Optional, Dict, Sequence
 
 import git
 import numpy as np
-import tensorflow as tf
 from colorama import Fore
 
-import genpy
 from arc_utilities.filesystem_utils import mkdir_and_ask
-from link_bot_data.coerce_types import coerce_types
-from link_bot_data.tf_dataset_utils import ros_msg_to_bytes_feature, generic_to_bytes_feature, parse_dataset, \
-    slow_deserialize, is_reconverging, num_reconverging, \
-    tf_write_example
 from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
-from link_bot_pycommon.serialization import dump_gzipped_pickle
 from moonshine.filepath_tools import load_params
-from moonshine.moonshine_utils import remove_batch, add_batch
 from moonshine.numpify import numpify
 
 NULL_PAD_VALUE = -10000
 
 DEFAULT_VAL_SPLIT = 0.125
 DEFAULT_TEST_SPLIT = 0.125
-
-# FIXME this is hacky as hell
-STRING_KEYS = [
-    'tfrecord_path',
-    'joint_names',
-    'scene_msg',
-]
 
 
 def multigen(gen_func):
@@ -74,33 +58,6 @@ def total_state_dim(state: Dict):
     for v in state.values():
         state_dim += int(v.shape[1] / 2)
     return state_dim
-
-
-def parse_and_deserialize(dataset, feature_description, n_parallel_calls=None):
-    parsed_dataset = parse_dataset(dataset, feature_description, n_parallel_calls=n_parallel_calls)
-    deserialized_dataset = deserialize(parsed_dataset, n_parallel_calls=n_parallel_calls)
-    return deserialized_dataset
-
-
-def parse_and_slow_deserialize(dataset, feature_description, n_parallel_calls=None):
-    parsed_dataset = parse_dataset(dataset, feature_description, n_parallel_calls=n_parallel_calls)
-    deserialized_dataset = slow_deserialize(parsed_dataset, n_parallel_calls=n_parallel_calls)
-    return deserialized_dataset
-
-
-def deserialize(parsed_dataset: tf.data.Dataset, n_parallel_calls=None):
-    def _deserialize(serialized_dict):
-        deserialized_dict = {}
-        for _key, _serialized_tensor in serialized_dict.items():
-            if _key in STRING_KEYS:
-                _deserialized_tensor = tf.io.parse_tensor(_serialized_tensor, tf.string)
-            else:
-                _deserialized_tensor = tf.io.parse_tensor(_serialized_tensor, tf.float32)
-            deserialized_dict[_key] = _deserialized_tensor
-        return deserialized_dict
-
-    deserialized_dataset = parsed_dataset.map(_deserialize, num_parallel_calls=n_parallel_calls)
-    return deserialized_dataset
 
 
 def filter_and_cache(dataset, filter_func):
@@ -187,24 +144,6 @@ def add_new(feature_name: str):
     return NEW_PREFIX + feature_name
 
 
-def num_reconverging_subsequences(labels):
-    """
-    :param labels: [B, H] matrix
-    :return:
-    """
-    n = 0
-    for start_idx in range(labels.shape[1]):
-        for end_idx in range(start_idx + 2, labels.shape[1] + 1):
-            n_i = num_reconverging(labels[:, start_idx:end_idx])
-            n += n_i
-    return n
-
-
-def filter_only_reconverging(example):
-    is_close = example['is_close']
-    return remove_batch(is_reconverging(add_batch(is_close)))
-
-
 def get_maybe_predicted(e: Dict, k: str):
     if k in e and add_predicted(k) in e:
         raise ValueError(f"ambiguous, dict has both {k} and {add_predicted(k)}")
@@ -230,53 +169,6 @@ def use_gt_rope(example: Dict):
     if 'gt_rope' in example:
         example['rope'] = example['gt_rope']
     return example
-
-
-def pkl_write_example(full_output_directory, example, traj_idx, extra_metadata_keys: Optional[List[str]] = None):
-    example_filename = index_to_filename('.pkl.gz', traj_idx)
-
-    if 'metadata' in example:
-        metadata = example.pop('metadata')
-    else:
-        metadata = {}
-    metadata['data'] = example_filename
-    if extra_metadata_keys is not None:
-        for k in extra_metadata_keys:
-            metadata[k] = example.pop(k)
-    metadata_filename = index_to_filename('.pkl', traj_idx)
-    full_metadata_filename = full_output_directory / metadata_filename
-
-    metadata = coerce_types(metadata)
-    with full_metadata_filename.open("wb") as metadata_file:
-        pickle.dump(metadata, metadata_file)
-
-    full_example_filename = full_output_directory / example_filename
-    example = coerce_types(example)
-    dump_gzipped_pickle(example, full_example_filename)
-
-    return full_example_filename, full_metadata_filename
-
-
-def count_up_to_next_record_idx(full_output_directory):
-    record_idx = 0
-    while True:
-        record_filename = index_to_record_name(record_idx)
-        full_filename = full_output_directory / record_filename
-        if not full_filename.exists():
-            break
-        record_idx += 1
-    return record_idx
-
-
-def convert_to_tf_features(example: Dict):
-    features = {}
-    for k, v in example.items():
-        if isinstance(v, genpy.Message):
-            f = ros_msg_to_bytes_feature(v)
-        else:
-            f = generic_to_bytes_feature(v)
-        features[k] = f
-    return features
 
 
 class FilterConditional:
@@ -328,22 +220,6 @@ def pprint_example(example):
             print(k, v)
 
 
-def index_to_record_name(traj_idx):
-    return index_to_filename('.tfrecords', traj_idx)
-
-
-def index_to_filename(file_extension, traj_idx):
-    new_filename = f"example_{traj_idx:08d}{file_extension}"
-    return new_filename
-
-
-def index_to_filename2(traj_idx, save_format):
-    if save_format == 'pkl':
-        return index_to_filename('.pkl', traj_idx)
-    elif save_format == 'tfrecord':
-        return index_to_record_name(traj_idx)
-
-
 def train_test_split_counts(n: int, val_split: int = DEFAULT_VAL_SPLIT, test_split: int = DEFAULT_TEST_SPLIT):
     n_test = int(test_split * n)
     n_val = int(val_split * n)
@@ -379,16 +255,3 @@ def batch_sequence(s: Sequence, n, drop_remainder: bool):
         l = original_length
     for ndx in range(0, l, n):
         yield s[ndx:ndx + n]
-
-
-def write_example(full_output_directory: pathlib.Path,
-                  example: Dict,
-                  example_idx: int,
-                  save_format: str,
-                  extra_metadata_keys: Optional[List[str]] = None):
-    if save_format == 'tfrecord':
-        return tf_write_example(full_output_directory, example, example_idx)
-    elif save_format == 'pkl':
-        return pkl_write_example(full_output_directory, example, example_idx, extra_metadata_keys)
-    else:
-        raise NotImplementedError()

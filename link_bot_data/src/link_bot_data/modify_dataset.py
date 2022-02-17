@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from arc_utilities import algorithms
 from link_bot_data.base_dataset import BaseDatasetLoader
-from link_bot_data.dataset_utils import write_example
+from link_bot_data.tf_dataset_utils import write_example
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
 from moonshine.filepath_tools import load_params
 

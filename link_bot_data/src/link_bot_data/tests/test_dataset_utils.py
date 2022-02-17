@@ -4,9 +4,10 @@ from io import BytesIO
 import numpy as np
 import tensorflow as tf
 
-from link_bot_data.dataset_utils import NULL_PAD_VALUE, num_reconverging_subsequences, add_predicted, remove_predicted, replaced_true_with_predicted, multigen, \
+from link_bot_data.dataset_utils import NULL_PAD_VALUE, add_predicted, remove_predicted, replaced_true_with_predicted, multigen, \
     compute_batch_size_for_n_examples
-from link_bot_data.tf_dataset_utils import null_pad, is_reconverging, num_reconverging, deserialize_scene_msg
+from link_bot_data.tf_dataset_utils import null_pad, is_reconverging, num_reconverging, deserialize_scene_msg, \
+    num_reconverging_subsequences
 from moonshine.gpu_config import limit_gpu_mem
 from moonshine.moonshine_utils import remove_batch
 from moveit_msgs.msg import PlanningScene

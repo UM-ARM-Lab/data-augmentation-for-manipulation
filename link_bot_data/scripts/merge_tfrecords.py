@@ -6,7 +6,7 @@ import shutil
 import colorama
 import hjson
 
-from link_bot_data.dataset_utils import index_to_filename
+from link_bot_data.tf_dataset_utils import index_to_filename
 
 
 def main():

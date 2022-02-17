@@ -8,7 +8,8 @@ from colorama import Fore
 from tqdm import trange, tqdm
 
 from arc_utilities import ros_init
-from link_bot_data.dataset_utils import pkl_write_example, make_unique_outdir
+from link_bot_data.dataset_utils import make_unique_outdir
+from link_bot_data.tf_dataset_utils import pkl_write_example
 from link_bot_data.split_dataset import split_dataset
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_hjson

@@ -9,7 +9,8 @@ from augmentation.aug_opt import AugmentationOptimization
 from augmentation.simple_noise_augmentation import SimpleNoiseAugmentation
 from augmentation.vae_augmentation import VAEAugmentation
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
-from link_bot_data.dataset_utils import write_example, add_predicted, index_to_filename2
+from link_bot_data.dataset_utils import add_predicted
+from link_bot_data.tf_dataset_utils import write_example, index_to_filename2
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
 from link_bot_data.new_classifier_dataset import NewClassifierDatasetLoader

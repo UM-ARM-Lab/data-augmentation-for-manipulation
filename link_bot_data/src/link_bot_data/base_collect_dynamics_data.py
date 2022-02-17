@@ -9,8 +9,8 @@ from tqdm import tqdm
 
 import rospy
 from arm_robots.robot import RobotPlanningError
-from link_bot_data.dataset_utils import make_unique_outdir, pkl_write_example
-from link_bot_data.tf_dataset_utils import tf_write_example
+from link_bot_data.dataset_utils import make_unique_outdir
+from link_bot_data.tf_dataset_utils import tf_write_example, pkl_write_example
 from link_bot_data.split_dataset import split_dataset_via_files
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.get_service_provider import get_service_provider

@@ -1,11 +1,9 @@
-from time import perf_counter
-
-t0 = perf_counter()
 import warnings
 from copy import deepcopy
 from functools import cached_property
 from pathlib import Path
 from typing import Dict, List, Optional
+from tf.transformations import quaternion_from_euler
 
 import hjson
 import numpy as np
@@ -27,7 +25,6 @@ from moonshine.moonshine_utils import to_list_of_strings, remove_batch, add_batc
 from moonshine.numpify import numpify
 from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
-from tf import transformations
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():
@@ -44,7 +41,6 @@ from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from arm_gazebo_msgs.srv import ExcludeModels, ExcludeModelsRequest, ExcludeModelsResponse
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState, PointCloud2
-from tf.transformations import quaternion_from_euler
 
 
 def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, robot_state: RobotState):
@@ -125,10 +121,9 @@ def joint_positions_in_order(joint_names, robot_state_b):
 
 
 class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioMixin):
-    ROPE_NAMESPACE = 'rope_3d'
 
-    def __init__(self, robot_namespace: str):
-        FloatingRopeScenario.__init__(self)
+    def __init__(self, robot_namespace: str, params):
+        FloatingRopeScenario.__init__(self, params)
         MoveitPlanningSceneScenarioMixin.__init__(self, robot_namespace)
 
         self.robot_namespace = robot_namespace
@@ -191,7 +186,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         # Mark the rope as a not-obstacle
         exclude = ExcludeModelsRequest()
-        exclude.model_names.append("rope_3d")
+        exclude.model_names.append(self.params['rope_name'])
         exclude.model_names.append(self.robot_namespace)
         self.exclude_from_planning_scene_srv(exclude)
 
@@ -584,7 +579,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         """
         target_pos_b = transform_params[:3].numpy()
         target_euler_b = transform_params[3:].numpy()
-        target_q_b = transformations.quaternion_from_euler(*target_euler_b)
+        target_q_b = quaternion_from_euler(*target_euler_b)
         self.tf.send_transform(target_pos_b, target_q_b, f'aug_opt_initial_{obj_i}', frame_id, False)
 
     def aug_target_pos(self, target):

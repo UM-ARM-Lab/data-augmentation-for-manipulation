@@ -6,7 +6,7 @@ from colorama import Fore
 from tqdm import tqdm
 
 from arc_utilities import ros_init
-from link_bot_data.dataset_utils import write_example
+from link_bot_data.tf_dataset_utils import write_example
 from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from link_bot_data.split_dataset import split_dataset_via_files
 

@@ -7,7 +7,8 @@ import hjson
 from progressbar import progressbar
 
 from arc_utilities import ros_init
-from link_bot_data.dataset_utils import train_test_split_counts, write_example, DEFAULT_TEST_SPLIT, DEFAULT_VAL_SPLIT
+from link_bot_data.dataset_utils import train_test_split_counts, DEFAULT_TEST_SPLIT, DEFAULT_VAL_SPLIT
+from link_bot_data.tf_dataset_utils import write_example
 from link_bot_data.load_dataset import get_classifier_dataset_loader, guess_dataset_format
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.split_dataset import split_dataset

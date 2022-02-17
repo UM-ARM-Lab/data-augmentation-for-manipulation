@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from arc_utilities.filesystem_utils import rm_tree
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
-from link_bot_data.dataset_utils import pkl_write_example
+from link_bot_data.tf_dataset_utils import pkl_write_example
 from link_bot_data.split_dataset import split_dataset
 from moonshine.filepath_tools import load_params
 

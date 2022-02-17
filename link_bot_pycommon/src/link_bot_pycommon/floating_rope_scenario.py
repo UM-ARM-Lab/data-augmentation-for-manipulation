@@ -72,13 +72,12 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         'max_y': 540,
         'max_x': 960,
     }
-    ROPE_NAMESPACE = 'rope_3d_alt'
     # FIXME: this is defined in multiple places
     state_keys = ['left_gripper', 'right_gripper', 'rope']
     action_keys = ['left_gripper_position', 'right_gripper_position']
 
-    def __init__(self, rope_namespace: Optional[str] = None):
-        ScenarioWithVisualization.__init__(self)
+    def __init__(self, params: Optional[dict] = None):
+        ScenarioWithVisualization.__init__(self, params)
         MoveitPlanningSceneScenarioMixin.__init__(self, robot_namespace='')
         self.color_image_listener = Lazy(Listener, self.COLOR_IMAGE_TOPIC, Image)
         self.depth_image_listener = Lazy(Listener, self.DEPTH_IMAGE_TOPIC, Image)
@@ -87,22 +86,20 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         self.state_depth_viz_pub = rospy.Publisher("state_depth_viz", Image, queue_size=10, latch=True)
         self.last_action = None
         self.gz = None
-        if rope_namespace is not None:
-            self.ROPE_NAMESPACE = rope_namespace
-        self.get_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_dual_gripper_points"),
+        self.get_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.params['rope_name'], "get_dual_gripper_points"),
                                                           GetDualGripperPoints)
-        self.get_rope_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_rope_state"), GetRopeState,
+        self.get_rope_srv = rospy.ServiceProxy(ns_join(self.params['rope_name'], "get_rope_state"), GetRopeState,
                                                persistent=True)
 
         self.pos3d = Position3D()
-        self.set_rope_state_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "set_rope_state"), SetRopeState)
+        self.set_rope_state_srv = rospy.ServiceProxy(ns_join(self.params['rope_name'], "set_rope_state"), SetRopeState)
         self.reset_srv = rospy.ServiceProxy("/gazebo/reset_simulation", Empty)
 
         self.get_links_states = Lazy(GetLinkStates)
 
         self.left_gripper_bbox_pub = rospy.Publisher('/left_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
         self.right_gripper_bbox_pub = rospy.Publisher('/right_gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
-        self.overstretching_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "rope_overstretched"),
+        self.overstretching_srv = rospy.ServiceProxy(ns_join(self.params['rope_name'], "rope_overstretched"),
                                                      GetOverstretching)
 
         self.max_action_attempts = 100
@@ -163,10 +160,10 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     def execute_action(self, environment, state, action: Dict, **kwargs):
         speed_mps = action.get('speed', 0.1)
         left_req = Position3DActionRequest(speed_mps=speed_mps,
-                                           scoped_link_name=gz_scope(self.ROPE_NAMESPACE, 'left_gripper'),
+                                           scoped_link_name=gz_scope(self.params['rope_name'], 'left_gripper'),
                                            position=ros_numpy.msgify(Point, action['left_gripper_position']))
         right_req = Position3DActionRequest(speed_mps=speed_mps,
-                                            scoped_link_name=gz_scope(self.ROPE_NAMESPACE, 'right_gripper'),
+                                            scoped_link_name=gz_scope(self.params['rope_name'], 'right_gripper'),
                                             position=ros_numpy.msgify(Point, action['right_gripper_position']))
         self.pos3d.set(left_req)
         self.pos3d.set(right_req)
@@ -174,8 +171,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         if kwargs.get("wait", True):
             wait_req = Position3DWaitRequest()
             wait_req.timeout_s = 10.0
-            wait_req.scoped_link_names.append(gz_scope(self.ROPE_NAMESPACE, 'left_gripper'))
-            wait_req.scoped_link_names.append(gz_scope(self.ROPE_NAMESPACE, 'right_gripper'))
+            wait_req.scoped_link_names.append(gz_scope(self.params['rope_name'], 'left_gripper'))
+            wait_req.scoped_link_names.append(gz_scope(self.params['rope_name'], 'right_gripper'))
             self.pos3d.wait(wait_req)
 
             rope_settling_time = action.get('settling_time', 1.0)
@@ -436,14 +433,14 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return rope_state_robot_frame_vector
 
     def is_rope_point_attached(self, gripper: str):
-        scoped_link_name = gz_scope(self.ROPE_NAMESPACE, gripper + '_gripper')
+        scoped_link_name = gz_scope(self.params['rope_name'], gripper + '_gripper')
         res: GetPosition3DResponse = self.pos3d.get(scoped_link_name=scoped_link_name)
         return res.enabled
 
     def get_rope_point_position(self, gripper: str):
         # NOTE: consider getting rid of this message type/service just use rope state [0] and rope state [-1]
         #  although that looses semantic meaning and means hard-coding indices a lot...
-        scoped_link_name = gz_scope(self.ROPE_NAMESPACE, gripper + '_gripper')
+        scoped_link_name = gz_scope(self.params['rope_name'], gripper + '_gripper')
         res: GetPosition3DResponse = self.pos3d.get(scoped_link_name=scoped_link_name)
         rope_point_position = ros_numpy.numpify(res.pos)
         return rope_point_position
@@ -923,24 +920,24 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
     def register_fake_grasping(self):
         register_left_req = RegisterPosition3DControllerRequest()
-        register_left_req.scoped_link_name = gz_scope(self.ROPE_NAMESPACE, "left_gripper")
+        register_left_req.scoped_link_name = gz_scope(self.params['rope_name'], "left_gripper")
         register_left_req.controller_type = "kinematic"
         register_left_req.position_only = True
         self.pos3d.register(register_left_req)
         register_right_req = RegisterPosition3DControllerRequest()
-        register_right_req.scoped_link_name = gz_scope(self.ROPE_NAMESPACE, "right_gripper")
+        register_right_req.scoped_link_name = gz_scope(self.params['rope_name'], "right_gripper")
         register_right_req.controller_type = "kinematic"
         register_right_req.position_only = True
         self.pos3d.register(register_right_req)
 
     def make_rope_endpoints_follow_gripper(self):
         left_follow_req = Position3DFollowRequest()
-        left_follow_req.scoped_link_name = gz_scope(self.ROPE_NAMESPACE, "left_gripper")
+        left_follow_req.scoped_link_name = gz_scope(self.params['rope_name'], "left_gripper")
         left_follow_req.frame_id = "left_tool"
         self.pos3d.follow(left_follow_req)
 
         right_follow_req = Position3DFollowRequest()
-        right_follow_req.scoped_link_name = gz_scope(self.ROPE_NAMESPACE, "right_gripper")
+        right_follow_req.scoped_link_name = gz_scope(self.params['rope_name'], "right_gripper")
         right_follow_req.frame_id = "right_tool"
         self.pos3d.follow(right_follow_req)
 
