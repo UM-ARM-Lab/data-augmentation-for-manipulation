@@ -27,7 +27,8 @@ from link_bot_classifiers.base_constraint_checker import classifier_ensemble_che
 from link_bot_classifiers.uncertainty import make_max_class_prob
 from link_bot_data import dynamodb_utils
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import batch_tf_dataset, get_filter, deserialize_scene_msg
+from link_bot_data.dataset_utils import get_filter
+from link_bot_data.tf_dataset_utils import batch_tf_dataset, deserialize_scene_msg
 from link_bot_data.dynamodb_utils import get_classifier_df
 from link_bot_data.load_dataset import get_classifier_dataset_loader
 from link_bot_data.visualization import init_viz_env

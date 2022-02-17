@@ -12,7 +12,7 @@ from colorama import Fore
 import rospy
 import state_space_dynamics
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
-from link_bot_data.dataset_utils import batch_tf_dataset
+from link_bot_data.tf_dataset_utils import batch_tf_dataset
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.gpu_config import limit_gpu_mem
 from moonshine.moonshine_utils import remove_batch

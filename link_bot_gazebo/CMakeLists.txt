@@ -14,6 +14,7 @@ find_package(
         moveit_msgs
         sensor_msgs
         trajectory_msgs
+        tf
         tf2_ros
         victor_hardware_interface
         visualization_msgs

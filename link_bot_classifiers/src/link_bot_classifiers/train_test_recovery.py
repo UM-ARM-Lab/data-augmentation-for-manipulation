@@ -10,7 +10,7 @@ from progressbar import progressbar
 from link_bot_classifiers import recovery_policy_utils
 from link_bot_classifiers.get_model import get_model
 from link_bot_classifiers.nn_recovery_model import NNRecoveryModel
-from link_bot_data.dataset_utils import batch_tf_dataset
+from link_bot_data.tf_dataset_utils import batch_tf_dataset
 from link_bot_data.progressbar_widgets import mywidgets
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
 from link_bot_pycommon.get_scenario import get_scenario

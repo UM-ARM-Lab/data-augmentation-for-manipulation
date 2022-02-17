@@ -21,7 +21,7 @@ from dm_envs.planar_pushing_scenario import PlanarPushingScenario
 from dm_envs.planar_pushing_task import ARM_HAND_NAME, ARM_NAME
 from link_bot_data.base_collect_dynamics_data import collect_trajectory
 from link_bot_data.color_from_kwargs import color_from_kwargs
-from link_bot_data.dataset_utils import coerce_types
+from link_bot_data.coerce_types import coerce_types
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.marker_index_generator import marker_index_generator

@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from link_bot_data.base_dataset import SizedTFDataset
-from link_bot_data.dataset_utils import label_is
+from link_bot_data.tf_dataset_utils import label_is
 
 
 def flatten_concat_pairs(ex_pos, ex_neg):

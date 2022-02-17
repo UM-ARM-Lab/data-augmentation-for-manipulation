@@ -9,7 +9,7 @@ from colorama import Fore
 
 import rospy
 import state_space_dynamics
-from link_bot_data.dataset_utils import batch_tf_dataset, deserialize_scene_msg
+from link_bot_data.tf_dataset_utils import batch_tf_dataset, deserialize_scene_msg
 from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine import filepath_tools, common_train_hparams

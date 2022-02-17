@@ -11,7 +11,7 @@ import rospy
 from arc_utilities import ros_init
 from link_bot_classifiers.train_test_classifier import eval_generator
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import deserialize_scene_msg
+from link_bot_data.tf_dataset_utils import deserialize_scene_msg
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.matplotlib_utils import adjust_lightness

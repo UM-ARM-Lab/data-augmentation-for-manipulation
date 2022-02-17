@@ -16,8 +16,8 @@ from geometry_msgs.msg import Point, Vector3
 from jsk_recognition_msgs.msg import BoundingBox
 from learn_invariance.transform_link_states import transform_link_states
 from link_bot_data.base_collect_dynamics_data import collect_trajectory
-from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted, coerce_types, \
-    add_predicted_cond
+from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted, add_predicted_cond
+from link_bot_data.coerce_types import coerce_types
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_gazebo.gazebo_services import gz_scope, restore_gazebo, GazeboServices
 from link_bot_gazebo.gazebo_utils import get_gazebo_kinect_pose
@@ -43,6 +43,7 @@ from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynami
 from moonshine.geometry import xyzrpy_to_matrices, transform_points_3d
 from moonshine.moonshine_utils import remove_batch, add_batch
 from moonshine.numpify import numpify
+from moonshine.numpy import homogeneous
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import Image, CameraInfo
@@ -71,12 +72,12 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         'max_y': 540,
         'max_x': 960,
     }
-    ROPE_NAMESPACE = 'rope_3d'
+    ROPE_NAMESPACE = 'rope_3d_alt'
     # FIXME: this is defined in multiple places
     state_keys = ['left_gripper', 'right_gripper', 'rope']
     action_keys = ['left_gripper_position', 'right_gripper_position']
 
-    def __init__(self):
+    def __init__(self, rope_namespace: Optional[str] = None):
         ScenarioWithVisualization.__init__(self)
         MoveitPlanningSceneScenarioMixin.__init__(self, robot_namespace='')
         self.color_image_listener = Lazy(Listener, self.COLOR_IMAGE_TOPIC, Image)
@@ -86,6 +87,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         self.state_depth_viz_pub = rospy.Publisher("state_depth_viz", Image, queue_size=10, latch=True)
         self.last_action = None
         self.gz = None
+        if rope_namespace is not None:
+            self.ROPE_NAMESPACE = rope_namespace
         self.get_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_dual_gripper_points"),
                                                           GetDualGripperPoints)
         self.get_rope_srv = rospy.ServiceProxy(ns_join(self.ROPE_NAMESPACE, "get_rope_state"), GetRopeState,
@@ -415,25 +418,22 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return gripper_position1, gripper_position2
 
     def get_gazebo_rope_state(self):
-        rospy.sleep(0.01)
-        # global p_get_rope_state
-        # p_get_rope_state.start()
         rope_res = self.get_rope_srv(GetRopeStateRequest())
-        # p_get_rope_state.stop()
-        # print('get_rope_state', p_get_rope_state)
 
-        rope_state_vector = []
+        rope_state = []
         for p in rope_res.positions:
-            rope_state_vector.append(p.x)
-            rope_state_vector.append(p.y)
-            rope_state_vector.append(p.z)
-        rope_velocity_vector = []
+            rope_state.append(ros_numpy.numpify(p))
+        rope_velocity = []
         for v in rope_res.velocities:
-            rope_velocity_vector.append(v.x)
-            rope_velocity_vector.append(v.y)
-            rope_velocity_vector.append(v.z)
-        rope_state_vector = np.array(rope_state_vector, np.float32)
-        return rope_state_vector
+            rope_velocity.append(ros_numpy.numpify(v))
+        rope_state = np.array(rope_state, np.float32)
+
+        # transform into robot frame
+        robot2world = self.tf.get_transform(self.root_link, 'world')
+        rope_state_robot_frame = (robot2world @ homogeneous(rope_state).T).T[..., :-1]
+        rope_state_robot_frame_vector = rope_state_robot_frame.flatten()
+
+        return rope_state_robot_frame_vector
 
     def is_rope_point_attached(self, gripper: str):
         scoped_link_name = gz_scope(self.ROPE_NAMESPACE, gripper + '_gripper')
@@ -679,7 +679,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             midpoint_marker.scale.z = goal_threshold * 2
             midpoint_marker.action = Marker.ADD
             midpoint_marker.type = Marker.SPHERE
-            midpoint_marker.header.frame_id = "world"
+            midpoint_marker.header.frame_id = "robot_root"
             midpoint_marker.header.stamp = rospy.Time.now()
             midpoint_marker.ns = 'goal'
             midpoint_marker.id = 0
@@ -700,7 +700,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             point_marker.scale.z = goal_threshold * 2
             point_marker.action = Marker.ADD
             point_marker.type = Marker.SPHERE
-            point_marker.header.frame_id = "world"
+            point_marker.header.frame_id = "robot_root"
             point_marker.header.stamp = rospy.Time.now()
             point_marker.ns = 'goal'
             point_marker.id = 0
@@ -721,7 +721,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             left_gripper_marker.scale.z = goal_threshold * 2
             left_gripper_marker.action = Marker.ADD
             left_gripper_marker.type = Marker.SPHERE
-            left_gripper_marker.header.frame_id = "world"
+            left_gripper_marker.header.frame_id = "robot_root"
             left_gripper_marker.header.stamp = rospy.Time.now()
             left_gripper_marker.ns = 'goal'
             left_gripper_marker.id = 1
@@ -742,7 +742,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             right_gripper_marker.scale.z = goal_threshold * 2
             right_gripper_marker.action = Marker.ADD
             right_gripper_marker.type = Marker.SPHERE
-            right_gripper_marker.header.frame_id = "world"
+            right_gripper_marker.header.frame_id = "robot_root"
             right_gripper_marker.header.stamp = rospy.Time.now()
             right_gripper_marker.ns = 'goal'
             right_gripper_marker.id = 2
@@ -774,7 +774,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         if 'point_box' in goal:
             point_marker = make_box_marker_from_extents(goal['point_box'])
-            point_marker.header.frame_id = "world"
+            point_marker.header.frame_id = "robot_root"
             point_marker.header.stamp = rospy.Time.now()
             point_marker.ns = 'goal'
             point_marker.id = 0
@@ -786,7 +786,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         if 'left_gripper_box' in goal:
             left_gripper_marker = make_box_marker_from_extents(goal['left_gripper_box'])
-            left_gripper_marker.header.frame_id = "world"
+            left_gripper_marker.header.frame_id = "robot_root"
             left_gripper_marker.header.stamp = rospy.Time.now()
             left_gripper_marker.ns = 'goal'
             left_gripper_marker.id = 1
@@ -798,7 +798,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         if 'right_gripper_box' in goal:
             right_gripper_marker = make_box_marker_from_extents(goal['right_gripper_box'])
-            right_gripper_marker.header.frame_id = "world"
+            right_gripper_marker.header.frame_id = "robot_root"
             right_gripper_marker.header.stamp = rospy.Time.now()
             right_gripper_marker.ns = 'goal'
             right_gripper_marker.id = 2
@@ -838,18 +838,18 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         if 'gt_rope' in state:
             rope_points = np.reshape(state['gt_rope'], [-1, 3])
-            markers = make_rope_marker(rope_points, 'world', label + "_gt_rope", next(ig), color_msg, 0.01)
+            markers = make_rope_marker(rope_points, 'robot_root', label + "_gt_rope", next(ig), color_msg, 0.01)
             msg.markers.extend(markers)
 
         if 'rope' in state:
             rope_points = np.reshape(state['rope'], [-1, 3])
-            markers = make_rope_marker(rope_points, 'world', label + "_rope", next(ig),
+            markers = make_rope_marker(rope_points, 'robot_root', label + "_rope", next(ig),
                                        adjust_lightness_msg(color_msg, 0.9), 0.01)
             msg.markers.extend(markers)
 
         if add_predicted('rope') in state:
             rope_points = np.reshape(state[add_predicted('rope')], [-1, 3])
-            markers = make_rope_marker(rope_points, 'world', label + "_pred_rope", next(ig), color_msg, 0.01,
+            markers = make_rope_marker(rope_points, 'robot_root', label + "_pred_rope", next(ig), color_msg, 0.01,
                                        Marker.CUBE_LIST)
             msg.markers.extend(markers)
 
@@ -946,7 +946,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
     def make_simple_grippers_marker(self, example: Dict, id: int):
         msg = Marker()
-        msg.header.frame_id = 'world'
+        msg.header.frame_id = 'robot_root'
         msg.type = Marker.SPHERE_LIST
         msg.action = Marker.ADD
         msg.id = id

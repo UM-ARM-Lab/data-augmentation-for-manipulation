@@ -37,7 +37,6 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
         self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, -1.408, 0.9)
 
         self.get_joint_state = GetJointState(self.robot)
-        self.root_link = self.robot.robot_commander.get_root_link()
         self.get_cdcpd_state = GetCdcpdState(self.tf, self.root_link)
 
         self.reset_move_group = 'both_arms'

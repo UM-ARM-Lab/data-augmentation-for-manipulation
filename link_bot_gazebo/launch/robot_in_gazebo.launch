@@ -16,13 +16,6 @@
 
     <param name="robot_name" value="$(arg robot_name)" type="string"/>
 
-    <group ns="static_transform_publishers">
-        <node pkg="tf2_ros" type="static_transform_publisher" name="rename_origin" required="true"
-              args="0 0 0 0 0 0 world robot_root">
-            <param name="use_sim_time" value="$(arg use_sim_time)"/>
-        </node>
-    </group>
-
     <!-- /////////////////////////////////////////////// -->
     <!-- Gazebo -->
     <group>

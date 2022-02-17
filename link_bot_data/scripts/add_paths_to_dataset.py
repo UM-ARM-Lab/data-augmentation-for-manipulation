@@ -9,7 +9,7 @@ from progressbar import progressbar
 
 import rospy
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
-from link_bot_data.dataset_utils import tf_write_features, float_tensor_to_bytes_feature, bytes_feature
+from link_bot_data.tf_dataset_utils import float_tensor_to_bytes_feature, bytes_feature, tf_write_features
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.modify_dataset import modify_hparams
 from link_bot_data.progressbar_widgets import mywidgets

@@ -42,9 +42,6 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.register_fake_grasping()
 
     def randomize_environment(self, env_rng: np.random.RandomState, params: Dict):
-        # teleport movable objects out of the way
-        self.move_objects_out_of_scene(params)
-
         # release the rope
         self.robot.open_left_gripper()
         self.detach_rope_from_gripper('left_gripper')
@@ -56,24 +53,21 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.grasp_rope_endpoints()
 
         # randomize the object configurations
-        er_type = params['environment_randomization']['type']
-        if er_type == 'random':
-            valid = False
-            while not valid:
-                random_object_poses = self.random_new_object_poses(env_rng, params)
+        environment_randomization = params['environment_randomization']
+        if 'typ' in environment_randomization:
+            er_type = environment_randomization['type']
+            if er_type == 'random':
+                valid = False
+                while not valid:
+                    random_object_poses = self.random_new_object_poses(env_rng, params)
+                    self.set_object_poses(random_object_poses)
+                    valid = not self.is_object_robot_collision(params)
+            elif er_type == 'jitter':
+                random_object_poses = self.jitter_object_poses(env_rng, params)
                 self.set_object_poses(random_object_poses)
-                valid = not self.is_object_robot_collision(params)
-        elif er_type == 'jitter':
-            random_object_poses = self.jitter_object_poses(env_rng, params)
-            self.set_object_poses(random_object_poses)
-        else:
-            raise NotImplementedError(er_type)
-
-        # TODO: move the grippers again to more "random" starting configuration??
 
     def on_before_data_collection(self, params: Dict):
         super().on_before_data_collection(params)
-        self.move_objects_out_of_scene(params)
         self.plan_to_reset_config(params)
         self.open_grippers_if_not_grasping()
         self.grasp_rope_endpoints()

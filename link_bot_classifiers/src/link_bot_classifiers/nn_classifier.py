@@ -11,7 +11,8 @@ from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy, Metric
 import rospy
 from augmentation.aug_opt import AugmentationOptimization
 from augmentation.aug_opt_utils import debug_input
-from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
+from link_bot_data.dataset_utils import add_predicted
+from link_bot_data.tf_dataset_utils import deserialize_scene_msg
 from link_bot_data.local_env_helper import LocalEnvHelper
 # noinspection PyUnresolvedReferences
 from link_bot_data.make_voxelgrid_inputs import VoxelgridInfo

@@ -1,25 +1,26 @@
+from time import perf_counter
+
+t0 = perf_counter()
 import warnings
 from copy import deepcopy
+from functools import cached_property
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import hjson
 import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp
 from pyjacobian_follower import IkParams, JacobianFollower
 
-import ros_numpy
 import rosnode
 from arc_utilities.algorithms import nested_dict_update
 from arm_robots.robot_utils import merge_joint_state_and_scene_msg
-from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
+from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.get_dual_arm_robot_state import GetDualArmRobotState
 from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
-from link_bot_pycommon.point_to_robot import point_to_root
 from moonshine.filepath_tools import load_params
 from moonshine.geometry import transformation_jacobian, euler_angle_diff
 from moonshine.moonshine_utils import to_list_of_strings, remove_batch, add_batch
@@ -36,7 +37,7 @@ with warnings.catch_warnings():
 
 import rospy
 from arc_utilities.listener import Listener
-from geometry_msgs.msg import PoseStamped, Point, PointStamped
+from geometry_msgs.msg import PoseStamped, Point
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
@@ -131,6 +132,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         MoveitPlanningSceneScenarioMixin.__init__(self, robot_namespace)
 
         self.robot_namespace = robot_namespace
+
         self.service_provider = BaseServices()
         joint_state_viz_topic = ns_join(self.robot_namespace, "joint_states_viz")
         self.joint_state_viz_pub = rospy.Publisher(joint_state_viz_topic, JointState, queue_size=10)
@@ -143,10 +145,15 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         self.size_of_box_around_tool_for_planning = 0.05
         exclude_srv_name = ns_join(self.robot_namespace, "exclude_models_from_planning_scene")
         self.exclude_from_planning_scene_srv = rospy.ServiceProxy(exclude_srv_name, ExcludeModels)
+
         # FIXME: this blocks until the robot is available
         self.robot = Lazy(get_moveit_robot, self.robot_namespace, raise_on_failure=True)
 
         self.get_robot_state = GetDualArmRobotState(self.robot)
+
+    @cached_property
+    def root_link(self):
+        return self.robot.robot_commander.get_root_link()
 
     def add_boxes_around_tools(self):
         # add attached collision object to prevent moveit from smooshing the rope and ends of grippers into obstacles
@@ -385,7 +392,8 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         joint_names_batched = np.array(joint_names_batched)
         return target_reached_batched, pred_joint_positions_batched, joint_names_batched
 
-    def sample_object_augmentation_variables(self, batch_size: int, seed: tfp.util.SeedStream):
+    def sample_object_augmentation_variables(self, batch_size: int, seed):
+        import tensorflow_probability as tfp
         # NOTE: lots of hidden hyper-parameters here :(
         zeros = tf.zeros([batch_size, 6], dtype=tf.float32)
         trans_scale = 0.25
@@ -477,6 +485,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         Returns: [b], keys
 
         """
+        from link_bot_data.tf_dataset_utils import deserialize_scene_msg
         default_robot_positions = inputs[add_predicted('joint_positions')][:, 0]
         left_gripper_points_aug = inputs_aug[add_predicted('left_gripper')]
         right_gripper_points_aug = inputs_aug[add_predicted('right_gripper')]
@@ -547,6 +556,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         return tf.zeros([batch_size, k_transforms, 6], tf.float32)
 
     def sample_target_aug_params(self, seed, aug_params, n_samples):
+        import tensorflow_probability as tfp
         trans_lim = tf.ones([3]) * aug_params['target_trans_lim']
         trans_distribution = tfp.distributions.Uniform(low=-trans_lim, high=trans_lim)
 

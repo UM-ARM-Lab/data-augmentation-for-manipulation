@@ -93,11 +93,11 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.tree_action_idx = 0
         self.sample_idx = 0
 
-    def base_link_frame(self):
+    def root_link(self):
         return 'world'
 
     def plot_environment_rviz(self, environment: Dict, **kwargs):
-        env_frame_id = self.base_link_frame()
+        env_frame_id = self.root_link()
         vg_frame_id = 'env_vg'
 
         if 'env' in environment:
@@ -301,7 +301,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
     def random_object_pose(self, env_rng: np.random.RandomState, objects_params: Dict):
         extent = objects_params['environment_randomization']['extent']
         bbox_msg = extent_to_bbox(extent)
-        bbox_msg.header.frame_id = 'world'
+        bbox_msg.header.frame_id = 'robot_root'
         self.obs_bbox_pub.publish(bbox_msg)
 
         return self.random_pose_in_extents(env_rng, extent)
@@ -359,7 +359,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
             anim.step()
 
-    def plot_point_rviz(self, position, label: str, frame_id: str = 'world', id: int = 0, scale: float = 0.02):
+    def plot_point_rviz(self, position, label: str, frame_id: str = 'robot_root', id: int = 0, scale: float = 0.02):
         msg = Marker()
         msg.header.frame_id = frame_id
         msg.header.stamp = rospy.Time.now()
@@ -381,7 +381,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
         self.point_pub.publish(msg)
 
-    def plot_arrow_rviz(self, position, direction, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+    def plot_arrow_rviz(self, position, direction, label: str, frame_id: str = 'robot_root', id: int = 0, **kwargs):
         msg = MarkerArray()
         msg.markers.append(rviz_arrow(position,
                                       position + direction,
@@ -391,7 +391,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
                                       **kwargs))
         self.arrows_pub.publish(msg)
 
-    def plot_arrows_rviz(self, positions, directions, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+    def plot_arrows_rviz(self, positions, directions, label: str, frame_id: str = 'robot_root', id: int = 0, **kwargs):
         msg = MarkerArray()
         for i, (position, direction) in enumerate(zip(positions, directions)):
             msg.markers.append(rviz_arrow(position,
@@ -402,7 +402,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
                                           **kwargs))
         self.arrows_pub.publish(msg)
 
-    def plot_line_strip_rviz(self, positions, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+    def plot_line_strip_rviz(self, positions, label: str, frame_id: str = 'robot_root', id: int = 0, **kwargs):
         color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
 
         scale = kwargs.get('scale', 0.02)
@@ -425,7 +425,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
         self.point_pub.publish(msg)
 
-    def plot_points_rviz(self, positions, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+    def plot_points_rviz(self, positions, label: str, frame_id: str = 'robot_root', id: int = 0, **kwargs):
         color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
 
         scale = kwargs.get('scale', 0.02)
@@ -448,7 +448,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
         self.point_pub.publish(msg)
 
-    def plot_lines_rviz(self, starts, ends, label: str, frame_id: str = 'world', id: int = 0, **kwargs):
+    def plot_lines_rviz(self, starts, ends, label: str, frame_id: str = 'robot_root', id: int = 0, **kwargs):
         if starts is None or ends is None:
             return
 

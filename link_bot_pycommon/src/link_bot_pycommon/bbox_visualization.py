@@ -78,5 +78,5 @@ def extent_to_bbox(extent_3d):
 
 def viz_action_sample_bbox(gripper_bbox_pub: rospy.Publisher, gripper_extent):
     gripper_bbox_msg = extent_array_to_bbox(gripper_extent)
-    gripper_bbox_msg.header.frame_id = 'world'
+    gripper_bbox_msg.header.frame_id = 'robot_root'
     gripper_bbox_pub.publish(gripper_bbox_msg)

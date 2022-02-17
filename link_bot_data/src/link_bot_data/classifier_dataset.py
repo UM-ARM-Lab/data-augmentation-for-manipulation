@@ -5,7 +5,8 @@ import tensorflow as tf
 from colorama import Fore
 
 from link_bot_data.base_dataset import BaseDatasetLoader
-from link_bot_data.dataset_utils import add_predicted, use_gt_rope, add_label, pprint_example
+from link_bot_data.dataset_utils import add_predicted, use_gt_rope, pprint_example
+from link_bot_data.tf_dataset_utils import add_label
 from link_bot_data.visualization import classifier_transition_viz_t, init_viz_action, init_viz_env
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization

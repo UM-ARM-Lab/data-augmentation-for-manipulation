@@ -13,7 +13,7 @@ from tabulate import tabulate
 
 import rospy
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
-from link_bot_data.dataset_utils import batch_tf_dataset
+from link_bot_data.tf_dataset_utils import batch_tf_dataset
 from link_bot_pycommon.args import my_formatter
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.metric_utils import row_stats, dict_to_pvalue_table

@@ -8,7 +8,8 @@ from scipy import stats
 from tqdm import tqdm
 
 import rospy
-from link_bot_data.dataset_utils import add_predicted, deserialize_scene_msg
+from link_bot_data.dataset_utils import add_predicted
+from link_bot_data.tf_dataset_utils import deserialize_scene_msg
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.grid_utils import environment_to_vg_msg
 from link_bot_pycommon.matplotlib_utils import adjust_lightness

@@ -5,7 +5,8 @@ from typing import Dict, Optional, List, Callable
 import numpy as np
 from more_itertools import interleave
 
-from link_bot_data.dataset_utils import add_predicted, add_label
+from link_bot_data.dataset_utils import add_predicted
+from link_bot_data.tf_dataset_utils import add_label
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader, NewBaseDataset
 from link_bot_data.new_dataset_utils import UNUSED_COMPAT, get_filenames, load_metadata
 from link_bot_data.visualization import init_viz_env, classifier_transition_viz_t, init_viz_action, \

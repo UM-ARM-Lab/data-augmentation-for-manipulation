@@ -2,9 +2,6 @@ from functools import lru_cache
 
 from colorama import Fore
 
-# With this approach, we only ever import the scenario we want to use. Nice!
-from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-
 
 def make_toy_scenario():
     from dm_envs.toy_example_scenario import ToyExampleScenario
@@ -91,7 +88,8 @@ scenario_map = {
 }
 
 
-def get_scenario(scenario_name: str) -> ScenarioWithVisualization:
+def get_scenario(scenario_name: str):
+    """ With this approach, we only ever import the scenario we want to use. Nice! """
     if scenario_name == 'dual_arm':
         print(Fore.YELLOW + "Please update the scenario name! dual_arm is deprecated because it's not specific enough")
     if scenario_name not in scenario_map:
