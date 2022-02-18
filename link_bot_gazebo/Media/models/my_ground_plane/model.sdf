@@ -36,8 +36,6 @@
                 </geometry>
                 <material>
                     <script>
-<!--                        <uri>file://media/materials/scripts/gazebo.material</uri>-->
-<!--                        <name>Gazebo/Red</name>-->
                         <uri>model://my_ground_plane/concrete.material</uri>
                         <name>ConcreteTexture</name>
                     </script>
