@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
 from link_bot_pycommon.dual_arm_real_val_rope_scenario import DualArmRealValRopeScenario
@@ -9,8 +9,8 @@ from link_bot_pycommon.dual_arm_sim_rope_scenario import SimValDualArmRopeScenar
 
 class DualArmRopeSimValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobotFeasibilityCheckingScenario,
                                                             SimValDualArmRopeScenario):
-    def __init__(self):
-        SimValDualArmRopeScenario.__init__(self)
+    def __init__(self, params: Optional[dict] = None):
+        SimValDualArmRopeScenario.__init__(self, params)
         DualArmRopeWithRobotFeasibilityCheckingScenario.__init__(self, self.robot_namespace)
 
     def simple_name(self):
@@ -22,8 +22,8 @@ class DualArmRopeSimValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobot
 
 class DualArmRopeRealValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobotFeasibilityCheckingScenario,
                                                              DualArmRealValRopeScenario):
-    def __init__(self):
-        DualArmRealValRopeScenario.__init__(self)
+    def __init__(self, params: Optional[dict] = None):
+        DualArmRealValRopeScenario.__init__(self, params)
         DualArmRopeWithRobotFeasibilityCheckingScenario.__init__(self, self.robot_namespace)
 
     def simple_name(self):
@@ -38,7 +38,6 @@ class DualArmRopeRealValWithRobotFeasibilityCheckingScenario(DualArmRopeWithRobo
         target_reached = self.is_motion_feasible(action_fk, environment, state)
 
         return target_reached
-
 
     def __repr__(self):
         return self.simple_name()

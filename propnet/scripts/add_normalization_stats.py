@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 
 from arc_utilities import ros_init
-from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
 
 @ros_init.with_ros("modify_dynamics_dataset")

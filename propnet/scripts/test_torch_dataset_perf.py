@@ -7,7 +7,7 @@ from torchvision.transforms import transforms
 from tqdm import tqdm
 
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
-from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 from propnet.train_test_propnet import get_num_workers
 
 

@@ -33,7 +33,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.set_rope_end_points_srv = rospy.ServiceProxy(ns_join(self.params['rope_name'], "set"), Position3DAction)
 
     def execute_action(self, environment, state, action: Dict):
-        return dual_arm_rope_execute_action(self.robot, self.tf, environment, state, action)
+        return dual_arm_rope_execute_action(self, self.robot, environment, state, action)
 
     def on_before_get_state_or_execute_action(self):
         super().on_before_get_state_or_execute_action()
@@ -245,8 +245,8 @@ class SimValDualArmRopeScenario(SimDualArmRopeScenario):
 
     def __init__(self, params):
         super().__init__('hdt_michigan', params)
-        self.left_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, -np.pi / 4, 0)
-        self.right_preferred_tool_orientation = quaternion_from_euler(-3 * np.pi / 4, np.pi / 4, 0)
+        self.left_preferred_tool_orientation = quaternion_from_euler(-1.779, -1.043, -2.0)
+        self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, -1.408, 0.9)
 
     def publish_preferred_tool_orientations(self):
         self.pub = get_connected_publisher("preferred_tool_orientation", Marker, queue_size=10)

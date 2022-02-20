@@ -20,7 +20,7 @@ from moonshine.moonshine_utils import get_num_workers
 from moonshine.numpify import numpify
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
 from propnet.propnet_models import PropNet
-from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
 PROJECT = 'propnet'
 

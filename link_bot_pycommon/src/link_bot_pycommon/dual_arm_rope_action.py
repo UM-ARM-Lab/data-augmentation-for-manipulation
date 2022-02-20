@@ -15,13 +15,8 @@ with warnings.catch_warnings():
     from arm_robots.robot import MoveitEnabledRobot
 
 
-def dual_arm_rope_execute_action(robot: MoveitEnabledRobot,
-                                 tf_wrapper: TF2Wrapper,
-                                 environment: Dict,
-                                 state: Dict,
-                                 action: Dict,
-                                 vel_scaling=0.1,
-                                 check_overstretching=True):
+def dual_arm_rope_execute_action(scenario, robot: MoveitEnabledRobot, environment: Dict, state: Dict, action: Dict,
+                                 vel_scaling=0.1, check_overstretching=True):
     tool_names = [robot.left_tool_name, robot.right_tool_name]
 
     start_left_gripper_pos, start_right_gripper_pos = robot.get_gripper_positions()
@@ -31,8 +26,7 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot,
     grippers = [[left_gripper_point], [right_gripper_point]]
 
     if check_overstretching:
-        overstretching_srv = rospy.ServiceProxy(ns_join("rope_3d", "rope_overstretched"), GetOverstretching)
-        res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
+        res: GetOverstretchingResponse = scenario.overstretching_srv(GetOverstretchingRequest())
 
         if res.magnitude > 1.06:
             # just do nothing...
@@ -41,7 +35,7 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot,
 
     if check_overstretching:
         def _stop_condition(_):
-            return overstretching_stop_condition()
+            return overstretching_stop_condition(scenario)
     else:
         _stop_condition = None
 
@@ -56,7 +50,7 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot,
 
     if check_overstretching:
         rospy.sleep(1.0)
-        res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
+        res: GetOverstretchingResponse = scenario.overstretching_srv(GetOverstretchingRequest())
         overstretched = res.overstretched
     else:
         overstretched = False
@@ -75,7 +69,6 @@ def dual_arm_rope_execute_action(robot: MoveitEnabledRobot,
     return (end_trial := False)
 
 
-def overstretching_stop_condition():
-    overstretching_srv = rospy.ServiceProxy(ns_join("rope_3d", "rope_overstretched"), GetOverstretching)
-    res: GetOverstretchingResponse = overstretching_srv(GetOverstretchingRequest())
+def overstretching_stop_condition(scenario):
+    res: GetOverstretchingResponse = scenario.overstretching_srv(GetOverstretchingRequest())
     return res.overstretched

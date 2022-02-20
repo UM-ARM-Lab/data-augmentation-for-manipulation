@@ -42,7 +42,7 @@ from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
 from moonshine.moonshine_utils import remove_batch
-from state_space_dynamics.train_test_dynamics import setup_training_paths
+from state_space_dynamics.train_test_dynamics_tf import setup_training_paths
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 

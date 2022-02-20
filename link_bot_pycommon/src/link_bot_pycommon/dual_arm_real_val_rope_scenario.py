@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 
@@ -30,8 +30,8 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
     COLOR_IMAGE_TOPIC = "/kinect2_tripodA/qhd/image_color_rect"
     DEPTH_IMAGE_TOPIC = "/kinect2_tripodA/qhd/image_depth_rect"
 
-    def __init__(self):
-        super().__init__('hdt_michigan')
+    def __init__(self, params: Optional[dict] = None):
+        super().__init__('hdt_michigan', params)
         self.fast = False
         self.left_preferred_tool_orientation = quaternion_from_euler(-1.779, -1.043, -2.0)
         self.right_preferred_tool_orientation = quaternion_from_euler(np.pi, -1.408, 0.9)
@@ -46,12 +46,7 @@ class DualArmRealValRopeScenario(BaseDualArmRopeScenario):
     def execute_action(self, environment, state, action: Dict):
         action_fk = self.action_relative_to_fk(action, state)
         try:
-            dual_arm_rope_execute_action(self.robot,
-                                         self.tf,
-                                         environment,
-                                         state,
-                                         action_fk,
-                                         vel_scaling=1.0,
+            dual_arm_rope_execute_action(self, self.robot, environment, state, action_fk, vel_scaling=1.0,
                                          check_overstretching=False)
         except RuntimeError as e:
             print(e)

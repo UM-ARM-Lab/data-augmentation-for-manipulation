@@ -15,7 +15,7 @@ from link_bot_planning.planning_evaluation import evaluate_multiple_planning
 from link_bot_pycommon.get_service_provider import get_service_provider
 from link_bot_pycommon.pycommon import paths_from_json
 from link_bot_pycommon.serialization import MyHjsonEncoder
-from state_space_dynamics import train_test_dynamics
+from state_space_dynamics import train_test_dynamics_tf
 
 r = rospkg.RosPack()
 
@@ -116,25 +116,25 @@ class FullStackRunner:
         for ensemble_idx in range(n_ensemble):
             ensemble_seed = seed + ensemble_idx
             print(ensemble_seed)
-            trial_path = train_test_dynamics.train_main(dataset_dirs=[dynamics_dataset_dir],
-                                                        model_hparams=forward_model_hparams,
-                                                        trials_directory=pathlib.Path('dy_trials'),
-                                                        checkpoint=None,
-                                                        log=self.unique_nickname,
-                                                        batch_size=batch_size,
-                                                        epochs=epochs,
-                                                        seed=ensemble_seed,
-                                                        ensemble_idx=ensemble_idx,
-                                                        use_gt_rope=self.use_gt_rope,
-                                                        )
+            trial_path = train_test_dynamics_tf.train_main(dataset_dirs=[dynamics_dataset_dir],
+                                                           model_hparams=forward_model_hparams,
+                                                           trials_directory=pathlib.Path('dy_trials'),
+                                                           checkpoint=None,
+                                                           log=self.unique_nickname,
+                                                           batch_size=batch_size,
+                                                           epochs=epochs,
+                                                           seed=ensemble_seed,
+                                                           ensemble_idx=ensemble_idx,
+                                                           use_gt_rope=self.use_gt_rope,
+                                                           )
             trial_paths.append(trial_path)
 
         # Use one of the models we trained to compute the 90th percentile on the validation set
-        classifier_threshold = train_test_dynamics.compute_classifier_threshold(dataset_dirs=[dynamics_dataset_dir],
-                                                                                checkpoint=trial_paths[0] / 'best_checkpoint',
-                                                                                mode='val',
-                                                                                use_gt_rope=self.use_gt_rope,
-                                                                                batch_size=batch_size)
+        classifier_threshold = train_test_dynamics_tf.compute_classifier_threshold(dataset_dirs=[dynamics_dataset_dir],
+                                                                                   checkpoint=trial_paths[0] / 'best_checkpoint',
+                                                                                   mode='val',
+                                                                                   use_gt_rope=self.use_gt_rope,
+                                                                                   batch_size=batch_size)
         return {
             'model_dirs':           trial_paths,
             'classifier_threshold': classifier_threshold
@@ -153,17 +153,17 @@ class FullStackRunner:
 
         trial_paths = []
         for ensemble_idx in range(n_ensemble):
-            trial_path = train_test_dynamics.train_main(dataset_dirs=[dynamics_dataset_2],
-                                                        model_hparams=forward_model_hparams,
-                                                        trials_directory=pathlib.Path('dy_trials'),
-                                                        checkpoint=None,
-                                                        log=self.unique_nickname + '_full',
-                                                        batch_size=batch_size,
-                                                        epochs=epochs,
-                                                        seed=seed,
-                                                        ensemble_idx=ensemble_idx,
-                                                        use_gt_rope=self.use_gt_rope,
-                                                        )
+            trial_path = train_test_dynamics_tf.train_main(dataset_dirs=[dynamics_dataset_2],
+                                                           model_hparams=forward_model_hparams,
+                                                           trials_directory=pathlib.Path('dy_trials'),
+                                                           checkpoint=None,
+                                                           log=self.unique_nickname + '_full',
+                                                           batch_size=batch_size,
+                                                           epochs=epochs,
+                                                           seed=seed,
+                                                           ensemble_idx=ensemble_idx,
+                                                           use_gt_rope=self.use_gt_rope,
+                                                           )
             trial_paths.append(trial_path)
 
         return {

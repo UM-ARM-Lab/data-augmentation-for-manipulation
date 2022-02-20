@@ -212,7 +212,7 @@ class NewBaseDatasetLoader:
 
     def get_scenario(self):
         if self.scenario is None:
-            self.scenario = get_scenario(self.hparams['scenario'])
+            self.scenario = get_scenario(self.hparams['scenario'], params=self.hparams.get('scenario_params', {}))
 
         return self.scenario
 

@@ -268,6 +268,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         voxel_grid_env = get_environment_for_extents_3d(extent=params['extent'],
                                                         res=res,
+                                                        frame='robot_root',
                                                         service_provider=self.service_provider,
                                                         excluded_models=self.get_excluded_models_for_env())
 

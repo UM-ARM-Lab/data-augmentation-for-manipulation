@@ -10,7 +10,7 @@ from link_bot_data.load_dataset import get_dynamics_dataset_loader
 from moonshine.indexing import try_index_time
 from moonshine.torch_datasets_utils import my_collate
 from propnet.propnet_models import PropNet
-from propnet.torch_dynamics_dataset import TorchDynamicsDataset
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
 from propnet.train_test_propnet import PROJECT
 from link_bot_pycommon.load_wandb_model import load_model_artifact
 from propnet.visualization import plot_cylinders_paths

@@ -18,7 +18,7 @@ from moonshine.dynamics_aes import DynamicsVAE
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_datasets_utils import take_subset, my_collate
-from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
 PROJECT = 'aug_vae'
 

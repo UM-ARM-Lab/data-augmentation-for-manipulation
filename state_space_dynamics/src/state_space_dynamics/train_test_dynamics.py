@@ -1,256 +1,232 @@
 #!/usr/bin/env python
+
 import pathlib
-from typing import List, Optional, Callable
+from datetime import datetime
+from typing import Optional
 
-import hjson
-import numpy as np
-import tensorflow as tf
-from colorama import Fore
+import git
+import pytorch_lightning as pl
+import wandb
+from pytorch_lightning.loggers import WandbLogger
+from torch.utils.data import DataLoader
+from torchvision import transforms
+from tqdm import tqdm
+from wandb.util import generate_id
 
-import rospy
-import state_space_dynamics
-from link_bot_data.tf_dataset_utils import batch_tf_dataset, deserialize_scene_msg
-from link_bot_data.load_dataset import get_dynamics_dataset_loader
+from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
-from moonshine import filepath_tools, common_train_hparams
-from moonshine.indexing import index_time_batched
-from moonshine.metrics import LossMetric
-from moonshine.model_runner import ModelRunner
-from moonshine.moonshine_utils import remove_batch
-from moonshine.numpify import numpify
-from state_space_dynamics import dynamics_utils
+from moonshine.filepath_tools import load_hjson
+from moonshine.moonshine_utils import get_num_workers
+from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
+from state_space_dynamics.udnn_torch import UDNN
+
+PROJECT = 'udnn'
 
 
-def _remove_scene_msg(e):
-    if 'scene_msg' in e:
-        e.pop("scene_msg")
-    return e
-
-
-def train_main(dataset_dirs: List[pathlib.Path],
-               model_hparams: pathlib.Path,
-               log: str,
+def train_main(dataset_dir: pathlib.Path,
+               model_params: pathlib.Path,
                batch_size: int,
                epochs: int,
                seed: int,
-               checkpoint: Optional[pathlib.Path] = None,
-               ensemble_idx: Optional[int] = None,
+               user: str,
+               steps: int = -1,
+               nickname: Optional[str] = None,
+               checkpoint: Optional = None,
                take: Optional[int] = None,
-               trials_directory=pathlib.Path,
-               ):
-    print(Fore.CYAN + f"Using seed {seed}")
+               no_validate: bool = False,
+               project=PROJECT,
+               **kwargs):
+    pl.seed_everything(seed, workers=True)
 
-    model_hparams = hjson.load(model_hparams.open('r'))
-    model_class = state_space_dynamics.get_model(model_hparams['model_class'])
+    transform = transforms.Compose([])
 
-    train_loader = get_dynamics_dataset_loader(dataset_dirs)
-    val_loader = get_dynamics_dataset_loader(dataset_dirs)
+    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train',
+                                         transform=transform)
+    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val',
+                                       transform=transform)
 
-    model_hparams.update(setup_hparams(batch_size, dataset_dirs, seed, train_loader))
-    model = model_class(hparams=model_hparams, batch_size=batch_size, scenario=train_loader.get_scenario())
+    train_dataset_take = take_subset(train_dataset, take)
 
-    trial_path = setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx)
+    train_loader = DataLoader(train_dataset_take,
+                              batch_size=batch_size,
+                              shuffle=True,
+                              collate_fn=my_collate,
+                              num_workers=get_num_workers(batch_size))
 
-    runner = ModelRunner(model=model,
-                         training=True,
-                         params=model_hparams,
-                         checkpoint=checkpoint,
-                         batch_metadata=train_loader.batch_metadata,
-                         trial_path=trial_path)
+    val_loader = None
+    if len(val_dataset) > 0 and not no_validate:
+        val_loader = DataLoader(val_dataset,
+                                batch_size=batch_size,
+                                collate_fn=my_collate,
+                                num_workers=get_num_workers(batch_size))
 
-    train_dataset, val_dataset = setup_datasets(model_hparams, batch_size, train_loader, val_loader, take)
+    model_params = load_hjson(model_params)
+    model_params['scenario'] = train_dataset.params['scenario']
+    # add some extra useful info here
+    stamp = "{:%B_%d_%H-%M-%S}".format(datetime.now())
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha[:10]
+    model_params['sha'] = sha
+    model_params['start-train-time'] = stamp
+    model_params['n_train_trajs'] = train_dataset.params['n_train_trajs']
+    model_params['used_augmentation'] = train_dataset.params.get('used_augmentation', False)
+    model_params['n_augmentations'] = train_dataset.params.get('n_augmentations', None)
+    model_params['train_dataset_size'] = len(train_dataset_take)
+    model_params['val_dataset_size'] = len(val_dataset)
+    model_params['batch_size'] = batch_size
+    model_params['seed'] = seed
+    model_params['max_epochs'] = epochs
+    model_params['max_steps'] = steps
+    model_params['take'] = take
+    model_params['mode'] = 'train'
+    model_params['checkpoint'] = checkpoint
+    model_params['no_validate'] = no_validate
 
-    print("MANUALLY RESETTING \"BEST\"!!!")
-    runner.reset_best_ket_metric_value()
-    runner.train(train_dataset, val_dataset, num_epochs=epochs)
+    if checkpoint is None:
+        ckpt_path = None
+        run_id = generate_id(length=5)
+        if nickname is not None:
+            run_id = nickname + '-' + run_id
+        wandb_kargs = {'entity': user}
+    else:
+        ckpt_path = model_artifact_path(checkpoint, project, version='latest', user=user)
+        run_id = checkpoint
+        wandb_kargs = {
+            'entity': user,
+            'resume': True,
+        }
 
-    return trial_path
+    model = UDNN(hparams=model_params)
 
+    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
 
-def setup_training_paths(checkpoint, log, model_hparams, trials_directory, ensemble_idx=None):
-    trial_path = None
-    if checkpoint:
-        trial_path = checkpoint.parent.absolute()
-    group_name = log if trial_path is None else None
-    if ensemble_idx is not None:
-        group_name = f"{group_name}_{ensemble_idx}"
-    trial_path, _ = filepath_tools.create_or_load_trial(group_name=group_name, trial_path=trial_path,
-                                                        params=model_hparams, trials_directory=trials_directory)
-    return trial_path
+    ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
 
+    trainer = pl.Trainer(gpus=1,
+                         logger=wb_logger,
+                         enable_model_summary=False,
+                         max_epochs=epochs,
+                         max_steps=steps,
+                         log_every_n_steps=1,
+                         check_val_every_n_epoch=10,
+                         callbacks=[ckpt_cb],
+                         default_root_dir='wandb',
+                         gradient_clip_val=0.1)
 
-def setup_hparams(batch_size, dataset_dirs, seed, train_loader):
-    hparams = common_train_hparams.setup_hparams(batch_size, dataset_dirs, seed, train_loader)
-    try:
-        params = train_loader.hparams
-    except AttributeError:
-        params = train_loader.params
-    hparams.update({
-        'dynamics_dataset_hparams': params,
-    })
-    return hparams
+    wb_logger.watch(model)
 
+    trainer.fit(model,
+                train_loader,
+                val_dataloaders=val_loader,
+                ckpt_path=ckpt_path)
+    wandb.finish()
 
-def setup_datasets(model_hparams, batch_size, train_loader, val_loader, take: Optional[int] = None):
-    # Dataset preprocessing
-    train_dataset = train_loader.get_datasets(mode='train', take=take)
-    val_dataset = val_loader.get_datasets(mode='val')
+    eval_main(dataset_dir,
+              run_id,
+              mode='test',
+              user=user,
+              batch_size=batch_size)
 
-    # mix up examples before batching
-    train_dataset = train_dataset.shuffle(model_hparams['shuffle_buffer_size'])
-
-    train_dataset = batch_tf_dataset(train_dataset, batch_size, drop_remainder=False)
-    val_dataset = batch_tf_dataset(val_dataset, batch_size, drop_remainder=False)
-
-    train_dataset = train_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    val_dataset = val_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-
-    train_dataset = train_dataset.map(_remove_scene_msg)
-    val_dataset = val_dataset.map(_remove_scene_msg)
-
-    return train_dataset, val_dataset
-
-
-def compute_classifier_threshold(dataset_dirs: List[pathlib.Path],
-                                 checkpoint: pathlib.Path,
-                                 mode: str,
-                                 batch_size: int,
-                                 ):
-    loader = get_dynamics_dataset_loader(dataset_dirs)
-
-    trials_directory = pathlib.Path('trials').absolute()
-    trial_path = checkpoint.parent.absolute()
-    _, params = filepath_tools.create_or_load_trial(trial_path=trial_path, trials_directory=trials_directory)
-    model = state_space_dynamics.get_model(params['model_class'])
-    net = model(hparams=params, batch_size=batch_size, scenario=loader.scenario)
-
-    runner = ModelRunner(model=net,
-                         training=False,
-                         checkpoint=checkpoint,
-                         batch_metadata=loader.batch_metadata,
-                         trial_path=trial_path,
-                         params=params)
-
-    dataset = loader.get_datasets(mode=mode)
-    dataset = batch_tf_dataset(dataset, batch_size, drop_remainder=False)
-
-    all_errors = None
-    for batch in dataset:
-        outputs = runner.model(batch, training=False)
-        errors_for_batch = loader.scenario.classifier_distance(batch, outputs)
-        if all_errors is not None:
-            all_errors = tf.concat([all_errors, errors_for_batch], axis=0)
-        else:
-            all_errors = errors_for_batch
-
-    classifier_threshold = np.percentile(all_errors.numpy(), 90)
-    rospy.loginfo(f"90th percentile {classifier_threshold}")
-    return classifier_threshold
+    return run_id
 
 
-def eval_main(dataset_dirs: List[pathlib.Path],
-              checkpoint: pathlib.Path,
+def eval_main(dataset_dir: pathlib.Path,
+              checkpoint: str,
               mode: str,
               batch_size: int,
-              ):
-    loader = get_dynamics_dataset_loader(dataset_dirs)
+              user: str,
+              take: Optional[int] = None,
+              skip: Optional[int] = None,
+              project=PROJECT,
+              **kwargs):
+    model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
 
-    trials_directory = pathlib.Path('trials').absolute()
-    trial_path = checkpoint.parent.absolute()
-    _, params = filepath_tools.create_or_load_trial(trial_path=trial_path, trials_directory=trials_directory)
-    model = state_space_dynamics.get_model(params['model_class'])
-    scenario = loader.get_scenario()
-    net = model(hparams=params, batch_size=batch_size, scenario=scenario)
-
-    runner = ModelRunner(model=net,
-                         training=False,
-                         checkpoint=checkpoint,
-                         batch_metadata=loader.batch_metadata,
-                         trial_path=trial_path,
-                         params=params)
-
-    dataset = loader.get_datasets(mode=mode)
-    dataset = batch_tf_dataset(dataset, batch_size, drop_remainder=False)
-    val_metrics = {
-        'loss': LossMetric(),
+    run_id = f'eval-{generate_id(length=5)}'
+    eval_config = {
+        'training_dataset': model.hparams.dataset_dir,
+        'eval_dataset':     dataset_dir.as_posix(),
+        'eval_checkpoint':  checkpoint,
+        'eval_mode':        mode,
     }
 
-    dataset = dataset.map(_remove_scene_msg)
-    runner.val_epoch(dataset, val_metrics)
-    for name, value in val_metrics.items():
-        print(f"{name}: {value.result():.6f}")
+    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity='armlab')
+    trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
-    # more metrics that can't be expressed as just an average over metrics on each batch
-    all_errors = None
-    for batch in dataset:
-        outputs = runner.model(batch, training=False)
-        errors_for_batch = scenario.classifier_distance(outputs, batch)
-        if all_errors is not None:
-            all_errors = tf.concat([all_errors, errors_for_batch], axis=0)
-        else:
-            all_errors = errors_for_batch
-    print(f"90th percentile {np.percentile(all_errors, 90):.6f}")
-    print(f"95th percentile {np.percentile(all_errors, 95):.6f}")
-    print(f"99th percentile {np.percentile(all_errors, 99):.6f}")
-    print(f"max {np.max(all_errors):.6f}")
+    dataset = TorchDynamicsDataset(dataset_dir, mode)
+    dataset = take_subset(dataset, take)
+    dataset = dataset_skip(dataset, skip)
+    loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
+    metrics = trainer.validate(model, loader, verbose=False)
+    wandb.finish()
+
+    print(f'run_id: {run_id}')
+    for metrics_i in metrics:
+        for k, v in metrics_i.items():
+            print(f"{k:20s}: {v:0.5f}")
+
+    return metrics
 
 
-def viz_main(dataset_dirs: List[pathlib.Path],
-             checkpoint: pathlib.Path,
+def eval_versions_main(dataset_dir: pathlib.Path,
+                       checkpoint: str,
+                       versions_str: str,
+                       mode: str,
+                       batch_size: int,
+                       user: str,
+                       take: Optional[int] = None,
+                       skip: Optional[int] = None,
+                       project=PROJECT,
+                       **kwargs):
+    eval_versions = eval(versions_str.strip("'\""))
+    trainer = pl.Trainer(gpus=1, enable_model_summary=False)
+    dataset = TorchDynamicsDataset(dataset_dir, mode)
+    dataset = take_subset(dataset, take)
+    dataset = dataset_skip(dataset, skip)
+    loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
+    metrics_over_time = {}
+    for version in eval_versions:
+        metrics = eval_version(trainer, loader, checkpoint, project, user, version)
+        for k, v in metrics.items():
+            if k not in metrics_over_time:
+                metrics_over_time[k] = []
+            metrics_over_time[k].append(v)
+
+    import matplotlib.pyplot as plt
+    for k, v in metrics_over_time.items():
+        plt.figure()
+        plt.plot(eval_versions, v)
+        plt.ylabel(k)
+
+    plt.show()
+
+
+def eval_version(trainer, loader, checkpoint, project, user, version):
+    model = load_model_artifact(checkpoint, UDNN, project, f"v{version}", user=user)
+    metrics = trainer.validate(model, loader, verbose=False)
+    metrics0 = metrics[0]
+    return metrics0
+
+
+def viz_main(dataset_dir: pathlib.Path,
+             checkpoint,
              mode: str,
+             user: str,
+             skip: Optional[int] = None,
+             project=PROJECT,
              **kwargs):
-    viz_dataset(dataset_dirs=dataset_dirs,
-                checkpoint=checkpoint,
-                mode=mode,
-                viz_func=viz_example,
-                **kwargs)
+    dataset = TorchDynamicsDataset(dataset_dir, mode)
+    s = dataset.get_scenario()
 
+    dataset_ = dataset_skip(dataset, skip)
+    loader = DataLoader(dataset_, collate_fn=my_collate)
 
-def viz_dataset(dataset_dirs: List[pathlib.Path],
-                checkpoint: pathlib.Path,
-                mode: str,
-                viz_func: Callable,
-                **kwargs,
-                ):
-    loader = get_dynamics_dataset_loader(dataset_dirs)
+    model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
+    model.training = False
 
-    dataset = loader.get_datasets(mode=mode)
-    dataset = dataset.map(_remove_scene_msg)
-    dataset = dataset.batch(1)
+    for i, inputs in enumerate(tqdm(loader)):
+        gt_vel, gt_pos, pred_vel, pred_pos = model(inputs)
 
-    model = dynamics_utils.load_generic_model(checkpoint)
-
-    for i, e in enumerate(dataset):
-        e.update(loader.batch_metadata)
-        outputs = model.propagate_from_example(e, training=False)
-        if isinstance(outputs, tuple):
-            outputs, _ = outputs
-
-        viz_func(e, outputs, loader, model)
-
-
-def viz_example(example, outputs, loader, model):
-    threshold = 0.1
-    rospy.loginfo_once(f"Using {threshold=}")
-
-    deserialize_scene_msg(example)
-    s = loader.get_scenario()
-    s.plot_environment_rviz(remove_batch(example))
-    anim = RvizAnimationController(np.arange(loader.steps_per_traj))
-    while not anim.done:
-        t = anim.t()
-        actual_t = loader.index_time_batched(example, t)
-        s.plot_state_rviz(actual_t, label='viz_actual', color='red')
-        s.plot_action_rviz(actual_t, actual_t, color='gray', label='viz')
-
-        model_state_keys = model.state_keys + model.state_metadata_keys
-        prediction_t = numpify(remove_batch(index_time_batched(outputs, model_state_keys, t, False)))
-        s.plot_state_rviz(prediction_t, label='viz_predicted', color='blue')
-
-        error_t = s.classifier_distance(actual_t, prediction_t)
-
-        s.plot_error_rviz(error_t)
-        label_t = error_t < threshold
-        s.plot_is_close(label_t)
-
-        anim.step()
+        n_time_steps = inputs['time_idx'].shape[1]
+        b = 0
+        anim = RvizAnimationController(n_time_steps=n_time_steps)

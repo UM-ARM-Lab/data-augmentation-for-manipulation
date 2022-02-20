@@ -131,7 +131,7 @@ class BaseDataCollector:
         self.params = params
         self.verbose = verbose
         self.scenario_name = self.params['scenario']
-        self.scenario = get_scenario(self.scenario_name)
+        self.scenario = get_scenario(self.scenario_name, params['scenario_params'])
         self.service_provider = get_service_provider(self.params['service_provider'])
 
         if seed is None:

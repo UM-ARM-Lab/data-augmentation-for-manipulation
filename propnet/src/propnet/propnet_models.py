@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.torch_geometry import pairwise_squared_distances_self
 from propnet.component_models import ParticleEncoder, RelationEncoder, Propagator, ParticlePredictor
-from propnet.torch_dynamics_dataset import get_batch_size
+from state_space_dynamics.torch_dynamics_dataset import get_batch_size
 
 
 def pos_to_vel(pos):

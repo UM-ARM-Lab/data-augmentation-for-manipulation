@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from moonshine.filepath_tools import load_hjson
 from propnet.propnet_models import PropNet, get_batch_size
-from propnet.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
 
 def main():

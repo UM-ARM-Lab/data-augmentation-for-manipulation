@@ -93,11 +93,12 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.tree_action_idx = 0
         self.sample_idx = 0
 
+    @property
     def root_link(self):
         return 'world'
 
     def plot_environment_rviz(self, environment: Dict, **kwargs):
-        env_frame_id = self.root_link()
+        env_frame_id = self.root_link
         vg_frame_id = 'env_vg'
 
         if 'env' in environment:

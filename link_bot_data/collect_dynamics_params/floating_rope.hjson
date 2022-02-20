@@ -1,6 +1,9 @@
 {
   name: floating_rope
   scenario: floating_rope
+  scenario_params: {
+    rope_name: rope_3d_alt
+  }
   service_provider: gazebo
   extent: [
     -1

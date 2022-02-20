@@ -20,7 +20,7 @@ from moonshine.numpify import numpify
 from my_cfm.cfm import CFM
 from moonshine.filepath_tools import load_trial
 from moonshine.model_runner import ModelRunner
-from state_space_dynamics import train_test_dynamics
+from state_space_dynamics import train_test_dynamics_tf
 
 limit_gpu_mem(8)
 
@@ -57,9 +57,9 @@ def train_main(args):
                          batch_metadata=train_dataset.batch_metadata,
                          trial_path=trial_path)
 
-    train_tf_dataset, val_tf_dataset = train_test_dynamics.setup_datasets(model_hparams=params, batch_size=batch_size,
-                                                                          train_loader=train_dataset, val_loader=val_dataset,
-                                                                          take=)
+    train_tf_dataset, val_tf_dataset = train_test_dynamics_tf.setup_datasets(model_hparams=params, batch_size=batch_size,
+                                                                             train_loader=train_dataset, val_loader=val_dataset,
+                                                                             take=)
 
     runner.train(train_tf_dataset, val_tf_dataset, num_epochs=epochs)
 
