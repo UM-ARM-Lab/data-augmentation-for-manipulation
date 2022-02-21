@@ -1,26 +1,21 @@
-from typing import Dict
-
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 
-from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.load_wandb_model import load_model_artifact
 from moonshine.torch_utils import vector_to_dict, sequence_of_dicts_to_dict_of_tensors, loss_on_dicts
+from state_space_dynamics.udnn_torch import UDNN
 
 
-class UDNN(pl.LightningModule):
-    def __init__(self, hparams):
+class BaseResUDNN(pl.LightningModule):
+    def __init__(self, hparams, udnn: UDNN):
         super().__init__()
         self.save_hyperparameters(hparams)
 
-        self.scenario = get_scenario(self.hparams.scenario, params=hparams['dataset_hparams']['scenario_params'])
-        self.dataset_state_description: Dict = self.hparams.dataset_hparams['state_description']
-        self.dataset_action_description: Dict = self.hparams.dataset_hparams['action_description']
-        self.state_description = {k: self.dataset_state_description[k] for k in self.hparams.state_keys}
-        self.total_state_dim = sum([self.dataset_state_description[k] for k in self.hparams.state_keys])
-        self.total_action_dim = sum([self.dataset_action_description[k] for k in self.hparams.action_keys])
-
-        in_size = self.total_state_dim + self.total_action_dim
+        self.udnn = udnn
+        self.scenario = self.udnn.scenario
+        self.state_description = self.udnn.state_description
+        in_size = self.udnn.total_state_dim + self.udnn.total_action_dim
         fc_layer_size = None
 
         layers = []
@@ -28,7 +23,7 @@ class UDNN(pl.LightningModule):
             layers.append(torch.nn.Linear(in_size, fc_layer_size))
             layers.append(torch.nn.ReLU())
             in_size = fc_layer_size
-        layers.append(torch.nn.Linear(fc_layer_size, self.total_state_dim))
+        layers.append(torch.nn.Linear(fc_layer_size, self.udnn.total_state_dim))
 
         self.mlp = torch.nn.Sequential(*layers)
 
@@ -49,17 +44,35 @@ class UDNN(pl.LightningModule):
         return pred_states_dict
 
     def one_step_forward(self, action_t, s_t):
-        local_action_t = self.scenario.put_action_local_frame(s_t, action_t)
         s_t_local = self.scenario.put_state_local_frame_torch(s_t)
+        local_action_t = self.scenario.put_action_local_frame(s_t, action_t)
+
         states_and_actions = list(s_t_local.values()) + list(local_action_t.values())
         z_t = torch.concat(states_and_actions, -1)
         z_t = self.mlp(z_t)
-        delta_s_t = vector_to_dict(self.state_description, z_t, self.device)
-        s_t_plus_1 = self.scenario.integrate_dynamics(s_t, delta_s_t)
+        res_s_t_plus_1 = vector_to_dict(self.state_description, z_t, self.device)
+
+        base_s_t_plus_1 = self.udnn.one_step_forward(action_t, s_t)
+
+        s_t_plus_1 = self.scenario.integrate_dynamics(base_s_t_plus_1, res_s_t_plus_1)
         return s_t_plus_1
 
     def compute_loss(self, inputs, outputs):
-        return loss_on_dicts(F.mse_loss, dict_true=inputs, dict_pred=outputs)
+        loss_by_key = []
+        for k, y_pred in outputs.items():
+            y_true = inputs[k]
+            # mean over time and state dim but not batch, not yet.
+            loss = (y_true - y_pred).square().mean(dim=-1).mean(dim=-1)
+            loss_by_key.append(loss)
+        batch_loss = torch.stack(loss_by_key).mean(dim=0)
+
+        if 'weights' in inputs:
+            weights = inputs['weights']
+        else:
+            weights = torch.ones_like(batch_loss).to(self.device)
+        loss = batch_loss @ weights
+
+        return loss
 
     def training_step(self, train_batch, batch_idx):
         outputs = self.forward(train_batch)
@@ -75,3 +88,9 @@ class UDNN(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+
+
+class ResUDNN(BaseResUDNN):
+    def __init__(self, hparams):
+        udnn = load_model_artifact(hparams['udnn_checkpoint'], UDNN, project='udnn', version='best', user='armlab')
+        super().__init__(hparams, udnn)

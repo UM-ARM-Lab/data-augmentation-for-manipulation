@@ -1,28 +1,39 @@
+#!/usr/bin/env python
 import argparse
 import pathlib
+from time import time
 
 import numpy as np
 import torch
 
+from arc_utilities import ros_init
+from link_bot_pycommon.args import run_subparsers
+from moonshine.magic import wandb_lightning_magic
+from state_space_dynamics import train_test_res
 
-def make_arg_parsers(train_test_module):
+node_name = f"train_test_res_{int(time())}"
+
+
+@ros_init.with_ros(node_name)
+def main():
     def _train_main(args):
         if args.seed is None:
             args.seed = np.random.randint(0, 10000)
 
-        train_test_module.train_main(**vars(args))
+        train_test_res.train_main(**vars(args))
 
     def _eval_main(args):
-        train_test_module.eval_main(**vars(args))
+        train_test_res.eval_main(**vars(args))
 
     def _eval_versions_main(args):
-        train_test_module.eval_versions_main(**vars(args))
+        train_test_res.eval_versions_main(**vars(args))
 
     def _viz_main(args):
-        train_test_module.viz_main(**vars(args))
+        train_test_res.viz_main(**vars(args))
 
     torch.set_printoptions(linewidth=250, precision=7, sci_mode=False)
     np.set_printoptions(linewidth=250, precision=7, suppress=True)
+
     parser = argparse.ArgumentParser()
 
     subparsers = parser.add_subparsers()
@@ -37,7 +48,7 @@ def make_arg_parsers(train_test_module):
     train_parser.add_argument('--take', type=int)
     train_parser.add_argument('--skip', type=int)
     train_parser.add_argument('--epochs', type=int, default=-1)
-    train_parser.add_argument('--steps', type=int, default=125_000)
+    train_parser.add_argument('--steps', type=int, default=50_000)
     train_parser.add_argument('--no-validate', action='store_true')
     train_parser.add_argument('--seed', type=int, default=None)
     train_parser.set_defaults(func=_train_main)
@@ -69,4 +80,10 @@ def make_arg_parsers(train_test_module):
     eval_versions_parser.add_argument('--take', type=int)
     eval_versions_parser.set_defaults(func=_eval_versions_main)
 
-    return train_parser, viz_parser, eval_parser, eval_versions_parser, parser
+    wandb_lightning_magic()
+
+    run_subparsers(parser)
+
+
+if __name__ == '__main__':
+    main()

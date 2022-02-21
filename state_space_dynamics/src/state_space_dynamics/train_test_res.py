@@ -18,10 +18,11 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
-from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
+from state_space_dynamics.res_udnn_torch import ResUDNN
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 from state_space_dynamics.udnn_torch import UDNN
 
-PROJECT = 'udnn'
+PROJECT = 'res-udnn'
 
 
 def train_main(dataset_dir: pathlib.Path,
@@ -39,7 +40,7 @@ def train_main(dataset_dir: pathlib.Path,
                **kwargs):
     pl.seed_everything(seed, workers=True)
 
-    transform = transforms.Compose([])
+    transform = transforms.Compose([remove_keys("scene_msg")])
 
     train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=transform)
     val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=transform)
@@ -94,7 +95,8 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = UDNN(hparams=model_params)
+    udnn = load_model_artifact(model_params['udnn_checkpoint'], UDNN, project='udnn', version='best', user=user)
+    model = ResUDNN(hparams=model_params, udnn=udnn)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
 
@@ -137,7 +139,7 @@ def eval_main(dataset_dir: pathlib.Path,
               skip: Optional[int] = None,
               project=PROJECT,
               **kwargs):
-    model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, ResUDNN, project, version='best', user=user, udnn=udnn)
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
@@ -199,7 +201,7 @@ def eval_versions_main(dataset_dir: pathlib.Path,
 
 
 def eval_version(trainer, loader, checkpoint, project, user, version):
-    model = load_model_artifact(checkpoint, UDNN, project, f"v{version}", user=user)
+    model = load_model_artifact(checkpoint, ResUDNN, project, f"v{version}", user=user)
     metrics = trainer.validate(model, loader, verbose=False)
     metrics0 = metrics[0]
     return metrics0
@@ -218,7 +220,7 @@ def viz_main(dataset_dir: pathlib.Path,
     dataset_ = dataset_skip(dataset, skip)
     loader = DataLoader(dataset_, collate_fn=my_collate)
 
-    model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, ResUDNN, project, version='best', user=user)
     model.training = False
 
     for i, inputs in enumerate(tqdm(loader)):
