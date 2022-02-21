@@ -4,11 +4,8 @@ import pathlib
 import numpy as np
 import torch
 
-from link_bot_pycommon.args import run_subparsers
-from moonshine.magic import wandb_lightning_magic
 
-
-def runner(train_test_module):
+def make_arg_parsers(train_test_module):
     def _train_main(args):
         if args.seed is None:
             args.seed = np.random.randint(0, 10000)
@@ -72,6 +69,4 @@ def runner(train_test_module):
     eval_versions_parser.add_argument('--take', type=int)
     eval_versions_parser.set_defaults(func=_eval_versions_main)
 
-    wandb_lightning_magic()
-
-    run_subparsers(parser)
+    return train_parser, viz_parser, eval_parser, eval_versions_parser, parser

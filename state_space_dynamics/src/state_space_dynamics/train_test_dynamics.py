@@ -108,7 +108,7 @@ def train_main(dataset_dir: pathlib.Path,
                          check_val_every_n_epoch=10,
                          callbacks=[ckpt_cb],
                          default_root_dir='wandb',
-                         gradient_clip_val=0.1)
+                         gradient_clip_val=0.05)
 
     wb_logger.watch(model)
 
