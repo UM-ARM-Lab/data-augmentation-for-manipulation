@@ -8,7 +8,7 @@ from link_bot_classifiers import recovery_policy_utils, nn_recovery_policy
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
-from moonshine.moonshine_utils import repeat
+from moonshine.torch_and_tf_utils import repeat
 
 
 def test_recovery(recovery_model_dir: pathlib.Path,

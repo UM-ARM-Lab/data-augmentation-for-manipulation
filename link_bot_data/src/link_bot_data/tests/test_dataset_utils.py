@@ -9,7 +9,7 @@ from link_bot_data.dataset_utils import NULL_PAD_VALUE, add_predicted, remove_pr
 from link_bot_data.tf_dataset_utils import null_pad, is_reconverging, num_reconverging, deserialize_scene_msg, \
     num_reconverging_subsequences
 from moonshine.gpu_config import limit_gpu_mem
-from moonshine.moonshine_utils import remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
 from moveit_msgs.msg import PlanningScene
 
 limit_gpu_mem(0.1)

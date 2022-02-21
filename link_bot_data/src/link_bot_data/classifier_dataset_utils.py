@@ -17,7 +17,7 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_dict_of_batched_tensors_tf
-from moonshine.moonshine_utils import gather_dict
+from moonshine.tensorflow_utils import gather_dict
 from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 

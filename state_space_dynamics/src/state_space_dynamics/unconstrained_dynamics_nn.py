@@ -6,7 +6,7 @@ import tensorflow.keras.layers as layers
 
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
+from moonshine.tensorflow_utils import vector_to_dict, sequence_of_dicts_to_dict_of_tensors
 from moonshine.my_keras_model import MyKerasModel
 from moonshine.restore_model import restore_model
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction

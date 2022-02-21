@@ -3,7 +3,7 @@ from typing import List, Callable
 import numpy as np
 import tensorflow as tf
 
-from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors
+from moonshine.tensorflow_utils import sequence_of_dicts_to_dict_of_tensors
 
 
 class Ensemble2:

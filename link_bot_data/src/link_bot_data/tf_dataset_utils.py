@@ -11,7 +11,8 @@ from link_bot_data.coerce_types import coerce_types
 from link_bot_data.dataset_utils import NULL_PAD_VALUE
 from link_bot_data.ros_msg_serialization import ros_msg_to_bytes_tensor, bytes_to_ros_msg
 from link_bot_pycommon.serialization import dump_gzipped_pickle
-from moonshine.moonshine_utils import remove_batch, add_batch, to_list_of_strings
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
+from moonshine.tensorflow_utils import to_list_of_strings
 from moveit_msgs.msg import PlanningScene
 
 

@@ -3,7 +3,7 @@ from typing import Dict, List, OrderedDict
 import numpy as np
 import tensorflow as tf
 
-from moonshine.moonshine_utils import remove_batch, add_batch
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.numpify import numpify
 
 

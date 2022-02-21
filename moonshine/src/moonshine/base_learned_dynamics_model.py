@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from moonshine.loss_utils import loss_on_dicts
+from moonshine.loss_utils_tf import loss_on_dicts
 
 
 def dynamics_loss_function(example, predictions):

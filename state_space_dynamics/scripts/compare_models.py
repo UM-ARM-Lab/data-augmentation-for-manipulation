@@ -20,7 +20,8 @@ from link_bot_pycommon.metric_utils import row_stats, dict_to_pvalue_table
 from link_bot_pycommon.pycommon import paths_from_json
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.gpu_config import limit_gpu_mem
-from moonshine.moonshine_utils import listify, remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
+from moonshine.tensorflow_utils import listify
 from moonshine.numpify import numpify
 from state_space_dynamics import dynamics_utils
 

@@ -7,7 +7,7 @@ from matplotlib import colors
 from dm_envs.blocks_task import PlanarPushingBlocksTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario, transformation_matrices_from_pos_quat
 from moonshine.geometry import transform_points_3d
-from moonshine.moonshine_utils import repeat_tensor
+from moonshine.tensorflow_utils import repeat_tensor
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 

@@ -10,7 +10,7 @@ from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, ppr
 from link_bot_data.new_dataset_utils import get_filenames, UNUSED_COMPAT, load_single, EmptyDatasetException
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.moonshine_utils import batch_examples_dicts
+from moonshine.tensorflow_utils import batch_examples_dicts
 
 
 def process_filenames(filenames, process_funcs):

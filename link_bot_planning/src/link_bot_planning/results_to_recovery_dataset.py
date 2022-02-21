@@ -26,8 +26,8 @@ from link_bot_pycommon.serialization import my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_batch_time
-from moonshine.moonshine_utils import repeat, remove_batch, \
-    add_batch, sequence_of_dicts_to_dict_of_tensors
+from moonshine.torch_and_tf_utils import remove_batch, add_batch, repeat
+from moonshine.tensorflow_utils import sequence_of_dicts_to_dict_of_tensors
 from state_space_dynamics import dynamics_utils
 
 

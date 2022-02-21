@@ -1,7 +1,7 @@
 from typing import Dict
 
 from link_bot_pycommon.base_dual_arm_rope_scenario import BaseDualArmRopeScenario
-from moonshine.moonshine_utils import add_batch, remove_batch
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
 
 
 class DualArmRopeWithRobotFeasibilityCheckingScenario:

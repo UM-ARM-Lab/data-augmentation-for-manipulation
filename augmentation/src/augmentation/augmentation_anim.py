@@ -13,7 +13,7 @@ from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.visualization import classifier_transition_viz_t
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import try_index_time
-from moonshine.moonshine_utils import remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.numpify import numpify
 from tf.transformations import quaternion_from_euler
 

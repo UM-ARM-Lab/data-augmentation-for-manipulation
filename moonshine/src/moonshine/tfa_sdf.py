@@ -8,7 +8,7 @@ import ros_numpy
 import rospy
 from arc_utilities import ros_init
 from moonshine.matrix_operations import shift_and_pad
-from moonshine.moonshine_utils import repeat_tensor
+from moonshine.tensorflow_utils import repeat_tensor
 from moonshine.simple_profiler import SimpleProfiler
 from sensor_msgs.msg import PointCloud2
 

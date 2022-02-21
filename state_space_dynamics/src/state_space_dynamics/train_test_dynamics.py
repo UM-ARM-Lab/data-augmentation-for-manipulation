@@ -41,10 +41,8 @@ def train_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([])
 
-    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train',
-                                         transform=transform)
-    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val',
-                                       transform=transform)
+    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=transform)
+    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=transform)
 
     train_dataset_take = take_subset(train_dataset, take)
 
@@ -63,15 +61,13 @@ def train_main(dataset_dir: pathlib.Path,
 
     model_params = load_hjson(model_params)
     model_params['scenario'] = train_dataset.params['scenario']
+    model_params['dataset_hparams'] = train_dataset.params
     # add some extra useful info here
     stamp = "{:%B_%d_%H-%M-%S}".format(datetime.now())
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha[:10]
     model_params['sha'] = sha
     model_params['start-train-time'] = stamp
-    model_params['n_train_trajs'] = train_dataset.params['n_train_trajs']
-    model_params['used_augmentation'] = train_dataset.params.get('used_augmentation', False)
-    model_params['n_augmentations'] = train_dataset.params.get('n_augmentations', None)
     model_params['train_dataset_size'] = len(train_dataset_take)
     model_params['val_dataset_size'] = len(val_dataset)
     model_params['batch_size'] = batch_size

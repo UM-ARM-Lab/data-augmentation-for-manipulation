@@ -15,7 +15,7 @@ from link_bot_pycommon.grid_utils import environment_to_vg_msg
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import print_dict
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.moonshine_utils import remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
 from std_msgs.msg import ColorRGBA
 
 

@@ -18,7 +18,7 @@ from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
 from moonshine.indexing import index_state_action_with_metadata
-from moonshine.moonshine_utils import remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
 from peter_msgs.msg import AnimationControl
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker

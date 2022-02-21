@@ -16,16 +16,14 @@ from geometry_msgs.msg import Point, Vector3
 from jsk_recognition_msgs.msg import BoundingBox
 from learn_invariance.transform_link_states import transform_link_states
 from link_bot_data.base_collect_dynamics_data import collect_trajectory
-from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted, add_predicted_cond
 from link_bot_data.coerce_types import coerce_types
+from link_bot_data.dataset_utils import get_maybe_predicted, in_maybe_predicted, add_predicted, add_predicted_cond
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_gazebo.gazebo_services import gz_scope, restore_gazebo, GazeboServices
 from link_bot_gazebo.gazebo_utils import get_gazebo_kinect_pose
 from link_bot_gazebo.position_3d import Position3D
-from link_bot_pycommon import grid_utils
 from link_bot_pycommon.bbox_marker_utils import make_box_marker_from_extents
 from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
-from link_bot_pycommon.collision_checking import inflate_tf_3d
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds, sample_delta_position
 from link_bot_pycommon.get_link_states import GetLinkStates
@@ -41,9 +39,9 @@ from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_im
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
 from moonshine.geometry import xyzrpy_to_matrices, transform_points_3d
-from moonshine.moonshine_utils import remove_batch, add_batch
 from moonshine.numpify import numpify
 from moonshine.numpy import homogeneous
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from peter_msgs.srv import *
 from rosgraph.names import ns_join
 from sensor_msgs.msg import Image, CameraInfo
@@ -347,7 +345,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     @staticmethod
     def put_state_local_frame(state: Dict):
         rope = state[rope_key_name]
-        rope_points_shape = rope.shape[:-1].as_list() + [-1, 3]
+        rope_points_shape = rope.shape[:-1] + [-1, 3]
         rope_points = tf.reshape(rope, rope_points_shape)
 
         center = tf.reduce_mean(rope_points, axis=-2)
@@ -480,58 +478,6 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     @staticmethod
     def simple_name():
         return "dual_floating"
-
-    @staticmethod
-    def sample_gripper_goal(environment: Dict, rng: np.random.RandomState, planner_params: Dict):
-        env_inflated = inflate_tf_3d(env=environment['env'],
-                                     radius_m=planner_params['goal_params']['threshold'], res=environment['res'])
-        goal_extent = planner_params['goal_params']['extent']
-
-        while True:
-            extent = np.array(goal_extent).reshape(3, 2)
-            left_gripper = rng.uniform(extent[:, 0], extent[:, 1])
-            right_gripper = rng.uniform(extent[:, 0], extent[:, 1])
-            goal = {
-                'left_gripper':  left_gripper,
-                'right_gripper': right_gripper,
-            }
-            row1, col1, channel1 = grid_utils.point_to_idx_3d_in_env(
-                left_gripper[0], left_gripper[1], left_gripper[2], environment)
-            row2, col2, channel2 = grid_utils.point_to_idx_3d_in_env(
-                right_gripper[0], right_gripper[1], right_gripper[2], environment)
-            collision1 = env_inflated[row1, col1, channel1] > 0.5
-            collision2 = env_inflated[row2, col2, channel2] > 0.5
-            if not collision1 and not collision2:
-                return goal
-
-    def sample_goal(self, environment: Dict, rng: np.random.RandomState, planner_params: Dict):
-        goal_type = planner_params['goal_params']['goal_type']
-        if goal_type == 'midpoint':
-            return self.sample_midpoint_goal(environment, rng, planner_params)
-        else:
-            raise NotImplementedError(planner_params['goal_params']['goal_type'])
-
-    def sample_midpoint_goal(self, environment: Dict, rng: np.random.RandomState, planner_params: Dict):
-        goal_extent = planner_params['goal_params']['extent']
-
-        if environment == {}:
-            rospy.loginfo("Assuming no obstacles in the environment")
-            extent = np.array(goal_extent).reshape(3, 2)
-            p = rng.uniform(extent[:, 0], extent[:, 1])
-            goal = {'midpoint': p}
-            return goal
-
-        env_inflated = inflate_tf_3d(env=environment['env'],
-                                     radius_m=planner_params['goal_params']['threshold'], res=environment['res'])
-
-        while True:
-            extent = np.array(goal_extent).reshape(3, 2)
-            p = rng.uniform(extent[:, 0], extent[:, 1])
-            goal = {'midpoint': p}
-            row, col, channel = grid_utils.point_to_idx_3d_in_env(p[0], p[1], p[2], environment)
-            collision = env_inflated[row, col, channel] > 0.5
-            if not collision:
-                return goal
 
     @staticmethod
     def distance_to_grippers_goal(state: Dict, goal: Dict):
@@ -1199,3 +1145,23 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     def tinv_error(self, example: Dict, example_aug: Dict, moved_mask):
         error = self.classifier_distance(example, example_aug)[-1]
         return error
+
+    @staticmethod
+    def put_state_local_frame_torch(state: Dict):
+        rope = state[rope_key_name]
+        rope_points_shape = rope.shape[:-1] + (-1, 3)
+        rope_points = rope.reshape(rope_points_shape)
+
+        center = rope_points.mean(-2)
+
+        left_gripper_local = state['left_gripper'] - center
+        right_gripper_local = state['right_gripper'] - center
+
+        rope_points_local = rope_points - center.unsqueeze(-2)
+        rope_local = rope_points_local.reshape(rope.shape)
+
+        return {
+            'left_gripper':  left_gripper_local,
+            'right_gripper': right_gripper_local,
+            rope_key_name:   rope_local,
+        }

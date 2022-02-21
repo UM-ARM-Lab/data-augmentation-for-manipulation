@@ -9,7 +9,7 @@ import colorama
 import rospy
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
-from moonshine.moonshine_utils import remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.numpify import numpify
 from state_space_dynamics.train_test_dynamics_tf import viz_dataset
 

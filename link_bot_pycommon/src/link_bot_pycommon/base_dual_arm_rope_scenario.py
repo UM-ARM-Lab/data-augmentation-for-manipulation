@@ -21,7 +21,8 @@ from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneSce
 from link_bot_pycommon.moveit_utils import make_joint_state
 from moonshine.filepath_tools import load_params
 from moonshine.geometry import transformation_jacobian, euler_angle_diff
-from moonshine.moonshine_utils import to_list_of_strings, remove_batch, add_batch
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
+from moonshine.tensorflow_utils import to_list_of_strings
 from moonshine.numpify import numpify
 from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene

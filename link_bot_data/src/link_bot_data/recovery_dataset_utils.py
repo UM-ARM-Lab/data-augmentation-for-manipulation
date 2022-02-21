@@ -24,7 +24,8 @@ from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualizat
 from link_bot_pycommon.serialization import my_hdump
 from merrrt_visualization.rviz_animation_controller import RvizAnimation, RvizSimpleStepper
 from moonshine.indexing import index_dict_of_batched_tensors_tf, index_batched_dict, index_batch_time
-from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, repeat
+from moonshine.torch_and_tf_utils import repeat
+from moonshine.tensorflow_utils import sequence_of_dicts_to_dict_of_tensors
 from state_space_dynamics import dynamics_utils
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 

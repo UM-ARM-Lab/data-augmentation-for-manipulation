@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point, batch_align_to_grid_tf, \
     round_to_res
-from moonshine.moonshine_utils import swap_xy
+from moonshine.tensorflow_utils import swap_xy
 
 
 def create_env_indices(local_env_h_rows: int, local_env_w_cols: int, local_env_c_channels: int, batch_size: int):

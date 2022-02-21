@@ -5,7 +5,7 @@ from link_bot_data.new_dataset_utils import UNUSED_COMPAT
 from link_bot_data.visualization import init_viz_env, dynamics_viz_t
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_time_batched
-from moonshine.moonshine_utils import remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.numpify import numpify
 
 

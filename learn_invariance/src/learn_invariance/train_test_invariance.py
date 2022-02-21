@@ -13,7 +13,7 @@ from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine import common_train_hparams
 from moonshine.filepath_tools import load_hjson
 from moonshine.model_runner import ModelRunner
-from moonshine.moonshine_utils import remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
 from state_space_dynamics.train_test_dynamics_tf import setup_training_paths
 
 

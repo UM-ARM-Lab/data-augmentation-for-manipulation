@@ -10,7 +10,7 @@ from link_bot_data.visualization import init_viz_env, dynamics_viz_t
 from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_time_batched, slice_along_axis
-from moonshine.moonshine_utils import remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.numpify import numpify
 
 

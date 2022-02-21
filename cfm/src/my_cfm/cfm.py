@@ -8,8 +8,8 @@ from tensorflow.python.keras.models import Sequential
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.constants import KINECT_MAX_DEPTH
 from moonshine.image_augmentation import augment, resize_image_sequence, flatten_batch_and_sequence, unflatten_batch_and_sequence
-from moonshine.loss_utils import loss_on_dicts
-from moonshine.moonshine_utils import vector_to_dict
+from moonshine.loss_utils_tf import loss_on_dicts
+from moonshine.tensorflow_utils import vector_to_dict
 from moonshine.my_keras_model import MyKerasModel
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
 from state_space_dynamics.base_filter_function import BaseFilterFunction

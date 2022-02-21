@@ -4,7 +4,7 @@ import pickle
 from typing import Dict
 
 from link_bot_data.dataset_utils import add_new
-from moonshine.moonshine_utils import repeat
+from moonshine.torch_and_tf_utils import repeat
 
 
 def make_add_augmentation_env_func(augmentation_config_dir, batch_size):

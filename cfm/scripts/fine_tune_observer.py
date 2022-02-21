@@ -15,7 +15,7 @@ from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.tf_dataset_utils import batch_tf_dataset
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.gpu_config import limit_gpu_mem
-from moonshine.moonshine_utils import remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.numpify import numpify
 from my_cfm.cfm import CFM
 from moonshine.filepath_tools import load_trial

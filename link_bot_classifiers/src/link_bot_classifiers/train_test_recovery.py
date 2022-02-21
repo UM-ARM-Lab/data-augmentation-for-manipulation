@@ -18,7 +18,7 @@ from link_bot_pycommon.pycommon import paths_to_json
 from moonshine import filepath_tools
 from moonshine.filepath_tools import load_hjson
 from moonshine.model_runner import ModelRunner
-from moonshine.moonshine_utils import restore_variables
+from moonshine.tensorflow_utils import restore_variables
 
 
 def setup_datasets(model_hparams, batch_size, train_dataset, val_dataset, take: Optional[int] = None):

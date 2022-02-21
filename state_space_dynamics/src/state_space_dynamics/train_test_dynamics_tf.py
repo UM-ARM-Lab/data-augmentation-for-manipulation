@@ -16,7 +16,7 @@ from moonshine import filepath_tools, common_train_hparams
 from moonshine.indexing import index_time_batched
 from moonshine.metrics import LossMetric
 from moonshine.model_runner import ModelRunner
-from moonshine.moonshine_utils import remove_batch
+from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.numpify import numpify
 from state_space_dynamics import dynamics_utils
 

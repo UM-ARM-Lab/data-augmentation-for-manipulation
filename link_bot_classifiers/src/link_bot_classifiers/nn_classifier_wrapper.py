@@ -8,7 +8,8 @@ from link_bot_classifiers import nn_classifier
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.moonshine_utils import add_batch, sequence_of_dicts_to_dict_of_tensors, remove_batch
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
+from moonshine.tensorflow_utils import sequence_of_dicts_to_dict_of_tensors
 
 
 class NNClassifierWrapper(BaseConstraintChecker):

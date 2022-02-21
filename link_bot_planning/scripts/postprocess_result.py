@@ -12,7 +12,7 @@ from colorama import Fore
 import rospy
 from link_bot_classifiers import classifier_utils
 from moonshine.gpu_config import limit_gpu_mem
-from moonshine.moonshine_utils import listify
+from moonshine.tensorflow_utils import listify
 from moonshine.numpify import numpify
 from state_space_dynamics import dynamics_utils
 

@@ -2,7 +2,7 @@ import tensorflow as tf
 
 import rospy
 from arc_utilities.ros_helpers import get_connected_publisher
-from moonshine.moonshine_utils import repeat_tensor
+from moonshine.tensorflow_utils import repeat_tensor
 from moonshine.raster_3d import points_to_voxel_grid
 from moonshine.simple_profiler import SimpleProfiler
 from rviz_voxelgrid_visuals.conversions import vox_to_voxelgrid_stamped

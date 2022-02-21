@@ -4,8 +4,8 @@ from typing import Dict, List
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.ensemble import Ensemble2
 from moonshine.filepath_tools import load_params
-from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch, remove_batch, \
-    dict_of_sequences_to_sequence_of_dicts_tf
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
+from moonshine.tensorflow_utils import sequence_of_dicts_to_dict_of_tensors, dict_of_sequences_to_sequence_of_dicts_tf
 from moonshine.numpify import numpify
 
 

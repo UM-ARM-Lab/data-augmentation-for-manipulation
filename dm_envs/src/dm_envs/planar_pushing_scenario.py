@@ -16,7 +16,7 @@ from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_o
 from link_bot_pycommon.grid_utils import extent_to_env_shape
 from link_bot_pycommon.pycommon import yaw_diff
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.moonshine_utils import to_list_of_strings
+from moonshine.tensorflow_utils import to_list_of_strings
 from moonshine.numpify import numpify
 from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import Image, JointState

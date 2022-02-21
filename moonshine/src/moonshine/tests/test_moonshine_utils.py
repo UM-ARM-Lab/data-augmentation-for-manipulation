@@ -3,8 +3,10 @@ from unittest import TestCase
 import numpy as np
 import tensorflow as tf
 
-from moonshine.moonshine_utils import dict_of_sequences_to_sequence_of_dicts, dict_of_sequences_to_sequence_of_dicts_tf, \
-    flatten_batch_and_time, gather_dict, repeat, add_time_dim, swap_xy
+from moonshine.moonshine_utils import dict_of_sequences_to_sequence_of_dicts
+from moonshine.torch_and_tf_utils import add_time_dim, repeat
+from moonshine.tensorflow_utils import flatten_batch_and_time, gather_dict, swap_xy, \
+    dict_of_sequences_to_sequence_of_dicts_tf
 from moonshine.tests import testing_utils
 
 

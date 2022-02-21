@@ -14,7 +14,7 @@ from link_bot_data.robot_points import RobotVoxelgridInfo, batch_transform_robot
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.geometry import pairwise_squared_distances
-from moonshine.moonshine_utils import reduce_mean_no_nan, possibly_none_concat
+from moonshine.tensorflow_utils import reduce_mean_no_nan, possibly_none_concat
 from moonshine.simple_profiler import SimpleProfiler
 from moonshine.tf_profiler_helper import TFProfilerHelper
 from moveit_msgs.msg import DisplayRobotState, RobotState

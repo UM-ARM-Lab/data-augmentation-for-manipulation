@@ -16,7 +16,7 @@ from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import make_dict_tf_float32, log_scale_0_to_1
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.ensemble import Ensemble2
-from moonshine.moonshine_utils import add_batch
+from moonshine.torch_and_tf_utils import add_batch
 
 DEBUG_VIZ = False
 POLICY_DEBUG_VIZ = False

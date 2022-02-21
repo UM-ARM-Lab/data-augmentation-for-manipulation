@@ -24,7 +24,8 @@ from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
-from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_tensors, add_batch_single, add_batch, remove_batch
+from moonshine.torch_and_tf_utils import remove_batch, add_batch, add_batch_single
+from moonshine.tensorflow_utils import sequence_of_dicts_to_dict_of_tensors
 from moonshine.numpify import numpify
 from std_msgs.msg import Empty
 
