@@ -13,9 +13,12 @@ class UDNN(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(hparams)
 
-        self.scenario = get_scenario(self.hparams.scenario, params=hparams['dataset_hparams']['scenario_params'])
-        self.dataset_state_description: Dict = self.hparams.dataset_hparams['state_description']
-        self.dataset_action_description: Dict = self.hparams.dataset_hparams['action_description']
+        datset_params = hparams['dataset_hparams']
+        data_collection_params = datset_params['data_collection_params']
+        self.scenario = get_scenario(self.hparams.scenario, params=data_collection_params['scenario_params'])
+        # FIXME: this dict is currently not getting generated for the newly collected datasets :(
+        self.dataset_state_description: Dict = data_collection_params['state_description']
+        self.dataset_action_description: Dict = data_collection_params['action_description']
         self.state_description = {k: self.dataset_state_description[k] for k in self.hparams.state_keys}
         self.total_state_dim = sum([self.dataset_state_description[k] for k in self.hparams.state_keys])
         self.total_action_dim = sum([self.dataset_action_description[k] for k in self.hparams.action_keys])

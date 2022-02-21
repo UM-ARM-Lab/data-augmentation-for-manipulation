@@ -18,10 +18,91 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
-from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 from state_space_dynamics.udnn_torch import UDNN
 
 PROJECT = 'udnn'
+
+
+def prepare_train(batch_size, dataset_dir, take, skip, transform):
+    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=transform)
+    train_dataset_take = take_subset(train_dataset, take)
+    train_dataset_skip = dataset_skip(train_dataset_take, skip)
+    train_dataset_len = len(train_dataset_skip)
+    train_loader = DataLoader(train_dataset_skip,
+                              batch_size=batch_size,
+                              shuffle=True,
+                              collate_fn=my_collate,
+                              num_workers=get_num_workers(batch_size))
+    return train_loader, train_dataset, train_dataset_len
+
+
+def prepare_validation(batch_size, dataset_dir, no_validate, transform):
+    val_loader = None
+    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=transform)
+    val_dataset_len = len(val_dataset)
+    if val_dataset_len and not no_validate:
+        val_loader = DataLoader(val_dataset,
+                                batch_size=batch_size,
+                                collate_fn=my_collate,
+                                num_workers=get_num_workers(batch_size))
+    return val_dataset_len, val_loader
+
+
+def fine_tune_main(dataset_dir: pathlib.Path,
+                   checkpoint: str,
+                   batch_size: int,
+                   epochs: int,
+                   seed: int,
+                   user: str,
+                   steps: int = -1,
+                   nickname: Optional[str] = None,
+                   take: Optional[int] = None,
+                   skip: Optional[int] = None,
+                   no_validate: bool = False,
+                   project=PROJECT,
+                   **kwargs):
+    pl.seed_everything(seed, workers=True)
+
+    transform = transforms.Compose([remove_keys("scene_msg")])
+
+    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform)
+    val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
+
+    ckpt_path = model_artifact_path(checkpoint, project, version='latest', user=user)
+    run_id = generate_id(length=5)
+    if nickname is not None:
+        run_id = nickname + '-' + run_id
+    wandb_kargs = {
+        'entity': user,
+        'resume': True,
+    }
+
+    model = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user)
+    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
+    ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
+    trainer = pl.Trainer(gpus=1,
+                         logger=wb_logger,
+                         enable_model_summary=False,
+                         max_epochs=epochs,
+                         max_steps=steps,
+                         log_every_n_steps=1,
+                         check_val_every_n_epoch=10,
+                         callbacks=[ckpt_cb],
+                         default_root_dir='wandb',
+                         gradient_clip_val=0.05)
+    wb_logger.watch(model)
+    trainer.fit(model,
+                train_loader,
+                val_dataloaders=val_loader,
+                ckpt_path=ckpt_path)
+    wandb.finish()
+    eval_main(dataset_dir,
+              run_id,
+              mode='test',
+              user=user,
+              batch_size=batch_size)
+    return run_id
 
 
 def train_main(dataset_dir: pathlib.Path,
@@ -34,30 +115,16 @@ def train_main(dataset_dir: pathlib.Path,
                nickname: Optional[str] = None,
                checkpoint: Optional = None,
                take: Optional[int] = None,
+               skip: Optional[int] = None,
                no_validate: bool = False,
                project=PROJECT,
                **kwargs):
     pl.seed_everything(seed, workers=True)
 
-    transform = transforms.Compose([])
+    transform = transforms.Compose([remove_keys("scene_msg")])
 
-    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=transform)
-    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=transform)
-
-    train_dataset_take = take_subset(train_dataset, take)
-
-    train_loader = DataLoader(train_dataset_take,
-                              batch_size=batch_size,
-                              shuffle=True,
-                              collate_fn=my_collate,
-                              num_workers=get_num_workers(batch_size))
-
-    val_loader = None
-    if len(val_dataset) > 0 and not no_validate:
-        val_loader = DataLoader(val_dataset,
-                                batch_size=batch_size,
-                                collate_fn=my_collate,
-                                num_workers=get_num_workers(batch_size))
+    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform)
+    val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
 
     model_params = load_hjson(model_params)
     model_params['scenario'] = train_dataset.params['scenario']
@@ -69,8 +136,8 @@ def train_main(dataset_dir: pathlib.Path,
     sha = repo.head.object.hexsha[:10]
     model_params['sha'] = sha
     model_params['start-train-time'] = stamp
-    model_params['train_dataset_size'] = len(train_dataset_take)
-    model_params['val_dataset_size'] = len(val_dataset)
+    model_params['train_dataset_size'] = train_dataset_len
+    model_params['val_dataset_size'] = val_dataset_len
     model_params['batch_size'] = batch_size
     model_params['seed'] = seed
     model_params['max_epochs'] = epochs
@@ -95,11 +162,8 @@ def train_main(dataset_dir: pathlib.Path,
         }
 
     model = UDNN(hparams=model_params)
-
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
-
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
-
     trainer = pl.Trainer(gpus=1,
                          logger=wb_logger,
                          enable_model_summary=False,
@@ -110,21 +174,17 @@ def train_main(dataset_dir: pathlib.Path,
                          callbacks=[ckpt_cb],
                          default_root_dir='wandb',
                          gradient_clip_val=0.05)
-
     wb_logger.watch(model)
-
     trainer.fit(model,
                 train_loader,
                 val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
     wandb.finish()
-
     eval_main(dataset_dir,
               run_id,
               mode='test',
               user=user,
               batch_size=batch_size)
-
     return run_id
 
 

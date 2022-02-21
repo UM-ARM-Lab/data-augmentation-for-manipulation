@@ -77,10 +77,13 @@ class TorchDynamicsDataset(Dataset):
         self.scenario = None
 
         self.data_collection_params = self.params['data_collection_params']
-        self.state_keys = self.data_collection_params['state_keys']
+        self.state_description = self.data_collection_params['state_description']
+        self.action_description = self.data_collection_params['action_description']
+        self.env_description = self.data_collection_params['env_description']
+        self.state_keys = list(self.state_description.keys())
         self.state_keys.append('time_idx')
-        self.env_keys = self.data_collection_params['env_keys']
-        self.action_keys = self.data_collection_params['action_keys']
+        self.env_keys = list(self.env_description.keys())
+        self.action_keys = list(self.action_description.keys())
 
     def __len__(self):
         return len(self.metadata_filenames)

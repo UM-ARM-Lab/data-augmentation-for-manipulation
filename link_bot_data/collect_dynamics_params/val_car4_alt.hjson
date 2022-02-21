@@ -45,8 +45,7 @@
     0.3
     1.0
   ]
-  environment_randomization: {
-  }
+  environment_randomization: { }
   res: 0.02
   max_step_size: 0.01
   real_time_rate: 0.0
@@ -56,26 +55,26 @@
   repeat_delta_gripper_motion_probability: 0.7
   max_distance_gripper_can_move: 0.10
   max_distance_between_grippers: 0.80  # this need not exactly match the rope length
-  state_keys: [
-    left_gripper
-    right_gripper
-    joint_positions
-    rope
-  ]
-  state_metadata_keys: [
-    joint_names
-  ]
-  action_keys: [
-    left_gripper_position
-    right_gripper_position
-  ]
-  env_keys: [
-    env
-    extent
-    origin_point
-    res
-    scene_msg
-  ]
+  state_description: {
+    left_gripper: 3
+    right_gripper: 3
+    joint_positions: 18
+    rope: 75
+  }
+  state_metadata_description: {
+    joint_names: null
+  }
+  action_description: {
+    left_gripper_position: 3
+    right_gripper_position: 3
+  }
+  env_description: {
+    env: null
+    extent: 4
+    origin_point: 3
+    res: null
+    scene_msg: null
+  }
   scenario_params: {
     rope_name: rope_3d_alt
   }
