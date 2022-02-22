@@ -1,11 +1,10 @@
 import argparse
-from matplotlib import cm
 import logging
 import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pytorch_lightning as pl
+from matplotlib import cm
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
@@ -44,17 +43,25 @@ def main():
             losses.append(loss)
             weights.append(float(inputs['weight'].numpy()))
 
-        data[ckpt] = (weights, losses)
+        data[ckpt] = (np.array(weights), np.array(losses))
+
+    data_sorted = {}
+    for ckpt, (weights, losses) in data.items():
+        sorting_criteria = 1000 * weights - losses
+        indices_sorted = np.argsort(sorting_criteria)
+        data_sorted[ckpt] = (weights[indices_sorted], losses[indices_sorted])
 
     plt.style.use('paper')
-    plt.rcParams['figure.figsize'] = (8, 5)
+    plt.rcParams['figure.figsize'] = (15, 8)
     color_map = cm.RdYlGn
 
     plt.figure()
-    for ckpt, (weights, losses) in data.items():
-        indices = np.arange(len(weights))
+    for ckpt, (weights, losses) in data_sorted.items():
         plt.plot(losses, label=ckpt)
-        plt.scatter(indices, losses, c=weights, cmap=color_map)
+
+    ymin, ymax = plt.ylim()
+    weights_img = np.expand_dims(weights, 0)
+    plt.imshow(weights_img, cmap=color_map, extent=[-0.5, len(dataset)-0.5, ymin, ymax], alpha=0.5)
 
     plt.colorbar()
     plt.title("Dynamics Prediction Accuracy")
@@ -62,6 +69,7 @@ def main():
     plt.xlabel("test example")
     plt.yscale('log')
     plt.legend()
+    plt.savefig("dynamics_prediction_accuracy.png")
     plt.show()
 
 
