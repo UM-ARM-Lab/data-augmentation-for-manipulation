@@ -271,6 +271,8 @@ def viz_main(dataset_dir: pathlib.Path,
              checkpoint,
              mode: str,
              user: str,
+             weight_above: float = 0,
+             weight_below: float = 1,
              skip: Optional[int] = None,
              project=PROJECT,
              **kwargs):
@@ -285,17 +287,26 @@ def viz_main(dataset_dir: pathlib.Path,
 
     dataset_anim = RvizAnimationController(n_time_steps=len(dataset), ns='trajs')
 
+    n_examples_visualized = 0
     while not dataset_anim.done:
         inputs = dataset[dataset_anim.t()]
-        outputs = remove_batch(model(torchify(add_batch(inputs))))
 
-        n_time_steps = inputs['time_idx'].shape[0]
-        time_anim = RvizAnimationController(n_time_steps=n_time_steps)
+        weight = inputs.get('weight', 1)
+        if weight_above <= weight <= weight_below:
 
-        while not time_anim.done:
-            t = time_anim.t()
-            init_viz_env(s, inputs, t)
-            viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.05)
-            time_anim.step()
+            outputs = remove_batch(model(torchify(add_batch(inputs))))
+
+            n_time_steps = inputs['time_idx'].shape[0]
+            time_anim = RvizAnimationController(n_time_steps=n_time_steps)
+
+            while not time_anim.done:
+                t = time_anim.t()
+                init_viz_env(s, inputs, t)
+                viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.05)
+                time_anim.step()
+
+            n_examples_visualized += 1
 
         dataset_anim.step()
+
+    print(f"{n_examples_visualized:=}")

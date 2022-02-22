@@ -79,6 +79,8 @@ def main():
     viz_parser.add_argument('--user', '-u', type=str, default='armlab')
     viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     viz_parser.add_argument('--skip', type=int)
+    viz_parser.add_argument('--weight-above', type=float, default=0)
+    viz_parser.add_argument('--weight-below', type=float, default=1)
     viz_parser.set_defaults(func=_viz_main)
 
     eval_parser = subparsers.add_parser('eval')

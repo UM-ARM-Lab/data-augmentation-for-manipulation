@@ -14,6 +14,7 @@ from tqdm import tqdm
 from wandb.util import generate_id
 
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.load_wandb_model import model_artifact_path, load_model_artifact
 from moonshine.dynamics_aes import DynamicsVAE
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
@@ -179,23 +180,3 @@ def viz_main(dataset_dir: pathlib.Path,
 
     for i, inputs in enumerate(tqdm(loader)):
         pass
-
-
-def load_model_artifact(checkpoint, model_class, project, version, user='armlab', **kwargs):
-    local_ckpt_path = model_artifact_path(checkpoint, project, version, user)
-    model = model_class.load_from_checkpoint(local_ckpt_path.as_posix(), **kwargs)
-    return model
-
-
-def model_artifact_path(checkpoint, project, version, user='armlab'):
-    if ':' in checkpoint:
-        checkpoint, version = checkpoint.split(':')
-
-    if not checkpoint.startswith('model-'):
-        checkpoint = 'model-' + checkpoint
-    api = wandb.Api()
-    artifact = api.artifact(f'{user}/{project}/{checkpoint}:{version}')
-    artifact_dir = artifact.download()
-    local_ckpt_path = pathlib.Path(artifact_dir) / "model.ckpt"
-    print(f"Found artifact {local_ckpt_path}")
-    return local_ckpt_path

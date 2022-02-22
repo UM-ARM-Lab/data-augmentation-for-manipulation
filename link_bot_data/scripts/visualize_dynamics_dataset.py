@@ -20,6 +20,8 @@ def main():
     parser.add_argument('--shard', type=int)
     parser.add_argument('--mode', choices=['train', 'test', 'val', 'all'], default='all', help='train test or val')
     parser.add_argument('--shuffle', action='store_true', help='shuffle')
+    parser.add_argument('--weight-above', type=float, default=0)
+    parser.add_argument('--weight-below', type=float, default=1)
 
     args = parser.parse_args()
 
@@ -45,21 +47,26 @@ def main():
 
     dataset_anim = RvizAnimationController(time_steps=indices, ns='trajs')
 
+    n_examples_visualized = 0
     while not dataset_anim.done:
         example_idx = dataset_anim.t()
         example = dataset[example_idx]
+        weight = example.get('weight', 1)
+        if args.weight_above <= weight <= args.weight_below:
+            if 'traj_idx' in example:
+                traj_idx = example['traj_idx']
+                s.plot_traj_idx_rviz(traj_idx)
 
-        if 'traj_idx' in example:
-            traj_idx = example['traj_idx']
-            s.plot_traj_idx_rviz(traj_idx)
+            deserialize_scene_msg(example)
+            if 'augmented_from' in example:
+                print(f"augmented from: {example['augmented_from']}")
+            example = numpify(example)
+            dataset.anim_rviz(example)
 
-        deserialize_scene_msg(example)
-        if 'augmented_from' in example:
-            print(f"augmented from: {example['augmented_from']}")
-        example = numpify(example)
-        dataset.anim_rviz(example)
-
+            n_examples_visualized += 1
         dataset_anim.step()
+
+    print(f"{n_examples_visualized:=}")
 
 
 if __name__ == '__main__':
