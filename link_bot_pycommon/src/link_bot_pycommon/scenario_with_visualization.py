@@ -49,6 +49,7 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
         self.point_pub = rospy.Publisher("point", Marker, queue_size=10)
         self.arrows_pub = rospy.Publisher("arrows", MarkerArray, queue_size=10)
         self.aug_dir_pub = rospy.Publisher('aug_dir', Marker, queue_size=10)
+        self.weight_pub = rospy.Publisher('weight_viz', Float32, queue_size=10)
 
         self.sampled_goal_marker_idx = 0
         self.tree_state_idx = 0
@@ -486,6 +487,9 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
 
     def plot_error_rviz(self, error):
         self.error_pub.publish(Float32(data=error))
+
+    def plot_weight_rviz(self, weight):
+        self.weight_pub.publish(Float32(data=weight))
 
     def clear_action_sampling_state(self):
         self.last_action = None

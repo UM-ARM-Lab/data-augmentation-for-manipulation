@@ -3,7 +3,7 @@ from typing import Dict
 import numpy as np
 import tensorflow as tf
 
-from link_bot_pycommon.grid_utils import OccupancyData, batch_point_to_idx_tf, batch_point_to_idx_tf_3d_in_batched_envs
+from link_bot_pycommon.grid_utils import batch_point_to_idx_tf, batch_point_to_idx_tf_3d_in_batched_envs
 
 
 def batch_out_of_bounds_tf(environment: Dict,

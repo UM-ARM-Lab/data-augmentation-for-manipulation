@@ -2,6 +2,7 @@ from typing import Dict
 
 import numpy as np
 import tensorflow as tf
+import torch
 
 from moonshine.tensorflow_utils import repeat_tensor
 
@@ -50,6 +51,9 @@ def add_batch_single(x, batch_axis=0, keys=None):
         return np.expand_dims(x, axis=batch_axis)
     elif isinstance(x, list) and isinstance(x[0], dict):
         return [(add_batch_single(v)) for v in x]
+    elif isinstance(x, torch.Tensor):
+        x = torch.unsqueeze(x, dim=batch_axis)
+        return x
     elif isinstance(x, tf.Tensor):
         x = tf.expand_dims(x, axis=batch_axis)
         return x

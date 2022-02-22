@@ -38,6 +38,7 @@ public:
   void ErrorCallback(const std_msgs::Float32::ConstPtr &msg);
   void StdevCallback(const std_msgs::Float32::ConstPtr &msg);
   void OnAcceptProbability(const std_msgs::Float32::ConstPtr &msg);
+  void OnWeight(const std_msgs::Float32::ConstPtr &msg);
   void OnRecoveryProbability(const std_msgs::Float32::ConstPtr &msg);
   void OnTrajIdx(const std_msgs::Float32::ConstPtr &msg);
 
@@ -49,6 +50,7 @@ public:
 
   signals:
 
+  void setWeightText(const QString &text);
   void setTrajIdxText(const QString &text);
   void setErrorText(const QString &text);
   void setStdevText(const QString &text);
@@ -62,6 +64,7 @@ private:
   ros::Subscriber error_sub_;
   ros::Subscriber stdev_sub_;
   ros::Subscriber traj_idx_sub_;
+  ros::Subscriber weight_sub_;
   ros::Subscriber recov_prob_sub_;
   ros::Subscriber accept_probability_sub_;
   ros::ServiceClient world_control_srv_;

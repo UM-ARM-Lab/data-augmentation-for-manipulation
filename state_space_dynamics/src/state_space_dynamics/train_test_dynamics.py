@@ -10,14 +10,16 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from tqdm import tqdm
 from wandb.util import generate_id
 
+from link_bot_data.visualization import init_viz_env, viz_pred_actual_t
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
+from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
+from moonshine.torchify import torchify
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 from state_space_dynamics.udnn_torch import UDNN
 
@@ -94,8 +96,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     wb_logger.watch(model)
     trainer.fit(model,
                 train_loader,
-                val_dataloaders=val_loader,
-                ckpt_path=ckpt_path)
+                val_dataloaders=val_loader)
     wandb.finish()
     eval_main(dataset_dir,
               run_id,
@@ -210,7 +211,8 @@ def eval_main(dataset_dir: pathlib.Path,
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity='armlab')
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
-    dataset = TorchDynamicsDataset(dataset_dir, mode)
+    transform = transforms.Compose([remove_keys("scene_msg")])
+    dataset = TorchDynamicsDataset(dataset_dir, mode, transform=transform)
     dataset = take_subset(dataset, take)
     dataset = dataset_skip(dataset, skip)
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
@@ -273,17 +275,27 @@ def viz_main(dataset_dir: pathlib.Path,
              project=PROJECT,
              **kwargs):
     dataset = TorchDynamicsDataset(dataset_dir, mode)
-    s = dataset.get_scenario()
 
-    dataset_ = dataset_skip(dataset, skip)
-    loader = DataLoader(dataset_, collate_fn=my_collate)
+    dataset = dataset_skip(dataset, skip)
 
     model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
     model.training = False
 
-    for i, inputs in enumerate(tqdm(loader)):
-        gt_vel, gt_pos, pred_vel, pred_pos = model(inputs)
+    s = model.scenario
 
-        n_time_steps = inputs['time_idx'].shape[1]
-        b = 0
-        anim = RvizAnimationController(n_time_steps=n_time_steps)
+    dataset_anim = RvizAnimationController(n_time_steps=len(dataset), ns='trajs')
+
+    while not dataset_anim.done:
+        inputs = dataset[dataset_anim.t()]
+        outputs = remove_batch(model(torchify(add_batch(inputs))))
+
+        n_time_steps = inputs['time_idx'].shape[0]
+        time_anim = RvizAnimationController(n_time_steps=n_time_steps)
+
+        while not time_anim.done:
+            t = time_anim.t()
+            init_viz_env(s, inputs, t)
+            viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.05)
+            time_anim.step()
+
+        dataset_anim.step()

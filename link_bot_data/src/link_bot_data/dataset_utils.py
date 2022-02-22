@@ -14,6 +14,7 @@ from link_bot_pycommon import pycommon
 from link_bot_pycommon.grid_utils import pad_voxel_grid
 from moonshine.filepath_tools import load_params
 from moonshine.numpify import numpify
+from moveit_msgs.msg import PlanningScene
 
 NULL_PAD_VALUE = -10000
 
@@ -216,6 +217,8 @@ def pprint_example(example):
             print(k, v.shape)
         elif isinstance(v, OrderedDict):
             print(k, numpify(v))
+        elif isinstance(v, PlanningScene):
+            print(k, type(v))
         else:
             print(k, v)
 
@@ -232,7 +235,9 @@ def compute_batch_size_for_n_examples(total_examples: int, max_batch_size: int):
     return batch_size
 
 
-def merge_hparams_dicts(dataset_dirs, verbose: int = 0):
+def merge_hparams_dicts(dataset_dirs, verbose: int = 0) -> Dict:
+    if isinstance(dataset_dirs, pathlib.Path):
+        dataset_dirs = [dataset_dirs]
     out_hparams = {}
     for dataset_dir in dataset_dirs:
         hparams = load_params(dataset_dir)

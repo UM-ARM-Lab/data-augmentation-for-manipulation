@@ -19,8 +19,10 @@ class UDNN(pl.LightningModule):
         # FIXME: this dict is currently not getting generated for the newly collected datasets :(
         self.dataset_state_description: Dict = data_collection_params['state_description']
         self.dataset_action_description: Dict = data_collection_params['action_description']
-        self.state_description = {k: self.dataset_state_description[k] for k in self.hparams.state_keys}
-        self.total_state_dim = sum([self.dataset_state_description[k] for k in self.hparams.state_keys])
+        self.state_keys = self.hparams.state_keys
+        self.state_metadata_keys = self.hparams.state_metadata_keys
+        self.state_description = {k: self.dataset_state_description[k] for k in self.state_keys}
+        self.total_state_dim = sum([self.dataset_state_description[k] for k in self.state_keys])
         self.total_action_dim = sum([self.dataset_action_description[k] for k in self.hparams.action_keys])
 
         in_size = self.total_state_dim + self.total_action_dim
@@ -62,7 +64,22 @@ class UDNN(pl.LightningModule):
         return s_t_plus_1
 
     def compute_loss(self, inputs, outputs):
-        return loss_on_dicts(F.mse_loss, dict_true=inputs, dict_pred=outputs)
+        # NOTE: what about weights being time indexed?
+        loss_by_key = []
+        for k, y_pred in outputs.items():
+            y_true = inputs[k]
+            # mean over time and state dim but not batch, not yet.
+            loss = (y_true - y_pred).square().mean(dim=-1).mean(dim=-1)
+            loss_by_key.append(loss)
+        batch_loss = torch.stack(loss_by_key).mean(dim=0)
+
+        if 'weights' in inputs:
+            weights = inputs['weights']
+        else:
+            weights = torch.ones_like(batch_loss).to(self.device)
+        loss = batch_loss @ weights
+
+        return loss
 
     def training_step(self, train_batch, batch_idx):
         outputs = self.forward(train_batch)

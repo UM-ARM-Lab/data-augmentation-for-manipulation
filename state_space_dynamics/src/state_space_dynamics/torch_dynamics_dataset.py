@@ -5,10 +5,15 @@ from typing import Dict
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from link_bot_data.new_dataset_utils import get_filenames, load_single
+from link_bot_data.dataset_utils import pprint_example
+from link_bot_data.new_dataset_utils import get_filenames, load_single, DynamicsDatasetParams
+from link_bot_data.visualization import dynamics_viz_t, init_viz_env
 from link_bot_pycommon.get_scenario import get_scenario
-from moonshine.filepath_tools import load_params
+from merrrt_visualization.rviz_animation_controller import RvizAnimation
+from moonshine.indexing import index_time_batched, index_time
 from moonshine.moonshine_utils import get_num_workers
+from moonshine.numpify import numpify
+from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.torch_datasets_utils import take_subset, my_collate
 
 logger = logging.getLogger(__file__)
@@ -63,27 +68,17 @@ class TorchLoaderWrapped:
                                num_workers=get_num_workers(batch_size=1)))
 
 
-class TorchDynamicsDataset(Dataset):
+class TorchDynamicsDataset(Dataset, DynamicsDatasetParams):
 
     def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, add_stats=False):
+        DynamicsDatasetParams.__init__(self, dataset_dir)
         self.dataset_dir = dataset_dir
         self.mode = mode
         self.metadata_filenames = get_filenames([dataset_dir], mode)
         self.add_stats = add_stats
 
-        self.params = load_params(dataset_dir)
-
         self.transform = transform
         self.scenario = None
-
-        self.data_collection_params = self.params['data_collection_params']
-        self.state_description = self.data_collection_params['state_description']
-        self.action_description = self.data_collection_params['action_description']
-        self.env_description = self.data_collection_params['env_description']
-        self.state_keys = list(self.state_description.keys())
-        self.state_keys.append('time_idx')
-        self.env_keys = list(self.env_description.keys())
-        self.action_keys = list(self.action_description.keys())
 
     def __len__(self):
         return len(self.metadata_filenames)
@@ -102,7 +97,7 @@ class TorchDynamicsDataset(Dataset):
 
     def get_scenario(self):
         if self.scenario is None:
-            self.scenario = get_scenario(self.params['scenario'])
+            self.scenario = get_scenario(self.params['scenario'], self.scenario_params)
 
         return self.scenario
 
@@ -110,6 +105,35 @@ class TorchDynamicsDataset(Dataset):
         if mode != self.mode:
             raise RuntimeError("the mode must be set when constructing the Dataset, not when calling get_datasets")
         return TorchLoaderWrapped(dataset=self)
+
+    def index_time_batched(self, example_batched, t: int):
+        e_t = numpify(remove_batch(index_time_batched(example_batched, self.time_indexed_keys, t, False)))
+        return e_t
+
+    def index_time(self, example, t: int):
+        e_t = numpify(index_time(example, self.time_indexed_keys, t, False))
+        return e_t
+
+    def pprint_example(self):
+        pprint_example(self[0])
+
+    def dynamics_viz_t(self):
+        return dynamics_viz_t(metadata={},
+                              state_metadata_keys=self.state_metadata_keys,
+                              state_keys=self.state_keys,
+                              action_keys=self.action_keys)
+
+    def anim_rviz(self, example: Dict):
+        anim = RvizAnimation(self.get_scenario(),
+                             n_time_steps=example['time_idx'].size,
+                             init_funcs=[
+                                 init_viz_env
+                             ],
+                             t_funcs=[
+                                 init_viz_env,
+                                 self.dynamics_viz_t()
+                             ])
+        anim.play(example)
 
 
 def get_batch_size(batch):

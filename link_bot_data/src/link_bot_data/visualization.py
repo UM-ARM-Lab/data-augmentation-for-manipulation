@@ -10,9 +10,11 @@ from link_bot_pycommon.grid_utils import vox_to_voxelgrid_stamped
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import vector_to_points_2d
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.indexing import index_time_with_metadata, index_state_action_with_metadata, try_index_time_with_metadata
-from moonshine.tensorflow_utils import to_list_of_strings
+from moonshine.indexing import index_time_with_metadata, index_state_action_with_metadata, try_index_time_with_metadata, \
+    index_time_batched, index_time
 from moonshine.numpify import numpify
+from moonshine.tensorflow_utils import to_list_of_strings
+from moonshine.torch_and_tf_utils import remove_batch
 from moveit_msgs.msg import RobotTrajectory
 from rospy import Publisher
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
@@ -89,10 +91,13 @@ def plot_extents(ax, extent, linewidth=6, **kwargs):
 
 def dynamics_viz_t(metadata: Dict, state_metadata_keys, state_keys, action_keys, label='actual'):
     def _dynamics_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int, **kwargs):
+        weight = example.get('weight', 1)
+        scenario.plot_weight_rviz(weight)
+
         label_extra = kwargs.pop("label", "")
         s_t = index_time_with_metadata(metadata, example, state_metadata_keys + state_keys, t=t)
         try_adding_aco(state=s_t, example=example)
-        scenario.plot_state_rviz(s_t, label=label+label_extra, color='#ff0000ff')
+        scenario.plot_state_rviz(s_t, label=label + label_extra, color='#ff0000ff')
 
         s_for_a_t, a_t = index_state_action_with_metadata(example,
                                                           state_keys=state_keys,
@@ -264,3 +269,29 @@ def make_robot_trajectory(robot_state: Dict):
         point.time_from_start.secs = i  # not really "time" but that's fine, it's just for visualization
         msg.joint_trajectory.points.append(point)
     return msg
+
+
+def viz_pred_actual_t_batched(loader, model, example, outputs, s, t, threshold):
+    actual_t = loader.index_time_batched(example, t)
+    s.plot_state_rviz(actual_t, label='viz_actual', color='red')
+    s.plot_action_rviz(actual_t, actual_t, color='gray', label='viz')
+    model_state_keys = model.state_keys + model.state_metadata_keys
+    prediction_t = numpify(remove_batch(index_time_batched(outputs, model_state_keys, t, False)))
+    s.plot_state_rviz(prediction_t, label='viz_predicted', color='blue')
+    error_t = s.classifier_distance(actual_t, prediction_t)
+    s.plot_error_rviz(error_t)
+    label_t = error_t < threshold
+    s.plot_is_close(label_t)
+
+
+def viz_pred_actual_t(loader, model, example, outputs, s, t, threshold):
+    actual_t = loader.index_time(example, t)
+    s.plot_state_rviz(actual_t, label='viz_actual', color='red')
+    s.plot_action_rviz(actual_t, actual_t, color='gray', label='viz')
+    model_state_keys = model.state_keys + model.state_metadata_keys
+    prediction_t = numpify(index_time(outputs, model_state_keys, t, False))
+    s.plot_state_rviz(prediction_t, label='viz_predicted', color='blue')
+    error_t = s.classifier_distance(actual_t, prediction_t)
+    s.plot_error_rviz(error_t)
+    label_t = error_t < threshold
+    s.plot_is_close(label_t)

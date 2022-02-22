@@ -11,13 +11,12 @@ import rospy
 import state_space_dynamics
 from link_bot_data.tf_dataset_utils import batch_tf_dataset, deserialize_scene_msg
 from link_bot_data.load_dataset import get_dynamics_dataset_loader
+from link_bot_data.visualization import viz_pred_actual_t_batched
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine import filepath_tools, common_train_hparams
-from moonshine.indexing import index_time_batched
 from moonshine.metrics import LossMetric
 from moonshine.model_runner import ModelRunner
 from moonshine.torch_and_tf_utils import remove_batch
-from moonshine.numpify import numpify
 from state_space_dynamics import dynamics_utils
 
 
@@ -239,18 +238,8 @@ def viz_example(example, outputs, loader, model):
     anim = RvizAnimationController(np.arange(loader.steps_per_traj))
     while not anim.done:
         t = anim.t()
-        actual_t = loader.index_time_batched(example, t)
-        s.plot_state_rviz(actual_t, label='viz_actual', color='red')
-        s.plot_action_rviz(actual_t, actual_t, color='gray', label='viz')
-
-        model_state_keys = model.state_keys + model.state_metadata_keys
-        prediction_t = numpify(remove_batch(index_time_batched(outputs, model_state_keys, t, False)))
-        s.plot_state_rviz(prediction_t, label='viz_predicted', color='blue')
-
-        error_t = s.classifier_distance(actual_t, prediction_t)
-
-        s.plot_error_rviz(error_t)
-        label_t = error_t < threshold
-        s.plot_is_close(label_t)
+        viz_pred_actual_t_batched(loader, model, example, outputs, s, t, threshold)
 
         anim.step()
+
+

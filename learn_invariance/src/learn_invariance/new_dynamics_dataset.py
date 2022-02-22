@@ -1,7 +1,7 @@
 from typing import Dict
 
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
-from link_bot_data.new_dataset_utils import UNUSED_COMPAT
+from link_bot_data.new_dataset_utils import UNUSED_COMPAT, DynamicsDatasetParams
 from link_bot_data.visualization import init_viz_env, dynamics_viz_t
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_time_batched
@@ -9,20 +9,11 @@ from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.numpify import numpify
 
 
-class NewDynamicsDatasetLoader(NewBaseDatasetLoader):
+class NewDynamicsDatasetLoader(NewBaseDatasetLoader, DynamicsDatasetParams):
 
     def __init__(self, dataset_dirs):
-        super().__init__(dataset_dirs)
-
-        self.data_collection_params = self.hparams['data_collection_params']
-        self.steps_per_traj = self.data_collection_params['steps_per_traj']
-        self.state_keys = self.data_collection_params['state_keys']
-        self.points_state_keys = self.data_collection_params.get('points_state_keys', [])
-        self.state_metadata_keys = self.data_collection_params['state_metadata_keys']
-        self.state_keys.append('time_idx')
-        self.env_keys = self.data_collection_params['env_keys']
-        self.action_keys = self.data_collection_params['action_keys']
-        self.time_indexed_keys = self.state_keys + self.state_metadata_keys + self.action_keys
+        NewBaseDatasetLoader.__init__(self, dataset_dirs)
+        DynamicsDatasetParams.__init__(self, dataset_dirs)
 
     def get_datasets(self,
                      mode: str,
@@ -53,4 +44,3 @@ class NewDynamicsDatasetLoader(NewBaseDatasetLoader):
     def index_time_batched(self, example_batched, t: int):
         e_t = numpify(remove_batch(index_time_batched(example_batched, self.time_indexed_keys, t, False)))
         return e_t
-

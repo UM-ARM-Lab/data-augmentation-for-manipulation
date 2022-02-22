@@ -113,16 +113,11 @@ class PointsCollisionChecker(BaseConstraintChecker):
                                                 batch_size,
                                                 state_sequence_length)
 
-    def label_in_collision(self,
-                           example: Dict,
-                           batch_size: Optional[int] = 1,
-                           state_sequence_length: Optional[int] = 1,
-                           ):
+    def label_in_collision(self, example: Dict, batch_size: Optional[int] = 1):
         # NOTE: input will be batched and have time dimension
         # TODO: where should this come from?
         env_keys = ['env', 'res', 'origin', 'extent']
         state_keys = ['rope', 'left_gripper', 'right_gripper']
-        action_keys = ['left_gripper_position', 'right_gripper_position']
         environment = {k: example[k] for k in env_keys}
         states = {k: example[k] for k in state_keys}
 

@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import torch
 
@@ -12,6 +13,11 @@ def torchify(d):
             return d.numpy()  # torch doesn't suppor strings in Tensors, so just convert return as a numpy array
         else:
             return torch.from_numpy(d.numpy())
+    elif isinstance(d, np.ndarray):
+        if d.dtype.char in ['U', 'O']:
+            return d
+        else:
+            return torch.from_numpy(d)
     else:
         return d
     raise NotImplementedError()

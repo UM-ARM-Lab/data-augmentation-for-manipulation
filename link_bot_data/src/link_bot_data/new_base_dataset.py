@@ -3,7 +3,6 @@ from multiprocessing import get_context
 from typing import List, Dict, Optional, Callable
 
 import numpy as np
-import tensorflow as tf
 from tqdm import tqdm
 
 from link_bot_data.dataset_utils import batch_sequence, merge_hparams_dicts, pprint_example, add_predicted
@@ -153,7 +152,7 @@ class NewBaseDataset:
         return self
 
     def prefetch(self, n_prefetch: int):
-        if n_prefetch == tf.data.experimental.AUTOTUNE:
+        if n_prefetch == -1:
             n_prefetch = 2
         self.n_prefetch = n_prefetch
         return self
@@ -212,7 +211,8 @@ class NewBaseDatasetLoader:
 
     def get_scenario(self):
         if self.scenario is None:
-            self.scenario = get_scenario(self.hparams['scenario'], params=self.hparams.get('scenario_params', {}))
+            scenario_params = self.hparams['data_collection_params'].get('scenario_params', {})
+            self.scenario = get_scenario(self.hparams['scenario'], params=scenario_params)
 
         return self.scenario
 
