@@ -859,8 +859,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         scale = kwargs.pop("scale", 2.0)
 
         msg = MarkerArray()
-        msg.markers.append(rviz_arrow(s1, a1, idx=idx1, label=label, **kwargs, scale=scale))
-        msg.markers.append(rviz_arrow(s2, a2, idx=idx2, label=label, **kwargs, scale=scale))
+        msg.markers.append(rviz_arrow(s1, a1, idx=idx1, label=label, **kwargs, scale=scale, frame_id='robot_root'))
+        msg.markers.append(rviz_arrow(s2, a2, idx=idx2, label=label, **kwargs, scale=scale, frame_id='robot_root'))
 
         self.action_viz_pub.publish(msg)
 

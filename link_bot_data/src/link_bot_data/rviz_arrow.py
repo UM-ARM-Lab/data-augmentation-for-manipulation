@@ -25,6 +25,7 @@ def update_arrow(lines, xs, ys, us, vs):
 def rviz_arrow(position,
                target_position,
                label: str = 'arrow',
+               frame_id: str = 'world',
                **kwargs):
     """ uses start/end points method """
     idx = kwargs.get("idx", 0)
@@ -33,7 +34,7 @@ def rviz_arrow(position,
     arrow = Marker()
     arrow.action = Marker.ADD  # create or modify
     arrow.type = Marker.ARROW
-    arrow.header.frame_id = "world"
+    arrow.header.frame_id = frame_id
     arrow.header.stamp = rospy.Time.now()
     arrow.ns = label
     arrow.id = idx

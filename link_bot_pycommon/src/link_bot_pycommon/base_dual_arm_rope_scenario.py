@@ -217,9 +217,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         left_gripper_to_rope = np.linalg.norm(state['left_gripper'] - state['rope'][0:3])
         right_gripper_to_rope = np.linalg.norm(state['right_gripper'] - state['rope'][-3:])
-        if (right_gripper_to_rope > 0.021) or (left_gripper_to_rope > 0.021):
-            rospy.logerr(f"state is inconsistent! {left_gripper_to_rope} {right_gripper_to_rope}")
-            self.plot_state_rviz(state, label='debugging1')
 
         return state
 

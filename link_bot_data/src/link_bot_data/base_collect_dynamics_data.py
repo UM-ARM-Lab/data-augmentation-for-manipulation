@@ -44,10 +44,14 @@ def collect_trajectory(params,
     if verbose > 0:
         scenario.plot_environment_rviz(environment)
 
-    actions = {k: [] for k in params['action_keys']}
+    action_keys = list(params['action_description'].keys())
+    state_metadata_keys = list(params['state_metadata_description'].keys())
+    state_keys = list(params['state_description'].keys())
+
+    actions = {k: [] for k in action_keys}
     # NOTE: state metadata is information that is constant, possibly non-numeric, and convenient to have with state
     #  in most cases it could be considered part of the environment, but sometimes having it with state is better
-    states = {k: [] for k in params['state_keys'] + params['state_metadata_keys']}
+    states = {k: [] for k in state_keys + state_metadata_keys}
     time_indices = []
 
     scenario.clear_action_sampling_state()
@@ -104,10 +108,10 @@ def collect_trajectory(params,
 
         # add to the dataset
         if time_idx < params['steps_per_traj'] - 1:  # skip the last action
-            for action_name in params['action_keys']:
+            for action_name in action_keys:
                 action_component = action[action_name]
                 actions[action_name].append(action_component)
-        for state_component_name in params['state_keys'] + params['state_metadata_keys']:
+        for state_component_name in state_keys + state_metadata_keys:
             state_component = state[state_component_name]
             states[state_component_name].append(state_component)
         time_indices.append(time_idx)
