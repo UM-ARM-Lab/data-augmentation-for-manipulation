@@ -52,7 +52,7 @@ def main():
         example_idx = dataset_anim.t()
         example = dataset[example_idx]
         weight = example.get('weight', 1)
-        if args.weight_above <= weight <= args.weight_below:
+        if (args.weight_above <= weight).all() and (weight <= args.weight_below).all():
             if 'traj_idx' in example:
                 traj_idx = example['traj_idx']
                 s.plot_traj_idx_rviz(traj_idx)

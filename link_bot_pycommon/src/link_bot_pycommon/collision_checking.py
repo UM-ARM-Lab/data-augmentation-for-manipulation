@@ -34,7 +34,7 @@ def batch_in_collision_tf_3d(environment: Dict,
         inflated_env = inflate_tf_3d(env=env, res=res, radius_m=inflate_radius_m)
     else:
         inflated_env = env
-    in_collision = tf.reduce_any(tf.gather_nd(inflated_env, indices) > occupied_threshold)
+    in_collision = tf.reduce_any(tf.gather_nd(inflated_env, indices) > occupied_threshold, axis=-1)
     return in_collision, inflated_env
 
 

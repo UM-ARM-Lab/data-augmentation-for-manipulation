@@ -41,7 +41,7 @@ def main():
             outputs = model(inputs)
             loss = model.compute_loss(inputs, outputs).detach().cpu().numpy().squeeze()
             losses.append(loss)
-            weights.append(float(inputs['weight'].numpy()))
+            weights.append(inputs['weight'])
 
         data[ckpt] = (np.array(weights), np.array(losses))
 

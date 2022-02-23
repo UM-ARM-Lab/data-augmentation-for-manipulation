@@ -92,7 +92,7 @@ def plot_extents(ax, extent, linewidth=6, **kwargs):
 def dynamics_viz_t(metadata: Dict, state_metadata_keys, state_keys, action_keys, label='actual'):
     def _dynamics_transition_viz_t(scenario: ScenarioWithVisualization, example: Dict, t: int, **kwargs):
         weight = example.get('weight', 1)
-        scenario.plot_weight_rviz(weight)
+        scenario.plot_weight_rviz(weight[t])
 
         label_extra = kwargs.pop("label", "")
         s_t = index_time_with_metadata(metadata, example, state_metadata_keys + state_keys, t=t)

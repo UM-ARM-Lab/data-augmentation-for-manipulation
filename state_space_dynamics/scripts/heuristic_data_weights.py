@@ -1,15 +1,19 @@
 #!/usr/bin/env python
-import tensorflow as tf
 import argparse
 import pathlib
 from typing import Dict
 
+import numpy as np
+import tensorflow as tf
+
 from arc_utilities import ros_init
-from link_bot_classifiers.points_collision_checker import get_points_for_cc
 from link_bot_data.modify_dataset import modify_dataset2
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
 from link_bot_data.split_dataset import split_dataset_via_files
 from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
+from moonshine.gpu_config import limit_gpu_mem
+
+limit_gpu_mem(None)
 
 
 @ros_init.with_ros("heuristic_data_weights")
@@ -24,14 +28,16 @@ def main():
     scenario = dataset.get_scenario()
 
     def _process_example(dataset, example: Dict):
-        points = get_points_for_cc(collision_check_object=True, scenario=scenario, state=example)
-        inflation = float(tf.squeeze(example['res']) * 2)
-        in_collision, _ = batch_in_collision_tf_3d(environment=example, points=points, inflate_radius_m=inflation)
-        in_collision = bool(in_collision)
-        # scenario.reset_viz()
+        points = scenario.state_to_points_for_cc(example)
+        inflation = float(tf.squeeze(example['res']))
+        in_collision, inflated_env = batch_in_collision_tf_3d(environment=example, points=points,
+                                                              inflate_radius_m=inflation)
+        weight = 1 - in_collision.numpy().astype(np.float32)
+        # scenario.plot_environment_rviz({'env': inflated_env, 'res': example['res'], 'origin_point': example['origin_point']})
         # scenario.plot_environment_rviz(example)
-        # scenario.plot_points_rviz(points, label='cc')
-        weight = 0 if in_collision else 1
+        # scenario.plot_points_rviz(tf.reshape(points, [-1, 3]).numpy(), label='cc', scale=0.005)
+        weight_padded = np.concatenate((weight, [0]))
+        weight = np.logical_and(weight_padded[:-1], weight_padded[1:]).astype(np.float32)
         example['metadata']['weight'] = weight
         yield example
 

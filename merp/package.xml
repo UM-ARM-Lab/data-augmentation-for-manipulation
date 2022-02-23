@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>merp</name>
+  <version>0.0.0</version>
+  <description>The merp package</description>
+
+  <maintainer email="peter@todo.todo">peter</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>rospy</depend>
+  <depend>moonshine</depend>
+  <depend>link_bot_pycommon</depend>
+
+</package>

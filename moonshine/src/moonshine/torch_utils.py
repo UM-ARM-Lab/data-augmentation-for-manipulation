@@ -27,3 +27,4 @@ def loss_on_dicts(loss_func, dict_true, dict_pred):
         loss = loss_func(y_true, y_pred)
         loss_by_key.append(loss)
     return torch.mean(torch.stack(loss_by_key))
+

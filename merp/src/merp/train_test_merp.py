@@ -12,18 +12,19 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from wandb.util import generate_id
 
+from link_bot_data.new_dataset_utils import get_scenario_from_dataset_dir
 from link_bot_data.visualization import init_viz_env, viz_pred_actual_t
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
-from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
+from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, add_model_error
 from moonshine.torchify import torchify
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
-from state_space_dynamics.udnn_torch import UDNN
+from merp.merp_torch import MERP
 
-PROJECT = 'udnn'
+PROJECT = 'merp'
 
 
 def prepare_train(batch_size, dataset_dir, take, skip, transform):
@@ -66,7 +67,8 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                    **kwargs):
     pl.seed_everything(seed, workers=True)
 
-    transform = transforms.Compose([remove_keys("scene_msg")])
+    scenario = get_scenario_from_dataset_dir(dataset_dir)
+    transform = transforms.Compose([remove_keys("scene_msg"), add_model_error(scenario)])
 
     train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform)
     val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
@@ -79,7 +81,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
         'resume': True,
     }
 
-    model = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user)
+    model = load_model_artifact(checkpoint, MERP, project=project, version='latest', user=user)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     trainer = pl.Trainer(gpus=1,
@@ -121,7 +123,11 @@ def train_main(dataset_dir: pathlib.Path,
                **kwargs):
     pl.seed_everything(seed, workers=True)
 
-    transform = transforms.Compose([remove_keys("scene_msg")])
+    # use the dataset dir to load params to look up scenario name
+    scenario = get_scenario(scenario)
+
+    transform = transforms.Compose([remove_keys("scene_msg"), add_model_error(scenario)])
+
 
     train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform)
     val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
@@ -161,7 +167,7 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = UDNN(hparams=model_params)
+    model = MERP(hparams=model_params, scenario=scenario)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     trainer = pl.Trainer(gpus=1,
@@ -197,7 +203,7 @@ def eval_main(dataset_dir: pathlib.Path,
               skip: Optional[int] = None,
               project=PROJECT,
               **kwargs):
-    model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, MERP, project, version='best', user=user)
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
@@ -260,7 +266,7 @@ def eval_versions_main(dataset_dir: pathlib.Path,
 
 
 def eval_version(trainer, loader, checkpoint, project, user, version):
-    model = load_model_artifact(checkpoint, UDNN, project, f"v{version}", user=user)
+    model = load_model_artifact(checkpoint, MERP, project, f"v{version}", user=user)
     metrics = trainer.validate(model, loader, verbose=False)
     metrics0 = metrics[0]
     return metrics0
@@ -279,7 +285,7 @@ def viz_main(dataset_dir: pathlib.Path,
 
     dataset = dataset_skip(dataset, skip)
 
-    model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, MERP, project, version='best', user=user)
     model.training = False
 
     s = model.scenario
@@ -293,7 +299,7 @@ def viz_main(dataset_dir: pathlib.Path,
         weight = inputs.get('weight', 1)
         if weight_above <= weight <= weight_below:
 
-            outputs = remove_batch(model(torchify(add_batch(inputs))))
+            predicted_error = remove_batch(model(torchify(add_batch(inputs))))
 
             n_time_steps = inputs['time_idx'].shape[0]
             time_anim = RvizAnimationController(n_time_steps=n_time_steps)

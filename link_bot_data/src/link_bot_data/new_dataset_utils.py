@@ -1,10 +1,11 @@
 import pathlib
 import pickle
-from typing import List, Union, Dict
+from typing import List, Union
 
 from link_bot_data.dataset_utils import merge_hparams_dicts
+from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.serialization import load_gzipped_pickle
-from moonshine.filepath_tools import load_hjson, load_params
+from moonshine.filepath_tools import load_hjson
 
 UNUSED_COMPAT = None
 
@@ -74,3 +75,11 @@ class DynamicsDatasetParams:
         self.env_keys = list(self.env_description.keys())
         self.action_keys = list(self.action_description.keys())
         self.time_indexed_keys = self.state_keys + self.state_metadata_keys + self.action_keys
+
+
+def get_scenario_from_dataset_dir(dataset_dirs):
+    params = merge_hparams_dicts(dataset_dirs)
+    data_collection_params = params['data_collection_params']
+    scenario_name = data_collection_params['scenario']
+    scenario_params = data_collection_params['scenario_params']
+    return get_scenario(scenario_name, scenario_params)

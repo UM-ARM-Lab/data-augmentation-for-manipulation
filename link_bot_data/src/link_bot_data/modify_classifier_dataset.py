@@ -1,6 +1,5 @@
 from collections import Callable
 
-from arc_utilities import ros_init
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.load_dataset import guess_dataset_format
 from link_bot_data.modify_dataset import modify_dataset, modify_dataset2

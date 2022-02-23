@@ -7,6 +7,7 @@ from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.moonshine_utils import dict_of_sequences_to_sequence_of_dicts
+from moonshine.torch_and_tf_utils import add_batch, remove_batch
 
 DEFAULT_INFLATION_RADIUS = 0.00
 
@@ -42,7 +43,7 @@ def check_collision(scenario: ScenarioWithVisualization,
 
 def get_points_for_cc(collision_check_object, scenario, state):
     if collision_check_object:
-        points = scenario.state_to_points_for_cc(state)
+        points = remove_batch(scenario.state_to_points_for_cc(add_batch(state)))
     else:
         points = scenario.state_to_gripper_position(state)
     return points

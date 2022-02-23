@@ -204,7 +204,6 @@ def make_dict_float32(d):
         out_d[k] = s_k.astype(np.float32)
     return out_d
 
-
 def longest_reconverging_subsequence(x):
     max_start_idx = 0
     max_end_idx = 0

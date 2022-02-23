@@ -69,3 +69,12 @@ def my_collate(batch):
         return [my_collate(samples) for samples in transposed]
 
     raise TypeError(default_collate_err_msg_format.format(elem_type))
+
+
+def add_model_error(scenario):
+    def _add_model_error(example):
+        error = scenario.classifier_distance(actual, predictions)
+        example['error'] = error
+        return example
+
+    return _add_model_error

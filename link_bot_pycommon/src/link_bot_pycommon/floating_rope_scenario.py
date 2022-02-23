@@ -468,8 +468,10 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
     @staticmethod
     def state_to_points_for_cc(state: Dict):
-        points = state[rope_key_name].reshape(-1, 3)
-        points_dense = remove_batch(densify_points(1, add_batch(points)))
+        vec = state[rope_key_name]
+        batch_shape = vec.shape[:-1]
+        points = vec.reshape(batch_shape + (-1, 3))
+        points_dense = densify_points(points.shape[0], points)
         return points_dense
 
     def __repr__(self):

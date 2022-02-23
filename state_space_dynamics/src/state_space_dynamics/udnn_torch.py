@@ -2,10 +2,18 @@ from typing import Dict
 
 import pytorch_lightning as pl
 import torch
-import torch.nn.functional as F
 
 from link_bot_pycommon.get_scenario import get_scenario
-from moonshine.torch_utils import vector_to_dict, sequence_of_dicts_to_dict_of_tensors, loss_on_dicts
+from moonshine.torch_utils import vector_to_dict, sequence_of_dicts_to_dict_of_tensors
+
+
+def mask_after_first_0(x):
+    # TODO: vectorize?
+    x_out = torch.concat([x, torch.zeros([x.shape[0], 1]).to(x.device)], dim=-1)
+    for b in range(x.shape[0]):
+        i = x_out[b].argmin()
+        x_out[b, i:] = 0
+    return x_out[:, :-1]
 
 
 class UDNN(pl.LightningModule):
@@ -64,21 +72,21 @@ class UDNN(pl.LightningModule):
         return s_t_plus_1
 
     def compute_loss(self, inputs, outputs):
-        # NOTE: what about weights being time indexed?
         loss_by_key = []
         for k, y_pred in outputs.items():
             y_true = inputs[k]
             # mean over time and state dim but not batch, not yet.
-            loss = (y_true - y_pred).square().mean(dim=-1).mean(dim=-1)
+            loss = (y_true - y_pred).square().mean(dim=-1)
             loss_by_key.append(loss)
-        batch_loss = torch.stack(loss_by_key).mean(dim=0)
+        batch_time_loss = torch.stack(loss_by_key).mean(dim=0)
 
-        if 'weights' in inputs:
-            weights = inputs['weights']
+        if 'weight' in inputs:
+            weights = inputs['weight']
         else:
-            weights = torch.ones_like(batch_loss).to(self.device)
-        loss = batch_loss @ weights
+            weights = torch.ones_like(batch_time_loss).to(self.device)
 
+        weights = mask_after_first_0(weights)
+        loss = (batch_time_loss * weights).sum()
         return loss
 
     def training_step(self, train_batch, batch_idx):
