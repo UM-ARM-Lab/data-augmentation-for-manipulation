@@ -72,6 +72,12 @@ class UDNN(pl.LightningModule):
         return s_t_plus_1
 
     def compute_loss(self, inputs, outputs):
+        batch_time_loss = self.compute_batch_time_loss(inputs, outputs)
+        weights = self.get_weights(batch_time_loss, inputs)
+        loss = (batch_time_loss * weights).sum()
+        return loss
+
+    def compute_batch_time_loss(self, inputs, outputs):
         loss_by_key = []
         for k, y_pred in outputs.items():
             y_true = inputs[k]
@@ -79,15 +85,15 @@ class UDNN(pl.LightningModule):
             loss = (y_true - y_pred).square().mean(dim=-1)
             loss_by_key.append(loss)
         batch_time_loss = torch.stack(loss_by_key).mean(dim=0)
+        return batch_time_loss
 
+    def get_weights(self, batch_time_loss, inputs):
         if 'weight' in inputs:
             weights = inputs['weight']
         else:
             weights = torch.ones_like(batch_time_loss).to(self.device)
-
         weights = mask_after_first_0(weights)
-        loss = (batch_time_loss * weights).sum()
-        return loss
+        return weights
 
     def training_step(self, train_batch, batch_idx):
         outputs = self.forward(train_batch)

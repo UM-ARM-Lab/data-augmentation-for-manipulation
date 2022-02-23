@@ -33,9 +33,9 @@ def lineplot(df,
     return fig, ax
 
 
-def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True):
+def generic_plot(plot_type, df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True):
     fig, ax = plt.subplots(figsize=(8, 8))
-    sns.violinplot(
+    getattr(sns, plot_type)(
         ax=ax,
         data=df,
         x=x,
@@ -48,6 +48,14 @@ def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None
     if save:
         plt.savefig(outdir / f'{y}.png')
     return fig, ax
+
+
+def boxplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True):
+    return generic_plot('boxplot', df, outdir, x, y, title, hue, save)
+
+
+def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True):
+    return generic_plot('violinplot', df, outdir, x, y, title, hue, save)
 
 
 def barplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, ci=100):

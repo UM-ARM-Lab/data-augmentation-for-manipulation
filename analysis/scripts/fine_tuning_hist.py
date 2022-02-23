@@ -4,11 +4,14 @@ import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import cm
+import pandas as pd
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
+from tqdm import tqdm
 
+from analysis.results_figures import boxplot
 from link_bot_pycommon.load_wandb_model import load_model_artifact
+from link_bot_pycommon.pandas_utils import df_where
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_datasets_utils import my_collate
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
@@ -31,45 +34,28 @@ def main():
     dataset = TorchDynamicsDataset(args.dataset_dir, args.mode, transform=transform)
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(args.batch_size))
 
-    data = {}
+    data = []
     for ckpt in args.checkpoints:
         model: UDNN = load_model_artifact(ckpt, UDNN, project='udnn', version='best', user='armlab')
 
-        losses = []
-        weights = []
-        for inputs in loader:
+        for inputs in tqdm(loader):
             outputs = model(inputs)
-            loss = model.compute_loss(inputs, outputs).detach().cpu().numpy().squeeze()
-            losses.append(loss)
-            weights.append(inputs['weight'])
+            loss = model.compute_batch_time_loss(inputs, outputs).detach().cpu().numpy().squeeze()
+            # loss is [time] shaped, so is weight, and we want to skip t=0 where loss is always 0
+            for loss_t, weight_t in list(zip(loss, inputs['weight'].numpy().squeeze()))[1:]:
+                data.append([ckpt, weight_t, loss_t])
 
-        data[ckpt] = (np.array(weights), np.array(losses))
+    df = pd.DataFrame(data, columns=['ckpt', 'weight', 'loss'])
 
-    data_sorted = {}
-    for ckpt, (weights, losses) in data.items():
-        sorting_criteria = 1000 * weights - losses
-        indices_sorted = np.argsort(sorting_criteria)
-        data_sorted[ckpt] = (weights[indices_sorted], losses[indices_sorted])
+    df_weight_1 = df_where(df, 'weight', 1.0)
+    df_weight_0 = df_where(df, 'weight', 0.0)
 
     plt.style.use('paper')
     plt.rcParams['figure.figsize'] = (15, 8)
-    color_map = cm.RdYlGn
 
-    plt.figure()
-    for ckpt, (weights, losses) in data_sorted.items():
-        plt.plot(losses, label=ckpt)
+    fig, ax = boxplot(df_weight_0, pathlib.Path("."), 'ckpt', 'loss', 'weight = 0', save=False)
+    fig, ax = boxplot(df_weight_1, pathlib.Path("."), 'ckpt', 'loss', 'weight = 1', save=False)
 
-    ymin, ymax = plt.ylim()
-    weights_img = np.expand_dims(weights, 0)
-    plt.imshow(weights_img, cmap=color_map, extent=[-0.5, len(dataset)-0.5, ymin, ymax], alpha=0.5)
-
-    plt.colorbar()
-    plt.title("Dynamics Prediction Accuracy")
-    plt.ylabel("loss")
-    plt.xlabel("test example")
-    plt.yscale('log')
-    plt.legend()
-    plt.savefig("dynamics_prediction_accuracy.png")
     plt.show()
 
 

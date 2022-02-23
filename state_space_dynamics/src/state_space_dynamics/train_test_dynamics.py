@@ -65,6 +65,8 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                    project=PROJECT,
                    **kwargs):
     pl.seed_everything(seed, workers=True)
+    if steps != -1:
+        steps = steps / batch_size
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
@@ -120,6 +122,8 @@ def train_main(dataset_dir: pathlib.Path,
                project=PROJECT,
                **kwargs):
     pl.seed_everything(seed, workers=True)
+    if steps != -1:
+        steps = steps / batch_size
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
@@ -168,7 +172,7 @@ def train_main(dataset_dir: pathlib.Path,
                          logger=wb_logger,
                          enable_model_summary=False,
                          max_epochs=epochs,
-                         max_steps=steps,
+                         max_steps=steps / batch_size,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=10,
                          callbacks=[ckpt_cb],
@@ -291,7 +295,7 @@ def viz_main(dataset_dir: pathlib.Path,
         inputs = dataset[dataset_anim.t()]
 
         weight = inputs.get('weight', 1)
-        if weight_above <= weight <= weight_below:
+        if (weight_above <= weight).all() and (weight <= weight_below).all():
 
             outputs = remove_batch(model(torchify(add_batch(inputs))))
 

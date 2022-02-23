@@ -36,7 +36,7 @@ def main():
         # scenario.plot_environment_rviz({'env': inflated_env, 'res': example['res'], 'origin_point': example['origin_point']})
         # scenario.plot_environment_rviz(example)
         # scenario.plot_points_rviz(tf.reshape(points, [-1, 3]).numpy(), label='cc', scale=0.005)
-        weight_padded = np.concatenate((weight, [0]))
+        weight_padded = np.concatenate((weight, [1]))
         weight = np.logical_and(weight_padded[:-1], weight_padded[1:]).astype(np.float32)
         example['metadata']['weight'] = weight
         yield example
