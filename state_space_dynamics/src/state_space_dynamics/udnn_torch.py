@@ -17,9 +17,9 @@ def mask_after_first_0(x):
 
 
 class UDNN(pl.LightningModule):
-    def __init__(self, hparams):
+    def __init__(self, **hparams):
         super().__init__()
-        self.save_hyperparameters(hparams)
+        self.save_hyperparameters()
 
         datset_params = hparams['dataset_hparams']
         data_collection_params = datset_params['data_collection_params']

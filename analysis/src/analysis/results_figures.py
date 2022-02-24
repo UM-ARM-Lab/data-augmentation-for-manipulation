@@ -33,8 +33,13 @@ def lineplot(df,
     return fig, ax
 
 
-def generic_plot(plot_type, df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True):
-    fig, ax = plt.subplots(figsize=(8, 8))
+DEFAULT_FIG_SIZE = (10, 8)
+
+
+def generic_plot(plot_type, df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True,
+                 figsize=DEFAULT_FIG_SIZE,
+                 **kwargs):
+    fig, ax = plt.subplots(figsize=figsize)
     getattr(sns, plot_type)(
         ax=ax,
         data=df,
@@ -43,6 +48,7 @@ def generic_plot(plot_type, df, outdir, x: str, y: str, title: str, hue: Optiona
         palette='colorblind',
         hue=hue,
         linewidth=4,
+        **kwargs,
     )
     ax.set_title(title)
     if save:
@@ -50,12 +56,15 @@ def generic_plot(plot_type, df, outdir, x: str, y: str, title: str, hue: Optiona
     return fig, ax
 
 
-def boxplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True):
-    return generic_plot('boxplot', df, outdir, x, y, title, hue, save)
+def boxplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True,
+            figsize=DEFAULT_FIG_SIZE,
+            outliers=False):
+    return generic_plot('boxplot', df, outdir, x, y, title, hue, save, figsize, showfliers=outliers)
 
 
-def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True):
-    return generic_plot('violinplot', df, outdir, x, y, title, hue, save)
+def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True,
+               figsize=DEFAULT_FIG_SIZE):
+    return generic_plot('violinplot', df, outdir, x, y, title, hue, save, figsize)
 
 
 def barplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, ci=100):

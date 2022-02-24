@@ -47,14 +47,35 @@ def main():
 
     df = pd.DataFrame(data, columns=['ckpt', 'weight', 'loss'])
 
+    method_name_map = {
+        'beuru': 'No Adaptation',
+        'czudf': 'without data weights',
+        '7mmju': 'with data weights',
+    }
+
+    method_name_values = []
+    for k in df['ckpt'].values:
+        if k not in method_name_map:
+            method_name_values.append(k)
+        else:
+            method_name_values.append(method_name_map[k])
+    df['method_name'] = method_name_values
+
     df_weight_1 = df_where(df, 'weight', 1.0)
     df_weight_0 = df_where(df, 'weight', 0.0)
 
     plt.style.use('paper')
-    plt.rcParams['figure.figsize'] = (15, 8)
+    figsize = (16, 8)
 
-    fig, ax = boxplot(df_weight_0, pathlib.Path("."), 'ckpt', 'loss', 'weight = 0', save=False)
-    fig, ax = boxplot(df_weight_1, pathlib.Path("."), 'ckpt', 'loss', 'weight = 1', save=False)
+    fig, ax = boxplot(df_weight_0, pathlib.Path("."), 'method_name', 'loss', 'weight = 0', save=False, figsize=figsize)
+    plt.savefig("weight0_loss.png")
+    ax.annotate('Outliers not shown', xy=(0, 0), bbox=dict(boxstyle='round', fc='w'), size=10, xytext=(0.9, 0.9),
+                textcoords="axes fraction")
+
+    fig, ax = boxplot(df_weight_1, pathlib.Path("."), 'method_name', 'loss', 'weight = 1', save=False, figsize=figsize)
+    plt.savefig("weight1_loss.png")
+    ax.annotate('Outliers not shown', xy=(0, 0), bbox=dict(boxstyle='round', fc='w'), size=10, xytext=(0.9, 0.9),
+                textcoords="axes fraction")
 
     plt.show()
 

@@ -66,7 +66,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                    **kwargs):
     pl.seed_everything(seed, workers=True)
     if steps != -1:
-        steps = steps / batch_size
+        steps = int(steps / batch_size)
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
@@ -81,7 +81,13 @@ def fine_tune_main(dataset_dir: pathlib.Path,
         'resume': True,
     }
 
-    model = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user)
+    hparams_update = {
+        'dataset_dir':     train_dataset.dataset_dir,
+        'dataset_hparams': train_dataset.params,
+        'scenario':        train_dataset.params['scenario'],
+    }
+    model = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user, **hparams_update)
+
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     trainer = pl.Trainer(gpus=1,
@@ -123,7 +129,7 @@ def train_main(dataset_dir: pathlib.Path,
                **kwargs):
     pl.seed_everything(seed, workers=True)
     if steps != -1:
-        steps = steps / batch_size
+        steps = int(steps / batch_size)
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
@@ -165,14 +171,14 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = UDNN(hparams=model_params)
+    model = UDNN(**model_params)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     trainer = pl.Trainer(gpus=1,
                          logger=wb_logger,
                          enable_model_summary=False,
                          max_epochs=epochs,
-                         max_steps=steps / batch_size,
+                         max_steps=steps,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=10,
                          callbacks=[ckpt_cb],
@@ -295,6 +301,7 @@ def viz_main(dataset_dir: pathlib.Path,
         inputs = dataset[dataset_anim.t()]
 
         weight = inputs.get('weight', 1)
+        # if True:
         if (weight_above <= weight).all() and (weight <= weight_below).all():
 
             outputs = remove_batch(model(torchify(add_batch(inputs))))
