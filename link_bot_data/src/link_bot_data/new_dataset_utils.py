@@ -54,6 +54,7 @@ def load_metadata(metadata_filename):
     else:
         raise NotImplementedError()
     metadata['filename'] = metadata_filename.stem
+    metadata['example_idx'] = int(metadata_filename.stem[8:])
     metadata['full_filename'] = metadata_filename.as_posix()
     return metadata
 

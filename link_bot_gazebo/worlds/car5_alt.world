@@ -1,0 +1,86 @@
+<?xml version="1.0" ?>
+<sdf version="1.4">
+    <world name="default">
+        <scene>
+            <grid>false</grid>
+            <origin_visual>true</origin_visual>
+            <sky>
+                <clouds>
+                    <speed>12</speed>
+                </clouds>
+            </sky>
+        </scene>
+
+        <physics name="ode" type="ode">
+            <max_step_size>0.01</max_step_size>
+            <real_time_factor>1</real_time_factor>
+            <real_time_update_rate>0</real_time_update_rate>
+            <ode>
+                <solver>
+                    <island_threads>2</island_threads>
+                    <type>quick</type>
+                    <iters>100</iters>
+                    <sor>1.0</sor> <!-- Important, see issue #2209 -->
+                    <use_dynamic_moi_rescaling>false</use_dynamic_moi_rescaling>
+                </solver>
+                <constraints>
+                    <erp>0.2</erp>
+                </constraints>
+            </ode>
+        </physics>
+
+        <plugin name="arm_gazebo_ros" filename="libarm_gazebo_ros_plugin.so"/>
+        <plugin name="gazebo_ros_tf_plugin" filename="libgazebo_ros_tf_plugin.so">
+        </plugin>
+        <plugin name="position_3d_plugin" filename="libposition_3d_plugin.so"/>
+        <plugin name="collision_map_plugin" filename="libcollision_map_plugin.so"/>
+
+        <include>
+            <uri>model://box_floor</uri>
+        </include>
+
+        <include>
+            <uri>model://sun</uri>
+        </include>
+
+        <include>
+            <uri>model://car_platform</uri>
+            <pose>1.16 0 0 0 0 0</pose>
+        </include>
+
+        <include>
+            <uri>model://car_front</uri>
+            <pose>0.63 0 0 0 0 1.5707</pose>
+        </include>
+
+        <include>
+            <uri>model://car_hood</uri>
+            <pose>1.3 0 0.61 -1 0 -1.5707</pose>
+        </include>
+
+        <include>
+            <uri>model://car_engine2</uri>
+            <pose>1 0.24 0.24 0 0 .2</pose>
+        </include>
+
+        <include>
+            <uri>model://car_tube_and_tank</uri>
+            <pose>0.9 -0.27 0.1 0 0 0</pose>
+        </include>
+
+        <include>
+            <uri>model://car_alternator</uri>
+            <pose>0.81 -0.06 0.272 0 0 0</pose>
+        </include>
+
+        <include>
+            <uri>model://car_pulley</uri>
+            <pose>0.87 -0.46 0.28 0 0 0</pose>
+        </include>
+
+        <include>
+            <uri>model://rope_3d_alt</uri>
+            <pose>-0.36 0.63 0.37 0 0 0</pose>
+        </include>
+    </world>
+</sdf>
