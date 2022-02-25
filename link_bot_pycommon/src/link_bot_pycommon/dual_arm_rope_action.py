@@ -28,7 +28,7 @@ def dual_arm_rope_execute_action(scenario, robot: MoveitEnabledRobot, environmen
     if check_overstretching:
         res: GetOverstretchingResponse = scenario.overstretching_srv(GetOverstretchingRequest())
 
-        if res.magnitude > 1.06:
+        if res.magnitude > 1.16:
             # just do nothing...
             rospy.logwarn("The rope is extremely overstretched -- refusing to execute action")
             return (end_trial := True)

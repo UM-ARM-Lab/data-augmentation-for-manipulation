@@ -9,7 +9,7 @@ FilterWidget::FilterWidget(QWidget *parent, std::string const &name) : QWidget(p
   ui.label->setText(QString::fromStdString(name));
 }
 
-int FilterWidget::GetFilterType() {
+int FilterWidget::GetFilterType() const {
   // order in the UI file is assumed to match the constants in the .msg file
   return ui.combobox->currentIndex();
 }
@@ -39,6 +39,7 @@ MerrrtWidget::MerrrtWidget(QWidget *parent)
 }
 
 void MerrrtWidget::OnWeight(const std_msgs::Float32::ConstPtr &msg) {
+  ui.weight->setStyleSheet(redGreenTextColor(msg->data));
   auto const text = QString::asprintf("%0.4f", msg->data);
   emit setWeightText(text);
 }
@@ -60,7 +61,7 @@ void MerrrtWidget::StdevCallback(const std_msgs::Float32::ConstPtr &msg) {
   ui.stdev->setText(text);
 }
 
-void MerrrtWidget::LabelCallback(const peter_msgs::LabelStatus::ConstPtr &msg) {
+void MerrrtWidget::LabelCallback(const peter_msgs::LabelStatus::ConstPtr &msg) const {
   if (msg->status == peter_msgs::LabelStatus::Accept) {
     ui.bool_indicator->setStyleSheet("background-color: rgb(0, 200, 0);");
   } else if (msg->status == peter_msgs::LabelStatus::Reject) {
@@ -71,41 +72,33 @@ void MerrrtWidget::LabelCallback(const peter_msgs::LabelStatus::ConstPtr &msg) {
 }
 
 void MerrrtWidget::OnRecoveryProbability(const std_msgs::Float32::ConstPtr &msg) {
-  auto const blue = 50;
-  auto red = 0;
-  auto green = 0;
-  if (msg->data >= 0 and msg->data <= 1) {
-    // *0.8 to cool the colors
-    auto const cool_factor = 0.7;
-    red = static_cast<int>(255 * (1 - msg->data) * cool_factor);
-    green = static_cast<int>(255 * msg->data * cool_factor);
-  } else {
-    red = 0;
-    green = 0;
-  }
-  ui.recovery_probability->setStyleSheet(QString("color: rgb(%1, %2, %3);").arg(red).arg(green).arg(blue));
+  ui.recovery_probability->setStyleSheet(redGreenTextColor(msg->data));
   auto const text = QString::asprintf("%0.4f", msg->data);
   emit setRecoveryProbText(text);
   ui.recovery_probability->setText(text);
 }
 
 void MerrrtWidget::OnAcceptProbability(const std_msgs::Float32::ConstPtr &msg) {
+  ui.accept_probability->setStyleSheet(redGreenTextColor(msg->data));
+  auto const text = QString::asprintf("%0.4f", msg->data);
+  emit setAcceptProbText(text);
+  ui.accept_probability->setText(text);
+}
+QString MerrrtWidget::redGreenTextColor(float const x) {
   auto const blue = 50;
-  auto red = 0;
-  auto green = 0;
-  if (msg->data >= 0 and msg->data <= 1) {
+  int red;
+  int green;
+  if (x >= 0 and x <= 1) {
     // *0.8 to cool the colors
     auto const cool_factor = 0.7;
-    red = static_cast<int>(255 * (1 - msg->data) * cool_factor);
-    green = static_cast<int>(255 * msg->data * cool_factor);
+    red = static_cast<int>(255 * (1 - x) * cool_factor);
+    green = static_cast<int>(255 * x * cool_factor);
   } else {
     red = 0;
     green = 0;
   }
-  ui.accept_probability->setStyleSheet(QString("color: rgb(%1, %2, %3);").arg(red).arg(green).arg(blue));
-  auto const text = QString::asprintf("%0.4f", msg->data);
-  emit setAcceptProbText(text);
-  ui.accept_probability->setText(text);
+
+  return QString("color: rgb(%1, %2, %3);").arg(red).arg(green).arg(blue);
 }
 
 bool MerrrtWidget::GetVizOptions(peter_msgs::GetVizOptions::Request &req, peter_msgs::GetVizOptions::Response &res) {

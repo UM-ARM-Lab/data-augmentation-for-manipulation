@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 import git
+import numpy as np
 import pytorch_lightning as pl
 import wandb
 from pytorch_lightning.loggers import WandbLogger
@@ -300,7 +301,7 @@ def viz_main(dataset_dir: pathlib.Path,
     while not dataset_anim.done:
         inputs = dataset[dataset_anim.t()]
 
-        weight = inputs.get('weight', 1)
+        weight = inputs.get('weight', np.ones_like(inputs['time_idx']))
         # if True:
         if (weight_above <= weight).all() and (weight <= weight_below).all():
 

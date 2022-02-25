@@ -63,8 +63,6 @@ class NewBaseDataset:
             yield example
 
     def iter_serial(self):
-        print("Using slow, serial iteration")
-
         for filenames in process_filenames(self.filenames, self._process_filenames):
             if isinstance(filenames, list):
                 examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]

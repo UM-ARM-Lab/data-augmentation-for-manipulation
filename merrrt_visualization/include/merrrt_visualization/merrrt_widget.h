@@ -18,12 +18,12 @@
 
 class FilterWidget : public QWidget {
   Q_OBJECT
-public:
+ public:
   FilterWidget(QWidget *parent, std::string const &name);
 
-  int GetFilterType();
+  [[nodiscard]] int GetFilterType() const;
 
-private:
+ private:
   Ui_FilterWidget ui;
 };
 
@@ -31,10 +31,10 @@ namespace merrrt_visualization {
 class MerrrtWidget : public rviz::Panel {
   Q_OBJECT
 
-public:
+ public:
   explicit MerrrtWidget(QWidget *parent = nullptr);
 
-  void LabelCallback(const peter_msgs::LabelStatus::ConstPtr &msg);
+  void LabelCallback(const peter_msgs::LabelStatus::ConstPtr &msg) const;
   void ErrorCallback(const std_msgs::Float32::ConstPtr &msg);
   void StdevCallback(const std_msgs::Float32::ConstPtr &msg);
   void OnAcceptProbability(const std_msgs::Float32::ConstPtr &msg);
@@ -45,10 +45,11 @@ public:
   void load(const rviz::Config &config) override;
   void save(rviz::Config config) const override;
 
-  bool GetVizOptions(peter_msgs::GetVizOptions::Request &req,
-                     peter_msgs::GetVizOptions::Response &res);
+  bool GetVizOptions(peter_msgs::GetVizOptions::Request &req, peter_msgs::GetVizOptions::Response &res);
 
-  signals:
+  static QString redGreenTextColor(float x);
+
+ signals:
 
   void setWeightText(const QString &text);
   void setTrajIdxText(const QString &text);
@@ -57,7 +58,7 @@ public:
   void setRecoveryProbText(const QString &text);
   void setAcceptProbText(const QString &text);
 
-private:
+ private:
   Ui_MerrrtWidget ui;
   ros::NodeHandle ros_node_;
   ros::Subscriber label_sub_;
@@ -70,7 +71,7 @@ private:
   ros::ServiceClient world_control_srv_;
   ros::ServiceServer viz_options_srv_;
 
-  std::map<std::string, FilterWidget*> filter_widgets;
+  std::map<std::string, FilterWidget *> filter_widgets;
 };
 
-} // namespace merrrt_visualization
+}  // namespace merrrt_visualization
