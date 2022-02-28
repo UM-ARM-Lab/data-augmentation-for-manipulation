@@ -32,22 +32,22 @@
   res: 0.02
   max_step_size: 0.01
   real_time_rate: 0.0
-  steps_per_traj: 2
+  steps_per_traj: 10
   randomize_n: null
   repeat_delta_gripper_motion_probability: 0.8
   max_distance_gripper_can_move: 0.10
   max_distance_between_grippers: 0.55
-  state_keys: [
-    rope
-    gt_rope
-    left_gripper
-    right_gripper
-    link_states
-  ]
-  state_metadata_keys: [
-  ]
-  action_keys: [
-      left_gripper_position
-      right_gripper_position
-  ]
+  state_description: {
+    left_gripper: 3
+    right_gripper: 3
+    rope: 75
+  }
+  state_metadata_description: {
+  }
+  action_description: {
+    left_gripper_position: 3
+    right_gripper_position: 3
+  }
+  env_description: {
+  }
 }

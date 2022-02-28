@@ -3,8 +3,16 @@ import collections
 import numpy as np
 import torch
 from torch._six import string_classes
-from torch.utils.data import Subset
+from torch.utils.data import Subset, ConcatDataset
 from torch.utils.data._utils.collate import np_str_obj_array_pattern, default_collate_err_msg_format
+
+
+def repeat_dataset(dataset, repeat: int):
+    if repeat is None:
+        return dataset
+
+    dataset_repeated = ConcatDataset([dataset for _ in range(repeat)])
+    return dataset_repeated
 
 
 def take_subset(dataset, take):

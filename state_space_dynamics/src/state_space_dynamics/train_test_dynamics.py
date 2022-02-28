@@ -19,7 +19,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
-from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
+from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, repeat_dataset
 from moonshine.torchify import torchify
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 from state_space_dynamics.udnn_torch import UDNN
@@ -27,12 +27,13 @@ from state_space_dynamics.udnn_torch import UDNN
 PROJECT = 'udnn'
 
 
-def prepare_train(batch_size, dataset_dir, take, skip, transform):
+def prepare_train(batch_size, dataset_dir, take, skip, transform, repeat):
     train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=transform)
     train_dataset_take = take_subset(train_dataset, take)
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
-    train_dataset_len = len(train_dataset_skip)
-    train_loader = DataLoader(train_dataset_skip,
+    train_dataset_repeat = repeat_dataset(train_dataset_skip, repeat)
+    train_dataset_len = len(train_dataset_repeat)
+    train_loader = DataLoader(train_dataset_repeat,
                               batch_size=batch_size,
                               shuffle=True,
                               collate_fn=my_collate,
@@ -62,6 +63,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                    nickname: Optional[str] = None,
                    take: Optional[int] = None,
                    skip: Optional[int] = None,
+                   repeat: Optional[int] = None,
                    no_validate: bool = False,
                    project=PROJECT,
                    **kwargs):
@@ -71,7 +73,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
-    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform)
+    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform, repeat)
     val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
 
     run_id = generate_id(length=5)
@@ -125,6 +127,7 @@ def train_main(dataset_dir: pathlib.Path,
                checkpoint: Optional = None,
                take: Optional[int] = None,
                skip: Optional[int] = None,
+               repeat: Optional[int] = None,
                no_validate: bool = False,
                project=PROJECT,
                **kwargs):
@@ -134,7 +137,7 @@ def train_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
-    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform)
+    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform, repeat)
     val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
 
     model_params = load_hjson(model_params)
