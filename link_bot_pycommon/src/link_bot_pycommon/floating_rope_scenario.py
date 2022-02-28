@@ -393,13 +393,12 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     def put_action_local_frame(state: Dict, action: Dict):
         target_left_gripper_position = action['left_gripper_position']
         target_right_gripper_position = action['right_gripper_position']
-        n_action = target_left_gripper_position.shape[1]
 
         current_left_gripper_point = state['left_gripper']
         current_right_gripper_point = state['right_gripper']
 
-        left_gripper_delta = target_left_gripper_position - current_left_gripper_point[:, :n_action]
-        right_gripper_delta = target_right_gripper_position - current_right_gripper_point[:, :n_action]
+        left_gripper_delta = target_left_gripper_position - current_left_gripper_point
+        right_gripper_delta = target_right_gripper_position - current_right_gripper_point
 
         return {
             'left_gripper_delta':  left_gripper_delta,

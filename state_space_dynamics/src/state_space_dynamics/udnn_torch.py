@@ -1,4 +1,5 @@
 from typing import Dict
+import numpy as np
 
 import pytorch_lightning as pl
 import torch
@@ -66,10 +67,27 @@ class UDNN(pl.LightningModule):
         s_t_local = self.scenario.put_state_local_frame_torch(s_t)
         states_and_actions = list(s_t_local.values()) + list(local_action_t.values())
         z_t = torch.concat(states_and_actions, -1)
+
+        # DEBUGGING
+        # self.plot_local_state_action_rviz(local_action_t, s_t_local)
+
         z_t = self.mlp(z_t)
         delta_s_t = vector_to_dict(self.state_description, z_t, self.device)
         s_t_plus_1 = self.scenario.integrate_dynamics(s_t, delta_s_t)
         return s_t_plus_1
+
+    def plot_local_state_action_rviz(self, local_action_t, s_t_local):
+        self.scenario.plot_arrow_rviz(np.array([0, 0, 0]),
+                                      local_action_t['left_gripper_delta'][0].cpu().detach().numpy(),
+                                      label='left_action')
+        self.scenario.plot_arrow_rviz(np.array([0, 0, 0]),
+                                      local_action_t['right_gripper_delta'][0].cpu().detach().numpy(),
+                                      label='right_action')
+        local_rope = np.concatenate((s_t_local['left_gripper'][0].cpu().detach().numpy(),
+                                     s_t_local['right_gripper'][0].cpu().detach().numpy(),
+                                     s_t_local['rope'][0].cpu().detach().numpy()))
+        local_rope_points = local_rope.reshape([27, 3])
+        self.scenario.plot_points_rviz(local_rope_points, label='local_rope_points')
 
     def compute_loss(self, inputs, outputs):
         batch_time_loss = self.compute_batch_time_loss(inputs, outputs)
