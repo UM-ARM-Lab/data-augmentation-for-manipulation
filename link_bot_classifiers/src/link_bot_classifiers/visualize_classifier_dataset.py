@@ -56,6 +56,9 @@ def visualize_dataset(args, dataset_loader):
         deserialize_scene_msg(example)
 
         is_close = example['is_close'].numpy().squeeze()
+        error = example['error'].squeeze()[1]
+        if error < 0.1:
+            continue
 
         # y_coordinates = example[add_predicted('rope')][0][1::3]
         # z_coordinates = example[add_predicted('rope')][0][2::3]

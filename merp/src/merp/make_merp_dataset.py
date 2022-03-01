@@ -56,9 +56,9 @@ def make_merp_dataset(dataset_dir: pathlib.Path,
                 results.append(result)
                 total_example_idx += 1
 
-                example_filename = index_to_filename('.pkl.gz', total_example_idx)
-                full_example_filename = outdir / example_filename
-                files.append(full_example_filename)
+                metadata_filename = index_to_filename('.pkl', total_example_idx)
+                full_metadata_filename = outdir / metadata_filename
+                files.append(full_metadata_filename)
 
             write_mode(outdir, files, mode)
 
