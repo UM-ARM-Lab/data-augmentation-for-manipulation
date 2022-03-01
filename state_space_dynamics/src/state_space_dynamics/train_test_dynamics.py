@@ -296,7 +296,7 @@ def viz_main(dataset_dir: pathlib.Path,
     model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
     model.training = False
 
-    s = model.scenario
+    s = dataset.get_scenario()
 
     dataset_anim = RvizAnimationController(n_time_steps=len(dataset), ns='trajs')
 

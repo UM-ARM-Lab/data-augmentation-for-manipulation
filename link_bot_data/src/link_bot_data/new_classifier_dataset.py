@@ -5,6 +5,7 @@ from typing import Dict, Optional, List, Callable
 import numpy as np
 from more_itertools import interleave
 
+import rospy
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.tf_dataset_utils import add_label
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader, NewBaseDataset
@@ -91,14 +92,21 @@ class NewClassifierDatasetLoader(NewBaseDatasetLoader):
                  verbose=UNUSED_COMPAT):
         super().__init__(dataset_dirs, scenario)
 
-        self.labeling_params = self.hparams['labeling_params']
-        self.horizon = self.hparams['labeling_params']['classifier_horizon']
+        if 'labeling_params' in self.hparams:
+            self.labeling_params = self.hparams['labeling_params']
+            self.threshold = threshold if threshold is not None else self.labeling_params['threshold']
+            self.horizon = self.hparams['labeling_params']['classifier_horizon']
+        else:
+            rospy.logwarn("classifier dataset has no labeling params")
+            self.labeling_params = {}
+            self.threshold = -1
+            self.horizon = 2
+
         self.true_state_keys = self.hparams['true_state_keys']
         self.state_keys = self.true_state_keys
         self.state_metadata_keys = self.hparams['state_metadata_keys']
         self.predicted_state_keys = [add_predicted(k) for k in self.hparams['predicted_state_keys']]
-        self.threshold = threshold if threshold is not None else self.labeling_params['threshold']
-        self.predicted_state_keys.append(add_predicted('stdev'))
+        # self.predicted_state_keys.append(add_predicted('stdev'))
         default = [add_predicted('left_gripper'), add_predicted('right_gripper'), add_predicted('rope')]
         self.points_state_keys = self.hparams.get('points_state_keys', default)
         self.env_keys = self.hparams['env_keys']

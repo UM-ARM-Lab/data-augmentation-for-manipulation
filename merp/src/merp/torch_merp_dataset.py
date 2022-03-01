@@ -4,7 +4,7 @@ from typing import Dict
 import torch
 from torch.utils.data import Dataset
 
-from link_bot_data.dataset_utils import pprint_example, merge_hparams_dicts
+from link_bot_data.dataset_utils import pprint_example, merge_hparams_dicts, add_predicted
 from link_bot_data.new_dataset_utils import get_filenames, load_single
 from link_bot_data.visualization import dynamics_viz_t, init_viz_env
 from link_bot_pycommon.get_scenario import get_scenario
@@ -16,16 +16,17 @@ from moonshine.torch_and_tf_utils import remove_batch
 
 class TorchMERPDataset(Dataset):
 
-    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None):
+    def __init__(self, dataset_dir: pathlib.Path, model_hparams: Dict, mode: str, transform=None):
         self.dataset_dir = dataset_dir
         self.mode = mode
+        self.model_hparams = model_hparams
         self.metadata_filenames = get_filenames([dataset_dir], mode)
 
         self.params = merge_hparams_dicts(dataset_dir)
         self.data_collection_params = self.params['data_collection_params']
         self.scenario_params = self.data_collection_params['scenario_params']
         self.state_description = self.data_collection_params['state_description']
-        self.predicted_state_keys = self.data_collection_params['predicted_state_keys']
+        self.predicted_state_keys = [add_predicted(k) for k in self.model_hparams['state_keys']]
         self.state_metadata_description = self.data_collection_params['state_metadata_description']
         self.action_description = self.data_collection_params['action_description']
         self.env_description = self.data_collection_params['env_description']

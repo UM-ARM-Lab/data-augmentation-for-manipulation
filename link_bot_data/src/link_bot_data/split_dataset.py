@@ -32,11 +32,12 @@ def split_dataset_via_files(dataset_dir: pathlib.Path,
     test_files = paths[0:n_testing]
     train_files = paths[n_testing:]
 
-    def _write_mode(_filenames, mode):
-        with (dataset_dir / f"{mode}.txt").open("w") as f:
-            for _filename in _filenames:
-                f.write(_filename.name + '\n')
+    write_mode(dataset_dir, train_files, 'train')
+    write_mode(dataset_dir, test_files, 'test')
+    write_mode(dataset_dir, val_files, 'val')
 
-    _write_mode(train_files, 'train')
-    _write_mode(test_files, 'test')
-    _write_mode(val_files, 'val')
+
+def write_mode(dataset_dir, filenames, mode):
+    with (dataset_dir / f"{mode}.txt").open("w") as f:
+        for _filename in filenames:
+            f.write(_filename.name + '\n')

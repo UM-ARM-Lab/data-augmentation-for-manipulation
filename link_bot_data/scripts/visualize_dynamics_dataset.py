@@ -54,7 +54,6 @@ def main():
         example = dataset[example_idx]
         weight = example.get('weight', 1)
         total_weight += np.sum(weight)
-        print(total_weight)
         if (args.weight_above <= weight).all() and (weight <= args.weight_below).all():
             if 'traj_idx' in example:
                 traj_idx = example['traj_idx']

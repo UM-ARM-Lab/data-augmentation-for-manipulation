@@ -73,7 +73,8 @@ def add_stationary_points_to_env(env, obj_points, moved_mask, res, origin_point,
     origin_point_flat = tf.repeat(tf.gather(origin_point, batch_indices, axis=0), n_points, axis=0)
     batch_indices_flat = tf.repeat(batch_indices, n_points, axis=0)
 
-    env_stationary = points_to_voxel_grid_res_origin_point_batched(batch_indices_flat,  # [b, h, w, c]
+    # [b, h, w, c]
+    env_stationary = points_to_voxel_grid_res_origin_point_batched(batch_indices_flat,
                                                                    points_flat,
                                                                    res_flat,
                                                                    origin_point_flat,

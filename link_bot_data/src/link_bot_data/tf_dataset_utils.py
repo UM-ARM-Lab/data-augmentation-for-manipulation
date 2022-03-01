@@ -295,7 +295,10 @@ def write_example(full_output_directory: pathlib.Path,
 
 
 def pkl_write_example(full_output_directory, example, traj_idx, extra_metadata_keys: Optional[List[str]] = None):
+    metadata_filename = index_to_filename('.pkl', traj_idx)
+    full_metadata_filename = full_output_directory / metadata_filename
     example_filename = index_to_filename('.pkl.gz', traj_idx)
+    full_example_filename = full_output_directory / example_filename
 
     if 'metadata' in example:
         metadata = example.pop('metadata')
@@ -305,14 +308,11 @@ def pkl_write_example(full_output_directory, example, traj_idx, extra_metadata_k
     if extra_metadata_keys is not None:
         for k in extra_metadata_keys:
             metadata[k] = example.pop(k)
-    metadata_filename = index_to_filename('.pkl', traj_idx)
-    full_metadata_filename = full_output_directory / metadata_filename
 
     metadata = coerce_types(metadata)
     with full_metadata_filename.open("wb") as metadata_file:
         pickle.dump(metadata, metadata_file)
 
-    full_example_filename = full_output_directory / example_filename
     example = coerce_types(example)
     dump_gzipped_pickle(example, full_example_filename)
 

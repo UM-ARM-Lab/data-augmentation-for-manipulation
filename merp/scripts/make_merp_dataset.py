@@ -35,8 +35,7 @@ def main():
     rospy.loginfo(Fore.GREEN + f"Writing MERP dataset to {outdir}")
     make_merp_dataset(dataset_dir=args.dataset_dir,
                       checkpoint=args.checkpoint,
-                      outdir=outdir,
-                      batch_size=args.batch_size)
+                      outdir=outdir)
 
 
 if __name__ == '__main__':

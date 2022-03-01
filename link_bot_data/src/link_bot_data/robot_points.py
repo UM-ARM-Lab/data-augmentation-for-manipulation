@@ -11,11 +11,16 @@ from moonshine.numpify import numpify
 
 class RobotVoxelgridInfo:
 
-    def __init__(self, joint_positions_key: str):
-        self.robot_points_filename = pathlib.Path("robot_points_data/val/robot_points.pkl")
-        with self.robot_points_filename.open("rb") as file:
+    def __init__(self, joint_positions_key: str, robot_points_path=None):
+        if robot_points_path is None:
+            self.robot_points_path = pathlib.Path("robot_points_data/val/robot_points.pkl")
+        else:
+            self.robot_points_path = robot_points_path
+
+        with self.robot_points_path.open("rb") as file:
             data = pickle.load(file)
         robot_points = data['points']
+        self.res = data['res']
         self.link_names = list(robot_points.keys())
         self.points_per_links = []
         for link_name in self.link_names:

@@ -40,7 +40,8 @@ def test_batched_perf():
     args = parser.parse_args()
 
     robot_info = RobotVoxelgridInfo('joint_positions')
-    jacobian_follower = pyjacobian_follower.JacobianFollower('hdt_michigan', 0.001, True, True, False)
+    jacobian_follower = pyjacobian_follower.JacobianFollower('hdt_michigan', 'hdt_michigan/robot_description', 0.001,
+                                                             True, True, False)
 
     with args.robot_points.open("rb") as file:
         data = pickle.load(file)
@@ -99,18 +100,19 @@ def viz_with_internal_tf():
     parser.add_argument('robot_points', type=pathlib.Path, help='a pkl file')
     args = parser.parse_args()
 
-    jacobian_follower = pyjacobian_follower.JacobianFollower('hdt_michigan', 0.001, True, True, False)
+    jacobian_follower = pyjacobian_follower.JacobianFollower('hdt_michigan', 'hdt_michigan/robot_description', 0.001,
+                                                             True, True, False)
 
     with args.robot_points.open("rb") as file:
         data = pickle.load(file)
 
     points = data['points']
     res = data['res']
-    s = ScenarioWithVisualization()
+    s = ScenarioWithVisualization({})
 
     colors = get_link_colors(points)
 
-    listener = Listener("/joint_states", JointState)
+    listener = Listener("/hdt_michigan/joint_states", JointState)
     while True:
         joint_state = listener.get()
         from time import perf_counter
@@ -124,7 +126,7 @@ def viz_with_internal_tf():
             n_points = link_points_link_frame.shape[0]
             ones = tf.ones([n_points, 1], tf.float32)
             link_points_link_frame_homo = tf.concat([link_points_link_frame, ones], axis=1)
-            link_points_link_frame_homo = tf.expand_dims(link_points_link_frame_homo)
+            link_points_link_frame_homo = tf.expand_dims(link_points_link_frame_homo, -1)
             link_to_robot_transform = tf.cast(link_to_robot_transform, tf.float32)
             link_to_robot_transform_batch = repeat_tensor(link_to_robot_transform, n_points, 0, True)
             link_points_robot_frame = tf.matmul(link_to_robot_transform_batch, link_points_link_frame_homo)
@@ -132,7 +134,7 @@ def viz_with_internal_tf():
             color = colors[link_name]
             link_points_robot_frame = numpify(link_points_robot_frame)
             s.plot_points_rviz(link_points_robot_frame, label=link_name, frame_id='world', scale=res, color=color)
-        print(perf_counter() - t0)
+        print(f"{perf_counter() - t0:.3f}s")
 
 
 def get_link_colors(points):

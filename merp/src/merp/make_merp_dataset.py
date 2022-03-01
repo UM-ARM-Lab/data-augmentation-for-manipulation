@@ -1,133 +1,124 @@
 import pathlib
-from typing import Optional
+from multiprocessing import Pool, Queue
+from typing import Dict
 
-from merp.torch_merp_dataset import TorchMERPDataset
+from tqdm import tqdm
 
-from link_bot_data.classifier_dataset_utils import PredictionActualExample, int_scalar_to_batched_float
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_data.tf_dataset_utils import write_example, deserialize_scene_msg
+from link_bot_data.split_dataset import split_dataset, write_mode
+from link_bot_data.tf_dataset_utils import write_example, index_to_filename
 from link_bot_pycommon.load_wandb_model import load_model_artifact
-from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import my_hdump
+from merp.torch_merp_dataset import TorchMERPDataset
 from moonshine.filepath_tools import load_params
+from moonshine.numpify import numpify
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
+from moonshine.torchify import torchify
 from state_space_dynamics.udnn_torch import UDNN
+
+
+def n_seq(max_t: int):
+    return int(max_t * (max_t + 3) / 2)
+
+
+class MultiprocessingExampleWriter:
+    def __init__(self):
+        self.pool = Pool()
+
+    def write(self, outdir: pathlib.Path, out_example: Dict, example_idx: int, save_format: str = 'pkl'):
+        self.pool.apply_async(func=write_example, args=(outdir, out_example, example_idx, save_format))
+
+    def close(self):
+        self.pool.close()
 
 
 def make_merp_dataset(dataset_dir: pathlib.Path,
                       checkpoint: pathlib.Path,
-                      outdir: pathlib.Path,
-                      batch_size: Optional[int] = None):
+                      outdir: pathlib.Path):
     model = load_model_artifact(checkpoint, UDNN, project='udnn', version='latest', user='armlab')
 
     merp_dataset_hparams = load_params(dataset_dir)
 
+    def _set_keys_hparam(merp_dataset_hparams, k1, k2):
+        merp_dataset_hparams[f'{k1}_keys'] = list(
+            merp_dataset_hparams['data_collection_params'][f'{k2}_description'].keys())
+
     merp_dataset_hparams['dataset_dir'] = dataset_dir.as_posix()
     merp_dataset_hparams['fwd_model_hparams'] = model.hparams
     merp_dataset_hparams['predicted_state_keys'] = model.state_keys
+    _set_keys_hparam(merp_dataset_hparams, 'true_state', 'state')
+    _set_keys_hparam(merp_dataset_hparams, 'state_metadata', 'state_metadata')
+    _set_keys_hparam(merp_dataset_hparams, 'env', 'env')
+    _set_keys_hparam(merp_dataset_hparams, 'action', 'action')
 
     new_hparams_filename = outdir / 'hparams.hjson'
     my_hdump(merp_dataset_hparams, new_hparams_filename.open("w"), indent=2)
 
+    writer = MultiprocessingExampleWriter()
+
     total_example_idx = 0
+    steps_per_traj = 10
     for mode in ['train', 'val', 'test']:
-        dataset = TorchMERPDataset(dataset_dir, mode=mode)
+        dataset = TorchMERPDataset(dataset_dir=dataset_dir, model_hparams=model.hparams, mode=mode)
+        total = n_seq(steps_per_traj - 1) * len(dataset)
+        files = []
+        for out_example in tqdm(generate_merp_examples(model, dataset), total=total):
+            writer.write(outdir, out_example, total_example_idx)
+            total_example_idx += 1
 
-        for out_examples in generate_classifier_examples(model, dataset, batch_size):
-            for out_examples_start_t in out_examples:
-                actual_batch_size = out_examples_start_t['traj_idx'].shape[0]
-                for batch_idx in range(actual_batch_size):
-                    out_example_b = index_dict_of_batched_tensors(out_examples_start_t, batch_idx)
-                    out_example_b['metadata'] = {k: v[batch_idx] for k, v in out_examples_start_t['metadata'].items()}
+            example_filename = index_to_filename('.pkl.gz', total_example_idx)
+            full_example_filename = outdir / example_filename
+            files.append(full_example_filename)
+        write_mode(outdir, files, mode)
 
-                    if out_example_b['time_idx'].ndim == 0:
-                        continue
-
-                    write_example(outdir, out_example_b, total_example_idx, save_format='pkl')
-                    total_example_idx += 1
+    writer.close()
 
     return outdir
 
 
-def generate_classifier_examples(model,
-                                 dataset,
-                                 batch_size: int):
-    dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
+def generate_merp_examples(model, dataset):
+    horizon = 2
+    steps_per_traj = 10
+    step = 1
+    scenario = dataset.get_scenario()
 
-    for idx, example in enumerate(dataset):
-        deserialize_scene_msg(example)
+    state_keys = dataset.state_keys + dataset.state_metadata_keys
 
-        valid_out_examples = []
-        for start_t in range(0, dataset_loader.steps_per_traj - classifier_horizon + 1, labeling_params['start_step']):
-            prediction_end_t = dataset_loader.steps_per_traj
-            actual_prediction_horizon = prediction_end_t - start_t
-            dataset_loader.state_metadata_keys = ['joint_names']  # NOTE: perhaps ACOs should be state metadata?
-            state_keys = dataset_loader.state_keys + dataset_loader.state_metadata_keys
-            actual_states_from_start_t = {k: example[k][:, start_t:prediction_end_t] for k in state_keys}
-            actual_start_states = {k: example[k][:, start_t] for k in state_keys}
-            actions_from_start_t = {k: example[k][:, start_t:prediction_end_t - 1] for k in dataset_loader.action_keys}
-            environment = {k: example[k] for k in dataset_loader.env_keys}
+    for example in dataset:
+        for start_t in range(0, steps_per_traj - horizon + 1, step):
+            start_state = {k: example[k][start_t:start_t + 1] for k in state_keys}  # :+1 to keep time dimension
+            actions_from_start_t = {k: example[k][start_t:] for k in dataset.action_keys}
 
-            predictions = model(inputs)
+            inputs_from_start_t = {}
+            inputs_from_start_t.update(start_state)
+            inputs_from_start_t.update(actions_from_start_t)
+            predictions_from_start_t = numpify(remove_batch(model(torchify(add_batch(inputs_from_start_t)))))
 
-            prediction_actual = PredictionActualExample(example=example,
-                                                        actions=actions_from_start_t,
-                                                        actual_states=actual_states_from_start_t,
-                                                        predictions=predictions_from_start_t,
-                                                        start_t=start_t,
-                                                        env_keys=dataset_loader.env_keys,
-                                                        labeling_params={},
-                                                        actual_prediction_horizon=actual_prediction_horizon,
-                                                        batch_size=example['batch_size'])
-            valid_out_examples_for_start_t = generate_classifier_examples_from_batch(sc, prediction_actual)
-            valid_out_examples.extend(valid_out_examples_for_start_t)
+            actual_states_from_start_t = {k: example[k][start_t:] for k in state_keys}
+            environment = {k: example[k] for k in dataset.env_keys}
 
-        yield valid_out_examples
+            for dt in range(0, steps_per_traj - start_t):
+                t = start_t + dt
+                out_example = {
+                    'traj_idx': example['traj_idx'],
+                    'start_t':  start_t,
+                    't':        t,
+                }
+                out_example.update(environment)
 
+                # add predictions to out example
+                predictions_dt = {k: v[dt:dt + horizon] for k, v in predictions_from_start_t.items()}
+                actual_dt = {k: v[dt:dt + horizon] for k, v in actual_states_from_start_t.items()}
+                action_dt = {k: v[dt:dt + horizon - 1] for k, v in actions_from_start_t.items()}
 
-def generate_classifier_examples_from_batch(scenario: ScenarioWithVisualization,
-                                            prediction_actual: PredictionActualExample):
-    classifier_horizon = 2
-    prediction_horizon = prediction_actual.actual_prediction_horizon
-    batch_size = prediction_actual.batch_size
+                out_example.update(actual_dt)
+                out_example.update(action_dt)
+                out_example.update({add_predicted(k): v for k, v in predictions_dt.items()})
 
-    valid_out_example_batches = []
-    for classifier_start_t in range(0, prediction_horizon - classifier_horizon + 1):
-        classifier_end_t = classifier_start_t + classifier_horizon
+                # add error
+                error = scenario.classifier_distance(actual_dt, predictions_dt)
 
-        prediction_start_t = prediction_actual.start_t
-        prediction_start_t_batched = int_scalar_to_batched_float(batch_size, prediction_start_t)
-        classifier_start_t_batched = int_scalar_to_batched_float(batch_size, classifier_start_t)
-        classifier_end_t_batched = int_scalar_to_batched_float(batch_size, classifier_end_t)
-        out_example = {
-            'traj_idx':           prediction_actual.example['traj_idx'],
-            'prediction_start_t': prediction_start_t_batched,
-            'classifier_start_t': classifier_start_t_batched,
-            'classifier_end_t':   classifier_end_t_batched,
-        }
-        # add actual to out example
-        out_example.update({k: prediction_actual.example[k] for k in prediction_actual.env_keys})
+                # store it in the metadata for faster lookup later
+                out_example['metadata'] = {'error': error}
 
-        # add predictions to out example
-        for key, prediction_component in prediction_actual.predictions.items():
-            out_example[add_predicted(key)] = prediction_component
-
-        # add error
-        error = scenario.classifier_distance(prediction_actual.actual_states, prediction_actual.predictions)
-        out_example['metadata'] = {
-            'error': error['error'],
-        }
-        valid_out_example_batches.append(out_example)
-
-    return valid_out_example_batches
-
-
-def split_actual_predicted(out_example, prediction_actual: PredictionActualExample):
-    actual = {}
-    for key, actual_state_component in prediction_actual.actual_states.items():
-        out_example[key] = actual_state_component
-        actual[key] = actual_state_component
-    sliced_predictions = {}
-    for key, action_component in prediction_actual.actions.items():
-        out_example[key] = action_component
-        actual[key] = action_component
-    return actual, sliced_predictions
+                yield out_example
