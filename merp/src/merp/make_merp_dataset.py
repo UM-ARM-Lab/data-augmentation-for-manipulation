@@ -18,18 +18,7 @@ from state_space_dynamics.udnn_torch import UDNN
 
 
 def n_seq(max_t: int):
-    return int(max_t * (max_t + 3) / 2)
-
-
-class MultiprocessingExampleWriter:
-    def __init__(self):
-        self.pool = Pool()
-
-    def write(self, outdir: pathlib.Path, out_example: Dict, example_idx: int, save_format: str = 'pkl'):
-        self.pool.apply_async(func=write_example, args=(outdir, out_example, example_idx, save_format))
-
-    def close(self):
-        self.pool.close()
+    return int(max_t * (max_t + 1) / 2)
 
 
 def make_merp_dataset(dataset_dir: pathlib.Path,
@@ -54,24 +43,29 @@ def make_merp_dataset(dataset_dir: pathlib.Path,
     new_hparams_filename = outdir / 'hparams.hjson'
     my_hdump(merp_dataset_hparams, new_hparams_filename.open("w"), indent=2)
 
-    writer = MultiprocessingExampleWriter()
+    with Pool() as pool:
+        results = []
+        total_example_idx = 0
+        steps_per_traj = 10
+        for mode in ['train', 'val', 'test']:
+            dataset = TorchMERPDataset(dataset_dir=dataset_dir, model_hparams=model.hparams, mode=mode)
+            total = n_seq(steps_per_traj - 1) * len(dataset)
+            files = []
+            for out_example in tqdm(generate_merp_examples(model, dataset), total=total):
+                result = pool.apply_async(func=write_example, args=(outdir, out_example, total_example_idx, 'pkl'))
+                results.append(result)
+                total_example_idx += 1
 
-    total_example_idx = 0
-    steps_per_traj = 10
-    for mode in ['train', 'val', 'test']:
-        dataset = TorchMERPDataset(dataset_dir=dataset_dir, model_hparams=model.hparams, mode=mode)
-        total = n_seq(steps_per_traj - 1) * len(dataset)
-        files = []
-        for out_example in tqdm(generate_merp_examples(model, dataset), total=total):
-            writer.write(outdir, out_example, total_example_idx)
-            total_example_idx += 1
+                example_filename = index_to_filename('.pkl.gz', total_example_idx)
+                full_example_filename = outdir / example_filename
+                files.append(full_example_filename)
 
-            example_filename = index_to_filename('.pkl.gz', total_example_idx)
-            full_example_filename = outdir / example_filename
-            files.append(full_example_filename)
-        write_mode(outdir, files, mode)
+            write_mode(outdir, files, mode)
 
-    writer.close()
+        # the pool won't close unless we do this
+        print("Waiting while results finish writing...")
+        for result in tqdm(results):
+            result.get()
 
     return outdir
 
@@ -97,12 +91,11 @@ def generate_merp_examples(model, dataset):
             actual_states_from_start_t = {k: example[k][start_t:] for k in state_keys}
             environment = {k: example[k] for k in dataset.env_keys}
 
-            for dt in range(0, steps_per_traj - start_t):
-                t = start_t + dt
+            for dt in range(0, steps_per_traj - start_t - 1):
                 out_example = {
                     'traj_idx': example['traj_idx'],
                     'start_t':  start_t,
-                    't':        t,
+                    't':        start_t + dt,
                 }
                 out_example.update(environment)
 
