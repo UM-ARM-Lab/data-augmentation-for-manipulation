@@ -6,7 +6,7 @@ import rospy
 import tf2_ros
 from link_bot_pycommon import grid_utils
 from link_bot_pycommon.grid_utils import environment_to_vg_msg
-from moonshine.get_local_environment import get_local_env_and_origin_3d_tf_old
+from moonshine.get_local_environment_tf import get_local_env_and_origin_3d_tf_old
 from moonshine.gpu_config import limit_gpu_mem
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 

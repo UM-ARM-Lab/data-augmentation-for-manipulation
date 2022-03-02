@@ -1,21 +1,24 @@
 from typing import Dict
 
-from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_point
-
 
 class LocalEnvHelper:
 
-    def __init__(self, h: int, w: int, c: int):
+    def __init__(self, h: int, w: int, c: int, get_local_env_module=None):
+        if get_local_env_module is None:
+            from moonshine import get_local_environment_tf
+            self.get_local_env_module = get_local_environment_tf
+        else:
+            self.get_local_env_module = get_local_env_module
         self.h = h
         self.w = w
         self.c = c
-        self.indices = create_env_indices(self.h, self.w, self.c, 1)
+        self.indices = self.get_local_env_module.create_env_indices(self.h, self.w, self.c, 1)
 
     def get(self, center_point, environment: Dict, batch_size):
-        return get_local_env_and_origin_point(center_point=center_point,
-                                              environment=environment,
-                                              h=self.h,
-                                              w=self.w,
-                                              c=self.c,
-                                              indices=self.indices,
-                                              batch_size=batch_size)
+        return self.get_local_env_module.get_local_env_and_origin_point(center_point=center_point,
+                                                                        environment=environment,
+                                                                        h=self.h,
+                                                                        w=self.w,
+                                                                        c=self.c,
+                                                                        indices=self.indices,
+                                                                        batch_size=batch_size)

@@ -18,7 +18,7 @@ from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.pycommon import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
-from moonshine.get_local_environment import create_env_indices, get_local_env_and_origin_point
+from moonshine.get_local_environment_tf import create_env_indices, get_local_env_and_origin_point
 from moonshine.metrics import LossMetric
 from moonshine.my_keras_model import MyKerasModel
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped

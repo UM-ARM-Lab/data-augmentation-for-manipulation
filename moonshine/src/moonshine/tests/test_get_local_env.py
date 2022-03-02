@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from moonshine.get_local_environment import get_local_env_and_origin_2d_tf, get_local_env_and_origin_3d_tf_old
+from moonshine.get_local_environment_tf import get_local_env_and_origin_2d_tf, get_local_env_and_origin_3d_tf_old
 from moonshine.gpu_config import limit_gpu_mem
 from moonshine.tests.testing_utils import assert_close_tf
 
