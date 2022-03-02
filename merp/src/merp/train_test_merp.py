@@ -110,10 +110,10 @@ def train_main(dataset_dir: pathlib.Path,
         }
 
     model = MERP(hparams=model_params, scenario=train_dataset.get_scenario())
-    # wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
+    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     trainer = pl.Trainer(gpus=1,
-                         # logger=wb_logger,
+                         logger=wb_logger,
                          enable_model_summary=False,
                          max_epochs=epochs,
                          max_steps=steps,
@@ -122,17 +122,16 @@ def train_main(dataset_dir: pathlib.Path,
                          callbacks=[ckpt_cb],
                          default_root_dir='wandb',
                          gradient_clip_val=0.05)
+    # this breaks torchscript for some reason
     # wb_logger.watch(model)
     trainer.fit(model,
                 train_loader,
                 val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
-    # wandb.finish()
+    wandb.finish()
 
     script = model.to_torchscript()
     torch.jit.save(script, "model.pt")
-
-    model({'predicted/rope': torch.ones(1, 2*25*3)})
 
     eval_main(dataset_dir,
               run_id,

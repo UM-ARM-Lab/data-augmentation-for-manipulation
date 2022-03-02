@@ -37,7 +37,6 @@ def _expand(x):
     return tf.expand_dims(tf.expand_dims(tf.expand_dims(x, -1), -1), -1)
 
 
-# @tf.function
 def get_local_env_and_origin_point(center_point,
                                    environment: Dict,
                                    h: int,
@@ -78,7 +77,6 @@ def get_local_env_and_origin_point(center_point,
     return local_env, local_env_origin_point
 
 
-# @tf.function
 def get_local_env_and_origin(center_point,
                              environment: Dict,
                              h: int,

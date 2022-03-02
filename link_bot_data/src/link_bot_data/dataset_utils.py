@@ -137,6 +137,10 @@ def add_predicted(feature_name: str):
     return PREDICTED_PREFIX + feature_name
 
 
+def add_predicted_hack(feature_name: str):
+    return 'predicted/' + feature_name
+
+
 def add_predicted_cond(feature_name: str, cond):
     return PREDICTED_PREFIX + feature_name if cond else feature_name
 
