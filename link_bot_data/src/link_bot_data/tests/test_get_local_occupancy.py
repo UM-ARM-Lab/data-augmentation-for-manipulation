@@ -5,7 +5,7 @@ import numpy as np
 import rospy
 
 from link_bot_gazebo import gazebo_services
-from link_bot_pycommon.grid_utils import compute_extent
+from link_bot_pycommon.grid_utils_np import compute_extent
 from link_bot_pycommon.get_occupancy import get_occupancy_data
 from moonshine.get_local_environment_tf import get_local_env_and_origin
 

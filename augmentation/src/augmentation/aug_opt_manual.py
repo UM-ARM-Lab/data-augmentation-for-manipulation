@@ -8,7 +8,8 @@ import rospy
 from augmentation.aug_opt_utils import debug_aug, transform_obj_points
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.grid_utils import environment_to_vg_msg, send_voxelgrid_tf_origin_point_res
+from moonshine.grid_utils_tf import send_voxelgrid_tf_origin_point_res
+from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
 from moonshine.filepath_tools import load_hjson
 from moonshine.torch_and_tf_utils import repeat
 from moonshine.tensorflow_utils import possibly_none_concat

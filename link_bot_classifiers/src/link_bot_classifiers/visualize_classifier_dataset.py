@@ -1,5 +1,4 @@
 from time import perf_counter
-import numpy as np
 from typing import Dict
 
 from colorama import Style
@@ -10,8 +9,8 @@ from tqdm import tqdm
 import rospy
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.tf_dataset_utils import deserialize_scene_msg
-from link_bot_pycommon import grid_utils
-from link_bot_pycommon.grid_utils import environment_to_vg_msg
+from moonshine import grid_utils_tf
+from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import print_dict
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
@@ -228,9 +227,9 @@ def viz_compare_example(s: ScenarioWithVisualization,
     color_rgba = ColorRGBA(*colors.to_rgba(color))
     env_msg = environment_to_vg_msg(env, frame=frame, color=color_rgba)
     env_pub.publish(env_msg)
-    grid_utils.send_voxelgrid_tf_origin_point_res(s.tf.tf_broadcaster,
-                                                  env['origin_point'],
-                                                  env['res'],
-                                                  child_frame_id=frame)
+    grid_utils_tf.send_voxelgrid_tf_origin_point_res(s.tf.tf_broadcaster,
+                                                     env['origin_point'],
+                                                     env['res'],
+                                                     child_frame_id=frame)
     s.tf.send_transform(env['origin_point'], [0, 0, 0, 1], 'world', child='origin_point')
     s.plot_is_close(e['is_close'][1])

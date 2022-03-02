@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from link_bot_classifiers.pd_distances_utils import weights, too_far, joints_weights
 from link_bot_data.dataset_utils import batch_sequence, add_predicted
-from link_bot_pycommon.grid_utils import occupied_voxels_to_points
+from moonshine.grid_utils_tf import occupied_voxels_to_points
 from link_bot_pycommon.job_chunking import JobChunker
 from link_bot_pycommon.my_periodic_timer import MyPeriodicTimer
 from link_bot_pycommon.pycommon import paths_to_json

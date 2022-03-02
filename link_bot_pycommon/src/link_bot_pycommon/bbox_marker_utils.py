@@ -1,4 +1,4 @@
-from link_bot_pycommon.grid_utils import extent_to_env_size, extent_to_center
+from link_bot_pycommon.grid_utils_np import extent_to_env_size, extent_to_center
 from visualization_msgs.msg import Marker
 
 

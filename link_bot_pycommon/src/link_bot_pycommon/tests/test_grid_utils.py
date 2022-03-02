@@ -2,8 +2,9 @@ from unittest import TestCase
 
 import numpy as np
 
-from link_bot_pycommon.grid_utils import compute_extent_3d, extent_to_env_size, idx_to_point_3d_from_extent, \
-    extent_to_env_shape, extent_res_to_origin_point, dist_to_bbox
+from moonshine.grid_utils_tf import dist_to_bbox
+from link_bot_pycommon.grid_utils_np import idx_to_point_3d_from_extent, compute_extent_3d, extent_to_env_size, \
+    extent_to_env_shape, extent_res_to_origin_point
 
 
 class Test(TestCase):

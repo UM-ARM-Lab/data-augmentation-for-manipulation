@@ -11,7 +11,7 @@ from colorama import Fore
 
 from arc_utilities.filesystem_utils import mkdir_and_ask
 from link_bot_pycommon import pycommon
-from link_bot_pycommon.grid_utils import pad_voxel_grid
+from moonshine.grid_utils_tf import pad_voxel_grid
 from moonshine.filepath_tools import load_params
 from moonshine.numpify import numpify
 from moveit_msgs.msg import PlanningScene

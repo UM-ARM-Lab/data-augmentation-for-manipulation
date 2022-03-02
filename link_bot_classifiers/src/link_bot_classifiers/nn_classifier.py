@@ -20,8 +20,8 @@ from link_bot_data.robot_points import RobotVoxelgridInfo
 from link_bot_data.visualization import DebuggingViz
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.grid_utils import environment_to_vg_msg, \
-    send_voxelgrid_tf_origin_point_res
+from moonshine.grid_utils_tf import send_voxelgrid_tf_origin_point_res
+from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import dump_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController

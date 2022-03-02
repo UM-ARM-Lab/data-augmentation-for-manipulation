@@ -3,12 +3,13 @@ from time import sleep
 
 import numpy as np
 
+import link_bot_pycommon.grid_utils_np
 import rospy
 import tf2_ros
 from arc_utilities import ros_init
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_gazebo import gazebo_services
-from link_bot_pycommon import grid_utils
+from moonshine import grid_utils_tf
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
@@ -39,13 +40,13 @@ def main():
                                                          res=res,
                                                          service_provider=services,
                                                          excluded_models=['hdt_michigan', 'rope_3d'])
-            msg = grid_utils.environment_to_vg_msg(environment)
+            msg = link_bot_pycommon.grid_utils_np.environment_to_vg_msg(environment)
             bbox_marker = extent_to_bbox(extent_3d)
             bbox_marker.header.frame_id = 'robot_root'
             bbox_pub.publish(bbox_marker)
             print(msg.header.stamp)
 
-            grid_utils.send_voxelgrid_tf(broadcaster, environment)
+            grid_utils_tf.send_voxelgrid_tf(broadcaster, environment)
             pub.publish(msg)
 
             sleep(0.1)

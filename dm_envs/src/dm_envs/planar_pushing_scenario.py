@@ -13,7 +13,7 @@ from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.visualization_common import make_delete_markerarray
 from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds
-from link_bot_pycommon.grid_utils import extent_to_env_shape
+from link_bot_pycommon.grid_utils_np import extent_to_env_shape
 from link_bot_pycommon.pycommon import yaw_diff
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.tensorflow_utils import to_list_of_strings

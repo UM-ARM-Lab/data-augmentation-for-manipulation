@@ -18,7 +18,7 @@ from link_bot_data.recovery_dataset import compute_recovery_probabilities
 from link_bot_data.visualization import init_viz_env, recovery_transition_viz_t, init_viz_action
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.get_scenario import get_scenario
-from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
+from moonshine.grid_utils_tf import batch_extent_to_origin_point_tf
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.serialization import my_hdump

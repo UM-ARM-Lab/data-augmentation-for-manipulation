@@ -9,7 +9,7 @@ from tensorflow.python.keras.metrics import Metric
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.grid_utils import batch_extent_to_origin_point_tf
+from moonshine.grid_utils_tf import batch_extent_to_origin_point_tf
 from link_bot_pycommon.pycommon import dgather
 from moonshine.get_local_environment_tf import get_local_env_and_origin_point, create_env_indices
 from moonshine.metrics import LossMetric

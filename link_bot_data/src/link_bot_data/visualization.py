@@ -6,7 +6,7 @@ from matplotlib import colors
 import rospy
 from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_pycommon.grid_utils import vox_to_voxelgrid_stamped
+from link_bot_pycommon.grid_utils_np import vox_to_voxelgrid_stamped
 from link_bot_pycommon.matplotlib_utils import adjust_lightness
 from link_bot_pycommon.pycommon import vector_to_points_2d
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization

@@ -2,7 +2,7 @@ from typing import Dict
 
 import tensorflow as tf
 
-from link_bot_pycommon.grid_utils import batch_center_res_shape_to_origin_point, batch_align_to_grid_tf, \
+from moonshine.grid_utils_tf import batch_center_res_shape_to_origin_point, batch_align_to_grid_tf, \
     round_to_res
 from moonshine.tensorflow_utils import swap_xy
 

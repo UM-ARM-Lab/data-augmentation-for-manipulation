@@ -27,8 +27,8 @@ from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds, sample_delta_position
 from link_bot_pycommon.get_link_states import GetLinkStates
-from link_bot_pycommon.grid_utils import extent_to_env_shape, extent_res_to_origin_point, \
-    batch_center_res_shape_to_origin_point, dist_to_bbox
+from moonshine.grid_utils_tf import batch_center_res_shape_to_origin_point, dist_to_bbox
+from link_bot_pycommon.grid_utils_np import extent_to_env_shape, extent_res_to_origin_point
 from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
 from link_bot_pycommon.marker_index_generator import marker_index_generator

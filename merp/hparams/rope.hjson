@@ -1,3 +1,17 @@
 {
   learning_rate:  0.001
+  rnn_size: 128
+  fc_layer_sizes: [ 128 ]
+  pooling: [ 2, 2, 2 ]
+  conv_filters: [
+    [ 26, [ 3, 3, 3 ] ]
+    [ 26, [ 3, 3, 3 ] ]
+    [ 26, [ 3, 3, 3 ] ]
+  ]
+  kernel_reg: 0.05
+  bias_reg: 0.05
+  batch_norm: true
+  local_env_h_rows: 44
+  local_env_w_cols: 44
+  local_env_c_channels: 44
 }

@@ -4,8 +4,8 @@ import numpy as np
 
 import rospy
 import tf2_ros
-from link_bot_pycommon import grid_utils
-from link_bot_pycommon.grid_utils import environment_to_vg_msg
+from moonshine import grid_utils_tf
+from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
 from moonshine.get_local_environment_tf import get_local_env_and_origin_3d_tf_old
 from moonshine.gpu_config import limit_gpu_mem
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
@@ -63,8 +63,8 @@ full_occupancy_msg = environment_to_vg_msg(full_environment, frame='occupancy')
 
 while True:
     rospy.sleep(0.1)
-    grid_utils.send_voxelgrid_tf(broadcaster, local_environment, frame='local_occupancy')
+    grid_utils_tf.send_voxelgrid_tf(broadcaster, local_environment, frame='local_occupancy')
     local_occupancy_pub.publish(local_occupancy_msg)
 
-    grid_utils.send_voxelgrid_tf(broadcaster, full_environment, frame='occupancy')
+    grid_utils_tf.send_voxelgrid_tf(broadcaster, full_environment, frame='occupancy')
     full_pub.publish(full_occupancy_msg)

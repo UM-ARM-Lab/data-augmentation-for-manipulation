@@ -8,7 +8,7 @@ import numpy as np
 import rospy
 from link_bot_data.modify_dataset import modify_dataset
 from link_bot_data.recovery_dataset import RecoveryDatasetLoader
-from link_bot_pycommon.grid_utils import extent_res_to_origin_point
+from link_bot_pycommon.grid_utils_np import extent_res_to_origin_point
 
 
 def main():

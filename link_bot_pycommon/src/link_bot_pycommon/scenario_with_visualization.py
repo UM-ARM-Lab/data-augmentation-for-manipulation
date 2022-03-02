@@ -16,10 +16,10 @@ from jsk_recognition_msgs.msg import BoundingBox
 from link_bot_data.dataset_utils import NULL_PAD_VALUE
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
-from link_bot_pycommon import grid_utils
+from moonshine import grid_utils_tf
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.grid_utils import environment_to_vg_msg
+from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.rviz_marker_manager import RVizMarkerManager
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -116,11 +116,11 @@ class ScenarioWithVisualization(ExperimentScenario, ABC):
             self.env_bbox_pub.publish(bbox_msg)
 
     def send_occupancy_tf(self, environment: Dict, parent_frame_id, child_frame_id):
-        grid_utils.send_voxelgrid_tf_origin_point_res(self.tf.tf_broadcaster,
-                                                      environment['origin_point'],
-                                                      environment['res'],
-                                                      child_frame_id=child_frame_id,
-                                                      parent_frame_id=parent_frame_id)
+        grid_utils_tf.send_voxelgrid_tf_origin_point_res(self.tf.tf_broadcaster,
+                                                         environment['origin_point'],
+                                                         environment['res'],
+                                                         child_frame_id=child_frame_id,
+                                                         parent_frame_id=parent_frame_id)
 
     def plot_executed_action(self, state: Dict, action: Dict, **kwargs):
         self.plot_action_rviz(state, action, label='executed action', color="#3876EB", idx1=1, idx2=1, **kwargs)

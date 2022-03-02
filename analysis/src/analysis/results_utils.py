@@ -14,7 +14,7 @@ from arc_utilities.algorithms import zip_repeat_shorter
 from link_bot_planning.my_planner import PlanningResult
 from link_bot_planning.trial_result import ExecutionResult, planning_trial_name
 from link_bot_pycommon.get_scenario import get_scenario_cached
-from link_bot_pycommon.grid_utils import extent_res_to_origin_point
+from link_bot_pycommon.grid_utils_np import extent_res_to_origin_point
 from link_bot_pycommon.pycommon import paths_from_json, has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.screen_recorder import ScreenRecorder

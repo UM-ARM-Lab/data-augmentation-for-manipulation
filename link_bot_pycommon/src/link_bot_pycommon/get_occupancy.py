@@ -1,10 +1,10 @@
 import numpy as np
 
+import link_bot_pycommon.grid_utils_np
 import ros_numpy
 from arm_gazebo_msgs.srv import ComputeOccupancyRequest
-from link_bot_pycommon import grid_utils
 from link_bot_pycommon.base_services import BaseServices
-from link_bot_pycommon.grid_utils import extent_to_center, extent_to_env_shape
+from link_bot_pycommon.grid_utils_np import extent_to_env_shape, extent_to_center
 
 
 def get_occupancy(service_provider,
@@ -99,5 +99,5 @@ def get_occupancy_data(env_h_m: float,
                                    # we want to do a little off the ground because grid cells are centered
                                    excluded_models=[robot_name])
     origin = np.array(response.origin)
-    full_env_data = grid_utils.OccupancyData(data=grid, resolution=res, origin=origin)
+    full_env_data = link_bot_pycommon.grid_utils_np.OccupancyData(data=grid, resolution=res, origin=origin)
     return full_env_data

@@ -1,10 +1,12 @@
 from typing import Dict
+import torch.nn.functional as F
 
 import pytorch_lightning as pl
 import torch
-from torch import nn
 
 from link_bot_data.dataset_utils import add_predicted_hack
+from link_bot_data.local_env_helper import LocalEnvHelper
+from moonshine import get_local_environment_torch
 
 
 class MERP(pl.LightningModule):
@@ -14,7 +16,13 @@ class MERP(pl.LightningModule):
         self.save_hyperparameters(hparams)
         self.scenario = scenario
 
-        self.mlp = nn.Sequential(nn.Linear(2 * 25 * 3, 1))
+        self.local_env_h_rows = self.hparams['local_env_h_rows']
+        self.local_env_w_cols = self.hparams['local_env_w_cols']
+        self.local_env_c_channels = self.hparams['local_env_c_channels']
+
+        self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
+                                               c=self.local_env_c_channels,
+                                               get_local_env_module=get_local_environment_torch)
         self.has_checked_training_mode = False
 
     def forward(self, inputs: Dict[str, torch.Tensor]):
@@ -26,22 +34,22 @@ class MERP(pl.LightningModule):
 
         voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point)
 
-        conv_output = self.conv_encoder(voxel_grids)
-        out_h = self.fc(inputs, conv_output)
-
-        # for every timestep's output, map down to a single scalar, the logit for accept probability
-        all_accept_logits = self.output_layer(out_h)
-        # ignore the first output, it is meaningless to predict the validity of a single state
-        valid_accept_logits = all_accept_logits[:, 1:]
-        valid_accept_probabilities = self.sigmoid(valid_accept_logits)
-
-        outputs = {
-            'logits':        valid_accept_logits,
-            'probabilities': valid_accept_probabilities,
-            'out_h':         out_h,
-        }
-
-        return outputs
+        # conv_output = self.conv_encoder(voxel_grids)
+        # out_h = self.fc(inputs, conv_output)
+        #
+        # # for every timestep's output, map down to a single scalar, the logit for accept probability
+        # all_accept_logits = self.output_layer(out_h)
+        # # ignore the first output, it is meaningless to predict the validity of a single state
+        # valid_accept_logits = all_accept_logits[:, 1:]
+        # valid_accept_probabilities = self.sigmoid(valid_accept_logits)
+        #
+        # outputs = {
+        #     'logits':        valid_accept_logits,
+        #     'probabilities': valid_accept_probabilities,
+        #     'out_h':         out_h,
+        # }
+        #
+        # return outputs
 
     def conv_encoder(self, voxel_grids, batch_size, time):
         conv_outputs_array = []
@@ -64,18 +72,12 @@ class MERP(pl.LightningModule):
         actions = {k: input_dict[k] for k in self.action_keys}
         all_but_last_states = {k: v[:, :-1] for k, v in states.items()}
         actions = self.scenario.put_action_local_frame(all_but_last_states, actions)
-        padded_actions = [torch.pad(v, [[0, 0], [0, 1], [0, 0]]) for v in actions.values()]
-        if 'with_robot_frame' not in self.hparams:
-            print("no hparam 'with_robot_frame'. This must be an old model!")
-            concat_args = [conv_output] + list(states_in_local_frame.values()) + padded_actions
-        elif self.hparams['with_robot_frame']:
-            states_in_robot_frame = self.scenario.put_state_robot_frame(states)
-            concat_args = ([conv_output] + list(states_in_robot_frame.values()) +
-                           list(states_in_local_frame.values()) + padded_actions)
-        else:
-            concat_args = [conv_output] + list(states_in_local_frame.values()) + padded_actions
+        padded_actions = [F.pad(v, [0, 0, 0, 1, 0, 0]) for v in actions.values()]
 
-        concat_output = torch.cat(concat_args, axis=2)
+        states_in_robot_frame = self.scenario.put_state_robot_frame(states)
+        concat_args = ([conv_output] + list(states_in_robot_frame.values()) + list(states_in_local_frame.values()) + padded_actions)
+
+        concat_output = torch.cat(concat_args, 2)
         if self.hparams['batch_norm']:
             concat_output = self.batch_norm(concat_output, training=training)
         z = concat_output
@@ -86,12 +88,14 @@ class MERP(pl.LightningModule):
         return out_h
 
     def get_local_env(self, inputs):
+        batch_size = inputs['time_idx'].shape[0]
         state_0 = {k: inputs[add_predicted_hack(k)][:, 0] for k in self.state_keys}
 
         local_env_center = self.scenario.local_environment_center_differentiable(state_0)
         local_env, local_origin_point = self.local_env_helper.get(local_env_center, inputs, batch_size)
 
         return local_env, local_origin_point
+
     def compute_loss(self, inputs: Dict[str, torch.Tensor], outputs):
         return (outputs - inputs[add_predicted_hack('rope')].reshape(-1, 2 * 25 * 3).sum(-1,
                                                                                          keepdims=True)).square().sum()

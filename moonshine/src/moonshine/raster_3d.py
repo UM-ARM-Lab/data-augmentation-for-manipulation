@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from link_bot_pycommon.grid_utils import batch_point_to_idx_tf_3d_res_origin, batch_point_to_idx
+from moonshine.grid_utils_tf import batch_point_to_idx_tf_3d_res_origin, batch_point_to_idx
 
 
 @tf.function
