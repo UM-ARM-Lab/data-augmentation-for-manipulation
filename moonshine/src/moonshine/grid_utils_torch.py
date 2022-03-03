@@ -47,9 +47,9 @@ def batch_point_to_idx(points, res, origin_point):
     """
 
     Args:
-        points: [b,3] points in a frame, call it world
-        res: [b] meters
-        origin_point: [b,3] the position [x,y,z] of the center of the voxel (0,0,0) in the same frame as points
+        points: [b1,...,bn,3] points in a frame, call it world
+        res: [b1,...,b2] meters
+        origin_point: [b1,...,b2,3] the position [x,y,z] of the center of the voxel (0,0,0) in the same frame as points
 
     Returns:
 

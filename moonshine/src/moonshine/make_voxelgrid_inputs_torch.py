@@ -4,10 +4,12 @@ from typing import List, Dict
 import pyjacobian_follower
 import torch
 
-from moonshine.robot_points_torch import batch_transform_robot_points, RobotVoxelgridInfo, batch_robot_state_to_transforms
+from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from moonshine.robot_points_torch import batch_transform_robot_points, RobotVoxelgridInfo, \
+    batch_robot_state_to_transforms
 from moonshine.geometry_torch import densify_points
 from moonshine.numpify import numpify
-from moonshine.raster_3d_tf import points_to_voxel_grid_res_origin_point_batched
+from moonshine.raster_3d_torch import points_to_voxel_grid_res_origin_point_batched
 
 
 @dataclass
@@ -19,6 +21,7 @@ class VoxelgridInfo:
     jacobian_follower: pyjacobian_follower.JacobianFollower
     robot_info: RobotVoxelgridInfo
     include_robot_geometry: bool
+    scenario: ScenarioWithVisualization
 
     def make_voxelgrid_inputs(self, input_dict: Dict, local_env, local_origin_point, batch_size, time):
         local_voxel_grids = []
@@ -44,15 +47,10 @@ class VoxelgridInfo:
             points = state_component_t.reshape([batch_size, -1, 3])
             num_densify = 5
             points = densify_points(batch_size=batch_size, points=points, num_densify=num_densify)
-            n_points_in_component = max(int(state_component_t.shape[1] / 3 * num_densify) - num_densify, 1)
-            flat_points = torch.reshape(points, [-1, 3])
-            flat_batch_indices = torch.repeat(torch.arange(batch_size, dtype=torch.int64), n_points_in_component, axis=0)
-            flat_res = torch.repeat(inputs['res'], n_points_in_component, axis=0)
-            flat_origin_point = torch.repeat(local_origin_point, n_points_in_component, axis=0)
-            state_component_voxel_grid = points_to_voxel_grid_res_origin_point_batched(flat_batch_indices,
-                                                                                       flat_points,
-                                                                                       flat_res,
-                                                                                       flat_origin_point,
+            # self.scenario.plot_points_rviz(points[2], label='dense')
+            state_component_voxel_grid = points_to_voxel_grid_res_origin_point_batched(points,
+                                                                                       inputs['res'],
+                                                                                       local_origin_point,
                                                                                        self.h,
                                                                                        self.w,
                                                                                        self.c,
@@ -62,9 +60,6 @@ class VoxelgridInfo:
         if self.include_robot_geometry:
             robot_voxel_grid = self.make_robot_voxelgrid(inputs, local_origin_point, t, batch_size)
             local_voxel_grid_t.append(robot_voxel_grid)
-            n_channels = len(self.state_keys) + 2
-        else:
-            n_channels = len(self.state_keys) + 1
 
         local_voxel_grid_t = torch.permute(torch.stack(local_voxel_grid_t), [1, 2, 3, 4, 0])
         return local_voxel_grid_t

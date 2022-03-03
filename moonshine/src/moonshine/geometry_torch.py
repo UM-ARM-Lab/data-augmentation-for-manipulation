@@ -50,7 +50,8 @@ def densify_points(batch_size, points, num_densify=5):
     starts = points[:, :-1]
     ends = points[:, 1:]
     m = points.shape[1] - 1
-    linspace = torch.linspace(0, 1, num_densify).to(points.device)  # [num_density]
-    linspace = torch.tile(linspace[None, None, :], [batch_size, m])  # [b, m, num_densify, 3]
-    densitifed_points = linspaced.reshape([batch_size, -1, 3])
-    return densitifed_points
+    linspaced = torch.linspace(0, 1, num_densify).to(points.device)  # [num_density]
+    linspaced = torch.tile(linspaced[None, None, :, None], [batch_size, m, 1, 3])  # [b, m, num_densify, 3]
+    dense_points = starts.unsqueeze(2) + linspaced * (ends - starts).unsqueeze(2)  # [b, m, num_densify, 3
+    dense_points = dense_points.reshape([batch_size, -1, 3])
+    return dense_points

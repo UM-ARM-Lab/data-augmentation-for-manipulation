@@ -55,6 +55,7 @@ class MERP(pl.LightningModule):
                                      jacobian_follower=self.scenario.robot.jacobian_follower,
                                      robot_info=None,
                                      include_robot_geometry=False,
+                                     scenario=self.scenario,
                                      )
 
         self.has_checked_training_mode = False
