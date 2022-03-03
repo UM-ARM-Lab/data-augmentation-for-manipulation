@@ -57,11 +57,25 @@ def batch_point_to_idx(points, res, origin_point):
     return swap_xy(round_to_res((points - origin_point), res.unsqueeze(-1)))
 
 
+def batch_idx_to_point_3d_res_origin_point(indices, res, origin_point):
+    indices_xyz = swap_xy(indices)
+    return indices_xyz.float() * res.unsqueeze(-1) + origin_point
+
+
 def occupied_voxels_to_points_batched(vg, res, origin_point):
     all_indices = torch.where(vg > 0.5)
-    batch_indices = all_indices[:, 0]
-    indices = all_indices[:, 1:]
-    res_gathered = torch.gather(res, batch_indices, axis=0)
-    origin_point_gathered = torch.gather(origin_point, batch_indices, axis=0)
+    batch_indices = all_indices[0]
+    indices = torch.stack(all_indices[1:], -1)
+    res_gathered = torch.take_along_dim(res, batch_indices, 0)
+    origin_point_gathered = torch.take_along_dim(origin_point, batch_indices.unsqueeze(-1), 0)
     occupied_points = batch_idx_to_point_3d_res_origin_point(indices, res_gathered, origin_point_gathered)
     return batch_indices, occupied_points
+
+
+def min_max_extent_batched(rows: int, cols: int, channels: int, resolution, origin):
+    batch_size = resolution.shape[0]
+    min_idx = torch.tile(torch.zeros(3, device=resolution.device).unsqueeze(0), [batch_size, 1])
+    max_idx = torch.tile(torch.tensor([rows, cols, channels], device=resolution.device).unsqueeze(0), [batch_size, 1])
+    min_points = batch_idx_to_point_3d_res_origin_point(min_idx, resolution, origin)
+    max_points = batch_idx_to_point_3d_res_origin_point(max_idx, resolution, origin)
+    return min_points, max_points
