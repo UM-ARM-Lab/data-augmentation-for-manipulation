@@ -43,6 +43,15 @@ class MERP(pl.LightningModule):
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
                                                c=self.local_env_c_channels,
                                                get_local_env_module=get_local_environment_torch)
+        self.vg_info = VoxelgridInfo(h=self.local_env_h_rows,
+                                     w=self.local_env_w_cols,
+                                     c=self.local_env_c_channels,
+                                     state_keys=self.point_state_keys_pred,
+                                     jacobian_follower=self.scenario.robot.jacobian_follower,
+                                     robot_info=self.robot_info,
+                                     include_robot_geometry=self.include_robot_geometry
+                                     )
+
         self.has_checked_training_mode = False
 
     def forward(self, inputs: Dict[str, torch.Tensor]):

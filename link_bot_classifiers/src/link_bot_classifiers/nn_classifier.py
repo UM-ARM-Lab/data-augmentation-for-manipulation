@@ -15,7 +15,7 @@ from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.tf_dataset_utils import deserialize_scene_msg
 from link_bot_data.local_env_helper import LocalEnvHelper
 # noinspection PyUnresolvedReferences
-from link_bot_data.make_voxelgrid_inputs import VoxelgridInfo
+from moonshine.make_voxelgrid_inputs_tf import VoxelgridInfo
 from link_bot_data.robot_points import RobotVoxelgridInfo
 from link_bot_data.visualization import DebuggingViz
 from link_bot_pycommon.bbox_visualization import grid_to_bbox
