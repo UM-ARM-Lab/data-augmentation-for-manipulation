@@ -370,6 +370,13 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return center
 
     @staticmethod
+    def local_environment_center_differentiable_torch(state):
+        rope_vector = state[rope_key_name]
+        rope_points = rope_vector.reshape([rope_vector.shape[0], -1, 3])
+        center = rope_points.mean(1)
+        return center
+
+    @staticmethod
     def apply_local_action_at_state(state, local_action):
         return {
             'left_gripper_position':  state['left_gripper'] + local_action['left_gripper_delta'],

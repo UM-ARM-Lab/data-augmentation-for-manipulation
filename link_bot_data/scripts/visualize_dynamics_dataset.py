@@ -54,7 +54,7 @@ def main():
         example = dataset[example_idx]
         weight = example.get('weight', 1)
         total_weight += np.sum(weight)
-        if (args.weight_above <= weight).all() and (weight <= args.weight_below).all():
+        if (args.weight_above <= weight).any() and (weight <= args.weight_below).any():
             if 'traj_idx' in example:
                 traj_idx = example['traj_idx']
                 s.plot_traj_idx_rviz(traj_idx)

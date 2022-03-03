@@ -30,8 +30,8 @@ class UDNN(pl.LightningModule):
         self.dataset_action_description: Dict = data_collection_params['action_description']
         self.state_keys = self.hparams.state_keys
         self.state_metadata_keys = self.hparams.state_metadata_keys
-        self.state_description = {k: self.dataset_state_description[k] for k in self.state_keys}
-        self.total_state_dim = sum([self.dataset_state_description[k] for k in self.state_keys])
+        self.state_description = {k: self.dataset_state_description[k] for k in self.hparams.state_keys}
+        self.total_state_dim = sum([self.dataset_state_description[k] for k in self.hparams.state_keys])
         self.total_action_dim = sum([self.dataset_action_description[k] for k in self.hparams.action_keys])
 
         in_size = self.total_state_dim + self.total_action_dim

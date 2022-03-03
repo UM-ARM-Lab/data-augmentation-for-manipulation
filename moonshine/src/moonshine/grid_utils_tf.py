@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 from deprecated import deprecated
 
+import rospy
 from geometry_msgs.msg import TransformStamped
 from link_bot_pycommon.grid_utils_np import compute_extent_3d, extent_res_to_origin_point
 from moonshine.numpify import numpify

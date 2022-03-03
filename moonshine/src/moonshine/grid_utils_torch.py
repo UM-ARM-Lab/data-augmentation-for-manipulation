@@ -2,8 +2,8 @@ import torch
 
 
 def batch_center_res_shape_to_origin_point(center, res, h, w, c):
-    shape_xyz = torch.stack([w, h, c], dim=-1)
-    return center - (shape_xyz.float() * torch.unsqueeze(res, -1) / 2)
+    shape_xyz = torch.tensor([w, h, c], dtype=torch.float32).to(center.device)
+    return center - (shape_xyz * torch.unsqueeze(res, -1) / 2)
 
 
 def batch_align_to_grid(point, origin_point, res):
@@ -23,4 +23,4 @@ def batch_align_to_grid(point, origin_point, res):
 
 def round_to_res(x, res):
     # helps with stupid numerics issues
-    return torch.round(x / res).int()
+    return torch.round(x / res).long()

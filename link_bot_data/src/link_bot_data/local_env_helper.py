@@ -22,3 +22,13 @@ class LocalEnvHelper:
                                                                         c=self.c,
                                                                         indices=self.indices,
                                                                         batch_size=batch_size)
+
+    def to(self, device):
+        self.indices['x'] = self.indices['x'].to(device)
+        self.indices['y'] = self.indices['y'].to(device)
+        self.indices['z'] = self.indices['z'].to(device)
+        self.indices['pixel_indices'] = self.indices['pixel_indices'].to(device)
+
+    @property
+    def device(self):
+        return self.indices['x'].device

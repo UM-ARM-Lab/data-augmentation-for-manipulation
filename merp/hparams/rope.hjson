@@ -1,4 +1,22 @@
 {
+  point_state_keys: [
+    rope
+    left_gripper
+    right_gripper
+  ]
+  state_keys: [
+    rope
+    left_gripper
+    right_gripper
+    joint_positions
+  ]
+  state_metadata_keys: [
+    joint_names
+  ]
+  action_keys: [
+    left_gripper_position
+    right_gripper_position
+  ]
   learning_rate:  0.001
   rnn_size: 128
   fc_layer_sizes: [ 128 ]
@@ -8,9 +26,6 @@
     [ 26, [ 3, 3, 3 ] ]
     [ 26, [ 3, 3, 3 ] ]
   ]
-  kernel_reg: 0.05
-  bias_reg: 0.05
-  batch_norm: true
   local_env_h_rows: 44
   local_env_w_cols: 44
   local_env_c_channels: 44
