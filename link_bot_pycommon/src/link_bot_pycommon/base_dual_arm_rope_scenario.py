@@ -20,7 +20,7 @@ from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
 from link_bot_pycommon.moveit_utils import make_joint_state
 from moonshine.filepath_tools import load_params
-from moonshine.geometry import transformation_jacobian, euler_angle_diff
+from moonshine.geometry_tf import transformation_jacobian, euler_angle_diff
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.tensorflow_utils import to_list_of_strings
 from moonshine.numpify import numpify

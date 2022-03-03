@@ -422,22 +422,6 @@ def dgather(d: Dict, keys: Iterable[str]):
     return {k: d[k] for k in keys}
 
 
-def densify_points(batch_size, points, num_densify=5):
-    """
-    Args:
-        points: [b, n, 3]
-    Returns: [b, n * num_density, 3]
-    """
-    if points.shape[1] <= 1:
-        return points
-
-    starts = points[:, :-1]
-    ends = points[:, 1:]
-    linspaced = tf.linspace(starts, ends, num_densify, axis=2)  # [b, n, num_density, 3]
-    densitifed_points = tf.reshape(linspaced, [batch_size, -1, 3])
-    return densitifed_points
-
-
 def update_if_valid(d: Dict, is_valid, k: str, v_aug):
     d[k] = is_valid * v_aug + (1 - is_valid) * d[k]
 

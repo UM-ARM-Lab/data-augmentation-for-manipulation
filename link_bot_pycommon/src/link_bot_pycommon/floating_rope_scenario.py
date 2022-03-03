@@ -34,11 +34,11 @@ from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_m
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.matplotlib_utils import adjust_lightness_msg
 from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneScenarioMixin
-from link_bot_pycommon.pycommon import default_if_none, densify_points
+from link_bot_pycommon.pycommon import default_if_none
 from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_image, get_camera_params
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
-from moonshine.geometry import xyzrpy_to_matrices, transform_points_3d
+from moonshine.geometry_tf import xyzrpy_to_matrices, transform_points_3d, densify_points
 from moonshine.numpify import numpify
 from moonshine.numpy import homogeneous
 from moonshine.torch_and_tf_utils import remove_batch, add_batch

@@ -8,6 +8,8 @@ import torch
 from link_bot_data.dataset_utils import add_predicted_hack
 from link_bot_data.local_env_helper import LocalEnvHelper
 from moonshine import get_local_environment_torch
+from moonshine.make_voxelgrid_inputs_torch import VoxelgridInfo
+from moonshine.robot_points_torch import RobotVoxelgridInfo
 
 
 class MERP(pl.LightningModule):
@@ -20,6 +22,7 @@ class MERP(pl.LightningModule):
         self.local_env_h_rows = self.hparams['local_env_h_rows']
         self.local_env_w_cols = self.hparams['local_env_w_cols']
         self.local_env_c_channels = self.hparams['local_env_c_channels']
+        self.point_state_keys_pred = [add_predicted_hack(k) for k in self.hparams['point_state_keys']]
 
         layers = []
         in_channels = 4
@@ -43,13 +46,15 @@ class MERP(pl.LightningModule):
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
                                                c=self.local_env_c_channels,
                                                get_local_env_module=get_local_environment_torch)
+        # TODO: use a dynamics model that is the UDNN torch + robot kinematics
+        # self.robot_info = RobotVoxelgridInfo(joint_positions_key=add_predicted_hack('joint_positions'))
         self.vg_info = VoxelgridInfo(h=self.local_env_h_rows,
                                      w=self.local_env_w_cols,
                                      c=self.local_env_c_channels,
                                      state_keys=self.point_state_keys_pred,
                                      jacobian_follower=self.scenario.robot.jacobian_follower,
-                                     robot_info=self.robot_info,
-                                     include_robot_geometry=self.include_robot_geometry
+                                     robot_info=None,
+                                     include_robot_geometry=False,
                                      )
 
         self.has_checked_training_mode = False
@@ -64,7 +69,8 @@ class MERP(pl.LightningModule):
 
         local_env, local_origin_point = self.get_local_env(inputs)
 
-        voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point)
+        batch_size, time = inputs['time_idx'].shape[0:2]
+        voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
 
         # conv_output = self.conv_encoder(voxel_grids)
         # out_h = self.fc(inputs, conv_output)

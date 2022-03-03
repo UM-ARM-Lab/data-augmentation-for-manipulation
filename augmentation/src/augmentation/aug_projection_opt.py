@@ -10,7 +10,7 @@ from augmentation.iterative_projection import BaseProjectOpt
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from moonshine.grid_utils_tf import batch_point_to_idx
-from moonshine.geometry import homogeneous
+from moonshine.geometry_tf import homogeneous
 
 
 @dataclass

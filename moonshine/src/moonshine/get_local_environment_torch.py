@@ -1,25 +1,10 @@
 from typing import Dict
-
+import torch.nn.functional as F
 import torch
 
-from moonshine.grid_utils_torch import batch_center_res_shape_to_origin_point, batch_align_to_grid, round_to_res
-
-
-def swap_xy(x):
-    """
-
-    Args:
-        x: has shape [b1, b2, ..., bn, 3]
-        n_batch_dims: same as n in the above shape, number of dimensions before the dimension of 3 (x,y,z)
-
-    Returns: the x/y will be swapped
-
-    """
-    first = x[..., 0]
-    second = x[..., 1]
-    z = x[..., 2]
-    swapped = torch.stack([second, first, z], dim=-1)
-    return swapped
+from moonshine.grid_utils_torch import batch_center_res_shape_to_origin_point, batch_align_to_grid, round_to_res, \
+    swap_xy, batch_point_to_idx, occupied_voxels_to_points_batched
+from moonshine.raster_3d_torch import points_to_voxel_grid_res_origin_point_batched
 
 
 def create_env_indices(local_env_h_rows: int, local_env_w_cols: int, local_env_c_channels: int, batch_size: int):
@@ -67,23 +52,36 @@ def get_local_env_and_origin_point(center_point,
 
     local_env_origin_point = batch_align_to_grid(local_env_origin_point, full_env_origin_point, res)
 
-    res_expanded = res.unsqueeze(-1)
-    local_to_full_offset_xyz = round_to_res(local_env_origin_point - full_env_origin_point, res_expanded)
-    local_to_full_offset = swap_xy(local_to_full_offset_xyz)
+    full_env_points = occupied_voxels_to_points_batched(full_env, res, full_env_origin_point)
+    full_env_indices_local_env_frame = batch_point_to_idx(full_env_points, res, local_env_origin_point)
+    local_env_shape = [batch_size, h, w, c]
+    in_bounds_indices = torch.where(0 < full_env_indices_local_env_frame < local_env_shape)
+    batch_indices, h_indices, w_indices, c_indices = torch.unbind(in_bounds_indices, -1)
+    local_env = torch.zeros(local_env_shape, device=full_env.device)
+    local_env[batch_indices, h_indices, w_indices, c_indices] = 1
 
-    # Transform into coordinate of the full_env
-    tile_sizes = [1, h, w, c]
-
-    batch_y_indices_in_full_env_frame = indices['y'] + local_to_full_offset[:, 0, None, None, None]
-    batch_x_indices_in_full_env_frame = indices['x'] + local_to_full_offset[:, 1, None, None, None]
-    batch_z_indices_in_full_env_frame = indices['z'] + local_to_full_offset[:, 2, None, None, None]
-
-    batch_indices = torch.arange(0, batch_size, dtype=torch.int64).to(center_point.device)
-    batch_indices = batch_indices[:, None, None, None]
-    batch_indices = torch.tile(batch_indices, tile_sizes)
-    local_env = full_env[batch_indices,
-                         batch_y_indices_in_full_env_frame,
-                         batch_x_indices_in_full_env_frame,
-                         batch_z_indices_in_full_env_frame]
+    # res_expanded = res.unsqueeze(-1)
+    # local_to_full_offset_xyz = round_to_res(local_env_origin_point - full_env_origin_point, res_expanded)
+    # local_to_full_offset = swap_xy(local_to_full_offset_xyz)
+    #
+    # # Transform into coordinate of the full_env
+    # tile_sizes = [1, h, w, c]
+    #
+    # batch_y_indices_in_full_env_frame = indices['y'] + local_to_full_offset[:, 0, None, None, None]
+    # batch_x_indices_in_full_env_frame = indices['x'] + local_to_full_offset[:, 1, None, None, None]
+    # batch_z_indices_in_full_env_frame = indices['z'] + local_to_full_offset[:, 2, None, None, None]
+    #
+    # batch_indices = torch.arange(0, batch_size, dtype=torch.int64).to(center_point.device)
+    # batch_indices = batch_indices[:, None, None, None]
+    # batch_y_indices_in_full_env_frame.min()
+    # batch_y_indices_in_full_env_frame.max()
+    # batch_x_indices_in_full_env_frame
+    # batch_z_indices_in_full_env_frame
+    # batch_indices = torch.tile(batch_indices, tile_sizes)
+    # full_env_padded = F.pad(full_env, paddings)
+    # local_env = full_env_padded[batch_indices,
+    #                      batch_y_indices_in_full_env_frame,
+    #                      batch_x_indices_in_full_env_frame,
+    #                      batch_z_indices_in_full_env_frame]
 
     return local_env, local_env_origin_point

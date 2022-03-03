@@ -20,7 +20,7 @@ from moonshine.grid_utils_tf import lookup_points_in_vg
 from link_bot_pycommon.pycommon import has_keys, empty_callable
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.numpify import numpify
-from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
+from moonshine.raster_3d_tf import points_to_voxel_grid_res_origin_point_batched
 from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
 from visualization_msgs.msg import MarkerArray
 

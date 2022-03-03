@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 
 from moonshine.gpu_config import limit_gpu_mem
-from moonshine.raster_3d import raster_3d
+from moonshine.raster_3d_tf import raster_3d
 
 limit_gpu_mem(0.1)
 

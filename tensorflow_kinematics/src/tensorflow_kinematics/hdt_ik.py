@@ -10,10 +10,10 @@ from tqdm import trange
 import rospy
 from arc_utilities.ros_helpers import get_connected_publisher
 from arc_utilities.tf2wrapper import TF2Wrapper
-from link_bot_data.robot_points import RobotVoxelgridInfo, batch_transform_robot_points
+from moonshine.robot_points_tf import RobotVoxelgridInfo, batch_transform_robot_points
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from moonshine.geometry import pairwise_squared_distances
+from moonshine.geometry_tf import pairwise_squared_distances
 from moonshine.tensorflow_utils import reduce_mean_no_nan, possibly_none_concat
 from moonshine.simple_profiler import SimpleProfiler
 from moonshine.tf_profiler_helper import TFProfilerHelper

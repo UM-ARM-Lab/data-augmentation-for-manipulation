@@ -27,7 +27,7 @@ from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import int_frac_to_range
 from moonshine.filepath_tools import load_params
-from moonshine.geometry import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
+from moonshine.geometry_tf import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.tensorflow_utils import repeat_tensor
 from moonshine.numpify import numpify

@@ -13,9 +13,9 @@ from augmentation.aug_opt import AugmentationOptimization
 from link_bot_data.visualization import DebuggingViz
 from link_bot_data.local_env_helper import LocalEnvHelper
 from moonshine.make_voxelgrid_inputs_tf import VoxelgridInfo
-from link_bot_data.robot_points import RobotVoxelgridInfo
+from moonshine.robot_points_tf import RobotVoxelgridInfo
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.pycommon import densify_points
+from moonshine.geometry_tf import densify_points
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizSimpleStepper
 from moonshine.get_local_environment_tf import create_env_indices, get_local_env_and_origin_point

@@ -10,12 +10,12 @@ from arc_utilities import ros_init
 from arc_utilities.filesystem_utils import no_overwrite_path
 from link_bot_data.modify_dataset import modify_dataset2
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
-from link_bot_data.robot_points import batch_robot_state_to_transforms, batch_transform_robot_points, RobotVoxelgridInfo
+from moonshine.robot_points_tf import batch_robot_state_to_transforms, batch_transform_robot_points, RobotVoxelgridInfo
 from link_bot_data.split_dataset import split_dataset_via_files
 from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
 from link_bot_pycommon.grid_utils_np import extent_to_env_shape
 from moonshine.gpu_config import limit_gpu_mem
-from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
+from moonshine.raster_3d_tf import points_to_voxel_grid_res_origin_point_batched
 
 limit_gpu_mem(None)
 

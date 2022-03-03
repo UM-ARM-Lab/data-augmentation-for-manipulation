@@ -217,3 +217,19 @@ def quat_dist(quat1, quat2):
 def euler_angle_diff(euler1, euler2):
     abs_diff = tf.abs(euler1 - euler2)
     return tf.minimum(abs_diff, 2 * pi - abs_diff)
+
+
+def densify_points(batch_size, points, num_densify=5):
+    """
+    Args:
+        points: [b, n, 3]
+    Returns: [b, n * num_density, 3]
+    """
+    if points.shape[1] <= 1:
+        return points
+
+    starts = points[:, :-1]
+    ends = points[:, 1:]
+    linspaced = tf.linspace(starts, ends, num_densify, axis=2)  # [b, n, num_density, 3]
+    densitifed_points = tf.reshape(linspaced, [batch_size, -1, 3])
+    return densitifed_points

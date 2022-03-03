@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 
 import rospy
-from moonshine.raster_3d import points_to_voxel_grid, points_to_voxel_grid_wrapped
+from moonshine.raster_3d_tf import points_to_voxel_grid, points_to_voxel_grid_wrapped
 from moonshine.simple_profiler import SimpleProfiler
 
 

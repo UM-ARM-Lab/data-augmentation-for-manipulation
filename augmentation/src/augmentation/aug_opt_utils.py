@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import tensorflow as tf
 
 import rospy
-from moonshine.geometry import transform_points_3d
+from moonshine.geometry_tf import transform_points_3d
 
 
 def debug_aug():

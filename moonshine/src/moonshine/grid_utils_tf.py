@@ -216,20 +216,6 @@ def batch_point_to_idx_tf(x,
     return row, col
 
 
-def batch_point_to_idx(points, res, origin_point):
-    """
-
-    Args:
-        points: [b,3] points in a frame, call it world
-        res: [b] meters
-        origin_point: [b,3] the position [x,y,z] of the center of the voxel (0,0,0) in the same frame as points
-
-    Returns:
-
-    """
-    return swap_xy(round_to_res((points - origin_point), tf.expand_dims(res, axis=-1)))
-
-
 def batch_point_to_idx_tf_3d_res_origin(points, res, origin):
     x = tf.gather(points, 0, axis=-1)
     y = tf.gather(points, 1, axis=-1)

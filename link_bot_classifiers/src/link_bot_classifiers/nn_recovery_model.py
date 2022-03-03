@@ -14,7 +14,7 @@ from link_bot_pycommon.pycommon import dgather
 from moonshine.get_local_environment_tf import get_local_env_and_origin_point, create_env_indices
 from moonshine.metrics import LossMetric
 from moonshine.my_keras_model import MyKerasModel
-from moonshine.raster_3d import points_to_voxel_grid_res_origin_point_batched
+from moonshine.raster_3d_tf import points_to_voxel_grid_res_origin_point_batched
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 
 DEBUG_VIZ = False
