@@ -27,7 +27,7 @@ def numpify(x, dtype=np.float32):
             else:
                 return l
     elif isinstance(x, torch.Tensor):
-        return x.detach().numpy()
+        return x.detach().cpu().numpy()
     elif isinstance(x, tf.Tensor):
         if x.dtype == tf.string:
             if len(x.shape) == 0:

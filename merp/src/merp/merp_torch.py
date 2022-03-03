@@ -78,9 +78,8 @@ class MERP(pl.LightningModule):
         voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
 
         b = 0
-        i = 0
-        for t in range(10):
-            for i in range(6):
+        for t in range(voxel_grids.shape[1]):
+            for i in range(voxel_grids.shape[-1]):
                 raster_dict = {
                     'env':          voxel_grids[b, t, :, :, :, i].cpu().numpy(),
                     'res':          inputs['res'][b].cpu().numpy(),
@@ -91,6 +90,7 @@ class MERP(pl.LightningModule):
                                                 child_frame_id='local_env_vg')
                 raster_msg = environment_to_vg_msg(raster_dict, frame='local_env_vg', stamp=rospy.Time.now())
                 self.debug.raster_debug_pubs[i].publish(raster_msg)
+                self.debug.plot_state_rviz(inputs, b, t, 'inputs')
 
         # conv_output = self.conv_encoder(voxel_grids)
         # out_h = self.fc(inputs, conv_output)
@@ -150,8 +150,7 @@ class MERP(pl.LightningModule):
         return local_env, local_origin_point
 
     def compute_loss(self, inputs: Dict[str, torch.Tensor], outputs):
-        return (outputs - inputs[add_predicted_hack('rope')].reshape(-1, 2 * 25 * 3).sum(-1,
-                                                                                         keepdims=True)).square().sum()
+        raise NotImplementedError()
 
     def training_step(self, train_batch: Dict[str, torch.Tensor], batch_idx):
         outputs = self.forward(train_batch)
