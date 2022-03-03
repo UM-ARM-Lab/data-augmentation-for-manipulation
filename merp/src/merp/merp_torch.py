@@ -79,6 +79,7 @@ class MERP(pl.LightningModule):
 
         b = 0
         for t in range(voxel_grids.shape[1]):
+            self.debug.plot_pred_state_rviz(inputs, b, t, 'pred_inputs')
             for i in range(voxel_grids.shape[-1]):
                 raster_dict = {
                     'env':          voxel_grids[b, t, :, :, :, i].cpu().numpy(),
@@ -90,7 +91,6 @@ class MERP(pl.LightningModule):
                                                 child_frame_id='local_env_vg')
                 raster_msg = environment_to_vg_msg(raster_dict, frame='local_env_vg', stamp=rospy.Time.now())
                 self.debug.raster_debug_pubs[i].publish(raster_msg)
-                self.debug.plot_state_rviz(inputs, b, t, 'inputs')
 
         # conv_output = self.conv_encoder(voxel_grids)
         # out_h = self.fc(inputs, conv_output)

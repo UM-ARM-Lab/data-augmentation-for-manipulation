@@ -19,7 +19,7 @@ def points_to_voxel_grid_res_origin_point_batched(points, res, origin_point, h, 
     n = points.shape[1]
     res = torch.tile(res[:, None], [1, n])
     origin_point = torch.tile(origin_point[:, None, :], [1, n, 1])
-    indices = batch_point_to_idx(points, res, origin_point)  # [n, 4]
+    indices = batch_point_to_idx(points, res, origin_point)  # [n, 3]
     batch_indices = torch.arange(0, batch_size, dtype=torch.long, device=points.device)
     batch_indices = torch.tile(batch_indices[:, None], [1, n])
     h_indices, w_indices, c_indices = indices.unbind(-1)

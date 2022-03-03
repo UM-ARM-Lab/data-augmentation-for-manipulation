@@ -66,6 +66,10 @@ class DebuggingViz:
             display_traj_msg = make_robot_trajectory(robot_state)
             self.scenario.robot.display_robot_traj(display_traj_msg, label=label, color=color)
 
+    def plot_pred_state_rviz(self, input_dict, b, t, label: str, color='blue'):
+        plot_state_b_t(self.scenario, [add_predicted(k) for k in self.state_keys], input_dict, b=b, t=t, label=label,
+                       color=color)
+
     def plot_state_rviz(self, input_dict, b, t, label: str, color='red'):
         plot_state_b_t(self.scenario, self.state_keys, input_dict, b=b, t=t, label=label, color=color)
 
