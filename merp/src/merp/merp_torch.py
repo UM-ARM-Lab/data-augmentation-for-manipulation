@@ -78,15 +78,17 @@ class MERP(pl.LightningModule):
         voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
 
         b = 0
+        i = 0
         for t in range(10):
-            for i, state_component_k_voxel_grid in enumerate(voxel_grids[b, t]):
+            for i in range(6):
                 raster_dict = {
-                    'env':          state_component_k_voxel_grid.cpu().numpy(),
+                    'env':          voxel_grids[b, t, :, :, :, i].cpu().numpy(),
                     'res':          inputs['res'][b].cpu().numpy(),
                     'origin_point': local_origin_point[b].cpu().numpy(),
                 }
 
-                self.scenario.send_occupancy_tf(raster_dict, parent_frame_id='robot_root', child_frame_id='local_env_vg')
+                self.scenario.send_occupancy_tf(raster_dict, parent_frame_id='robot_root',
+                                                child_frame_id='local_env_vg')
                 raster_msg = environment_to_vg_msg(raster_dict, frame='local_env_vg', stamp=rospy.Time.now())
                 self.debug.raster_debug_pubs[i].publish(raster_msg)
 
