@@ -5,8 +5,11 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 import torch
 
+import rospy
 from link_bot_data.dataset_utils import add_predicted_hack
 from link_bot_data.local_env_helper import LocalEnvHelper
+from link_bot_data.visualization import DebuggingViz
+from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
 from moonshine import get_local_environment_torch
 from moonshine.make_voxelgrid_inputs_torch import VoxelgridInfo
 from moonshine.robot_points_torch import RobotVoxelgridInfo
@@ -43,6 +46,7 @@ class MERP(pl.LightningModule):
 
         self.output_layer = nn.Linear(final_hidden_dim, 1)
 
+        self.debug = DebuggingViz(self.scenario, self.hparams.state_keys, self.hparams.action_keys)
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
                                                c=self.local_env_c_channels,
                                                get_local_env_module=get_local_environment_torch)
@@ -73,6 +77,19 @@ class MERP(pl.LightningModule):
         batch_size, time = inputs['time_idx'].shape[0:2]
         voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
 
+        b = 0
+        for t in range(10):
+            for i, state_component_k_voxel_grid in enumerate(voxel_grids[b, t]):
+                raster_dict = {
+                    'env':          state_component_k_voxel_grid.cpu().numpy(),
+                    'res':          inputs['res'][b].cpu().numpy(),
+                    'origin_point': local_origin_point[b].cpu().numpy(),
+                }
+
+                self.scenario.send_occupancy_tf(raster_dict, parent_frame_id='robot_root', child_frame_id='local_env_vg')
+                raster_msg = environment_to_vg_msg(raster_dict, frame='local_env_vg', stamp=rospy.Time.now())
+                self.debug.raster_debug_pubs[i].publish(raster_msg)
+
         # conv_output = self.conv_encoder(voxel_grids)
         # out_h = self.fc(inputs, conv_output)
         # all_accept_logits = F.sigmoid(out_h)
@@ -91,35 +108,35 @@ class MERP(pl.LightningModule):
         #
         # return outputs
 
-    def conv_encoder(self, voxel_grids, batch_size, time):
-        conv_outputs_array = []
-        for t in range(time):
-            conv_z = voxel_grids[:, t]
-            for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
-                conv_h = conv_layer(conv_z)
-                conv_z = pool_layer(conv_h)
-            out_conv_z = conv_z
-            out_conv_z_dim = out_conv_z.shape[1] * out_conv_z.shape[2] * out_conv_z.shape[3] * out_conv_z.shape[4]
-            out_conv_z = torch.reshape(out_conv_z, [batch_size, out_conv_z_dim])
-            conv_outputs_array.append(out_conv_z)
-        conv_outputs = torch.stack(conv_outputs_array)
-        conv_outputs = torch.permute(conv_outputs, [1, 0, 2])
-        return conv_outputs
-
-    def fc(self, input_dict, conv_output, training):
-        states = {k: input_dict[add_predicted_hack(k)] for k in self.hparams.state_keys}
-        states_in_local_frame = self.scenario.put_state_local_frame(states)
-        actions = {k: input_dict[k] for k in self.hparams.action_keys}
-        all_but_last_states = {k: v[:, :-1] for k, v in states.items()}
-        actions = self.scenario.put_action_local_frame(all_but_last_states, actions)
-        padded_actions = [F.pad(v, [0, 0, 0, 1, 0, 0]) for v in actions.values()]
-
-        states_in_robot_frame = self.scenario.put_state_robot_frame(states)
-        concat_args = ([conv_output] + list(states_in_robot_frame.values()) + list(
-            states_in_local_frame.values()) + padded_actions)
-
-        concat_output = torch.cat(concat_args, 2)
-        return out_h
+    # def conv_encoder(self, voxel_grids, batch_size, time):
+    #     conv_outputs_array = []
+    #     for t in range(time):
+    #         conv_z = voxel_grids[:, t]
+    #         for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
+    #             conv_h = conv_layer(conv_z)
+    #             conv_z = pool_layer(conv_h)
+    #         out_conv_z = conv_z
+    #         out_conv_z_dim = out_conv_z.shape[1] * out_conv_z.shape[2] * out_conv_z.shape[3] * out_conv_z.shape[4]
+    #         out_conv_z = torch.reshape(out_conv_z, [batch_size, out_conv_z_dim])
+    #         conv_outputs_array.append(out_conv_z)
+    #     conv_outputs = torch.stack(conv_outputs_array)
+    #     conv_outputs = torch.permute(conv_outputs, [1, 0, 2])
+    #     return conv_outputs
+    #
+    # def fc(self, input_dict, conv_output, training):
+    #     states = {k: input_dict[add_predicted_hack(k)] for k in self.hparams.state_keys}
+    #     states_in_local_frame = self.scenario.put_state_local_frame(states)
+    #     actions = {k: input_dict[k] for k in self.hparams.action_keys}
+    #     all_but_last_states = {k: v[:, :-1] for k, v in states.items()}
+    #     actions = self.scenario.put_action_local_frame(all_but_last_states, actions)
+    #     padded_actions = [F.pad(v, [0, 0, 0, 1, 0, 0]) for v in actions.values()]
+    #
+    #     states_in_robot_frame = self.scenario.put_state_robot_frame(states)
+    #     concat_args = ([conv_output] + list(states_in_robot_frame.values()) + list(
+    #         states_in_local_frame.values()) + padded_actions)
+    #
+    #     concat_output = torch.cat(concat_args, 2)
+    #     return out_h
 
     def get_local_env(self, inputs):
         batch_size = inputs['time_idx'].shape[0]

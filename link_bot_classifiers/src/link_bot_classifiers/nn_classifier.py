@@ -85,6 +85,7 @@ class NNClassifier(MyKerasModel):
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
                                                c=self.local_env_c_channels)
         self.debug = DebuggingViz(self.scenario, self.state_keys, self.action_keys)
+        self.debug.clear()
 
         self.include_robot_geometry = self.hparams.get('include_robot_geometry', False)
         if not self.include_robot_geometry:
