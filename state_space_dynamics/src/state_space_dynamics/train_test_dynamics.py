@@ -21,6 +21,7 @@ from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, repeat_dataset
 from moonshine.torchify import torchify
+from state_space_dynamics.sample_weights_model import SampleWeightsModel
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 from state_space_dynamics.udnn_torch import UDNN
 
@@ -175,7 +176,8 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = UDNN(**model_params)
+    udnn = UDNN(**model_params)
+    model = SampleWeightsModel(train_dataset=train_dataset, model=udnn, **model_params)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     trainer = pl.Trainer(gpus=1,
@@ -184,7 +186,7 @@ def train_main(dataset_dir: pathlib.Path,
                          max_epochs=epochs,
                          max_steps=steps,
                          log_every_n_steps=1,
-                         check_val_every_n_epoch=10,
+                         check_val_every_n_epoch=4,
                          callbacks=[ckpt_cb],
                          default_root_dir='wandb',
                          gradient_clip_val=0.05)

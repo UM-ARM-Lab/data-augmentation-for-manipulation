@@ -22,7 +22,7 @@ class UDNN(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        datset_params = hparams['dataset_hparams']
+        datset_params = self.hparams['dataset_hparams']
         data_collection_params = datset_params['data_collection_params']
         self.scenario = get_scenario(self.hparams.scenario, params=data_collection_params['scenario_params'])
         # FIXME: this dict is currently not getting generated for the newly collected datasets :(
@@ -89,11 +89,15 @@ class UDNN(pl.LightningModule):
         local_rope_points = local_rope.reshape([27, 3])
         self.scenario.plot_points_rviz(local_rope_points, label='local_rope_points')
 
-    def compute_loss(self, inputs, outputs):
+    def compute_batch_loss(self, inputs, outputs):
         batch_time_loss = self.compute_batch_time_loss(inputs, outputs)
         weights = self.get_weights(batch_time_loss, inputs)
-        loss = (batch_time_loss * weights).sum()
-        return loss
+        batch_loss = (batch_time_loss * weights).sum(-1)
+        return batch_loss
+
+    def compute_loss(self, inputs, outputs):
+        batch_loss = self.compute_batch_loss(inputs, outputs)
+        return batch_loss.sum()
 
     def compute_batch_time_loss(self, inputs, outputs):
         loss_by_key = []

@@ -2,40 +2,43 @@ from typing import Optional
 
 import pytorch_lightning as pl
 import torch
+import wandb
 from torch.nn import Parameter
-
-from link_bot_pycommon.load_wandb_model import load_model_artifact
-from state_space_dynamics.udnn_torch import UDNN
 
 
 class SampleWeightsModel(pl.LightningModule):
     def __init__(self, train_dataset: Optional, model: pl.LightningModule, **hparams):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=['train_dataset', 'model'])
 
         self.model = model
 
         if train_dataset is not None:
-            initial_sample_weights = torch.zeros(n_training_examples)
+            max_example_idx = max([e['example_idx'] for e in train_dataset])
+            initial_sample_weights = torch.ones(max_example_idx + 1)
             self.register_parameter("sample_weights", Parameter(initial_sample_weights))
 
     def forward(self, inputs):
         return self.model.forward(inputs)
 
     def training_step(self, train_batch, batch_idx):
-        unweighted_loss = self.model.training_step(train_batch, batch_idx)
-        loss = self.sample_weights @ unweighted_loss
+        outputs = self.model.forward(train_batch)
+        batch_loss = self.model.compute_batch_loss(train_batch, outputs)
+        batch_indices = train_batch['example_idx']
+        sample_weights_for_batch = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
+        sample_weights_for_batch = torch.clip(sample_weights_for_batch, 0, 1)
+        loss = sample_weights_for_batch @ batch_loss - sample_weights_for_batch.sum()
         self.log('weighted_train_loss', loss)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        return self.model.validation_step(val_batch, batch_idx)
+        outputs = self.model.forward(val_batch)
+        val_loss = self.model.compute_loss(val_batch, outputs)
+        self.log('val_loss', val_loss)
+        wandb.log({
+            'weights': wandb.Histogram(self.sample_weights),
+        })
+        return val_loss
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
-
-
-class ResUDNN(BaseResUDNN):
-    def __init__(self, hparams):
-        udnn = load_model_artifact(hparams['udnn_checkpoint'], UDNN, project='udnn', version='best', user='armlab')
-        super().__init__(hparams, udnn)
