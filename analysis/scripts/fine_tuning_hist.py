@@ -69,22 +69,24 @@ def main():
     plt.style.use('paper')
     figsize = (16, 8)
 
-    fig, ax = plt.subplots(figsize=figsize)
-    sns.histplot(ax=ax, data=df, x='loss', hue='weight', palette='colorblind', hue_order=[1.0, 0.0])
-    plt.savefig("all_hist.png")
-
-    boxplot(df, pathlib.Path("."), 'method_name', 'loss', 'all', hue='weight', save=False, figsize=figsize)
+    fig, ax = boxplot(df, pathlib.Path("."), 'method_name', 'loss', 'all', hue='weight', save=False, figsize=figsize)
+    ax.set_title(args.dataset_dir.name)
     plt.savefig("all_box.png")
 
-    fig, ax = boxplot(df_weight_0, pathlib.Path("."), 'method_name', 'loss', 'weight = 0', save=False, figsize=figsize)
-    plt.savefig("weight0_loss.png")
-    ax.annotate('Outliers not shown', xy=(0, 0), bbox=dict(boxstyle='round', fc='w'), size=10, xytext=(0.9, 0.9),
-                textcoords="axes fraction")
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.histplot(ax=ax, data=df, x='loss', hue='weight', palette='colorblind', hue_order=[1.0, 0.0], bins=50)
+    ax.set_title(args.dataset_dir.name)
+    plt.savefig("all_hist.png")
 
-    fig, ax = boxplot(df_weight_1, pathlib.Path("."), 'method_name', 'loss', 'weight = 1', save=False, figsize=figsize)
-    plt.savefig("weight1_loss.png")
-    ax.annotate('Outliers not shown', xy=(0, 0), bbox=dict(boxstyle='round', fc='w'), size=10, xytext=(0.9, 0.9),
-                textcoords="axes fraction")
+    # fig, ax = boxplot(df_weight_0, pathlib.Path("."), 'method_name', 'loss', 'weight = 0', save=False, figsize=figsize)
+    # plt.savefig("weight0_loss.png")
+    # ax.annotate('Outliers not shown', xy=(0, 0), bbox=dict(boxstyle='round', fc='w'), size=10, xytext=(0.9, 0.9),
+    #             textcoords="axes fraction")
+    #
+    # fig, ax = boxplot(df_weight_1, pathlib.Path("."), 'method_name', 'loss', 'weight = 1', save=False, figsize=figsize)
+    # plt.savefig("weight1_loss.png")
+    # ax.annotate('Outliers not shown', xy=(0, 0), bbox=dict(boxstyle='round', fc='w'), size=10, xytext=(0.9, 0.9),
+    #             textcoords="axes fraction")
 
     plt.show()
 
