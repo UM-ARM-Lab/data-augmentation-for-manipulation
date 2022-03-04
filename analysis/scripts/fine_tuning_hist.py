@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import seaborn as sns
 import argparse
 import logging
 import pathlib
@@ -67,6 +68,13 @@ def main():
 
     plt.style.use('paper')
     figsize = (16, 8)
+
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.histplot(ax=ax, data=df, x='loss', hue='weight', palette='colorblind', hue_order=[1.0, 0.0])
+    plt.savefig("all_hist.png")
+
+    boxplot(df, pathlib.Path("."), 'method_name', 'loss', 'all', hue='weight', save=False, figsize=figsize)
+    plt.savefig("all_box.png")
 
     fig, ax = boxplot(df_weight_0, pathlib.Path("."), 'method_name', 'loss', 'weight = 0', save=False, figsize=figsize)
     plt.savefig("weight0_loss.png")
