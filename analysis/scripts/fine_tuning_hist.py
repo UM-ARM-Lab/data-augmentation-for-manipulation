@@ -39,6 +39,7 @@ def main():
     data = []
     for ckpt in args.checkpoints:
         model: UDNN = load_model_artifact(ckpt, UDNN, project='udnn', version='best', user='armlab')
+        model.eval()
 
         for inputs in tqdm(loader):
             outputs = model(inputs)

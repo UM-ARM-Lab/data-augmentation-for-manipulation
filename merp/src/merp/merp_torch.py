@@ -37,7 +37,7 @@ class MERP(pl.LightningModule):
         self.point_state_keys_pred = [add_predicted_hack(k) for k in self.hparams['point_state_keys']]
 
         conv_layers = []
-        in_channels = 4
+        in_channels = 5
         for out_channels, kernel_size in self.hparams['conv_filters']:
             conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
             conv_layers.append(nn.MaxPool3d(self.hparams['pooling']))
@@ -97,9 +97,9 @@ class MERP(pl.LightningModule):
             b = 0
             for t in range(voxel_grids.shape[1]):
                 self.debug.plot_pred_state_rviz(inputs, b, t, 'pred_inputs')
-                for i in range(voxel_grids.shape[-1]):
+                for i in range(voxel_grids.shape[2]):
                     raster_dict = {
-                        'env':          voxel_grids[b, t, :, :, :, i].cpu().numpy(),
+                        'env':          voxel_grids[b, t, i].cpu().numpy(),
                         'res':          inputs['res'][b].cpu().numpy(),
                         'origin_point': local_origin_point[b].cpu().numpy(),
                     }
@@ -119,7 +119,7 @@ class MERP(pl.LightningModule):
         states_robot_frame = self.scenario.put_state_robot_frame(states)
 
         flat_voxel_grids = voxel_grids.reshape(
-            [-1, 4, self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels])
+            [-1, 5, self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels])
         flat_conv_h = self.conv_encoder(flat_voxel_grids)
         conv_h = flat_conv_h.reshape(batch_size, time, -1)
 

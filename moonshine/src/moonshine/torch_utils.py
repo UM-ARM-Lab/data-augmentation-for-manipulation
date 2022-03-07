@@ -1,4 +1,5 @@
 from typing import Dict
+import numpy as np
 
 import torch
 
@@ -28,3 +29,17 @@ def loss_on_dicts(loss_func, dict_true, dict_pred):
         loss_by_key.append(loss)
     return torch.mean(torch.stack(loss_by_key))
 
+
+def repeat_tensor(v, repetitions, axis, new_axis):
+    if np.isscalar(v):
+        multiples = []
+    else:
+        multiples = [1] * v.ndim
+
+    if new_axis:
+        multiples.insert(axis, repetitions)
+        v = v.unsqueeze(axis)
+        return torch.tile(v, multiples)
+    else:
+        multiples[axis] *= repetitions
+        return torch.tile(v, multiples)

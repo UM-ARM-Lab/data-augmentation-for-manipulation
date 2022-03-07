@@ -212,6 +212,7 @@ def eval_main(dataset_dir: pathlib.Path,
               project=PROJECT,
               **kwargs):
     model = load_model_artifact(checkpoint, SampleWeightedUDNN, project, version='best', user=user, train_dataset=None)
+    model.eval()
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
@@ -275,6 +276,7 @@ def eval_versions_main(dataset_dir: pathlib.Path,
 
 def eval_version(trainer, loader, checkpoint, project, user, version):
     model = load_model_artifact(checkpoint, SampleWeightedUDNN, project, f"v{version}", user=user)
+    model.eval()
     metrics = trainer.validate(model, loader, verbose=False)
     metrics0 = metrics[0]
     return metrics0
@@ -294,7 +296,7 @@ def viz_main(dataset_dir: pathlib.Path,
     dataset = dataset_skip(dataset, skip)
 
     model = load_model_artifact(checkpoint, SampleWeightedUDNN, project, version='best', user=user)
-    model.training = False
+    model.eval()
 
     s = dataset.get_scenario()
 

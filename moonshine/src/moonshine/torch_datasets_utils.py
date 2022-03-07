@@ -6,6 +6,8 @@ from torch._six import string_classes
 from torch.utils.data import Subset, ConcatDataset
 from torch.utils.data._utils.collate import np_str_obj_array_pattern, default_collate_err_msg_format
 
+import rospy
+
 
 def repeat_dataset(dataset, repeat: int):
     if repeat is None:
@@ -75,14 +77,6 @@ def my_collate(batch):
             raise RuntimeError('each element in list of batch should be of equal size')
         transposed = zip(*batch)
         return [my_collate(samples) for samples in transposed]
-
+    elif isinstance(elem, rospy.Message):
+        return batch
     raise TypeError(default_collate_err_msg_format.format(elem_type))
-
-
-def add_model_error(scenario):
-    def _add_model_error(example):
-        error = scenario.classifier_distance(actual, predictions)
-        example['error'] = error
-        return example
-
-    return _add_model_error

@@ -138,6 +138,7 @@ def eval_main(dataset_dir: pathlib.Path,
               project=PROJECT,
               **kwargs):
     model = load_model_artifact(checkpoint, DynamicsVAE, project, version='best', user=user)
+    model.eval()
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
@@ -176,7 +177,7 @@ def viz_main(dataset_dir: pathlib.Path,
     loader = DataLoader(dataset, collate_fn=my_collate)
 
     model = load_model_artifact(checkpoint, DynamicsVAE, project, version='best', user=user)
-    model.training = False
+    model.eval()
 
     for i, inputs in enumerate(tqdm(loader)):
         pass

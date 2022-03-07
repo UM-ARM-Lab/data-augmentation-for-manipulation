@@ -4,8 +4,11 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 
+from link_bot_data.dataset_utils import add_predicted_hack
 from link_bot_pycommon.get_scenario import get_scenario
+from moonshine.numpify import numpify
 from moonshine.torch_utils import vector_to_dict, sequence_of_dicts_to_dict_of_tensors
+from moonshine.torchify import torchify
 
 
 def mask_after_first_0(x):
@@ -60,6 +63,15 @@ class UDNN(pl.LightningModule):
             pred_states.append(s_t_plus_1)
 
         pred_states_dict = sequence_of_dicts_to_dict_of_tensors(pred_states, axis=1)
+
+        if not self.training:
+            # no need to do this during training, only during prediction/evaluation/testing
+            inputs_np = numpify(inputs)
+            inputs_np['batch_size'] = inputs['time_idx'].shape[0]
+            _, joint_positions, joint_names = self.scenario.follow_jacobian_from_example(inputs_np, j=self.scenario.robot.jacobian_follower)
+            pred_states_dict['joint_positions'] = torchify(joint_positions).float()
+            pred_states_dict['joint_names'] = joint_names
+
         return pred_states_dict
 
     def one_step_forward(self, action_t, s_t):

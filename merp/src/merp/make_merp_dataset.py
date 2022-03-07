@@ -24,6 +24,7 @@ def make_merp_dataset(dataset_dir: pathlib.Path,
                       checkpoint: pathlib.Path,
                       outdir: pathlib.Path):
     model = load_model_artifact(checkpoint, UDNN, project='udnn', version='latest', user='armlab')
+    model.eval()
 
     merp_dataset_hparams = load_params(dataset_dir)
 
@@ -86,6 +87,9 @@ def generate_merp_examples(model, dataset):
             inputs_from_start_t = {}
             inputs_from_start_t.update(start_state)
             inputs_from_start_t.update(actions_from_start_t)
+            inputs_from_start_t['scene_msg'] = example['scene_msg']
+            inputs_from_start_t['joint_positions'] = example['joint_positions'][start_t:start_t+1]
+            inputs_from_start_t['joint_names'] = example['joint_names'][start_t:start_t+1]
             predictions_from_start_t = numpify(remove_batch(model(torchify(add_batch(inputs_from_start_t)))))
 
             actual_states_from_start_t = {k: example[k][start_t:] for k in state_keys}

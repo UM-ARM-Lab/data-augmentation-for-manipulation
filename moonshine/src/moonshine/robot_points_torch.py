@@ -7,6 +7,7 @@ import pyjacobian_follower
 
 from link_bot_pycommon.pycommon import unordered_pairs
 from moonshine.numpify import numpify
+from moonshine.torch_utils import repeat_tensor
 
 
 class RobotVoxelgridInfo:
@@ -66,13 +67,15 @@ def batch_robot_state_to_transforms(jacobian_follower: pyjacobian_follower.Jacob
     link_to_robot_transforms = jacobian_follower.batch_get_link_to_robot_transforms(names,
                                                                                     numpify(positions),
                                                                                     link_names)
-    link_to_robot_transforms = link_to_robot_transforms.float()
-    return link_to_robot_transforms
+    link_to_robot_transforms = torch.from_numpy(np.array(link_to_robot_transforms, dtype=np.float32))
+    return link_to_robot_transforms  # [b, n_links, 4, 4]
 
 
 def batch_transform_robot_points(link_to_robot_transforms, robot_info: RobotVoxelgridInfo, batch_size):
-    points_link_frame_homo_batch = repeat_tensor(robot_info.points_link_frame, batch_size, 0, True)
-    links_to_robot_transform_batch = torch.repeat(link_to_robot_transforms, robot_info.points_per_links, axis=1)
-    points_robot_frame_homo_batch = torch.matmul(links_to_robot_transform_batch, points_link_frame_homo_batch)
-    points_robot_frame_batch = points_robot_frame_homo_batch[:, :, :3, 0]
+    points_link_frame_homo_batch = repeat_tensor(robot_info.points_link_frame, batch_size, 0, True)  # [b, points, 4, 1]
+    links_to_robot_transform_batch = link_to_robot_transforms.repeat_interleave(
+        torch.tensor(robot_info.points_per_links), dim=1)  # [b, points, 4, 4]
+    points_robot_frame_homo_batch = torch.matmul(links_to_robot_transform_batch,
+                                                 points_link_frame_homo_batch)  # [b, points, 4, 1]
+    points_robot_frame_batch = points_robot_frame_homo_batch[:, :, :3, 0]  # [b, points, 3]
     return points_robot_frame_batch

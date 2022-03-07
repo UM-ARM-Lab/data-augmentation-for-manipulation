@@ -170,6 +170,7 @@ def eval_main(dataset_dir: pathlib.Path,
               project=PROJECT,
               **kwargs):
     model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
+    model.eval()
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
@@ -232,6 +233,7 @@ def eval_versions_main(dataset_dir: pathlib.Path,
 
 def eval_version(trainer, loader, checkpoint, project, user, version):
     model = load_model_artifact(checkpoint, PropNet, project, f"v{version}", user=user)
+    model.eval()
     metrics = trainer.validate(model, loader, verbose=False)
     metrics0 = metrics[0]
     return metrics0
@@ -251,7 +253,7 @@ def viz_main(dataset_dir: pathlib.Path,
     loader = DataLoader(dataset_, collate_fn=my_collate)
 
     model = load_model_artifact(checkpoint, PropNet, project, version='best', user=user)
-    model.training = False
+    model.eval()
 
     for i, inputs in enumerate(tqdm(loader)):
         gt_vel, gt_pos, pred_vel, pred_pos = model(inputs)

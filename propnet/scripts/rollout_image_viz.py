@@ -30,7 +30,7 @@ def main():
     loader = DataLoader(dataset, collate_fn=my_collate)
 
     model = load_model_artifact(args.checkpoint, PropNet, 'propnet', version='best', user=args.user)
-    model.training = False
+    model.eval()
 
     outdir = pathlib.Path('results') / 'rollout_images'
     outdir.mkdir(parents=True, exist_ok=True)

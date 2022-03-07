@@ -24,7 +24,7 @@ def viz_traj(dataset_dir, checkpoint):
     loader = DataLoader(dataset, collate_fn=my_collate)
 
     model = load_model_artifact(checkpoint, PropNet, project=PROJECT, version='best', user='armlab')
-    model.training = False
+    model.eval()
 
     inputs = next(iter(loader))
     gt_vel, gt_pos, pred_vel, pred_pos = model(inputs)

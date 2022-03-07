@@ -71,7 +71,9 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     if steps != -1:
         steps = int(steps / batch_size)
 
-    transform = transforms.Compose([remove_keys("scene_msg")])
+    transform = transforms.Compose([
+        # remove_keys("scene_msg"),
+    ])
 
     train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform,
                                                                    repeat)
@@ -214,6 +216,7 @@ def eval_main(dataset_dir: pathlib.Path,
               project=PROJECT,
               **kwargs):
     model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
+    model.eval()
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
@@ -277,6 +280,7 @@ def eval_versions_main(dataset_dir: pathlib.Path,
 
 def eval_version(trainer, loader, checkpoint, project, user, version):
     model = load_model_artifact(checkpoint, UDNN, project, f"v{version}", user=user)
+    model.eval()
     metrics = trainer.validate(model, loader, verbose=False)
     metrics0 = metrics[0]
     return metrics0
@@ -296,7 +300,7 @@ def viz_main(dataset_dir: pathlib.Path,
     dataset = dataset_skip(dataset, skip)
 
     model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
-    model.training = False
+    model.eval()
 
     s = dataset.get_scenario()
 
