@@ -1,11 +1,10 @@
 import pathlib
-from multiprocessing import Pool, Queue
-from typing import Dict
+from multiprocessing import Pool
 
 from tqdm import tqdm
 
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_data.split_dataset import split_dataset, write_mode
+from link_bot_data.split_dataset import write_mode
 from link_bot_data.tf_dataset_utils import write_example, index_to_filename
 from link_bot_pycommon.load_wandb_model import load_model_artifact
 from link_bot_pycommon.serialization import my_hdump
@@ -54,11 +53,12 @@ def make_merp_dataset(dataset_dir: pathlib.Path,
             for out_example in tqdm(generate_merp_examples(model, dataset), total=total):
                 result = pool.apply_async(func=write_example, args=(outdir, out_example, total_example_idx, 'pkl'))
                 results.append(result)
-                total_example_idx += 1
 
                 metadata_filename = index_to_filename('.pkl', total_example_idx)
                 full_metadata_filename = outdir / metadata_filename
                 files.append(full_metadata_filename)
+
+                total_example_idx += 1
 
             write_mode(outdir, files, mode)
 

@@ -21,10 +21,10 @@ from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, repeat_dataset
 from moonshine.torchify import torchify
+from state_space_dynamics.sample_weights_model import SampleWeightedUDNN
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
-from state_space_dynamics.udnn_torch import UDNN
 
-PROJECT = 'udnn'
+PROJECT = 'weighted'
 
 
 def prepare_train(batch_size, dataset_dir, take, skip, transform, repeat):
@@ -73,8 +73,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
-    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform,
-                                                                   repeat)
+    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform, repeat)
     val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
 
     run_id = generate_id(length=5)
@@ -90,7 +89,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
         'dataset_hparams': train_dataset.params,
         'scenario':        train_dataset.params['scenario'],
     }
-    model = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user, **hparams_update)
+    model = load_model_artifact(checkpoint, SampleWeightedUDNN, project=project, version='latest', user=user, **hparams_update)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
@@ -138,8 +137,7 @@ def train_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
-    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform,
-                                                                   repeat)
+    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform, repeat)
     val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
 
     model_params = load_hjson(model_params)
@@ -177,7 +175,7 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = UDNN(**model_params)
+    model = SampleWeightedUDNN(train_dataset=train_dataset, **model_params)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     trainer = pl.Trainer(gpus=1,
@@ -186,7 +184,7 @@ def train_main(dataset_dir: pathlib.Path,
                          max_epochs=epochs,
                          max_steps=steps,
                          log_every_n_steps=1,
-                         check_val_every_n_epoch=10,
+                         check_val_every_n_epoch=4,
                          callbacks=[ckpt_cb],
                          default_root_dir='wandb',
                          gradient_clip_val=0.05)
@@ -213,7 +211,7 @@ def eval_main(dataset_dir: pathlib.Path,
               skip: Optional[int] = None,
               project=PROJECT,
               **kwargs):
-    model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, SampleWeightedUDNN, project, version='best', user=user, train_dataset=None)
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
@@ -276,7 +274,7 @@ def eval_versions_main(dataset_dir: pathlib.Path,
 
 
 def eval_version(trainer, loader, checkpoint, project, user, version):
-    model = load_model_artifact(checkpoint, UDNN, project, f"v{version}", user=user)
+    model = load_model_artifact(checkpoint, SampleWeightedUDNN, project, f"v{version}", user=user)
     metrics = trainer.validate(model, loader, verbose=False)
     metrics0 = metrics[0]
     return metrics0
@@ -295,7 +293,7 @@ def viz_main(dataset_dir: pathlib.Path,
 
     dataset = dataset_skip(dataset, skip)
 
-    model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, SampleWeightedUDNN, project, version='best', user=user)
     model.training = False
 
     s = dataset.get_scenario()

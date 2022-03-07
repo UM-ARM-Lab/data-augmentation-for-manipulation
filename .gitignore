@@ -23,3 +23,4 @@ CATKIN_IGNORE
 lightning_logs
 wandb
 artifacts
+*.bag

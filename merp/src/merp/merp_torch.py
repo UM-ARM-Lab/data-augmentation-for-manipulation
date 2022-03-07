@@ -1,48 +1,64 @@
 from typing import Dict
-from torch import nn
-import torch.nn.functional as F
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
+import torch.nn.functional as F
+from torch import nn
 
 import rospy
 from link_bot_data.dataset_utils import add_predicted_hack
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.visualization import DebuggingViz
+from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
 from moonshine import get_local_environment_torch
 from moonshine.make_voxelgrid_inputs_torch import VoxelgridInfo
-from moonshine.robot_points_torch import RobotVoxelgridInfo
+
+
+def debug_vgs():
+    return rospy.get_param("DEBUG_VG", False)
 
 
 class MERP(pl.LightningModule):
 
-    def __init__(self, hparams, scenario):
+    def __init__(self, **hparams):
         super().__init__()
-        self.save_hyperparameters(hparams)
-        self.scenario = scenario
+        self.save_hyperparameters()
+
+        datset_params = self.hparams['dataset_hparams']
+        data_collection_params = datset_params['data_collection_params']
+        self.scenario = get_scenario(self.hparams.scenario, params=data_collection_params['scenario_params'])
 
         self.local_env_h_rows = self.hparams['local_env_h_rows']
         self.local_env_w_cols = self.hparams['local_env_w_cols']
         self.local_env_c_channels = self.hparams['local_env_c_channels']
         self.point_state_keys_pred = [add_predicted_hack(k) for k in self.hparams['point_state_keys']]
 
-        layers = []
+        conv_layers = []
         in_channels = 4
         for out_channels, kernel_size in self.hparams['conv_filters']:
-            layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
-            layers.append(nn.MaxPool3d(self.hparams['pooling']))
+            conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
+            conv_layers.append(nn.MaxPool3d(self.hparams['pooling']))
+            in_channels = out_channels
 
-        # in_size = 10
-        # for hidden_size in self.hparams['fc_layer_sizes']:
-        #     layers.append(nn.Linear(in_size, hidden_size))
-        #     layers.append(nn.ReLU())
-        #     in_size = hidden_size
+        fc_layers = []
+        state_desc = data_collection_params['state_description']
+        action_desc = data_collection_params['action_description']
+        state_size = sum([state_desc[k] for k in self.hparams.state_keys])
+        action_size = sum([action_desc[k] for k in self.hparams.action_keys])
 
+        conv_out_size = int(self.hparams['conv_filters'][-1][0] * np.prod(self.hparams['conv_filters'][-1][1]))
+        in_size = conv_out_size + 2 * state_size + action_size
+        for hidden_size in self.hparams['fc_layer_sizes']:
+            fc_layers.append(nn.Linear(in_size, hidden_size))
+            fc_layers.append(nn.ReLU())
+            in_size = hidden_size
         final_hidden_dim = self.hparams['fc_layer_sizes'][-1]
-        layers.append(nn.LSTM(final_hidden_dim, self.hparams['rnn_size'], 1))
+        fc_layers.append(nn.LSTM(final_hidden_dim, self.hparams['rnn_size'], 1))
 
-        self.sequential = torch.nn.Sequential(*layers)
+        self.conv_encoder = torch.nn.Sequential(*conv_layers)
+        self.fc = torch.nn.Sequential(*fc_layers)
 
         self.output_layer = nn.Linear(final_hidden_dim, 1)
 
@@ -51,6 +67,7 @@ class MERP(pl.LightningModule):
                                                c=self.local_env_c_channels,
                                                get_local_env_module=get_local_environment_torch)
         # TODO: use a dynamics model that is the UDNN torch + robot kinematics
+        print("NOT INCLUDING ROBOT IN VOXEL GRID!!!!!")
         # self.robot_info = RobotVoxelgridInfo(joint_positions_key=add_predicted_hack('joint_positions'))
         self.vg_info = VoxelgridInfo(h=self.local_env_h_rows,
                                      w=self.local_env_w_cols,
@@ -77,68 +94,47 @@ class MERP(pl.LightningModule):
         batch_size, time = inputs['time_idx'].shape[0:2]
         voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
 
-        b = 0
-        for t in range(voxel_grids.shape[1]):
-            self.debug.plot_pred_state_rviz(inputs, b, t, 'pred_inputs')
-            for i in range(voxel_grids.shape[-1]):
-                raster_dict = {
-                    'env':          voxel_grids[b, t, :, :, :, i].cpu().numpy(),
-                    'res':          inputs['res'][b].cpu().numpy(),
-                    'origin_point': local_origin_point[b].cpu().numpy(),
-                }
+        if debug_vgs():
+            b = 0
+            for t in range(voxel_grids.shape[1]):
+                self.debug.plot_pred_state_rviz(inputs, b, t, 'pred_inputs')
+                for i in range(voxel_grids.shape[-1]):
+                    raster_dict = {
+                        'env':          voxel_grids[b, t, :, :, :, i].cpu().numpy(),
+                        'res':          inputs['res'][b].cpu().numpy(),
+                        'origin_point': local_origin_point[b].cpu().numpy(),
+                    }
 
-                self.scenario.send_occupancy_tf(raster_dict, parent_frame_id='robot_root',
-                                                child_frame_id='local_env_vg')
-                raster_msg = environment_to_vg_msg(raster_dict, frame='local_env_vg', stamp=rospy.Time.now())
-                self.debug.raster_debug_pubs[i].publish(raster_msg)
+                    self.scenario.send_occupancy_tf(raster_dict, parent_frame_id='robot_root',
+                                                    child_frame_id='local_env_vg')
+                    raster_msg = environment_to_vg_msg(raster_dict, frame='local_env_vg', stamp=rospy.Time.now())
+                    self.debug.raster_debug_pubs[i].publish(raster_msg)
 
-        # conv_output = self.conv_encoder(voxel_grids)
-        # out_h = self.fc(inputs, conv_output)
-        # all_accept_logits = F.sigmoid(out_h)
-        #
-        # # for every timestep's output, map down to a single scalar, the logit for accept probability
-        # all_accept_logits = self.output_layer(out_h)
-        # # ignore the first output, it is meaningless to predict the validity of a single state
-        # valid_accept_logits = all_accept_logits[:, 1:]
-        # valid_accept_probabilities = self.sigmoid(valid_accept_logits)
-        #
-        # outputs = {
-        #     'logits':        valid_accept_logits,
-        #     'probabilities': valid_accept_probabilities,
-        #     'out_h':         out_h,
-        # }
-        #
-        # return outputs
+        states = {k: inputs[add_predicted_hack(k)] for k in self.hparams.state_keys}
+        states_local_frame = self.scenario.put_state_local_frame_torch(states)
+        actions = {k: inputs[k] for k in self.hparams.action_keys}
+        all_but_last_states = {k: v[:, :-1] for k, v in states.items()}
+        actions = self.scenario.put_action_local_frame(all_but_last_states, actions)
+        padded_actions = [F.pad(v, [0, 0, 0, 1, 0, 0]) for v in actions.values()]
 
-    # def conv_encoder(self, voxel_grids, batch_size, time):
-    #     conv_outputs_array = []
-    #     for t in range(time):
-    #         conv_z = voxel_grids[:, t]
-    #         for conv_layer, pool_layer in zip(self.conv_layers, self.pool_layers):
-    #             conv_h = conv_layer(conv_z)
-    #             conv_z = pool_layer(conv_h)
-    #         out_conv_z = conv_z
-    #         out_conv_z_dim = out_conv_z.shape[1] * out_conv_z.shape[2] * out_conv_z.shape[3] * out_conv_z.shape[4]
-    #         out_conv_z = torch.reshape(out_conv_z, [batch_size, out_conv_z_dim])
-    #         conv_outputs_array.append(out_conv_z)
-    #     conv_outputs = torch.stack(conv_outputs_array)
-    #     conv_outputs = torch.permute(conv_outputs, [1, 0, 2])
-    #     return conv_outputs
-    #
-    # def fc(self, input_dict, conv_output, training):
-    #     states = {k: input_dict[add_predicted_hack(k)] for k in self.hparams.state_keys}
-    #     states_in_local_frame = self.scenario.put_state_local_frame(states)
-    #     actions = {k: input_dict[k] for k in self.hparams.action_keys}
-    #     all_but_last_states = {k: v[:, :-1] for k, v in states.items()}
-    #     actions = self.scenario.put_action_local_frame(all_but_last_states, actions)
-    #     padded_actions = [F.pad(v, [0, 0, 0, 1, 0, 0]) for v in actions.values()]
-    #
-    #     states_in_robot_frame = self.scenario.put_state_robot_frame(states)
-    #     concat_args = ([conv_output] + list(states_in_robot_frame.values()) + list(
-    #         states_in_local_frame.values()) + padded_actions)
-    #
-    #     concat_output = torch.cat(concat_args, 2)
-    #     return out_h
+        states_robot_frame = self.scenario.put_state_robot_frame(states)
+
+        flat_voxel_grids = voxel_grids.reshape(
+            [-1, 4, self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels])
+        flat_conv_h = self.conv_encoder(flat_voxel_grids)
+        conv_h = flat_conv_h.reshape(batch_size, time, -1)
+
+        cat_args = [conv_h] + list(states_robot_frame.values()) + list(states_local_frame.values()) + padded_actions
+        fc_in = torch.cat(cat_args, -1)
+        out_h, _ = self.fc(fc_in)
+
+        # for every timestep's output, map down to a single scalar, the logit for accept probability
+        predicted_errors = self.output_layer(out_h)
+
+        # ignore the first output, it is meaningless to predict the error at the "start" state
+        predicted_error = predicted_errors[:, 1:].squeeze(1).squeeze(1)
+
+        return predicted_error
 
     def get_local_env(self, inputs):
         batch_size = inputs['time_idx'].shape[0]
@@ -150,7 +146,9 @@ class MERP(pl.LightningModule):
         return local_env, local_origin_point
 
     def compute_loss(self, inputs: Dict[str, torch.Tensor], outputs):
-        raise NotImplementedError()
+        error_after = inputs['error'][:, 1]
+        loss = F.mse_loss(outputs, error_after)
+        return loss
 
     def training_step(self, train_batch: Dict[str, torch.Tensor], batch_idx):
         outputs = self.forward(train_batch)

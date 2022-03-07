@@ -58,7 +58,7 @@ class VoxelgridInfo:
             robot_voxel_grid = self.make_robot_voxelgrid(inputs, local_origin_point, t, batch_size)
             local_voxel_grid_t.append(robot_voxel_grid)
 
-        local_voxel_grid_t = torch.stack(local_voxel_grid_t, -1)
+        local_voxel_grid_t = torch.stack(local_voxel_grid_t, 1)
         return local_voxel_grid_t
 
     def make_robot_voxelgrid(self, inputs, local_origin_point, t, batch_size):

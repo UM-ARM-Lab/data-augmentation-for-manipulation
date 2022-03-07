@@ -8,7 +8,7 @@
     rope
     left_gripper
     right_gripper
-    joint_positions
+    # joint_positions
   ]
   state_metadata_keys: [
     joint_names
@@ -22,9 +22,9 @@
   fc_layer_sizes: [ 128 ]
   pooling: [ 2, 2, 2 ]
   conv_filters: [
-    [ 26, [ 3, 3, 3 ] ]
-    [ 26, [ 3, 3, 3 ] ]
-    [ 26, [ 3, 3, 3 ] ]
+    [ 32, [ 3, 3, 3 ] ]
+    [ 32, [ 3, 3, 3 ] ]
+    [ 32, [ 3, 3, 3 ] ]
   ]
   local_env_h_rows: 44
   local_env_w_cols: 44

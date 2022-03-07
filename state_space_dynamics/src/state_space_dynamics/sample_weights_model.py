@@ -5,38 +5,45 @@ import torch
 import wandb
 from torch.nn import Parameter
 
+from state_space_dynamics.udnn_torch import UDNN
 
-class SampleWeightsModel(pl.LightningModule):
-    def __init__(self, train_dataset: Optional, model: pl.LightningModule, **hparams):
+
+class SampleWeightedUDNN(pl.LightningModule):
+    def __init__(self, train_dataset: Optional, **hparams):
         super().__init__()
-        self.save_hyperparameters(ignore=['train_dataset', 'model'])
-
-        self.model = model
 
         if train_dataset is not None:
             max_example_idx = max([e['example_idx'] for e in train_dataset])
-            initial_sample_weights = torch.ones(max_example_idx + 1)
-            self.register_parameter("sample_weights", Parameter(initial_sample_weights))
+            self.hparams['max_example_idx'] = max_example_idx
+        else:
+            max_example_idx = hparams['max_example_idx']
+
+        self.save_hyperparameters(ignore=['train_dataset'])
+
+        self.udnn = UDNN(**hparams)
+
+        initial_sample_weights = torch.ones(max_example_idx + 1)
+        self.register_parameter("sample_weights", Parameter(initial_sample_weights))
 
     def forward(self, inputs):
-        return self.model.forward(inputs)
+        return self.udnn.forward(inputs)
 
     def training_step(self, train_batch, batch_idx):
-        outputs = self.model.forward(train_batch)
-        batch_loss = self.model.compute_batch_loss(train_batch, outputs)
+        outputs = self.udnn.forward(train_batch)
+        batch_loss = self.udnn.compute_batch_loss(train_batch, outputs)
         batch_indices = train_batch['example_idx']
         sample_weights_for_batch = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
         sample_weights_for_batch = torch.clip(sample_weights_for_batch, 0, 1)
-        loss = sample_weights_for_batch @ batch_loss - sample_weights_for_batch.sum()
+        loss = sample_weights_for_batch @ batch_loss - sample_weights_for_batch.sum() + batch_indices.shape[0]
         self.log('weighted_train_loss', loss)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        outputs = self.model.forward(val_batch)
-        val_loss = self.model.compute_loss(val_batch, outputs)
+        outputs = self.udnn.forward(val_batch)
+        val_loss = self.udnn.compute_loss(val_batch, outputs)
         self.log('val_loss', val_loss)
         wandb.log({
-            'weights': wandb.Histogram(self.sample_weights),
+            'weights': wandb.Histogram(self.sample_weights.detach().cpu()),
         })
         return val_loss
 

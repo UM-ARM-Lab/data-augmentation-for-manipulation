@@ -324,23 +324,6 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             'right_gripper': state['right_gripper'],
             rope_key_name:   state[rope_key_name],
         }
-        # rope = state[rope_key_name]
-        # rope_points_shape = rope.shape[:-1].as_list() + [-1, 3]
-        # rope_points = tf.reshape(rope, rope_points_shape)
-        #
-        # # This assumes robot is at 0 0 0
-        # robot_position = tf.constant([[0, 0, 0]], tf.float32)
-        # left_gripper_robot = state['left_gripper']
-        # right_gripper_robot = state['right_gripper']
-        #
-        # rope_points_robot = rope_points - tf.expand_dims(robot_position, axis=-2)
-        # rope_robot = tf.reshape(rope_points_robot, rope.shape)
-        #
-        # return {
-        #     'left_gripper':  left_gripper_robot,
-        #     'right_gripper': right_gripper_robot,
-        #     rope_key_name:   rope_robot,
-        # }
 
     @staticmethod
     def put_state_local_frame(state: Dict):

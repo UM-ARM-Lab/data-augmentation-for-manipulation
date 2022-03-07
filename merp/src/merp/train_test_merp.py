@@ -6,7 +6,6 @@ from typing import Optional
 
 import git
 import pytorch_lightning as pl
-import torch
 import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
@@ -14,14 +13,13 @@ from torchvision import transforms
 from wandb.util import generate_id
 
 from link_bot_data.visualization import init_viz_env, viz_pred_actual_t
-from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
 from merp.merp_torch import MERP
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
-from moonshine.filepath_tools import load_hjson, load_params
+from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
-from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, add_model_error
+from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
 from moonshine.torchify import torchify
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
@@ -109,7 +107,7 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = MERP(hparams=model_params, scenario=train_dataset.get_scenario())
+    model = MERP(**model_params)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     trainer = pl.Trainer(gpus=1,
@@ -118,20 +116,18 @@ def train_main(dataset_dir: pathlib.Path,
                          max_epochs=epochs,
                          max_steps=steps,
                          log_every_n_steps=1,
-                         check_val_every_n_epoch=10,
+                         check_val_every_n_epoch=1,
                          callbacks=[ckpt_cb],
                          default_root_dir='wandb',
                          gradient_clip_val=0.05)
-    # this breaks torchscript for some reason
-    # wb_logger.watch(model)
     trainer.fit(model,
                 train_loader,
                 val_dataloaders=val_loader,
                 ckpt_path=ckpt_path)
     wandb.finish()
 
-    script = model.to_torchscript()
-    torch.jit.save(script, "model.pt")
+    # script = model.to_torchscript()
+    # torch.jit.save(script, "model.pt")
 
     eval_main(dataset_dir,
               run_id,
@@ -151,6 +147,11 @@ def eval_main(dataset_dir: pathlib.Path,
               skip: Optional[int] = None,
               project=PROJECT,
               **kwargs):
+    transform = transforms.Compose([remove_keys("scene_msg")])
+    dataset = TorchDynamicsDataset(dataset_dir, mode, transform=transform)
+    dataset = take_subset(dataset, take)
+    dataset = dataset_skip(dataset, skip)
+
     model = load_model_artifact(checkpoint, MERP, project, version='best', user=user)
 
     run_id = f'eval-{generate_id(length=5)}'
@@ -164,11 +165,7 @@ def eval_main(dataset_dir: pathlib.Path,
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity='armlab')
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
-    transform = transforms.Compose([remove_keys("scene_msg")])
-    dataset = TorchDynamicsDataset(dataset_dir, mode, transform=transform)
-    dataset = take_subset(dataset, take)
-    dataset = dataset_skip(dataset, skip)
-    loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
+    loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size), batch_size=batch_size)
     metrics = trainer.validate(model, loader, verbose=False)
     wandb.finish()
 
