@@ -60,7 +60,7 @@ class VoxelgridInfo:
             robot_points = self.make_robot_points_batched(batch_size, inputs, t).to(device)  # [b, n_points, 3]
             robot_voxel_grid = points_to_voxel_grid_res_origin_point_batched(robot_points,
                                                                              inputs['res'],
-                                                                             inputs['origin_point'],
+                                                                             local_origin_point,
                                                                              self.h,
                                                                              self.w,
                                                                              self.c,
@@ -78,4 +78,5 @@ class VoxelgridInfo:
                                                                    positions.detach().cpu().numpy(),
                                                                    self.robot_info.link_names)
         robot_points = batch_transform_robot_points(link_to_robot_transforms, self.robot_info, batch_size)
+        # self.scenario.plot_points_rviz(robot_points[0], label='robot_points')
         return robot_points
