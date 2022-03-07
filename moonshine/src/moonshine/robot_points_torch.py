@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import pathlib
 import pickle
@@ -27,10 +28,10 @@ class RobotVoxelgridInfo:
         self.n_points = sum(self.points_per_links)
 
         self.points_link_frame_list = get_points_link_frame(robot_points)
-        points_link_frame_concat = torch.concat(self.points_link_frame_list, axis=0)
-        ones = torch.ones([self.n_points, 1], torch.float32)
-        link_points_link_frame_homo = torch.concat([points_link_frame_concat, ones], axis=1)
-        link_points_link_frame_homo = torch.expand_dims(link_points_link_frame_homo, axis=-1)
+        points_link_frame_concat = torch.cat(self.points_link_frame_list, 0)
+        ones = torch.ones(self.n_points, 1, dtype=torch.float32)
+        link_points_link_frame_homo = torch.cat([points_link_frame_concat, ones], 1)
+        link_points_link_frame_homo = link_points_link_frame_homo.unsqueeze(-1)
 
         self.points_link_frame = link_points_link_frame_homo
         self.joint_positions_key = joint_positions_key
@@ -53,7 +54,7 @@ class RobotVoxelgridInfo:
 def get_points_link_frame(points):
     points_link_frame = []
     for link_name, link_points_link_frame in points.items():
-        link_points_link_frame = torch.cast(link_points_link_frame, dtype=torch.float32)
+        link_points_link_frame = torch.from_numpy(np.array(link_points_link_frame, dtype=np.float32))
         points_link_frame.append(link_points_link_frame)
     return points_link_frame
 
@@ -65,7 +66,7 @@ def batch_robot_state_to_transforms(jacobian_follower: pyjacobian_follower.Jacob
     link_to_robot_transforms = jacobian_follower.batch_get_link_to_robot_transforms(names,
                                                                                     numpify(positions),
                                                                                     link_names)
-    link_to_robot_transforms = torch.cast(link_to_robot_transforms, torch.float32)
+    link_to_robot_transforms = link_to_robot_transforms.float()
     return link_to_robot_transforms
 
 

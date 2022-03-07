@@ -14,6 +14,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
 from moonshine import get_local_environment_torch
 from moonshine.make_voxelgrid_inputs_torch import VoxelgridInfo
+from moonshine.robot_points_torch import RobotVoxelgridInfo
 
 
 def debug_vgs():
@@ -66,16 +67,14 @@ class MERP(pl.LightningModule):
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
                                                c=self.local_env_c_channels,
                                                get_local_env_module=get_local_environment_torch)
-        # TODO: use a dynamics model that is the UDNN torch + robot kinematics
-        print("NOT INCLUDING ROBOT IN VOXEL GRID!!!!!")
-        # self.robot_info = RobotVoxelgridInfo(joint_positions_key=add_predicted_hack('joint_positions'))
+        self.robot_info = RobotVoxelgridInfo(joint_positions_key=add_predicted_hack('joint_positions'))
         self.vg_info = VoxelgridInfo(h=self.local_env_h_rows,
                                      w=self.local_env_w_cols,
                                      c=self.local_env_c_channels,
                                      state_keys=self.point_state_keys_pred,
                                      jacobian_follower=self.scenario.robot.jacobian_follower,
-                                     robot_info=None,
-                                     include_robot_geometry=False,
+                                     robot_info=self.robot_info,
+                                     include_robot_geometry=True,
                                      scenario=self.scenario,
                                      )
 
