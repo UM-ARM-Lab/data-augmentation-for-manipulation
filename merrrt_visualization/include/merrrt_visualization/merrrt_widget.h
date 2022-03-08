@@ -36,6 +36,7 @@ class MerrrtWidget : public rviz::Panel {
 
   void LabelCallback(const peter_msgs::LabelStatus::ConstPtr &msg) const;
   void ErrorCallback(const std_msgs::Float32::ConstPtr &msg);
+  void PredErrorCallback(const std_msgs::Float32::ConstPtr &msg);
   void StdevCallback(const std_msgs::Float32::ConstPtr &msg);
   void OnAcceptProbability(const std_msgs::Float32::ConstPtr &msg);
   void OnWeight(const std_msgs::Float32::ConstPtr &msg);
@@ -54,6 +55,7 @@ class MerrrtWidget : public rviz::Panel {
   void setWeightText(const QString &text);
   void setTrajIdxText(const QString &text);
   void setErrorText(const QString &text);
+  void setPredErrorText(const QString &text);
   void setStdevText(const QString &text);
   void setRecoveryProbText(const QString &text);
   void setAcceptProbText(const QString &text);
@@ -62,6 +64,7 @@ class MerrrtWidget : public rviz::Panel {
   Ui_MerrrtWidget ui;
   ros::NodeHandle ros_node_;
   ros::Subscriber label_sub_;
+  ros::Subscriber pred_error_sub_;
   ros::Subscriber error_sub_;
   ros::Subscriber stdev_sub_;
   ros::Subscriber traj_idx_sub_;

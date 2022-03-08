@@ -21,6 +21,8 @@ class SampleWeightedUDNN(pl.LightningModule):
         self.save_hyperparameters(ignore=['train_dataset'])
 
         self.udnn = UDNN(**hparams)
+        self.state_keys = self.udnn.state_keys
+        self.state_metadata_keys = self.udnn.state_metadata_keys
 
         initial_sample_weights = torch.ones(max_example_idx + 1)
         self.register_parameter("sample_weights", Parameter(initial_sample_weights))
@@ -34,10 +36,13 @@ class SampleWeightedUDNN(pl.LightningModule):
         batch_indices = train_batch['example_idx']
         sample_weights_for_batch = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
         sample_weights_for_batch = torch.clip(sample_weights_for_batch, 0, 1)
-        loss = sample_weights_for_batch @ batch_loss - sample_weights_for_batch.sum() + batch_indices.shape[0]
+        loss = sample_weights_for_batch @ batch_loss - (sample_weights_for_batch.sum() - batch_indices.shape[0]) * self.hparams.beta_sample_weights
         self.log('weighted_train_loss', loss)
         return loss
 
+    # def on_after_backward(self) -> None:
+    #     self.sample_weights.grad[908]
+    #
     def validation_step(self, val_batch, batch_idx):
         outputs = self.udnn.forward(val_batch)
         val_loss = self.udnn.compute_loss(val_batch, outputs)

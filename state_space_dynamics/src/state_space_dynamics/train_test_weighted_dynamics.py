@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Optional
 
 import git
-import numpy as np
 import pytorch_lightning as pl
 import wandb
 from pytorch_lightning.loggers import WandbLogger
@@ -73,7 +72,8 @@ def fine_tune_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
-    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform, repeat)
+    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform,
+                                                                   repeat)
     val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
 
     run_id = generate_id(length=5)
@@ -89,7 +89,8 @@ def fine_tune_main(dataset_dir: pathlib.Path,
         'dataset_hparams': train_dataset.params,
         'scenario':        train_dataset.params['scenario'],
     }
-    model = load_model_artifact(checkpoint, SampleWeightedUDNN, project=project, version='latest', user=user, **hparams_update)
+    model = load_model_artifact(checkpoint, SampleWeightedUDNN, project=project, version='latest', user=user,
+                                **hparams_update)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
@@ -137,7 +138,8 @@ def train_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
-    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform, repeat)
+    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform,
+                                                                   repeat)
     val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
 
     model_params = load_hjson(model_params)
@@ -295,7 +297,7 @@ def viz_main(dataset_dir: pathlib.Path,
 
     dataset = dataset_skip(dataset, skip)
 
-    model = load_model_artifact(checkpoint, SampleWeightedUDNN, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, SampleWeightedUDNN, project, version='best', user=user, train_dataset=None)
     model.eval()
 
     s = dataset.get_scenario()
@@ -306,22 +308,20 @@ def viz_main(dataset_dir: pathlib.Path,
     while not dataset_anim.done:
         inputs = dataset[dataset_anim.t()]
 
-        weight = inputs.get('weight', np.ones_like(inputs['time_idx']))
-        # if True:
-        if (weight_above <= weight).all() and (weight <= weight_below).all():
+        outputs = remove_batch(model(torchify(add_batch(inputs))))
+        weight = model.sample_weights.detach().cpu()[inputs['example_idx']]
 
-            outputs = remove_batch(model(torchify(add_batch(inputs))))
+        n_time_steps = inputs['time_idx'].shape[0]
+        time_anim = RvizAnimationController(n_time_steps=n_time_steps)
 
-            n_time_steps = inputs['time_idx'].shape[0]
-            time_anim = RvizAnimationController(n_time_steps=n_time_steps)
+        while not time_anim.done:
+            t = time_anim.t()
+            init_viz_env(s, inputs, t)
+            s.plot_weight_rviz(weight)
+            viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.05)
+            time_anim.step()
 
-            while not time_anim.done:
-                t = time_anim.t()
-                init_viz_env(s, inputs, t)
-                viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.05)
-                time_anim.step()
-
-            n_examples_visualized += 1
+        n_examples_visualized += 1
 
         dataset_anim.step()
 

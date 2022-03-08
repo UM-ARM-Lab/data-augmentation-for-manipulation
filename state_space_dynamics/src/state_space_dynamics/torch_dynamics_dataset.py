@@ -3,7 +3,7 @@ import pathlib
 from typing import Dict
 
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
 from link_bot_data.dataset_utils import pprint_example
 from link_bot_data.new_dataset_utils import get_filenames, load_single, DynamicsDatasetParams
@@ -12,6 +12,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_time_batched, index_time
 from moonshine.moonshine_utils import get_num_workers
+from moonshine.my_torch_dataset import MyTorchDataset
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.torch_datasets_utils import take_subset, my_collate
@@ -68,38 +69,15 @@ class TorchLoaderWrapped:
                                num_workers=get_num_workers(batch_size=1)))
 
 
-class TorchDynamicsDataset(Dataset, DynamicsDatasetParams):
+class TorchDynamicsDataset(MyTorchDataset, DynamicsDatasetParams):
 
     def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, add_stats=False):
+        MyTorchDataset.__init__(self, dataset_dir, mode, transform)
         DynamicsDatasetParams.__init__(self, dataset_dir)
         self.dataset_dir = dataset_dir
         self.mode = mode
         self.metadata_filenames = get_filenames([dataset_dir], mode)
         self.add_stats = add_stats
-
-        self.transform = transform
-        self.scenario = None
-
-    def __len__(self):
-        return len(self.metadata_filenames)
-
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        metadata_filename = self.metadata_filenames[idx]
-        example = load_single(metadata_filename)
-
-        if self.transform:
-            example = self.transform(example)
-
-        return example
-
-    def get_scenario(self):
-        if self.scenario is None:
-            self.scenario = get_scenario(self.params['scenario'], self.scenario_params)
-
-        return self.scenario
 
     def get_datasets(self, mode=None):
         if mode != self.mode:
@@ -113,9 +91,6 @@ class TorchDynamicsDataset(Dataset, DynamicsDatasetParams):
     def index_time(self, example, t: int):
         e_t = numpify(index_time(example, self.time_indexed_keys, t, False))
         return e_t
-
-    def pprint_example(self):
-        pprint_example(self[0])
 
     def dynamics_viz_t(self):
         return dynamics_viz_t(metadata={},

@@ -22,12 +22,14 @@ MerrrtWidget::MerrrtWidget(QWidget *parent)
   connect(this, &MerrrtWidget::setAcceptProbText, ui.accept_probability, &QLabel::setText);
   connect(this, &MerrrtWidget::setRecoveryProbText, ui.recovery_probability, &QLabel::setText);
   connect(this, &MerrrtWidget::setErrorText, ui.error, &QLabel::setText);
+  connect(this, &MerrrtWidget::setPredErrorText, ui.pred_error, &QLabel::setText);
   connect(this, &MerrrtWidget::setStdevText, ui.stdev, &QLabel::setText);
   connect(this, &MerrrtWidget::setTrajIdxText, ui.traj_idx, &QLabel::setText);
   connect(this, &MerrrtWidget::setWeightText, ui.weight, &QLabel::setText);
 
   label_sub_ = ros_node_.subscribe<peter_msgs::LabelStatus>("label_viz", 10, &MerrrtWidget::LabelCallback, this);
   error_sub_ = ros_node_.subscribe<std_msgs::Float32>("error", 10, &MerrrtWidget::ErrorCallback, this);
+  pred_error_sub_ = ros_node_.subscribe<std_msgs::Float32>("pred_error_viz", 10, &MerrrtWidget::PredErrorCallback, this);
   stdev_sub_ = ros_node_.subscribe<std_msgs::Float32>("stdev", 10, &MerrrtWidget::StdevCallback, this);
   accept_probability_sub_ =
       ros_node_.subscribe<std_msgs::Float32>("accept_probability_viz", 10, &MerrrtWidget::OnAcceptProbability, this);
@@ -47,6 +49,11 @@ void MerrrtWidget::OnWeight(const std_msgs::Float32::ConstPtr &msg) {
 void MerrrtWidget::OnTrajIdx(const std_msgs::Float32::ConstPtr &msg) {
   auto const text = QString::asprintf("%0.4f", msg->data);
   emit setTrajIdxText(text);
+}
+
+void MerrrtWidget::PredErrorCallback(const std_msgs::Float32::ConstPtr &msg) {
+  auto const text = QString::asprintf("%0.4f", msg->data);
+  emit setPredErrorText(text);
 }
 
 void MerrrtWidget::ErrorCallback(const std_msgs::Float32::ConstPtr &msg) {

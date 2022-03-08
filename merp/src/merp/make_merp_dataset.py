@@ -48,7 +48,7 @@ def make_merp_dataset(dataset_dir: pathlib.Path,
         total_example_idx = 0
         steps_per_traj = 10
         for mode in ['train', 'val', 'test']:
-            dataset = TorchMERPDataset(dataset_dir=dataset_dir, model_hparams=model.hparams, mode=mode)
+            dataset = TorchMERPDataset(dataset_dir=dataset_dir, mode=mode)
             total = n_seq(steps_per_traj - 1) * len(dataset)
             files = []
             for out_example in tqdm(generate_merp_examples(model, dataset), total=total):

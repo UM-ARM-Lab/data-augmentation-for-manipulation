@@ -328,7 +328,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     @staticmethod
     def put_state_local_frame(state: Dict):
         rope = state[rope_key_name]
-        rope_points_shape = rope.shape[:-1] + [-1, 3]
+        rope_points_shape = rope.shape[:-1].as_list() + [-1, 3]
         rope_points = tf.reshape(rope, rope_points_shape)
 
         center = tf.reduce_mean(rope_points, axis=-2)

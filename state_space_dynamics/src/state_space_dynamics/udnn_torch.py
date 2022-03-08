@@ -64,7 +64,7 @@ class UDNN(pl.LightningModule):
 
         pred_states_dict = sequence_of_dicts_to_dict_of_tensors(pred_states, axis=1)
 
-        if not self.training:
+        if 'scene_msg' in inputs:
             # no need to do this during training, only during prediction/evaluation/testing
             inputs_np = numpify(inputs)
             inputs_np['batch_size'] = inputs['time_idx'].shape[0]

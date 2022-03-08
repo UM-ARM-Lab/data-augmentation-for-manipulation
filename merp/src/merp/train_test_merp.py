@@ -12,22 +12,23 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from wandb.util import generate_id
 
-from link_bot_data.visualization import init_viz_env, viz_pred_actual_t
+from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
 from merp.merp_torch import MERP
+from merp.torch_merp_dataset import TorchMERPDataset
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
 from moonshine.torchify import torchify
-from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
+from state_space_dynamics.torch_dynamics_dataset import remove_keys
 
 PROJECT = 'merp'
 
 
 def prepare_train(batch_size, dataset_dir, take, skip, transform):
-    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=transform)
+    train_dataset = TorchMERPDataset(dataset_dir, mode='train', transform=transform)
     train_dataset_take = take_subset(train_dataset, take)
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
     train_dataset_len = len(train_dataset_skip)
@@ -41,7 +42,7 @@ def prepare_train(batch_size, dataset_dir, take, skip, transform):
 
 def prepare_validation(batch_size, dataset_dir, no_validate, transform):
     val_loader = None
-    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=transform)
+    val_dataset = TorchMERPDataset(dataset_dir, mode='val', transform=transform)
     val_dataset_len = len(val_dataset)
     if val_dataset_len and not no_validate:
         val_loader = DataLoader(val_dataset,
@@ -147,12 +148,12 @@ def eval_main(dataset_dir: pathlib.Path,
               skip: Optional[int] = None,
               project=PROJECT,
               **kwargs):
+    model = load_model_artifact(checkpoint, MERP, project, version='best', user=user)
+
     transform = transforms.Compose([remove_keys("scene_msg")])
-    dataset = TorchDynamicsDataset(dataset_dir, mode, transform=transform)
+    dataset = TorchMERPDataset(dataset_dir, mode=mode, transform=transform)
     dataset = take_subset(dataset, take)
     dataset = dataset_skip(dataset, skip)
-
-    model = load_model_artifact(checkpoint, MERP, project, version='best', user=user)
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
@@ -184,12 +185,12 @@ def viz_main(dataset_dir: pathlib.Path,
              skip: Optional[int] = None,
              project=PROJECT,
              **kwargs):
-    dataset = TorchDynamicsDataset(dataset_dir, mode)
-
-    dataset = dataset_skip(dataset, skip)
-
     model = load_model_artifact(checkpoint, MERP, project, version='best', user=user)
     model.training = False
+
+    dataset = TorchMERPDataset(dataset_dir, mode=mode)
+
+    dataset = dataset_skip(dataset, skip)
 
     s = model.scenario
 
@@ -207,7 +208,8 @@ def viz_main(dataset_dir: pathlib.Path,
         while not time_anim.done:
             t = time_anim.t()
             init_viz_env(s, inputs, t)
-            viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.05)
+            dataset.transition_viz_t()(s, inputs, t)
+            s.plot_pred_error_rviz(predicted_error)
             time_anim.step()
 
             n_examples_visualized += 1

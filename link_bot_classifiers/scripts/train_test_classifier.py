@@ -70,7 +70,7 @@ def main():
     train_parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
     train_parser.add_argument('model_hparams', type=pathlib.Path)
     train_parser.add_argument('--checkpoint', type=pathlib.Path)
-    train_parser.add_argument('--batch-size', type=int, default=24)
+    train_parser.add_argument('--batch-size', type=int, default=32)
     train_parser.add_argument('--take', type=int)
     train_parser.add_argument('--debug', action='store_true')
     train_parser.add_argument('--epochs', type=int, default=10)

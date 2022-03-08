@@ -37,7 +37,7 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         print(f"classifier using threshold {self.threshold}")
         self.horizon = self.hparams['labeling_params']['classifier_horizon']
         if scenario is None:
-            self.scenario = get_scenario(self.hparams['scenario'])
+            self.scenario = get_scenario(self.hparams['scenario'], {'rope_name': 'rope_3d'})
         else:
             self.scenario = scenario
 
@@ -109,7 +109,7 @@ class ClassifierDatasetLoader(BaseDatasetLoader):
         return dataset
 
     def anim_transition_rviz(self, example: Dict):
-        anim = RvizAnimation(scenario=self.scenario,
+        anim = RvizAnimation(scenario=self.get_scenario(),
                              n_time_steps=self.horizon,
                              init_funcs=[init_viz_env, self.init_viz_action()],
                              t_funcs=[init_viz_env, self.classifier_transition_viz_t()])

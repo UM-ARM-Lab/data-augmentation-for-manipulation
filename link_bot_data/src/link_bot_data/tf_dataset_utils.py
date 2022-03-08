@@ -169,8 +169,14 @@ def filter_no_reconverging(example):
     return tf.logical_not(remove_batch(is_reconverging(add_batch(is_close))))
 
 
+add_label_has_printed = False
+
+
 def add_label(example: Dict, threshold: float):
-    rospy.loginfo_once(f"Using threshold {threshold}")
+    global add_label_has_printed
+    if not add_label_has_printed:
+        print(f"Using threshold {threshold}")
+        add_label_has_printed = True
     is_close = example['error'] < threshold
     example['is_close'] = tf.cast(is_close, dtype=tf.float32)
 

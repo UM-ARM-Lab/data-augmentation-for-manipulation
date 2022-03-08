@@ -130,8 +130,9 @@ def classifier_transition_viz_t(metadata: Dict, state_metadata_keys, predicted_s
         pred_s_color = kw_color if kw_color is not None else '#0000ffff'
         scenario.plot_state_rviz(pred_t, label='predicted' + label_extra, color=pred_s_color, **kwargs)
 
-        label_t = example['is_close'][t]
-        scenario.plot_is_close(label_t)
+        if 'is_close' in example:
+            label_t = example['is_close'][t]
+            scenario.plot_is_close(label_t)
 
         if true_state_keys is not None:
             true_t = try_index_time_with_metadata(metadata, example, state_metadata_keys + true_state_keys, t=t)
