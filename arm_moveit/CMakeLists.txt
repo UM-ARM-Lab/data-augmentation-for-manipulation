@@ -3,6 +3,7 @@ project(arm_moveit)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CATKIN_DEPENDS
+  jsk_recognition_msgs
   moveit_commander
   moveit_core
   moveit_visual_tools

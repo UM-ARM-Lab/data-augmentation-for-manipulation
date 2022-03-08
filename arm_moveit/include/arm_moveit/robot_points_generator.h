@@ -29,6 +29,7 @@ class RobotPointsGenerator {
   double res_;
   moveit_visual_tools::MoveItVisualTools visual_tools_;
   ros::Publisher points_to_check_pub_;
+  ros::Publisher bbox_pub_;
   ros::NodeHandle nh_;
   std::shared_ptr<shapes::Sphere> sphere_shape_;
 };

@@ -7,6 +7,7 @@ import random
 import pyjacobian_follower
 import tensorflow as tf
 
+import rospy
 from arc_utilities import ros_init
 from arc_utilities.listener import Listener
 from moonshine.robot_points_tf import batch_transform_robot_points, batch_robot_state_to_transforms, \
@@ -28,10 +29,14 @@ def viz_with_live_tf():
 
     points = data['points']
     res = data['res']
-    s = ScenarioWithVisualization()
+    s = ScenarioWithVisualization({})
+    colors = get_link_colors(points)
     while True:
+        if len(points) == 0:
+            rospy.logwarn_once("Points dict is empty")
         for link_name, link_points in points.items():
-            s.plot_points_rviz(link_points, label=link_name, frame_id=link_name, scale=res)
+            color = colors[link_name]
+            s.plot_points_rviz(link_points, label=link_name, frame_id=link_name, scale=res, color=color)
 
 
 def test_batched_perf():
@@ -49,7 +54,7 @@ def test_batched_perf():
     points = data['points']
     link_names = list(points.keys())
     res = data['res']
-    s = ScenarioWithVisualization()
+    s = ScenarioWithVisualization({})
 
     names = [
         "joint56",
@@ -173,8 +178,8 @@ def main():
     2) run the real robot
     3) load the moveit config, run joint_state_publisher_gui, run robot_state_publisher
     """
-    # viz_with_live_tf()
-    viz_with_internal_tf()
+    viz_with_live_tf()
+    # viz_with_internal_tf()
     # test_batched_perf()
     # test_matmul_perf()
 

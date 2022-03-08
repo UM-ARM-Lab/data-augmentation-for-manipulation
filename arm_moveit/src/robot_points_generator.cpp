@@ -1,4 +1,5 @@
 #include <arm_moveit/robot_points_generator.h>
+#include <jsk_recognition_msgs/BoundingBox.h>
 
 std::string const collision_sphere_name = "collision_sphere";
 constexpr double const collision_sphere_radius = 0.005;
@@ -15,6 +16,7 @@ RobotPointsGenerator::RobotPointsGenerator(double const res)
   world_ = scene_.getWorldNonConst();
 
   points_to_check_pub_ = nh_.advertise<visualization_msgs::Marker>("points_to_check", 10, true);
+  bbox_pub_ = nh_.advertise<jsk_recognition_msgs::BoundingBox>("link_bbox", 10, true);
 
   Eigen::Isometry3d initial_pose{Eigen::Isometry3d::Identity()};
   world_->addToObject(collision_sphere_name, sphere_shape_, initial_pose);
@@ -135,21 +137,30 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::pointsToCheck(robot_state::Ro
     return points_to_check;
   }
 
-  auto const link_transform = state.getGlobalLinkTransform(link_name);
-  Eigen::Vector3d collision_bbox_shape = (link_transform.rotation() * collision_bbox_shape_link_frame).cwiseAbs();
-  auto const link_origin = link_transform.translation();
+  Eigen::Vector3d const offset = link->getCenteredBoundingBoxOffset();
+
   Eigen::Vector3d res_vec = Eigen::Vector3d::Ones() * res_ * 2;
-  Eigen::Vector3d lower = link_origin - collision_bbox_shape / 2 - res_vec;
-  Eigen::Vector3d upper = link_origin + collision_bbox_shape / 2 + res_vec;
+  Eigen::Vector3d const lower_link_frame = -collision_bbox_shape_link_frame / 2 - res_vec + offset;
+  Eigen::Vector3d const upper_link_frame = collision_bbox_shape_link_frame / 2 + res_vec + offset;
 
-  auto const &offset_link_frame = link->getCenteredBoundingBoxOffset();
-  Eigen::Vector3d offset = link_transform.rotation() * offset_link_frame;
+  auto const link_transform = state.getGlobalLinkTransform(link_name);
 
-  for (auto p_i_x = lower.x(); p_i_x <= upper.x(); p_i_x += res_) {
-    for (auto p_i_y = lower.y(); p_i_y <= upper.y(); p_i_y += res_) {
-      for (auto p_i_z = lower.z(); p_i_z <= upper.z(); p_i_z += res_) {
-        Eigen::Vector3d p_i(p_i_x, p_i_y, p_i_z);
-        Eigen::Vector3d p_i_robot_frame = p_i + offset;
+  jsk_recognition_msgs::BoundingBox bbox;
+  bbox.header.frame_id = link_name;
+  bbox.pose.position.x = offset.x();
+  bbox.pose.position.y = offset.y();
+  bbox.pose.position.z = offset.z();
+  bbox.pose.orientation.w = 1;
+  bbox.dimensions.x = collision_bbox_shape_link_frame.x();
+  bbox.dimensions.y = collision_bbox_shape_link_frame.y();
+  bbox.dimensions.z = collision_bbox_shape_link_frame.z();
+  bbox_pub_.publish(bbox);
+
+  for (auto p_i_x = lower_link_frame.x(); p_i_x <= upper_link_frame.x(); p_i_x += res_) {
+    for (auto p_i_y = lower_link_frame.y(); p_i_y <= upper_link_frame.y(); p_i_y += res_) {
+      for (auto p_i_z = lower_link_frame.z(); p_i_z <= upper_link_frame.z(); p_i_z += res_) {
+        Eigen::Vector3d const p_i_link_frame(p_i_x, p_i_y, p_i_z);
+        Eigen::Vector3d const &p_i_robot_frame = link_transform * p_i_link_frame.homogeneous();
         points_to_check.emplace_back(p_i_robot_frame);
       }
     }

@@ -22,15 +22,16 @@ def main():
         'rear_laser', 'rear_lidar_mesh', 'front_bumper_link', 'front_left_wheel_link', 'realsense',
         'front_right_wheel_link', 'imu_link', 'inertial_link', 'rear_bumper_link', 'rear_left_wheel_link',
         'rear_right_wheel_link', 'robot_payload', 'robot_root', 'top_chassis_link', 'top_plate_link',
-        'top_plate_front_link', 'top_plate_rear_link', 'user_rail_link',
+        'top_plate_front_link', 'top_plate_rear_link', 'user_rail_link', 'victor_pedestal', 'victor_base_plate',
+        'victor_left_arm_mount', 'victor_right_arm_mount',
     ]
 
     args.outdir.mkdir(exist_ok=True, parents=True)
     outfilename = args.outdir / 'robot_points.pkl'
     if outfilename.exists():
         q = input(f"File {outfilename.as_posix()} already exist, do you want to overwrite? [Y/n]")
-    if q == 'n':
-        return
+        if q == 'n':
+            return
 
     robot_points_generator = pyrobot_points_generator.RobotPointsGenerator(args.res)
     links = robot_points_generator.get_link_names()
