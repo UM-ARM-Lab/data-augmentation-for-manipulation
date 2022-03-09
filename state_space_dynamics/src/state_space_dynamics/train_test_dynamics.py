@@ -305,6 +305,7 @@ def viz_main(dataset_dir: pathlib.Path,
     s = dataset.get_scenario()
 
     dataset_anim = RvizAnimationController(n_time_steps=len(dataset), ns='trajs')
+    time_anim = RvizAnimationController(n_time_steps=10)
 
     n_examples_visualized = 0
     while not dataset_anim.done:
@@ -316,9 +317,7 @@ def viz_main(dataset_dir: pathlib.Path,
 
             outputs = remove_batch(model(torchify(add_batch(inputs))))
 
-            n_time_steps = inputs['time_idx'].shape[0]
-            time_anim = RvizAnimationController(n_time_steps=n_time_steps)
-
+            time_anim.reset()
             while not time_anim.done:
                 t = time_anim.t()
                 init_viz_env(s, inputs, t)

@@ -96,7 +96,13 @@ def main():
         rope_length = np.sum(np.linalg.norm(rope_points[:, :-1] - rope_points[:, 1:], axis=-1), axis=-1)
         too_long = rope_length > MAX_ROPE_LENGTH
 
-        weight = 1 - np.logical_or.reduce((in_collision, robot_in_collision, too_far, too_long)).astype(np.float32)
+        or_conditions = [
+            in_collision,
+            # robot_in_collision,
+            # too_far,
+            # too_long
+        ]
+        weight = 1 - np.logical_or.reduce(or_conditions).astype(np.float32)
         weight_padded = np.concatenate((weight, [1]))
         weight = np.logical_and(weight_padded[:-1], weight_padded[1:]).astype(np.float32)
         example['metadata']['weight'] = weight

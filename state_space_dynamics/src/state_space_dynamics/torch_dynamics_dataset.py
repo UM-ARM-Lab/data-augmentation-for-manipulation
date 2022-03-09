@@ -2,13 +2,10 @@ import logging
 import pathlib
 from typing import Dict
 
-import torch
 from torch.utils.data import DataLoader
 
-from link_bot_data.dataset_utils import pprint_example
-from link_bot_data.new_dataset_utils import get_filenames, load_single, DynamicsDatasetParams
+from link_bot_data.new_dataset_utils import get_filenames, DynamicsDatasetParams
 from link_bot_data.visualization import dynamics_viz_t, init_viz_env
-from link_bot_pycommon.get_scenario import get_scenario
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import index_time_batched, index_time
 from moonshine.moonshine_utils import get_num_workers

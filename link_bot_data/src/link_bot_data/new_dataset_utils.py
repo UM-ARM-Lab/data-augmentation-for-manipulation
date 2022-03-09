@@ -27,6 +27,9 @@ def get_filenames(dataset_dirs, mode: str):
             all_filenames.extend(load_mode_filenames(d, d / f'train.txt'))
             all_filenames.extend(load_mode_filenames(d, d / f'test.txt'))
             all_filenames.extend(load_mode_filenames(d, d / f'val.txt'))
+        elif mode == 'notrain':
+            all_filenames.extend(load_mode_filenames(d, d / f'test.txt'))
+            all_filenames.extend(load_mode_filenames(d, d / f'val.txt'))
         else:
             filenames_filename = d / f'{mode}.txt'
             all_filenames.extend(load_mode_filenames(d, filenames_filename))

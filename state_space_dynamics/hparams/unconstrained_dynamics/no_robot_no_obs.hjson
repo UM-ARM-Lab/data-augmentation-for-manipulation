@@ -17,5 +17,5 @@
     1024
   ]
   learning_rate: 0.001
-  beta_sample_weights: 0.01
+  beta_sample_weights: 0.001
 }

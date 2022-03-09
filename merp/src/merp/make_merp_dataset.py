@@ -8,11 +8,11 @@ from link_bot_data.split_dataset import write_mode
 from link_bot_data.tf_dataset_utils import write_example, index_to_filename
 from link_bot_pycommon.load_wandb_model import load_model_artifact
 from link_bot_pycommon.serialization import my_hdump
-from merp.torch_merp_dataset import TorchMERPDataset
 from moonshine.filepath_tools import load_params
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.torchify import torchify
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
 from state_space_dynamics.udnn_torch import UDNN
 
 
@@ -23,7 +23,8 @@ def n_seq(max_t: int):
 def make_merp_dataset(dataset_dir: pathlib.Path,
                       checkpoint: pathlib.Path,
                       outdir: pathlib.Path):
-    model = load_model_artifact(checkpoint, UDNN, project='udnn', version='latest', user='armlab')
+    model = load_model_artifact(checkpoint, UDNN, project='udnn', version='latest', user='armlab',
+                                with_joint_positions=True)
     model.eval()
 
     merp_dataset_hparams = load_params(dataset_dir)
@@ -48,7 +49,9 @@ def make_merp_dataset(dataset_dir: pathlib.Path,
         total_example_idx = 0
         steps_per_traj = 10
         for mode in ['train', 'val', 'test']:
-            dataset = TorchMERPDataset(dataset_dir=dataset_dir, mode=mode)
+            dataset = TorchDynamicsDataset(dataset_dir=dataset_dir, mode=mode)
+            model.scenario = dataset.get_scenario()
+
             total = n_seq(steps_per_traj - 1) * len(dataset)
             files = []
             for out_example in tqdm(generate_merp_examples(model, dataset), total=total):
@@ -88,8 +91,8 @@ def generate_merp_examples(model, dataset):
             inputs_from_start_t.update(start_state)
             inputs_from_start_t.update(actions_from_start_t)
             inputs_from_start_t['scene_msg'] = example['scene_msg']
-            inputs_from_start_t['joint_positions'] = example['joint_positions'][start_t:start_t+1]
-            inputs_from_start_t['joint_names'] = example['joint_names'][start_t:start_t+1]
+            inputs_from_start_t['joint_positions'] = example['joint_positions'][start_t:start_t + 1]
+            inputs_from_start_t['joint_names'] = example['joint_names'][start_t:start_t + 1]
             predictions_from_start_t = numpify(remove_batch(model(torchify(add_batch(inputs_from_start_t)))))
 
             actual_states_from_start_t = {k: example[k][start_t:] for k in state_keys}
@@ -116,6 +119,9 @@ def generate_merp_examples(model, dataset):
                 error = scenario.classifier_distance(actual_dt, predictions_dt)
 
                 # store it in the metadata for faster lookup later
-                out_example['metadata'] = {'error': error}
+                out_example['metadata'] = {
+                    'prev_error': error[0],
+                    'error':      error[1],
+                }
 
                 yield out_example

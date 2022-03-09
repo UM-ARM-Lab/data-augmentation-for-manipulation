@@ -311,6 +311,13 @@ def viz_main(dataset_dir: pathlib.Path,
         outputs = remove_batch(model(torchify(add_batch(inputs))))
         weight = model.sample_weights.detach().cpu()[inputs['example_idx']]
 
+        if weight_below is not None and bool(weight > weight_below):
+            dataset_anim.step()
+            continue
+        if weight_above is not None and bool(weight < weight_above):
+            dataset_anim.step()
+            continue
+
         n_time_steps = inputs['time_idx'].shape[0]
         time_anim = RvizAnimationController(n_time_steps=n_time_steps)
 

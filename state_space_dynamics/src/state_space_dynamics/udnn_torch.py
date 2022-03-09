@@ -21,7 +21,7 @@ def mask_after_first_0(x):
 
 
 class UDNN(pl.LightningModule):
-    def __init__(self, **hparams):
+    def __init__(self, with_joint_positions=False, **hparams):
         super().__init__()
         self.save_hyperparameters()
 
@@ -36,6 +36,7 @@ class UDNN(pl.LightningModule):
         self.state_description = {k: self.dataset_state_description[k] for k in self.hparams.state_keys}
         self.total_state_dim = sum([self.dataset_state_description[k] for k in self.hparams.state_keys])
         self.total_action_dim = sum([self.dataset_action_description[k] for k in self.hparams.action_keys])
+        self.with_joint_positions = with_joint_positions
 
         in_size = self.total_state_dim + self.total_action_dim
         fc_layer_size = None
@@ -64,11 +65,12 @@ class UDNN(pl.LightningModule):
 
         pred_states_dict = sequence_of_dicts_to_dict_of_tensors(pred_states, axis=1)
 
-        if 'scene_msg' in inputs:
+        if self.with_joint_positions:
             # no need to do this during training, only during prediction/evaluation/testing
             inputs_np = numpify(inputs)
             inputs_np['batch_size'] = inputs['time_idx'].shape[0]
-            _, joint_positions, joint_names = self.scenario.follow_jacobian_from_example(inputs_np, j=self.scenario.robot.jacobian_follower)
+            _, joint_positions, joint_names = self.scenario.follow_jacobian_from_example(inputs_np,
+                                                                                         j=self.scenario.robot.jacobian_follower)
             pred_states_dict['joint_positions'] = torchify(joint_positions).float()
             pred_states_dict['joint_names'] = joint_names
 

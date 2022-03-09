@@ -48,7 +48,9 @@ class MerrrtWidget : public rviz::Panel {
 
   bool GetVizOptions(peter_msgs::GetVizOptions::Request &req, peter_msgs::GetVizOptions::Response &res);
 
-  static QString redGreenTextColor(float x);
+  static QString greenRedTextColor(float x, float max);
+
+  static QString redGreenTextColor(float x, float max);
 
  signals:
 

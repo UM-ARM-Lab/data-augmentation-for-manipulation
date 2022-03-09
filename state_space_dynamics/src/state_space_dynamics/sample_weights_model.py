@@ -2,7 +2,6 @@ from typing import Optional
 
 import pytorch_lightning as pl
 import torch
-import wandb
 from torch.nn import Parameter
 
 from state_space_dynamics.udnn_torch import UDNN
@@ -36,20 +35,15 @@ class SampleWeightedUDNN(pl.LightningModule):
         batch_indices = train_batch['example_idx']
         sample_weights_for_batch = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
         sample_weights_for_batch = torch.clip(sample_weights_for_batch, 0, 1)
-        loss = sample_weights_for_batch @ batch_loss - (sample_weights_for_batch.sum() - batch_indices.shape[0]) * self.hparams.beta_sample_weights
+        loss = sample_weights_for_batch @ batch_loss - (
+                    sample_weights_for_batch.sum() - batch_indices.shape[0]) * self.hparams.beta_sample_weights
         self.log('weighted_train_loss', loss)
         return loss
 
-    # def on_after_backward(self) -> None:
-    #     self.sample_weights.grad[908]
-    #
     def validation_step(self, val_batch, batch_idx):
         outputs = self.udnn.forward(val_batch)
         val_loss = self.udnn.compute_loss(val_batch, outputs)
         self.log('val_loss', val_loss)
-        wandb.log({
-            'weights': wandb.Histogram(self.sample_weights.detach().cpu()),
-        })
         return val_loss
 
     def configure_optimizers(self):

@@ -12,5 +12,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>rospy</depend>
+  <depend>jsk_recognition_msgs</depend>
 
 </package>

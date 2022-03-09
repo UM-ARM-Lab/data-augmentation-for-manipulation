@@ -41,7 +41,7 @@ MerrrtWidget::MerrrtWidget(QWidget *parent)
 }
 
 void MerrrtWidget::OnWeight(const std_msgs::Float32::ConstPtr &msg) {
-  ui.weight->setStyleSheet(redGreenTextColor(msg->data));
+  ui.weight->setStyleSheet(redGreenTextColor(msg->data, 1));
   auto const text = QString::asprintf("%0.4f", msg->data);
   emit setWeightText(text);
 }
@@ -52,14 +52,15 @@ void MerrrtWidget::OnTrajIdx(const std_msgs::Float32::ConstPtr &msg) {
 }
 
 void MerrrtWidget::PredErrorCallback(const std_msgs::Float32::ConstPtr &msg) {
+  ui.pred_error->setStyleSheet(greenRedTextColor(msg->data, 0.2));
   auto const text = QString::asprintf("%0.4f", msg->data);
   emit setPredErrorText(text);
 }
 
 void MerrrtWidget::ErrorCallback(const std_msgs::Float32::ConstPtr &msg) {
+  ui.error->setStyleSheet(greenRedTextColor(msg->data, 0.2));
   auto const text = QString::asprintf("%0.4f", msg->data);
   emit setErrorText(text);
-  ui.error->setText(text);
 }
 
 void MerrrtWidget::StdevCallback(const std_msgs::Float32::ConstPtr &msg) {
@@ -79,27 +80,44 @@ void MerrrtWidget::LabelCallback(const peter_msgs::LabelStatus::ConstPtr &msg) c
 }
 
 void MerrrtWidget::OnRecoveryProbability(const std_msgs::Float32::ConstPtr &msg) {
-  ui.recovery_probability->setStyleSheet(redGreenTextColor(msg->data));
+  ui.recovery_probability->setStyleSheet(redGreenTextColor(msg->data, 1));
   auto const text = QString::asprintf("%0.4f", msg->data);
   emit setRecoveryProbText(text);
   ui.recovery_probability->setText(text);
 }
 
 void MerrrtWidget::OnAcceptProbability(const std_msgs::Float32::ConstPtr &msg) {
-  ui.accept_probability->setStyleSheet(redGreenTextColor(msg->data));
+  ui.accept_probability->setStyleSheet(redGreenTextColor(msg->data, 1));
   auto const text = QString::asprintf("%0.4f", msg->data);
   emit setAcceptProbText(text);
   ui.accept_probability->setText(text);
 }
-QString MerrrtWidget::redGreenTextColor(float const x) {
+QString MerrrtWidget::redGreenTextColor(float const x, float const max) {
   auto const blue = 50;
   int red;
   int green;
-  if (x >= 0 and x <= 1) {
+  auto const cool_factor = 0.7;
+  if (x >= 0 and x <= max) {
     // *0.8 to cool the colors
-    auto const cool_factor = 0.7;
-    red = static_cast<int>(255 * (1 - x) * cool_factor);
-    green = static_cast<int>(255 * x * cool_factor);
+    red = static_cast<int>(255 * (max - x) / max * cool_factor);
+    green = static_cast<int>(255 * x / max * cool_factor);
+  } else {
+    red = 0;
+    green = 0;
+  }
+
+  return QString("color: rgb(%1, %2, %3);").arg(red).arg(green).arg(blue);
+}
+
+QString MerrrtWidget::greenRedTextColor(float const x, float const max) {
+  auto const blue = 50;
+  int red;
+  int green;
+  auto const cool_factor = 0.7;
+  if (x >= 0 and x <= max) {
+    // *0.8 to cool the colors
+    green = static_cast<int>(255 * (max - x) / max * cool_factor);
+    red = static_cast<int>(255 * x / max * cool_factor);
   } else {
     red = 0;
     green = 0;
