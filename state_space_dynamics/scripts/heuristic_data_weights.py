@@ -24,10 +24,18 @@ limit_gpu_mem(None)
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
+    parser.add_argument('-n', '--nickname', help='nickname', default='')
 
     args = parser.parse_args()
 
-    outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+heuristic-weights"
+    hparams = {
+        'env_inflation': 1.1,
+        'check_robot': False,
+        'robot_inflation': 1.0,
+        'check_length': False,
+    }
+
+    outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.nickname}heuristic-weights"
     outdir = no_overwrite_path(outdir)
     print(outdir)
     dataset = NewBaseDatasetLoader([args.dataset_dir])
@@ -73,48 +81,53 @@ def main():
 
     def _process_example(dataset, example: Dict):
         points = scenario.state_to_points_for_cc(example)
-        in_collision = check_in_collision(example, points, float(tf.squeeze(example['res'])))
-        d = tf.linalg.norm(example['right_gripper'] - example['left_gripper'], axis=-1)
-        too_far = d > 0.55  # copied from floating_rope.hjson data collection params, max_distance_between_grippers
+        env_inflation = float(tf.squeeze(example['res'])) * hparams['env_inflation']
+        in_collision = check_in_collision(example, points, env_inflation)
 
-        robot_voxel_grid = make_robot_voxelgrid(example, example['origin_point'])
-        time = example['time_idx'].shape[0]
-        robot_in_collision = []
-        for t in range(time):
-            robot_as_env_t = {
-                'env':          robot_voxel_grid[t],
-                'res':          robot_info.res,
-                'origin_point': example['origin_point'],
-            }
-            robot_in_collision_t = check_in_collision(robot_as_env_t, points[t], robot_info.res * 0.7)
-            robot_in_collision.append(robot_in_collision_t)
-            # if robot_in_collision_t:
-            #     scenario.plot_environment_rviz(robot_as_env_t)
-            #     scenario.plot_points_rviz(tf.reshape(points[t], [-1, 3]).numpy(), label='cc', scale=0.005)
+        if hparams['check_length']:
+            d = tf.linalg.norm(example['right_gripper'] - example['left_gripper'], axis=-1)
+            too_far = d > 0.55  # copied from floating_rope.hjson data collection params, max_distance_between_grippers
 
-        rope_points = example['rope'].reshape([10, 25, 3])
-        rope_length = np.sum(np.linalg.norm(rope_points[:, :-1] - rope_points[:, 1:], axis=-1), axis=-1)
-        too_long = rope_length > MAX_ROPE_LENGTH
+            rope_points = example['rope'].reshape([10, 25, 3])
+            rope_length = np.sum(np.linalg.norm(rope_points[:, :-1] - rope_points[:, 1:], axis=-1), axis=-1)
+            too_long = rope_length > MAX_ROPE_LENGTH
 
-        or_conditions = [
-            in_collision,
-            # robot_in_collision,
-            # too_far,
-            # too_long
-        ]
+        if hparams['check_robot']:
+            robot_voxel_grid = make_robot_voxelgrid(example, example['origin_point'])
+            time = example['time_idx'].shape[0]
+            robot_in_collision = []
+            for t in range(time):
+                robot_as_env_t = {
+                    'env':          robot_voxel_grid[t],
+                    'res':          robot_info.res,
+                    'origin_point': example['origin_point'],
+                }
+                robot_in_collision_t = check_in_collision(robot_as_env_t, points[t], robot_info.res * 0.7)
+                robot_in_collision.append(robot_in_collision_t)
+                # if robot_in_collision_t:
+                #     scenario.plot_environment_rviz(robot_as_env_t)
+                #     scenario.plot_points_rviz(tf.reshape(points[t], [-1, 3]).numpy(), label='cc', scale=0.005)
+
+        or_conditions = [in_collision]
+
+        if hparams['check_robot']:
+            or_conditions.append(robot_in_collision)
+
+        if hparams['check_length']:
+            or_conditions.append(too_far)
+            or_conditions.append(too_long)
+
         weight = 1 - np.logical_or.reduce(or_conditions).astype(np.float32)
         weight_padded = np.concatenate((weight, [1]))
         weight = np.logical_and(weight_padded[:-1], weight_padded[1:]).astype(np.float32)
         example['metadata']['weight'] = weight
         yield example
 
-    hparams_update = {}
-
     modify_dataset2(dataset_dir=args.dataset_dir,
                     dataset=dataset,
                     outdir=outdir,
                     process_example=_process_example,
-                    hparams_update=hparams_update,
+                    hparams_update=hparams,
                     save_format='pkl')
     split_dataset_via_files(outdir, 'pkl')
     print(outdir)

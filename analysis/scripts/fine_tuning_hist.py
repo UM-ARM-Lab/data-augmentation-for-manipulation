@@ -45,7 +45,11 @@ def main():
             outputs = model(inputs)
             loss = model.compute_batch_time_loss(inputs, outputs).detach().cpu().numpy().squeeze()
             # loss is [time] shaped, so is weight, and we want to skip t=0 where loss is always 0
-            for loss_t, weight_t in list(zip(loss, inputs['weight'].numpy().squeeze()))[1:]:
+            if 'weight' in inputs:
+                weights = inputs['weight'].numpy().squeeze()
+            else:
+                weights = np.ones(inputs['time_idx'].shape[1])
+            for loss_t, weight_t in list(zip(loss, weights))[1:]:
                 data.append([ckpt, weight_t, loss_t])
 
     df = pd.DataFrame(data, columns=['ckpt', 'weight', 'loss'])
@@ -78,6 +82,12 @@ def main():
     sns.histplot(ax=ax, data=df, x='loss', hue='weight', palette='colorblind', hue_order=[1.0, 0.0], bins=50)
     ax.set_title(args.dataset_dir.name)
     plt.savefig("all_hist.png")
+
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.histplot(ax=ax, data=df, x='loss', hue='ckpt', palette='colorblind', bins=30, element='step')
+    ax.set_yscale('log')
+    ax.set_title(args.dataset_dir.name)
+    plt.savefig("eval_ckpt_hist.png")
 
     # fig, ax = boxplot(df_weight_0, pathlib.Path("."), 'method_name', 'loss', 'weight = 0', save=False, figsize=figsize)
     # plt.savefig("weight0_loss.png")

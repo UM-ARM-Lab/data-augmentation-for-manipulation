@@ -316,6 +316,7 @@ def viz_main(dataset_dir: pathlib.Path,
         if (weight_above <= weight).all() and (weight <= weight_below).all():
 
             outputs = remove_batch(model(torchify(add_batch(inputs))))
+            print(inputs['filename'])
 
             time_anim.reset()
             while not time_anim.done:
