@@ -34,22 +34,28 @@ def main():
 
     args = parser.parse_args()
 
+    scenario_params = {
+        'rope_name': 'rope_3d',
+
+    }
     generate_saved_goals(method=args.method,
                          scenario=args.scenario,
                          trials=args.trials,
+                         scenario_params=scenario_params,
                          scenes_dir=args.scenes_dir)
 
 
 def generate_saved_goals(method: str,
                          scenario: str,
                          trials: Optional[List[int]],
-                         scenes_dir: Optional[pathlib.Path] = None
+                         scenario_params: Dict,
+                         scenes_dir: Optional[pathlib.Path] = None,
                          ):
     scenes_dir.mkdir(exist_ok=True, parents=True)
 
     [p.resume() for p in get_gazebo_processes()]
 
-    scenario = get_scenario(scenario)
+    scenario = get_scenario(scenario, scenario_params)
     service_provider = gazebo_services.GazeboServices()
     service_provider.setup_env()
 
@@ -132,22 +138,22 @@ def sketchy_default_params():
             },
         },
         'reset_joint_config':        {
-            'joint1':  1.5,
-            'joint2':  0.00019175345369149,
-            'joint3':  0.06807247549295425,
-            'joint4':  -1.0124582052230835,
-            'joint41': 1.5,
-            'joint42': 0.0,
-            'joint43': 0.1562790721654892,
-            'joint44': -0.9140887260437012,
-            'joint45': 1.601524829864502,
-            'joint46': -1.2170592546463013,
-            'joint47': -0.016490796580910683,
-            'joint56': 0.0,
-            'joint57': -0.3,
-            'joint5':  -1.5196460485458374,
-            'joint6':  1.3154287338256836,
-            'joint7':  -0.01706605777144432,
+            'joint1':  -0.6177604039253657,
+            'joint2':  -1.7765467167186486,
+            'joint3':  -0.07302532179028809,
+            'joint4':  0.5710350818850118,
+            'joint5':  -1.362705978061626,
+            'joint6':  0.8988022444609856,
+            'joint7':  -2.3960647304042184,
+            'joint41': -2.1567353365108075,
+            'joint42': 2.4277998403115673,
+            'joint43': -1.17044640821423,
+            'joint44': -3.0867398536615007,
+            'joint45': 1.722086562466548,
+            'joint46': 0.5198798974654455,
+            'joint47': -1.743,
+            'joint56': 0.25714549723689917,
+            'joint57': -0.315723100095187,
         },
         'res':                       0.02,
         'extent':                    [-0.6, 0.6, 0.25, 1.15, -0.3, 0.6],

@@ -24,7 +24,6 @@ from moonshine.geometry_tf import transformation_jacobian, euler_angle_diff
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.tensorflow_utils import to_list_of_strings
 from moonshine.numpify import numpify
-from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
 from trajectory_msgs.msg import JointTrajectoryPoint
 
@@ -272,6 +271,7 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
 
         env = {}
         env.update({k: np.array(v).astype(np.float32) for k, v in voxel_grid_env.items()})
+        from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
         sdf, sdf_grad = remove_batch(*compute_sdf_and_gradient_batch(*add_batch(voxel_grid_env['env'],
                                                                                 voxel_grid_env['res'])))
         sdf = numpify(sdf)
