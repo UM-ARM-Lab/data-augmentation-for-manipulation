@@ -21,7 +21,6 @@ from link_bot_pycommon.pycommon import has_keys, empty_callable
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.numpify import numpify
 from moonshine.raster_3d_tf import points_to_voxel_grid_res_origin_point_batched
-from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
 from visualization_msgs.msg import MarkerArray
 
 cache_ = {}
@@ -168,6 +167,7 @@ class AugmentationOptimization:
             for b in debug_viz_batch_indices(batch_size):
                 self.plot_stationary_vg(b, env_stationary, extent, origin_point, res)
 
+        from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
         sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary, res)
 
         def _viz_cb(_b):
