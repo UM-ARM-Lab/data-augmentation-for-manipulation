@@ -79,6 +79,7 @@ def main():
     viz_parser.add_argument('dataset_dir', type=pathlib.Path)
     viz_parser.add_argument('checkpoint')
     viz_parser.add_argument('--user', '-u', type=str, default='armlab')
+    viz_parser.add_argument('--project', '-p', type=str)
     viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     viz_parser.add_argument('--skip', type=int)
     viz_parser.add_argument('--weight-above', type=float, default=0)

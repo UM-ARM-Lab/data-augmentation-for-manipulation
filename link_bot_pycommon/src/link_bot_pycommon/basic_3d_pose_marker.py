@@ -38,7 +38,7 @@ def make_interactive_marker(name: str,
                             position: Point,
                             make_marker: Callable):
     imarker = InteractiveMarker()
-    imarker.header.frame_id = "world"
+    imarker.header.frame_id = "robot_root"
     imarker.pose.position = position
     imarker.pose.orientation.w = 1
     imarker.scale = 0.1
