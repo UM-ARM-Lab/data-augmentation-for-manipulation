@@ -20,6 +20,7 @@ def main():
     args = parser.parse_args()
 
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+pkl"
+    outdir.mkdir()
 
     loader = get_dynamics_dataset_loader(args.dataset_dir)
 

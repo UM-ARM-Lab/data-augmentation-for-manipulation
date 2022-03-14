@@ -4,9 +4,8 @@ from multiprocessing import Pool
 from tqdm import tqdm
 
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_data.split_dataset import write_mode
-from link_bot_data.tf_dataset_utils import write_example, index_to_filename, deserialize_scene_msg
+from link_bot_data.tf_dataset_utils import write_example, index_to_filename
 from link_bot_pycommon.load_wandb_model import load_model_artifact
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_params
@@ -49,18 +48,13 @@ def make_merp_dataset(dataset_dir: pathlib.Path,
         results = []
         total_example_idx = 0
         steps_per_traj = 10
-        loader = DynamicsDatasetLoader([dataset_dir])
         for mode in ['train', 'val', 'test']:
-            # dataset = TorchDynamicsDataset(dataset_dir=dataset_dir, mode=mode)
-            dataset = loader.get_datasets(mode=mode)
-            model.scenario = loader.get_scenario()
-            scenario = loader.get_scenario()
+            dataset = TorchDynamicsDataset(dataset_dir=dataset_dir, mode=mode)
+            model.scenario = dataset.get_scenario()
 
             total = n_seq(steps_per_traj - 1) * len(dataset)
             files = []
-            for out_example in tqdm(
-                    generate_merp_examples(model, dataset, scenario, loader.state_keys, loader.state_metadata_keys,
-                                           loader.action_keys, loader.env_keys), total=total):
+            for out_example in tqdm(generate_merp_examples(model, dataset), total=total):
                 result = pool.apply_async(func=write_example, args=(outdir, out_example, total_example_idx, 'pkl'))
                 results.append(result)
 
@@ -80,19 +74,20 @@ def make_merp_dataset(dataset_dir: pathlib.Path,
     return outdir
 
 
-def generate_merp_examples(model, dataset, scenario, state_keys, state_metadata_keys, action_keys, env_keys):
+def generate_merp_examples(model, dataset):
     horizon = 2
     steps_per_traj = 10
     step = 1
+    scenario = dataset.get_scenario()
 
-    all_state_keys = state_keys + state_metadata_keys
+    state_keys = dataset.state_keys + dataset.state_metadata_keys
 
     for example in dataset:
+        from link_bot_data.tf_dataset_utils import deserialize_scene_msg
         deserialize_scene_msg(example)
-
         for start_t in range(0, steps_per_traj - horizon + 1, step):
-            start_state = {k: example[k][start_t:start_t + 1] for k in all_state_keys}  # :+1 to keep time dimension
-            actions_from_start_t = {k: example[k][start_t:] for k in action_keys}
+            start_state = {k: example[k][start_t:start_t + 1] for k in state_keys}  # :+1 to keep time dimension
+            actions_from_start_t = {k: example[k][start_t:] for k in dataset.action_keys}
 
             inputs_from_start_t = {}
             inputs_from_start_t.update(start_state)
@@ -102,8 +97,8 @@ def generate_merp_examples(model, dataset, scenario, state_keys, state_metadata_
             inputs_from_start_t['joint_names'] = example['joint_names'][start_t:start_t + 1]
             predictions_from_start_t = numpify(remove_batch(model(torchify(add_batch(inputs_from_start_t)))))
 
-            actual_states_from_start_t = {k: example[k][start_t:] for k in all_state_keys}
-            environment = {k: example[k] for k in env_keys}
+            actual_states_from_start_t = {k: example[k][start_t:] for k in state_keys}
+            environment = {k: example[k] for k in dataset.env_keys}
 
             for dt in range(0, steps_per_traj - start_t - 1):
                 out_example = {
