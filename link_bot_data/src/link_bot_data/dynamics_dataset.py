@@ -24,7 +24,7 @@ class DynamicsDatasetLoader(BaseDatasetLoader):
 
         self.use_gt_rope = use_gt_rope
         self.step_size = step_size
-        self.scenario = get_scenario(self.hparams['scenario'])
+        self.scenario = get_scenario(self.hparams['scenario'], self.hparams['scenario_params'])
 
         self.data_collection_params = self.hparams['data_collection_params']
         self.state_keys = self.data_collection_params['state_keys']
