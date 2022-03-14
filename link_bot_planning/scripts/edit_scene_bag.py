@@ -23,8 +23,17 @@ def adjust_link_pos(s: TestScene, link_name: str, dx: float = 0, dy: float = 0, 
     return s
 
 
-def adjust_trash_pos(s: TestScene):
-    return adjust_link_pos(s, "trash::body", 0.01, 0, 0)
+def adjust_pos(s: TestScene):
+    links = [
+        'car_front::link_1',
+        'car_front::link_2',
+        'car_front::link_3',
+        'car_front::link_4',
+        'car_front::link_5',
+    ]
+    for l in links:
+        s = adjust_link_pos(s, l, dx=0.015, dy=0, dz=0)
+    return s
 
 
 def remove(s: TestScene):
@@ -34,7 +43,7 @@ def remove(s: TestScene):
         'front_wall::link',
         'back_wall::link',
     ]
-    for n in removes :
+    for n in removes:
         if n in s.links_states.name:
             s.links_states.name.remove(n)
             print("Removed ", n)
@@ -62,29 +71,19 @@ def change_joint_config(s: TestScene):
     s.joint_state.position[idx] += 0.05
     return s
 
-
-def shift_hook(s: TestScene):
-    print(s.links_states.name)
-    idx = s.joint_state.name.index("long_hook1::link_1")
-    delta = np.random.randn(3) * 0.1
-    print(delta)
-    # s.joint_state.position[idx] += delta)
-    return s
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("scenes_dir", type=pathlib.Path)
 
     args = parser.parse_args()
 
-    scene_indices = range(0, 1)
-
+    scene_indices = range(0, 16)
 
     for scene_idx in scene_indices:
         s = TestScene(args.scenes_dir, scene_idx)
 
-        s = remove(s)
+        s = adjust_pos(s)
+
         s.save(force=True)
 
 

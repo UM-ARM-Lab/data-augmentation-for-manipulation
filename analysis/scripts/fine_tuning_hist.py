@@ -27,7 +27,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path)
     parser.add_argument('checkpoints', nargs='+')
-    parser.add_argument('--mode', default='test')
+    parser.add_argument('--mode', default='notrain')
     parser.add_argument('--batch-size', type=int, default=16)
 
     args = parser.parse_args()

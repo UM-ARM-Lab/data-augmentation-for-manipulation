@@ -22,7 +22,7 @@ def get_planner(planner_params: Dict,
         planner_type = planner_params['planner_type']
 
     if scenario is None:
-        scenario = get_scenario(planner_params["scenario"])
+        scenario = get_scenario(planner_params["scenario"], planner_params['scenario_params'])
 
     if planner_type == 'rrt':
         fwd_model = load_fwd_model(planner_params, scenario)

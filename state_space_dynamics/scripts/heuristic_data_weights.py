@@ -29,9 +29,10 @@ def main():
     args = parser.parse_args()
 
     hparams = {
-        'env_inflation': 1.1,
-        'check_robot': False,
-        'robot_inflation': 1.0,
+        'heuristic_weighting': True,  # don't change this, it's just metadata
+        'env_inflation': 0.9,
+        'check_robot': True,
+        'robot_inflation': 0.6,
         'check_length': False,
     }
 
@@ -102,7 +103,7 @@ def main():
                     'res':          robot_info.res,
                     'origin_point': example['origin_point'],
                 }
-                robot_in_collision_t = check_in_collision(robot_as_env_t, points[t], robot_info.res * 0.7)
+                robot_in_collision_t = check_in_collision(robot_as_env_t, points[t], robot_info.res * hparams['robot_inflation'])
                 robot_in_collision.append(robot_in_collision_t)
                 # if robot_in_collision_t:
                 #     scenario.plot_environment_rviz(robot_as_env_t)

@@ -23,7 +23,7 @@ from moonshine.torchify import torchify
 from state_space_dynamics.sample_weights_model import SampleWeightedUDNN
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
-PROJECT = 'weighted'
+PROJECT = 'udnn'
 
 
 def prepare_train(batch_size, dataset_dir, take, skip, transform, repeat):
