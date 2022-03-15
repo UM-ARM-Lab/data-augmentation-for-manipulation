@@ -31,7 +31,7 @@ class SampleWeightedUDNN(pl.LightningModule):
 
     def training_step(self, train_batch, batch_idx):
         outputs = self.udnn.forward(train_batch)
-        batch_loss = self.udnn.compute_batch_loss(train_batch, outputs)
+        batch_loss = self.udnn.compute_batch_loss(train_batch, outputs, no_weights=True)
         batch_indices = train_batch['example_idx']
         sample_weights_for_batch = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
         sample_weights_for_batch = torch.clip(sample_weights_for_batch, 0, 1)

@@ -103,16 +103,6 @@ class UDNN(pl.LightningModule):
         local_rope_points = local_rope.reshape([27, 3])
         self.scenario.plot_points_rviz(local_rope_points, label='local_rope_points')
 
-    def compute_batch_loss(self, inputs, outputs):
-        batch_time_loss = self.compute_batch_time_loss(inputs, outputs)
-        weights = self.get_weights(batch_time_loss, inputs)
-        batch_loss = (batch_time_loss * weights).sum(-1)
-        return batch_loss
-
-    def compute_loss(self, inputs, outputs):
-        batch_loss = self.compute_batch_loss(inputs, outputs)
-        return batch_loss.sum()
-
     def compute_batch_time_loss(self, inputs, outputs):
         loss_by_key = []
         for k, y_pred in outputs.items():
@@ -122,6 +112,38 @@ class UDNN(pl.LightningModule):
             loss_by_key.append(loss)
         batch_time_loss = torch.stack(loss_by_key).mean(dim=0)
         return batch_time_loss
+
+    def compute_batch_loss(self, inputs, outputs, no_weights=True):
+        """
+
+        Args:
+            inputs:
+            outputs:
+            no_weights: Ignore the weight in the "inputs"
+
+        Returns:
+
+        """
+        batch_time_loss = self.compute_batch_time_loss(inputs, outputs)
+        if no_weights:
+            batch_loss = batch_time_loss.sum(-1)
+        else:
+            weights = self.get_weights(batch_time_loss, inputs)
+            batch_loss = (batch_time_loss * weights).sum(-1)
+        return batch_loss
+
+    def compute_loss(self, inputs, outputs, no_weights=True):
+        batch_loss = self.compute_batch_loss(inputs, outputs, no_weights=no_weights)
+        return batch_loss.mean()
+
+    def compute_batch_time_point_loss(self, inputs, outputs):
+        loss_by_key = []
+        for k, y_pred in outputs.items():
+            y_true = inputs[k]
+            loss = (y_true - y_pred).square()
+            loss_by_key.append(loss)
+        batch_time_point_loss = torch.concat(loss_by_key, -1)
+        return batch_time_point_loss
 
     def get_weights(self, batch_time_loss, inputs):
         if 'weight' in inputs:

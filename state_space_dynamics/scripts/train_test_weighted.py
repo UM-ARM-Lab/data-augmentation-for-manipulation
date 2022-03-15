@@ -31,9 +31,6 @@ def main():
     def _eval_main(args):
         train_test_weighted_dynamics.eval_main(**vars(args))
 
-    def _eval_versions_main(args):
-        train_test_weighted_dynamics.eval_versions_main(**vars(args))
-
     def _viz_main(args):
         train_test_weighted_dynamics.viz_main(**vars(args))
 
@@ -46,7 +43,7 @@ def main():
 
     train_parser = subparsers.add_parser('train')
     train_parser.add_argument('dataset_dir', type=pathlib.Path)
-    train_parser.add_argument('model_params', type=pathlib.Path)
+    train_parser.add_argument('model_params_path', type=pathlib.Path)
     train_parser.add_argument('--nickname', '-n', type=str)
     train_parser.add_argument('--user', '-u', type=str, default='armlab')
     train_parser.add_argument('--checkpoint')
@@ -56,13 +53,13 @@ def main():
     train_parser.add_argument('--repeat', type=int)
     train_parser.add_argument('--epochs', type=int, default=-1)
     train_parser.add_argument('--steps', type=int, default=1_000_000)
-    train_parser.add_argument('--no-validate', action='store_true')
     train_parser.add_argument('--seed', type=int, default=None)
     train_parser.set_defaults(func=_train_main)
 
     fine_tune_parser = subparsers.add_parser('fine_tune')
     fine_tune_parser.add_argument('dataset_dir', type=pathlib.Path)
     fine_tune_parser.add_argument('checkpoint')
+    fine_tune_parser.add_argument('model_params_path', type=pathlib.Path)
     fine_tune_parser.add_argument('--nickname', '-n', type=str)
     fine_tune_parser.add_argument('--user', '-u', type=str, default='armlab')
     fine_tune_parser.add_argument('--batch-size', type=int, default=64)
@@ -71,7 +68,6 @@ def main():
     fine_tune_parser.add_argument('--repeat', type=int)
     fine_tune_parser.add_argument('--epochs', type=int, default=-1)
     fine_tune_parser.add_argument('--steps', type=int, default=1_000_000)
-    fine_tune_parser.add_argument('--no-validate', action='store_true')
     fine_tune_parser.add_argument('--seed', type=int, default=None)
     fine_tune_parser.set_defaults(func=_fine_tune_main)
 
@@ -80,7 +76,6 @@ def main():
     viz_parser.add_argument('checkpoint')
     viz_parser.add_argument('--user', '-u', type=str, default='armlab')
     viz_parser.add_argument('--project', '-p', type=str)
-    viz_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
     viz_parser.add_argument('--skip', type=int)
     viz_parser.add_argument('--weight-above', type=float, default=0)
     viz_parser.add_argument('--weight-below', type=float, default=1)
@@ -89,21 +84,10 @@ def main():
     eval_parser = subparsers.add_parser('eval')
     eval_parser.add_argument('dataset_dir', type=pathlib.Path)
     eval_parser.add_argument('checkpoint')
-    eval_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='test')
     eval_parser.add_argument('--batch-size', type=int, default=64)
     eval_parser.add_argument('--user', '-u', type=str, default='armlab')
     eval_parser.add_argument('--take', type=int)
     eval_parser.set_defaults(func=_eval_main)
-
-    eval_versions_parser = subparsers.add_parser('eval_versions')
-    eval_versions_parser.add_argument('dataset_dir', type=pathlib.Path)
-    eval_versions_parser.add_argument('checkpoint')
-    eval_versions_parser.add_argument('versions_str', help='python string defining the versions, ex: [0,1]')
-    eval_versions_parser.add_argument('--mode', type=str, choices=['train', 'test', 'val', 'all'], default='val')
-    eval_versions_parser.add_argument('--batch-size', type=int, default=64)
-    eval_versions_parser.add_argument('--user', '-u', type=str, default='armlab')
-    eval_versions_parser.add_argument('--take', type=int)
-    eval_versions_parser.set_defaults(func=_eval_versions_main)
 
     wandb_lightning_magic()
 
