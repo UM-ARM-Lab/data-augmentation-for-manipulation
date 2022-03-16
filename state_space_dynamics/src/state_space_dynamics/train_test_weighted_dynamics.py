@@ -22,7 +22,7 @@ from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
 from moonshine.torchify import torchify
 from state_space_dynamics.mw_net import MWNet
 from state_space_dynamics.torch_dynamics_dataset import TorchMetaDynamicsDataset, remove_keys
-from state_space_dynamics.udnn_torch import UDNN
+from state_space_dynamics.mw_net import MetaUDNN
 
 PROJECT = 'udnn'
 
@@ -90,7 +90,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     }
 
     # load the udnn checkpoint, create the MWNet, then copy the restored udnn model state into the udnn inside mwnet
-    udnn = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user)
+    udnn = load_model_artifact(checkpoint, MetaUDNN, project=project, version='latest', user=user)
     model_params = udnn.hparams_initial
     model_params.update(train_model_params(batch_size,
                                            checkpoint,

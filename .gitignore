@@ -24,3 +24,5 @@ lightning_logs
 wandb
 artifacts
 *.bag
+data/
+meta-weight-net

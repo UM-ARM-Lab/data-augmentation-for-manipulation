@@ -13,7 +13,7 @@ from moonshine.torchify import torchify
 
 def mask_after_first_0(x):
     # TODO: vectorize?
-    x_out = torch.concat([x, torch.zeros([x.shape[0], 1]).to(x.device)], dim=-1)
+    x_out = torch.cat([x, torch.zeros([x.shape[0], 1]).to(x.device)], dim=-1)
     for b in range(x.shape[0]):
         i = x_out[b].argmin()
         x_out[b, i:] = 0
@@ -80,7 +80,7 @@ class UDNN(pl.LightningModule):
         local_action_t = self.scenario.put_action_local_frame(s_t, action_t)
         s_t_local = self.scenario.put_state_local_frame_torch(s_t)
         states_and_actions = list(s_t_local.values()) + list(local_action_t.values())
-        z_t = torch.concat(states_and_actions, -1)
+        z_t = torch.cat(states_and_actions, -1)
 
         # DEBUGGING
         # self.plot_local_state_action_rviz(local_action_t, s_t_local)
@@ -142,7 +142,7 @@ class UDNN(pl.LightningModule):
             y_true = inputs[k]
             loss = (y_true - y_pred).square()
             loss_by_key.append(loss)
-        batch_time_point_loss = torch.concat(loss_by_key, -1)
+        batch_time_point_loss = torch.cat(loss_by_key, -1)
         return batch_time_point_loss
 
     def get_weights(self, batch_time_loss, inputs):
