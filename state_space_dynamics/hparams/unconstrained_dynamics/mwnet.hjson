@@ -1,6 +1,6 @@
 {
   vnet: {
     h_dim: 512
-    learning_rate: 0.001
+    learning_rate: 0.01
   }
 }
