@@ -1,10 +1,9 @@
 from typing import Dict
-import numpy as np
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 
-from link_bot_data.dataset_utils import add_predicted_hack
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.numpify import numpify
 from moonshine.torch_utils import vector_to_dict, sequence_of_dicts_to_dict_of_tensors
@@ -13,11 +12,22 @@ from moonshine.torchify import torchify
 
 def mask_after_first_0(x):
     # TODO: vectorize?
-    x_out = torch.cat([x, torch.zeros([x.shape[0], 1]).to(x.device)], dim=-1)
+    x_out = torch.cat([x, torch.zeros([x.shape[0], 1]).to(x.device)], -1)
     for b in range(x.shape[0]):
         i = x_out[b].argmin()
         x_out[b, i:] = 0
     return x_out[:, :-1]
+
+
+def compute_batch_time_loss(inputs, outputs):
+    loss_by_key = []
+    for k, y_pred in outputs.items():
+        y_true = inputs[k]
+        # mean over time and state dim but not batch, not yet.
+        loss = (y_true - y_pred).square().mean(-1)
+        loss_by_key.append(loss)
+    batch_time_loss = torch.stack(loss_by_key).mean(0)
+    return batch_time_loss
 
 
 class UDNN(pl.LightningModule):
@@ -28,7 +38,6 @@ class UDNN(pl.LightningModule):
         datset_params = self.hparams['dataset_hparams']
         data_collection_params = datset_params['data_collection_params']
         self.scenario = get_scenario(self.hparams.scenario, params=data_collection_params['scenario_params'])
-        # FIXME: this dict is currently not getting generated for the newly collected datasets :(
         self.dataset_state_description: Dict = data_collection_params['state_description']
         self.dataset_action_description: Dict = data_collection_params['action_description']
         self.state_keys = self.hparams.state_keys
@@ -103,16 +112,6 @@ class UDNN(pl.LightningModule):
         local_rope_points = local_rope.reshape([27, 3])
         self.scenario.plot_points_rviz(local_rope_points, label='local_rope_points')
 
-    def compute_batch_time_loss(self, inputs, outputs):
-        loss_by_key = []
-        for k, y_pred in outputs.items():
-            y_true = inputs[k]
-            # mean over time and state dim but not batch, not yet.
-            loss = (y_true - y_pred).square().mean(dim=-1)
-            loss_by_key.append(loss)
-        batch_time_loss = torch.stack(loss_by_key).mean(dim=0)
-        return batch_time_loss
-
     def compute_batch_loss(self, inputs, outputs, no_weights=True):
         """
 
@@ -124,7 +123,7 @@ class UDNN(pl.LightningModule):
         Returns:
 
         """
-        batch_time_loss = self.compute_batch_time_loss(inputs, outputs)
+        batch_time_loss = compute_batch_time_loss(inputs, outputs)
         if no_weights:
             batch_loss = batch_time_loss.sum(-1)
         else:

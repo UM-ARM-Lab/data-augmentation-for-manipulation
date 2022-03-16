@@ -2,7 +2,7 @@ import logging
 import pathlib
 from typing import Dict
 
-import torch
+import numpy as np
 from torch.utils.data import DataLoader
 
 from link_bot_data.new_dataset_utils import get_filenames, DynamicsDatasetParams, load_single
@@ -14,7 +14,6 @@ from moonshine.my_torch_dataset import MyTorchDataset
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.torch_datasets_utils import take_subset, my_collate
-import numpy as np
 
 logger = logging.getLogger(__file__)
 
@@ -120,17 +119,12 @@ class TorchMetaDynamicsDataset(TorchDynamicsDataset):
     def __init__(self, dataset_dir: pathlib.Path, transform=None):
         super().__init__(dataset_dir, mode='train', transform=transform)
         self.meta_metadata_filenames = get_filenames([dataset_dir], mode='val')
-        self.meta_example_rng = np.random.RandomState(0)
 
     def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
         train_metadata_filename = self.metadata_filenames[idx]
         train_example = load_single(train_metadata_filename)
 
-        # # FIXME: this is a horrible hack
-        meta_example_idx = self.meta_example_rng.randint(0, len(self.meta_metadata_filenames))
+        meta_example_idx = idx % len(self.meta_metadata_filenames)
         meta_train_metadata_filename = self.meta_metadata_filenames[meta_example_idx]
         meta_train_example = load_single(meta_train_metadata_filename)
 

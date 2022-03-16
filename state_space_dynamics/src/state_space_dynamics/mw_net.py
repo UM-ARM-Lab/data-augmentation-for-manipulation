@@ -2,42 +2,15 @@ from typing import Dict
 
 import pytorch_lightning as pl
 import torch
-import torch.nn.functional as F
 from torch import nn
-from torchmeta.modules import MetaModule, MetaLinear
+from torchmeta.modules import MetaModule, MetaLinear, MetaSequential
+from torchmeta.utils import gradient_update_parameters
 
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.numpify import numpify
 from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
 from moonshine.torchify import torchify
-from state_space_dynamics.udnn_torch import UDNN
-
-
-# class VNet(pl.LightningModule):
-#
-#     def __init__(self, **hparams):
-#         super().__init__()
-#         self.save_hyperparameters()
-#
-#         datset_params = self.hparams['dataset_hparams']
-#         data_collection_params = datset_params['data_collection_params']
-#         self.dataset_state_description: dict = data_collection_params['state_description']
-#         self.state_description = {k: self.dataset_state_description[k] for k in self.hparams.state_keys}
-#         self.total_state_dim = sum([self.dataset_state_description[k] for k in self.hparams.state_keys])
-#         in_size = self.total_state_dim
-#
-#         h = self.hparams['h']
-#         self.mlp = nn.Sequential(
-#             nn.Linear(in_size, h),
-#             nn.LeakyReLU(),
-#             nn.Linear(h, h),
-#             nn.LeakyReLU(),
-#             nn.Linear(h, 1),
-#             nn.Sigmoid(),
-#         )
-#
-#     def forward(self, x):
-#         return self.mlp(x)
+from state_space_dynamics.udnn_torch import mask_after_first_0, compute_batch_time_loss
 
 
 class VNet(MetaModule):
@@ -60,10 +33,10 @@ class VNet(MetaModule):
         x = self.linear1(x)
         x = self.relu1(x)
         out = self.linear2(x)
-        return F.sigmoid(out)
+        return torch.sigmoid(out)
 
 
-class UDNN(MetaModule):
+class UDNN(MetaModule, pl.LightningModule):
     def __init__(self, with_joint_positions=False, **hparams):
         super().__init__()
         self.save_hyperparameters()
@@ -71,7 +44,6 @@ class UDNN(MetaModule):
         datset_params = self.hparams['dataset_hparams']
         data_collection_params = datset_params['data_collection_params']
         self.scenario = get_scenario(self.hparams.scenario, params=data_collection_params['scenario_params'])
-        # FIXME: this dict is currently not getting generated for the newly collected datasets :(
         self.dataset_state_description: Dict = data_collection_params['state_description']
         self.dataset_action_description: Dict = data_collection_params['action_description']
         self.state_keys = self.hparams.state_keys
@@ -86,14 +58,17 @@ class UDNN(MetaModule):
 
         layers = []
         for fc_layer_size in self.hparams.fc_layer_sizes:
-            layers.append(torch.nn.Linear(in_size, fc_layer_size))
+            layers.append(MetaLinear(in_size, fc_layer_size))
             layers.append(torch.nn.ReLU())
             in_size = fc_layer_size
-        layers.append(torch.nn.Linear(fc_layer_size, self.total_state_dim))
+        layers.append(MetaLinear(fc_layer_size, self.total_state_dim))
 
-        self.mlp = torch.nn.Sequential(*layers)
+        self.mlp = MetaSequential(*layers)
 
-    def forward(self, inputs):
+    def forward(self, inputs, params=None):
+        if params is None:
+            params = dict(self.named_parameters())
+
         actions = {k: inputs[k] for k in self.hparams.action_keys}
         input_sequence_length = actions[self.hparams.action_keys[0]].shape[1]
         s_0 = {k: inputs[k][:, 0] for k in self.hparams.state_keys}
@@ -102,7 +77,7 @@ class UDNN(MetaModule):
         for t in range(input_sequence_length):
             s_t = pred_states[-1]
             action_t = {k: inputs[k][:, t] for k in self.hparams.action_keys}
-            s_t_plus_1 = self.one_step_forward(action_t, s_t)
+            s_t_plus_1 = self.one_step_forward(action_t, s_t, params)
 
             pred_states.append(s_t_plus_1)
 
@@ -119,7 +94,7 @@ class UDNN(MetaModule):
 
         return pred_states_dict
 
-    def one_step_forward(self, action_t, s_t):
+    def one_step_forward(self, action_t, s_t, params):
         local_action_t = self.scenario.put_action_local_frame(s_t, action_t)
         s_t_local = self.scenario.put_state_local_frame_torch(s_t)
         states_and_actions = list(s_t_local.values()) + list(local_action_t.values())
@@ -128,33 +103,13 @@ class UDNN(MetaModule):
         # DEBUGGING
         # self.plot_local_state_action_rviz(local_action_t, s_t_local)
 
-        z_t = self.mlp(z_t)
+        z_t = self.mlp(z_t, params=self.get_subdict(params, 'mlp'))
         delta_s_t = vector_to_dict(self.state_description, z_t, self.device)
         s_t_plus_1 = self.scenario.integrate_dynamics(s_t, delta_s_t)
         return s_t_plus_1
 
-    def compute_batch_time_loss(self, inputs, outputs):
-        loss_by_key = []
-        for k, y_pred in outputs.items():
-            y_true = inputs[k]
-            # mean over time and state dim but not batch, not yet.
-            loss = (y_true - y_pred).square().mean(dim=-1)
-            loss_by_key.append(loss)
-        batch_time_loss = torch.stack(loss_by_key).mean(dim=0)
-        return batch_time_loss
-
     def compute_batch_loss(self, inputs, outputs, no_weights=True):
-        """
-
-        Args:
-            inputs:
-            outputs:
-            no_weights: Ignore the weight in the "inputs"
-
-        Returns:
-
-        """
-        batch_time_loss = self.compute_batch_time_loss(inputs, outputs)
+        batch_time_loss = compute_batch_time_loss(inputs, outputs)
         if no_weights:
             batch_loss = batch_time_loss.sum(-1)
         else:
@@ -183,21 +138,6 @@ class UDNN(MetaModule):
         weights = mask_after_first_0(weights)
         return weights
 
-    def training_step(self, train_batch, batch_idx):
-        outputs = self.forward(train_batch)
-        loss = self.compute_loss(train_batch, outputs)
-        self.log('train_loss', loss)
-        return loss
-
-    def validation_step(self, val_batch, batch_idx):
-        outputs = self.forward(val_batch)
-        loss = self.compute_loss(val_batch, outputs)
-        self.log('val_loss', loss)
-        return loss
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
-
 
 class MWNet(pl.LightningModule):
     def __init__(self, **hparams):
@@ -206,7 +146,6 @@ class MWNet(pl.LightningModule):
 
         self.udnn = UDNN(**self.hparams)
         self.vnet = VNet(**self.hparams)
-        self.meta_udnn = UDNN(**self.hparams)
 
         self.state_keys = self.udnn.state_keys
         self.state_metadata_keys = self.udnn.state_metadata_keys
@@ -221,59 +160,31 @@ class MWNet(pl.LightningModule):
 
         optimizer_model, optimizer_vnet = self.optimizers()
 
-        # First we copy the dynamics model and run a gradient descent step using the weights net
-        # then we backprop through that entire gradient descent step to update the weights net
-        # the weights net is optimized on un-weighted performance on the meta-training set
-        # finally, we update the dynamics model using the weighted loss onf the training set
-        self.meta_udnn.load_state_dict(self.udnn.state_dict())
+        def _inner_loop():
+            udnn_outputs = self.udnn(train_batch)
+            udnn_loss = self.udnn.compute_batch_time_point_loss(train_batch, udnn_outputs)
+            weights = self.vnet(udnn_loss)
+            udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()  # inner loss
+            self.log('udnn_loss_weighted', udnn_loss_weighted)
 
-        # the naming convention is:
-        # A_B
-        # meta_A_B
-        # meta_A_meta_B
-        # A_meta_B
-        # the first meta applies to A the second meta applies to B
-        meta_udnn_outputs = self.meta_udnn(train_batch)
-        meta_udnn_loss = self.meta_udnn.compute_batch_time_point_loss(train_batch,
-                                                                      meta_udnn_outputs)  # [b, t, total_state_dim]
+            self.udnn.zero_grad()
+            params = gradient_update_parameters(self.udnn,
+                                                udnn_loss_weighted,
+                                                step_size=self.hparams.learning_rate,
+                                                first_order=False)
+            return params
 
-        weights = self.vnet(meta_udnn_loss)
-        batch_time_size = (meta_udnn_loss.shape[0] + meta_udnn_loss.shape[1])
-        meta_udnn_loss_weighted = torch.sum(meta_udnn_loss * weights) / batch_time_size
+        def _outer_loop():
+            meta_train_batch = inputs['meta_train']
+            meta_train_udnn_outputs = self.udnn(meta_train_batch, params=params)
+            meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
+            meta_train_udnn_loss.backward()  # outer loss
+            optimizer_vnet.step()
+            self.log('udnn_meta_loss', meta_train_udnn_loss)
 
-        # perform a gradient descent step on meta_udnn in a way that lets us backprop through, to the params of vnet
-        self.meta_udnn.zero_grad()
-        grads = torch.autograd.grad(meta_udnn_loss_weighted, self.meta_udnn.parameters(), create_graph=True)
-        for (param_name, param_value), grad in zip(self.meta_udnn.named_parameters(), grads):
-            setattr(self.udnn, param_name, param_value - self.hparams.learning_rate * grad)
-
-        # now use the meta data batch, pass that through the meta_udnn, compute loss, then backprop to update VNet
-        meta_train_batch = inputs['meta_train']
-        meta_udnn_meta_outputs = self.meta_udnn(meta_train_batch)
-        meta_loss_meta_batch = self.meta_udnn.compute_loss(meta_train_batch, meta_udnn_meta_outputs)
-        optimizer_vnet.zero_grad()
-        meta_loss_meta_batch.backward()
-        optimizer_vnet.step()
-        print(self.vnet.linear1.weight[0, 0])
-
-        # now update the udnn weights. Pass the batch through udnn, compute loss, backprop to update udnn
-        udnn_outputs = self.udnn(train_batch)
-        udnn_loss = self.udnn.compute_batch_time_point_loss(train_batch, udnn_outputs)
-        with torch.no_grad():  # we don't want to update the weights of vnet here, that happened above
-            meta_weights = self.vnet(udnn_loss)
-        udnn_loss_weighted = torch.sum(udnn_loss * meta_weights) / batch_time_size
-
-        # Question -- why not optimize this first than back-prop through this to do the outer loss for vnet?
-        optimizer_model.zero_grad()
-        udnn_loss_weighted.backward()
-        optimizer_model.step()
-
-        # finally, just run the udnn on the meta training set without any backprop, just for logging
-        udnn_meta_outputs = self.udnn(meta_train_batch)
-        udnn_meta_loss = self.udnn.compute_loss(meta_train_batch, udnn_meta_outputs, no_weights=True)
-
-        self.log('udnn_meta_loss', udnn_meta_loss)
-        self.log('udnn_loss_weighted', udnn_loss_weighted)
+        params = _inner_loop()  # computes the update for udnn and returns the updated params
+        _outer_loop()  # updates vnet
+        self.udnn.load_state_dict(params)  # actually set the new weights for udnn
 
     def configure_optimizers(self):
         optimizer_model = torch.optim.SGD(self.udnn.parameters(),
@@ -281,6 +192,6 @@ class MWNet(pl.LightningModule):
                                           momentum=0.9,
                                           weight_decay=5e-4)
         optimizer_vnet = torch.optim.Adam(self.vnet.parameters(),
-                                          lr=1e-3,
+                                          lr=self.hparams.vnet['learning_rate'],
                                           weight_decay=1e-4)
         return optimizer_model, optimizer_vnet

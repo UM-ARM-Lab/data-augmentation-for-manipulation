@@ -1,6 +1,6 @@
 import pathlib
 
-import torch
+import numpy as np
 from torch.utils.data import Dataset
 
 from link_bot_data.dataset_utils import pprint_example, merge_hparams_dicts
@@ -24,9 +24,6 @@ class MyTorchDataset(Dataset):
         return len(self.metadata_filenames)
 
     def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
         metadata_filename = self.metadata_filenames[idx]
         example = load_single(metadata_filename)
 
