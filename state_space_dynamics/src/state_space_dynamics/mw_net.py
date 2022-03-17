@@ -140,6 +140,8 @@ class UDNN(MetaModule, pl.LightningModule):
         return weights
 
 
+weights_grad = None
+
 class MWNet(pl.LightningModule):
     def __init__(self, **hparams):
         super().__init__()
@@ -159,11 +161,17 @@ class MWNet(pl.LightningModule):
     def training_step(self, inputs, batch_idx):
         train_batch = inputs['train']
 
-        optimizer_model, optimizer_vnet = self.optimizers()
+        optimizer_vnet = self.optimizers()
 
         udnn_outputs = self.udnn(train_batch)
         udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs).unsqueeze(-1)
         weights = self.vnet(udnn_loss)
+
+        def _hook(_weights_grad):
+            global weights_grad
+            weights_grad = _weights_grad
+
+        weights.register_hook(_hook)
 
         udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()  # inner loss
 
@@ -186,16 +194,13 @@ class MWNet(pl.LightningModule):
         meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
         meta_train_udnn_loss.backward()  # outer loss
         optimizer_vnet.step()  # updates vnet
+        print(weights_grad.squeeze())
         self.log('udnn_meta_loss', meta_train_udnn_loss)
 
         self.udnn.load_state_dict(params)  # actually set the new weights for udnn
 
     def configure_optimizers(self):
-        optimizer_model = torch.optim.SGD(self.udnn.parameters(),
-                                          lr=self.hparams.learning_rate,
-                                          momentum=0.9,
-                                          weight_decay=5e-4)
         optimizer_vnet = torch.optim.Adam(self.vnet.parameters(),
                                           lr=self.hparams.vnet['learning_rate'],
                                           weight_decay=1e-4)
-        return optimizer_model, optimizer_vnet
+        return optimizer_vnet
