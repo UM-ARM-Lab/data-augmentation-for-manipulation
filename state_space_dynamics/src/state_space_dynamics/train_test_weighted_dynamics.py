@@ -120,7 +120,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     wb_logger.watch(model)
     trainer.fit(model, train_loader)
     wandb.finish()
-    eval_main(dataset_dir, run_id, mode='test', user=user, batch_size=batch_size)
+    # eval_main(dataset_dir, run_id, mode='test', user=user, batch_size=batch_size)
     return run_id
 
 

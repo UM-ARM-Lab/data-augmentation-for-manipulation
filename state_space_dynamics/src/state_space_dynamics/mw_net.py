@@ -23,15 +23,16 @@ class VNet(MetaModule):
         self.state_description = {k: self.dataset_state_description[k] for k in hparams['state_keys']}
         self.total_state_dim = sum([self.dataset_state_description[k] for k in hparams['state_keys']])
         in_size = self.total_state_dim
+        in_size = 1
 
         h = hparams['vnet']['h_dim']
         self.linear1 = MetaLinear(in_size, h)
-        self.relu1 = nn.ReLU()
+        self.relu1 = nn.LeakyReLU()
         self.linear2 = MetaLinear(h, 1)
 
     def forward(self, x):
         x = self.linear1(x)
-        x = self.relu1(x)
+        x = torch.relu(x)
         out = self.linear2(x)
         return torch.sigmoid(out)
 
@@ -160,30 +161,33 @@ class MWNet(pl.LightningModule):
 
         optimizer_model, optimizer_vnet = self.optimizers()
 
-        def _inner_loop():
-            udnn_outputs = self.udnn(train_batch)
-            udnn_loss = self.udnn.compute_batch_time_point_loss(train_batch, udnn_outputs)
-            weights = self.vnet(udnn_loss)
-            udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()  # inner loss
-            self.log('udnn_loss_weighted', udnn_loss_weighted)
+        udnn_outputs = self.udnn(train_batch)
+        udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs).unsqueeze(-1)
+        weights = self.vnet(udnn_loss)
 
-            self.udnn.zero_grad()
-            params = gradient_update_parameters(self.udnn,
-                                                udnn_loss_weighted,
-                                                step_size=self.hparams.learning_rate,
-                                                first_order=False)
-            return params
+        udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()  # inner loss
 
-        def _outer_loop():
-            meta_train_batch = inputs['meta_train']
-            meta_train_udnn_outputs = self.udnn(meta_train_batch, params=params)
-            meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
-            meta_train_udnn_loss.backward()  # outer loss
-            optimizer_vnet.step()
-            self.log('udnn_meta_loss', meta_train_udnn_loss)
+        ex0_indices = torch.nonzero(1 - train_batch['example_idx']).squeeze()
+        ex1_indices = torch.nonzero(train_batch['example_idx']).squeeze()
+        self.log("ex0_pred_weight_mean", weights[ex0_indices].mean())
+        self.log("ex1_pred_weight_mean", weights[ex1_indices].mean())
 
-        params = _inner_loop()  # computes the update for udnn and returns the updated params
-        _outer_loop()  # updates vnet
+        self.log('udnn_loss_weighted', udnn_loss_weighted)
+
+        # compute the update for udnn and get the updated params
+        self.udnn.zero_grad()
+        params = gradient_update_parameters(self.udnn,
+                                            udnn_loss_weighted,
+                                            step_size=self.hparams.vnet['udnn_inner_learning_rate'],
+                                            first_order=False)
+
+        meta_train_batch = inputs['meta_train']
+        meta_train_udnn_outputs = self.udnn(meta_train_batch, params=params)
+        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
+        meta_train_udnn_loss.backward()  # outer loss
+        optimizer_vnet.step()  # updates vnet
+        self.log('udnn_meta_loss', meta_train_udnn_loss)
+
         self.udnn.load_state_dict(params)  # actually set the new weights for udnn
 
     def configure_optimizers(self):

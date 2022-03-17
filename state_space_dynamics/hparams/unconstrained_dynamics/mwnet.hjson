@@ -1,6 +1,8 @@
 {
+  learning_rate: 0.001
   vnet: {
     h_dim: 512
     learning_rate: 0.01
+    udnn_inner_learning_rate: 0.1
   }
 }
