@@ -161,7 +161,7 @@ class MWNet(pl.LightningModule):
         # self.log("ex0_pred_weight_mean", weights[ex0_indices].mean())
         # self.log("ex1_pred_weight_mean", weights[ex1_indices].mean())
 
-        self.log('udnn_loss_weighted', udnn_loss_weighted)
+        self.log('train_loss', udnn_loss_weighted)
 
         # compute the update for udnn and get the updated params
         self.udnn.zero_grad()
@@ -175,12 +175,12 @@ class MWNet(pl.LightningModule):
         meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
         meta_train_udnn_loss.backward()  # outer loss
         data_weight_opt.step()  # updates data weights
-        self.log('udnn_meta_loss', meta_train_udnn_loss)
+        self.log('val_loss', meta_train_udnn_loss)
 
         self.udnn.load_state_dict(params)  # actually set the new weights for udnn
 
     def configure_optimizers(self):
         data_weight_opt = torch.optim.Adam([self.sample_weights],
-                                          lr=self.hparams.weight_learning_rate,
-                                          weight_decay=1e-4)
+                                           lr=self.hparams.weight_learning_rate,
+                                           weight_decay=1e-4)
         return data_weight_opt
