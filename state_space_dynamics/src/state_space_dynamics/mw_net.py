@@ -23,7 +23,6 @@ class VNet(MetaModule):
         self.state_description = {k: self.dataset_state_description[k] for k in hparams['state_keys']}
         self.total_state_dim = sum([self.dataset_state_description[k] for k in hparams['state_keys']])
         in_size = self.total_state_dim
-        in_size = 1
 
         h = hparams['vnet']['h_dim']
         self.linear1 = MetaLinear(in_size, h)
@@ -140,8 +139,6 @@ class UDNN(MetaModule, pl.LightningModule):
         return weights
 
 
-weights_grad = None
-
 class MWNet(pl.LightningModule):
     def __init__(self, **hparams):
         super().__init__()
@@ -164,14 +161,8 @@ class MWNet(pl.LightningModule):
         optimizer_vnet = self.optimizers()
 
         udnn_outputs = self.udnn(train_batch)
-        udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs).unsqueeze(-1)
+        udnn_loss = self.udnn.compute_batch_time_point_loss(train_batch, udnn_outputs)
         weights = self.vnet(udnn_loss)
-
-        def _hook(_weights_grad):
-            global weights_grad
-            weights_grad = _weights_grad
-
-        weights.register_hook(_hook)
 
         udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()  # inner loss
 
@@ -192,9 +183,11 @@ class MWNet(pl.LightningModule):
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch, params=params)
         meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
+        params['mlp.4.bias'].retain_grad()
+        weights.retain_grad()
         meta_train_udnn_loss.backward()  # outer loss
         optimizer_vnet.step()  # updates vnet
-        print(weights_grad.squeeze())
+        # print(train_batch['example_idx'], 10000 * weights.grad.squeeze())
         self.log('udnn_meta_loss', meta_train_udnn_loss)
 
         self.udnn.load_state_dict(params)  # actually set the new weights for udnn
