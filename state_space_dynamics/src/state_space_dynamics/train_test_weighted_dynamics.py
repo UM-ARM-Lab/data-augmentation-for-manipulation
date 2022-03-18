@@ -102,7 +102,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                                            train_dataset,
                                            train_dataset_len,
                                            ))
-    model = MWNet(**model_params)
+    model = MWNet(train_dataset=train_dataset, **model_params)
     model.udnn.load_state_dict(udnn.state_dict())
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)

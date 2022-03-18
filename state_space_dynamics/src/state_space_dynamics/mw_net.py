@@ -1,8 +1,9 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import pytorch_lightning as pl
 import torch
 from torch import nn
+from torch.nn.parameter import Parameter
 from torchmeta.modules import MetaModule, MetaLinear, MetaSequential
 from torchmeta.utils import gradient_update_parameters
 
@@ -140,12 +141,21 @@ class UDNN(MetaModule, pl.LightningModule):
 
 
 class MWNet(pl.LightningModule):
-    def __init__(self, **hparams):
+    def __init__(self, train_dataset: Optional, **hparams):
         super().__init__()
-        self.save_hyperparameters()
+
+        if train_dataset is not None:
+            max_example_idx = max([e['train']['example_idx'] for e in train_dataset])
+            self.hparams['max_example_idx'] = max_example_idx
+        else:
+            max_example_idx = hparams['max_example_idx']
+
+        self.save_hyperparameters(ignore=['train_dataset'])
 
         self.udnn = UDNN(**self.hparams)
-        self.vnet = VNet(**self.hparams)
+
+        initial_sample_weights = torch.ones(max_example_idx + 1)
+        self.register_parameter("sample_weights", Parameter(initial_sample_weights))
 
         self.state_keys = self.udnn.state_keys
         self.state_metadata_keys = self.udnn.state_metadata_keys
@@ -161,8 +171,11 @@ class MWNet(pl.LightningModule):
         optimizer_vnet = self.optimizers()
 
         udnn_outputs = self.udnn(train_batch)
-        udnn_loss = self.udnn.compute_batch_time_point_loss(train_batch, udnn_outputs)
-        weights = self.vnet(udnn_loss)
+        udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs)
+
+        batch_indices = train_batch['example_idx']
+        weights = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
+        weights = torch.clip(weights, 0, 1)  # TODO: also clip after applying grad update to sample_weights
 
         udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()  # inner loss
 
@@ -183,17 +196,16 @@ class MWNet(pl.LightningModule):
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch, params=params)
         meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
-        params['mlp.4.bias'].retain_grad()
-        weights.retain_grad()
+        # params['mlp.4.bias'].retain_grad()
+        # weights.retain_grad()
         meta_train_udnn_loss.backward()  # outer loss
         optimizer_vnet.step()  # updates vnet
-        # print(train_batch['example_idx'], 10000 * weights.grad.squeeze())
         self.log('udnn_meta_loss', meta_train_udnn_loss)
 
         self.udnn.load_state_dict(params)  # actually set the new weights for udnn
 
     def configure_optimizers(self):
-        optimizer_vnet = torch.optim.Adam(self.vnet.parameters(),
+        optimizer_vnet = torch.optim.Adam([self.sample_weights],
                                           lr=self.hparams.vnet['learning_rate'],
                                           weight_decay=1e-4)
         return optimizer_vnet
