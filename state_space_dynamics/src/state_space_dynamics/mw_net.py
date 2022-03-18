@@ -14,29 +14,6 @@ from moonshine.torchify import torchify
 from state_space_dynamics.udnn_torch import mask_after_first_0, compute_batch_time_loss
 
 
-class VNet(MetaModule):
-    def __init__(self, **hparams):
-        super(VNet, self).__init__()
-
-        datset_params = hparams['dataset_hparams']
-        data_collection_params = datset_params['data_collection_params']
-        self.dataset_state_description: Dict = data_collection_params['state_description']
-        self.state_description = {k: self.dataset_state_description[k] for k in hparams['state_keys']}
-        self.total_state_dim = sum([self.dataset_state_description[k] for k in hparams['state_keys']])
-        in_size = self.total_state_dim
-
-        h = hparams['vnet']['h_dim']
-        self.linear1 = MetaLinear(in_size, h)
-        self.relu1 = nn.LeakyReLU()
-        self.linear2 = MetaLinear(h, 1)
-
-    def forward(self, x):
-        x = self.linear1(x)
-        x = torch.relu(x)
-        out = self.linear2(x)
-        return torch.sigmoid(out)
-
-
 class UDNN(MetaModule, pl.LightningModule):
     def __init__(self, with_joint_positions=False, **hparams):
         super().__init__()
@@ -154,7 +131,7 @@ class MWNet(pl.LightningModule):
 
         self.udnn = UDNN(**self.hparams)
 
-        initial_sample_weights = torch.ones(max_example_idx + 1)
+        initial_sample_weights = torch.ones(max_example_idx + 1) * 0.5
         self.register_parameter("sample_weights", Parameter(initial_sample_weights))
 
         self.state_keys = self.udnn.state_keys
@@ -168,7 +145,7 @@ class MWNet(pl.LightningModule):
     def training_step(self, inputs, batch_idx):
         train_batch = inputs['train']
 
-        optimizer_vnet = self.optimizers()
+        data_weight_opt = self.optimizers()
 
         udnn_outputs = self.udnn(train_batch)
         udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs)
@@ -179,10 +156,10 @@ class MWNet(pl.LightningModule):
 
         udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()  # inner loss
 
-        ex0_indices = torch.nonzero(1 - train_batch['example_idx']).squeeze()
-        ex1_indices = torch.nonzero(train_batch['example_idx']).squeeze()
-        self.log("ex0_pred_weight_mean", weights[ex0_indices].mean())
-        self.log("ex1_pred_weight_mean", weights[ex1_indices].mean())
+        # ex0_indices = torch.nonzero(1 - train_batch['example_idx']).squeeze()
+        # ex1_indices = torch.nonzero(train_batch['example_idx']).squeeze()
+        # self.log("ex0_pred_weight_mean", weights[ex0_indices].mean())
+        # self.log("ex1_pred_weight_mean", weights[ex1_indices].mean())
 
         self.log('udnn_loss_weighted', udnn_loss_weighted)
 
@@ -190,22 +167,20 @@ class MWNet(pl.LightningModule):
         self.udnn.zero_grad()
         params = gradient_update_parameters(self.udnn,
                                             udnn_loss_weighted,
-                                            step_size=self.hparams.vnet['udnn_inner_learning_rate'],
+                                            step_size=self.hparams.udnn_inner_learning_rate,
                                             first_order=False)
 
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch, params=params)
         meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
-        # params['mlp.4.bias'].retain_grad()
-        # weights.retain_grad()
         meta_train_udnn_loss.backward()  # outer loss
-        optimizer_vnet.step()  # updates vnet
+        data_weight_opt.step()  # updates data weights
         self.log('udnn_meta_loss', meta_train_udnn_loss)
 
         self.udnn.load_state_dict(params)  # actually set the new weights for udnn
 
     def configure_optimizers(self):
-        optimizer_vnet = torch.optim.Adam([self.sample_weights],
-                                          lr=self.hparams.vnet['learning_rate'],
+        data_weight_opt = torch.optim.Adam([self.sample_weights],
+                                          lr=self.hparams.weight_learning_rate,
                                           weight_decay=1e-4)
-        return optimizer_vnet
+        return data_weight_opt
