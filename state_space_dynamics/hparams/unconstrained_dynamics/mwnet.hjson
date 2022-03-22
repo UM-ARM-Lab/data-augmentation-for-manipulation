@@ -1,4 +1,4 @@
 {
-  weight_learning_rate: 0.3
-  udnn_inner_learning_rate: 0.03
+  udnn_inner_learning_rate: 0.3
+  weight_learning_rate: 0.03
 }

@@ -2,6 +2,7 @@ from typing import Dict, Optional
 
 import pytorch_lightning as pl
 import torch
+import wandb
 from torch import nn
 from torch.nn.parameter import Parameter
 from torchmeta.modules import MetaModule, MetaLinear, MetaSequential
@@ -12,6 +13,7 @@ from moonshine.numpify import numpify
 from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
 from moonshine.torchify import torchify
 from state_space_dynamics.udnn_torch import mask_after_first_0, compute_batch_time_loss
+import wandb
 
 
 class UDNN(MetaModule, pl.LightningModule):
@@ -131,7 +133,7 @@ class MWNet(pl.LightningModule):
 
         self.udnn = UDNN(**self.hparams)
 
-        initial_sample_weights = torch.ones(max_example_idx + 1) * 0.5
+        initial_sample_weights = torch.ones(max_example_idx + 1)
         self.register_parameter("sample_weights", Parameter(initial_sample_weights))
 
         self.state_keys = self.udnn.state_keys
@@ -141,6 +143,12 @@ class MWNet(pl.LightningModule):
 
     def forward(self, inputs):
         return self.udnn.forward(inputs)
+
+    def validation_step(self, inputs, batch_idx):
+        meta_train_batch = inputs['meta_train']
+        meta_train_udnn_outputs = self.udnn(meta_train_batch)
+        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
+        self.log('val_loss', meta_train_udnn_loss)
 
     def training_step(self, inputs, batch_idx):
         train_batch = inputs['train']
@@ -174,8 +182,17 @@ class MWNet(pl.LightningModule):
         meta_train_udnn_outputs = self.udnn(meta_train_batch, params=params)
         meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
         meta_train_udnn_loss.backward()  # outer loss
+        weights.retain_grad()
         data_weight_opt.step()  # updates data weights
+        self.sample_weights = nn.Parameter(torch.clip(self.sample_weights, 0, 1))  # clip after updating sample_weights
         self.log('val_loss', meta_train_udnn_loss)
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.hist(self.sample_weights.detach().cpu().numpy())
+        # plt.xlabel("weights")
+        # ax = plt.gca()
+        # ax.ticklabel_format(useOffset=False)
+        # plt.pause(1)
 
         self.udnn.load_state_dict(params)  # actually set the new weights for udnn
 

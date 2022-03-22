@@ -21,8 +21,8 @@ from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, repeat_dataset
 from moonshine.torchify import torchify
 from state_space_dynamics.mw_net import MWNet
-from state_space_dynamics.torch_dynamics_dataset import TorchMetaDynamicsDataset, remove_keys
 from state_space_dynamics.mw_net import UDNN
+from state_space_dynamics.torch_dynamics_dataset import TorchMetaDynamicsDataset, remove_keys
 
 PROJECT = 'udnn'
 
@@ -90,20 +90,23 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     }
 
     # load the udnn checkpoint, create the MWNet, then copy the restored udnn model state into the udnn inside mwnet
-    udnn = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user)
-    model_params = udnn.hparams_initial
-    model_params.update(train_model_params(batch_size,
-                                           checkpoint,
-                                           epochs,
-                                           model_params_path,
-                                           seed,
-                                           steps,
-                                           take,
-                                           train_dataset,
-                                           train_dataset_len,
-                                           ))
-    model = MWNet(train_dataset=train_dataset, **model_params)
-    model.udnn.load_state_dict(udnn.state_dict())
+    try:
+        udnn = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user)
+        model_params = udnn.hparams_initial
+        model_params.update(train_model_params(batch_size,
+                                               checkpoint,
+                                               epochs,
+                                               model_params_path,
+                                               seed,
+                                               steps,
+                                               take,
+                                               train_dataset,
+                                               train_dataset_len,
+                                               ))
+        model = MWNet(train_dataset=train_dataset, **model_params)
+        model.udnn.load_state_dict(udnn.state_dict())
+    except Exception:
+        model = load_model_artifact(checkpoint, MWNet, project=project, version='latest', user=user, train_dataset=train_dataset)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
@@ -118,9 +121,9 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                          num_sanity_val_steps=0,
                          default_root_dir='wandb')
     wb_logger.watch(model)
-    trainer.fit(model, train_loader)
+    trainer.fit(model, train_loader, val_dataloaders=train_loader)
     wandb.finish()
-    # eval_main(dataset_dir, run_id, mode='test', user=user, batch_size=batch_size)
+    eval_main(dataset_dir, run_id, mode='test', user=user, batch_size=batch_size)
     return run_id
 
 
@@ -195,7 +198,7 @@ def train_main(dataset_dir: pathlib.Path,
     wb_logger.watch(model)
     trainer.fit(model, train_loader, ckpt_path=ckpt_path)
     wandb.finish()
-    eval_main(dataset_dir, run_id, mode='test', user=user, batch_size=batch_size)
+    eval_main(dataset_dir, run_id, batch_size=batch_size, user=user)
     return run_id
 
 
@@ -207,7 +210,7 @@ def eval_main(dataset_dir: pathlib.Path,
               skip: Optional[int] = None,
               project=PROJECT,
               **kwargs):
-    model = load_model_artifact(checkpoint, MWNet, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, MWNet, project, version='best', user=user, train_dataset=None)
     model.eval()
 
     run_id = f'eval-{generate_id(length=5)}'
@@ -240,8 +243,8 @@ def eval_main(dataset_dir: pathlib.Path,
 def viz_main(dataset_dir: pathlib.Path,
              checkpoint,
              user: str,
-             weight_above: float = 0,
-             weight_below: float = 1,
+             weight_above: Optional[float] = None,
+             weight_below: Optional[float] = None,
              skip: Optional[int] = None,
              project=PROJECT,
              **kwargs):
@@ -249,16 +252,18 @@ def viz_main(dataset_dir: pathlib.Path,
 
     dataset = dataset_skip(dataset, skip)
 
-    model = load_model_artifact(checkpoint, MWNet, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, MWNet, project, version='best', user=user, train_dataset=None)
     model.eval()
 
     s = dataset.get_scenario()
 
     dataset_anim = RvizAnimationController(n_time_steps=len(dataset), ns='trajs')
+    print("Visualizing meta train data")
 
     n_examples_visualized = 0
     while not dataset_anim.done:
         inputs = dataset[dataset_anim.t()]
+        inputs = inputs['meta_train']
 
         outputs = remove_batch(model(torchify(add_batch(inputs))))
         weight = model.sample_weights.detach().cpu()[inputs['example_idx']]

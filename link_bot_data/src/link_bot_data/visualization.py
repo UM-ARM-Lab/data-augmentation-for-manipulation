@@ -299,6 +299,7 @@ def viz_pred_actual_t(loader, model, example, outputs, s, t, threshold):
     prediction_t = numpify(index_time(outputs, model_state_keys, t, False))
     s.plot_state_rviz(prediction_t, label='viz_predicted', color='blue')
     error_t = s.classifier_distance(actual_t, prediction_t)
+    print(error_t)
     s.plot_error_rviz(error_t)
     label_t = error_t < threshold
     s.plot_is_close(label_t)
