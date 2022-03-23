@@ -1,5 +1,3 @@
-import math
-from collections import OrderedDict
 from typing import Dict, Optional
 
 import pytorch_lightning as pl
@@ -7,60 +5,13 @@ import torch
 from torch import nn
 from torch.nn.parameter import Parameter
 from torchmeta.modules import MetaModule, MetaLinear, MetaSequential
+from torchmeta.utils import gradient_update_parameters
 
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.numpify import numpify
 from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
 from moonshine.torchify import torchify
 from state_space_dynamics.udnn_torch import mask_after_first_0, compute_batch_time_loss
-
-
-def sgd_update(model, loss, step_size):
-    params = OrderedDict(model.meta_named_parameters())
-    grads = torch.autograd.grad(loss, params.values(), create_graph=True)
-    updated_params = OrderedDict()
-    for (name, param), grad in zip(params.items(), grads):
-        updated_params[name] = param - step_size * grad
-
-
-def adam_update(model, loss, step_size, params_states, betas=(0.9, 0.999), eps=1e-8):
-    b1, b2 = betas
-    params = OrderedDict(model.meta_named_parameters())
-    grads = torch.autograd.grad(loss, params.values(), create_graph=True)
-    updated_params = OrderedDict()
-    for (name, param), grad in zip(params.items(), grads):
-        # updated_params[name] = param - step_size * grad
-        if param not in params_states:
-            params_states[param] = {}
-        param_state = params_states[param]
-
-        # State initialization
-        if len(param_state) == 0:
-            param_state['step'] = 0
-            # Momentum (Exponential MA of gradients)
-            param_state['exp_avg'] = torch.zeros_like(param)
-            # RMS Prop componenet. (Exponential MA of squared gradients). Denominator.
-            param_state['exp_avg_sq'] = torch.zeros_like(param)
-
-        exp_avg, exp_avg_sq = param_state['exp_avg'], param_state['exp_avg_sq']
-
-        param_state['step'] += 1
-
-        # Momentum
-        exp_avg = torch.mul(exp_avg, b1) + (1 - b1) * grad
-        # RMS
-        exp_avg_sq = torch.mul(exp_avg_sq, b2) + (1 - b2) * (grad * grad)
-
-        denom = exp_avg_sq.sqrt() + eps
-
-        bias_correction1 = 1 / (1 - b1 ** param_state['step'])
-        bias_correction2 = 1 / (1 - b2 ** param_state['step'])
-
-        adapted_learning_rate = step_size * bias_correction1 / math.sqrt(bias_correction2)
-
-        updated_params[name] = param - adapted_learning_rate * exp_avg / denom
-
-    return updated_params
 
 
 class UDNN(MetaModule, pl.LightningModule):
@@ -187,7 +138,6 @@ class MWNet(pl.LightningModule):
         self.state_metadata_keys = self.udnn.state_metadata_keys
 
         self.automatic_optimization = False
-        self.params_states = {}
 
     def forward(self, inputs):
         return self.udnn.forward(inputs)
@@ -211,18 +161,14 @@ class MWNet(pl.LightningModule):
 
         udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()  # inner loss
 
-        # ex0_indices = torch.nonzero(1 - train_batch['example_idx']).squeeze()
-        # ex1_indices = torch.nonzero(train_batch['example_idx']).squeeze()
-        # self.log("ex0_pred_weight_mean", weights[ex0_indices].mean())
-        # self.log("ex1_pred_weight_mean", weights[ex1_indices].mean())
-
         self.log('train_loss', udnn_loss_weighted)
 
         # compute the update for udnn and get the updated params
-        self.udnn.zero_grad()
-
-        params = adam_update(self.udnn, udnn_loss_weighted, step_size=self.hparams.udnn_inner_learning_rate,
-                             params_states=self.params_states)
+        # self.udnn.zero_grad()
+        params = gradient_update_parameters(self.udnn,
+                                            udnn_loss_weighted,
+                                            step_size=self.hparams.udnn_inner_learning_rate,
+                                            first_order=False)
 
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch, params=params)
@@ -230,7 +176,6 @@ class MWNet(pl.LightningModule):
         meta_train_udnn_loss.backward()  # outer loss
         data_weight_opt.step()  # updates data weights
         self.sample_weights = nn.Parameter(torch.clip(self.sample_weights, 0, 1))  # clip after updating sample_weights
-        self.log('val_loss', meta_train_udnn_loss)
 
         val_example_indices = meta_train_batch['example_idx']
         val_sample_weights_sum = 0
@@ -242,14 +187,6 @@ class MWNet(pl.LightningModule):
         avg_val_sample_weight = val_sample_weights_sum / n
         self.log('avg_val_sample_weight', avg_val_sample_weight)
 
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.hist(self.sample_weights.detach().cpu().numpy())
-        # plt.xlabel("weights")
-        # ax = plt.gca()
-        # ax.ticklabel_format(useOffset=False)
-        # plt.pause(1)
-
         # same as the inner optimization just with adam, mostly for testing. I shouldn't really have to do it this way
         self.udnn.zero_grad()
         udnn_outputs = self.udnn(train_batch)
@@ -259,6 +196,7 @@ class MWNet(pl.LightningModule):
         udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()
         udnn_loss_weighted.backward()
         model_weight_opt.step()  # updates model weights
+        self.log('val_loss', meta_train_udnn_loss)
 
     def configure_optimizers(self):
         data_weight_opt = torch.optim.Adam([self.sample_weights], lr=self.hparams.weight_learning_rate)
