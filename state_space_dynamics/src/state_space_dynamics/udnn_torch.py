@@ -133,8 +133,8 @@ class UDNN(pl.LightningModule):
 
     def compute_loss(self, inputs, outputs, no_weights=True):
         batch_loss = self.compute_batch_loss(inputs, outputs, no_weights=no_weights)
-        print(inputs['example_idx'])
-        print(batch_loss)
+        # print(inputs['example_idx'])
+        # print(batch_loss)
         return batch_loss.mean()
 
     def compute_batch_time_point_loss(self, inputs, outputs):
