@@ -1,5 +1,6 @@
 {
-  udnn_inner_learning_rate: 0.001
+  udnn_inner_learning_rate: 0.2
+  actual_udnn_learning_rate: 0.001
   data_weight_init: 1.0
   weight_learning_rate: 0.3
 }

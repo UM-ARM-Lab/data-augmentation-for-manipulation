@@ -201,14 +201,13 @@ class MWNet(pl.LightningModule):
     def training_step(self, inputs, batch_idx):
         train_batch = inputs['train']
 
-        data_weight_opt = self.optimizers()
+        data_weight_opt, model_weight_opt = self.optimizers()
 
         udnn_outputs = self.udnn(train_batch)
         udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs)
 
         batch_indices = train_batch['example_idx']
         weights = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
-        weights = torch.clip(weights, 0, 1)  # TODO: also clip after applying grad update to sample_weights
 
         udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()  # inner loss
 
@@ -229,7 +228,7 @@ class MWNet(pl.LightningModule):
         meta_train_udnn_outputs = self.udnn(meta_train_batch, params=params)
         meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
         meta_train_udnn_loss.backward()  # outer loss
-        # data_weight_opt.step()  # updates data weights
+        data_weight_opt.step()  # updates data weights
         self.sample_weights = nn.Parameter(torch.clip(self.sample_weights, 0, 1))  # clip after updating sample_weights
         self.log('val_loss', meta_train_udnn_loss)
 
@@ -251,8 +250,17 @@ class MWNet(pl.LightningModule):
         # ax.ticklabel_format(useOffset=False)
         # plt.pause(1)
 
-        self.udnn.load_state_dict(params)  # actually set the new weights for udnn
+        # same as the inner optimization just with adam, mostly for testing. I shouldn't really have to do it this way
+        self.udnn.zero_grad()
+        udnn_outputs = self.udnn(train_batch)
+        udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs)
+        batch_indices = train_batch['example_idx']
+        weights = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
+        udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()
+        udnn_loss_weighted.backward()
+        model_weight_opt.step()  # updates model weights
 
     def configure_optimizers(self):
         data_weight_opt = torch.optim.Adam([self.sample_weights], lr=self.hparams.weight_learning_rate)
-        return data_weight_opt
+        model_weight_opt = torch.optim.Adam(self.udnn.parameters(), lr=self.hparams.actual_udnn_learning_rate)
+        return data_weight_opt, model_weight_opt
