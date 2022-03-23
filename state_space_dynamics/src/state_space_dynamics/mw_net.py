@@ -176,7 +176,6 @@ class MWNet(pl.LightningModule):
         meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
         meta_train_udnn_loss.backward()  # outer loss
         data_weight_opt.step()  # updates data weights
-        # self.sample_weights = nn.Parameter(torch.clip(self.sample_weights, 0, 1))  # clip after updating sample_weights
 
         val_example_indices = meta_train_batch['example_idx']
         val_sample_weights_sum = 0
