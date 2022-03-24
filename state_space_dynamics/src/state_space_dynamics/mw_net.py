@@ -184,8 +184,9 @@ class MWNet(pl.LightningModule):
             if train_batch_example_idx in val_example_indices.detach().cpu().numpy().tolist():
                 val_sample_weights_sum += self.sample_weights[train_batch_example_idx]
                 n += 1
-        avg_val_sample_weight = val_sample_weights_sum / n
-        self.log('avg_val_sample_weight', avg_val_sample_weight)
+        if n > 0:
+            avg_val_sample_weight = val_sample_weights_sum / n
+            self.log('avg_val_sample_weight', avg_val_sample_weight)
 
         # same as the inner optimization just with adam, mostly for testing. I shouldn't really have to do it this way
         self.udnn.zero_grad()
