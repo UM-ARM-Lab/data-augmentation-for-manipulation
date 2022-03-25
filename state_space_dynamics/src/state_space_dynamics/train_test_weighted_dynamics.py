@@ -10,6 +10,7 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from wandb import CommError
 from wandb.util import generate_id
 
 from link_bot_data.visualization import init_viz_env, viz_pred_actual_t
@@ -29,8 +30,11 @@ PROJECT = 'udnn'
 
 def get_dataset_with_version(dataset_dir: pathlib.Path, project=PROJECT, entity='armlab'):
     api = wandb.Api({'entity': entity})
-    artifact = api.artifact(f"{project}/{dataset_dir.name}:latest")
-    return artifact.version
+    try:
+        artifact = api.artifact(f"{project}/{dataset_dir.name}:latest")
+        return artifact.version
+    except CommError:
+        return 'null'
 
 
 def train_model_params(batch_size, checkpoint, epochs, model_params_path, seed, steps, take, train_dataset,
