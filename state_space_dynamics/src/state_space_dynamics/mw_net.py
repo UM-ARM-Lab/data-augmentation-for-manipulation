@@ -151,16 +151,14 @@ class MWNet(pl.LightningModule):
     def training_step(self, inputs, batch_idx):
         self.sample_weights.grad = None  # zero grad, very important!
 
-        train_batch = inputs['train']
-
         data_weight_opt, model_weight_opt = self.optimizers()
+
+        train_batch = inputs['train']
 
         udnn_outputs = self.udnn(train_batch)
         udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs)
-
         batch_indices = train_batch['example_idx']
         weights = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
-
         udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()  # inner loss
 
         self.log('train_loss', udnn_loss_weighted)
@@ -177,16 +175,16 @@ class MWNet(pl.LightningModule):
         meta_train_udnn_loss.backward()
         data_weight_opt.step()  # updates data weights
 
-        val_example_indices = meta_train_batch['example_idx']
-        val_sample_weights_sum = 0
-        n = 0
-        for train_batch_i, train_batch_example_idx in enumerate(train_batch['example_idx']):
-            if train_batch_example_idx in val_example_indices.detach().cpu().numpy().tolist():
-                val_sample_weights_sum += self.sample_weights[train_batch_example_idx]
-                n += 1
-        if n > 0:
-            avg_val_sample_weight = val_sample_weights_sum / n
-            self.log('avg_val_sample_weight', avg_val_sample_weight)
+        # val_example_indices = meta_train_batch['example_idx']
+        # val_sample_weights_sum = 0
+        # n = 0
+        # for train_batch_i, train_batch_example_idx in enumerate(train_batch['example_idx']):
+        #     if train_batch_example_idx in val_example_indices.detach().cpu().numpy().tolist():
+        #         val_sample_weights_sum += self.sample_weights[train_batch_example_idx]
+        #         n += 1
+        # if n > 0:
+        #     avg_val_sample_weight = val_sample_weights_sum / n
+        #     self.log('avg_val_sample_weight', avg_val_sample_weight)
 
         # same as the inner optimization just with adam, mostly for testing. I shouldn't really have to do it this way
         self.udnn.zero_grad()

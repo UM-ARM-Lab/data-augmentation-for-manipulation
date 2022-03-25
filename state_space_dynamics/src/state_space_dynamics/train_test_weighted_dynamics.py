@@ -27,11 +27,18 @@ from state_space_dynamics.torch_dynamics_dataset import TorchMetaDynamicsDataset
 PROJECT = 'udnn'
 
 
+def get_dataset_with_version(dataset_dir: pathlib.Path, project=PROJECT, entity='armlab'):
+    api = wandb.Api({'entity': entity})
+    artifact = api.artifact(f"{project}/{dataset_dir.name}:latest")
+    return artifact.version
+
+
 def train_model_params(batch_size, checkpoint, epochs, model_params_path, seed, steps, take, train_dataset,
                        train_dataset_len):
     model_params = load_hjson(model_params_path)
     model_params['scenario'] = train_dataset.params['scenario']
     model_params['dataset_dir'] = train_dataset.dataset_dir
+    model_params['dataset_dir_version'] = get_dataset_with_version(train_dataset.dataset_dir)
     model_params['dataset_hparams'] = train_dataset.params
     # add some extra useful info here
     stamp = "{:%B_%d_%H-%M-%S}".format(datetime.now())
@@ -106,7 +113,8 @@ def fine_tune_main(dataset_dir: pathlib.Path,
         model = MWNet(train_dataset=train_dataset, **model_params)
         model.udnn.load_state_dict(udnn.state_dict())
     except Exception:
-        model = load_model_artifact(checkpoint, MWNet, project=project, version='latest', user=user, train_dataset=train_dataset)
+        model = load_model_artifact(checkpoint, MWNet, project=project, version='latest', user=user,
+                                    train_dataset=train_dataset)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
