@@ -28,7 +28,7 @@ PROJECT = 'udnn'
 
 
 def prepare_train(batch_size, dataset_dir, take, skip, transform, repeat):
-    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=transform)
+    train_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=transform)
     train_dataset_take = take_subset(train_dataset, take)
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
     train_dataset_repeat = repeat_dataset(train_dataset_skip, repeat)
@@ -240,7 +240,7 @@ def eval_main(dataset_dir: pathlib.Path,
     print(f'run_id: {run_id}')
     for metrics_i in metrics:
         for k, v in metrics_i.items():
-            print(f"{k:20s}: {v:0.5f}")
+            print(f"{k:20s}: {v:0.6f}")
 
     return metrics
 

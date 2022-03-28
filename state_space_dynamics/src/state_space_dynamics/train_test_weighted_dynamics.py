@@ -133,6 +133,9 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                          num_sanity_val_steps=0,
                          default_root_dir='wandb')
     wb_logger.watch(model)
+
+    model.init_data_weights_from_model_error(train_dataset)
+
     trainer.fit(model, train_loader, val_dataloaders=train_loader)
     wandb.finish()
     eval_main(dataset_dir, run_id, mode='test', user=user, batch_size=batch_size)

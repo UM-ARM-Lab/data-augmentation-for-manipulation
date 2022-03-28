@@ -52,6 +52,10 @@ def main():
     while not dataset_anim.done:
         example_idx = dataset_anim.t()
         example = dataset[example_idx]
+        if example['example_idx'] not in [494, 495, 508, 529, 591, 596, 630, 684, 821, 948, 979]:
+            dataset_anim.step()
+            continue
+        print(example['example_idx'])
         weight = example.get('weight', np.array([1]))
         total_weight += np.sum(weight)
         if (args.weight_above <= weight).any() and (weight <= args.weight_below).any():

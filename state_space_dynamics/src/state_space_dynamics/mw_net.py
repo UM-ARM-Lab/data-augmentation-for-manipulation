@@ -2,13 +2,15 @@ from typing import Dict, Optional
 
 import pytorch_lightning as pl
 import torch
-from torch import nn
+from colorama import Fore
 from torch.nn.parameter import Parameter
 from torchmeta.modules import MetaModule, MetaLinear, MetaSequential
 from torchmeta.utils import gradient_update_parameters
+from tqdm import tqdm
 
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.numpify import numpify
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
 from moonshine.torchify import torchify
 from state_space_dynamics.udnn_torch import mask_after_first_0, compute_batch_time_loss
@@ -141,6 +143,21 @@ class MWNet(pl.LightningModule):
 
     def forward(self, inputs):
         return self.udnn.forward(inputs)
+
+    def init_data_weights_from_model_error(self, train_dataset):
+        if self.hparams.init_from_model_error:
+            print(Fore.GREEN + "Initializing data weights" + Fore.RESET)
+            # TODO: do this elsewhere, refactor!
+            # compute the model error using the initial model on the initial dataset
+            for example_i in tqdm(train_dataset):
+                train_example_i = example_i['train']
+                i = train_example_i['example_idx']
+                model_error_i_dict = remove_batch(self.udnn(add_batch(torchify(train_example_i))))
+                model_error_i = 0
+                for v in model_error_i_dict.values():
+                    model_error_i += v.mean()
+                with torch.no_grad():
+                    self.sample_weights[i] = model_error_i
 
     def validation_step(self, inputs, batch_idx):
         meta_train_batch = inputs['meta_train']
