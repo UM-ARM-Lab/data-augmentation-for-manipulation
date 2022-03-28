@@ -225,7 +225,6 @@ class MWNet(pl.LightningModule):
         model_weight_opt = torch.optim.Adam(self.udnn.parameters(), lr=self.hparams.actual_udnn_learning_rate)
 
         def _clip(grad):
-            print(torch.any(torch.isnan(grad)))
             torch.clamp(grad, -self.hparams.grad_clip_value, self.hparams.grad_clip_value)
 
         self.sample_weights.register_hook(_clip)
