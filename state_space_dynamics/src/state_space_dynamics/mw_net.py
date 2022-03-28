@@ -209,7 +209,8 @@ class MWNet(pl.LightningModule):
         udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs)
         batch_indices = train_batch['example_idx']
         weights = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
-        udnn_loss_weighted = torch.sum(udnn_loss * weights) / udnn_loss.nelement()
+        positive_weights = torch.sigmoid(weights)
+        udnn_loss_weighted = torch.sum(udnn_loss * positive_weights) / udnn_loss.nelement()
         udnn_loss_weighted.backward()
         model_weight_opt.step()  # updates model weights
 
@@ -222,4 +223,13 @@ class MWNet(pl.LightningModule):
     def configure_optimizers(self):
         data_weight_opt = torch.optim.SGD([self.sample_weights], lr=self.hparams.weight_learning_rate)
         model_weight_opt = torch.optim.Adam(self.udnn.parameters(), lr=self.hparams.actual_udnn_learning_rate)
+
+        def _clip(grad):
+            print(torch.any(torch.isnan(grad)))
+            torch.clamp(grad, -self.hparams.grad_clip_value, self.hparams.grad_clip_value)
+
+        self.sample_weights.register_hook(_clip)
+        for p in self.udnn.parameters():
+            p.register_hook(_clip)
+
         return data_weight_opt, model_weight_opt
