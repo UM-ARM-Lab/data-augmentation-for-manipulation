@@ -124,8 +124,7 @@ class MWNet(pl.LightningModule):
         super().__init__()
 
         if train_dataset is not None:
-            max_example_idx = max([e['train']['example_idx'] for e in train_dataset])
-            self.hparams['max_example_idx'] = max_example_idx
+            self.hparams['max_example_idx'] = train_dataset.params['max_example_idx']
         else:
             max_example_idx = hparams['max_example_idx']
 
@@ -225,10 +224,11 @@ class MWNet(pl.LightningModule):
         model_weight_opt = torch.optim.Adam(self.udnn.parameters(), lr=self.hparams.actual_udnn_learning_rate)
 
         def _clip(grad):
-            torch.clamp(grad, -self.hparams.grad_clip_value, self.hparams.grad_clip_value)
+            return torch.clamp(grad, -self.hparams.grad_clip_value, self.hparams.grad_clip_value)
 
         self.sample_weights.register_hook(_clip)
         for p in self.udnn.parameters():
             p.register_hook(_clip)
 
         return data_weight_opt, model_weight_opt
+

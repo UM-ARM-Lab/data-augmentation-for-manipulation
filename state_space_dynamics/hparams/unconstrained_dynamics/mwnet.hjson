@@ -1,6 +1,6 @@
 {
   udnn_inner_learning_rate: 0.1
-  actual_udnn_learning_rate: 0.001
+  actual_udnn_learning_rate: 0.0001
   data_weight_init: 0.5
   weight_learning_rate: 5000
   init_from_model_error: true

@@ -102,7 +102,8 @@ def fine_tune_main(dataset_dir: pathlib.Path,
 
     # load the udnn checkpoint, create the MWNet, then copy the restored udnn model state into the udnn inside mwnet
     try:
-        udnn = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user)
+        checkpoint_is_udnn = True
+        udnn = load_model_artifact(checkpoint, UDNN, project=project, version='best', user=user)
         model_params = udnn.hparams_initial
         model_params.update(train_model_params(batch_size,
                                                checkpoint,
@@ -117,6 +118,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
         model = MWNet(train_dataset=train_dataset, **model_params)
         model.udnn.load_state_dict(udnn.state_dict())
     except Exception:
+        checkpoint_is_udnn = False
         model = load_model_artifact(checkpoint, MWNet, project=project, version='latest', user=user,
                                     train_dataset=train_dataset)
 
@@ -134,7 +136,8 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                          default_root_dir='wandb')
     wb_logger.watch(model)
 
-    model.init_data_weights_from_model_error(train_dataset)
+    if checkpoint_is_udnn:
+        model.init_data_weights_from_model_error(train_dataset)
 
     trainer.fit(model, train_loader, val_dataloaders=train_loader)
     wandb.finish()
@@ -198,7 +201,7 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = MWNet(**model_params)
+    model = MWNet(**model_params, train_dataset=train_dataset)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     trainer = pl.Trainer(gpus=1,
