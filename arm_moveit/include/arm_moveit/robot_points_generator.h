@@ -12,21 +12,38 @@
 
 class RobotPointsGenerator {
  public:
-  RobotPointsGenerator(double res);
+  RobotPointsGenerator(double res, std::string const &robot_description = "robot_description",
+                       double collision_sphere_radius = 0.005);
 
   std::vector<std::string> getLinkModelNames();
 
-  std::vector<Eigen::Vector3d> checkCollision(std::string link_name);
+  /**
+   *
+   * @param state
+   * @param link_name
+   * @param frame_id must be one of the link names
+   * @return
+   */
+  std::vector<Eigen::Vector3d> checkCollision(std::string const &link_name, std::string const &frame_id = "robot_root");
 
-  std::vector<Eigen::Vector3d> pointsToCheck(robot_state::RobotState state, std::string link_name) const;
+  /**
+   *
+   * @param state
+   * @param link_name
+   * @return
+   */
+  std::vector<Eigen::Vector3d> pointsToCheck(robot_state::RobotState const &state, std::string const &link_name) const;
 
   std::string getRobotName() const;
+
  private:
   robot_model_loader::RobotModelLoaderPtr model_loader_;
   robot_model::RobotModelPtr model_;
   planning_scene::PlanningScene scene_;
   collision_detection::WorldPtr world_;
   double res_;
+  double collision_sphere_radius_;
+  double collision_sphere_diameter_;
   moveit_visual_tools::MoveItVisualTools visual_tools_;
   ros::Publisher points_to_check_pub_;
   ros::Publisher bbox_pub_;

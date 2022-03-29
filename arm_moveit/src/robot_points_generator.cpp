@@ -2,15 +2,15 @@
 #include <jsk_recognition_msgs/BoundingBox.h>
 
 std::string const collision_sphere_name = "collision_sphere";
-constexpr double const collision_sphere_radius = 0.005;
-constexpr double const collision_sphere_diameter = collision_sphere_radius * 2;
 constexpr auto const LOGGER_NAME = "robot_points_generator";
 
-RobotPointsGenerator::RobotPointsGenerator(double const res)
-    : model_loader_(std::make_shared<robot_model_loader::RobotModelLoader>()),
+RobotPointsGenerator::RobotPointsGenerator(double const res, std::string const &robot_description, double collision_sphere_radius)
+    : model_loader_(std::make_shared<robot_model_loader::RobotModelLoader>(robot_description)),
       model_(model_loader_->getModel()),
       scene_(model_),
       res_(res),
+      collision_sphere_radius_(collision_sphere_radius),
+      collision_sphere_diameter_(2 * collision_sphere_radius),
       visual_tools_("robot_root", "/moveit_visual_markers", model_),
       sphere_shape_(std::make_shared<shapes::Sphere>(collision_sphere_radius)) {
   world_ = scene_.getWorldNonConst();
@@ -24,8 +24,9 @@ RobotPointsGenerator::RobotPointsGenerator(double const res)
 
 std::vector<std::string> RobotPointsGenerator::getLinkModelNames() { return model_->getLinkModelNames(); }
 
-std::vector<Eigen::Vector3d> RobotPointsGenerator::checkCollision(std::string link_name) {
-  std::vector<Eigen::Vector3d> points_link_frame;
+std::vector<Eigen::Vector3d> RobotPointsGenerator::checkCollision(std::string const &link_name,
+                                                                  std::string const &frame_id) {
+  std::vector<Eigen::Vector3d> points_frame_id;
   std::vector<Eigen::Vector3d> debug_viz_points;
 
   // make a copy of the ACM
@@ -39,7 +40,7 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::checkCollision(std::string li
 
   auto const state = scene_.getCurrentState();
 
-  auto const &link_transform = state.getGlobalLinkTransform(link_name);
+  auto const &frame_id_transform = state.getGlobalLinkTransform(frame_id);
 
   visual_tools_.publishRobotState(state);
 
@@ -63,9 +64,9 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::checkCollision(std::string li
   viz_point_to_check_msg.ns = "point_to_check";
   viz_point_to_check_msg.id = 0;
   viz_point_to_check_msg.type = visualization_msgs::Marker::SPHERE_LIST;
-  viz_point_to_check_msg.scale.x = collision_sphere_diameter;
-  viz_point_to_check_msg.scale.y = collision_sphere_diameter;
-  viz_point_to_check_msg.scale.z = collision_sphere_diameter;
+  viz_point_to_check_msg.scale.x = collision_sphere_diameter_;
+  viz_point_to_check_msg.scale.y = collision_sphere_diameter_;
+  viz_point_to_check_msg.scale.z = collision_sphere_diameter_;
   viz_point_to_check_msg.pose.orientation.w = 1;
 
   for (auto const &point_robot_frame : pointsToCheck(state, link_name)) {
@@ -86,8 +87,8 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::checkCollision(std::string li
     viz_point_color.a = 1;
     if (result.collision) {
       debug_viz_points.push_back(point_robot_frame);
-      Eigen::Vector3d point_link_frame = link_transform.inverse() * point_robot_frame;
-      points_link_frame.push_back(point_link_frame);
+      Eigen::Vector3d point_frame_id = frame_id_transform.inverse() * point_robot_frame;
+      points_frame_id.push_back(point_frame_id);
       viz_point_color.r = 1;
     } else {
       viz_point_color.g = 1;
@@ -105,9 +106,9 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::checkCollision(std::string li
   viz_occupied_points_msg.type = visualization_msgs::Marker::SPHERE_LIST;
   viz_occupied_points_msg.color.b = 1;
   viz_occupied_points_msg.color.a = 1;
-  viz_occupied_points_msg.scale.x = collision_sphere_diameter;
-  viz_occupied_points_msg.scale.y = collision_sphere_diameter;
-  viz_occupied_points_msg.scale.z = collision_sphere_diameter;
+  viz_occupied_points_msg.scale.x = collision_sphere_diameter_;
+  viz_occupied_points_msg.scale.y = collision_sphere_diameter_;
+  viz_occupied_points_msg.scale.z = collision_sphere_diameter_;
   viz_occupied_points_msg.pose.orientation.w = 1;
   for (auto const &point : debug_viz_points) {
     geometry_msgs::Point viz_point;
@@ -119,13 +120,13 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::checkCollision(std::string li
 
   points_to_check_pub_.publish(viz_occupied_points_msg);
 
-  return points_link_frame;
+  return points_frame_id;
 }
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "cert-flp30-c"
-std::vector<Eigen::Vector3d> RobotPointsGenerator::pointsToCheck(robot_state::RobotState state,
-                                                                 std::string link_name) const {
+std::vector<Eigen::Vector3d> RobotPointsGenerator::pointsToCheck(robot_state::RobotState const &state,
+                                                                 std::string const &link_name) const {
   std::vector<Eigen::Vector3d> points_to_check;
 
   // look up the position of the link in robot frame
@@ -143,7 +144,7 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::pointsToCheck(robot_state::Ro
   Eigen::Vector3d const lower_link_frame = -collision_bbox_shape_link_frame / 2 - res_vec + offset;
   Eigen::Vector3d const upper_link_frame = collision_bbox_shape_link_frame / 2 + res_vec + offset;
 
-  auto const link_transform = state.getGlobalLinkTransform(link_name);
+  auto const &link_to_robot_root_transform = state.getGlobalLinkTransform(link_name);
 
   jsk_recognition_msgs::BoundingBox bbox;
   bbox.header.frame_id = link_name;
@@ -160,7 +161,7 @@ std::vector<Eigen::Vector3d> RobotPointsGenerator::pointsToCheck(robot_state::Ro
     for (auto p_i_y = lower_link_frame.y(); p_i_y <= upper_link_frame.y(); p_i_y += res_) {
       for (auto p_i_z = lower_link_frame.z(); p_i_z <= upper_link_frame.z(); p_i_z += res_) {
         Eigen::Vector3d const p_i_link_frame(p_i_x, p_i_y, p_i_z);
-        Eigen::Vector3d const &p_i_robot_frame = link_transform * p_i_link_frame.homogeneous();
+        Eigen::Vector3d const &p_i_robot_frame = link_to_robot_root_transform * p_i_link_frame.homogeneous();
         points_to_check.emplace_back(p_i_robot_frame);
       }
     }

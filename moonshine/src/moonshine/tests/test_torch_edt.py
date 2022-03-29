@@ -27,9 +27,13 @@ if __name__ == '__main__':
     # out = edt_1d(x)
     # np.testing.assert_allclose(out.numpy(), expected.numpy())
 
-    image = torch.zeros([10, 10])
+    image = torch.zeros([128, 128])
     image[2:4, 5:7] = 1
+    image[20:40, 45:70] = 1
+    from time import perf_counter
+    t0 = perf_counter()
     sdf = generate_sdf(image)
+    print(perf_counter() - t0)
     import matplotlib.pyplot as plt
 
     plt.figure()

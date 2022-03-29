@@ -20,12 +20,12 @@ def get_grid_points(origin_point, res, shape):
     return points
 
 
-def visualize_sdf(pub, sdf: np.ndarray, shape, res, origin_point):
+def visualize_sdf(pub, sdf: np.ndarray, shape, res, origin_point, frame_id='world'):
     points = get_grid_points(origin_point, res, shape)
     list_of_tuples = [(p[0], p[1], p[2], d) for p, d in zip(points.reshape([-1, 3]), sdf.flatten())]
     dtype = [('x', np.float32), ('y', np.float32), ('z', np.float32), ('distance', np.float32)]
     np_record_array = np.array(list_of_tuples, dtype=dtype)
-    msg = ros_numpy.msgify(PointCloud2, np_record_array, frame_id='world', stamp=rospy.Time.now())
+    msg = ros_numpy.msgify(PointCloud2, np_record_array, frame_id=frame_id, stamp=rospy.Time.now())
     pub.publish(msg)
 
 
