@@ -1,3 +1,4 @@
+import pathlib
 from typing import Dict, Optional
 
 import pytorch_lightning as pl
@@ -11,9 +12,11 @@ from tqdm import tqdm
 
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.numpify import numpify
+from moonshine.robot_points_torch import RobotVoxelgridInfo
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
 from moonshine.torchify import torchify
+from state_space_dynamics.heuristic_data_weights import heuristic_weight_func
 from state_space_dynamics.udnn_torch import mask_after_first_0, compute_batch_time_loss
 
 
@@ -161,6 +164,21 @@ class MWNet(pl.LightningModule):
                     model_error_i += v.mean()
                 with torch.no_grad():
                     self.sample_weights[i] = model_error_i
+
+    def init_data_weights_from_heuristic(self, train_dataset):
+        print(Fore.GREEN + "Initializing data weights" + Fore.RESET)
+        hparams = {
+            'heuristic_weighting': True,  # don't change this, it's just metadata
+            'env_inflation':       0.9,
+            'check_robot':         True,
+            'robot_inflation':     0.6,
+            'max_rope_length':     0.774,
+            'check_length':        False,
+        }
+        robot_points_path = pathlib.Path("robot_points_data/val_high_res/robot_points.pkl")
+        robot_info = RobotVoxelgridInfo('joint_positions', robot_points_path)
+        for example_i in tqdm(train_dataset):
+            heuristic_weight_func(self.scenario, example_i, hparams, robot_info)
 
     def validation_step(self, inputs, batch_idx):
         meta_train_batch = inputs['meta_train']

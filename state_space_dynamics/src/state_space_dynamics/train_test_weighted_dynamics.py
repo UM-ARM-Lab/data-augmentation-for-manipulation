@@ -86,7 +86,6 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
     train_dataset_repeat = repeat_dataset(train_dataset_skip, repeat)
     train_dataset_len = len(train_dataset_repeat)
-    print("FIXME, NOT SHUFFLING")
     train_loader = DataLoader(train_dataset_repeat,
                               batch_size=batch_size,
                               shuffle=False,
@@ -138,7 +137,8 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     wb_logger.watch(model)
 
     if checkpoint_is_udnn:
-        model.init_data_weights_from_model_error(train_dataset)
+        # model.init_data_weights_from_model_error(train_dataset)
+        model.init_data_weights_from_heuristic(train_dataset)
 
     trainer.fit(model, train_loader, val_dataloaders=train_loader)
     wandb.finish()

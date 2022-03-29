@@ -1,6 +1,5 @@
-from math import pi
+from math import inf
 
-import numpy as np
 import torch
 
 
