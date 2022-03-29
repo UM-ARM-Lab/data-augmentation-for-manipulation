@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 INF = 1e6
@@ -46,20 +45,20 @@ def edt_1d(x: torch.Tensor):
 
 def generate_sdf(image):
     a = generate_udf(image)
-    b = generate_udf(image == 0.0)
+    b = generate_udf(1 - image)
     return a - b
 
 
 def generate_udf(image):
-    result = np.where(image, 0.0, INF)
+    result = (1 - image) * INF
 
     height, width = result.shape
     capacity = max(width, height)
-    i = np.empty(result.shape, dtype='u2')
-    j = np.empty(result.shape, dtype='u2')
-    d = np.zeros([capacity])
-    z = np.zeros([capacity + 1])
-    v = np.zeros([capacity], dtype='u2')
+    i = torch.zeros(result.shape, dtype=torch.long)
+    j = torch.zeros(result.shape, dtype=torch.long)
+    d = torch.zeros([capacity])
+    z = torch.zeros([capacity + 1])
+    v = torch.zeros([capacity], dtype=torch.long)
 
     for x in range(width):
         f = result[:, x]
@@ -70,7 +69,7 @@ def generate_udf(image):
         edt(f, d, z, v, i[y, :], width)
         result[y, :] = d[:width]
 
-    return np.sqrt(result)
+    return torch.sqrt(result)
 
 
 def edt(f, d, z, v, i, n):
