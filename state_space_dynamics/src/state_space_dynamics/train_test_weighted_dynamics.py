@@ -86,9 +86,10 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
     train_dataset_repeat = repeat_dataset(train_dataset_skip, repeat)
     train_dataset_len = len(train_dataset_repeat)
+    print("FIXME, NOT SHUFFLING")
     train_loader = DataLoader(train_dataset_repeat,
                               batch_size=batch_size,
-                              shuffle=True,
+                              shuffle=False,
                               collate_fn=my_collate,
                               num_workers=get_num_workers(batch_size))
 
