@@ -1,6 +1,6 @@
 {
   adam: true
-  udnn_inner_learning_rate: 0.002
+  udnn_inner_learning_rate: 0.0002
   data_weight_init: 0.5
   weight_learning_rate: 0
   init_from_model_error: true
