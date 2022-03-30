@@ -5,4 +5,19 @@
   weight_learning_rate: 50000
   init_from_model_error: true
   grad_clip_value: 1.0
+  # copied from no_robot_no_obs.hjson
+  state_metadata_keys: []
+  state_keys: [
+    rope
+    left_gripper
+    right_gripper
+  ]
+  action_keys: [
+    left_gripper_position
+    right_gripper_position
+  ]
+  fc_layer_sizes: [
+    1024
+    1024
+  ]
 }

@@ -79,8 +79,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     if steps != -1:
         steps = int(steps / batch_size)
 
-    transform = transforms.Compose([remove_keys("scene_msg")])
-
+    transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
     train_dataset = TorchMetaDynamicsDataset(dataset_dir, transform=transform)
     train_dataset_take = take_subset(train_dataset, take)
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
@@ -137,8 +136,8 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     wb_logger.watch(model)
 
     if checkpoint_is_udnn:
-        # model.init_data_weights_from_model_error(train_dataset)
-        model.init_data_weights_from_heuristic(train_dataset)
+        model.init_data_weights_from_model_error(train_dataset)
+        # model.init_data_weights_from_heuristic(train_dataset)
 
     trainer.fit(model, train_loader, val_dataloaders=train_loader)
     wandb.finish()
@@ -164,7 +163,7 @@ def train_main(dataset_dir: pathlib.Path,
     if steps != -1:
         steps = int(steps / batch_size)
 
-    transform = transforms.Compose([remove_keys("scene_msg")])
+    transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
 
     train_dataset = TorchMetaDynamicsDataset(dataset_dir, transform=transform)
     train_dataset_take = take_subset(train_dataset, take)
