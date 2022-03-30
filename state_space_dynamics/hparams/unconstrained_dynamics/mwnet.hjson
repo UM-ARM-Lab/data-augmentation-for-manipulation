@@ -1,7 +1,8 @@
 {
-  udnn_inner_learning_rate: 0.001
+  adam: true
+  udnn_inner_learning_rate: 0.002
   data_weight_init: 0.5
-  weight_learning_rate: 50000
+  weight_learning_rate: 0
   init_from_model_error: true
   grad_clip_value: 1.0
   # copied from no_robot_no_obs.hjson

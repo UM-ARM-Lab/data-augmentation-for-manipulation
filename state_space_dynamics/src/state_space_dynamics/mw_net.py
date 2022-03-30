@@ -59,6 +59,7 @@ def adam_update(model, loss, step_size, params_states, betas=(0.9, 0.999), eps=1
         # Momentum
         exp_avg = torch.mul(exp_avg, b1) + (1 - b1) * grad
         # RMS
+        # I added this +eps for when grad=0, the 1/sqrt() op gives a NaN gradient for d_updated_params/d_grad
         exp_avg_sq = torch.mul(exp_avg_sq, b2) + (1 - b2) * (grad * grad) + eps
 
         denom = exp_avg_sq.sqrt() + eps
@@ -251,6 +252,7 @@ class MWNet(pl.LightningModule):
         wandb.log({'unnormalized weights': wandb.Histogram(train_data_weights)})
 
         self.sample_weights.grad = None  # zero grad, very important!
+        self.udnn.zero_grad()
 
         data_weight_opt = self.optimizers()
 
@@ -266,35 +268,20 @@ class MWNet(pl.LightningModule):
         self.log('train_loss', udnn_loss_weighted)
 
         # compute the update for udnn and get the updated params
-        # params = gradient_update_parameters(self.udnn,
-        #                                     udnn_loss_weighted,
-        #                                     step_size=self.hparams.udnn_inner_learning_rate,
-        #                                     first_order=False)
-        # updated_params = adam_update(self.udnn, udnn_loss_weighted, step_size=self.hparams.udnn_inner_learning_rate,
-        #                      params_states=self.params_states, eps=1e-2)
-        loss = udnn_loss_weighted
-        step_size = self.hparams.udnn_inner_learning_rate
-        params_states = {}
-        betas = (0.9, 0.999)
-        eps = 1e-3
-        params = OrderedDict(self.udnn.meta_named_parameters())
-        grads = torch.autograd.grad(loss, params.values(), create_graph=True)
-        updated_params = OrderedDict()
-        (name, param), grad = list(zip(params.items(), grads))[2]
-        updated_params[name] = param - 1e-5 / ((grad * grad + eps).sqrt() + eps)
+        if self.hparams.get('adam', False):
+            updated_params = adam_update(self.udnn, udnn_loss_weighted, step_size=self.hparams.udnn_inner_learning_rate,
+                                         params_states=self.params_states)
+        else:
+            updated_params = gradient_update_parameters(self.udnn,
+                                                        udnn_loss_weighted,
+                                                        step_size=self.hparams.udnn_inner_learning_rate,
+                                                        first_order=False)
 
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch, params=updated_params)
         meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
         meta_train_udnn_loss.backward()
-        print(self.sample_weights.grad[256:270])
-        print(torch.any(torch.isnan(self.sample_weights.grad[256:])))
         data_weight_opt.step()  # updates data weights
-
-        theta = torch.nn.Parameter(torch.tensor([0.]))
-        x = 1 / (torch.sqrt(theta * theta + 1e-6))
-        x.backward()
-        theta.grad
 
         self.udnn.load_state_dict(updated_params)
 

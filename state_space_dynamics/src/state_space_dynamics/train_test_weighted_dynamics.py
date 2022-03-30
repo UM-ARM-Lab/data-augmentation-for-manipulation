@@ -87,7 +87,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     train_dataset_len = len(train_dataset_repeat)
     train_loader = DataLoader(train_dataset_repeat,
                               batch_size=batch_size,
-                              shuffle=False,
+                              shuffle=True,
                               collate_fn=my_collate,
                               num_workers=get_num_workers(batch_size))
 

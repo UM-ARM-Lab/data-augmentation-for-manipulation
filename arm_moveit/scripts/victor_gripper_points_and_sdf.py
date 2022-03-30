@@ -34,10 +34,11 @@ def segment(pc, sdf, origin_point, res, threshold):
     """
     indices = batch_point_to_idx(pc, res, origin_point)
     in_bounds = tf.logical_not(tf.logical_or(tf.reduce_any(indices <= 0, -1), tf.reduce_any(indices >= sdf.shape, -1)))
-    distances = tf.gather_nd(sdf, indices)
+    in_bounds_indices = tf.boolean_mask(indices, in_bounds, axis=0)
+    in_bounds_pc = tf.boolean_mask(pc, in_bounds, axis=0)
+    distances = tf.gather_nd(sdf, in_bounds_indices)
     close = distances < threshold
-    segmentation_mask = tf.logical_and(in_bounds, close)
-    segmented_points = tf.boolean_mask(pc, segmentation_mask, axis=0)
+    segmented_points = tf.boolean_mask(in_bounds_pc, close, axis=0)
     return segmented_points
 
 
