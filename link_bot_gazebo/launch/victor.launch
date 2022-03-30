@@ -11,15 +11,10 @@
         <arg name="robot_name" value="victor"/>
         <arg name="verbose" value="$(arg verbose)"/>
         <arg name="gui" value="$(arg gui)"/>
-        <arg name="pause" value="true"/>
+        <arg name="pause" value="false"/>
         <arg name="debug_gazebo" value="false"/>
         <arg name="debug_moveit" value="false"/>
     </include>
 
-    <include file="$(find link_bot_gazebo)/launch/kinect_static_transforms.launch"/>
-
-    <group if="$(arg use_cdcpd)">
-        <include file="$(find link_bot_perception)/launch/rope_tracking.launch">
-        </include>
-    </group>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="victor_robot_root_tf" args="0 0 0 0 0 0 victor_root robot_root"/>
 </launch>
