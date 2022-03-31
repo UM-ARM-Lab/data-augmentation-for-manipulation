@@ -52,7 +52,7 @@ def main():
     train_parser.add_argument('--skip', type=int)
     train_parser.add_argument('--repeat', type=int)
     train_parser.add_argument('--epochs', type=int, default=-1)
-    train_parser.add_argument('--steps', type=int, default=1_000_000)
+    train_parser.add_argument('--steps', type=int, default=10_000_000)
     train_parser.add_argument('--seed', type=int, default=None)
     train_parser.set_defaults(func=_train_main)
 
@@ -67,7 +67,7 @@ def main():
     fine_tune_parser.add_argument('--skip', type=int)
     fine_tune_parser.add_argument('--repeat', type=int)
     fine_tune_parser.add_argument('--epochs', type=int, default=-1)
-    fine_tune_parser.add_argument('--steps', type=int, default=5_000_000)
+    fine_tune_parser.add_argument('--steps', type=int, default=10_000_000)
     fine_tune_parser.add_argument('--seed', type=int, default=None)
     fine_tune_parser.set_defaults(func=_fine_tune_main)
 
