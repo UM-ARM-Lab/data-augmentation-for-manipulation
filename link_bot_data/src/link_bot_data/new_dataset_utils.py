@@ -1,5 +1,6 @@
 import pathlib
 import pickle
+from functools import lru_cache
 from typing import List, Union
 
 from link_bot_data.dataset_utils import merge_hparams_dicts
@@ -40,12 +41,17 @@ def get_filenames(dataset_dirs, mode: str):
     return all_filenames
 
 
+@lru_cache
 def load_single(metadata_filename: pathlib.Path):
     metadata = load_metadata(metadata_filename)
 
     data_filename = metadata.pop("data")
     full_data_filename = metadata_filename.parent / data_filename
-    example = load_gzipped_pickle(full_data_filename)
+    if str(data_filename).endswith('.gz'):
+        example = load_gzipped_pickle(full_data_filename)
+    else:
+        with full_data_filename.open("rb") as f:
+            example = pickle.load(f)
     example.update(metadata)
     example['metadata'] = metadata
     return example
