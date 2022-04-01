@@ -228,6 +228,7 @@ def eval_main(dataset_dir: pathlib.Path,
               skip: Optional[int] = None,
               project=PROJECT,
               **kwargs):
+    eval_mode = 'test'
     model = load_model_artifact(checkpoint, MWNet, project, version='best', user=user, train_dataset=None)
     model.eval()
 
@@ -236,14 +237,14 @@ def eval_main(dataset_dir: pathlib.Path,
         'training_dataset': model.hparams.dataset_dir,
         'eval_dataset':     dataset_dir.as_posix(),
         'eval_checkpoint':  checkpoint,
-        'eval_mode':        'val',
+        'eval_mode':        eval_mode,
     }
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity='armlab')
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
     transform = transforms.Compose([remove_keys("scene_msg")])
-    dataset = TorchMetaDynamicsDataset(dataset_dir, transform=transform)
+    dataset = TorchMetaDynamicsDataset(dataset_dir, transform=transform, eval_mode=eval_mode)
     dataset = take_subset(dataset, take)
     dataset = dataset_skip(dataset, skip)
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))

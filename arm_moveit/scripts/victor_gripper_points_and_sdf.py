@@ -12,6 +12,7 @@ import ros_numpy
 import rospy
 from arc_utilities import ros_init
 from link_bot_pycommon.grid_utils_np import extent_res_to_origin_point, extent_to_env_shape
+from moonshine.numpify import numpify
 from moonshine.tfa_sdf import build_sdf_3d
 from rviz_voxelgrid_visuals import conversions
 from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
@@ -167,7 +168,7 @@ def main():
     }
 
     with outfilename.open("wb") as outfile:
-        pickle.dump(data, outfile)
+        pickle.dump(numpify(data), outfile)
     print(f"Wrote {outfilename.as_posix()}")
 
     z = 0.35

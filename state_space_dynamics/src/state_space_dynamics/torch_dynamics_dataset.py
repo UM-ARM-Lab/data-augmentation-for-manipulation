@@ -116,9 +116,9 @@ def get_batch_size(batch):
 
 class TorchMetaDynamicsDataset(TorchDynamicsDataset):
 
-    def __init__(self, dataset_dir: pathlib.Path, transform=None):
+    def __init__(self, dataset_dir: pathlib.Path, transform=None, eval_mode='val'):
         super().__init__(dataset_dir, mode='train', transform=transform)
-        self.meta_metadata_filenames = get_filenames([dataset_dir], mode='val')
+        self.meta_metadata_filenames = get_filenames([dataset_dir], mode=eval_mode)
 
     def __getitem__(self, idx):
         train_metadata_filename = self.metadata_filenames[idx]
