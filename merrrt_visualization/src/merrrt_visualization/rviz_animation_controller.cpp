@@ -58,7 +58,12 @@ void RVizAnimationController::TopicEdited(const QString &text) {
     res.state.period = static_cast<float>(ui.period_spinbox->value());
     return true;
   };
-  auto get_state_so = create_service_options(peter_msgs::GetAnimControllerState, ns + "/get_state", get_state_bind);
+
+  auto const srv_name = ns + "/get_state";
+  if (ros::service::exists(srv_name, false)) {
+    return;
+  }
+  auto get_state_so = create_service_options(peter_msgs::GetAnimControllerState, srv_name, get_state_bind);
   get_state_srv_ = ros_node_.advertiseService(get_state_so);
 
   // this is stupid why must I list this type here but not when I do this for services!?
