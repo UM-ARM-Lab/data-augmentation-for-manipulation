@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(merp)
+project(mde)
 
 set(CMAKE_CXX_STANDARD 20)
 

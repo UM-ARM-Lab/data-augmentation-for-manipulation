@@ -24,7 +24,7 @@ from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
 from moonshine.torchify import torchify
 from state_space_dynamics.torch_dynamics_dataset import remove_keys
 
-PROJECT = 'merp'
+PROJECT = 'mde'
 
 
 def prepare_train(batch_size, dataset_dir, take, skip, transform):
