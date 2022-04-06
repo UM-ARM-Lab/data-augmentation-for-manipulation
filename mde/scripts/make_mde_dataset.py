@@ -6,14 +6,14 @@ import time
 
 import tensorflow as tf
 from colorama import Fore
+from mde.make_mde_dataset import make_mde_dataset
 
 import rospy
 from arc_utilities import ros_init
 from arc_utilities.filesystem_utils import mkdir_and_ask
-from merp.make_merp_dataset import make_merp_dataset
 
 
-@ros_init.with_ros("make_merp_dataset")
+@ros_init.with_ros("make_mde_dataset")
 def main():
     tf.get_logger().setLevel(logging.ERROR)
 
@@ -33,9 +33,9 @@ def main():
         return
 
     rospy.loginfo(Fore.GREEN + f"Writing MERP dataset to {outdir}")
-    make_merp_dataset(dataset_dir=args.dataset_dir,
-                      checkpoint=args.checkpoint,
-                      outdir=outdir)
+    make_mde_dataset(dataset_dir=args.dataset_dir,
+                     checkpoint=args.checkpoint,
+                     outdir=outdir)
 
 
 if __name__ == '__main__':

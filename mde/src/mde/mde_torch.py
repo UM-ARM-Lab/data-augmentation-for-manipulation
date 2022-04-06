@@ -4,6 +4,8 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
+import torchmetrics
+import wandb
 from torch import nn
 
 import rospy
@@ -21,7 +23,7 @@ def debug_vgs():
     return rospy.get_param("DEBUG_VG", False)
 
 
-class MERP(pl.LightningModule):
+class MDE(pl.LightningModule):
 
     def __init__(self, **hparams):
         super().__init__()
@@ -81,6 +83,8 @@ class MERP(pl.LightningModule):
 
         self.has_checked_training_mode = False
 
+        self.val_accuracy = torchmetrics.Accuracy()
+
     def forward(self, inputs: Dict[str, torch.Tensor]):
         if not self.has_checked_training_mode:
             self.has_checked_training_mode = True
@@ -126,7 +130,7 @@ class MERP(pl.LightningModule):
         flat_conv_h = self.conv_encoder(flat_voxel_grids)
         conv_h = flat_conv_h.reshape(batch_size, time, -1)
 
-        prev_pred_error = inputs['prev_error'].unsqueeze(-1).unsqueeze(-1)
+        prev_pred_error = inputs['error'][:, 0].unsqueeze(-1).unsqueeze(-1)
         padded_prev_pred_error = F.pad(prev_pred_error, [0, 0, 0, 1, 0, 0])
         cat_args = [conv_h, padded_prev_pred_error] + states_robot_frame_list + states_local_frame_list + padded_actions
         fc_in = torch.cat(cat_args, -1)
@@ -150,7 +154,7 @@ class MERP(pl.LightningModule):
         return local_env, local_origin_point
 
     def compute_loss(self, inputs: Dict[str, torch.Tensor], outputs):
-        error_after = inputs['error']
+        error_after = inputs['error'][:, 1]
         loss = F.mse_loss(outputs, error_after)
         return loss
 
@@ -163,8 +167,14 @@ class MERP(pl.LightningModule):
     def validation_step(self, val_batch: Dict[str, torch.Tensor], batch_idx):
         outputs = self.forward(val_batch)
         loss = self.compute_loss(val_batch, outputs)
+        true_error_thresholded = val_batch['error'][:, 1] < self.hparams.error_threshold
+        pred_error_thresholded = outputs < self.hparams.error_threshold
         self.log('val_loss', loss)
+        self.val_accuracy(pred_error_thresholded, true_error_thresholded)
         return loss
+
+    def validation_epoch_end(self, _):
+        self.log('val_accuracy', self.val_accuracy)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)

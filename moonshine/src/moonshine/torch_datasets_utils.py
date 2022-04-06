@@ -33,6 +33,14 @@ def dataset_skip(dataset, skip):
     return dataset_take
 
 
+def dataset_shard(dataset, shard):
+    if shard is None:
+        return dataset
+
+    dataset_take = Subset(dataset, range(0, len(dataset), shard))
+    return dataset_take
+
+
 def my_collate(batch):
     """ Copied from the default_collate """
     if isinstance(batch, collections.abc.Mapping):

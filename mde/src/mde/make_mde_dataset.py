@@ -6,6 +6,7 @@ from tqdm import tqdm
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.split_dataset import write_mode
 from link_bot_data.tf_dataset_utils import write_example, index_to_filename
+from link_bot_data.wandb_datasets import wandb_save_dataset
 from link_bot_pycommon.load_wandb_model import load_model_artifact
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_params
@@ -20,29 +21,29 @@ def n_seq(max_t: int):
     return int(max_t * (max_t + 1) / 2)
 
 
-def make_merp_dataset(dataset_dir: pathlib.Path,
-                      checkpoint: pathlib.Path,
-                      outdir: pathlib.Path):
+def make_mde_dataset(dataset_dir: pathlib.Path,
+                     checkpoint: pathlib.Path,
+                     outdir: pathlib.Path):
     model = load_model_artifact(checkpoint, UDNN, project='udnn', version='latest', user='armlab',
                                 with_joint_positions=True)
     model.eval()
 
-    merp_dataset_hparams = load_params(dataset_dir)
+    mde_dataset_hparams = load_params(dataset_dir)
 
-    def _set_keys_hparam(merp_dataset_hparams, k1, k2):
-        merp_dataset_hparams[f'{k1}_keys'] = list(
-            merp_dataset_hparams['data_collection_params'][f'{k2}_description'].keys())
+    def _set_keys_hparam(mde_dataset_hparams, k1, k2):
+        mde_dataset_hparams[f'{k1}_keys'] = list(
+            mde_dataset_hparams['data_collection_params'][f'{k2}_description'].keys())
 
-    merp_dataset_hparams['dataset_dir'] = dataset_dir.as_posix()
-    merp_dataset_hparams['fwd_model_hparams'] = model.hparams
-    merp_dataset_hparams['predicted_state_keys'] = model.state_keys
-    _set_keys_hparam(merp_dataset_hparams, 'true_state', 'state')
-    _set_keys_hparam(merp_dataset_hparams, 'state_metadata', 'state_metadata')
-    _set_keys_hparam(merp_dataset_hparams, 'env', 'env')
-    _set_keys_hparam(merp_dataset_hparams, 'action', 'action')
+    mde_dataset_hparams['dataset_dir'] = dataset_dir.as_posix()
+    mde_dataset_hparams['fwd_model_hparams'] = model.hparams
+    mde_dataset_hparams['predicted_state_keys'] = model.state_keys
+    _set_keys_hparam(mde_dataset_hparams, 'true_state', 'state')
+    _set_keys_hparam(mde_dataset_hparams, 'state_metadata', 'state_metadata')
+    _set_keys_hparam(mde_dataset_hparams, 'env', 'env')
+    _set_keys_hparam(mde_dataset_hparams, 'action', 'action')
 
     new_hparams_filename = outdir / 'hparams.hjson'
-    my_hdump(merp_dataset_hparams, new_hparams_filename.open("w"), indent=2)
+    my_hdump(mde_dataset_hparams, new_hparams_filename.open("w"), indent=2)
 
     with Pool() as pool:
         results = []
@@ -54,7 +55,7 @@ def make_merp_dataset(dataset_dir: pathlib.Path,
 
             total = n_seq(steps_per_traj - 1) * len(dataset)
             files = []
-            for out_example in tqdm(generate_merp_examples(model, dataset), total=total):
+            for out_example in tqdm(generate_mde_examples(model, dataset), total=total):
                 result = pool.apply_async(func=write_example, args=(outdir, out_example, total_example_idx, 'pkl'))
                 results.append(result)
 
@@ -71,10 +72,13 @@ def make_merp_dataset(dataset_dir: pathlib.Path,
         for result in tqdm(results):
             result.get()
 
+    print("Saving wandb dataset")
+    wandb_save_dataset(dataset_dir, project='mde')
+
     return outdir
 
 
-def generate_merp_examples(model, dataset):
+def generate_mde_examples(model, dataset):
     horizon = 2
     steps_per_traj = 10
     step = 1
@@ -104,7 +108,7 @@ def generate_merp_examples(model, dataset):
                 out_example = {
                     'traj_idx': example['traj_idx'],
                     'start_t':  start_t,
-                    't':        start_t + dt,
+                    'end_t':    start_t + dt,
                 }
                 out_example.update(environment)
 
@@ -122,8 +126,7 @@ def generate_merp_examples(model, dataset):
 
                 # store it in the metadata for faster lookup later
                 out_example['metadata'] = {
-                    'prev_error': error[0],
-                    'error':      error[1],
+                    'error': error,
                 }
 
                 yield out_example

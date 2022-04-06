@@ -8,7 +8,7 @@ from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch
 
 
-class TorchMERPDataset(MyTorchDataset):
+class TorchMDEDataset(MyTorchDataset):
 
     def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None):
         super().__init__(dataset_dir, mode, transform)

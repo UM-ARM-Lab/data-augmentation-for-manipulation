@@ -8,10 +8,10 @@ import torch
 
 from arc_utilities import ros_init
 from link_bot_pycommon.args import run_subparsers
+from mde import train_test_mde
 from moonshine.magic import wandb_lightning_magic
-from merp import train_test_merp
 
-node_name = f"train_test_merp_{int(time())}"
+node_name = f"train_test_mde_{int(time())}"
 
 
 @ros_init.with_ros(node_name)
@@ -20,13 +20,13 @@ def main():
         if args.seed is None:
             args.seed = np.random.randint(0, 10000)
 
-        train_test_merp.train_main(**vars(args))
+        train_test_mde.train_main(**vars(args))
 
     def _eval_main(args):
-        train_test_merp.eval_main(**vars(args))
+        train_test_mde.eval_main(**vars(args))
 
     def _viz_main(args):
-        train_test_merp.viz_main(**vars(args))
+        train_test_mde.viz_main(**vars(args))
 
     torch.set_printoptions(linewidth=250, precision=7, sci_mode=False)
     np.set_printoptions(linewidth=250, precision=7, suppress=True)

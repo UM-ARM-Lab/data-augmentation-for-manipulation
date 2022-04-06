@@ -8,7 +8,6 @@
     rope
     left_gripper
     right_gripper
-    # joint_positions
   ]
   state_metadata_keys: [
     joint_names
@@ -29,4 +28,5 @@
   local_env_h_rows: 44
   local_env_w_cols: 44
   local_env_c_channels: 44
+  error_threshold: 0.05
 }

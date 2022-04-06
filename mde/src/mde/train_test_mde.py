@@ -14,8 +14,8 @@ from wandb.util import generate_id
 
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
-from merp.merp_torch import MERP
-from merp.torch_merp_dataset import TorchMERPDataset
+from mde.mde_torch import MDE
+from mde.torch_mde_dataset import TorchMDEDataset
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
@@ -28,7 +28,7 @@ PROJECT = 'mde'
 
 
 def prepare_train(batch_size, dataset_dir, take, skip, transform):
-    train_dataset = TorchMERPDataset(dataset_dir, mode='train', transform=transform)
+    train_dataset = TorchMDEDataset(dataset_dir, mode='train', transform=transform)
     train_dataset_take = take_subset(train_dataset, take)
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
     train_dataset_len = len(train_dataset_skip)
@@ -42,7 +42,7 @@ def prepare_train(batch_size, dataset_dir, take, skip, transform):
 
 def prepare_validation(batch_size, dataset_dir, no_validate, transform):
     val_loader = None
-    val_dataset = TorchMERPDataset(dataset_dir, mode='val', transform=transform)
+    val_dataset = TorchMDEDataset(dataset_dir, mode='val', transform=transform)
     val_dataset_len = len(val_dataset)
     if val_dataset_len and not no_validate:
         val_loader = DataLoader(val_dataset,
@@ -108,7 +108,7 @@ def train_main(dataset_dir: pathlib.Path,
             'resume': True,
         }
 
-    model = MERP(**model_params)
+    model = MDE(**model_params)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     trainer = pl.Trainer(gpus=1,
@@ -119,8 +119,7 @@ def train_main(dataset_dir: pathlib.Path,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=1,
                          callbacks=[ckpt_cb],
-                         default_root_dir='wandb',
-                         gradient_clip_val=0.05)
+                         default_root_dir='wandb')
     trainer.fit(model,
                 train_loader,
                 val_dataloaders=val_loader,
@@ -148,10 +147,10 @@ def eval_main(dataset_dir: pathlib.Path,
               skip: Optional[int] = None,
               project=PROJECT,
               **kwargs):
-    model = load_model_artifact(checkpoint, MERP, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, MDE, project, version='best', user=user)
 
     transform = transforms.Compose([remove_keys("scene_msg")])
-    dataset = TorchMERPDataset(dataset_dir, mode=mode, transform=transform)
+    dataset = TorchMDEDataset(dataset_dir, mode=mode, transform=transform)
     dataset = take_subset(dataset, take)
     dataset = dataset_skip(dataset, skip)
 
@@ -185,10 +184,10 @@ def viz_main(dataset_dir: pathlib.Path,
              skip: Optional[int] = None,
              project=PROJECT,
              **kwargs):
-    model = load_model_artifact(checkpoint, MERP, project, version='best', user=user)
+    model = load_model_artifact(checkpoint, MDE, project, version='best', user=user)
     model.training = False
 
-    dataset = TorchMERPDataset(dataset_dir, mode=mode)
+    dataset = TorchMDEDataset(dataset_dir, mode=mode)
 
     dataset = dataset_skip(dataset, skip)
 

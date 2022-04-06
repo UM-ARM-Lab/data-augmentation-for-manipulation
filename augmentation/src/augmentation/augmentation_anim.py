@@ -56,13 +56,16 @@ def take_screenshots(name, outdir, loader, scenario, hparams_filename, identifie
         return full_filename
 
     def post_init_cb():
-        screenshot(f"post_init_{identifier}.png")
+        # screenshot(f"post_init_{identifier}.png")
+        pass
 
     def post_step_cb(i):
-        screenshot(f"post_step_{i}_{identifier}.png")
+        # screenshot(f"post_step_{i}_{identifier}.png")
+        pass
 
     def post_project_cb(i):
-        screenshot(f"post_project_{i}_{identifier}.png")
+        # screenshot(f"post_project_{i}_{identifier}.png")
+        pass
 
     aug = make_aug_opt(scenario, loader, hparams, debug_state_keys, 1, post_init_cb, post_step_cb, post_project_cb)
 

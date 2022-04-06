@@ -2,49 +2,61 @@
 import argparse
 import pathlib
 
-import colorama
-import matplotlib.pyplot as plt
-import numpy as np
-
 from arc_utilities import ros_init
-from link_bot_classifiers.visualize_classifier_dataset import visualize_dataset
-from link_bot_data.load_dataset import get_classifier_dataset_loader
+from link_bot_data.visualization import init_viz_env
+from link_bot_pycommon.pycommon import print_dict
+from mde.torch_mde_dataset import TorchMDEDataset
+from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.gpu_config import limit_gpu_mem
+from moonshine.torch_datasets_utils import take_subset, dataset_shard, dataset_skip
 
-limit_gpu_mem(1)
+limit_gpu_mem(None)
 
 
-@ros_init.with_ros("visualize_classifier_dataset")
+def visualize_dataset(dataset, take, skip, shard):
+    print_dict(dataset[0])
+
+    s = dataset.get_scenario()
+
+    dataset_ = take_subset(dataset, take)
+    dataset_ = dataset_skip(dataset_, skip)
+    dataset_ = dataset_shard(dataset_, shard)
+
+    dataset_anim = RvizAnimationController(n_time_steps=len(dataset_), ns='trajs')
+    time_anim = RvizAnimationController(n_time_steps=2)
+
+    n_examples_visualized = 0
+    while not dataset_anim.done:
+        inputs = dataset_[dataset_anim.t()]
+
+        time_anim.reset()
+        while not time_anim.done:
+            t = time_anim.t()
+            init_viz_env(s, inputs, t)
+            dataset.transition_viz_t()(s, inputs, t)
+            time_anim.step()
+
+            n_examples_visualized += 1
+
+        dataset_anim.step()
+
+    print(f"{n_examples_visualized:=}")
+
+
+@ros_init.with_ros("visualize_mde_dataset")
 def main():
-    colorama.init(autoreset=True)
-
-    plt.style.use("slides")
-    np.set_printoptions(suppress=True, linewidth=200, precision=3)
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset_dirs', type=pathlib.Path, nargs='+')
-    parser.add_argument('--display-type', choices=['just_count', '3d', 'stdev', 'volume'], default='3d')
+    parser.add_argument('dataset_dir', type=pathlib.Path)
     parser.add_argument('--mode', choices=['train', 'val', 'test', 'all'], default='all')
-    parser.add_argument('--shuffle', action='store_true')
     parser.add_argument('--shard', type=int)
-    parser.add_argument('--save', action='store_true')
     parser.add_argument('--threshold', type=float, default=None)
     parser.add_argument('--skip', type=int, default=0)
     parser.add_argument('--take', type=int)
-    parser.add_argument('--only-negative', action='store_true')
-    parser.add_argument('--only-positive', action='store_true')
-    parser.add_argument('--only-infeasible', action='store_true')
-    parser.add_argument('--only-in-collision', action='store_true')
-    parser.add_argument('--only-starts-far', action='store_true')
-    parser.add_argument('--only-reconverging', action='store_true')
-    parser.add_argument('--perf', action='store_true', help='print time per iteration')
-    parser.add_argument('--no-plot', action='store_true', help='only print statistics')
 
     args = parser.parse_args()
-    args.batch_size = 1
 
-    classifier_dataset = get_classifier_dataset_loader(args.dataset_dirs, load_true_states=True, threshold=args.threshold)
-
-    visualize_dataset(args, classifier_dataset)
+    dataset = TorchMDEDataset(args.dataset_dir, mode=args.mode)
+    visualize_dataset(dataset, args.take, args.skip, args.shard)
 
 
 if __name__ == '__main__':

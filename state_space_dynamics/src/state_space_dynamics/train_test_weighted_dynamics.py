@@ -267,7 +267,7 @@ def viz_main(dataset_dir: pathlib.Path,
              skip: Optional[int] = None,
              project=PROJECT,
              **kwargs):
-    dataset = TorchMetaDynamicsDataset(dataset_dir)
+    dataset = TorchMetaDynamicsDataset(dataset_dir, eval_mode='test')
 
     dataset = dataset_skip(dataset, skip)
 

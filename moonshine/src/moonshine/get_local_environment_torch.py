@@ -1,4 +1,5 @@
 from typing import Dict
+from distutils.version import StrictVersion
 import torch.nn.functional as F
 import torch
 
@@ -11,8 +12,11 @@ def create_env_indices(local_env_h_rows: int, local_env_w_cols: int, local_env_c
     pixel_row_indices = torch.arange(0, local_env_h_rows, dtype=torch.float32)
     pixel_col_indices = torch.arange(0, local_env_w_cols, dtype=torch.float32)
     pixel_channel_indices = torch.arange(0, local_env_c_channels, dtype=torch.float32)
-    x_indices, y_indices, z_indices = torch.meshgrid(pixel_col_indices, pixel_row_indices, pixel_channel_indices,
-                                                     indexing='xy')
+    if torch.__version__ == '1.9.1+cu102':
+        y_indices, x_indices, z_indices = torch.meshgrid(pixel_col_indices, pixel_row_indices, pixel_channel_indices)
+    else:
+        x_indices, y_indices, z_indices = torch.meshgrid(pixel_col_indices, pixel_row_indices, pixel_channel_indices,
+                                                         indexing='xy')
 
     # Make batched versions for creating the local environment
     batch_y_indices = torch.tile(y_indices.unsqueeze(0), [batch_size, 1, 1, 1]).long()

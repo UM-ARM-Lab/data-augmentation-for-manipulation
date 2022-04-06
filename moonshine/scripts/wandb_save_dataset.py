@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-from time import time, sleep
 
-import wandb
+from link_bot_data.wandb_datasets import wandb_save_dataset
 
 
 def main():
@@ -14,23 +13,7 @@ def main():
 
     args = parser.parse_args()
 
-    run_id = f'upload_data_{int(time())}'
-    with wandb.init(project=args.project,
-                    job_type="auto",
-                    entity=args.entity,
-                    id=run_id,
-                    settings=wandb.Settings(silent='true')) as run:
-        artifact = wandb.Artifact(args.dataset_dir.name, type="raw_data")
-        artifact.add_dir(args.dataset_dir)
-        run.log_artifact(artifact)
-
-    api = wandb.Api()
-    while True:
-        sleep(0.1)
-        run = api.run(f"{args.entity}/{args.project}/{run_id}")
-        if run.state == 'finished':
-            run.delete()
-            break
+    wandb_save_dataset(args.datase_dir, args.project, entity=args.entity)
 
 
 if __name__ == '__main__':

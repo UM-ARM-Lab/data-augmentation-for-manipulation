@@ -57,14 +57,13 @@ def main():
     img_w, img_h = original_img.size
     img_w /= scale
     img_h /= scale
-    text_y = n_rows * img_h + 8
+    text_y = img_h + 8
 
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(17, 2.5))
     ax = plt.gca()
-    ax.set_xlim(0, 4 * img_w)
-    ax.set_ylim(0, text_y)
+    ax.set_xlim(0, 8 * img_w)
+    ax.set_ylim(0, img_h)
     ax.axis('off')
-    ax.axvline(img_w, color='k', linewidth=img_w * 0.02)
 
     ax.text(0.5 * img_w, text_y, "Original",
             horizontalalignment='center', verticalalignment='center', fontsize=24)
@@ -72,15 +71,26 @@ def main():
     ax.text(2.5 * img_w, text_y, "Augmentations",
             horizontalalignment='center', verticalalignment='center', fontsize=24)
 
+    ax.text(4.5 * img_w, text_y, "Original",
+            horizontalalignment='center', verticalalignment='center', fontsize=24)
+
+    ax.text(6.5 * img_w, text_y, "Augmentations",
+            horizontalalignment='center', verticalalignment='center', fontsize=24)
+
+    ax.axvline(img_w, color='k', linewidth=img_w * 0.02)
+    ax.axvline(4 * img_w, color='b', linewidth=img_w * 0.02)
+    ax.axvline(5 * img_w, color='k', linewidth=img_w * 0.02)
+
     for row, images_row in images.items():
         original_img = images_row['original']
         outputs = images_row['outputs']
-        ax.imshow(original_img, extent=extent_for_pos(img_w, img_h, row, 0))
-        for col, output_img in enumerate(outputs):
-            ax.imshow(output_img, extent=extent_for_pos(img_w, img_h, row, col + 1))
+        ax.imshow(original_img, extent=extent_for_pos(img_w, img_h, 0, row * 4))
+        for j, output_img in enumerate(outputs):
+            col = j + 1
+            ax.imshow(output_img, extent=extent_for_pos(img_w, img_h, 0, row * 4 + col))
 
     fig_filename = root / f"{args.name}_aug_examples.png"
-    plt.savefig(fig_filename.as_posix(), dpi=200)
+    plt.savefig(fig_filename.as_posix(), dpi=300)
     plt.show()
 
 
