@@ -145,7 +145,7 @@ void RVizAnimationController::LoopToggled() {
 
 void RVizAnimationController::AutoNextToggled() {
   peter_msgs::AnimationControl cmd;
-  cmd.state.auto_play = ui.auto_play_checkbox->isChecked();
+  cmd.state.done_after_playing = ui.done_after_playing_checkbox->isChecked();
   cmd.command = peter_msgs::AnimationControl::SET_DONE_AFTER_PLAYING;
   command_pub_.publish(cmd);
 }

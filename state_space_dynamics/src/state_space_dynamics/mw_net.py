@@ -176,6 +176,11 @@ class UDNN(MetaModule, pl.LightningModule):
         weights = mask_after_first_0(weights)
         return weights
 
+    def validation_step(self, val_batch, batch_idx):
+        val_udnn_outputs = self.forward(val_batch)
+        val_loss = self.compute_loss(val_batch, val_udnn_outputs)
+        self.log('val_loss', val_loss)
+
 
 class MWNet(pl.LightningModule):
     def __init__(self, train_dataset: Optional, **hparams):

@@ -10,10 +10,10 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from wandb import CommError
 from wandb.util import generate_id
 
 from link_bot_data.visualization import init_viz_env, viz_pred_actual_t
+from link_bot_data.wandb_datasets import get_dataset_with_version
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
@@ -28,21 +28,12 @@ from state_space_dynamics.torch_dynamics_dataset import TorchMetaDynamicsDataset
 PROJECT = 'udnn'
 
 
-def get_dataset_with_version(dataset_dir: pathlib.Path, project=PROJECT, entity='armlab'):
-    api = wandb.Api({'entity': entity})
-    try:
-        artifact = api.artifact(f"{project}/{dataset_dir.name}:latest")
-        return artifact.version
-    except CommError:
-        return 'null'
-
-
 def train_model_params(batch_size, checkpoint, epochs, model_params_path, seed, steps, take, train_dataset,
                        train_dataset_len):
     model_params = load_hjson(model_params_path)
     model_params['scenario'] = train_dataset.params['scenario']
     model_params['dataset_dir'] = train_dataset.dataset_dir
-    model_params['dataset_dir_version'] = get_dataset_with_version(train_dataset.dataset_dir)
+    model_params['dataset_dir_versioned'] = get_dataset_with_version(train_dataset.dataset_dir)
     model_params['dataset_hparams'] = train_dataset.params
     # add some extra useful info here
     stamp = "{:%B_%d_%H-%M-%S}".format(datetime.now())

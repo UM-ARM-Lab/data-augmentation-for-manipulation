@@ -13,7 +13,7 @@ def main():
 
     args = parser.parse_args()
 
-    wandb_save_dataset(args.datase_dir, args.project, entity=args.entity)
+    wandb_save_dataset(args.dataset_dir, args.project, entity=args.entity)
 
 
 if __name__ == '__main__':

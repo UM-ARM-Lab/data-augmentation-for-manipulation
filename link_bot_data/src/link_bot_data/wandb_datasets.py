@@ -2,6 +2,7 @@ import pathlib
 from time import time, sleep
 
 import wandb
+from wandb import CommError
 
 
 def wandb_save_dataset(dataset_dir: pathlib.Path, project: str, entity='armlab'):
@@ -21,3 +22,12 @@ def wandb_save_dataset(dataset_dir: pathlib.Path, project: str, entity='armlab')
         if run.state == 'finished':
             run.delete()
             break
+
+
+def get_dataset_with_version(dataset_dir: pathlib.Path, project, entity='armlab'):
+    api = wandb.Api({'entity': entity})
+    try:
+        artifact = api.artifact(f"{project}/{dataset_dir.name}:latest")
+        return f"{dataset_dir.name}-{artifact.version}"
+    except CommError:
+        return 'null'

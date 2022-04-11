@@ -14,6 +14,7 @@ from torchvision import transforms
 from wandb.util import generate_id
 
 from link_bot_data.visualization import init_viz_env, viz_pred_actual_t
+from link_bot_data.wandb_datasets import get_dataset_with_version
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
@@ -21,10 +22,21 @@ from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, repeat_dataset
 from moonshine.torchify import torchify
+from state_space_dynamics.mw_net import MWNet
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 from state_space_dynamics.udnn_torch import UDNN
 
 PROJECT = 'udnn'
+
+
+def load_udnn_model_wrapper(checkpoint):
+    try:
+        model = load_model_artifact(checkpoint, UDNN, 'udnn', version='best', user='armlab')
+    except RuntimeError:
+        model_with_weights = load_model_artifact(checkpoint, MWNet, 'udnn', version='best', user='armlab',
+                                                 train_dataset=None)
+        model = model_with_weights.udnn
+    return model
 
 
 def prepare_train(batch_size, dataset_dir, take, skip, transform, repeat):
@@ -215,15 +227,16 @@ def eval_main(dataset_dir: pathlib.Path,
               skip: Optional[int] = None,
               project=PROJECT,
               **kwargs):
-    model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
+    model = load_udnn_model_wrapper(checkpoint)
     model.eval()
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
-        'training_dataset': model.hparams.dataset_dir,
-        'eval_dataset':     dataset_dir.as_posix(),
-        'eval_checkpoint':  checkpoint,
-        'eval_mode':        mode,
+        'training_dataset':       model.hparams.dataset_dir,
+        'eval_dataset':           dataset_dir.as_posix(),
+        'eval_dataset_versioned': get_dataset_with_version(dataset_dir, PROJECT),
+        'eval_checkpoint':        checkpoint,
+        'eval_mode':              mode,
     }
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity='armlab')

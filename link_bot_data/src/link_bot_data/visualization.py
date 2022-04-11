@@ -302,3 +302,21 @@ def viz_pred_actual_t(loader, model, example, outputs, s, t, threshold):
     s.plot_error_rviz(error_t)
     label_t = error_t < threshold
     s.plot_is_close(label_t)
+
+
+def viz_pred_t(loader, model, example, outputs, s, t, threshold, color='blue', label=''):
+    actual_t = loader.index_time(example, t)
+    s.plot_action_rviz(actual_t, actual_t, color='gray', label='viz')
+    model_state_keys = model.state_keys + model.state_metadata_keys
+    prediction_t = numpify(index_time(outputs, model_state_keys, t, False))
+    s.plot_state_rviz(prediction_t, label='viz_predicted' + label, color=color)
+    error_t = s.classifier_distance(actual_t, prediction_t)
+    s.plot_error_rviz(error_t)
+    label_t = error_t < threshold
+    s.plot_is_close(label_t)
+
+
+def viz_actual_t(loader, example, s, t):
+    actual_t = loader.index_time(example, t)
+    s.plot_state_rviz(actual_t, label='viz_actual', color='red')
+    s.plot_action_rviz(actual_t, actual_t, color='gray', label='viz')

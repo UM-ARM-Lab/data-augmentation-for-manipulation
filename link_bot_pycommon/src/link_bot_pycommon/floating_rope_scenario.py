@@ -759,6 +759,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     def plot_state_rviz(self, state: Dict, **kwargs):
         label = kwargs.get("label", "")
         color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
+        s = kwargs.get('s', 0.006)
         if 'a' in kwargs:
             color_msg.a = kwargs['a']
             a = kwargs['a']
@@ -772,18 +773,18 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         if 'gt_rope' in state:
             rope_points = np.reshape(state['gt_rope'], [-1, 3])
-            markers = make_rope_marker(rope_points, 'robot_root', label + "_gt_rope", next(ig), color_msg, 0.01)
+            markers = make_rope_marker(rope_points, 'robot_root', label + "_gt_rope", next(ig), color_msg, s)
             msg.markers.extend(markers)
 
         if 'rope' in state:
             rope_points = np.reshape(state['rope'], [-1, 3])
             markers = make_rope_marker(rope_points, 'robot_root', label + "_rope", next(ig),
-                                       adjust_lightness_msg(color_msg, 0.9), 0.01)
+                                       adjust_lightness_msg(color_msg, 0.9), s)
             msg.markers.extend(markers)
 
         if add_predicted('rope') in state:
             rope_points = np.reshape(state[add_predicted('rope')], [-1, 3])
-            markers = make_rope_marker(rope_points, 'robot_root', label + "_pred_rope", next(ig), color_msg, 0.01,
+            markers = make_rope_marker(rope_points, 'robot_root', label + "_pred_rope", next(ig), color_msg, s,
                                        Marker.CUBE_LIST)
             msg.markers.extend(markers)
 

@@ -10,6 +10,7 @@
     <arg name="debug_moveit" default="false"/>
     <arg name="use_victor" default="false"/>
     <arg name="use_val" default="false"/>
+    <arg name="with_husky" default="true"/>
     <arg name="use_sim_time" default="true"/>
     <arg name="robot_name" default="none"/>
 
@@ -71,11 +72,11 @@
             <arg name="moveit_controller_manager" default="gazebo"/>
             <arg name="info" value="true"/>
             <arg name="debug" value="$(arg debug_moveit)"/>
-            <arg name="with_husky" value="false"/>
+            <arg name="with_husky" value="$(arg with_husky)"/>
         </include>
 
         <!-- spawn the robot -->
         <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
-              args="-urdf -model $(arg robot_name) -param $(arg robot_name)/robot_description"/>
+              args="-urdf -model $(arg robot_name) -param $(arg robot_name)/robot_description -z 0.145"/>
     </group>
 </launch>
