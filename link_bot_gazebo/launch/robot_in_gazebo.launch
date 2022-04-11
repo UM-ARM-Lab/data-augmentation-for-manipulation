@@ -76,7 +76,13 @@
         </include>
 
         <!-- spawn the robot -->
-        <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
-              args="-urdf -model $(arg robot_name) -param $(arg robot_name)/robot_description -z 0.145"/>
+        <group if="$(arg with_husky)">
+            <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
+                  args="-urdf -model $(arg robot_name) -param $(arg robot_name)/robot_description -z 0.145"/>
+        </group>
+        <group unless="$(arg with_husky)">
+            <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
+                  args="-urdf -model $(arg robot_name) -param $(arg robot_name)/robot_description"/>
+        </group>
     </group>
 </launch>

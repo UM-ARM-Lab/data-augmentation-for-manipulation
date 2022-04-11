@@ -64,6 +64,7 @@ def batch_robot_state_to_transforms(jacobian_follower: pyjacobian_follower.Jacob
                                     names,
                                     positions,
                                     link_names):
+    """ returns the transforms from the robot base link (according to moveit) to each link """
     link_to_robot_transforms = jacobian_follower.batch_get_link_to_robot_transforms(names,
                                                                                     numpify(positions),
                                                                                     link_names)

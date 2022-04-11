@@ -23,10 +23,10 @@ class VoxelgridInfo:
     include_robot_geometry: bool
     scenario: ScenarioWithVisualization
 
-    def make_voxelgrid_inputs(self, inputs: Dict, local_env, local_origin_point, batch_size, time):
+    def make_voxelgrid_inputs(self, inputs: Dict, local_env, local_origin_point, batch_size, time, viz: bool = False):
         local_voxel_grids = []
         for t in range(time):
-            local_voxel_grid_t = self.make_voxelgrid_inputs_t(inputs, local_env, local_origin_point, t, batch_size)
+            local_voxel_grid_t = self.make_voxelgrid_inputs_t(inputs, local_env, local_origin_point, t, batch_size, viz)
             local_voxel_grids.append(local_voxel_grid_t)
         local_voxel_grids = torch.stack(local_voxel_grids, 1)
         return local_voxel_grids
@@ -36,7 +36,8 @@ class VoxelgridInfo:
                                 local_env,
                                 local_origin_point,
                                 t,
-                                batch_size):
+                                batch_size,
+                                viz_points: bool = False):
         state_t = {k: inputs[k][:, t] for k in self.state_keys}
         local_voxel_grid_t = [local_env]
         device = local_env.device
@@ -57,7 +58,8 @@ class VoxelgridInfo:
             local_voxel_grid_t.append(state_component_voxel_grid)
 
         if self.include_robot_geometry:
-            robot_points = self.make_robot_points_batched(batch_size, inputs, t).to(device)  # [b, n_points, 3]
+            robot_points = self.make_robot_points_batched(batch_size, inputs, t, viz_points).to(
+                device)  # [b, n_points, 3]
             robot_voxel_grid = points_to_voxel_grid_res_origin_point_batched(robot_points,
                                                                              inputs['res'],
                                                                              local_origin_point,
@@ -70,7 +72,7 @@ class VoxelgridInfo:
         local_voxel_grid_t = torch.stack(local_voxel_grid_t, 1)
         return local_voxel_grid_t
 
-    def make_robot_points_batched(self, batch_size, inputs, t):
+    def make_robot_points_batched(self, batch_size, inputs, t, viz_points: bool = False):
         names = inputs['joint_names'][:, t]
         positions = inputs[self.robot_info.joint_positions_key][:, t]
         link_to_robot_transforms = batch_robot_state_to_transforms(self.jacobian_follower,
@@ -78,5 +80,6 @@ class VoxelgridInfo:
                                                                    positions.detach().cpu().numpy(),
                                                                    self.robot_info.link_names)
         robot_points = batch_transform_robot_points(link_to_robot_transforms, self.robot_info, batch_size)
-        # self.scenario.plot_points_rviz(robot_points[0], label='robot_points')
+        if viz_points:
+            self.scenario.plot_points_rviz(robot_points[0], label='robot_points', frame_id='robot_root')
         return robot_points

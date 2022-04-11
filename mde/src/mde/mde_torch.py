@@ -96,7 +96,8 @@ class MDE(pl.LightningModule):
         local_env, local_origin_point = self.get_local_env(inputs)
 
         batch_size, time = inputs['time_idx'].shape[0:2]
-        voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time)
+        voxel_grids = self.vg_info.make_voxelgrid_inputs(inputs, local_env, local_origin_point, batch_size, time,
+                                                         viz=debug_vgs())
 
         if debug_vgs():
             b = 0
