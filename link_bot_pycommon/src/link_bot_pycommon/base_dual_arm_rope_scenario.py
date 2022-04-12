@@ -3,7 +3,6 @@ from copy import deepcopy
 from functools import cached_property
 from pathlib import Path
 from typing import Dict, List, Optional
-from tf.transformations import quaternion_from_euler
 
 import hjson
 import numpy as np
@@ -21,10 +20,11 @@ from link_bot_pycommon.moveit_planning_scene_mixin import MoveitPlanningSceneSce
 from link_bot_pycommon.moveit_utils import make_joint_state
 from moonshine.filepath_tools import load_params
 from moonshine.geometry_tf import transformation_jacobian, euler_angle_diff
-from moonshine.torch_and_tf_utils import remove_batch, add_batch
-from moonshine.tensorflow_utils import to_list_of_strings
 from moonshine.numpify import numpify
+from moonshine.tensorflow_utils import to_list_of_strings
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moveit_msgs.msg import RobotState, RobotTrajectory, PlanningScene
+from tf.transformations import quaternion_from_euler
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 with warnings.catch_warnings():
@@ -41,6 +41,8 @@ from link_bot_pycommon.get_occupancy import get_environment_for_extents_3d
 from arm_gazebo_msgs.srv import ExcludeModels, ExcludeModelsRequest, ExcludeModelsResponse
 from rosgraph.names import ns_join
 from sensor_msgs.msg import JointState, PointCloud2
+
+rope_key_name = 'rope'
 
 
 def get_joint_positions_given_state_and_plan(plan: RobotTrajectory, robot_state: RobotState):
@@ -415,6 +417,37 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
         if 'error' in inputs:
             error_t = inputs['error'][b, 1]
             self.plot_error_rviz(error_t)
+
+    @staticmethod
+    def put_state_robot_frame(state: Dict):
+        # Assumes everything is in robot frame already
+        return {
+            'left_gripper':    state['left_gripper'],
+            'right_gripper':   state['right_gripper'],
+            rope_key_name:     state[rope_key_name],
+            'joint_positions': state['joint_positions'],
+        }
+
+    @staticmethod
+    def put_state_local_frame_torch(state: Dict):
+        rope = state[rope_key_name]
+        rope_points_shape = rope.shape[:-1] + (-1, 3)
+        rope_points = rope.reshape(rope_points_shape)
+
+        center = rope_points.mean(-2)
+
+        left_gripper_local = state['left_gripper'] - center
+        right_gripper_local = state['right_gripper'] - center
+
+        rope_points_local = rope_points - center.unsqueeze(-2)
+        rope_local = rope_points_local.reshape(rope.shape)
+
+        return {
+            'left_gripper':    left_gripper_local,
+            'right_gripper':   right_gripper_local,
+            rope_key_name:     rope_local,
+            'joint_positions': state['joint_positions'],
+        }
 
     def aug_ik_to_start(self,
                         scene_msg: List[PlanningScene],
