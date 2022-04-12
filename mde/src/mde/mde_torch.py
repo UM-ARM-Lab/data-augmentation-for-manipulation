@@ -45,6 +45,7 @@ class MDE(pl.LightningModule):
         in_channels = 5
         for out_channels, kernel_size in self.hparams['conv_filters']:
             conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
+            conv_layers.append(nn.LeakyReLU())
             conv_layers.append(nn.MaxPool3d(self.hparams['pooling']))
             in_channels = out_channels
 
@@ -59,7 +60,7 @@ class MDE(pl.LightningModule):
         in_size = conv_out_size + 2 * state_size + action_size + prev_error_size
         for hidden_size in self.hparams['fc_layer_sizes']:
             fc_layers.append(nn.Linear(in_size, hidden_size))
-            fc_layers.append(nn.ReLU())
+            fc_layers.append(nn.LeakyReLU())
             in_size = hidden_size
         final_hidden_dim = self.hparams['fc_layer_sizes'][-1]
         fc_layers.append(nn.LSTM(final_hidden_dim, self.hparams['rnn_size'], 1))
