@@ -11,7 +11,6 @@ with warnings.catch_warnings():
     import ompl.control as oc
 
 import numpy as np
-import tensorflow as tf
 from matplotlib import cm
 
 from link_bot_planning.get_ompl_scenario import get_ompl_scenario
@@ -521,7 +520,7 @@ class OmplRRTWrapper(MyPlanner):
             much_further_from_goal = distance_to_goal - initial_distance_to_goal > 0.03  # FIXME: hardcoded parameter
 
             # if the shortcut was successful, save that as the new path
-            accept = tf.logical_and(classifier_accept, tf.logical_not(much_further_from_goal))
+            accept = classifier_accept and not much_further_from_goal
             if accept:
                 state_sequence = proposed_state_seq
                 action_sequence = proposed_action_seq

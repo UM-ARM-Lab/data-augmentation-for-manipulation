@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_sequences
+from moonshine.torchify import torchify
 
 
 def vector_to_dict(description: Dict, z, device):
@@ -18,7 +19,10 @@ def vector_to_dict(description: Dict, z, device):
 
 def sequence_of_dicts_to_dict_of_tensors(seq_of_dicts, axis=0):
     dict_of_seqs = sequence_of_dicts_to_dict_of_sequences(seq_of_dicts)
-    return {k: torch.stack(v, axis) for k, v in dict_of_seqs.items()}
+    out_dict = {}
+    for k, v in dict_of_seqs.items():
+        out_dict[k] = torchify(v)
+    return out_dict
 
 
 def loss_on_dicts(loss_func, dict_true, dict_pred):

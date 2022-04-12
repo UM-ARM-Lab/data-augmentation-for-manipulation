@@ -18,6 +18,18 @@ def torchify(d):
             return d
         else:
             return torch.from_numpy(d)
+    elif isinstance(d, list):
+        d0 = d[0]
+        if isinstance(d0, dict):
+            return [torchify(d_i) for d_i in d]
+        if isinstance(d0, list) or isinstance(d0, np.ndarray) or isinstance(d0, torch.Tensor):
+            out_d = [torchify(d_i) for d_i in d]
+            try:
+                return torch.stack(out_d)
+            except TypeError:
+                return out_d
+        else:
+            return d
     else:
         return d
     raise NotImplementedError()

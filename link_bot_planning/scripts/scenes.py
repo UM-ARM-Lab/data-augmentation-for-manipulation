@@ -131,7 +131,7 @@ def main():
 
     print_parser = subparsers.add_parser('print')
     print_parser.add_argument("dirname", type=pathlib.Path)
-    print_parser.add_argument("idx", type=int_set_arg)
+    print_parser.add_argument("idx", type=int)
     print_parser.set_defaults(func=print_main)
 
     viz_parser = subparsers.add_parser('viz')

@@ -138,6 +138,7 @@ def add_predicted(feature_name: str):
 
 
 def add_predicted_hack(feature_name: str):
+    """ this is needed inside a torch model because global str constants cannot be used with torchscript """
     return 'predicted/' + feature_name
 
 

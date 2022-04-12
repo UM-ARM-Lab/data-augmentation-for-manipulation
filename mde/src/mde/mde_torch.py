@@ -1,22 +1,25 @@
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import torchmetrics
-import wandb
 from torch import nn
 
 import rospy
-from link_bot_data.dataset_utils import add_predicted_hack
+from link_bot_data.dataset_utils import add_predicted_hack, add_predicted
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.visualization import DebuggingViz
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
+from link_bot_pycommon.load_wandb_model import load_model_artifact
 from moonshine import get_local_environment_torch
 from moonshine.make_voxelgrid_inputs_torch import VoxelgridInfo
 from moonshine.robot_points_torch import RobotVoxelgridInfo
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
+from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors
+from moonshine.torchify import torchify
 
 
 def debug_vgs():
@@ -179,3 +182,43 @@ class MDE(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+
+
+class MDEConstraintChecker:
+
+    def __init__(self, checkpoint):
+        self.model: MDE = load_model_artifact(checkpoint, MDE, project='mde', version='best', user='armlab')
+        self.model.eval()
+        self.horizon = 2
+
+    def check_constraint(self,
+                         environment: Dict,
+                         states_sequence: List[Dict],
+                         actions: List[Dict]):
+        states_dict = sequence_of_dicts_to_dict_of_tensors(states_sequence)
+        actions_dict = sequence_of_dicts_to_dict_of_tensors(actions)
+
+        inputs = {}
+
+        environment = torchify(environment)
+
+        inputs.update(environment)
+
+        for action_key in self.model.hparams.action_keys:
+            inputs[action_key] = actions_dict[action_key]
+
+        for state_metadata_key in self.model.hparams.state_metadata_keys:
+            inputs[state_metadata_key] = states_dict[state_metadata_key]
+
+        for state_key in self.model.hparams.state_keys:
+            planned_state_key = add_predicted(state_key)
+            inputs[planned_state_key] = states_dict[state_key]
+
+        if 'joint_names' in states_dict:
+            inputs[add_predicted('joint_names')] = states_dict['joint_names']
+            inputs[add_predicted('joint_names')] = states_dict['joint_names']
+
+        inputs['time_idx'] = torch.arange(2)
+
+        pred_error = remove_batch(self.model(add_batch(inputs)))
+        return pred_error.detach().cpu().numpy()

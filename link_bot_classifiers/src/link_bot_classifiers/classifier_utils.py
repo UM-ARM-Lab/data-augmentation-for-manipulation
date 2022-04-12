@@ -8,14 +8,15 @@ from link_bot_classifiers.nn_classifier_wrapper import NNClassifierWrapper
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
-from moonshine.filepath_tools import load_trial, load_params
+from mde.mde_torch import MDEConstraintChecker
+from moonshine.filepath_tools import load_trial
 
 
-# @lru_cache
 def load_generic_model(path: pathlib.Path,
                        scenario: Optional[ExperimentScenario] = None) -> BaseConstraintChecker:
-    # FIXME: remove batch_size=1 here? can I put it in base model?
-    # we use the first model and assume they all have the same hparams
+    if path.as_posix().startswith('p:'):  # this is a pytorch model, not a old TF model
+        return MDEConstraintChecker(path.as_posix()[2:])
+
     _, params = load_trial(path.parent.absolute())
     if scenario is None:
         scenario_name = params['dataset_hparams']['scenario']
@@ -38,10 +39,3 @@ def load_generic_model(path: pathlib.Path,
         return FastRobotFeasibilityChecker(path, scenario=scenario)
     else:
         raise NotImplementedError("invalid model type {}".format(model_type))
-
-
-def local_env_size_for_classifier(classifier_dir: pathlib.Path):
-    classifier_params = load_params(classifier_dir)
-    return (classifier_params["local_env_h_rows"],
-            classifier_params["local_env_w_cols"],
-            classifier_params["local_env_c_channels"])
