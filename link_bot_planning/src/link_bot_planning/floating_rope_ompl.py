@@ -391,6 +391,7 @@ class DualGripperDirectedControlSampler(oc.DirectedControlSampler):
             # FIXME: this is wrong, we actually need to "set" these the same way we do in propagate... right?
             next_state_np['stdev'] = current_state_np['stdev']
             next_state_np['num_diverged'] = current_state_np['num_diverged']
+            next_state_np['error'] = current_state_np['error']
             self.scenario_ompl.numpy_to_ompl_control(current_state_np, control_out_np, control_out)
             self.scenario_ompl.numpy_to_ompl_state(next_state_np, dest)
         else:
@@ -472,6 +473,7 @@ class DualGripperStateSampler(ob.CompoundStateSampler):
             'rope':          random_rope,
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
+            'error':         np.zeros(1, dtype=np.float64),
         }
         self.scenario_ompl.numpy_to_ompl_state(state_np, state_out)
 
@@ -532,6 +534,7 @@ class GripperGoalRegion(ob.GoalSampleableRegion):
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
             'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
+            'error':           np.zeros(1, dtype=np.float64),
         }
 
         self.scenario_ompl.numpy_to_ompl_state(goal_state_np, state_out)
@@ -597,6 +600,7 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
             'rope':          [random_point] * self.scenario_ompl.s.n_links,
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
+            'error':         np.zeros(1, dtype=np.float64),
         }
         return goal_state_np
 
@@ -661,6 +665,7 @@ class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
             'rope':          random_rope,
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
+            'error':         np.zeros(1, dtype=np.float64),
         }
         return goal_state_np
 
@@ -718,6 +723,7 @@ class RopeAndGrippersGoalRegion2(ob.GoalSampleableRegion):
             'rope':          rope.flatten(),
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
+            'error':         np.zeros(1, dtype=np.float64),
         }
         return goal_state_np
 
@@ -782,6 +788,7 @@ class RopeAndGrippersGoalRegion(ob.GoalSampleableRegion):
             'rope':          rope.flatten(),
             'num_diverged':  np.zeros(1, dtype=np.float64),
             'stdev':         np.zeros(1, dtype=np.float64),
+            'error':         np.zeros(1, dtype=np.float64),
         }
         return goal_state_np
 

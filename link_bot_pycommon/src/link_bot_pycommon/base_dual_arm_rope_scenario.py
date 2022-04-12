@@ -418,37 +418,6 @@ class BaseDualArmRopeScenario(FloatingRopeScenario, MoveitPlanningSceneScenarioM
             error_t = inputs['error'][b, 1]
             self.plot_error_rviz(error_t)
 
-    @staticmethod
-    def put_state_robot_frame(state: Dict):
-        # Assumes everything is in robot frame already
-        return {
-            'left_gripper':    state['left_gripper'],
-            'right_gripper':   state['right_gripper'],
-            rope_key_name:     state[rope_key_name],
-            'joint_positions': state['joint_positions'],
-        }
-
-    @staticmethod
-    def put_state_local_frame_torch(state: Dict):
-        rope = state[rope_key_name]
-        rope_points_shape = rope.shape[:-1] + (-1, 3)
-        rope_points = rope.reshape(rope_points_shape)
-
-        center = rope_points.mean(-2)
-
-        left_gripper_local = state['left_gripper'] - center
-        right_gripper_local = state['right_gripper'] - center
-
-        rope_points_local = rope_points - center.unsqueeze(-2)
-        rope_local = rope_points_local.reshape(rope.shape)
-
-        return {
-            'left_gripper':    left_gripper_local,
-            'right_gripper':   right_gripper_local,
-            rope_key_name:     rope_local,
-            'joint_positions': state['joint_positions'],
-        }
-
     def aug_ik_to_start(self,
                         scene_msg: List[PlanningScene],
                         joint_names,

@@ -190,6 +190,7 @@ class MDEConstraintChecker:
         self.model: MDE = load_model_artifact(checkpoint, MDE, project='mde', version='best', user='armlab')
         self.model.eval()
         self.horizon = 2
+        self.name = 'MDE'
 
     def check_constraint(self,
                          environment: Dict,
@@ -216,9 +217,12 @@ class MDEConstraintChecker:
 
         if 'joint_names' in states_dict:
             inputs[add_predicted('joint_names')] = states_dict['joint_names']
-            inputs[add_predicted('joint_names')] = states_dict['joint_names']
+        if 'joint_positions' in states_dict:
+            inputs[add_predicted('joint_positions')] = states_dict['joint_positions']
+        if 'error' in states_dict:
+            inputs['error'] = states_dict['error'][:, 0]
 
-        inputs['time_idx'] = torch.arange(2)
+        inputs['time_idx'] = torch.arange(2, dtype=torch.float32)
 
         pred_error = remove_batch(self.model(add_batch(inputs)))
         return pred_error.detach().cpu().numpy()

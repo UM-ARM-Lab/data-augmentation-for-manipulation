@@ -1,0 +1,12 @@
+{
+  accept_type: strict
+  method_name: random recovery
+  scenario_params: {
+    rope_name: rope_3d
+  }
+  recovery: {
+    recovery_model_dir: /media/shared/recovery_trials/random/none
+    use_recovery: true
+  }
+  mde_threshold: 0.05
+}

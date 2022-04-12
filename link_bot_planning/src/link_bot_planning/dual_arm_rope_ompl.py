@@ -6,8 +6,7 @@ import numpy as np
 from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
 from link_bot_planning import floating_rope_ompl
 from link_bot_planning.floating_rope_ompl import FloatingRopeOmpl, DualGripperControlSampler, \
-    make_random_rope_and_grippers_for_goal_point, sample_rope_and_grippers_from_extent, GripperGoalRegion, \
-    RopeAndGrippersGoalRegion
+    make_random_rope_and_grippers_for_goal_point, sample_rope_and_grippers_from_extent
 from link_bot_planning.my_planner import SharedPlanningStateOMPL
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 
@@ -47,10 +46,7 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
             state_out[state_component_idx][i] = np.float64(joint_state_i)
         state_component_idx += 1
 
-        if 'accept_probability' in state_np:
-            state_out[state_component_idx][0] = np.float64(state_np['accept_probability'])
-        else:
-            state_out[state_component_idx][0] = -1.0
+        state_out[state_component_idx][0] = np.float64(state_np['error'][0])
         state_component_idx += 1
 
     def numpy_to_ompl_control(self, state_np: Dict, control_np: Dict, control_out: oc.CompoundControl):
@@ -102,20 +98,20 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
         state_component_idx += 1
         joint_positions = np.array(joint_positions, np.float32)
 
-        joint_names = np.array([joint_positions_subspace.getDimensionName(i) for i in range(n_joints)])
-
-        accept_probability = np.array([ompl_state[state_component_idx][0]], np.float32)
+        error = np.array([ompl_state[state_component_idx][0]], np.float32)
         state_component_idx += 1
 
+        joint_names = np.array([joint_positions_subspace.getDimensionName(i) for i in range(n_joints)])
+
         return {
-            'left_gripper':       left_gripper,
-            'right_gripper':      right_gripper,
-            'rope':               rope,
-            'stdev':              stdev,
-            'num_diverged':       num_diverged,
-            'joint_positions':    joint_positions,
-            'joint_names':        joint_names,
-            'accept_probability': accept_probability,
+            'left_gripper':    left_gripper,
+            'right_gripper':   right_gripper,
+            'rope':            rope,
+            'stdev':           stdev,
+            'num_diverged':    num_diverged,
+            'joint_positions': joint_positions,
+            'joint_names':     joint_names,
+            'error':           error,
         }
 
     def ompl_control_to_numpy(self, ompl_state: ob.CompoundState, ompl_control: oc.CompoundControl):
@@ -213,13 +209,13 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
         # by setting weight to zero we make is unnecessary to sample joint states
         state_space.addSubspace(joint_positions_subspace, weight=0)
 
-        accept_probability_subspace = ob.RealVectorStateSpace(1)
-        accept_probability_bounds = ob.RealVectorBounds(1)
-        accept_probability_bounds.setLow(0, -1000)
-        accept_probability_bounds.setHigh(0, 1000)
-        accept_probability_subspace.setBounds(accept_probability_bounds)
-        accept_probability_subspace.setName("accept_probability")
-        state_space.addSubspace(accept_probability_subspace, weight=0)
+        error_subspace = ob.RealVectorStateSpace(1)
+        error_bounds = ob.RealVectorBounds(1)
+        error_bounds.setLow(-1000)
+        error_bounds.setHigh(1000)
+        error_subspace.setBounds(error_bounds)
+        error_subspace.setName("error")
+        state_space.addSubspace(error_subspace, weight=0)
 
         def _state_sampler_allocator(state_space):
             return DualGripperStateSampler(state_space,
@@ -343,6 +339,7 @@ class DualGripperStateSampler(floating_rope_ompl.DualGripperStateSampler):
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
             'joint_positions': joint_positions,
+            'error':           np.zeros(1, dtype=np.float64),
         }
         self.scenario_ompl.numpy_to_ompl_state(state_np, state_out)
 
@@ -374,6 +371,7 @@ class DualGrippersGoalRegion(floating_rope_ompl.GripperGoalRegion):
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
             'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
+            'error':           np.zeros(1, dtype=np.float64),
         }
         return goal_state_np
 
@@ -402,6 +400,7 @@ class RopeMidpointGoalRegion(floating_rope_ompl.RopeMidpointGoalRegion):
             'num_diverged':    np.zeros(1, dtype=np.float64),
             'stdev':           np.zeros(1, dtype=np.float64),
             'joint_positions': np.zeros(self.n_joints, dtype=np.float64),
+            'error':           np.zeros(1, dtype=np.float64),
         }
         return goal_state_np
 

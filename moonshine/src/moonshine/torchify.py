@@ -17,7 +17,7 @@ def torchify(d):
         if d.dtype.char in ['U', 'O']:
             return d
         else:
-            return torch.from_numpy(d)
+            return torch.from_numpy(d).float()
     elif isinstance(d, list):
         d0 = d[0]
         if isinstance(d0, dict):

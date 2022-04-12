@@ -24,15 +24,11 @@ import rospy
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_planning.timeout_or_not_progressing import TimeoutOrNotProgressing
 from state_space_dynamics.base_dynamics_function import BaseDynamicsFunction
+from mde.mde_torch import MDEConstraintChecker
 
 
-def add_accept_probability(accept_probabilities, final_predicted_state):
-    if 'NNClassifierWrapper' in accept_probabilities:
-        final_predicted_state['accept_probability'] = accept_probabilities['NNClassifierWrapper']
-    elif 'NNClassifier2Wrapper' in accept_probabilities:
-        final_predicted_state['accept_probability'] = accept_probabilities['NNClassifier2Wrapper']
-    else:
-        final_predicted_state['accept_probability'] = -1
+def is_mde(classifier):
+    return isinstance(classifier, MDEConstraintChecker)
 
 
 class OmplRRTWrapper(MyPlanner):
@@ -195,26 +191,17 @@ class OmplRRTWrapper(MyPlanner):
             mean_predicted_states[t]['stdev'] = np.sum(np.concatenate(list(dict_of_stdevs.values())), keepdims=True)
         # get only the final state predicted, since *_predicted_states includes the start state
         final_predicted_state = mean_predicted_states[-1]
+        final_predicted_state['error'] = np.array([-1.0], dtype=np.float32)
 
-        # walk back up the branch until num_diverged == 0
-        all_states = [final_predicted_state]
+        all_states = [last_previous_state, final_predicted_state]
         all_actions = [new_action]
-        for previous_idx in range(len(previous_states) - 1, -1, -1):
-            previous_state = previous_states[previous_idx]
-            all_states.insert(0, previous_state)
-            if previous_state['num_diverged'] == 0:
-                break
-            # this goes after the break because action_i brings you TO state_i and we don't want that last action
-            previous_action = previous_actions[previous_idx - 1]
-            all_actions.insert(0, previous_action)
 
         # compute new num_diverged by checking the constraint
-        accept, accept_probabilities = self.check_constraint(all_states, all_actions)
-        add_accept_probability(accept_probabilities, final_predicted_state)
+        accept, accept_probabilities, pred_error = self.check_constraint(all_states, all_actions)
+        final_predicted_state['error'] = np.array([pred_error])
 
         if accept:
             final_predicted_state['num_diverged'] = np.array([0.0])
-
         else:
             final_predicted_state['num_diverged'] = last_previous_state['num_diverged'] + 1
 
@@ -223,10 +210,19 @@ class OmplRRTWrapper(MyPlanner):
     def check_constraint(self, states: List[Dict], actions: List[Dict]):
         accept = True
         accept_probabilities = {}
+        max_pred_error = 0
         for classifier in self.classifier_models:
-            p_accepts_for_model = classifier.check_constraint(environment=self.sps.environment,
-                                                              states_sequence=states,
-                                                              actions=actions)
+            if is_mde(classifier):
+                pred_error = classifier.check_constraint(environment=self.sps.environment,
+                                                         states_sequence=states,
+                                                         actions=actions)
+                p_accepts_for_model = np.array([pred_error < self.params['mde_threshold']]).astype(np.int32)
+                if pred_error > max_pred_error:
+                    max_pred_error = pred_error
+            else:
+                p_accepts_for_model = classifier.check_constraint(environment=self.sps.environment,
+                                                                  states_sequence=states,
+                                                                  actions=actions)
 
             assert p_accepts_for_model.ndim == 1
 
@@ -252,7 +248,7 @@ class OmplRRTWrapper(MyPlanner):
             else:
                 raise NotImplementedError(f"invalid {accept_type:=}")
 
-        return accept, accept_probabilities
+        return accept, accept_probabilities, max_pred_error
 
     def propagate(self, motions, control, duration, state_out):
         del duration  # unused, multi-step propagation is handled inside propagateMotionsWhileValid
@@ -366,6 +362,7 @@ class OmplRRTWrapper(MyPlanner):
         start_state = planning_query.start
         start_state['stdev'] = np.array([0.0])
         start_state['num_diverged'] = np.array([0.0])
+        start_state['error'] = np.array([0.0])
         self.start_state = start_state
         ompl_start_scoped = ob.State(self.scenario_ompl.state_space)
         self.scenario_ompl.numpy_to_ompl_state(start_state, ompl_start_scoped())
@@ -500,19 +497,17 @@ class OmplRRTWrapper(MyPlanner):
             proposed_state_seq_to_end, _ = self.fwd_model.propagate(env,
                                                                     state_sequence[start_t],
                                                                     proposed_action_seq_to_end)
-            classifier_accept, accept_probabilities = self.check_constraint(proposed_state_seq_to_end,
-                                                                            proposed_action_seq_to_end)
-            # copy the old/new accept probabilites in the states, cuz propagate produces state w/o accept probabilities
-            proposed_state_seq_to_end[0]['accept_probability'] = state_sequence[start_t]['accept_probability']
-            for k, proposed_state_k in enumerate(proposed_state_seq_to_end[1:]):
-                if 'NNClassifierWrapper' in accept_probabilities:
-                    proposed_state_k['accept_probability'] = np.array([accept_probabilities['NNClassifierWrapper'][k]],
-                                                                      np.float32)
-                elif 'NNClassifier2Wrapper' in accept_probabilities:
-                    proposed_state_k['accept_probability'] = np.array([accept_probabilities['NNClassifier2Wrapper'][k]],
-                                                                      np.float32)
-                else:
-                    proposed_state_k['accept_probability'] = np.array([-1], np.float32)
+            classifier_accept = True
+            for t in range(len(proposed_state_seq_to_end) - 1):
+                proposed_state_seq_to_end[t]['error'] = np.array([-1.0], dtype=np.float32)
+                accept_t, _, pred_error = self.check_constraint(states=proposed_state_seq_to_end[t:t + 2],
+                                                                actions=proposed_action_seq_to_end[t:t + 1])
+                proposed_state_seq_to_end[t]['error'] = np.expand_dims(pred_error, 0)
+
+                if not accept_t:
+                    classifier_accept = False
+                    break
+
             proposed_state_seq = state_sequence[:start_t] + proposed_state_seq_to_end
 
             # NOTE: we don't check this because smoothing is run even when we Timeout and the goal wasn't reached
@@ -531,7 +526,8 @@ class OmplRRTWrapper(MyPlanner):
                         self.tree.add(before_state=state,
                                       action=action,
                                       after_state=next_state,
-                                      accept_probabilities=accept_probabilities)
+                                      # FIXME: accept_probabilities???
+                                      accept_probabilities=-1)
 
                 # visualize & debug info
                 if self.verbose >= 3:

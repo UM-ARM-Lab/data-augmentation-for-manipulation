@@ -8,7 +8,6 @@
     rope
     left_gripper
     right_gripper
-    joint_positions
   ]
   state_metadata_keys: [
     joint_names
