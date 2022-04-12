@@ -31,7 +31,6 @@
 
         <plugin name="arm_gazebo_ros" filename="libarm_gazebo_ros_plugin.so"/>
         <plugin name="gazebo_ros_tf_plugin" filename="libgazebo_ros_tf_plugin.so"/>
-        <plugin name="ros_link_attacher_plugin" filename="libgazebo_ros_link_attacher.so"/>
         <plugin name="position_3d_plugin" filename="libposition_3d_plugin.so"/>
         <plugin name="collision_map_plugin" filename="libcollision_map_plugin.so"/>
 
