@@ -1,6 +1,6 @@
 from typing import Dict
-import numpy as np
 
+import numpy as np
 import torch
 
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_sequences
@@ -21,7 +21,11 @@ def sequence_of_dicts_to_dict_of_tensors(seq_of_dicts, axis=0):
     dict_of_seqs = sequence_of_dicts_to_dict_of_sequences(seq_of_dicts)
     out_dict = {}
     for k, v in dict_of_seqs.items():
-        out_dict[k] = torchify(v)
+        torch_v = [torchify(v_t) for v_t in v]
+        try:
+            out_dict[k] = torch.stack(torch_v, axis)
+        except TypeError:
+            out_dict[k] = torch_v
     return out_dict
 
 

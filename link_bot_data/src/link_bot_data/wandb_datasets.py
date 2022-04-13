@@ -2,6 +2,7 @@ import pathlib
 from time import time, sleep
 
 import wandb
+from colorama import Fore
 from wandb import CommError
 
 
@@ -12,6 +13,7 @@ def wandb_save_dataset(dataset_dir: pathlib.Path, project: str, entity='armlab')
                     entity=entity,
                     id=run_id,
                     settings=wandb.Settings(silent='true')) as run:
+        print(Fore.GREEN + f"Saving dataset {dataset_dir.name}" + Fore.RESET)
         artifact = wandb.Artifact(dataset_dir.name, type="raw_data")
         artifact.add_dir(dataset_dir.as_posix())
         run.log_artifact(artifact)

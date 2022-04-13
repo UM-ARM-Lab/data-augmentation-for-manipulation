@@ -13,6 +13,7 @@ from moonshine.filepath_tools import load_params
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.torchify import torchify
+from state_space_dynamics.mw_net import MWNet
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
 from state_space_dynamics.udnn_torch import UDNN
 
@@ -24,8 +25,14 @@ def n_seq(max_t: int):
 def make_mde_dataset(dataset_dir: pathlib.Path,
                      checkpoint: pathlib.Path,
                      outdir: pathlib.Path):
-    model = load_model_artifact(checkpoint, UDNN, project='udnn', version='latest', user='armlab',
-                                with_joint_positions=True)
+    try:
+        model = load_model_artifact(checkpoint, UDNN, project='udnn', version='latest', user='armlab',
+                                    with_joint_positions=True)
+    except RuntimeError:
+        model = load_model_artifact(checkpoint, MWNet, project='udnn', version='latest', user='armlab',
+                                    with_joint_positions=True, train_dataset=None)
+        model = model.udnn
+
     model.eval()
 
     mde_dataset_hparams = load_params(dataset_dir)
@@ -73,7 +80,7 @@ def make_mde_dataset(dataset_dir: pathlib.Path,
             result.get()
 
     print("Saving wandb dataset")
-    wandb_save_dataset(dataset_dir, project='mde')
+    wandb_save_dataset(outdir, project='mde')
 
     return outdir
 
@@ -99,7 +106,9 @@ def generate_mde_examples(model, dataset):
             inputs_from_start_t['scene_msg'] = example['scene_msg']
             inputs_from_start_t['joint_positions'] = example['joint_positions'][start_t:start_t + 1]
             inputs_from_start_t['joint_names'] = example['joint_names'][start_t:start_t + 1]
-            predictions_from_start_t = numpify(remove_batch(model(torchify(add_batch(inputs_from_start_t)))))
+            _inputs_from_start_t = torchify(add_batch(inputs_from_start_t))
+            predictions_from_start_t = model(_inputs_from_start_t)
+            predictions_from_start_t = numpify(remove_batch(predictions_from_start_t))
 
             actual_states_from_start_t = {k: example[k][start_t:] for k in state_keys}
             environment = {k: example[k] for k in dataset.env_keys}
