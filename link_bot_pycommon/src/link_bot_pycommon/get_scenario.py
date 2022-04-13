@@ -1,6 +1,3 @@
-from functools import lru_cache
-from typing import Optional
-
 from colorama import Fore
 
 
@@ -100,6 +97,20 @@ def get_scenario(scenario_name: str, params=None):
     return scenario_map[scenario_name]()(params)
 
 
-@lru_cache
-def get_scenario_cached(scenario_name: str):
-    return get_scenario(scenario_name)
+def scenario_cache(f):
+    cache = {}
+
+    def _f_cached(scenario_name: str, params=None):
+        if scenario_name in cache:
+            return cache[scenario_name]
+        else:
+            s = f(scenario_name, params)
+            cache[scenario_name] = s
+            return s
+
+    return _f_cached
+
+
+@scenario_cache
+def get_scenario_cached(scenario_name: str, params=None):
+    return get_scenario(scenario_name, params)

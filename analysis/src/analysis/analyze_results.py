@@ -1,4 +1,3 @@
-import logging
 import pathlib
 import pickle
 from typing import List, Dict
@@ -35,7 +34,8 @@ def load_planning_results(results_dirs: List[pathlib.Path], regenerate: bool = F
         metadata_filename = d / 'metadata.hjson'
         metadata = load_hjson(metadata_filename)
         if not df_filename.exists() or regenerate:
-            scenario = get_scenario_cached(metadata['planner_params']['scenario'])
+            scenario = get_scenario_cached(metadata['planner_params']['scenario'],
+                                           params=dict(metadata['planner_params']['scenario_params']))
             data = []
             data_gen = tqdm(data_filenames, desc='results files') if progressbar else data_filenames
             for data_filename in data_gen:

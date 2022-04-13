@@ -218,7 +218,7 @@ def get_transitions(datum: Dict):
 
 def get_scenario_and_metadata(results_dir: pathlib.Path):
     metadata = load_json_or_hjson(results_dir, 'metadata')
-    scenario = get_scenario_cached(metadata['scenario'])
+    scenario = get_scenario_cached(metadata['scenario'], dict(metadata['planner_params']['scenario_params']))
     return scenario, metadata
 
 
