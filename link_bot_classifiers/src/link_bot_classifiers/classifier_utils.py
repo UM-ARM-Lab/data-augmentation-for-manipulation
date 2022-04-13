@@ -12,10 +12,18 @@ from mde.mde_torch import MDEConstraintChecker
 from moonshine.filepath_tools import load_trial
 
 
+def is_torch_model(path):
+    return path.as_posix().startswith('p:')
+
+
+def strip_torch_model_prefix(path):
+    return path.as_posix()[2:]
+
+
 def load_generic_model(path: pathlib.Path,
                        scenario: Optional[ExperimentScenario] = None) -> BaseConstraintChecker:
-    if path.as_posix().startswith('p:'):  # this is a pytorch model, not a old TF model
-        return MDEConstraintChecker(path.as_posix()[2:])
+    if is_torch_model(path):  # this is a pytorch model, not a old TF model
+        return MDEConstraintChecker(strip_torch_model_prefix(path))
 
     _, params = load_trial(path.parent.absolute())
     if scenario is None:

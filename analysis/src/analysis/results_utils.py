@@ -6,11 +6,14 @@ import re
 from typing import Dict, Optional, List, Union
 
 import hjson
+import wandb
 from colorama import Fore
 from matplotlib import cm
+from wandb.sdk import wandb_helper
 
 import rospy
 from arc_utilities.algorithms import zip_repeat_shorter
+from link_bot_classifiers.classifier_utils import is_torch_model, strip_torch_model_prefix
 from link_bot_planning.my_planner import PlanningResult
 from link_bot_planning.trial_result import ExecutionResult, planning_trial_name
 from link_bot_pycommon.get_scenario import get_scenario_cached
@@ -19,6 +22,7 @@ from link_bot_pycommon.pycommon import paths_from_json, has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.screen_recorder import ScreenRecorder
 from link_bot_pycommon.serialization import load_gzipped_pickle, my_hdump
+from link_bot_pycommon.wandb_utils import reformat_run_config_dict
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_params, load_json_or_hjson
 from moonshine.numpify import numpify
@@ -61,6 +65,12 @@ def classifier_params_from_planner_params(planner_params):
 
 
 def try_load_classifier_params(representative_classifier_model_dir, parent=pathlib.Path('.')):
+    if is_torch_model(representative_classifier_model_dir):  # this is a pytorch model
+        run_id = strip_torch_model_prefix(representative_classifier_model_dir)
+        api = wandb.Api()
+        run = api.run(f"armlab/mde/{run_id}")
+        return reformat_run_config_dict(run.config)
+
     p1 = representative_classifier_model_dir.parent
     p2 = pathlib.Path(*p1.parts[2:])
     p3 = pathlib.Path('/media/shared/ift') / p2
