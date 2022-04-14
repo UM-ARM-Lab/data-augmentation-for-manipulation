@@ -13,7 +13,7 @@ from moonshine.torch_datasets_utils import take_subset, dataset_shard, dataset_s
 limit_gpu_mem(None)
 
 
-def visualize_dataset(dataset, take, skip, shard):
+def visualize_dataset(dataset, take, skip, shard, threshold=None):
     print_dict(dataset[0])
 
     s = dataset.get_scenario()
@@ -34,6 +34,9 @@ def visualize_dataset(dataset, take, skip, shard):
             t = time_anim.t()
             init_viz_env(s, inputs, t)
             dataset.transition_viz_t()(s, inputs, t)
+            if threshold is not None:
+                is_close = inputs['error'][t] < threshold
+                s.plot_is_close(is_close)
             time_anim.step()
 
             n_examples_visualized += 1
@@ -56,7 +59,7 @@ def main():
     args = parser.parse_args()
 
     dataset = TorchMDEDataset(args.dataset_dir, mode=args.mode)
-    visualize_dataset(dataset, args.take, args.skip, args.shard)
+    visualize_dataset(dataset, args.take, args.skip, args.shard, threshold=args.threshold)
 
 
 if __name__ == '__main__':
