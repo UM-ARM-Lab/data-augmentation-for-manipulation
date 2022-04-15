@@ -59,7 +59,7 @@ class GazeboServices(BaseServices):
 
         uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
         roslaunch.configure_logging(uuid)
-        roslaunch_args = ['link_bot_gazebo', launch_file_name, f"gui:={str(gui).lower()}"]
+        roslaunch_args = ['link_bot_gazebo', launch_file_name, f"gui:={str(gui).lower()}", "--no-summary"]
         if world:
             roslaunch_args.append(f"world:={world}")
 

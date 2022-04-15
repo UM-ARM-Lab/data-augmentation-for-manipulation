@@ -35,7 +35,7 @@ def main():
     args = parser.parse_args()
 
     scenario_params = {
-        'rope_name': 'rope_3d',
+        'rope_name': 'rope_3d_alt',
 
     }
     generate_saved_goals(method=args.method,
@@ -156,7 +156,7 @@ def sketchy_default_params():
             'joint57': -0.315723100095187,
         },
         'res':                       0.02,
-        'extent':                    [-0.6, 0.6, 0.25, 1.15, -0.3, 0.6],
+        'extent':                    [0.6, 1.35, -0.6, 0.6, -0.3, 1.0],
         'goal_params':               {
             'threshold': 0.045,
         }
