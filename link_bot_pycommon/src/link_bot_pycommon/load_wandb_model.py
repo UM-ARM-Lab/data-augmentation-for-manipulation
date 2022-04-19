@@ -10,14 +10,23 @@ def load_model_artifact(checkpoint, model_class, project, version, user='armlab'
 
 
 def model_artifact_path(checkpoint, project, version, user='armlab'):
-    if ':' in checkpoint:
-        checkpoint, version = checkpoint.split(':')
-
-    if not checkpoint.startswith('model-'):
-        checkpoint = 'model-' + checkpoint
-    api = wandb.Api()
-    artifact = api.artifact(f'{user}/{project}/{checkpoint}:{version}')
+    artifact = get_model_artifact(checkpoint, project, user, version)
     artifact_dir = artifact.download()
     local_ckpt_path = pathlib.Path(artifact_dir) / "model.ckpt"
     print(f"Found artifact {local_ckpt_path}")
     return local_ckpt_path
+
+
+def resolve_latest_model_version(checkpoint, project, user):
+    artifact = get_model_artifact(checkpoint, project, user, version='latest')
+    return f'model-{checkpoint}:{artifact.version}'
+
+
+def get_model_artifact(checkpoint, project, user, version):
+    if ':' in checkpoint:
+        checkpoint, version = checkpoint.split(':')
+    if not checkpoint.startswith('model-'):
+        checkpoint = 'model-' + checkpoint
+    api = wandb.Api()
+    artifact = api.artifact(f'{user}/{project}/{checkpoint}:{version}')
+    return artifact

@@ -5,7 +5,6 @@ import logging
 import pathlib
 import warnings
 from dataclasses import dataclass
-from datetime import datetime
 from time import perf_counter
 from typing import List
 from uuid import uuid4
@@ -16,6 +15,7 @@ from more_itertools import chunked
 from analysis.results_utils import list_all_planning_results_trials
 from arc_utilities.algorithms import nested_dict_update
 from arc_utilities.ros_init import rospy_and_cpp_init, shutdown
+from augmentation import train_test_aug_vae
 from augmentation.augment_dataset import augment_classifier_dataset
 from augmentation.load_aug_params import load_aug_params
 from link_bot_classifiers.fine_tune_classifier import fine_tune_classifier
@@ -28,8 +28,10 @@ from link_bot_planning.results_to_recovery_dataset import ResultsToRecoveryDatas
 from link_bot_planning.test_scenes import get_all_scene_indices
 from link_bot_pycommon.args import int_setify
 from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_pycommon.load_wandb_model import resolve_latest_model_version
 from link_bot_pycommon.pycommon import pathify, deal_with_exceptions
 from moonshine.gpu_config import limit_gpu_mem
+from moonshine.magic import wandb_lightning_magic
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -71,6 +73,8 @@ class IterativeFineTuning:
         self.on_exception = on_exception
         self.log_full_tree = False
         self.verbose = -1
+
+        wandb_lightning_magic()
 
         logfile_name = outdir / 'logfile.hjson'
         self.outdir.mkdir(exist_ok=True, parents=True)
@@ -151,7 +155,8 @@ class IterativeFineTuning:
         self.service_provider.play()  # time needs to be advancing while we setup the planner
 
         # Setup scenario
-        self.scenario = get_scenario(self.initial_planner_params["scenario"])
+        self.scenario = get_scenario(self.initial_planner_params["scenario"],
+                                     self.initial_planner_params['scenario_params'])
         self.scenario.on_before_get_state_or_execute_action()
         self.service_provider.setup_env(verbose=self.verbose,
                                         real_time_rate=self.initial_planner_params['real_time_rate'],
@@ -255,7 +260,7 @@ class IterativeFineTuning:
                                       verbose=self.verbose,
                                       planner_params=planner_params,
                                       outdir=planning_results_dir,
-                                      record=True,
+                                      record=False,
                                       trials=trials,
                                       test_scenes_dir=self.test_scenes_dir,
                                       seed=self.seed,
@@ -307,6 +312,41 @@ class IterativeFineTuning:
         if self.n_augmentations is None:
             return new_dataset_dir
 
+        is_vae = self.job_chunker.get("is_vae")
+        if is_vae:
+            vae_checkpoint = pathify(dataset_chunker.get("vae_checkpoint"))
+            if vae_checkpoint is None:
+                model_params_path = pathlib.Path("../augmentation/model_hparams/vae-rope.hjson")
+                if i == 0:
+                    epochs = 1000
+                    vae_run_id = None
+                else:
+                    epochs = 50
+                    jobkey = f"iteration {i - 1}"
+                    prev_iteration_chunker = self.job_chunker.sub_chunker(jobkey)
+                    vae_run_id = prev_iteration_chunker.get_result('vae_run_id')
+
+                def _fine_tune_vae():
+                    _vae_run_id = train_test_aug_vae.fine_tune(new_dataset_dir,
+                                                              model_params_path,
+                                                              batch_size=32,
+                                                              epochs=epochs,
+                                                              seed=self.seed,
+                                                              steps=-1,
+                                                              nickname=f'{self.outdir.name}',
+                                                              checkpoint=vae_run_id,
+                                                              project='aug_vae',
+                                                              scenario=self.scenario)
+                    return _vae_run_id
+
+                vae_run_id = deal_with_exceptions(how_to_handle='retry', function=_fine_tune_vae)
+
+                vae_checkpoint = resolve_latest_model_version(vae_run_id, project='aug_vae', user='armlab')
+                aug_hparams_update = {'augmentation': {'vae_model': vae_checkpoint}}
+                dataset_chunker.store_result('aug_hparams_update', aug_hparams_update)
+                dataset_chunker.store_result('vae_checkpoint', vae_checkpoint)
+                dataset_chunker.store_result('vae_run_id', vae_run_id)
+
         new_aug_dataset_dir = pathify(dataset_chunker.get("new_aug_dataset_dir"))
         if new_aug_dataset_dir is None:
             [p.suspend() for p in self.gazebo_processes]
@@ -315,12 +355,15 @@ class IterativeFineTuning:
             aug_outdir.mkdir(exist_ok=True, parents=True)
             aug_params_filename = pathify(self.job_chunker.get('aug_params_filename', 'aug_hparams/rope.hjson'))
             hparams = load_aug_params(aug_params_filename)
+            aug_hparams_update = dataset_chunker.get_result('aug_hparams_update', {})
+            hparams = nested_dict_update(hparams, aug_hparams_update)
             print(Fore.MAGENTA + "Creating augmentations" + Fore.RESET)
             new_aug_dataset_dir = augment_classifier_dataset(dataset_dir=new_dataset_dir,
                                                              hparams=hparams,
                                                              outdir=aug_outdir,
                                                              n_augmentations=self.n_augmentations,
                                                              scenario=self.scenario,
+                                                             use_torch=is_vae,
                                                              )
             new_aug_dataset_dir_rel = new_aug_dataset_dir.relative_to(self.outdir)
             dataset_chunker.store_result('new_aug_dataset_dir', new_aug_dataset_dir_rel.as_posix())

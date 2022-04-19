@@ -13,8 +13,8 @@ from analysis.results_utils import NoTransitionsError, dynamics_dataset_params_f
 from arm_robots.robot import RobotPlanningError
 from link_bot_data.classifier_dataset_utils import add_perception_reliability, add_model_error_and_filter
 from link_bot_data.dataset_utils import add_predicted, DEFAULT_VAL_SPLIT, DEFAULT_TEST_SPLIT
-from link_bot_data.tf_dataset_utils import write_example
 from link_bot_data.split_dataset import split_dataset
+from link_bot_data.tf_dataset_utils import write_example
 from link_bot_gazebo.gazebo_services import GazeboServices
 from link_bot_planning.execute_full_tree import store_bagfile
 from link_bot_planning.my_planner import PlanningQuery, LoggingTree, PlanningResult
@@ -24,9 +24,9 @@ from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import deal_with_exceptions
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_hjson
-from moonshine.torch_and_tf_utils import remove_batch, add_batch, add_batch_single
-from moonshine.tensorflow_utils import sequence_of_dicts_to_dict_of_tensors
 from moonshine.numpify import numpify
+from moonshine.tensorflow_utils import sequence_of_dicts_to_dict_of_tensors
+from moonshine.torch_and_tf_utils import remove_batch, add_batch, add_batch_single
 from std_msgs.msg import Empty
 
 
@@ -136,6 +136,17 @@ class ResultsToClassifierDataset:
                 'state_metadata_keys':  fwd_model_hparams['state_metadata_keys'],
                 'action_keys':          fwd_model_hparams['action_keys'],
                 'labeling_params':      self.labeling_params,
+                'data_collection_params': {
+                    'state_description':          {k: None for k in fwd_model_hparams['state_keys']},
+                    'state_metadata_description': {k: None for k in fwd_model_hparams['state_metadata_keys']},
+                    'action_description':         {k: None for k in fwd_model_hparams['action_keys']},
+                    'env_description':            {
+                        'env':          None,
+                        'origin_point': 3,
+                        'extent':       4,
+                        'res':          1,
+                    },
+                }
             }
 
         dataset_hparams = phase2_dataset_params
@@ -146,7 +157,7 @@ class ResultsToClassifierDataset:
             'full_tree':                 self.full_tree,
             'seed':                      None,
             'data_collection_params':    {
-                'steps_per_traj': 2,
+                'steps_per_traj':             2,
             },
         }
         dataset_hparams.update(dataset_hparams_update)

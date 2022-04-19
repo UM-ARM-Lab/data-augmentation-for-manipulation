@@ -16,7 +16,8 @@ def train_main(args):
     if args.seed is None:
         args.seed = np.random.randint(0, 10000)
 
-    train_test_aug_vae.train_main(**vars(args))
+    train_test_aug_vae.fine_tune(**vars(args))
+    # train_test_aug_vae.train_main(**vars(args))
 
 
 node_name = f"train_test_aug_vae_{int(time())}"
@@ -36,13 +37,19 @@ def main():
     train_parser.add_argument('--nickname', '-n', type=str)
     train_parser.add_argument('--user', '-u', type=str, default='armlab')
     train_parser.add_argument('--checkpoint')
-    train_parser.add_argument('--batch-size', type=int, default=60)
-    train_parser.add_argument('--take', type=int)
-    train_parser.add_argument('--epochs', type=int, default=-1)
-    train_parser.add_argument('--steps', type=int, default=5_000)
+    train_parser.add_argument('--batch-size', type=int, default=32)
+    train_parser.add_argument('--epochs', type=int, default=10)
+    train_parser.add_argument('--steps', type=int, default=-1)
     train_parser.add_argument('--no-validate', action='store_true')
     train_parser.add_argument('--seed', type=int, default=None)
     train_parser.set_defaults(func=train_main)
+
+    viz_parser = subparsers.add_parser('viz')
+    viz_parser.add_argument('dataset_dir', type=pathlib.Path)
+    viz_parser.add_argument('checkpoint', type=str)
+    viz_parser.add_argument('--user', '-u', type=str, default='armlab')
+    viz_parser.add_argument('--take', type=int)
+    viz_parser.set_defaults(func=lambda args: train_test_aug_vae.viz_main(**vars(args)))
 
     wandb_lightning_magic()
 

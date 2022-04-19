@@ -186,7 +186,7 @@ class SimDualArmRopeScenario(BaseDualArmRopeScenario):
         self.robot.plan_to_joint_config("whole_body", joint_config)
 
         self.service_provider.pause()
-        self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name()])
+        self.service_provider.restore_from_bag(bagfile_name, excluded_models=[self.robot_name(), 'kinect2'])
         self.grasp_rope_endpoints(settling_time=1.0)
         self.service_provider.play()
 

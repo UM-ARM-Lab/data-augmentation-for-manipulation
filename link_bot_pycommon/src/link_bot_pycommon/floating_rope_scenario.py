@@ -27,7 +27,6 @@ from link_bot_pycommon.bbox_visualization import viz_action_sample_bbox
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.experiment_scenario import get_action_sample_extent, is_out_of_bounds, sample_delta_position
 from link_bot_pycommon.get_link_states import GetLinkStates
-from moonshine.grid_utils_tf import batch_center_res_shape_to_origin_point, dist_to_bbox
 from link_bot_pycommon.grid_utils_np import extent_to_env_shape, extent_res_to_origin_point
 from link_bot_pycommon.lazy import Lazy
 from link_bot_pycommon.make_rope_markers import make_gripper_marker, make_rope_marker
@@ -39,6 +38,7 @@ from link_bot_pycommon.ros_pycommon import publish_color_image, publish_depth_im
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynamics_points_metrics_function
 from moonshine.geometry_tf import xyzrpy_to_matrices, transform_points_3d, densify_points
+from moonshine.grid_utils_tf import batch_center_res_shape_to_origin_point, dist_to_bbox
 from moonshine.numpify import numpify
 from moonshine.numpy import homogeneous
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
@@ -1157,3 +1157,24 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             'right_gripper': right_gripper_local,
             rope_key_name:   rope_local,
         }
+
+    def example_dict_to_flat_vector(self, example):
+        import torch
+        rope = example[add_predicted('rope')]
+        left_gripper = example[add_predicted('left_gripper')]
+        right_gripper = example[add_predicted('right_gripper')]
+        batch_size = rope.shape[0]
+        transition = torch.cat([rope, left_gripper, right_gripper], dim=-1)  # [batch_size, 2, 81]
+        return transition.reshape([batch_size, -1])
+
+    def flat_vector_to_example_dict(self, example, flat_vector_aug):
+        batch_size = example['env'].shape[0]
+        transition = flat_vector_aug.reshape([batch_size, 2, 81])
+        rope = transition[..., :75]
+        left_gripper = transition[..., 75:75 + 3]
+        right_gripper = transition[..., 75 + 3:75 + 6]
+        example_aug = deepcopy(example)
+        example_aug[add_predicted('rope')] = rope
+        example_aug[add_predicted('left_gripper')] = left_gripper
+        example_aug[add_predicted('right_gripper')] = right_gripper
+        return example_aug

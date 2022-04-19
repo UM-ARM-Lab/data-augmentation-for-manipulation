@@ -854,7 +854,7 @@ class CylindersScenario(PlanarPushingScenario):
         num_objs = example['num_objs'][0, 0, 0]
         time = example['num_objs'].shape[1]
         batch_size = example['num_objs'].shape[0]
-        matrix_aug = flat_vector_aug.view([batch_size, num_objs + 1, time, 1, pos_vel_dim])
+        matrix_aug = flat_vector_aug.reshape([batch_size, num_objs + 1, time, 1, pos_vel_dim])
         example_aug = deepcopy(example)
         for i, (pos_k, vel_k) in enumerate(self.iter_keys_pos_vel(num_objs)):
             v = matrix_aug[:, i]

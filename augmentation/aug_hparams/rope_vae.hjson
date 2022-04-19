@@ -1,0 +1,9 @@
+{
+  augmentation: {
+    # misc
+
+    viz: {
+      scale: 0.006
+    }
+  }
+}

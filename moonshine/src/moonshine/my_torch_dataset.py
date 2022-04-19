@@ -1,6 +1,6 @@
 import pathlib
+from typing import Optional, Dict
 
-import numpy as np
 from torch.utils.data import Dataset
 
 from link_bot_data.dataset_utils import pprint_example, merge_hparams_dicts
@@ -32,9 +32,15 @@ class MyTorchDataset(Dataset):
 
         return example
 
-    def get_scenario(self):
+    def get_scenario(self, scenario_params: Optional[Dict] = None):
+        if scenario_params is not None:
+            _scenario_params = scenario_params
+        elif hasattr(self, 'scenario_params'):
+            _scenario_params = self.scenario_params
+        else:
+            _scenario_params = {}
         if self.scenario is None:
-            self.scenario = get_scenario(self.params['scenario'], self.scenario_params)
+            self.scenario = get_scenario(self.params['scenario'], _scenario_params)
 
         return self.scenario
 

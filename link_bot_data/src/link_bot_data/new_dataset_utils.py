@@ -77,8 +77,9 @@ class DynamicsDatasetParams:
         self.params = merge_hparams_dicts(dataset_dirs)
         self.dataset_dirs = dataset_dirs
         self.data_collection_params = self.params['data_collection_params']
-        self.scenario_params = self.data_collection_params['scenario_params']
+        self.scenario_params = self.data_collection_params.get('scenario_params', {})
         self.state_description = self.data_collection_params['state_description']
+
         self.state_metadata_description = self.data_collection_params['state_metadata_description']
         self.action_description = self.data_collection_params['action_description']
         self.env_description = self.data_collection_params['env_description']

@@ -1,7 +1,7 @@
 import pathlib
 
 from link_bot_data.dataset_utils import add_predicted
-from link_bot_data.visualization import classifier_transition_viz_t
+from link_bot_data.visualization import classifier_transition_viz_t, init_viz_env, plot_state_t
 from moonshine.indexing import index_time_batched, index_time
 from moonshine.my_torch_dataset import MyTorchDataset
 from moonshine.numpify import numpify
@@ -21,7 +21,6 @@ class TorchMDEDataset(MyTorchDataset):
         self.action_description = self.data_collection_params['action_description']
         self.env_description = self.data_collection_params['env_description']
         self.state_keys = list(self.state_description.keys())
-        self.state_keys.append('time_idx')
         self.state_metadata_keys = list(self.state_metadata_description.keys())
         self.env_keys = list(self.env_description.keys())
         self.action_keys = list(self.action_description.keys())
@@ -41,3 +40,10 @@ class TorchMDEDataset(MyTorchDataset):
                                            state_metadata_keys=self.state_metadata_keys,
                                            predicted_state_keys=self.predicted_state_keys,
                                            true_state_keys=self.state_keys + ['error'])
+
+    def viz_pred_actual(self, actual, pred):
+        init_viz_env(self.get_scenario(), actual)
+        plot_state_t(self.get_scenario(), self.state_keys, actual, t=0, label='actual_0', color='r')
+        plot_state_t(self.get_scenario(), self.state_keys, actual, t=1, label='actual_1', color='r')
+        plot_state_t(self.get_scenario(), self.state_keys, pred, t=0, label='pred_0', color='b')
+        plot_state_t(self.get_scenario(), self.state_keys, pred, t=1, label='pred_1', color='b')

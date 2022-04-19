@@ -109,6 +109,7 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
                                take: Optional[int] = None,
                                visualize: bool = False,
                                batch_size: int = 128,
+                               use_torch: bool = False,
                                save_format='pkl'):
     loader = NewClassifierDatasetLoader([dataset_dir])
     viz_f = classifier_transition_viz_t(metadata={},
@@ -116,20 +117,20 @@ def augment_classifier_dataset(dataset_dir: pathlib.Path,
                                         predicted_state_keys=loader.predicted_state_keys,
                                         true_state_keys=None)
     debug_state_keys = [add_predicted(k) for k in loader.state_keys]
-    outdir = augment_dataset_from_loader(loader,
-                                         viz_f,
-                                         dataset_dir,
-                                         mode,
-                                         take,
-                                         hparams,
-                                         outdir,
-                                         n_augmentations,
-                                         debug_state_keys,
-                                         scenario,
-                                         visualize,
-                                         batch_size,
-                                         False,
-                                         save_format)
+    outdir = augment_dataset_from_loader(loader=loader,
+                                         viz_f=viz_f,
+                                         dataset_dir=dataset_dir,
+                                         mode=mode,
+                                         take=take,
+                                         hparams=hparams,
+                                         outdir=outdir,
+                                         n_augmentations=n_augmentations,
+                                         debug_state_keys=debug_state_keys,
+                                         scenario=scenario,
+                                         visualize=visualize,
+                                         batch_size=batch_size,
+                                         use_torch=use_torch,
+                                         save_format=save_format)
     split_dataset(outdir, val_split=0, test_split=0)
     return outdir
 
@@ -149,6 +150,8 @@ def augment(scenario, aug, n_augmentations, inputs, visualize, viz_f, use_torch)
         if use_torch:
             inputs = torchify(inputs)
         output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)
+        if use_torch:
+            output = numpify(output)
         output['augmented_from'] = inputs['full_filename']
 
         if visualize:

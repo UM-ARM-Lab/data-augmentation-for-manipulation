@@ -2,7 +2,10 @@
 import argparse
 import pathlib
 
+import transformations
+
 from link_bot_planning.test_scenes import TestScene
+from moonshine.numpy import homogeneous
 
 
 def move_poles_up(s: TestScene):
@@ -38,10 +41,9 @@ def adjust_pos(s: TestScene):
 
 def remove(s: TestScene):
     removes = [
-        'left_wall::link',
-        'right_wall::link',
-        'front_wall::link',
-        'back_wall::link',
+        'my_ground_plane::link',
+        'kinect2::link',
+        'kinect2::camera_frame_link',
     ]
     for n in removes:
         if n in s.links_states.name:
@@ -71,6 +73,13 @@ def change_joint_config(s: TestScene):
     s.joint_state.position[idx] += 0.05
     return s
 
+
+def convert_to_new_val_frame(s):
+    m = transformations.compose_matrix(angles=[-0.035, 0.000, -1.571], translate=[0.275, 0.005, 0.315])
+    new_goal = m @ homogeneous(s.goal['point'])
+    s.goal = {'point': new_goal[:3]}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("scenes_dir", type=pathlib.Path)
@@ -82,7 +91,7 @@ def main():
     for scene_idx in scene_indices:
         s = TestScene(args.scenes_dir, scene_idx)
 
-        s = adjust_pos(s)
+        s = remove(s)
 
         s.save(force=True)
 
