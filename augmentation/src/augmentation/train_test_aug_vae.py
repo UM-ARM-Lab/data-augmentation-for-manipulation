@@ -55,7 +55,7 @@ def fine_tune(dataset_dir: pathlib.Path,
 
     train_dataset = MyTorchDataset(dataset_dir, mode='train',
                                    transform=transform)
-    train_dataset_repeated = repeat_dataset(train_dataset, repeat=int(min(100 * batch_size / len(train_dataset), 1)))
+    train_dataset_repeated = repeat_dataset(train_dataset, repeat=int(max(100 * batch_size / len(train_dataset), 1)))
     val_dataset = MyTorchDataset(dataset_dir, mode='train',
                                  transform=transform)
 
@@ -94,10 +94,7 @@ def fine_tune(dataset_dir: pathlib.Path,
 
     if checkpoint is None:
         ckpt_path = None
-        # run_id = nickname
-        run_id = generate_id(length=5)
-        if nickname is not None:
-            run_id = nickname + '-' + run_id
+        run_id = nickname
         wandb_kargs = {'entity': user}
     else:
         ckpt_path = model_artifact_path(checkpoint, project, version='latest', user=user)

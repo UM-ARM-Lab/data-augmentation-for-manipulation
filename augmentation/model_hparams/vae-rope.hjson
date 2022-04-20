@@ -2,6 +2,6 @@
   input_dim: 162
   latent_dim: 256
   hidden_dim: 256
-  learning_rate: 2e-3
+  learning_rate: 1e-3
   scenario: dual_arm_rope_sim_val_with_robot_feasibility_checking
 }

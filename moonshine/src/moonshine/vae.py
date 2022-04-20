@@ -7,13 +7,6 @@ from torch import nn
 logger = logging.getLogger(__file__)
 
 
-def reparametrize(mu, log_var):
-    # Reparametrization Trick to allow gradients to backpropagate from the stochastic part of the model
-    sigma = torch.exp(0.5 * log_var)
-    z = torch.randn_like(sigma)
-    return mu + sigma * z
-
-
 # noinspection PyAbstractClass
 class MyVAE(pl.LightningModule):
 
@@ -71,20 +64,20 @@ class MyVAE(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
         return optimizer
 
-    def forward(self, example):
+    def forward(self, example, temperature=1):
         x = self.scenario.example_dict_to_flat_vector(example)
-        _, x_reconstruction = self.flat_vector_forward(x)
+        _, x_reconstruction = self.flat_vector_forward(x, temperature)
         reconstruction_dict = self.scenario.flat_vector_to_example_dict(example, x_reconstruction)
         return reconstruction_dict
 
-    def flat_vector_forward(self, x):
+    def flat_vector_forward(self, x, temperature=1):
         # encode x to get the mu and variance parameters
         x_encoded = self.encoder(x)
         mu, log_var = self.fc_mu(x_encoded), self.fc_var(x_encoded)
 
         # sample z from q
         std = torch.exp(log_var / 2)
-        q = torch.distributions.Normal(mu, std)
+        q = torch.distributions.Normal(mu, std / temperature)
         z = q.rsample()
 
         # decoded
