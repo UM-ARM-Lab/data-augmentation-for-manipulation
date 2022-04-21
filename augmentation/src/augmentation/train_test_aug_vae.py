@@ -57,7 +57,7 @@ def fine_tune(dataset_dirs: List[pathlib.Path],
     train_dataset = MyTorchDataset(dataset_dirs, mode='train',
                                    transform=transform)
     train_dataset_repeated = repeat_dataset(train_dataset, repeat=int(max(100 * batch_size / len(train_dataset), 1)))
-    val_dataset = MyTorchDataset(dataset_dir, mode='train',
+    val_dataset = MyTorchDataset(dataset_dirs, mode='train',
                                  transform=transform)
 
     train_loader = DataLoader(train_dataset_repeated,
@@ -80,7 +80,7 @@ def fine_tune(dataset_dirs: List[pathlib.Path],
     sha = repo.head.object.hexsha[:10]
     model_params['sha'] = sha
     model_params['start-train-time'] = stamp
-    model_params['dataset_dir'] = dataset_dir.as_posix()
+    model_params['dataset_dir'] = dataset_dirs[-1].as_posix()
     model_params['used_augmentation'] = train_dataset.params.get('used_augmentation', False)
     model_params['n_augmentations'] = train_dataset.params.get('n_augmentations', None)
     model_params['train_dataset_size'] = len(train_dataset)
