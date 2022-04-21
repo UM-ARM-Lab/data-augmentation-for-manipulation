@@ -51,7 +51,7 @@ def fine_tune(dataset_dirs: List[pathlib.Path],
 
     transform = transforms.Compose([
         remove_keys('filename', 'full_filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from', 'error',
-                    'predicted/error', 'sdf', 'sdf_grad'),
+                    'predicted/error', 'sdf', 'sdf_grad', 'is_close'),
     ])
 
     train_dataset = MyTorchDataset(dataset_dirs, mode='train',

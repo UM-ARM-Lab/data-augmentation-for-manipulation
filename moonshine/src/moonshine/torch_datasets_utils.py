@@ -74,7 +74,16 @@ def my_collate(batch):
     elif isinstance(elem, string_classes):
         return batch
     elif isinstance(elem, collections.abc.Mapping):
-        return {key: my_collate([d[key] for d in batch]) for key in elem}
+        common_keys = []
+        for key in elem:
+            is_common = True
+            for b in batch:
+                if key not in b:
+                    is_common = False
+                    break
+            if is_common:
+                common_keys.append(key)
+        return {key: my_collate([d[key] for d in batch]) for key in common_keys}
     elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
         return elem_type(*(my_collate(samples) for samples in zip(*batch)))
     elif isinstance(elem, collections.abc.Sequence):
