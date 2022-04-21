@@ -317,7 +317,7 @@ class IterativeFineTuning:
             vae_checkpoint = pathify(dataset_chunker.get("vae_checkpoint"))
             if vae_checkpoint is None:
                 model_params_path = pathlib.Path("../augmentation/model_hparams/vae-rope.hjson")
-                dataset_dirs = iteration_data.fine_tuning_classifier_dataset_dirs
+                dataset_dirs = iteration_data.fine_tuning_classifier_dataset_dirs + new_dataset_dir
                 vae_run_id = train_test_aug_vae.fine_tune(dataset_dirs,
                                                           model_params_path,
                                                           batch_size=32,
