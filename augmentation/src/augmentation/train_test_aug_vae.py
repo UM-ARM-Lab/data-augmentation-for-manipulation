@@ -63,14 +63,14 @@ def fine_tune(dataset_dirs: List[pathlib.Path],
     train_loader = DataLoader(train_dataset_repeated,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=0,
+                              num_workers=get_num_workers(batch_size),
                               collate_fn=my_collate)
 
     val_loader = None
     if len(val_dataset) > 0 and not no_validate:
         val_loader = DataLoader(val_dataset,
                                 batch_size=batch_size,
-                                num_workers=0,
+                                num_workers=get_num_workers(batch_size),
                                 collate_fn=my_collate)
 
     model_params['scenario'] = train_dataset.params['scenario']
