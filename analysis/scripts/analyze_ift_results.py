@@ -41,8 +41,9 @@ def metrics_main(args):
         '/media/shared/ift_ablations/no_invariance':     'Augmentation (No transf. Val.)',
         '/media/shared/ift_ablations/no_delta_min_dist': 'Augmentation (No delta min dist)',
         '/media/shared/ift_ablations/no_min_delta_dist': 'Augmentation (No delta min dist)',
-        '/media/shared/ift_ablations/noise': 'Gaussian Noise (baseline)',
-        '../link_bot_planning/real_val_ift/aug': 'Augmentation (full method)'
+        '/media/shared/ift_ablations/noise':             'Gaussian Noise (baseline)',
+        '../link_bot_planning/real_val_ift/aug':         'Augmentation (full method)',
+        'results/ift/debugging_vae-2/':                  'VAE (baseline)',
     }
 
     for i, k in enumerate(method_name_map.keys()):
@@ -75,8 +76,8 @@ def metrics_main(args):
             method_name_values.append(method_name_map[k])
     df_r['method_name'] = method_name_values
 
-    pvalues_at_iter(df_r, method_name_values, 99)
-    print_values_for_ablations_table(df_r, method_name_values, 99)
+    # pvalues_at_iter(df_r, method_name_values, 99)
+    # print_values_for_ablations_table(df_r, method_name_values, 99)
 
     # fig, ax = lineplot(df, iter_key, 'success', 'Success', hue='used_augmentation')
     # ax.set_xlim(-0.01, x_max)

@@ -50,7 +50,8 @@ def fine_tune(dataset_dir: pathlib.Path,
         scenario = get_scenario(model_params['scenario'], {'rope_name': 'rope_3d'})
 
     transform = transforms.Compose([
-        remove_keys('filename', 'full_filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from'),
+        remove_keys('filename', 'full_filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from', 'error',
+                    'predicted/error'),
     ])
 
     train_dataset = MyTorchDataset(dataset_dir, mode='train',
@@ -62,14 +63,14 @@ def fine_tune(dataset_dir: pathlib.Path,
     train_loader = DataLoader(train_dataset_repeated,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=get_num_workers(batch_size),
+                              num_workers=0,
                               collate_fn=my_collate)
 
     val_loader = None
     if len(val_dataset) > 0 and not no_validate:
         val_loader = DataLoader(val_dataset,
                                 batch_size=batch_size,
-                                num_workers=get_num_workers(batch_size),
+                                num_workers=0,
                                 collate_fn=my_collate)
 
     model_params['scenario'] = train_dataset.params['scenario']

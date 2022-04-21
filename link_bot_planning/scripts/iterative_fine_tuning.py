@@ -317,26 +317,16 @@ class IterativeFineTuning:
             vae_checkpoint = pathify(dataset_chunker.get("vae_checkpoint"))
             if vae_checkpoint is None:
                 model_params_path = pathlib.Path("../augmentation/model_hparams/vae-rope.hjson")
-                if i == 0:
-                    epochs = 50
-                    vae_run_id = None
-                else:
-                    epochs = 5
-                    jobkey = f"iteration {i - 1}"
-                    prev_iteration_chunker = self.job_chunker.sub_chunker(jobkey)
-                    vae_run_id = prev_iteration_chunker.get_result('vae_run_id')
-
                 vae_run_id = train_test_aug_vae.fine_tune(new_dataset_dir,
                                                           model_params_path,
                                                           batch_size=32,
-                                                          epochs=epochs,
+                                                          epochs=100,
                                                           seed=self.seed,
                                                           steps=-1,
-                                                          nickname=f'{self.outdir.name}',
-                                                          checkpoint=vae_run_id,
+                                                          nickname=f'{self.outdir.name}-iter-{i}',
+                                                          checkpoint=None,
                                                           project='aug_vae',
                                                           scenario=self.scenario)
-
                 vae_checkpoint = resolve_latest_model_version(vae_run_id, project='aug_vae', user='armlab')
                 aug_hparams_update = {'augmentation': {'vae_model': vae_checkpoint}}
                 dataset_chunker.store_result('aug_hparams_update', aug_hparams_update)

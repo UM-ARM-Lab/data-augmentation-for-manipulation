@@ -392,6 +392,11 @@ class ResultsToClassifierDataset:
                                        after_state_predicted=after_state_pred,
                                        environment=environment)
 
+            valid_out_example.pop('error', None)
+            valid_out_example.pop('predicted/error', None)
+            valid_out_example.pop('left_gripper_delta_position', None)
+            valid_out_example.pop('right_gripper_delta_position', None)
+
             yield valid_out_example  # yield here is more convenient than returning example/None
         elif test_shape > 1:
             raise NotImplementedError()
