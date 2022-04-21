@@ -21,8 +21,7 @@ logger = logging.getLogger(__file__)
 def remove_keys(*keys):
     def _remove_keys(example):
         for k in keys:
-            if k in example:
-                example.pop(k)
+            example.pop(k, None)
         return example
 
     return _remove_keys
