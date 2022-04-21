@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import pathlib
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 import git
 import pytorch_lightning as pl
@@ -30,7 +30,7 @@ from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, re
 PROJECT = 'aug_vae'
 
 
-def fine_tune(dataset_dir: pathlib.Path,
+def fine_tune(dataset_dirs: List[pathlib.Path],
               model_params_path: pathlib.Path,
               epochs: int,
               seed: int,
@@ -54,7 +54,7 @@ def fine_tune(dataset_dir: pathlib.Path,
                     'predicted/error'),
     ])
 
-    train_dataset = MyTorchDataset(dataset_dir, mode='train',
+    train_dataset = MyTorchDataset(dataset_dirs, mode='train',
                                    transform=transform)
     train_dataset_repeated = repeat_dataset(train_dataset, repeat=int(max(100 * batch_size / len(train_dataset), 1)))
     val_dataset = MyTorchDataset(dataset_dir, mode='train',

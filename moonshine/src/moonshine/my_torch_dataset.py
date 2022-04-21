@@ -11,9 +11,12 @@ from link_bot_pycommon.get_scenario import get_scenario
 class MyTorchDataset(Dataset):
 
     def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None):
-        self.dataset_dir = dataset_dir
         self.mode = mode
-        self.metadata_filenames = get_filenames([dataset_dir], mode)
+        self.dataset_dir = dataset_dir
+        if isinstance(dataset_dir, list):
+            self.metadata_filenames = get_filenames(dataset_dir, mode)
+        else:
+            self.metadata_filenames = get_filenames([dataset_dir], mode)
 
         self.params = merge_hparams_dicts(dataset_dir)
 
