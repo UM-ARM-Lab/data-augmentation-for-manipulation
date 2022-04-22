@@ -53,7 +53,7 @@ def dual_arm_rope_execute_action(scenario, robot: MoveitEnabledRobot, environmen
         try:
             res: GetOverstretchingResponse = scenario.overstretching_srv(GetOverstretchingRequest())
             overstretched = res.overstretched
-        except (rospy.ServiceException, rospy.TransportException):
+        except Exception:
             overstretched = False
 
     else:
