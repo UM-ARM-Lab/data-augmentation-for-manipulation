@@ -314,6 +314,7 @@ class IterativeFineTuning:
 
         is_vae = self.job_chunker.get("is_vae")
         if is_vae:
+            [p.suspend() for p in self.gazebo_processes]
             vae_checkpoint = pathify(dataset_chunker.get("vae_checkpoint"))
             if vae_checkpoint is None:
                 model_params_path = pathlib.Path("../augmentation/model_hparams/vae-rope.hjson")
