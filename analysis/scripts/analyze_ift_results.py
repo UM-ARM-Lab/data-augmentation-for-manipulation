@@ -44,6 +44,7 @@ def metrics_main(args):
         '/media/shared/ift_ablations/noise':             'Gaussian Noise (baseline)',
         '../link_bot_planning/real_val_ift/aug':         'Augmentation (full method)',
         'results/ift/debugging_vae-2/':                  'VAE (baseline)',
+        '/media/shared/ift_ablations/vae': 'VAE (baseline)',
     }
 
     for i, k in enumerate(method_name_map.keys()):
