@@ -124,10 +124,13 @@ def fine_tune(dataset_dirs: List[pathlib.Path],
 
     wb_logger.watch(model)
 
-    trainer.fit(model,
-                train_loader,
-                val_dataloaders=val_loader,
-                ckpt_path=ckpt_path)
+    try:
+        trainer.fit(model,
+                    train_loader,
+                    val_dataloaders=val_loader,
+                    ckpt_path=ckpt_path)
+    except Exception:
+        pass
     wandb.finish()
 
     return run_id
