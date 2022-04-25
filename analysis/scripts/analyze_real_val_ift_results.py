@@ -25,11 +25,6 @@ def metrics_main(args):
     ci = 95
     iter_key = 'ift_iteration'
 
-    # z2 = df.groupby(iter_key).agg('mean').rolling(w).agg('mean')  # groupby iter_key also sorts by default
-    # fig, ax = lineplot(z2, iter_key, 'success', 'Success Rate [all combined] (rolling)')
-    # ax.set_xlim(-0.01, x_max)
-    # ax.set_ylim(-0.01, 1.01)
-
     # compute rolling average per run
 
     method_name_map = {
@@ -41,6 +36,8 @@ def metrics_main(args):
         '/media/shared/ift_ablations/no_min_delta_dist': 'Augmentation (No Delta Min Dist)',
         'real_val_ift/aug':                              'Augmentation (full method)',
         'real_val_ift/no-aug':                              'No Augmentation (baseline)',
+        '/media/shared/real_val_ift/aug':    'Augmentation (full method)',
+        '/media/shared/real_val_ift/no-aug': 'No Augmentation (baseline)',
     }
 
     for i, k in enumerate(method_name_map.keys()):
@@ -50,13 +47,6 @@ def metrics_main(args):
     agg = {
         'success':           'mean',
         'task_error':        'mean',
-        # 'normalized_model_error':      'mean',
-        # 'combined_error':              'mean',
-        # 'min_error_discrepancy':       'mean',
-        # 'total_time':                  'mean',
-        # 'min_planning_error':          'mean',
-        # 'mean_error_accept_agreement': 'mean',
-        # 'mean_accept_probability':     'mean',
         'used_augmentation': rlast,
         'method_idx':        rlast,
         iter_key:            rlast,
@@ -75,66 +65,11 @@ def metrics_main(args):
             method_name_values.append(method_name_map[k])
     df_r['method_name'] = method_name_values
 
-    pvalues_at_iter(df_r, method_name_values, args.eval_iter)
-    print_values_for_ablations_table(df_r, method_name_values, args.eval_iter)
-
-    # fig, ax = lineplot(df, iter_key, 'success', 'Success', hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # ax.set_ylim(-0.01, 1.01)
-    # plt.savefig(outdir / f'success.png')
-
     fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='method_name', ci=ci)
-    # fig, ax = lineplot(df_r, iter_key, 'success', f'Success Rate (rolling={w})', hue='used_augmentation', ci=ci)
     ax.set_xlim(-0.01, x_max)
     ax.set_ylim(-0.01, 1.01)
-    # ax.axhline(0.8125, color='black', linewidth=4, label='heuristic classifier')
     ax.legend()
     plt.savefig(outdir / f'success_rate_rolling.png', dpi=180)
-
-    # fig, ax = lineplot(df, iter_key, 'any_solved', 'Any Solved', hue='used_augmentation')
-    # plt.savefig(outdir / f'any_solved.png')
-    #
-    # fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error (separate)', hue='ift_uuid')
-    # ax.set_xlim(-0.01, x_max)
-
-    # fig, ax = lineplot(df, iter_key, 'task_error', 'Task Error', hue='used_augmentation')
-    # ax.axhline(0.045, color='black', linewidth=3, label='goal threshold')
-    # ax.set_xlim(-0.01, x_max)
-
-    # fig, ax = lineplot(df_r, iter_key, 'task_error', f'Task Error (rolling={w})', hue='used_augmentation', ci=ci)
-    # ax.set_xlim(-0.01, x_max)
-    # ax.axhline(0.045, color='black', linewidth=3, label='goal threshold')
-    # ax.legend()
-    # plt.savefig(outdir / f'task_error_rolling.png')
-    #
-    # fig, ax = lineplot(df_r, iter_key, 'combined_error', f'Combined Score (rolling={w})', hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'combined_error_rolling.png')
-    #
-    # fig, ax = lineplot(df_r, iter_key, 'min_error_discrepancy', f'Error Discrepancy (rolling={w})',
-    #                    hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'min_error_discrepancy_rolling.png')
-    #
-    # fig, ax = lineplot(df_r, iter_key, 'min_planning_error', f'Planning Error (rolling={w})', hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'min_planning_error_rolling.png')
-    #
-    # fig, ax = lineplot(df_r, iter_key, 'normalized_model_error', f'Normalized Model Error (rolling={w})',
-    #                    hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # ax.set_ylim(0.0, nme_max)
-    # plt.savefig(outdir / f'normalized_model_error_rolling.png')
-    #
-    # fig, ax = lineplot(df_r, iter_key, 'mean_error_accept_agreement', f'Error-Accept Agreement (rolling={w})',
-    #                    hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'error_accept_agreement_rolling.png')
-    #
-    # fig, ax = lineplot(df_r, iter_key, 'mean_accept_probability', f'Accept Probability (rolling={w})',
-    #                    hue='used_augmentation')
-    # ax.set_xlim(-0.01, x_max)
-    # plt.savefig(outdir / f'accept_probability_rolling.png')
 
     if not args.no_plot:
         plt.show()
