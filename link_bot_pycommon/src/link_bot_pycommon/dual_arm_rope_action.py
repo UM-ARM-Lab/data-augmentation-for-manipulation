@@ -26,12 +26,14 @@ def dual_arm_rope_execute_action(scenario, robot: MoveitEnabledRobot, environmen
     grippers = [[left_gripper_point], [right_gripper_point]]
 
     if check_overstretching:
-        res: GetOverstretchingResponse = scenario.overstretching_srv(GetOverstretchingRequest())
-
-        if res.magnitude > 1.16:
-            # just do nothing...
-            rospy.logwarn("The rope is extremely overstretched -- refusing to execute action")
-            return (end_trial := True)
+        try:
+            res: GetOverstretchingResponse = scenario.overstretching_srv(GetOverstretchingRequest())
+            if res.magnitude > 1.16:
+                # just do nothing...
+                rospy.logwarn("The rope is extremely overstretched -- refusing to execute action")
+                return (end_trial := True)
+        except Exception:
+            pass
 
     if check_overstretching:
         def _stop_condition(_):
@@ -74,5 +76,9 @@ def dual_arm_rope_execute_action(scenario, robot: MoveitEnabledRobot, environmen
 
 
 def overstretching_stop_condition(scenario):
-    res: GetOverstretchingResponse = scenario.overstretching_srv(GetOverstretchingRequest())
-    return res.overstretched
+    try:
+        res: GetOverstretchingResponse = scenario.overstretching_srv(GetOverstretchingRequest())
+        return res.overstretched
+    except Exception:
+        return False
+
