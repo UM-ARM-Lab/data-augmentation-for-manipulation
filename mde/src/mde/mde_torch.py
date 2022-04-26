@@ -61,6 +61,7 @@ class MDE(pl.LightningModule):
         for hidden_size in self.hparams['fc_layer_sizes']:
             fc_layers.append(nn.Linear(in_size, hidden_size))
             fc_layers.append(nn.LeakyReLU())
+            fc_layers.append(nn.Dropout(p=self.hparams.get('dropout_p', 0.0)))
             in_size = hidden_size
         final_hidden_dim = self.hparams['fc_layer_sizes'][-1]
         fc_layers.append(nn.LSTM(final_hidden_dim, self.hparams['rnn_size'], 1))
@@ -172,17 +173,22 @@ class MDE(pl.LightningModule):
     def validation_step(self, val_batch: Dict[str, torch.Tensor], batch_idx):
         outputs = self.forward(val_batch)
         loss = self.compute_loss(val_batch, outputs)
-        true_error_thresholded = val_batch['error'][:, 1] < self.hparams.error_threshold
+        true_error = val_batch['error'][:, 1]
+        true_error_thresholded = true_error < self.hparams.error_threshold
         pred_error_thresholded = outputs < self.hparams.error_threshold
         self.log('val_loss', loss)
-        self.val_accuracy(pred_error_thresholded, true_error_thresholded)
+        self.val_accuracy(pred_error_thresholded, true_error_thresholded)  # updates the metric
         return loss
 
     def validation_epoch_end(self, _):
-        self.log('val_accuracy', self.val_accuracy)
+        self.log('val_accuracy', self.val_accuracy)  # logs the metric result/value
+        # reset all metrics
+        self.val_accuracy.reset()
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        return torch.optim.Adam(self.parameters(),
+                                lr=self.hparams.learning_rate,
+                                weight_decay=self.haparams.get('weight_decay', 0))
 
 
 class MDEConstraintChecker:

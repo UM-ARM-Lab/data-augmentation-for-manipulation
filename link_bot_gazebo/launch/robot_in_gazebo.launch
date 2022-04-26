@@ -15,6 +15,7 @@
     <arg name="robot_name" default="none"/>
 
     <param name="robot_name" value="$(arg robot_name)" type="string"/>
+    <param name="world_file_name" value="$(arg world)" type="string"/>
 
     <!-- /////////////////////////////////////////////// -->
     <!-- Gazebo -->

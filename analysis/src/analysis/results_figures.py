@@ -67,8 +67,8 @@ def violinplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None
     return generic_plot('violinplot', df, outdir, x, y, title, hue, save, figsize)
 
 
-def barplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, ci=100):
-    fig, ax = plt.subplots(figsize=(12, 8))
+def barplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, ci=100, figsize=DEFAULT_FIG_SIZE):
+    fig, ax = plt.subplots(figsize=figsize)
     sns.barplot(
         ax=ax,
         data=df,

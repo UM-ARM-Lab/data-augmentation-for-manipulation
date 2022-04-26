@@ -37,6 +37,8 @@ class MyHjsonEncoder(hjson.HjsonEncoder):
             return str(obj)
         elif isinstance(obj, genpy.Message):
             return message_converter.convert_ros_message_to_dictionary(obj)
+        elif isinstance(obj, bytes):
+            return obj.decode('utf-8')
         return hjson.HjsonEncoder.default(self, obj)
 
 

@@ -8,5 +8,5 @@
     recovery_model_dir: /media/shared/recovery_trials/random/none
     use_recovery: true
   }
-  mde_threshold: 0.05
+  mde_threshold: 999
 }

@@ -29,4 +29,6 @@
   local_env_w_cols: 44
   local_env_c_channels: 44
   error_threshold: 0.05
+  weight_decay: 1e-4
+  dropout_p: 0.2
 }

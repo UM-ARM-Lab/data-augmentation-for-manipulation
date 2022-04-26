@@ -75,6 +75,8 @@ class EvaluatePlanning(plan_and_execute.PlanAndExecute):
             'seed':                  self.seed,
             'experiment_start_time': int(time()),
             'experiment_uuid':       uuid.uuid4(),
+            'world_file_name':       rospy.get_param('world_file_name', None),
+            'world_initial_sdf':     service_provider.get_world_initial_sdf(),
         }
         metadata.update(self.planner.get_metadata())
         if metadata_update is not None:

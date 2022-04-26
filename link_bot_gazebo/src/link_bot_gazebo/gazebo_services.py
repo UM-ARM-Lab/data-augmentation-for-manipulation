@@ -1,4 +1,5 @@
 import pathlib
+import re
 from typing import Optional, List
 
 import rospkg
@@ -7,7 +8,7 @@ import ros_numpy
 import rosbag
 import roslaunch
 import rospy
-from arm_gazebo_msgs.srv import SetLinkStates, SetLinkStatesRequest
+from arm_gazebo_msgs.srv import SetLinkStates, SetLinkStatesRequest, GetWorldInitialSDFResponse, GetWorldInitialSDF
 from gazebo_msgs import msg as gz_msg
 from gazebo_msgs.srv import SetPhysicsPropertiesRequest, GetPhysicsPropertiesRequest
 from link_bot_pycommon.base_services import BaseServices
@@ -25,6 +26,7 @@ class GazeboServices(BaseServices):
         self.set_link_states = self.add_required_service('arm_gazebo/set_link_states', SetLinkStates)
         self.pause_srv = rospy.ServiceProxy('/gazebo/pause_physics', Empty, persistent=True)
         self.play_srv = rospy.ServiceProxy('/gazebo/unpause_physics', Empty, persistent=True)
+        self.get_world_initial_sdf_srv = rospy.ServiceProxy('arm_gazebo/world_initial_sdf', GetWorldInitialSDF)
 
     def restore_from_bag(self, bagfile_name: pathlib.Path, excluded_models: Optional[List[str]] = None):
         with rosbag.Bag(bagfile_name) as bag:
@@ -108,6 +110,13 @@ class GazeboServices(BaseServices):
             self.pause_srv(EmptyRequest())
         except rospy.ServiceException:
             pass
+
+    def get_world_initial_sdf(self):
+        res: GetWorldInitialSDFResponse = self.get_world_initial_sdf_srv()
+        sdf = res.world_initial_sdf
+        sdf = sdf.replace("\n", "")
+        sdf = re.sub("> +", ">", sdf)
+        return sdf
 
 
 def gz_scope(*args):

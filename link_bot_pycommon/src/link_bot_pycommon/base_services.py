@@ -1,12 +1,13 @@
-from time import sleep
+import zlib
 from typing import Dict, List, Optional
 
-import rospy
 from arm_video_recorder.srv import TriggerVideoRecording, TriggerVideoRecordingRequest
+
+import rospy
+from arm_gazebo_msgs.srv import ComputeOccupancy, GetWorldInitialSDFResponse, GetWorldInitialSDF
 from gazebo_msgs.srv import GetPhysicsProperties, SetPhysicsProperties
 from geometry_msgs.msg import Pose
 from peter_msgs.srv import WorldControl, WorldControlRequest
-from arm_gazebo_msgs.srv import ComputeOccupancy
 
 
 class BaseServices:
@@ -18,7 +19,7 @@ class BaseServices:
         self.get_physics = self.add_required_service('/gazebo/get_physics_properties', GetPhysicsProperties)
         self.set_physics = self.add_required_service('/gazebo/set_physics_properties', SetPhysicsProperties)
 
-        # services we don't absolute want to wait for on startup
+        # services we don't absolutly want to wait for on startup
         self.compute_occupancy = rospy.ServiceProxy('/occupancy', ComputeOccupancy)
         self.record = rospy.ServiceProxy('video_recorder', TriggerVideoRecording)
 
@@ -62,7 +63,7 @@ class BaseServices:
         self.service_names.append(service_name)
         return rospy.ServiceProxy(service_name, service_type)
 
-    def restore_from_bag(self, bagfile_name, excluded_models : Optional[List[str]] = None):
+    def restore_from_bag(self, bagfile_name, excluded_models: Optional[List[str]] = None):
         pass
 
     def step(self, steps: int = 1):

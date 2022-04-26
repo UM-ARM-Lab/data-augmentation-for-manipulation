@@ -5,11 +5,16 @@ import pathlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from time import perf_counter
 from analysis.analyze_results import planning_results
-from analysis.results_figures import violinplot
+
+t0 = perf_counter()
+from analysis.results_figures import violinplot, barplot
 from arc_utilities import ros_init
 from link_bot_pycommon.string_utils import shorten
 from moonshine.gpu_config import limit_gpu_mem
+
+print(perf_counter() - t0)
 
 limit_gpu_mem(0.1)
 
@@ -29,25 +34,21 @@ def analyze_planning_results(args):
     total = df['success'].count()
     print(f"{successes}/{total} = {successes / total}")
 
-    hue = 'used_augmentation'
+    hue = 'classifier_name'
 
-    _, ax = violinplot(df, outdir, hue, 'task_error', "Task Error")
+    _, ax = violinplot(df, outdir, hue, 'task_error', "Task Error", figsize=(12, 8))
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
-    #
-    # _, ax = violinplot(df, outdir, hue, 'normalized_model_error', 'Normalized Model Error')
-    # _, ymax = ax.get_ylim()
-    # ax.set_ylim([0, ymax])
-    #
-    # _, ax = violinplot(df, outdir, hue, 'combined_error', 'Combined Error')
-    # _, ymax = ax.get_ylim()
-    # ax.set_ylim([0, ymax])
-    #
-    fig, ax = plt.subplots(figsize=(12, 8))
+
+    violinplot(df, outdir, hue, 'normalized_model_error', "Model Error", figsize=(12, 8))
+
+    barplot(df, outdir, hue, 'any_solved', "Any Plans Found?", figsize=(12, 8))
+
+    fig, ax = plt.subplots(figsize=(14, 7))
     sns.barplot(
         ax=ax,
         data=df,
-        x='used_augmentation',
+        x=hue,
         y='success',
         palette='colorblind',
         linewidth=5,
@@ -61,11 +62,7 @@ def analyze_planning_results(args):
     ax.set_ylim(0, 1.0)
     ax.set_title('success')
     plt.savefig(outdir / f'success.png')
-    #
-    # _, ax = violinplot(df, outdir, hue, 'min_planning_error', "Planning Error")
-    #
-    # _, ax = violinplot(df, outdir, hue, 'min_error_discrepancy', "Error Discrepancy")
-    #
+
     if not args.no_plot:
         plt.show()
 
