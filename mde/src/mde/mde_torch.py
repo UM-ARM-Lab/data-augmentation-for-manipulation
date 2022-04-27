@@ -58,10 +58,12 @@ class MDE(pl.LightningModule):
         conv_out_size = int(self.hparams['conv_filters'][-1][0] * np.prod(self.hparams['conv_filters'][-1][1]))
         prev_error_size = 1
         in_size = conv_out_size + 2 * state_size + action_size + prev_error_size
+        use_drop_out = 'dropout_p' in self.hparams
         for hidden_size in self.hparams['fc_layer_sizes']:
             fc_layers.append(nn.Linear(in_size, hidden_size))
             fc_layers.append(nn.LeakyReLU())
-            fc_layers.append(nn.Dropout(p=self.hparams.get('dropout_p', 0.0)))
+            if use_drop_out:
+                fc_layers.append(nn.Dropout(p=self.hparams.get('dropout_p', 0.0)))
             in_size = hidden_size
         final_hidden_dim = self.hparams['fc_layer_sizes'][-1]
         fc_layers.append(nn.LSTM(final_hidden_dim, self.hparams['rnn_size'], 1))
@@ -181,14 +183,14 @@ class MDE(pl.LightningModule):
         return loss
 
     def validation_epoch_end(self, _):
-        self.log('val_accuracy', self.val_accuracy)  # logs the metric result/value
+        self.log('val_accuracy', self.val_accuracy.compute())  # logs the metric result/value
         # reset all metrics
         self.val_accuracy.reset()
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(),
                                 lr=self.hparams.learning_rate,
-                                weight_decay=self.haparams.get('weight_decay', 0))
+                                weight_decay=self.hparams.get('weight_decay', 0))
 
 
 class MDEConstraintChecker:

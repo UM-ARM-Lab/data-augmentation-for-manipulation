@@ -7,7 +7,6 @@ from time import sleep
 import rospy
 from arc_utilities import ros_init
 from link_bot_gazebo.gazebo_services import GazeboServices
-from link_bot_gazebo.gazebo_utils import save_gazebo_pids, get_gazebo_pids
 from roslaunch.pmon import ProcessListener
 from std_msgs.msg import Empty
 

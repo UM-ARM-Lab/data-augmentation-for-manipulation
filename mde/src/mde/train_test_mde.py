@@ -116,7 +116,7 @@ def train_main(dataset_dir: pathlib.Path,
                          enable_model_summary=False,
                          max_epochs=epochs,
                          max_steps=steps,
-                         log_every_n_steps=100,
+                         log_every_n_steps=10,
                          check_val_every_n_epoch=1,
                          callbacks=[ckpt_cb],
                          default_root_dir='wandb')
