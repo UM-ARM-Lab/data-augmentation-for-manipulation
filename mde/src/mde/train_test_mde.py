@@ -32,9 +32,10 @@ def prepare_train(batch_size, dataset_dir, take, skip, transform):
     train_dataset_take = take_subset(train_dataset, take)
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
     train_dataset_len = len(train_dataset_skip)
+    print("TURN SHUFFLE BACK ON!!!!")
     train_loader = DataLoader(train_dataset_skip,
                               batch_size=batch_size,
-                              shuffle=True,
+                              shuffle=False,
                               collate_fn=my_collate,
                               num_workers=get_num_workers(batch_size))
     return train_loader, train_dataset, train_dataset_len
@@ -116,10 +117,11 @@ def train_main(dataset_dir: pathlib.Path,
                          enable_model_summary=False,
                          max_epochs=epochs,
                          max_steps=steps,
-                         log_every_n_steps=10,
+                         log_every_n_steps=1,
                          check_val_every_n_epoch=1,
                          callbacks=[ckpt_cb],
                          default_root_dir='wandb')
+    wb_logger.watch(model)
     trainer.fit(model,
                 train_loader,
                 val_dataloaders=val_loader,
@@ -129,11 +131,11 @@ def train_main(dataset_dir: pathlib.Path,
     # script = model.to_torchscript()
     # torch.jit.save(script, "model.pt")
 
-    eval_main(dataset_dir,
-              run_id,
-              mode='test',
-              user=user,
-              batch_size=batch_size)
+    # eval_main(dataset_dir,
+    #           run_id,
+    #           mode='test',
+    #           user=user,
+    #           batch_size=batch_size)
 
     return run_id
 

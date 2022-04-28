@@ -2,8 +2,10 @@ import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pytorch_lightning
 import seaborn as sns
+from sklearn.linear_model import LinearRegression
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from tqdm import tqdm
@@ -47,24 +49,31 @@ def main():
             pred_errors.extend(pred_error.detach().cpu().numpy().tolist())
             true_errors.extend(true_error.detach().cpu().numpy().tolist())
 
+        true_errors_2d = np.array(true_errors).reshape([-1, 1])
+        pred_errors_2d = np.array(pred_errors).reshape([-1, 1])
+        reg = LinearRegression().fit(true_errors_2d, pred_errors_2d)
+        r2_score = reg.score(true_errors_2d, pred_errors_2d)
+        slope = float(reg.coef_[0, 0])
+        print(f"r2_score: {r2_score:.3f}")
+        print(f"slope: {slope:.3f}")
+
         plt.style.use("slides")
-        plt.figure()
-        plt.axis('equal')
+        plt.figure(figsize=(12, 12))
         ax = plt.gca()
         ax.scatter(true_errors, pred_errors, c='k', alpha=0.1)
         sns.kdeplot(ax=ax, x=true_errors, y=pred_errors)
-        ax.set_ylim(bottom=-0.001)
-        ax.set_xlim(left=-0.001)
-        ax.set_title(f"True vs Predicted Model Error ({mode}) ({args.checkpoint})")
+        ax.set_xlim(-0.001, 0.4)
+        ax.set_ylim(-0.001, 0.4)
+        ax.set_aspect("equal")
+        ax.set_title(f"Error ({mode}) ({args.checkpoint})")
         ax.set_xlabel("true error")
         ax.set_ylabel("predicted error")
+        ax.text(0.01, 0.38, f"r2={r2_score:.3f},slope={slope:.3f}")
 
         root = pathlib.Path("results/mde_scatters")
         root.mkdir(exist_ok=True, parents=True)
         filename = root / f'mde_scatter_{args.checkpoint}_{mode}'
         plt.savefig(filename.as_posix())
-
-    plt.show()
 
 
 if __name__ == '__main__':
