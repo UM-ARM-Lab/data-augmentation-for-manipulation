@@ -67,11 +67,18 @@ class MDE(pl.LightningModule):
                 fc_layers.append(nn.Dropout(p=self.hparams.get('dropout_p', 0.0)))
             in_size = hidden_size
 
+        final_hidden_dim = self.hparams['fc_layer_sizes'][-1]
+        self.no_lstm = self.hparams.get('no_lstm', False)
+        if not self.no_lstm:
+            fc_layers.append(nn.LSTM(final_hidden_dim, self.hparams['rnn_size'], 1))
+
         self.conv_encoder = torch.nn.Sequential(*conv_layers)
         self.fc = torch.nn.Sequential(*fc_layers)
 
-        final_hidden_dim = self.hparams['fc_layer_sizes'][-1]
-        self.output_layer = nn.Linear(2 * final_hidden_dim, 1)
+        if self.no_lstm:
+            self.output_layer = nn.Linear(2 * final_hidden_dim, 1)
+        else:
+            self.output_layer = nn.Linear(final_hidden_dim, 1)
 
         self.debug = DebuggingViz(self.scenario, self.hparams.state_keys, self.hparams.action_keys)
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
@@ -142,13 +149,17 @@ class MDE(pl.LightningModule):
         padded_prev_pred_error = F.pad(prev_pred_error, [0, 0, 0, 1, 0, 0])
         cat_args = [conv_h, padded_prev_pred_error] + states_robot_frame_list + states_local_frame_list + padded_actions
         fc_in = torch.cat(cat_args, -1)
-        fc_out_h = self.fc(fc_in)
 
-        out_h = fc_out_h.reshape(batch_size, -1)
-
-        # for every timestep's output, map down to a single scalar, the logit for accept probability
-        predicted_error = self.output_layer(out_h)
-        predicted_error = predicted_error.squeeze(1)
+        if self.no_lstm:
+            fc_out_h = self.fc(fc_in)
+            out_h = fc_out_h.reshape(batch_size, -1)
+            predicted_error = self.output_layer(out_h)
+            predicted_error = predicted_error.squeeze(1)
+        else:
+            out_h, _ = self.fc(fc_in)
+            # for every timestep's output, map down to a single scalar, the logit for accept probability
+            predicted_errors = self.output_layer(out_h)
+            predicted_error = predicted_errors[:, 1:].squeeze(1).squeeze(1)
 
         return predicted_error
 

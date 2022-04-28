@@ -5,18 +5,13 @@ import pathlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from time import perf_counter
 from analysis.analyze_results import planning_results
-
-t0 = perf_counter()
-from analysis.results_figures import violinplot, barplot
+from analysis.results_figures import barplot, boxplot
 from arc_utilities import ros_init
 from link_bot_pycommon.string_utils import shorten
 from moonshine.gpu_config import limit_gpu_mem
 
-print(perf_counter() - t0)
-
-limit_gpu_mem(0.1)
+limit_gpu_mem(None)
 
 
 def analyze_planning_results(args):
@@ -34,13 +29,13 @@ def analyze_planning_results(args):
     total = df['success'].count()
     print(f"{successes}/{total} = {successes / total}")
 
-    hue = 'classifier_name'
+    hue = 'dmax'
 
-    _, ax = violinplot(df, outdir, hue, 'task_error', "Task Error", figsize=(12, 8))
+    _, ax = boxplot(df, outdir, hue, 'task_error', "Task Error", figsize=(12, 8))
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
 
-    violinplot(df, outdir, hue, 'normalized_model_error', "Model Error", figsize=(12, 8))
+    boxplot(df, outdir, hue, 'normalized_model_error', "Model Error", figsize=(12, 8))
 
     barplot(df, outdir, hue, 'any_solved', "Any Plans Found?", figsize=(12, 8))
 

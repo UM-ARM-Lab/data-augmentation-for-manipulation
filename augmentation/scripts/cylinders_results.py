@@ -42,7 +42,17 @@ def main():
         columns=['method_name', 'Position Error']
     )
 
+    print()
+    print("P-values:")
     print(df_to_pvalue_table(results, 'Position Error'))
+
+    print()
+    print("stds:")
+    print(results.groupby("method_name").std())
+
+    print()
+    print("Means:")
+    print(results.groupby("method_name").mean())
 
     fig, ax = barplot(results, pathlib.Path("results"), y='method_name', x='Position Error', title='Position Error',
                       figsize=(14, 6))

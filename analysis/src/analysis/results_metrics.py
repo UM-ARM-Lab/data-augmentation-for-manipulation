@@ -381,7 +381,6 @@ def classifier_source_env(path: pathlib.Path, __: ExperimentScenario, trial_meta
         classifier_hparams = trial_metadata_to_classifier_hparams(path, trial_metadata)
         scene_name = has_keys(classifier_hparams, ['classifier_dataset_hparams', 'scene_name'], None)
         if scene_name is None:
-            print(f"Missing scene_name for {trial_metadata['planner_params']['classifier_model_dir'][0]}")
             return "no-scene-name"
         else:
             return scene_name
@@ -392,6 +391,11 @@ def classifier_source_env(path: pathlib.Path, __: ExperimentScenario, trial_meta
 @metrics_funcs
 def target_env(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
     return pathlib.Path(trial_metadata['test_scenes_dir']).name
+
+
+@metrics_funcs
+def dmax(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
+    return trial_metadata['planner_params']['mde_threshold']
 
 
 def load_analysis_params(analysis_params_filename: Optional[pathlib.Path] = None):

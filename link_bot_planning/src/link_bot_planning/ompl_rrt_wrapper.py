@@ -216,7 +216,9 @@ class OmplRRTWrapper(MyPlanner):
                 pred_error = classifier.check_constraint(environment=self.sps.environment,
                                                          states_sequence=states,
                                                          actions=actions)
-                p_accepts_for_model = np.array([pred_error < self.params['mde_threshold']]).astype(np.int32)
+                dmax = 0.0001 * np.exp(0.001 * self.ptc.attempted_extensions) + 0.05
+                print(self.ptc.attempted_extensions, dmax)
+                p_accepts_for_model = np.array([pred_error < dmax]).astype(np.int32)
                 if pred_error > max_pred_error:
                     max_pred_error = pred_error
             else:
