@@ -19,6 +19,7 @@ from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifa
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
+from moonshine.my_pl_callbacks import HeartbeatCallback
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, repeat_dataset
 from moonshine.torchify import torchify
@@ -106,6 +107,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
+    hearbeat_callback = HeartbeatCallback(model.scenario)
     trainer = pl.Trainer(gpus=1,
                          logger=wb_logger,
                          enable_model_summary=False,
@@ -113,7 +115,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                          max_steps=steps,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=10,
-                         callbacks=[ckpt_cb],
+                         callbacks=[ckpt_cb, hearbeat_callback],
                          default_root_dir='wandb',
                          gradient_clip_val=0.05)
     wb_logger.watch(model)
@@ -192,6 +194,7 @@ def train_main(dataset_dir: pathlib.Path,
     model = UDNN(**model_params)
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
+    hearbeat_callback = HeartbeatCallback(model.scenario)
     trainer = pl.Trainer(gpus=1,
                          logger=wb_logger,
                          enable_model_summary=False,
@@ -199,7 +202,7 @@ def train_main(dataset_dir: pathlib.Path,
                          max_steps=steps,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=10,
-                         callbacks=[ckpt_cb],
+                         callbacks=[ckpt_cb, hearbeat_callback],
                          default_root_dir='wandb',
                          gradient_clip_val=0.05)
     wb_logger.watch(model)

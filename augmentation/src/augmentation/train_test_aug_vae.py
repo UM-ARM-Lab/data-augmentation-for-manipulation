@@ -19,6 +19,7 @@ from mde.torch_mde_dataset import TorchMDEDataset
 from moonshine.dynamics_aes import DynamicsVAE
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
+from moonshine.my_pl_callbacks import HeartbeatCallback
 from moonshine.my_torch_dataset import MyTorchDataset
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch
@@ -110,6 +111,7 @@ def fine_tune(dataset_dirs: List[pathlib.Path],
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
 
     ckpt_cb = ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
+    hearbeat_callback = HeartbeatCallback(scenario)
 
     trainer = pl.Trainer(gpus=1,
                          logger=wb_logger,
@@ -118,7 +120,7 @@ def fine_tune(dataset_dirs: List[pathlib.Path],
                          max_steps=steps,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=1,
-                         callbacks=[ckpt_cb],
+                         callbacks=[ckpt_cb, hearbeat_callback],
                          default_root_dir='wandb',
                          gradient_clip_val=0.1)
 

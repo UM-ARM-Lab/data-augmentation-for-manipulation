@@ -21,5 +21,6 @@ class VAEAugmentation:
         self.temperature = 10
 
     def aug_opt(self, example: Dict, *args, **kwargs):
+        self.scenario.heartbeat()
         example_aug = self.model(example, temperature=self.temperature)
         return example_aug
