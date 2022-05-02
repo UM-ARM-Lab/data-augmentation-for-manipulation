@@ -395,7 +395,13 @@ def target_env(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, __
 
 @metrics_funcs
 def dmax(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict, ___: Dict):
-    return trial_metadata['planner_params']['mde_threshold']
+    pp = trial_metadata['planner_params']
+    if 'mde_threshold' in pp:
+        return pp['mde_threshold']
+    elif 'dmax' in pp:
+        return pp['dmax']
+    else:
+        return -1
 
 
 def load_analysis_params(analysis_params_filename: Optional[pathlib.Path] = None):

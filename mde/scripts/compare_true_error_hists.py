@@ -2,6 +2,7 @@ import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
+import seaborn as sns
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -18,26 +19,28 @@ def main():
 
     args = parser.parse_args()
 
-    datasets = [TorchMDEDataset(dataset_dir, mode=args.mode) for dataset_dir in args.dataset_dirs]
+    datasets = [TorchMDEDataset(dataset_dir, mode=args.mode, only_metadata=True) for dataset_dir in args.dataset_dirs]
 
-    plt.figure()
+    plt.style.use('slides')
+    plt.figure(figsize=(10,8))
     ax = plt.gca()
 
     all_errors = []
     for dataset_i in datasets:
         true_errors_i = []
-        loader = DataLoader(dataset_i, collate_fn=my_collate, batch_size=64, shuffle=True)
+        loader = DataLoader(dataset_i, collate_fn=my_collate, batch_size=16, shuffle=False)
         for batch in tqdm(loader):
             true_error = batch['error'][:, 1]
             true_errors_i.extend(true_error.detach().cpu().numpy().tolist())
         all_errors.append(true_errors_i)
 
     for true_errors_i, dataset_dir in zip(all_errors, args.dataset_dirs):
-        ax.hist(true_errors_i, label=dataset_dir.name, alpha=0.8)
+        sns.kdeplot(ax=ax, x=true_errors_i, label=dataset_dir.name, alpha=0.5)
 
     ax.set_xlabel("true error")
     ax.set_ylabel("count")
     plt.legend()
+    plt.savefig("results/compare_mde_true_error_hists.png")
 
     plt.pause(3)
     plt.show(block=True)

@@ -44,6 +44,7 @@ def make_mde_dataset(dataset_dir: pathlib.Path,
     mde_dataset_hparams['dataset_dir'] = dataset_dir.as_posix()
     mde_dataset_hparams['fwd_model_hparams'] = model.hparams
     mde_dataset_hparams['predicted_state_keys'] = model.state_keys
+    mde_dataset_hparams['checkpoint'] = checkpoint
     _set_keys_hparam(mde_dataset_hparams, 'true_state', 'state')
     _set_keys_hparam(mde_dataset_hparams, 'state_metadata', 'state_metadata')
     _set_keys_hparam(mde_dataset_hparams, 'env', 'env')

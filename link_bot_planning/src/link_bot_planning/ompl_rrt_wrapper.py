@@ -216,9 +216,10 @@ class OmplRRTWrapper(MyPlanner):
                 pred_error = classifier.check_constraint(environment=self.sps.environment,
                                                          states_sequence=states,
                                                          actions=actions)
-                dmax = 0.0001 * np.exp(0.001 * self.ptc.attempted_extensions) + 0.05
-                print(self.ptc.attempted_extensions, dmax)
+                dmax = -25 / (self.ptc.attempted_extensions - self.ptc.max_extensions + 1e-3) + self.params['dmax']
                 p_accepts_for_model = np.array([pred_error < dmax]).astype(np.int32)
+                if self.ptc.attempted_extensions % 100 == 0:
+                    print(self.ptc.attempted_extensions, self.ptc.max_extensions, dmax)
                 if pred_error > max_pred_error:
                     max_pred_error = pred_error
             else:

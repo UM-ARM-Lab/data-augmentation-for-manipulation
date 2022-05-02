@@ -9,5 +9,4 @@
     use_recovery: true
   }
   dmax: 0.05 # initial dmax?
-  dmax_k: 1
 }

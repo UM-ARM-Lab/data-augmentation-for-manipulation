@@ -17,6 +17,7 @@ class TimeoutOrNotProgressing(ob.PlannerTerminationCondition):
         self.threshold = self.params['attempted_extensions_threshold']
         self.timeout = self.params['timeout']
         self.total_timeout = self.params['total_timeout']
+        self.max_extensions = self.params['max_extensions']
         self.planning_query = planning_query
         self.start_time = planning_query.trial_start_time_seconds
 
@@ -34,9 +35,10 @@ class TimeoutOrNotProgressing(ob.PlannerTerminationCondition):
         dt_s = now - self.t0
         total_trial_dt_s = now - self.start_time
         planning_query_timed_out = dt_s > self.timeout
+        too_many_extensions = self.attempted_extensions > self.max_extensions
         total_trial_timed_out = total_trial_dt_s > self.total_timeout
         self.timed_out = planning_query_timed_out or total_trial_timed_out
-        should_terminate = self.timed_out or self.not_progressing
+        should_terminate = self.timed_out or self.not_progressing or too_many_extensions
 
         return should_terminate
 

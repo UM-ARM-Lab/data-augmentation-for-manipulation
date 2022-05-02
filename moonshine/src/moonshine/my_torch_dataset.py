@@ -4,15 +4,16 @@ from typing import Optional, Dict
 from torch.utils.data import Dataset
 
 from link_bot_data.dataset_utils import pprint_example, merge_hparams_dicts
-from link_bot_data.new_dataset_utils import get_filenames, load_single
+from link_bot_data.new_dataset_utils import get_filenames, load_single, load_metadata
 from link_bot_pycommon.get_scenario import get_scenario
 
 
 class MyTorchDataset(Dataset):
 
-    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None):
+    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, only_metadata=False):
         self.mode = mode
         self.dataset_dir = dataset_dir
+        self.only_metadata = only_metadata
         if isinstance(dataset_dir, list):
             self.metadata_filenames = get_filenames(dataset_dir, mode)
         else:
@@ -28,6 +29,10 @@ class MyTorchDataset(Dataset):
 
     def __getitem__(self, idx):
         metadata_filename = self.metadata_filenames[idx]
+        if self.only_metadata:
+            example = load_metadata(metadata_filename)
+            return example
+
         example = load_single(metadata_filename)
 
         if self.transform:

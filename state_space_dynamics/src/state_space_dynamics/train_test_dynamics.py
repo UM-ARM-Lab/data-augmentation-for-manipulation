@@ -83,9 +83,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     if steps != -1:
         steps = int(steps / batch_size)
 
-    transform = transforms.Compose([
-        # remove_keys("scene_msg"),
-    ])
+    transform = transforms.Compose([])
 
     train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform,
                                                                    repeat)
