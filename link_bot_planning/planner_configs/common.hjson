@@ -12,6 +12,10 @@
     max_extensions: 4500
     attempted_extensions_threshold: 128
   }
+  recovery: {
+    recovery_model_dir: /media/shared/recovery_trials/random/none
+    use_recovery: true
+  }
   action_params: {
     max_distance_between_grippers: 1.0
   }

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 import pathlib
 
@@ -62,13 +63,13 @@ def main():
         ax = plt.gca()
         ax.scatter(true_errors, pred_errors, c='k', alpha=0.1)
         sns.kdeplot(ax=ax, x=true_errors, y=pred_errors)
-        ax.set_xlim(-0.001, 0.4)
-        ax.set_ylim(-0.001, 0.4)
+        ax.set_xlim(-0.001, 0.6)
+        ax.set_ylim(-0.001, 0.6)
         ax.set_aspect("equal")
         ax.set_title(f"Error ({mode}) ({args.checkpoint})")
         ax.set_xlabel("true error")
         ax.set_ylabel("predicted error")
-        ax.text(0.01, 0.38, f"r2={r2_score:.3f},slope={slope:.3f}")
+        ax.text(0.01, 0.58, f"r2={r2_score:.3f},slope={slope:.3f}")
 
         root = pathlib.Path("results/mde_scatters")
         root.mkdir(exist_ok=True, parents=True)

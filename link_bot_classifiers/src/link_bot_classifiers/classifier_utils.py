@@ -5,7 +5,7 @@ from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker, 
 from link_bot_classifiers.feasibility_checker import RobotFeasibilityChecker, FastRobotFeasibilityChecker
 from link_bot_classifiers.gripper_distance_checker import GripperDistanceChecker
 from link_bot_classifiers.nn_classifier_wrapper import NNClassifierWrapper
-from link_bot_classifiers.points_collision_checker import PointsCollisionChecker
+from link_bot_classifiers.points_collision_checker import PointsCollisionChecker, PointsSDFCollisionChecker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from mde.mde_torch import MDEConstraintChecker
@@ -39,6 +39,8 @@ def load_generic_model(path: pathlib.Path,
         return ensemble
     elif model_type == 'collision':
         return PointsCollisionChecker(path, scenario=scenario)
+    elif model_type == 'sdf_collision':
+        return PointsSDFCollisionChecker(path, scenario=scenario)
     elif model_type == 'gripper_distance':
         return GripperDistanceChecker(path, scenario=scenario)
     elif model_type == 'feasibility':

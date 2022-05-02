@@ -2,7 +2,7 @@
   method_name: heuristic
   fwd_model_dir: dy_trials/real_val_ensemble/none
   classifier_model_dir: [
-    /media/shared/cl_trials/cc_baseline/none
+    /media/shared/cl_trials/cc_sdf_baseline/none
     /media/shared/cl_trials/gd_baseline/none
     /media/shared/cl_trials/new_feasibility_baseline/none
   ]

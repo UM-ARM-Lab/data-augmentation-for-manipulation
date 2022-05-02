@@ -19,31 +19,36 @@ def main():
 
     args = parser.parse_args()
 
-    datasets = [TorchMDEDataset(dataset_dir, mode=args.mode, only_metadata=True) for dataset_dir in args.dataset_dirs]
-
     plt.style.use('slides')
-    plt.figure(figsize=(10,8))
-    ax = plt.gca()
 
-    all_errors = []
-    for dataset_i in datasets:
-        true_errors_i = []
-        loader = DataLoader(dataset_i, collate_fn=my_collate, batch_size=16, shuffle=False)
-        for batch in tqdm(loader):
-            true_error = batch['error'][:, 1]
-            true_errors_i.extend(true_error.detach().cpu().numpy().tolist())
-        all_errors.append(true_errors_i)
+    modes = ['train', 'test']
 
-    for true_errors_i, dataset_dir in zip(all_errors, args.dataset_dirs):
-        sns.kdeplot(ax=ax, x=true_errors_i, label=dataset_dir.name, alpha=0.5)
+    for mode in modes:
+        datasets = [TorchMDEDataset(dataset_dir, mode=mode, only_metadata=True) for dataset_dir in args.dataset_dirs]
 
-    ax.set_xlabel("true error")
-    ax.set_ylabel("count")
-    plt.legend()
-    plt.savefig("results/compare_mde_true_error_hists.png")
+        plt.figure(figsize=(10, 8))
+        ax = plt.gca()
 
-    plt.pause(3)
-    plt.show(block=True)
+        all_errors = []
+        for dataset_i in datasets:
+            true_errors_i = []
+            loader = DataLoader(dataset_i, collate_fn=my_collate, batch_size=16, shuffle=False)
+            for batch in tqdm(loader):
+                true_error = batch['error'][:, 1]
+                true_errors_i.extend(true_error.detach().cpu().numpy().tolist())
+            all_errors.append(true_errors_i)
+
+        for true_errors_i, dataset_dir in zip(all_errors, args.dataset_dirs):
+            sns.kdeplot(ax=ax, x=true_errors_i, label=dataset_dir.name, alpha=0.5)
+
+        ax.set_xlabel("true error")
+        ax.set_ylabel("count")
+        ax.set_xlim([0, 1])
+        ax.set_title(f"Error distribution ({mode})")
+        plt.legend()
+        plt.savefig(f"results/compare_mde_true_error_hists_mode={mode}.png")
+
+    plt.show()
 
 
 if __name__ == '__main__':

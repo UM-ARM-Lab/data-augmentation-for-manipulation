@@ -6,6 +6,7 @@ import tensorflow as tf
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_pycommon.collision_checking import batch_in_collision_tf_3d
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from moonshine.grid_utils_tf import batch_point_to_idx_tf_3d_in_batched_envs
 from moonshine.moonshine_utils import dict_of_sequences_to_sequence_of_dicts
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 
@@ -51,10 +52,7 @@ def get_points_for_cc(collision_check_object, scenario, state):
 
 class PointsCollisionChecker(BaseConstraintChecker):
 
-    def __init__(self,
-                 path: pathlib.Path,
-                 scenario: ScenarioWithVisualization,
-                 ):
+    def __init__(self, path: pathlib.Path, scenario: ScenarioWithVisualization):
         super().__init__(path, scenario)
         self.name = self.__class__.__name__
         self.local_h_rows = self.hparams['local_h_rows']
@@ -114,23 +112,39 @@ class PointsCollisionChecker(BaseConstraintChecker):
                                                 batch_size,
                                                 state_sequence_length)
 
-    def label_in_collision(self, example: Dict, batch_size: Optional[int] = 1):
-        # NOTE: input will be batched and have time dimension
-        # TODO: where should this come from?
-        env_keys = ['env', 'res', 'origin', 'extent']
-        state_keys = ['rope', 'left_gripper', 'right_gripper']
-        environment = {k: example[k] for k in env_keys}
-        states = {k: example[k] for k in state_keys}
 
-        # TODO: optimize this code
-        environments_list = dict_of_sequences_to_sequence_of_dicts(environment)
-        states_list = dict_of_sequences_to_sequence_of_dicts(states)
-        in_collision = []
-        for b in range(batch_size):
-            states_sequence = dict_of_sequences_to_sequence_of_dicts(states_list[b])
-            in_collision_b = []
-            for t, state in enumerate(states_sequence):
-                in_collision_t = bool(check_collision(self.scenario, environments_list[b], state))
-                in_collision_b.append(in_collision_t)
-            in_collision.append(in_collision_b)
-        return tf.constant(in_collision, dtype=tf.float32)
+class PointsSDFCollisionChecker(PointsCollisionChecker):
+
+    def __init__(self, path: pathlib.Path, scenario: ScenarioWithVisualization):
+        super().__init__(path, scenario)
+
+    def check_constraint_tf(self,
+                            environment: Dict,
+                            states_sequence: List[Dict],
+                            actions):
+        in_collision = False
+        for t, (before_state, after_state) in enumerate(zip(states_sequence[:-1], states_sequence[1:])):
+            in_collision = self.sdf_check_collision_transition(environment, before_state, after_state)
+            if in_collision:
+                break
+        constraint_satisfied = tf.cast(tf.logical_not(in_collision), tf.float32)[tf.newaxis]
+        return constraint_satisfied
+
+    def sdf_check_collision_transition(self,
+                                       environment: Dict,
+                                       before_state: Dict,
+                                       after_state: Dict,
+                                       collision_check_object=True):
+        before_points = get_points_for_cc(collision_check_object, self.scenario, before_state)
+        after_points = get_points_for_cc(collision_check_object, self.scenario, after_state)
+
+        points_interp = tf.linspace(before_points, after_points, 5, axis=-2)
+        points_interp = tf.reshape(points_interp, [-1, 3])
+
+        inflate_radius_m = DEFAULT_INFLATION_RADIUS
+        indices = batch_point_to_idx_tf_3d_in_batched_envs(points_interp, environment)
+
+        sdf = environment['sdf']
+        in_collision = tf.reduce_any(tf.gather_nd(sdf, indices) < inflate_radius_m, axis=-1)
+
+        return in_collision

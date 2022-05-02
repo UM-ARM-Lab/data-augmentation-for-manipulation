@@ -30,7 +30,6 @@ class MDE(pl.LightningModule):
 
     def __init__(self, **hparams):
         super().__init__()
-        self.hparams["uses_lstm"] = False
         self.save_hyperparameters()
 
         datset_params = self.hparams['dataset_hparams']

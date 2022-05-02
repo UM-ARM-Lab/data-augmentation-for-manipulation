@@ -290,6 +290,36 @@ class FloatingRopeOmpl(ScenarioOmpl):
 
         return state_space
 
+    def print_oob(self, state: Dict):
+        self.print_oob_for_key(state, 'left_gripper')
+        self.print_oob_for_key(state, 'right_gripper')
+
+        for j in range(FloatingRopeScenario.n_links):
+            k = f"rope_{j}"
+            subspace = self.state_space.getSubspace(k)
+            bounds = subspace.getBounds()
+            for i in range(3):
+                q = 3 * j + i
+                v = state['rope'][q]
+                low = bounds.low[i]
+                high = bounds.high[i]
+                if v < low:
+                    print(f'{k}[{i}] too low, {v}<{low}')
+                elif v > high[i]:
+                    print(f'{k}[{i}] too high, {v}<{high}')
+
+    def print_oob_for_key(self, state, k: str):
+        subspace = self.state_space.getSubspace(k)
+        bounds = subspace.getBounds()
+        for i in range(len(state[k])):
+            v = state[k][i]
+            low = bounds.low[i]
+            high = bounds.high[i]
+            if v < low:
+                print(f'{k}[{i}] too low, {v}<{low}')
+            elif v > high:
+                print(f'{k}[{i}] too high, {v}<{high}')
+
     def make_control_space(self):
         control_space = oc.CompoundControlSpace(self.state_space)
 

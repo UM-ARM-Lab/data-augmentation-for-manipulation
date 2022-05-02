@@ -216,7 +216,10 @@ class OmplRRTWrapper(MyPlanner):
                 pred_error = classifier.check_constraint(environment=self.sps.environment,
                                                          states_sequence=states,
                                                          actions=actions)
-                dmax = -25 / (self.ptc.attempted_extensions - self.ptc.max_extensions + 1e-3) + self.params['dmax']
+                if self.params.get("dynamic_dmax"):
+                    dmax = -25 / (self.ptc.attempted_extensions - self.ptc.max_extensions + 1e-3) + self.params['dmax']
+                else:
+                    dmax = self.params['dmax']
                 p_accepts_for_model = np.array([pred_error < dmax]).astype(np.int32)
                 if self.ptc.attempted_extensions % 100 == 0:
                     print(self.ptc.attempted_extensions, self.ptc.max_extensions, dmax)
@@ -417,7 +420,8 @@ class OmplRRTWrapper(MyPlanner):
                 actions = []
                 planned_path = [start_state]
         elif planner_status == MyPlannerStatus.Failure:
-            rospy.logerr(f"Failed at starting state: {start_state}")
+            rospy.logerr(f"Failed at starting state!")
+            self.scenario_ompl.print_oob(start_state)
             actions = []
             planned_path = [start_state]
         elif planner_status == MyPlannerStatus.NotProgressing:
