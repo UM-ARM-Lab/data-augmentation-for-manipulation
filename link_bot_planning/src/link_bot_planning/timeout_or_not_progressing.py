@@ -24,6 +24,7 @@ class TimeoutOrNotProgressing(ob.PlannerTerminationCondition):
         self.all_rejected = True
         self.not_progressing = None
         self.timed_out = False
+        self.too_many_extensions = False
         self.attempted_extensions = 0
         self.debugging_terminate = False
 
@@ -35,10 +36,10 @@ class TimeoutOrNotProgressing(ob.PlannerTerminationCondition):
         dt_s = now - self.t0
         total_trial_dt_s = now - self.start_time
         planning_query_timed_out = dt_s > self.timeout
-        too_many_extensions = self.attempted_extensions > self.max_extensions
+        self.too_many_extensions = self.attempted_extensions > self.max_extensions
         total_trial_timed_out = total_trial_dt_s > self.total_timeout
         self.timed_out = planning_query_timed_out or total_trial_timed_out
-        should_terminate = self.timed_out or self.not_progressing or too_many_extensions
+        should_terminate = self.timed_out or self.not_progressing or self.too_many_extensions
 
         return should_terminate
 
@@ -48,6 +49,8 @@ class TimeoutOrNotProgressing(ob.PlannerTerminationCondition):
         elif self.not_progressing:
             return MyPlannerStatus.NotProgressing
         elif self.timed_out:
+            return MyPlannerStatus.Timeout
+        elif self.too_many_extensions:
             return MyPlannerStatus.Timeout
         else:
             return MyPlannerStatus.Failure

@@ -20,7 +20,7 @@ def signal_handler(sig, frame):
 
 @ros_init.with_ros("relaunch_gazebo")
 def main():
-    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('launch')

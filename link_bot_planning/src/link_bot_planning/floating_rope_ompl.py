@@ -305,7 +305,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
                 high = bounds.high[i]
                 if v < low:
                     print(f'{k}[{i}] too low, {v}<{low}')
-                elif v > high[i]:
+                elif v > high:
                     print(f'{k}[{i}] too high, {v}<{high}')
 
     def print_oob_for_key(self, state, k: str):
