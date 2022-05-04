@@ -1,0 +1,54 @@
+{
+  udnn:
+  {
+    state_metadata_keys: []
+    state_keys: [
+      rope
+      left_gripper
+      right_gripper
+    ]
+    action_keys: [
+      left_gripper_position
+      right_gripper_position
+    ]
+    fc_layer_sizes: [
+      1024
+      1024
+    ]
+  }
+  mde:
+  {
+    point_state_keys: [
+      rope
+      left_gripper
+      right_gripper
+    ]
+    state_keys: [
+      rope
+      left_gripper
+      right_gripper
+    ]
+    state_metadata_keys: [
+      joint_names
+    ]
+    action_keys: [
+      left_gripper_position
+      right_gripper_position
+    ]
+    rnn_size: 128
+    fc_layer_sizes: [ 128 ]
+    pooling: [ 2, 2, 2 ]
+    conv_filters: [
+      [ 32, [ 3, 3, 3 ] ]
+      [ 32, [ 3, 3, 3 ] ]
+      [ 32, [ 3, 3, 3 ] ]
+    ]
+    local_env_h_rows: 44
+    local_env_w_cols: 44
+    local_env_c_channels: 44
+    error_threshold: 0.05
+    dropout_p: 0.0
+  }
+  weight_decay: 0
+  learning_rate:  0.001
+}

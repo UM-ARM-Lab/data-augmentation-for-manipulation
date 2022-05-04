@@ -582,6 +582,11 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         else:
             raise NotImplementedError()
 
+    def classifier_distance_torch(self, s1: Dict, s2: Dict):
+        import torch
+        model_error = torch.norm(s1[rope_key_name] - s2[rope_key_name], dim=-1)
+        return model_error
+
     def classifier_distance(self, s1: Dict, s2: Dict):
         model_error = np.linalg.norm(s1[rope_key_name] - s2[rope_key_name], axis=-1)
         # labeling_states = s1['rope']
