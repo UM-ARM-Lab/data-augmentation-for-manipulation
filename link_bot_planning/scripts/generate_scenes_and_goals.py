@@ -35,7 +35,7 @@ def main():
     args = parser.parse_args()
 
     scenario_params = {
-        'rope_name': 'rope_3d',
+        'rope_name': 'rope_3d_alt',
     }
     generate_saved_goals(method=args.method,
                          scenario=args.scenario,

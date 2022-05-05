@@ -11,7 +11,7 @@
   termination_criteria: {
     total_timeout: 600
     timeout: 600
-    max_extensions: 4500
+    max_extensions: 6000
     max_attempts: 1
     max_planning_attempts: 1
     attempted_extensions_threshold: 128
