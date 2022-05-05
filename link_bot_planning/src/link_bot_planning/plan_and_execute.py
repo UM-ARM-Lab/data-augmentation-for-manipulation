@@ -85,7 +85,7 @@ def execute_actions(
     if not stopped:
         spinner.stop()
 
-    time.sleep(2)  # FIXME: hack for CDCPD to catch up, only needed in the real world
+    # time.sleep(2)  # FIXME: hack for CDCPD to catch up, only needed in the real world
     # FIXME hacky reset
     scenario.robot.jacobian_not_reached_is_failure = True
 
