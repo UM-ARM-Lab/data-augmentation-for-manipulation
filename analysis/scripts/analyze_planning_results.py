@@ -29,7 +29,7 @@ def analyze_planning_results(args):
     total = df['success'].count()
     print(f"{successes}/{total} = {successes / total}")
 
-    hue = 'dmax'
+    hue = 'method_name'
 
     _, ax = boxplot(df, outdir, hue, 'task_error', "Task Error", figsize=(12, 8))
     _, ymax = ax.get_ylim()

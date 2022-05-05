@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 import pathlib
-import pickle
 import time
 from typing import Dict, List, Optional, Callable
 
-import hjson
 import numpy as np
 from colorama import Fore
 
@@ -25,8 +23,8 @@ from link_bot_pycommon.bbox_visualization import extent_to_bbox
 from link_bot_pycommon.pycommon import has_keys
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from link_bot_pycommon.spinners import SynchronousSpinner
-from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.numpify import numpify
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
 
 
 def execute_actions(
@@ -361,7 +359,10 @@ class PlanAndExecute:
                     rospy.loginfo(Fore.BLUE + f"Trial {trial_idx} Ended: Goal reached!" + Fore.RESET)
                 else:
                     trial_status = TrialStatus.Timeout
-                    rospy.loginfo(Fore.BLUE + f"Trial {trial_idx} Ended: Timeout {time_since_start:.3f}s" + Fore.RESET)
+                    msgs = [f"Trial {trial_idx} Ended:",
+                            f"Timeout {time_since_start:.3f}s",
+                            f"{planning_result.attempted_extensions}ext"]
+                    rospy.loginfo(Fore.BLUE + ' '.join(msgs) + Fore.RESET)
                 trial_data_dict = {
                     'setup_info':       setup_info,
                     'planning_queries': planning_queries,
@@ -402,7 +403,10 @@ class PlanAndExecute:
         planning_result = self.planner.plan(planning_query=planning_query)
         [p.resume() for p in self.gazebo_processes]
 
-        rospy.loginfo(f"Planning time: {planning_result.time:5.3f}s, Status: {planning_result.status}")
+        msgs = [f"Planning time: {planning_result.time:5.3f}s",
+                f"Extensions: {planning_result.attempted_extensions}",
+                f"Status: {planning_result.status}"]
+        rospy.loginfo(", ".join(msgs))
 
         self.on_plan_complete(planning_query, planning_result)
 

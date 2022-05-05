@@ -8,5 +8,13 @@
     recovery_model_dir: /media/shared/recovery_trials/random/none
     use_recovery: true
   }
-  dmax: 0.05 # initial dmax?
+  termination_criteria: {
+    total_timeout: 600
+    timeout: 600
+    max_extensions: 4500
+    max_attempts: 1
+    max_planning_attempts: 1
+    attempted_extensions_threshold: 128
+  }
+  dmax: 0.16 # initial dmax?
 }

@@ -120,6 +120,7 @@ class PlanningResult:
     status: MyPlannerStatus
     tree: LoggingTree
     time: float
+    attempted_extensions: int = 0
     mean_propagate_time: float = None
 
 

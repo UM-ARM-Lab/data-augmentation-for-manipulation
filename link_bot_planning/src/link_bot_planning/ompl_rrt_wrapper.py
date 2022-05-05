@@ -216,13 +216,13 @@ class OmplRRTWrapper(MyPlanner):
                 pred_error = classifier.check_constraint(environment=self.sps.environment,
                                                          states_sequence=states,
                                                          actions=actions)
-                if self.params.get("dynamic_dmax"):
+                if self.params.get("dynamic_dmax", False):
                     dmax = -25 / (self.ptc.attempted_extensions - self.ptc.max_extensions + 1e-3) + self.params['dmax']
+                    if self.ptc.attempted_extensions % 100 == 0:
+                        print(self.ptc.attempted_extensions, self.ptc.max_extensions, dmax)
                 else:
                     dmax = self.params['dmax']
                 p_accepts_for_model = np.array([pred_error < dmax]).astype(np.int32)
-                if self.ptc.attempted_extensions % 100 == 0:
-                    print(self.ptc.attempted_extensions, self.ptc.max_extensions, dmax)
                 if pred_error > max_pred_error:
                     max_pred_error = pred_error
             else:
@@ -439,6 +439,7 @@ class OmplRRTWrapper(MyPlanner):
                               actions=actions,
                               time=planning_time,
                               mean_propagate_time=mean_propagate_time,
+                              attempted_extensions=self.ptc.attempted_extensions,
                               tree=self.tree)
 
     def convert_path(self, ompl_path: oc.PathControl) -> Tuple[List[Dict], List[Dict]]:
