@@ -21,8 +21,11 @@ class MDEWeightedDynamics(pl.LightningModule):
 
         self.scenario = self.udnn.scenario
 
-        self.state_keys = self.udnn.state_keys
-        self.state_metadata_keys = self.udnn.state_metadata_keys
+        data_collection_params = self.hparams['dataset_hparams']['data_collection_params']
+        self.env_keys = list(data_collection_params['env_description'].keys())
+        self.action_keys = list(data_collection_params['action_description'].keys())
+        self.state_keys = list(data_collection_params['state_description'].keys())
+        self.state_metadata_keys = list(data_collection_params['state_metadata_description'].keys())
 
         self.register_parameter("learned_weight_k", Parameter(torch.tensor(10.0)))
 
@@ -32,13 +35,44 @@ class MDEWeightedDynamics(pl.LightningModule):
         return self.udnn.forward(inputs)
 
     def predict_dynamics_and_error(self, inputs: Dict[str, torch.Tensor]):
-        udnn_outputs = self.udnn.forward(inputs)
+        # convert inputs to [b*44, 2, n] for time state inputs
+        # we first generate all transitions, then flatten into batch dimension
+        state_keys = self.state_keys + self.state_metadata_keys
+        time_idx = inputs['time_idx']
+
+        for k in state_keys:
+            v = inputs[k]
+            t = torch.arange(10)
+            torch.stack([t[:-1], t[1:]], -1)
+            indices = torch.tensor([[0, 1], [1, 2], [2, 3], [3, 4]])
+            v[0:], v[1:], ..., v[9:]
+            v[..., indices, :].shape
+
+        inputs_all_transitions = inputs
+        inputs_all_transitions.update(states_all_transitions)
+        inputs_all_transitions.update(actions_all_transitions)
+
+        udnn_outputs = self.udnn.forward(inputs_all_transitions)
         mde_inputs = {}
         mde_inputs.update(inputs)
         mde_inputs.update({add_predicted(k): v for k, v in udnn_outputs.items()})
         # because the joint positions are not being changed, we can just copy these
         mde_inputs[add_predicted('joint_positions')] = inputs['joint_positions']
         mde_inputs['error'] = self.scenario.classifier_distance_torch(inputs, udnn_outputs)
+
+        # currently we have:
+        # rope [b, T, n]
+        # predicted/rope [b, T, n]
+        # env [b, w, h, c]
+        # origin_point [b, 3]
+        # res [b]
+
+        # what we want:
+        # rope [b, 2, n]
+        # predicted/rope [b, 2, n]
+        # env [b, w, h, c]
+        # origin_point [b, 3]
+        # res [b]
 
         # The MDE is written to work on transitions of length 2, but these are entire trajectories of length 10,
         # so we'd need to figure how to convert these into all possible transitions, then pass that to the MDE?

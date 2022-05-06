@@ -9,9 +9,9 @@
     use_recovery: true
   }
   termination_criteria: {
-    total_timeout: 600
-    timeout: 600
-    max_extensions: 7500
+    total_timeout: 1000
+    timeout: 1000
+    max_extensions: 20000
     max_attempts: 1
     max_planning_attempts: 1
     attempted_extensions_threshold: 128

@@ -59,6 +59,7 @@ def execute_actions(
         try:
             end_trial = scenario.execute_action(environment, before_state, action)
         except RobotPlanningError:
+            print(Fore.RED + "Robot planning error!!!!" + Fore.RESET)
             pass
         after_state = scenario.get_state()
         if use_gt_rope:
