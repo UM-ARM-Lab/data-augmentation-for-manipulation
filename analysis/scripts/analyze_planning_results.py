@@ -22,8 +22,8 @@ def analyze_planning_results(args):
 
     df['x_name'] = df['classifier_name'].map(_shorten)
 
-    print(df[['any_solved']].to_string(index=False))
-    print(df[['success']].to_string(index=False))
+    # print(df[['any_solved']].to_string(index=False))
+    # print(df[['success']].to_string(index=False))
 
     successes = (df['success'] == 1).sum()
     total = df['success'].count()
@@ -32,6 +32,7 @@ def analyze_planning_results(args):
     hue = 'method_name'
 
     _, ax = boxplot(df, outdir, hue, 'task_error', "Task Error", figsize=(12, 8))
+    ax.axhline(y=0.045)
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
 

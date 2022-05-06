@@ -16,6 +16,7 @@ from link_bot_pycommon.load_wandb_model import load_model_artifact
 from mde.mde_torch import MDE
 from mde.torch_mde_dataset import TorchMDEDataset
 from moonshine.torch_datasets_utils import my_collate, dataset_shard
+from state_space_dynamics.mw_net import MWNet
 from state_space_dynamics.torch_dynamics_dataset import remove_keys
 
 
@@ -27,6 +28,9 @@ def main():
     modes = ['train', 'test']
 
     args = parser.parse_args()
+
+    udnn_meta_checkpoint = "m1_adam_unadapted-470ps"
+    udnn_meta_model = load_model_artifact(udnn_meta_checkpoint, MWNet, project='udnn', version='best', user='armlab', train_dataset=None)
 
     model = load_model_artifact(args.checkpoint, MDE, project='mde', version='best', user='armlab')
     model.eval()
@@ -44,11 +48,14 @@ def main():
 
         true_errors = []
         pred_errors = []
+        example_indices = []
         for batch in tqdm(loader):
             true_error = batch['error'][:, 1]
             pred_error = model.forward(batch)
             pred_errors.extend(pred_error.detach().cpu().numpy().tolist())
             true_errors.extend(true_error.detach().cpu().numpy().tolist())
+            # FIXME: how do we know which MDE example maps to which dynamics dataset example?
+            example_indices.extend(batch['example_idx'].detach().cpu().numpy().tolist())
 
         true_errors_2d = np.array(true_errors).reshape([-1, 1])
         pred_errors_2d = np.array(pred_errors).reshape([-1, 1])
@@ -58,11 +65,13 @@ def main():
         print(f"r2_score: {r2_score:.3f}")
         print(f"slope: {slope:.3f}")
 
+        learned_data_weights = udnn_meta_model.sample_weights[example_indices]
+
         plt.style.use("slides")
         plt.figure(figsize=(12, 12))
         ax = plt.gca()
-        ax.scatter(true_errors, pred_errors, c='k', alpha=0.1)
-        sns.kdeplot(ax=ax, x=true_errors, y=pred_errors)
+        sns.scatterplot(ax=ax, x=true_errors, y=pred_errors, hue=learned_data_weights, alpha=0.1)
+        sns.kdeplot(ax=ax, x=true_errors, y=pred_errors, color='k')
         y_max = 0.15
         ax.set_xlim(-0.001, 0.15)
         ax.set_ylim(-0.001, y_max)
@@ -76,6 +85,7 @@ def main():
         root.mkdir(exist_ok=True, parents=True)
         filename = root / f'mde_scatter_{args.checkpoint}_{mode}'
         plt.savefig(filename.as_posix())
+        plt.close()
 
 
 if __name__ == '__main__':

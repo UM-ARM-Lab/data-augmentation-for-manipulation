@@ -57,7 +57,10 @@ class MDE(pl.LightningModule):
 
         conv_out_size = int(self.hparams['conv_filters'][-1][0] * np.prod(self.hparams['conv_filters'][-1][1]))
         prev_error_size = 1
-        in_size = conv_out_size + 2 * state_size + action_size + prev_error_size
+        if self.hparams.get("use_prev_error", True):
+            in_size = conv_out_size + 2 * state_size + action_size + prev_error_size
+        else:
+            in_size = conv_out_size + 2 * state_size + action_size
         use_drop_out = 'dropout_p' in self.hparams
         for hidden_size in self.hparams['fc_layer_sizes']:
             fc_layers.append(nn.Linear(in_size, hidden_size))
@@ -146,7 +149,11 @@ class MDE(pl.LightningModule):
 
         prev_pred_error = inputs['error'][:, 0].unsqueeze(-1).unsqueeze(-1)
         padded_prev_pred_error = F.pad(prev_pred_error, [0, 0, 0, 1, 0, 0])
-        cat_args = [conv_h, padded_prev_pred_error] + states_robot_frame_list + states_local_frame_list + padded_actions
+        if self.hparams.get("use_prev_error", True):
+            cat_args = [conv_h,
+                        padded_prev_pred_error] + states_robot_frame_list + states_local_frame_list + padded_actions
+        else:
+            cat_args = [conv_h] + states_robot_frame_list + states_local_frame_list + padded_actions
         fc_in = torch.cat(cat_args, -1)
 
         if self.no_lstm:

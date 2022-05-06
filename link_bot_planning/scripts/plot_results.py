@@ -18,11 +18,11 @@ limit_gpu_mem(None)
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
-    parser.add_argument("--threshold", type=float)
     parser.add_argument("--full-plan", action='store_true')
     parser.add_argument("--only-timeouts", action='store_true')
     parser.add_argument("--only-reached", action='store_true')
     parser.add_argument("--verbose", '-v', action="count", default=0)
+    parser.add_argument("--threshold", type=float, default=0.06)
 
     args = parser.parse_args()
 
@@ -30,10 +30,6 @@ def main():
     scenario, metadata = results_utils.get_scenario_and_metadata(results_dir)
 
     classifier_params = classifier_params_from_planner_params(metadata['planner_params'])
-    if args.threshold is None:
-        threshold = classifier_params['threshold']
-    else:
-        threshold = args.threshold
 
     idx_and_filenames = list(trials_filenames_generator(results_dir))
 
@@ -53,7 +49,7 @@ def main():
             continue
 
         print(f"trial {trial_idx}, status {trial_status}")
-        plot_steps(scenario, datum, metadata, {'threshold': threshold}, args.verbose, args.full_plan)
+        plot_steps(scenario, datum, metadata, {'threshold': args.threshold}, args.verbose, args.full_plan)
 
         anim.step()
 
