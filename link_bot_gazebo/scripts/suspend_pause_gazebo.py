@@ -1,19 +1,17 @@
 #!/usr/bin/env python
 import argparse
 
-from link_bot_gazebo.gazebo_utils import get_gazebo_processes
+from link_bot_gazebo import gazebo_utils
 from link_bot_pycommon.args import run_subparsers
 
 
 def suspend(args):
-    gazebo_processes = get_gazebo_processes()
-    [p.suspend() for p in gazebo_processes]
+    gazebo_processes = gazebo_utils.suspend()
     print(gazebo_processes)
 
 
 def resume(args):
-    gazebo_processes = get_gazebo_processes()
-    [p.resume() for p in gazebo_processes]
+    gazebo_processes = gazebo_utils.resume()
     print(gazebo_processes)
 
 

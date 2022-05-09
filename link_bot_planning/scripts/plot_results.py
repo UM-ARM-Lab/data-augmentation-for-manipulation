@@ -3,9 +3,9 @@ import argparse
 import pathlib
 
 from analysis import results_utils
-from analysis.results_utils import classifier_params_from_planner_params, plot_steps, get_all_results_subdirs, \
-    trials_filenames_generator
+from analysis.results_utils import plot_steps, get_all_results_subdirs, trials_filenames_generator
 from arc_utilities import ros_init
+from link_bot_gazebo.gazebo_utils import gazebo_suspended
 from link_bot_planning.trial_result import TrialStatus
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -29,32 +29,28 @@ def main():
     results_dir = get_all_results_subdirs(args.results_dir)[0]
     scenario, metadata = results_utils.get_scenario_and_metadata(results_dir)
 
-    classifier_params = classifier_params_from_planner_params(metadata['planner_params'])
-
     idx_and_filenames = list(trials_filenames_generator(results_dir))
 
-    anim = RvizAnimationController(n_time_steps=len(idx_and_filenames), ns='trajs')
+    with gazebo_suspended():
+        anim = RvizAnimationController(n_time_steps=len(idx_and_filenames), ns='trajs')
 
-    while not anim.done:
-        j = anim.t()
-        trial_idx, datum_filename = idx_and_filenames[j]
-        from time import perf_counter
-        t0 = perf_counter()
-        datum = load_gzipped_pickle(datum_filename)
-        print(perf_counter() - t0)
+        while not anim.done:
+            j = anim.t()
+            trial_idx, datum_filename = idx_and_filenames[j]
+            datum = load_gzipped_pickle(datum_filename)
 
-        trial_status = datum['trial_status']
-        should_skip = (args.only_timeouts and trial_status == TrialStatus.Reached or
-                       args.only_reached and trial_status != TrialStatus.Reached)
+            trial_status = datum['trial_status']
+            should_skip = (args.only_timeouts and trial_status == TrialStatus.Reached or
+                           args.only_reached and trial_status != TrialStatus.Reached)
 
-        if should_skip:
+            if should_skip:
+                anim.step()
+                continue
+
+            print(f"trial {trial_idx}, status {trial_status}")
+            plot_steps(scenario, datum, metadata, {'threshold': args.threshold}, args.verbose, args.full_plan)
+
             anim.step()
-            continue
-
-        print(f"trial {trial_idx}, status {trial_status}")
-        plot_steps(scenario, datum, metadata, {'threshold': args.threshold}, args.verbose, args.full_plan)
-
-        anim.step()
 
 
 if __name__ == '__main__':

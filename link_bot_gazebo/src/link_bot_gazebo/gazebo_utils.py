@@ -1,3 +1,4 @@
+import contextlib
 import pathlib
 
 import halo
@@ -54,3 +55,30 @@ def get_gazebo_processes():
     for pid in pids:
         processes.append(psutil.Process(pid))
     return processes
+
+
+def is_suspended():
+    gazebo_processes = get_gazebo_processes()
+    suspended = any([p.status == 'sleeping' for p in gazebo_processes])
+    return suspended
+
+
+def suspend():
+    gazebo_processes = get_gazebo_processes()
+    [p.suspend() for p in gazebo_processes]
+    return gazebo_processes
+
+
+def resume():
+    gazebo_processes = get_gazebo_processes()
+    [p.resume() for p in gazebo_processes]
+    return gazebo_processes
+
+
+@contextlib.contextmanager
+def gazebo_suspended():
+    initial_is_suspended = gazebo_utils.is_suspended()
+    gazebo_utils.suspend()
+    yield
+    if not initial_is_suspended:
+        gazebo_utils.resume()
