@@ -14,7 +14,7 @@ from state_space_dynamics.unconstrained_dynamics_nn import UDNNWrapper
 def load_generic_model(model_dir: pathlib.Path, scenario: Optional[ExperimentScenario] = None):
     if model_dir.as_posix().startswith('p:'):
         checkpoint = model_dir.as_posix()[2:]
-        model = TorchUDNNDynamicsWrapper(checkpoint)
+        model = TorchUDNNDynamicsWrapper(checkpoint, scenario)
         return model
 
     _, params = load_trial(model_dir.parent.absolute())

@@ -12,7 +12,7 @@ def main():
     args = parser.parse_args()
 
     root = pathlib.Path("/media/shared/planning_results")
-    results_dirs = get_all_results_subdirs(root)
+    results_dirs = get_all_results_subdirs(root, regenerate=True)
 
     def query_fun(row):
         match = all([

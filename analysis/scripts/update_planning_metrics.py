@@ -19,7 +19,7 @@ def main():
 
     args = parser.parse_args()
 
-    results_dirs = get_all_results_subdirs(args.root)
+    results_dirs = get_all_results_subdirs(args.root, regenerate=args.regenerate)
     load_planning_results(results_dirs, regenerate=args.regenerate)
 
 

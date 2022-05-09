@@ -252,3 +252,14 @@ class MDEConstraintChecker:
 
         pred_error = remove_batch(self.model(add_batch(inputs)))
         return pred_error.detach().cpu().numpy()
+
+
+if __name__ == '__main__':
+    rospy.init_node("mde_torch_test")
+
+    c = MDEConstraintChecker('meta-2-8b87r')
+    import pickle
+    with open("mde_test_inputs.pkl", 'rb') as f:
+        env, states, actions = pickle.load(f)
+    outputs = c.check_constraint(env, states, actions)
+    print(outputs)

@@ -1,15 +1,14 @@
 import logging
-import numpy as np
 import os
 import pathlib
 import re
 from typing import Dict, Optional, List, Union
 
 import hjson
+import numpy as np
 import wandb
 from colorama import Fore
 from matplotlib import cm
-from wandb.sdk import wandb_helper
 
 import rospy
 from arc_utilities.algorithms import zip_repeat_shorter
@@ -407,33 +406,41 @@ def plot_steps(scenario: ScenarioWithVisualization,
         screen_recorder.stop()
 
 
-def get_all_results_subdirs(dirs: Union[pathlib.Path, List[pathlib.Path]]):
+def get_all_results_subdirs(dirs: Union[pathlib.Path, List[pathlib.Path]], regenerate: bool):
     if isinstance(dirs, pathlib.Path):
         dirs = [dirs]
 
     results_subdirs = []
     for dir in dirs:
-        cache_filename = dir / 'results_subdirs.txt'
-        if cache_filename.exists():
-            with cache_filename.open("r") as cache_f:
-                results_subdirs_in_dir = [pathlib.Path(l.strip("\n")) for l in cache_f.readlines()]
+        if regenerate:
+            results_subdirs_in_dir = get_results_subdirs_in_dir(dir)
         else:
-            results_subdirs_in_dir = []
-            for (root, dirs, files) in os.walk(dir.as_posix()):
-                if 'classifier_datasets' in root or root == 'training_logdir':
-                    continue
-                for f in files:
-                    if '_metrics.pkl.gz' in f:
-                        results_subdirs_in_dir.append(pathlib.Path(root))
-                        break
-            with cache_filename.open('w') as cache_f:
-                for d in results_subdirs_in_dir:
-                    cache_f.write(d.as_posix())
-                    cache_f.write('\n')
+            cache_filename = dir / 'results_subdirs.txt'
+            if cache_filename.exists():
+                with cache_filename.open("r") as cache_f:
+                    results_subdirs_in_dir = [pathlib.Path(l.strip("\n")) for l in cache_f.readlines()]
+            else:
+                results_subdirs_in_dir = get_results_subdirs_in_dir(dir)
+                with cache_filename.open('w') as cache_f:
+                    for d in results_subdirs_in_dir:
+                        cache_f.write(d.as_posix())
+                        cache_f.write('\n')
 
         results_subdirs.extend(results_subdirs_in_dir)
 
     return results_subdirs
+
+
+def get_results_subdirs_in_dir(dir):
+    results_subdirs_in_dir = []
+    for (root, dirs, files) in os.walk(dir.as_posix()):
+        if 'classifier_datasets' in root or root == 'training_logdir':
+            continue
+        for f in files:
+            if '_metrics.pkl.gz' in f:
+                results_subdirs_in_dir.append(pathlib.Path(root))
+                break
+    return results_subdirs_in_dir
 
 
 def dataset_dir_to_num_examples(p):

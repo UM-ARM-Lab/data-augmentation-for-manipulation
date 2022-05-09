@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 import torch
@@ -20,12 +20,15 @@ def zeros_like(v):
 
 class TorchUDNNDynamicsWrapper:
 
-    def __init__(self, checkpoint: str):
+    def __init__(self, checkpoint: str, scenario: Optional = None):
         self.model: UDNN = load_udnn_model_wrapper(checkpoint)
         self.model.with_joint_positions = True
         self.model.eval()
         self.horizon = 2
         self.name = 'MDE'
+
+        if scenario is not None:
+            self.model.scenario = scenario
 
         self.data_collection_params = self.model.data_collection_params
         self.max_step_size = self.model.max_step_size

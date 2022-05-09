@@ -32,7 +32,7 @@ def analyze_planning_results(args):
     hue = 'method_name'
 
     _, ax = boxplot(df, outdir, hue, 'task_error', "Task Error", figsize=(12, 8))
-    ax.axhline(y=0.045)
+    ax.axhline(y=0.045, linestyle='--')
     _, ymax = ax.get_ylim()
     ax.set_ylim([0, ymax])
 

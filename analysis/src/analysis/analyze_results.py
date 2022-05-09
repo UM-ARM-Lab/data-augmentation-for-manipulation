@@ -87,24 +87,14 @@ def guess_results_folder_name(data_filename):
     return results_folder_name
 
 
-def planning_results(results_dirs, regenerate=False, latex=False, tables_config=None):
+def planning_results(results_dirs, regenerate=False):
     # The default for where we write results
     outdir = results_dirs[0]
 
     print(f"Writing analysis to {outdir}")
 
-    if latex:
-        table_format = 'latex_raw'
-    else:
-        table_format = tabulate.simple_separated_format("\t")
-
-    results_dirs = get_all_results_subdirs(results_dirs)
+    results_dirs = get_all_results_subdirs(results_dirs, regenerate=regenerate)
     df = load_planning_results(results_dirs, regenerate=regenerate)
     df.to_csv("/media/shared/analysis/tmp_results.csv")
 
-    if tables_config is not None:
-        table_specs = load_table_specs(tables_config, table_format)
-    else:
-        table_specs = None
-
-    return outdir, df, table_specs
+    return outdir, df, None
