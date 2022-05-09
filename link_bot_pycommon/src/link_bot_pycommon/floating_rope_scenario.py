@@ -111,15 +111,6 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         res: GetOverstretchingResponse = self.overstretching_srv(GetOverstretchingRequest())
         return res.overstretched
 
-    def trajopt_distance_to_goal_differentiable(self, final_state: Dict, goal_state: Dict):
-        return self.cfm_distance(final_state['z'], goal_state['z'])
-
-    def trajopt_distance_differentiable(self, s1, s2):
-        return self.cfm_distance(s1['z'], s2['z'])
-
-    def cfm_distance(self, z1, z2):
-        return tf.math.reduce_sum(tf.math.square(z1 - z2), axis=-1, keepdims=True)
-
     def get_environment(self, params: Dict, **kwargs):
         extent = params['extent']
         res = params['res']
@@ -259,6 +250,18 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         return not out_of_bounds and not too_far
 
+    def local_planner_cost_function_torch(self, planner):
+        def _local_planner_cost_function(actions: List[Dict],
+                                         environment: Dict,
+                                         goal_state: Dict,
+                                         states: List[Dict]):
+            del goal_state
+            goal_cost = self.distance_to_goal(state=states[1], goal=planner.goal_region.goal, use_torch=True)
+            action_cost = self.actions_cost_torch(states, actions, planner.action_params)
+            return goal_cost * planner.params['goal_alpha'] + action_cost * planner.params['action_alpha']
+
+        return _local_planner_cost_function
+
     def actions_cost(self, states: List[Dict], actions: List[Dict], action_params: Dict):
         cost = 0
         for state, action in zip(states, actions):
@@ -270,6 +273,23 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
             left_gripper_delta_cost = tf.nn.relu(left_gripper_delta - max_gripper_delta)
             right_gripper_delta_cost = tf.nn.relu(right_gripper_delta - max_gripper_delta)
             max_gripper_d_cost = tf.nn.relu(gripper_d - max_gripper_d)
+            cost_t = max_gripper_d_cost + left_gripper_delta_cost + right_gripper_delta_cost
+            cost += cost_t
+
+        return cost
+
+    def actions_cost_torch(self, states: List[Dict], actions: List[Dict], action_params: Dict):
+        import torch.nn.functional as F
+        cost = 0
+        for state, action in zip(states, actions):
+            max_gripper_delta = action_params['max_distance_gripper_can_move']
+            max_gripper_d = action_params['max_distance_between_grippers']
+            gripper_d = (action['left_gripper_position'] - action['right_gripper_position']).norm()
+            left_gripper_delta = (action['left_gripper_position'] - state['left_gripper']).norm()
+            right_gripper_delta = (action['right_gripper_position'] - state['right_gripper']).norm()
+            left_gripper_delta_cost = F.relu(left_gripper_delta - max_gripper_delta)
+            right_gripper_delta_cost = F.relu(right_gripper_delta - max_gripper_delta)
+            max_gripper_d_cost = F.relu(gripper_d - max_gripper_d)
             cost_t = max_gripper_d_cost + left_gripper_delta_cost + right_gripper_delta_cost
             cost += cost_t
 
@@ -471,7 +491,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return "dual_floating"
 
     @staticmethod
-    def distance_to_grippers_goal(state: Dict, goal: Dict):
+    def distance_to_grippers_goal(state: Dict, goal: Dict, use_torch):
         left_gripper = state['left_gripper']
         right_gripper = state['right_gripper']
         distance1 = tf.linalg.norm(goal['left_gripper'] - left_gripper)
@@ -479,7 +499,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return tf.math.maximum(distance1, distance2)
 
     @staticmethod
-    def distance_grippers_and_any_point_goal(state: Dict, goal: Dict):
+    def distance_grippers_and_any_point_goal(state: Dict, goal: Dict, use_torch):
         rope_points = tf.reshape(state[rope_key_name], [-1, 3])
         # well ok not _any_ node, but ones near the middle
         n_from_ends = 7
@@ -496,7 +516,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return d
 
     @staticmethod
-    def distance_grippers_and_any_point_goal2(state: Dict, goal: Dict):
+    def distance_grippers_and_any_point_goal2(state: Dict, goal: Dict, use_torch):
         n_from_ends = 7
         middle_rope_points = tf.reshape(state[rope_key_name], [-1, 3])[n_from_ends: -n_from_ends]
         middle_rope_point_distances = dist_to_bbox(point=middle_rope_points,
@@ -514,33 +534,40 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return tf.math.maximum(tf.math.maximum(left_gripper_d, right_gripper_d), rope_d)
 
     @staticmethod
-    def distance_to_any_point_goal(state: Dict, goal: Dict):
-        rope_points = tf.reshape(state[rope_key_name], [-1, 3])
-        # NOTE: well ok not _any_ node, but ones near the middle
-        n_from_ends = 7
-        distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
-                                   rope_points, axis=1)[n_from_ends:-n_from_ends]
-        min_distance = tf.reduce_min(distances)
+    def distance_to_any_point_goal(state: Dict, goal: Dict, use_torch):
+        if use_torch:
+            import torch
+            rope_points = state[rope_key_name].reshape([-1, 3])
+            n_from_ends = 7
+            distances = (torch.tensor(goal['point'])[None] - rope_points).norm(dim=1)[n_from_ends:-n_from_ends]
+            min_distance = distances.min()
+        else:
+            rope_points = tf.reshape(state[rope_key_name], [-1, 3])
+            # NOTE: well ok not _any_ node, but ones near the middle
+            n_from_ends = 7
+            distances = tf.linalg.norm(tf.expand_dims(goal['point'], axis=0) -
+                                       rope_points, axis=1)[n_from_ends:-n_from_ends]
+            min_distance = tf.reduce_min(distances)
         return min_distance
 
     @staticmethod
-    def distance_to_midpoint_goal(state: Dict, goal: Dict):
+    def distance_to_midpoint_goal(state: Dict, goal: Dict, use_torch):
         rope_points = tf.reshape(state[rope_key_name], [-1, 3])
         rope_midpoint = rope_points[int(FloatingRopeScenario.n_links / 2)]
         distance = tf.linalg.norm(goal['midpoint'] - rope_midpoint)
         return distance
 
-    def distance_to_goal(self, state: Dict, goal: Dict):
+    def distance_to_goal(self, state: Dict, goal: Dict, use_torch=False):
         if goal['goal_type'] == 'midpoint':
-            return self.distance_to_midpoint_goal(state, goal)
+            return self.distance_to_midpoint_goal(state, goal, use_torch)
         elif goal['goal_type'] == 'any_point':
-            return self.distance_to_any_point_goal(state, goal)
+            return self.distance_to_any_point_goal(state, goal, use_torch)
         elif goal['goal_type'] == 'grippers':
-            return self.distance_to_grippers_goal(state, goal)
+            return self.distance_to_grippers_goal(state, goal, use_torch)
         elif goal['goal_type'] == 'grippers_and_point':
-            return self.distance_grippers_and_any_point_goal(state, goal)
+            return self.distance_grippers_and_any_point_goal(state, goal, use_torch)
         elif goal['goal_type'] == 'grippers_and_point2':
-            return self.distance_grippers_and_any_point_goal2(state, goal)
+            return self.distance_grippers_and_any_point_goal2(state, goal, use_torch)
         else:
             raise NotImplementedError()
 

@@ -5,12 +5,18 @@ from typing import Optional
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.filepath_tools import load_trial
+from state_space_dynamics.torch_udnn_dynamics_wrapper import TorchUDNNDynamicsWrapper
 from state_space_dynamics.udnn_with_robot import UDNNEnsembleWithRobot
 from state_space_dynamics.unconstrained_dynamics_nn import UDNNWrapper
 
 
 @lru_cache
 def load_generic_model(model_dir: pathlib.Path, scenario: Optional[ExperimentScenario] = None):
+    if model_dir.as_posix().startswith('p:'):
+        checkpoint = model_dir.as_posix()[2:]
+        model = TorchUDNNDynamicsWrapper(checkpoint)
+        return model
+
     _, params = load_trial(model_dir.parent.absolute())
 
     if scenario is None:
@@ -22,7 +28,8 @@ def load_generic_model(model_dir: pathlib.Path, scenario: Optional[ExperimentSce
         nn = UDNNWrapper(model_dir, batch_size=1, scenario=scenario)
         return nn
     elif model_class == 'udnn_ensemble_with_robot':
-        elements = [load_generic_model(pathlib.Path(checkpoint), scenario) for checkpoint in params['rope_dynamics_checkpoints']]
+        elements = [load_generic_model(pathlib.Path(checkpoint), scenario) for checkpoint in
+                    params['rope_dynamics_checkpoints']]
         nn = UDNNEnsembleWithRobot(model_dir, elements, batch_size=1, scenario=scenario)
         return nn
     else:

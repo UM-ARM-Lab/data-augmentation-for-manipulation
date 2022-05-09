@@ -32,7 +32,7 @@ def execute_actions(
         environment: Dict,
         start_state: Dict,
         actions: List[Dict],
-        use_gt_rope: bool,
+        use_gt_rope: bool = False,
         stop_condition: Optional[Callable] = None,
         plot: bool = False):
     spinner = SynchronousSpinner('Executing actions')

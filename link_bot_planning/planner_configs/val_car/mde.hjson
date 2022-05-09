@@ -16,5 +16,5 @@
     max_planning_attempts: 1
     attempted_extensions_threshold: 128
   }
-  dmax: 0.08 # initial dmax?
+  dmax: 0.05 # initial dmax?
 }

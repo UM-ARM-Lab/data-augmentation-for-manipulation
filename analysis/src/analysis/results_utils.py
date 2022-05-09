@@ -378,9 +378,9 @@ def plot_steps(scenario: ScenarioWithVisualization,
         else:
             accept_probability_t = -1
 
-        scenario.plot_accept_probability(accept_probability_t)
+    #     scenario.plot_accept_probability(accept_probability_t)
         c = cm.jet_r(accept_probability_t)
-
+    
         if t < anim.max_t:
             action_color = _type_action_color(type_t)
             scenario.plot_action_rviz(s_t, a_t, color=action_color)
@@ -388,18 +388,18 @@ def plot_steps(scenario: ScenarioWithVisualization,
         if s_t_pred is not None:
             if 'scene_msg' in e_t and 'attached_collision_objects' not in s_t_pred:
                 s_t_pred['attached_collision_objects'] = e_t['scene_msg'].robot_state.attached_collision_objects
-            scenario.plot_state_rviz(s_t_pred, label='predicted', color=c)
+    #         scenario.plot_state_rviz(s_t_pred, label='predicted', color=c)
             is_close = scenario.compute_label(s_t, s_t_pred, labeling_params)
-            scenario.plot_is_close(is_close)
-            model_error = scenario.classifier_distance(s_t, s_t_pred)
-            scenario.plot_error_rviz(model_error)
-        else:
-            scenario.plot_is_close(None)
-            scenario.plot_error_rviz(-1)
-
+    #         scenario.plot_is_close(is_close)
+    #         model_error = scenario.classifier_distance(s_t, s_t_pred)
+    #         scenario.plot_error_rviz(model_error)
+    #     else:
+    #         scenario.plot_is_close(None)
+    #         scenario.plot_error_rviz(-1)
+    #
         dist_to_goal = scenario.distance_to_goal(s_t, goal)
         actually_at_goal = dist_to_goal < goal_threshold
-        scenario.plot_goal_rviz(goal, goal_threshold, actually_at_goal)
+    #     scenario.plot_goal_rviz(goal, goal_threshold, actually_at_goal)
 
         anim.step()
 

@@ -3,7 +3,9 @@ import warnings
 from typing import Dict, List, Tuple
 
 from arc_utilities.algorithms import zip_repeat_shorter
+from link_bot_planning.trajectory_optimizer_torch import TrajectoryOptimizerTorch
 from link_bot_pycommon.spinners import SynchronousSpinner
+from state_space_dynamics.torch_udnn_dynamics_wrapper import TorchUDNNDynamicsWrapper
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -16,7 +18,7 @@ from matplotlib import cm
 from link_bot_planning.get_ompl_scenario import get_ompl_scenario
 from link_bot_planning.my_planner import MyPlannerStatus, PlanningQuery, PlanningResult, MyPlanner, LoggingTree, \
     SharedPlanningStateOMPL
-from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
+from link_bot_planning.trajectory_optimizer_tf import TrajectoryOptimizerTF
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from state_space_dynamics.base_filter_function import BaseFilterFunction
 
@@ -29,6 +31,10 @@ from mde.mde_torch import MDEConstraintChecker
 
 def is_mde(classifier):
     return isinstance(classifier, MDEConstraintChecker)
+
+
+def is_torch(fwd_model):
+    return isinstance(fwd_model, TorchUDNNDynamicsWrapper)
 
 
 class OmplRRTWrapper(MyPlanner):
@@ -68,22 +74,24 @@ class OmplRRTWrapper(MyPlanner):
         self.ss = oc.SimpleSetup(self.scenario_ompl.control_space)
 
         self.si: oc.SpaceInformation = self.ss.getSpaceInformation()
+        self.dynamics_use_torch = is_torch(self.fwd_model)
 
-        def _local_planner_cost_function(actions: List[Dict],
-                                         environment: Dict,
-                                         goal_state: Dict,
-                                         states: List[Dict]):
-            assert goal_state is None
-            goal_cost = self.scenario.distance_to_goal(state=states[1], goal=self.goal_region.goal)
-            action_cost = self.scenario.actions_cost(states, actions, self.action_params)
-            return goal_cost * self.params['goal_alpha'] + action_cost * self.params['action_alpha']
-
-        self.opt = TrajectoryOptimizer(fwd_model=self.fwd_model,
-                                       classifier_model=None,
-                                       scenario=self.scenario,
-                                       params=self.params,
-                                       verbose=self.verbose,
-                                       cost_function=_local_planner_cost_function)
+        if self.dynamics_use_torch:
+            cost_function = self.scenario.local_planner_cost_function_torch(self)
+            self.opt = TrajectoryOptimizerTorch(fwd_model=self.fwd_model,
+                                                classifier_model=None,
+                                                scenario=self.scenario,
+                                                params=self.params,
+                                                verbose=self.verbose,
+                                                cost_function=cost_function)
+        else:
+            cost_function = self.scenario.local_planner_cost_function_tf(self)
+            self.opt = TrajectoryOptimizerTF(fwd_model=self.fwd_model,
+                                             classifier_model=None,
+                                             scenario=self.scenario,
+                                             params=self.params,
+                                             verbose=self.verbose,
+                                             cost_function=cost_function)
 
         if self.params['use_local_planner']:
             def _dcs_allocator(si):
@@ -351,6 +359,7 @@ class OmplRRTWrapper(MyPlanner):
                                                    rng=self.goal_sampler_rng,
                                                    params=self.params,
                                                    goal=goal,
+                                                   use_torch=self.dynamics_use_torch,
                                                    plot=self.verbose >= 2)
 
     def make_ptc(self, planning_query: PlanningQuery):

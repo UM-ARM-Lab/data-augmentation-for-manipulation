@@ -4,7 +4,7 @@ from typing import Dict
 from numpy.random import RandomState
 
 from link_bot_planning.my_planner import SharedPlanningStateOMPL
-from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
+from link_bot_planning.trajectory_optimizer_tf import TrajectoryOptimizerTF
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 
 with warnings.catch_warnings():
@@ -64,6 +64,6 @@ class ScenarioOmpl:
                                       si: oc.SpaceInformation,
                                       rng: RandomState,
                                       action_params: Dict,
-                                      opt: TrajectoryOptimizer,
+                                      opt: TrajectoryOptimizerTF,
                                       max_steps: int):
         raise NotImplementedError()

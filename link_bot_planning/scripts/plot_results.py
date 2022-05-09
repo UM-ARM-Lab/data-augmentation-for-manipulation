@@ -38,7 +38,10 @@ def main():
     while not anim.done:
         j = anim.t()
         trial_idx, datum_filename = idx_and_filenames[j]
+        from time import perf_counter
+        t0 = perf_counter()
         datum = load_gzipped_pickle(datum_filename)
+        print(perf_counter() - t0)
 
         trial_status = datum['trial_status']
         should_skip = (args.only_timeouts and trial_status == TrialStatus.Reached or

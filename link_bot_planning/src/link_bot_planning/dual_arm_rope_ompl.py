@@ -280,6 +280,7 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
                          si: oc.SpaceInformation,
                          rng: np.random.RandomState,
                          params: Dict, goal: Dict,
+                         use_torch: bool,
                          plot: bool):
         if goal['goal_type'] == 'midpoint':
             return RopeMidpointGoalRegion(si=si,
@@ -288,6 +289,7 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
                                           threshold=params['goal_params']['threshold'],
                                           goal=goal,
                                           shared_planning_state=self.sps,
+                                          use_torch=use_torch,
                                           plot=plot)
         elif goal['goal_type'] == 'any_point':
             return DualRopeAnyPointGoalRegion(si=si,
@@ -296,6 +298,7 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
                                               threshold=params['goal_params']['threshold'],
                                               goal=goal,
                                               shared_planning_state=self.sps,
+                                              use_torch=use_torch,
                                               plot=plot)
         elif goal['goal_type'] == 'grippers_and_point':
             return DualRopeAndGrippersGoalRegion(si=si,
@@ -319,6 +322,7 @@ class DualArmRopeOmpl(FloatingRopeOmpl):
                                           threshold=params['goal_params']['threshold'],
                                           goal=goal,
                                           shared_planning_state=self.sps,
+                                          use_torch=use_torch,
                                           plot=plot)
         else:
             raise NotImplementedError()
@@ -357,8 +361,9 @@ class DualGrippersGoalRegion(floating_rope_ompl.GripperGoalRegion):
                  threshold: float,
                  goal: Dict,
                  shared_planning_state: SharedPlanningStateOMPL,
+                 use_torch: bool,
                  plot: bool):
-        super().__init__(si, scenario_ompl, rng, threshold, goal, shared_planning_state, plot)
+        super().__init__(si, scenario_ompl, rng, threshold, goal, shared_planning_state, use_torch, plot)
         self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
     def make_goal_state(self, random_point):
@@ -386,8 +391,9 @@ class RopeMidpointGoalRegion(floating_rope_ompl.RopeMidpointGoalRegion):
                  threshold: float,
                  goal: Dict,
                  shared_planning_state: SharedPlanningStateOMPL,
+                 use_torch: bool,
                  plot: bool):
-        super().__init__(si, scenario_ompl, rng, threshold, goal, shared_planning_state, plot)
+        super().__init__(si, scenario_ompl, rng, threshold, goal, shared_planning_state, use_torch, plot)
         self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
     def make_goal_state(self, random_point):
@@ -456,9 +462,10 @@ class DualRopeAnyPointGoalRegion(floating_rope_ompl.RopeAnyPointGoalRegion):
                  threshold: float,
                  goal: Dict,
                  shared_planning_state: SharedPlanningStateOMPL,
+                 use_torch: bool,
                  plot: bool,
                  ):
-        super().__init__(si, scenario_ompl, rng, threshold, goal, shared_planning_state, plot)
+        super().__init__(si, scenario_ompl, rng, threshold, goal, shared_planning_state, use_torch, plot)
         self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
 
     def make_goal_state(self, random_point: np.array):

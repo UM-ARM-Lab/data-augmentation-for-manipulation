@@ -152,7 +152,7 @@ class ResultsToDynamicsDataset:
             actions_dict = sequence_of_dicts_to_dict_of_np_arrays(action_subsequence, 0)
             states_dict = sequence_of_dicts_to_dict_of_np_arrays(state_subsequence, 0)
 
-            time_idx = np.arange(len(states))
+            time_idx = np.arange(len(state_subsequence))
             environment = steps[0]['planning_query'].environment
             example = {
                 'traj_idx': trial_idx,

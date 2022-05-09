@@ -10,7 +10,7 @@ import rospy
 from link_bot_data.dynamics_dataset import DynamicsDatasetLoader
 from link_bot_planning.my_planner import PlanningQuery
 from link_bot_planning.shooting_method import ShootingMethod
-from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
+from link_bot_planning.trajectory_optimizer_tf import TrajectoryOptimizerTF
 from link_bot_pycommon.ros_pycommon import publish_color_image
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
@@ -56,10 +56,10 @@ def test_as_inverse_model(filter_model, latent_dynamics_model, test_dataset, tes
                                      params={
                                          'n_samples': 1000
                                      })
-    trajopt = TrajectoryOptimizer(fwd_model=latent_dynamics_model,
-                                  classifier_model=None,
-                                  scenario=scenario,
-                                  params={
+    trajopt = TrajectoryOptimizerTF(fwd_model=latent_dynamics_model,
+                                    classifier_model=None,
+                                    scenario=scenario,
+                                    params={
                                       "iters":                 100,
                                       "length_alpha":          0,
                                       "goal_alpha":            1000,

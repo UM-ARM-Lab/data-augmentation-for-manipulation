@@ -6,7 +6,6 @@ from numpy.random import RandomState
 
 from arc_utilities.transformation_helper import vector3_to_spherical, spherical_to_vector3
 from link_bot_planning.my_planner import SharedPlanningStateOMPL
-from link_bot_planning.trajectory_optimizer import TrajectoryOptimizer
 from link_bot_pycommon.floating_rope_scenario import FloatingRopeScenario
 from link_bot_pycommon.scenario_ompl import ScenarioOmpl
 from moonshine.numpify import numpify
@@ -185,6 +184,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
                          si: oc.SpaceInformation,
                          rng: RandomState,
                          params: Dict, goal: Dict,
+                         use_torch: bool,
                          plot: bool):
         if goal['goal_type'] == 'midpoint':
             return RopeMidpointGoalRegion(si=si,
@@ -193,6 +193,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
                                           threshold=params['goal_params']['threshold'],
                                           goal=goal,
                                           shared_planning_state=self.sps,
+                                          use_torch=use_torch,
                                           plot=plot)
         elif goal['goal_type'] == 'any_point':
             return RopeAnyPointGoalRegion(si=si,
@@ -201,6 +202,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
                                           threshold=params['goal_params']['threshold'],
                                           goal=goal,
                                           shared_planning_state=self.sps,
+                                          use_torch=use_torch,
                                           plot=plot)
         elif goal['goal_type'] == 'grippers':
             return GripperGoalRegion(si=si,
@@ -208,6 +210,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
                                      rng=rng,
                                      threshold=params['goal_params']['threshold'],
                                      goal=goal,
+                                     use_torch=use_torch,
                                      plot=plot)
         elif goal['goal_type'] == 'grippers_and_point':
             return RopeAndGrippersGoalRegion(si=si,
@@ -215,6 +218,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
                                              rng=rng,
                                              threshold=params['goal_params']['threshold'],
                                              goal=goal,
+                                             use_torch=use_torch,
                                              plot=plot)
         else:
             raise NotImplementedError(f"{goal['goal_type']}")
@@ -372,7 +376,7 @@ class FloatingRopeOmpl(ScenarioOmpl):
                                       si: oc.SpaceInformation,
                                       rng: RandomState,
                                       action_params: Dict,
-                                      opt: TrajectoryOptimizer,
+                                      opt,
                                       max_steps: int):
         return DualGripperDirectedControlSampler(si=si,
                                                  scenario_ompl=self,
@@ -389,7 +393,7 @@ class DualGripperDirectedControlSampler(oc.DirectedControlSampler):
                  si: oc.SpaceInformation,
                  scenario_ompl: ScenarioOmpl,
                  rng: RandomState,
-                 opt: TrajectoryOptimizer,
+                 opt,
                  action_params: Dict,
                  shared_planning_state: SharedPlanningStateOMPL,
                  max_steps: int = 50):
@@ -412,11 +416,11 @@ class DualGripperDirectedControlSampler(oc.DirectedControlSampler):
                 'left_gripper_position':  current_state_np['left_gripper'],
                 'right_gripper_position': current_state_np['right_gripper'],
             }]
-            control_out_tf, path = self.opt.optimize(environment=self.sps.environment,
+            control_out_, path = self.opt.optimize(environment=self.sps.environment,
                                                      goal_state=goal_state_np,
                                                      initial_actions=initial_actions,
                                                      start_state=current_state_np)
-            control_out_np = numpify(control_out_tf[0])
+            control_out_np = numpify(control_out_[0])
             next_state_np = numpify(path[0])
             # FIXME: this is wrong, we actually need to "set" these the same way we do in propagate... right?
             next_state_np['stdev'] = current_state_np['stdev']
@@ -521,8 +525,9 @@ class GripperGoalRegion(ob.GoalSampleableRegion):
                  threshold: float,
                  goal: Dict,
                  shared_planning_state: SharedPlanningStateOMPL,
+                 use_torch: bool,
                  plot: bool):
-        super(GripperGoalRegion, self).__init__(si)
+        super().__init__(si)
         self.sps = shared_planning_state
         self.setThreshold(threshold)
         self.goal = goal
@@ -530,13 +535,14 @@ class GripperGoalRegion(ob.GoalSampleableRegion):
         self.rng = rng
         self.plot = plot
         self.n_joints = self.scenario_ompl.state_space.getSubspace("joint_positions").getDimension()
+        self.use_torch = use_torch
 
     def distanceGoal(self, state: ob.CompoundState):
         """
         Uses the distance between a specific point in a specific subspace and the goal point
         """
         state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = float(self.scenario_ompl.s.distance_to_grippers_goal(state_np, self.goal).numpy())
+        distance = float(self.scenario_ompl.s.distance_to_grippers_goal(state_np, self.goal, self.use_torch).numpy())
 
         # this ensures the goal must have num_diverged = 0
         if state_np['num_diverged'] > 0:
@@ -586,21 +592,24 @@ class RopeMidpointGoalRegion(ob.GoalSampleableRegion):
                  threshold: float,
                  goal: Dict,
                  shared_planning_state: SharedPlanningStateOMPL,
-                 plot: bool):
-        super(RopeMidpointGoalRegion, self).__init__(si)
+                 plot: bool,
+                 use_torch: bool):
+        super().__init__(si)
         self.setThreshold(threshold)
         self.goal = goal
         self.scenario_ompl = scenario_ompl
         self.rng = rng
         self.plot = plot
         self.sps = shared_planning_state
+        self.use_torch = use_torch
+
 
     def distanceGoal(self, state: ob.CompoundState):
         """
         Uses the distance between a specific point in a specific subspace and the goal point
         """
         state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = float(self.scenario_ompl.s.distance_to_midpoint_goal(state_np, self.goal).numpy())
+        distance = float(self.scenario_ompl.s.distance_to_midpoint_goal(state_np, self.goal, self.use_torch).numpy())
 
         # this ensures the goal must have num_diverged = 0
         if state_np['num_diverged'] > 0:
@@ -648,21 +657,23 @@ class RopeAnyPointGoalRegion(ob.GoalSampleableRegion):
                  threshold: float,
                  goal: Dict,
                  shared_planning_state: SharedPlanningStateOMPL,
+                 use_torch: bool,
                  plot: bool):
-        super(RopeAnyPointGoalRegion, self).__init__(si)
+        super().__init__(si)
         self.setThreshold(threshold)
         self.goal = goal
         self.scenario_ompl = scenario_ompl
         self.rng = rng
         self.plot = plot
         self.sps = shared_planning_state
+        self.use_torch = use_torch
 
     def distanceGoal(self, state: ob.CompoundState):
         """
         Uses the distance between a specific point in a specific subspace and the goal point
         """
         state_np = self.scenario_ompl.ompl_state_to_numpy(state)
-        distance = float(self.scenario_ompl.s.distance_to_any_point_goal(state_np, self.goal).numpy())
+        distance = float(self.scenario_ompl.s.distance_to_any_point_goal(state_np, self.goal, self.use_torch).numpy())
 
         # this ensures the goal must have num_diverged = 0
         if state_np['num_diverged'] > 0:
@@ -713,7 +724,7 @@ class RopeAndGrippersGoalRegion2(ob.GoalSampleableRegion):
                  goal: Dict,
                  shared_planning_state: SharedPlanningStateOMPL,
                  plot: bool):
-        super(RopeAndGrippersGoalRegion2, self).__init__(si)
+        super().__init__(si)
         self.sps = shared_planning_state
         self.goal = goal
         self.scenario_ompl = scenario_ompl
@@ -777,7 +788,7 @@ class RopeAndGrippersGoalRegion(ob.GoalSampleableRegion):
                  goal: Dict,
                  shared_planning_state: SharedPlanningStateOMPL,
                  plot: bool):
-        super(RopeAndGrippersGoalRegion, self).__init__(si)
+        super().__init__(si)
         self.setThreshold(threshold)
         self.sps = shared_planning_state
         self.goal = goal
@@ -834,7 +845,7 @@ class RopeAndGrippersGoalRegion(ob.GoalSampleableRegion):
 class NoGoal(ob.GoalSampleableRegion):
 
     def __init__(self, si: oc.SpaceInformation):
-        super(NoGoal, self).__init__(si)
+        super().__init__(si)
         self.setThreshold(0.0)
 
     def canSample(self):

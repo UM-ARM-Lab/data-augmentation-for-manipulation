@@ -32,6 +32,7 @@ def main():
     parser.add_argument('--verbose', '-v', action='count', default=0, help="use more v's for more verbose, like -vvv")
     parser.add_argument('--record', action='store_true', help='record')
     parser.add_argument('--fast', action='store_true', help='for real val this will remove the sleeps')
+    parser.add_argument('--dynamics', type=pathlib.Path)
     parser.add_argument('--classifier', type=pathlib.Path)
     parser.add_argument('--recovery', type=pathlib.Path)
     parser.add_argument('--continue-from', type=pathlib.Path)
@@ -46,6 +47,8 @@ def main():
 
     planner_params = load_planner_params(args.planner_params)
     planner_params['method_name'] = args.outdir.name
+    if args.dynamics:
+        planner_params['fwd_model_dir'] = args.dynamics
     if args.classifier:
         planner_params["classifier_model_dir"] = [args.classifier,
                                                   pathlib.Path("cl_trials/new_feasibility_baseline/none")]

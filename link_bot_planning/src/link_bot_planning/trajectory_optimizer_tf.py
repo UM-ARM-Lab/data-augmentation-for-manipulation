@@ -3,7 +3,6 @@ from typing import Dict, List, Optional, Callable
 
 import tensorflow as tf
 from matplotlib import cm
-from more_itertools import pairwise
 
 from link_bot_classifiers.base_constraint_checker import BaseConstraintChecker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
@@ -22,7 +21,7 @@ def make_tf_variables(initial_actions):
     return out
 
 
-class TrajectoryOptimizer:
+class TrajectoryOptimizerTF:
 
     def __init__(self,
                  fwd_model: BaseDynamicsFunction,
@@ -43,6 +42,7 @@ class TrajectoryOptimizer:
         self.action_alpha = params["action_alpha"]
         self.initial_learning_rate = params['initial_learning_rate']
         self.cost_function = cost_function
+        self.optimizer = None
 
     def optimize(self,
                  environment: Dict,
@@ -82,7 +82,7 @@ class TrajectoryOptimizer:
                                                               start_state=start_state,
                                                               actions=actions)
 
-            cost = self.cost_function(actions, environment, None, mean_predictions)
+            cost = self.cost_function(actions, environment, goal_state, mean_predictions)
 
         variables = []
         for action in actions:
@@ -104,37 +104,3 @@ class TrajectoryOptimizer:
                                                       actions=actions)
 
         return actions, planned_path, cost
-
-
-def compute_goal_cost(scenario, goal_state, mean_predictions):
-    # Compute various cost terms
-    final_state = mean_predictions[-1]
-    goal_cost = scenario.trajopt_distance_to_goal_differentiable(final_state, goal_state)
-    return goal_cost
-
-
-def compute_length_cost(scenario, mean_predictions):
-    distances = [scenario.trajopt_distance_differentiable(s1, s2) for (s1, s2) in pairwise(mean_predictions)]
-    length_cost = tf.reduce_sum(tf.square(distances))
-    return length_cost
-
-
-def compute_action_cost(scenario, actions):
-    action_cost = scenario.trajopt_action_sequence_cost_differentiable(actions)
-    return action_cost
-
-
-def compute_constraints_cost(classifier_model, actions: List, environment: Dict, states: List[Dict]):
-    constraint_costs = []
-    for t in range(1, len(states)):
-        s_t = states[:t + 1]
-        accept_probability_t, _ = classifier_model.check_constraint_tf(environment=environment,
-                                                                       states_sequence=s_t,
-                                                                       actions=actions)
-        accept_probability_t = accept_probability_t[0]
-        if accept_probability_t > 0.5:
-            constraint_cost = tf.zeros_like(accept_probability_t)
-        else:
-            constraint_cost = tf.square(0.5 - accept_probability_t)
-        constraint_costs.append(constraint_cost)
-    return constraint_costs
