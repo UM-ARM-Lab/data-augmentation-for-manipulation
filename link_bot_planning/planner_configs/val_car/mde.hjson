@@ -1,12 +1,8 @@
 {
   accept_type: strict
-  method_name: random recovery
+  method_name: mde
   scenario_params: {
     rope_name: rope_3d_alt
-  }
-  recovery: {
-    recovery_model_dir: /media/shared/recovery_trials/random/none
-    use_recovery: true
   }
   termination_criteria: {
     total_timeout: 1000
@@ -16,5 +12,5 @@
     max_planning_attempts: 1
     attempted_extensions_threshold: 128
   }
-  dmax: 0.05 # initial dmax?
+  dmax: 0.05
 }
