@@ -190,13 +190,15 @@ class MDE(pl.LightningModule):
         return loss
 
     def validation_step(self, val_batch: Dict[str, torch.Tensor], batch_idx):
-        outputs = self.forward(val_batch)
-        loss = self.compute_loss(val_batch, outputs)
+        pred_error = self.forward(val_batch)
+        loss = self.compute_loss(val_batch, pred_error)
         true_error = val_batch['error'][:, 1]
         true_error_thresholded = true_error < self.hparams.error_threshold
-        pred_error_thresholded = outputs < self.hparams.error_threshold
+        pred_error_thresholded = pred_error < self.hparams.error_threshold
+        signed_loss = pred_error - true_error
         self.log('val_loss', loss)
         self.val_accuracy(pred_error_thresholded, true_error_thresholded)  # updates the metric
+        self.log('pred_minus_true_error', signed_loss)
         return loss
 
     def validation_epoch_end(self, _):
@@ -259,6 +261,7 @@ if __name__ == '__main__':
 
     c = MDEConstraintChecker('meta-2-8b87r')
     import pickle
+
     with open("mde_test_inputs.pkl", 'rb') as f:
         env, states, actions = pickle.load(f)
     outputs = c.check_constraint(env, states, actions)

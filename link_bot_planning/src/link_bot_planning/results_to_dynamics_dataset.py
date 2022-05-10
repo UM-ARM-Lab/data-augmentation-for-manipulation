@@ -141,9 +141,10 @@ class ResultsToDynamicsDataset:
             states.extend(states_step)
 
         if self.traj_length is not None:
-            action_subsequences = reversed_chunked(actions, self.traj_length)
-            action_subsequences = [a_seq[:-1] for a_seq in action_subsequences]
             state_subsequences = reversed_chunked(states, self.traj_length)
+            padded_actions = [actions[0]] + actions
+            action_subsequences = reversed_chunked(padded_actions, self.traj_length)
+            action_subsequences = [aseq[1:] for aseq in action_subsequences]
         else:
             action_subsequences = [actions]
             state_subsequences = [states]

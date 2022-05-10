@@ -48,14 +48,14 @@ def main():
 
         true_errors = []
         pred_errors = []
-        example_indices = []
+        # example_indices = []
         for batch in tqdm(loader):
             true_error = batch['error'][:, 1]
             pred_error = model.forward(batch)
             pred_errors.extend(pred_error.detach().cpu().numpy().tolist())
             true_errors.extend(true_error.detach().cpu().numpy().tolist())
             # FIXME: how do we know which MDE example maps to which dynamics dataset example?
-            example_indices.extend(batch['example_idx'].detach().cpu().numpy().tolist())
+            # example_indices.extend(batch['example_idx'].detach().cpu().numpy().tolist())
 
         true_errors_2d = np.array(true_errors).reshape([-1, 1])
         pred_errors_2d = np.array(pred_errors).reshape([-1, 1])
@@ -65,23 +65,23 @@ def main():
         print(f"r2_score: {r2_score:.3f}")
         print(f"slope: {slope:.3f}")
 
-        learned_data_weights = udnn_meta_model.sample_weights[example_indices]
+        # learned_data_weights = udnn_meta_model.sample_weights[example_indices]
 
         plt.style.use("slides")
         plt.figure(figsize=(12, 12))
         ax = plt.gca()
-        sns.scatterplot(ax=ax, x=true_errors, y=pred_errors, hue=learned_data_weights, alpha=0.1)
+        sns.scatterplot(ax=ax, x=true_errors, y=pred_errors, alpha=0.2)
         sns.kdeplot(ax=ax, x=true_errors, y=pred_errors, color='k')
-        y_max = 0.15
-        ax.set_xlim(-0.001, 0.15)
-        ax.set_ylim(-0.001, y_max)
+        max_error = 0.6
+        ax.set_xlim(-0.001, max_error)
+        ax.set_ylim(-0.001, max_error)
         ax.set_aspect("equal")
         ax.set_title(f"Error ({mode}) ({args.checkpoint})")
         ax.set_xlabel("true error")
         ax.set_ylabel("predicted error")
-        ax.text(0.01, 0.9 * y_max, f"r2={r2_score:.3f},slope={slope:.3f}")
+        ax.text(0.01, 0.9 * max_error, f"r2={r2_score:.3f},slope={slope:.3f}")
 
-        root = pathlib.Path("results/mde_scatters")
+        root = pathlib.Path("results/mde_scatters") / args.dataset_dir.name
         root.mkdir(exist_ok=True, parents=True)
         filename = root / f'mde_scatter_{args.checkpoint}_{mode}'
         plt.savefig(filename.as_posix())

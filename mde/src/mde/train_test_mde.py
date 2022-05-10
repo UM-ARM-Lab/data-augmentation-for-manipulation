@@ -13,6 +13,7 @@ from torchvision import transforms
 from wandb.util import generate_id
 
 from link_bot_data.visualization import init_viz_env
+from link_bot_data.wandb_datasets import get_dataset_with_version
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
 from mde.mde_torch import MDE
 from mde.torch_mde_dataset import TorchMDEDataset
@@ -159,10 +160,11 @@ def eval_main(dataset_dir: pathlib.Path,
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
-        'training_dataset': model.hparams.dataset_dir,
-        'eval_dataset':     dataset_dir.as_posix(),
-        'eval_checkpoint':  checkpoint,
-        'eval_mode':        mode,
+        'training_dataset':       model.hparams.dataset_dir,
+        'eval_dataset':           dataset_dir.as_posix(),
+        'eval_dataset_versioned': get_dataset_with_version(dataset_dir, PROJECT),
+        'eval_checkpoint':        checkpoint,
+        'eval_mode':              mode,
     }
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity='armlab')

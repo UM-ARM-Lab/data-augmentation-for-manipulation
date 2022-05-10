@@ -52,7 +52,7 @@ def main():
     parser.add_argument('dataset_dir', type=pathlib.Path)
     parser.add_argument('--mode', choices=['train', 'val', 'test', 'all'], default='all')
     parser.add_argument('--shard', type=int)
-    parser.add_argument('--threshold', type=float, default=None)
+    parser.add_argument('--threshold', type=float, default=0.06)
     parser.add_argument('--skip', type=int, default=0)
     parser.add_argument('--take', type=int)
 

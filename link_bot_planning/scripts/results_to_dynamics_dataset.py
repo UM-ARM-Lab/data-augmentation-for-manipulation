@@ -3,6 +3,7 @@ import argparse
 import pathlib
 
 from arc_utilities import ros_init
+from link_bot_data.wandb_datasets import wandb_save_dataset
 from link_bot_planning.results_to_dynamics_dataset import ResultsToDynamicsDataset
 
 
@@ -17,6 +18,8 @@ def main():
 
     r = ResultsToDynamicsDataset(results_dir=args.results_dir, outdir=args.outdir, traj_length=args.traj_length)
     r.run()
+
+    wandb_save_dataset(args.oudir, project='udnn')
 
 
 if __name__ == '__main__':
