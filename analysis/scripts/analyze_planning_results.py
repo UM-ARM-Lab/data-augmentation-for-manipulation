@@ -40,6 +40,10 @@ def analyze_planning_results(args):
 
     barplot(df, outdir, hue, 'any_solved', "Any Plans Found?", figsize=(12, 8))
 
+    barplot(df, outdir, hue, 'success_given_solved', "Success (given solved)", figsize=(12, 8))
+
+    boxplot(df, outdir, hue, 'task_error_given_solved', "Task Error (given solved)", figsize=(12, 8))
+
     fig, ax = plt.subplots(figsize=(14, 7))
     sns.barplot(
         ax=ax,

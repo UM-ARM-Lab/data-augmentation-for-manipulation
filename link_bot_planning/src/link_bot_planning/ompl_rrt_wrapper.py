@@ -219,7 +219,7 @@ class OmplRRTWrapper(MyPlanner):
         accept = True
         accept_probabilities = {}
         max_pred_error = np.float32(0)
-        for classifier in self.classifier_model:
+        for classifier in self.classifier_models:
             if is_mde(classifier):
                 pred_error = classifier.check_constraint(environment=self.sps.environment,
                                                          states_sequence=states,

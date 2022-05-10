@@ -223,6 +223,22 @@ def stop_on_error(_: pathlib.Path, __: ExperimentScenario, trial_metadata: Dict,
 
 
 @metrics_funcs
+def task_error_given_solved(path: pathlib.Path, scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    if any_solved(path, scenario, trial_metadata, trial_datum):
+        return task_error(path, scenario, trial_metadata, trial_datum)
+    else:
+        return np.NAN
+
+
+@metrics_funcs
+def success_given_solved(path: pathlib.Path, scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
+    if any_solved(path, scenario, trial_metadata, trial_datum):
+        return success(path, scenario, trial_metadata, trial_datum)
+    else:
+        return np.NAN
+
+
+@metrics_funcs
 def success(path: pathlib.Path, scenario: ExperimentScenario, trial_metadata: Dict, trial_datum: Dict):
     final_execution_to_goal_error = task_error(path, scenario, trial_metadata, trial_datum)
     return int(final_execution_to_goal_error < trial_metadata['planner_params']['goal_params']['threshold'])
