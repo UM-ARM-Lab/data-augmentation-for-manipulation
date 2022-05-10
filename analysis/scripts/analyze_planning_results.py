@@ -40,31 +40,27 @@ def analyze_planning_results(args):
 
     barplot(df, outdir, hue, 'any_solved', "Any Plans Found?", figsize=(12, 8))
 
-    barplot(df, outdir, hue, 'success_given_solved', "Success (given solved)", figsize=(12, 8))
+    success_barplot(df, 'success', hue, outdir, figsize=(12, 8))
 
     boxplot(df, outdir, hue, 'task_error_given_solved', "Task Error (given solved)", figsize=(12, 8))
 
-    fig, ax = plt.subplots(figsize=(14, 7))
-    sns.barplot(
-        ax=ax,
-        data=df,
-        x=hue,
-        y='success',
-        palette='colorblind',
-        linewidth=5,
-        ci=None,
-    )
+    success_barplot(df, 'success_given_solved', hue, outdir, figsize=(12, 8))
+
+    if not args.no_plot:
+        plt.show(block=True)
+
+
+def success_barplot(df, y, hue, outdir, figsize):
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.barplot(ax=ax, data=df, x=hue, y=y, palette='colorblind', linewidth=5, ci=None)
     for p in ax.patches:
         _x = p.get_x() + p.get_width() / 2
         _y = p.get_y() + p.get_height() + 0.02
         value = '{:.2f}'.format(p.get_height())
         ax.text(_x, _y, value, ha="center")
     ax.set_ylim(0, 1.0)
-    ax.set_title('success')
-    plt.savefig(outdir / f'success.png')
-
-    if not args.no_plot:
-        plt.show()
+    ax.set_title(f"{y}")
+    plt.savefig(outdir / f'{y}.png')
 
 
 @ros_init.with_ros("analyse_planning_results")

@@ -27,15 +27,23 @@ def main():
             radius = example['radius'][t, 0]
             x = example['jaco_arm/primitive_hand/tcp_pos'][t, 0, 0]
             y = example['jaco_arm/primitive_hand/tcp_pos'][t, 0, 1]
-            robot = patches.Circle((x, y), radius)
+            dx = example['jaco_arm/primitive_hand/tcp_vel'][t, 0, 0]
+            dy = example['jaco_arm/primitive_hand/tcp_vel'][t, 0, 1]
+            robot = patches.Circle((x, y), radius, color='pink')
+            robot_vel = patches.Arrow(x, y, dx, dy, width=0.01, color='red')
             ax.add_patch(robot)
+            ax.add_patch(robot_vel)
 
             for object_idx in range(9):
                 x = example[f'obj{object_idx}/position'][t, 0, 0]
                 y = example[f'obj{object_idx}/position'][t, 0, 1]
+                dx = example[f'obj{object_idx}/linear_velocity'][t, 0, 0]
+                dy = example[f'obj{object_idx}/linear_velocity'][t, 0, 1]
 
-                obj = plt.Circle((x, y), radius)
+                obj = plt.Circle((x, y), radius, color='blue')
+                obj_vel = plt.Arrow(x, y, dx, dy, width=0.01, color='black')
                 ax.add_patch(obj)
+                ax.add_patch(obj_vel)
 
             ax.set_xlim([-.2, 0.2])
 
