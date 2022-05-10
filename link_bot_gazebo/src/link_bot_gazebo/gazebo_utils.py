@@ -77,8 +77,8 @@ def resume():
 
 @contextlib.contextmanager
 def gazebo_suspended():
-    initial_is_suspended = gazebo_utils.is_suspended()
-    gazebo_utils.suspend()
+    initial_is_suspended = is_suspended()
+    suspend()
     yield
     if not initial_is_suspended:
-        gazebo_utils.resume()
+        resume()

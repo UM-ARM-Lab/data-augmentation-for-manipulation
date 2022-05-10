@@ -33,8 +33,8 @@ def analyze_planning_results(args):
 
     _, ax = boxplot(df, outdir, hue, 'task_error', "Task Error", figsize=(12, 8))
     ax.axhline(y=0.045, linestyle='--')
-    _, ymax = ax.get_ylim()
-    ax.set_ylim([0, ymax])
+    ax.set_ylim([0, 0.4])
+    plt.savefig(outdir / f'task_error.png')
 
     boxplot(df, outdir, hue, 'normalized_model_error', "Model Error", figsize=(12, 8))
 
@@ -42,7 +42,10 @@ def analyze_planning_results(args):
 
     success_barplot(df, 'success', hue, outdir, figsize=(12, 8))
 
-    boxplot(df, outdir, hue, 'task_error_given_solved', "Task Error (given solved)", figsize=(12, 8))
+    _, ax = boxplot(df, outdir, hue, 'task_error_given_solved', "Task Error (given solved)", figsize=(12, 8))
+    ax.axhline(y=0.045, linestyle='--')
+    ax.set_ylim([0, 0.4])
+    plt.savefig(outdir / f'task_error_given_solved.png')
 
     success_barplot(df, 'success_given_solved', hue, outdir, figsize=(12, 8))
 

@@ -37,6 +37,7 @@ def load_udnn_model_wrapper(checkpoint):
         model_with_weights = load_model_artifact(checkpoint, MWNet, 'udnn', version='best', user='armlab',
                                                  train_dataset=None)
         model = model_with_weights.udnn
+    model.eval()
     return model
 
 
@@ -313,8 +314,7 @@ def viz_main(dataset_dir: pathlib.Path,
 
     dataset = dataset_skip(dataset, skip)
 
-    model = load_model_artifact(checkpoint, UDNN, project, version='best', user=user)
-    model.eval()
+    model = load_udnn_model_wrapper(checkpoint)
 
     s = dataset.get_scenario()
 

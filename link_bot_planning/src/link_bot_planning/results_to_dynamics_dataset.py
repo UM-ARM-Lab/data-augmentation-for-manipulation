@@ -8,7 +8,7 @@ from tqdm import tqdm
 import rospy
 from analysis import results_utils
 from analysis.results_utils import NoTransitionsError
-from arc_utilities.algorithms import chunked_iterable
+from arc_utilities.algorithms import reversed_chunked
 from link_bot_data.dataset_utils import DEFAULT_VAL_SPLIT, DEFAULT_TEST_SPLIT
 from link_bot_data.split_dataset import split_dataset
 from link_bot_data.tf_dataset_utils import write_example
@@ -141,9 +141,9 @@ class ResultsToDynamicsDataset:
             states.extend(states_step)
 
         if self.traj_length is not None:
-            action_subsequences = list(reversed(list(chunked_iterable(reversed(actions), self.traj_length))))
+            action_subsequences = reversed_chunked(actions, self.traj_length)
             action_subsequences = [a_seq[:-1] for a_seq in action_subsequences]
-            state_subsequences = list(reversed(list(chunked_iterable(reversed(states), self.traj_length))))
+            state_subsequences = reversed_chunked(states, self.traj_length)
         else:
             action_subsequences = [actions]
             state_subsequences = [states]

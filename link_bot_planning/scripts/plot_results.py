@@ -32,26 +32,26 @@ def main():
 
     idx_and_filenames = list(trials_filenames_generator(results_dir))
 
-    with gazebo_suspended():
-        anim = RvizAnimationController(n_time_steps=len(idx_and_filenames), ns='trajs')
+    anim = RvizAnimationController(n_time_steps=len(idx_and_filenames), ns='trajs')
 
-        while not anim.done:
-            j = anim.t()
-            trial_idx, datum_filename = idx_and_filenames[j]
+    while not anim.done:
+        j = anim.t()
+        trial_idx, datum_filename = idx_and_filenames[j]
+        with gazebo_suspended():
             datum = load_gzipped_pickle(datum_filename)
 
-            trial_status = datum['trial_status']
-            should_skip = (args.only_timeouts and trial_status == TrialStatus.Reached or
-                           args.only_reached and trial_status != TrialStatus.Reached)
+        trial_status = datum['trial_status']
+        should_skip = (args.only_timeouts and trial_status == TrialStatus.Reached or
+                       args.only_reached and trial_status != TrialStatus.Reached)
 
-            if should_skip:
-                anim.step()
-                continue
-
-            print(f"trial {trial_idx}, status {trial_status}")
-            plot_steps(scenario, datum, metadata, {'threshold': args.threshold}, args.verbose, args.full_plan)
-
+        if should_skip:
             anim.step()
+            continue
+
+        print(f"trial {trial_idx}, status {trial_status}")
+        plot_steps(scenario, datum, metadata, {'threshold': args.threshold}, args.verbose, args.full_plan)
+
+        anim.step()
 
 
 if __name__ == '__main__':
