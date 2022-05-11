@@ -226,8 +226,6 @@ class OmplRRTWrapper(MyPlanner):
                                                          actions=actions)
                 if self.params.get("dynamic_dmax", False):
                     dmax = -25 / (self.ptc.attempted_extensions - self.ptc.max_extensions + 1e-3) + self.params['dmax']
-                    if self.ptc.attempted_extensions % 100 == 0:
-                        print(self.ptc.attempted_extensions, self.ptc.max_extensions, dmax)
                 else:
                     dmax = self.params['dmax']
                 p_accepts_for_model = np.array([pred_error < dmax]).astype(np.int32)

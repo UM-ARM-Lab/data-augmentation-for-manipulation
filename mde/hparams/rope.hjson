@@ -31,5 +31,5 @@
   error_threshold: 0.05
   weight_decay: 0
   dropout_p: 0.0
-  use_prev_error: False
+  use_prev_error: True
 }

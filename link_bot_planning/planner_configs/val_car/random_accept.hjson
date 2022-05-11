@@ -1,8 +1,13 @@
 {
   accept_type: probabilistic
-  method_name: random recovery
-  recovery: {
-    recovery_model_dir: /media/shared/recovery_trials/random/none
-    use_recovery: true
+  method_name: random_accept
+  termination_criteria: {
+    total_timeout: 500
+    timeout: 500
+    max_extensions: 1000
+    max_attempts: 1
+    max_planning_attempts: 1
+    attempted_extensions_threshold: 128
   }
+  dmax: 0.08
 }

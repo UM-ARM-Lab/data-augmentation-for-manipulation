@@ -12,9 +12,12 @@ from torchvision.transforms import transforms
 from tqdm import tqdm
 
 from arc_utilities import ros_init
+from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.load_wandb_model import load_model_artifact
 from mde.mde_torch import MDE
 from mde.torch_mde_dataset import TorchMDEDataset
+from merrrt_visualization.rviz_animation_controller import RvizAnimationController
+from moonshine.numpify import numpify
 from moonshine.torch_datasets_utils import my_collate, dataset_shard
 from state_space_dynamics.mw_net import MWNet
 from state_space_dynamics.torch_dynamics_dataset import remove_keys
@@ -30,32 +33,49 @@ def main():
     args = parser.parse_args()
 
     udnn_meta_checkpoint = "m1_adam_unadapted-470ps"
-    udnn_meta_model = load_model_artifact(udnn_meta_checkpoint, MWNet, project='udnn', version='best', user='armlab', train_dataset=None)
+    udnn_meta_model = load_model_artifact(udnn_meta_checkpoint, MWNet, project='udnn', version='best', user='armlab',
+                                          train_dataset=None)
 
     model = load_model_artifact(args.checkpoint, MDE, project='mde', version='best', user='armlab')
     model.eval()
 
     for mode in modes:
         transform = transforms.Compose([remove_keys("scene_msg")])
-        dataset = TorchMDEDataset(args.dataset_dir, mode=mode, transform=transform)
+        full_dataset = TorchMDEDataset(args.dataset_dir, mode=mode, transform=transform)
+        s = full_dataset.get_scenario()
 
         max_len = 1000
-        shard = max(int(len(dataset) / max_len), 1)
-        dataset = dataset_shard(dataset, shard)
+        shard = max(int(len(full_dataset) / max_len), 1)
+        dataset = dataset_shard(full_dataset, shard)
 
         pytorch_lightning.seed_everything(1)
         loader = DataLoader(dataset, collate_fn=my_collate, batch_size=16, shuffle=True)
 
         true_errors = []
         pred_errors = []
-        # example_indices = []
         for batch in tqdm(loader):
             true_error = batch['error'][:, 1]
             pred_error = model.forward(batch)
-            pred_errors.extend(pred_error.detach().cpu().numpy().tolist())
-            true_errors.extend(true_error.detach().cpu().numpy().tolist())
-            # FIXME: how do we know which MDE example maps to which dynamics dataset example?
-            # example_indices.extend(batch['example_idx'].detach().cpu().numpy().tolist())
+            batch.pop("metadata")
+
+            pred_error = pred_error.detach().cpu().numpy().tolist()
+            true_error = true_error.detach().cpu().numpy().tolist()
+            for b, (pred_error_i, true_error_i) in enumerate(zip(pred_error, true_error)):
+                pred_errors.append(pred_error_i)
+                true_errors.append(true_error_i)
+
+                if true_error_i < 0.05 and pred_error_i > 0.3:
+                    inputs = numpify({k: v[b] for k, v in batch.items()})
+                    time_anim = RvizAnimationController(n_time_steps=2)
+
+                    time_anim.reset()
+                    while not time_anim.done:
+                        t = time_anim.t()
+                        init_viz_env(s, inputs, t)
+                        full_dataset.transition_viz_t()(s, inputs, t)
+                        s.plot_pred_error_rviz(pred_error_i)
+                        s.plot_error_rviz(true_error_i)
+                        time_anim.step()
 
         true_errors_2d = np.array(true_errors).reshape([-1, 1])
         pred_errors_2d = np.array(pred_errors).reshape([-1, 1])
@@ -64,8 +84,6 @@ def main():
         slope = float(reg.coef_[0, 0])
         print(f"r2_score: {r2_score:.3f}")
         print(f"slope: {slope:.3f}")
-
-        # learned_data_weights = udnn_meta_model.sample_weights[example_indices]
 
         plt.style.use("slides")
         plt.figure(figsize=(12, 12))
