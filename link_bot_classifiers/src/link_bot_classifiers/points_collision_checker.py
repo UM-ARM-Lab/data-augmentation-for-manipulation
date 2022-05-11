@@ -10,7 +10,7 @@ from moonshine.grid_utils_tf import batch_point_to_idx_tf_3d_in_batched_envs
 from moonshine.moonshine_utils import dict_of_sequences_to_sequence_of_dicts
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 
-DEFAULT_INFLATION_RADIUS = 0.00
+DEFAULT_INFLATION_RADIUS = 0.01
 
 
 def check_collision_transition(scenario: ScenarioWithVisualization,

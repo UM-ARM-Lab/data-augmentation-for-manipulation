@@ -14,8 +14,8 @@
     total_timeout: 1000
     timeout: 1000
     max_extensions: 20000
-    max_attempts: 1
-    max_planning_attempts: 1
+    max_attempts: 2
+    max_planning_attempts: 2
     attempted_extensions_threshold: 128
   }
   dmax: 0.05
