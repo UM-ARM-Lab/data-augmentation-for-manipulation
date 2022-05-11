@@ -120,6 +120,11 @@ def voxel_grid_to_pc2(voxel_grid: np.ndarray, scale: float, frame_id: str, stamp
     slices = [slice(0, s) for s in voxel_grid.shape]
     indices = np.reshape(np.mgrid[slices], [3, -1]).T
     points = indices * scale + scale / 2
+    msg = points_and_intensities_to_pc2_msg(points, intensity, stamp, frame_id)
+    return msg
+
+
+def points_and_intensities_to_pc2_msg(points, intensity, stamp, frame_id):
     points = list(zip(points[:, 0], points[:, 1], points[:, 2], intensity))
     dtype = [('x', np.float32), ('y', np.float32), ('z', np.float32), ('intensity', np.float32)]
     np_record_array = np.array(points, dtype=dtype)

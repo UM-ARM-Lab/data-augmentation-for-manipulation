@@ -19,7 +19,7 @@ def main():
     r = ResultsToDynamicsDataset(results_dir=args.results_dir, outdir=args.outdir, traj_length=args.traj_length)
     r.run()
 
-    wandb_save_dataset(args.oudir, project='udnn')
+    wandb_save_dataset(args.outdir, project='udnn')
 
 
 if __name__ == '__main__':

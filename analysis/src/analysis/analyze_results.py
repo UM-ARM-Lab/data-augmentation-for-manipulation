@@ -98,3 +98,13 @@ def planning_results(results_dirs, regenerate=False):
     df.to_csv("/media/shared/analysis/tmp_results.csv")
 
     return outdir, df, None
+
+
+def try_split_model_name(checkpoint):
+    if ':' in checkpoint:
+        if 'p:' in checkpoint:
+            print("Wrong format for checkpoint + label name")
+            return checkpoint, checkpoint
+        checkpoint, label_name = checkpoint.split(":")
+        return checkpoint, label_name
+    return checkpoint, checkpoint
