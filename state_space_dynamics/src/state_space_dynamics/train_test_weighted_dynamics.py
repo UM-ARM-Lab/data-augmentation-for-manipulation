@@ -33,7 +33,7 @@ def train_model_params(batch_size, checkpoint, epochs, model_params_path, seed, 
     model_params = load_hjson(model_params_path)
     model_params['scenario'] = train_dataset.params['scenario']
     model_params['dataset_dir'] = train_dataset.dataset_dir
-    model_params['dataset_dir_versioned'] = get_dataset_with_version(train_dataset.dataset_dir)
+    model_params['dataset_dir_versioned'] = get_dataset_with_version(train_dataset.dataset_dir, project=PROJECT)
     model_params['dataset_hparams'] = train_dataset.params
     # add some extra useful info here
     stamp = "{:%B_%d_%H-%M-%S}".format(datetime.now())

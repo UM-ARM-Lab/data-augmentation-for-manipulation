@@ -8,6 +8,7 @@ import pandas as pd
 import seaborn as sns
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
+from tqdm import tqdm
 
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_datasets_utils import my_collate
@@ -31,15 +32,16 @@ def main():
     for checkpoint in args.checkpoints:
         model = load_udnn_model_wrapper(checkpoint)
         model.eval()
-        for example in loader:
+        for example in tqdm(loader):
             outputs = model(example)
             error_batch = model.scenario.classifier_distance_torch(example, outputs)
             for error in error_batch.detach().numpy().squeeze().tolist():
                 data.append([checkpoint, error])
 
-    df = pd.DataFrame(data, columns=['checkpoint', 'mde_error'])
+    df = pd.DataFrame(data, columns=['checkpoint', 'dynamics_error'])
 
-    sns.boxplot(data=df, y='mde_error', hue='checkpoint')
+    plt.style.use("slides")
+    sns.boxplot(data=df, y='dynamics_error', x='checkpoint')
     plt.show()
 
 
