@@ -1,13 +1,18 @@
 {
   accept_type: probabilistic
   method_name: random_accept
+  scenario_params: {
+    rope_name: rope_3d_alt
+  }
+  classifier_model_dir: [
+      /media/shared/cl_trials/new_feasibility_baseline/none
+  ]
   termination_criteria: {
     total_timeout: 500
     timeout: 500
     max_extensions: 1000
-    max_attempts: 1
-    max_planning_attempts: 1
+    max_attempts: 5
+    max_planning_attempts: 5
     attempted_extensions_threshold: 128
   }
-  dmax: 0.08
 }
