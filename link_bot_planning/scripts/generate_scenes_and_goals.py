@@ -9,7 +9,7 @@ from colorama import Fore
 import ros_numpy
 import rospy
 from arc_utilities import ros_init
-from arm_robots.robot import RobotPlanningError
+from arm_robots.robot import RobotPlanningError, FollowJointTrajectoryError
 from geometry_msgs.msg import Point, Pose
 from link_bot_gazebo import gazebo_services
 from link_bot_gazebo.gazebo_utils import get_gazebo_processes
@@ -95,7 +95,7 @@ def generate_saved_goals(method: str,
             deal_with_exceptions(how_to_handle='retry',
                                  function=_restore,
                                  exception_callback=_retry_msg,
-                                 exceptions=(RobotPlanningError,))
+                                 exceptions=(RobotPlanningError,FollowJointTrajectoryError))
 
         environment = scenario.get_environment(params)
         for _ in range(3):
