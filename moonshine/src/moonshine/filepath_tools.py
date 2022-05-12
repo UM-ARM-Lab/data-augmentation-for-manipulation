@@ -106,24 +106,3 @@ def create_trial(group_name, params, trials_directory=None):
         hjson.dump(params, params_file, indent=2)
 
     return trial_path, params
-
-
-def _write_summary(full_trial_directory, group_name, unique_trial_subdirectory_name):
-    with (full_trial_directory / 'readme.txt').open("w") as f:
-        f.write(datetime.now().strftime("%Y/%m/%d-%H:%M:%S"))
-        f.write("\nTrial trial_nickname: {}/{}\n".format(group_name, unique_trial_subdirectory_name))
-
-        f.write("git show --summary:\n")
-        f.write(subprocess.check_output(['git', 'show', '--summary']))
-        f.write("git status:\n")
-        f.write(subprocess.check_output(['git', 'status']))
-        f.write("git diff:\n")
-        f.write(subprocess.check_output(['git', 'diff']))
-
-
-def get_default_params():
-    r = rospkg.RosPack()
-    shape_completion_training_path = pathlib.Path(r.get_path('shape_completion_training'))
-    default_params_filename = shape_completion_training_path / 'default_params.json'
-    with default_params_filename.open('r') as default_params_file:
-        return json.load(default_params_file)
