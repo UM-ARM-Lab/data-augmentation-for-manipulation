@@ -68,13 +68,9 @@ class TorchLoaderWrapped:
 
 class TorchDynamicsDataset(MyTorchDataset, DynamicsDatasetParams):
 
-    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, add_stats=False):
-        MyTorchDataset.__init__(self, dataset_dir, mode, transform)
+    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, only_metadata=False, is_empty=False):
+        MyTorchDataset.__init__(self, dataset_dir, mode, transform, only_metadata, is_empty)
         DynamicsDatasetParams.__init__(self, dataset_dir)
-        self.dataset_dir = dataset_dir
-        self.mode = mode
-        self.metadata_filenames = get_filenames([dataset_dir], mode)
-        self.add_stats = add_stats
 
     def get_datasets(self, mode=None):
         if mode != self.mode:

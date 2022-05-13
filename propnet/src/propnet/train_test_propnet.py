@@ -65,10 +65,8 @@ def train_main(dataset_dir: pathlib.Path,
         remove_keys('filename', 'full_filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from'),
     ])
 
-    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train',
-                                         transform=transform)
-    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val',
-                                       transform=transform)
+    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=transform)
+    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=transform)
 
     train_dataset_take = take_subset(train_dataset, take)
 

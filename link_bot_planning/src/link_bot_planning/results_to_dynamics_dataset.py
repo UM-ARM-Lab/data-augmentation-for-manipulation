@@ -17,6 +17,7 @@ from link_bot_planning.trial_result import ExecutionResult
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.moonshine_utils import sequence_of_dicts_to_dict_of_np_arrays
 from moonshine.numpify import numpify
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
 
 
 def compute_example_idx(trial_idx, example_idx_for_trial):
@@ -28,9 +29,11 @@ class ResultsToDynamicsDataset:
     def __init__(self,
                  results_dir: pathlib.Path,
                  outdir: pathlib.Path,
+                 visualize: bool,
                  traj_length: Optional[int] = None,
                  val_split=DEFAULT_VAL_SPLIT,
                  test_split=DEFAULT_TEST_SPLIT):
+        self.visualize = visualize
         self.traj_length = traj_length
         self.results_dir = results_dir
         self.trials = (list(results_utils.trials_generator(self.results_dir)))
@@ -46,7 +49,7 @@ class ResultsToDynamicsDataset:
 
     def run(self):
         self.save_hparams()
-        self.results_to_classifier_dataset()
+        self.results_to_dynamics_dataset()
         split_dataset(self.outdir, val_split=self.val_split, test_split=self.test_split)
 
     def save_hparams(self):
@@ -89,7 +92,10 @@ class ResultsToDynamicsDataset:
         with (self.outdir / 'hparams.hjson').open('w') as dataset_hparams_file:
             my_hdump(dataset_hparams, dataset_hparams_file, indent=2)
 
-    def results_to_classifier_dataset(self):
+    def results_to_dynamics_dataset(self):
+        if self.visualize:
+            dataset = TorchDynamicsDataset(self.outdir, mode='', is_empty=True)
+
         total_examples = 0
         for trial_idx, datum, _ in self.trials:
             self.scenario.heartbeat()
@@ -103,6 +109,8 @@ class ResultsToDynamicsDataset:
                     self.example_idx = compute_example_idx(trial_idx, example_idx_for_trial)
                     total_examples += 1
                     write_example(self.outdir, example, self.example_idx, 'pkl')
+                    if self.visualize:
+                        dataset.anim_rviz(example)
                     example_idx_for_trial += 1
             except NoTransitionsError:
                 rospy.logerr(f"Trial {trial_idx} had no transitions")
@@ -136,6 +144,8 @@ class ResultsToDynamicsDataset:
                 continue
 
             actions_step = numpify(actions_step)
+            # NOTE: here we append the final action to make action & state the same length
+            actions_step.append(actions_step[-1])
             states_step = numpify(states_step)
 
             actions.extend(actions_step)
@@ -143,9 +153,8 @@ class ResultsToDynamicsDataset:
 
         if self.traj_length is not None:
             state_subsequences = reversed_chunked(states, self.traj_length)
-            padded_actions = [actions[0]] + actions
-            action_subsequences = reversed_chunked(padded_actions, self.traj_length)
-            action_subsequences = [aseq[1:] for aseq in action_subsequences]
+            action_subsequences = reversed_chunked(actions, self.traj_length)
+            action_subsequences = [aseq[:-1] for aseq in action_subsequences]
         else:
             action_subsequences = [actions]
             state_subsequences = [states]

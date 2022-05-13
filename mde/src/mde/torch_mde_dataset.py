@@ -10,8 +10,8 @@ from moonshine.torch_and_tf_utils import remove_batch
 
 class TorchMDEDataset(MyTorchDataset):
 
-    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, only_metadata=False):
-        super().__init__(dataset_dir, mode, transform, only_metadata)
+    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, only_metadata=False, is_empty=False):
+        super().__init__(dataset_dir, mode, transform, only_metadata, is_empty)
         self.model_hparams = self.params['fwd_model_hparams']
         self.data_collection_params = self.params['data_collection_params']
         self.scenario_params = self.data_collection_params['scenario_params']
