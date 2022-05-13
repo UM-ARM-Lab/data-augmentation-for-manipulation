@@ -1,19 +1,25 @@
+import pathlib
 from typing import Dict, List
 
+import gpytorch
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import torchmetrics
+from botorch.models import HeteroskedasticSingleTaskGP
+from botorch.models.gp_regression import SingleTaskGP
+from gpytorch.mlls import ExactMarginalLogLikelihood
 from torch import nn
 
 import rospy
+from autolab_core import YamlConfig
 from link_bot_data.dataset_utils import add_predicted_hack, add_predicted
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.visualization import DebuggingViz
 from link_bot_pycommon.get_scenario import get_scenario
 from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
-from link_bot_pycommon.load_wandb_model import load_model_artifact
+from link_bot_pycommon.load_wandb_model import load_model_artifact, load_gp_mde_from_cfg
 from moonshine import get_local_environment_torch
 from moonshine.make_voxelgrid_inputs_torch import VoxelgridInfo
 from moonshine.robot_points_torch import RobotVoxelgridInfo
@@ -212,6 +218,39 @@ class MDE(pl.LightningModule):
                                 weight_decay=self.hparams.get('weight_decay', 0))
 
 
+class GPRMDE():
+    def __init__(self, **hparams):
+        super().__init__()
+
+    def load_model(self, model_fn, data_fn):
+        self._model_heter = np.load(model_fn, allow_pickle=True)
+        data = np.load(data_fn, allow_pickle=True)
+        self.nonzero_std_dims = data["nonzero_std"]
+        train_x = torch.from_numpy(data["datas_scaled"]).cuda()
+        train_y = torch.from_numpy(data["labels_scaled"]).cuda()
+        covar_module = gpytorch.kernels.ScaleKernel(
+            gpytorch.kernels.MaternKernel(
+                nu=2.5,
+            ),
+        )
+        model = SingleTaskGP(train_X=train_x, train_Y=train_y, covar_module=covar_module).cuda()
+        with torch.no_grad():
+            observed_var = torch.pow(model.posterior(train_x).mean - train_y, 2)
+        self._model_heter = HeteroskedasticSingleTaskGP(train_x, train_y, observed_var)
+        state_dict = torch.load(model_fn)
+        self._model_heter.load_state_dict(state_dict)
+        self._likelihood = ExactMarginalLogLikelihood(self._model_heter.likelihood, self._model_heter)
+
+    def eval(self):
+        self._model_heter.eval()
+
+    def predict(self, test_x):
+        self._likelihood.eval()
+        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+            pred = self._model_heter.posterior(test_x, observation_noise=True)
+        return pred
+
+
 class MDEConstraintChecker:
 
     def __init__(self, checkpoint):
@@ -220,46 +259,79 @@ class MDEConstraintChecker:
         self.horizon = 2
         self.name = 'MDE'
 
-    def check_constraint(self,
-                         environment: Dict,
-                         states_sequence: List[Dict],
-                         actions: List[Dict]):
+    def check_constraint(self, environment: Dict, states_sequence: List[Dict], actions: List[Dict]):
+        inputs = self.states_and_actions_to_torch_inputs(states_sequence, actions, environment)
+
+        pred_error = remove_batch(self.model(add_batch(inputs)))
+        return pred_error.detach().cpu().numpy()
+
+    def states_and_actions_to_torch_inputs(self, states_sequence, actions, environment):
         states_dict = sequence_of_dicts_to_dict_of_tensors(states_sequence)
         actions_dict = sequence_of_dicts_to_dict_of_tensors(actions)
-
         inputs = {}
-
         environment = torchify(environment)
-
         inputs.update(environment)
-
         for action_key in self.model.hparams.action_keys:
             inputs[action_key] = actions_dict[action_key]
-
         for state_metadata_key in self.model.hparams.state_metadata_keys:
             inputs[state_metadata_key] = states_dict[state_metadata_key]
-
         for state_key in self.model.hparams.state_keys:
             planned_state_key = add_predicted(state_key)
             inputs[planned_state_key] = states_dict[state_key]
-
         if 'joint_names' in states_dict:
             inputs[add_predicted('joint_names')] = states_dict['joint_names']
         if 'joint_positions' in states_dict:
             inputs[add_predicted('joint_positions')] = states_dict['joint_positions']
         if 'error' in states_dict:
             inputs['error'] = states_dict['error'][:, 0]
-
         inputs['time_idx'] = torch.arange(2, dtype=torch.float32)
+        return inputs
 
-        pred_error = remove_batch(self.model(add_batch(inputs)))
-        return pred_error.detach().cpu().numpy()
+
+class GPMDEConstraintChecker:
+    def __init__(self, config_path: pathlib.Path):
+        self.cfg = YamlConfig(config_path)
+        self.model, self.state_and_parameter_scaler, self.deviation_scaler = load_gp_mde_from_cfg(self.cfg, GPRMDE)
+        self.model.eval()
+        self.horizon = 2
+        self.name = 'MDE'
+
+    def states_and_actions_to_torch_inputs(self, states_sequence, action_sequence, _):
+        state_keys = ['rope', 'right_gripper', 'left_gripper'] + ["joint_positions"]
+        action_keys = ["left_gripper_position", "right_gripper_position"]
+        states = []
+        actions = []
+        for state_data, action_data in zip(states_sequence, action_sequence):
+            flattened_state = []
+            for state_key in state_keys:
+                data_pt = state_data[state_key]
+                flattened_state.extend(data_pt.flatten())
+            flattened_actions = []
+            for action_key in action_keys:
+                flattened_actions.extend(action_data[action_key].flatten())
+            states.append(flattened_state)
+            actions.append(flattened_actions)
+        np_unscaled = np.hstack([np.vstack(states), np.vstack(actions)])[:, self.model.nonzero_std_dims]
+        np_scaled = self.state_and_parameter_scaler.transform(np_unscaled).astype(np.float32)
+        inputs = torch.from_numpy(np_scaled).cuda()
+        return inputs
+
+    def check_constraint(self, environment: Dict, states_sequence: List[Dict], actions: List[Dict]):
+        inputs = self.states_and_actions_to_torch_inputs(states_sequence, actions, environment)
+        pred = self.model.predict(inputs)
+
+        pred_error_scaled, std_pred_scaled = pred.mean.detach().cpu().numpy(), np.sqrt(
+            pred.variance.detach().cpu().numpy())
+        pred_error_std_unscaled = ((
+                                           std_pred_scaled ** 2) * self.deviation_scaler.var_) ** 0.5  # not used now but for reference
+        d_hat = self.deviation_scaler.inverse_transform(pred_error_scaled)
+        return d_hat[0]
 
 
 if __name__ == '__main__':
     rospy.init_node("mde_torch_test")
-
-    c = MDEConstraintChecker('meta-2-8b87r')
+    config_path = pathlib.Path("gp_mde_configs/gp_mde_test.yaml")
+    c = GPMDEConstraintChecker(config_path)
     import pickle
 
     with open("mde_test_inputs.pkl", 'rb') as f:

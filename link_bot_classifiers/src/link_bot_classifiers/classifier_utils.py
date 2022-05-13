@@ -8,7 +8,7 @@ from link_bot_classifiers.nn_classifier_wrapper import NNClassifierWrapper
 from link_bot_classifiers.points_collision_checker import PointsCollisionChecker, PointsSDFCollisionChecker
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.get_scenario import get_scenario
-from mde.mde_torch import MDEConstraintChecker
+from mde.mde_torch import MDEConstraintChecker, GPMDEConstraintChecker
 from moonshine.filepath_tools import load_trial
 
 
@@ -20,10 +20,19 @@ def strip_torch_model_prefix(path):
     return path.as_posix()[2:]
 
 
-def load_generic_model(path: pathlib.Path,
-                       scenario: Optional[ExperimentScenario] = None) -> BaseConstraintChecker:
+def is_gpytorch_model(path):
+    return path.as_posix().startswith('g:')
+
+
+def strip_gpytorch_model_prefix(path):
+    return path.as_posix()[2:]
+
+
+def load_generic_model(path: pathlib.Path, scenario: Optional[ExperimentScenario] = None) -> BaseConstraintChecker:
     if is_torch_model(path):  # this is a pytorch model, not a old TF model
         return MDEConstraintChecker(strip_torch_model_prefix(path))
+    if is_gpytorch_model(path):
+        return GPMDEConstraintChecker(strip_gpytorch_model_prefix(path))
 
     _, params = load_trial(path.parent.absolute())
     if scenario is None:
