@@ -80,7 +80,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                               batch_size=batch_size,
                               shuffle=True,
                               collate_fn=my_collate,
-                              num_workers=get_num_workers(batch_size))
+                              num_workers=get_num_workers(0))
 
     run_id = generate_id(length=5)
     if nickname is not None:

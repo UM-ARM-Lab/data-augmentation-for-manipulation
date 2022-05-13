@@ -90,7 +90,7 @@ class UDNN(MetaModule, pl.LightningModule):
         self.total_state_dim = sum([self.dataset_state_description[k] for k in self.hparams.state_keys])
         self.total_action_dim = sum([self.dataset_action_description[k] for k in self.hparams.action_keys])
         self.with_joint_positions = with_joint_positions
-        self.max_step_size = self.data_collection_params['max_step_size']
+        self.max_step_size = self.data_collection_params.get('max_step_size', 0.01) # default for current rope sim
 
         in_size = self.total_state_dim + self.total_action_dim
         fc_layer_size = None
