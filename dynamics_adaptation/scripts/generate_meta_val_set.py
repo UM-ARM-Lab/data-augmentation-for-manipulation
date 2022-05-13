@@ -39,8 +39,6 @@ def main():
             if predicate(e):
                 _, full_filename = pkl_write_example(outdir, e, example_idx)
                 files_written.append(full_filename)
-            else:
-                print(f"dropping {example_idx}")
         return files_written
 
     model = load_model_artifact(args.checkpoint, UDNN, project='udnn', version='latest', user='armlab')
@@ -50,7 +48,10 @@ def main():
     def _low_model_error(actual):
         predictions = numpify(remove_batch(model(torchify(add_batch(actual)))))
         error = model.scenario.classifier_distance(actual, predictions)
-        return np.all(error < args.threshold)
+        low_error = np.all(error < args.threshold)
+        if not low_error:
+            print(f"dropping, error = {error.max()}")
+        return low_error
 
     val_files = _copy_dataset_mode_if('val', _low_model_error)
     write_mode(outdir, val_files, 'val')
@@ -60,7 +61,6 @@ def main():
     # copy the training set exactly
     train_files = _copy_dataset_mode_if('train', lambda e: True)
     write_mode(outdir, train_files, 'train')
-
 
 
 if __name__ == '__main__':

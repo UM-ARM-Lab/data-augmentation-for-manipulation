@@ -3,6 +3,8 @@ import argparse
 import pathlib
 from typing import Dict
 
+import numpy as np
+
 from arc_utilities import ros_init
 from link_bot_data.modify_dataset import modify_dataset2
 from link_bot_data.new_base_dataset import NewBaseDatasetLoader
@@ -23,11 +25,6 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset, example: Dict):
-        deserialize_scene_msg(example)
-        scene_msg_b = example['scene_msg']
-        for c in scene_msg_b.world.collision_objects:
-            c.header.frame_id = 'hdt_michigan_root'
-        scene_msg_b.fixed_frame_transforms = []
         yield example
 
     hparams_update = {}

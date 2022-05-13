@@ -60,6 +60,7 @@ class ResultsToDynamicsDataset:
             'n_trajs':                len(self.trials),
             'data_collection_params': {
                 'scenario_params':            planner_params.get("scenario_params", {}),
+                'max_step_size':              planner_params.get("max_step_size", 0.01),
                 'service_provider':           'gazebo',
                 'state_description':          {
                     'left_gripper':    3,
