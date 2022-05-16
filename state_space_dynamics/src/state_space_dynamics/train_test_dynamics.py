@@ -55,9 +55,9 @@ def prepare_train(batch_size, dataset_dir, take, skip, transform, repeat, train_
     return train_loader, train_dataset, train_dataset_len
 
 
-def prepare_validation(batch_size, dataset_dir, no_validate, transform):
+def prepare_validation(batch_size, dataset_dir, no_validate, transform, val_mode):
     val_loader = None
-    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=transform)
+    val_dataset = TorchDynamicsDataset(dataset_dir, mode=val_mode, transform=transform)
     val_dataset_len = len(val_dataset)
     if val_dataset_len and not no_validate:
         val_loader = DataLoader(val_dataset,
@@ -74,6 +74,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                    seed: int,
                    user: str,
                    train_mode: str,
+                   val_mode: str,
                    steps: int = -1,
                    nickname: Optional[str] = None,
                    take: Optional[int] = None,
@@ -90,7 +91,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
 
     train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform,
                                                                    repeat, train_mode)
-    val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
+    val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform, val_mode)
 
     run_id = generate_id(length=5)
     if nickname is not None:
@@ -140,6 +141,7 @@ def train_main(dataset_dir: pathlib.Path,
                seed: int,
                user: str,
                train_mode: str,
+               val_mode: str,
                steps: int = -1,
                nickname: Optional[str] = None,
                checkpoint: Optional = None,
@@ -157,7 +159,7 @@ def train_main(dataset_dir: pathlib.Path,
 
     train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform,
                                                                    repeat, train_mode)
-    val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform)
+    val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform, val_mode)
 
     model_params = load_hjson(model_params)
     model_params['scenario'] = train_dataset.params['scenario']

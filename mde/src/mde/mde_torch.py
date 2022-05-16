@@ -318,6 +318,7 @@ class GPMDEConstraintChecker:
 
     def check_constraint(self, environment: Dict, states_sequence: List[Dict], actions: List[Dict]):
         inputs = self.states_and_actions_to_torch_inputs(states_sequence, actions, environment)
+
         pred = self.model.predict(inputs)
 
         pred_error_scaled, std_pred_scaled = pred.mean.detach().cpu().numpy(), np.sqrt(
@@ -338,3 +339,9 @@ if __name__ == '__main__':
         env, states, actions = pickle.load(f)
     outputs = c.check_constraint(env, states, actions)
     print(outputs)
+
+    # DEBUGGING
+    # import pickle
+    # with open("planning_first_transition_5.pkl", 'wb') as f:
+    #     data = (environment, states_sequence, actions)
+    #     pickle.dump(data, f)
