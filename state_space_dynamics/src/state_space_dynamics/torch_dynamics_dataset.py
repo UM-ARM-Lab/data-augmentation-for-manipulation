@@ -110,10 +110,13 @@ def get_batch_size(batch):
 
 
 class TorchMetaDynamicsDataset(TorchDynamicsDataset):
+    """
+    Automatically loads "train" as the normal training set and "val" as the meta-training set
+    """
 
-    def __init__(self, dataset_dir: pathlib.Path, transform=None, eval_mode='val'):
+    def __init__(self, dataset_dir: pathlib.Path, transform=None, meta_train_mode='val'):
         super().__init__(dataset_dir, mode='train', transform=transform)
-        self.meta_metadata_filenames = get_filenames([dataset_dir], mode=eval_mode)
+        self.meta_metadata_filenames = get_filenames([dataset_dir], mode=meta_train_mode)
 
     def __getitem__(self, idx):
         train_metadata_filename = self.metadata_filenames[idx]

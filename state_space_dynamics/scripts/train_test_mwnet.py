@@ -9,7 +9,7 @@ import torch
 from arc_utilities import ros_init
 from link_bot_pycommon.args import run_subparsers
 from moonshine.magic import wandb_lightning_magic
-from state_space_dynamics import train_test_weighted_dynamics
+from state_space_dynamics import train_test_mwnet
 
 node_name = f"train_test_dynamics_{int(time())}"
 
@@ -20,19 +20,19 @@ def main():
         if args.seed is None:
             args.seed = np.random.randint(0, 10000)
 
-        train_test_weighted_dynamics.train_main(**vars(args))
+        train_test_mwnet.train_main(**vars(args))
 
     def _fine_tune_main(args):
         if args.seed is None:
             args.seed = np.random.randint(0, 10000)
 
-        train_test_weighted_dynamics.fine_tune_main(**vars(args))
+        train_test_mwnet.fine_tune_main(**vars(args))
 
     def _eval_main(args):
-        train_test_weighted_dynamics.eval_main(**vars(args))
+        train_test_mwnet.eval_main(**vars(args))
 
     def _viz_main(args):
-        train_test_weighted_dynamics.viz_main(**vars(args))
+        train_test_mwnet.viz_main(**vars(args))
 
     torch.set_printoptions(linewidth=250, precision=7, sci_mode=False)
     np.set_printoptions(linewidth=250, precision=7, suppress=True)

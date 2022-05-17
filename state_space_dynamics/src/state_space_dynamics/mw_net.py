@@ -3,6 +3,7 @@ import pathlib
 from collections import OrderedDict
 from typing import Dict, Optional
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import wandb
@@ -19,7 +20,7 @@ from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
 from moonshine.torchify import torchify
 from state_space_dynamics.heuristic_data_weights import heuristic_weight_func
-from state_space_dynamics.udnn_torch import mask_after_first_0, compute_batch_time_loss
+from state_space_dynamics.udnn_torch import compute_batch_time_loss
 
 
 def gradient_update_parameters(model, loss, step_size):
@@ -90,7 +91,7 @@ class UDNN(MetaModule, pl.LightningModule):
         self.total_state_dim = sum([self.dataset_state_description[k] for k in self.hparams.state_keys])
         self.total_action_dim = sum([self.dataset_action_description[k] for k in self.hparams.action_keys])
         self.with_joint_positions = with_joint_positions
-        self.max_step_size = self.data_collection_params.get('max_step_size', 0.01) # default for current rope sim
+        self.max_step_size = self.data_collection_params.get('max_step_size', 0.01)  # default for current rope sim
 
         in_size = self.total_state_dim + self.total_action_dim
         fc_layer_size = None
@@ -147,17 +148,15 @@ class UDNN(MetaModule, pl.LightningModule):
         s_t_plus_1 = self.scenario.integrate_dynamics(s_t, delta_s_t)
         return s_t_plus_1
 
-    def compute_batch_loss(self, inputs, outputs, no_weights=True):
+    def compute_batch_loss(self, inputs, outputs):
         batch_time_loss = compute_batch_time_loss(inputs, outputs)
-        if no_weights:
-            batch_loss = batch_time_loss.sum(-1)
-        else:
-            weights = self.get_weights(batch_time_loss, inputs)
-            batch_loss = (batch_time_loss * weights).sum(-1)
+        if 'meta_mask' in inputs:
+            batch_time_loss = inputs['meta_mask'] * batch_time_loss
+        batch_loss = batch_time_loss.sum(-1)
         return batch_loss
 
-    def compute_loss(self, inputs, outputs, no_weights=True):
-        batch_loss = self.compute_batch_loss(inputs, outputs, no_weights=no_weights)
+    def compute_loss(self, inputs, outputs):
+        batch_loss = self.compute_batch_loss(inputs, outputs)
         return batch_loss.mean()
 
     def compute_batch_time_point_loss(self, inputs, outputs):
@@ -169,18 +168,33 @@ class UDNN(MetaModule, pl.LightningModule):
         batch_time_point_loss = torch.cat(loss_by_key, -1)
         return batch_time_point_loss
 
-    def get_weights(self, batch_time_loss, inputs):
-        if 'weight' in inputs:
-            weights = inputs['weight']
-        else:
-            weights = torch.ones_like(batch_time_loss).to(self.device)
-        weights = mask_after_first_0(weights)
-        return weights
-
     def validation_step(self, val_batch, batch_idx):
         val_udnn_outputs = self.forward(val_batch)
         val_loss = self.compute_loss(val_batch, val_udnn_outputs)
         self.log('val_loss', val_loss)
+
+
+def model_error_to_unnormalized_weight(model_error_i, a, b, c):
+    unnormalized_weight = a * (torch.exp(-b * model_error_i) - c)
+    return unnormalized_weight
+
+
+def solve_exponential_system():
+    # solve system of exponential equations.
+    # we solve for a,b,c in $$y=a(e^{-bx}-c)$$
+    # given three data points (x, y)
+    # this lets us map a chosen model_error (e.g. 0) to a give unnormalized weight (e.g. -10)
+    # which after being normalized via the sigmoid gives us a the desired data weight (e.g. very small)
+    from scipy.optimize import fsolve
+    def _func(params):
+        a, b, c = params
+        x = np.array([0, 0.1, 0.5])
+        y = np.array([10, 0, -10])
+        cost = (a * (np.exp(-b * x) - c) - y) ** 2
+        return cost
+
+    a, b, c = fsolve(_func, [10, 5, 1])
+    return a, b, c
 
 
 class MWNet(pl.LightningModule):
@@ -216,15 +230,16 @@ class MWNet(pl.LightningModule):
             print(Fore.GREEN + "Initializing data weights" + Fore.RESET)
             # TODO: do this elsewhere, refactor!
             # compute the model error using the initial model on the initial dataset
+            a, b, c = solve_exponential_system()
             for example_i in tqdm(train_dataset):
                 train_example_i = example_i['train']
                 i = train_example_i['example_idx']
-                model_error_i_dict = remove_batch(self.udnn(add_batch(torchify(train_example_i))))
-                model_error_i = 0
-                for v in model_error_i_dict.values():
-                    model_error_i += v.mean()
+                outputs = numpify(remove_batch(self.udnn(add_batch(torchify(train_example_i)))))
+                model_error_i_time = self.udnn.scenario.classifier_distance(train_example_i, outputs)
+                model_error_i = torch.tensor(model_error_i_time.mean())
+                init_unnormalized_weight = model_error_to_unnormalized_weight(model_error_i, a, b, c)
                 with torch.no_grad():
-                    self.sample_weights[i] = model_error_i
+                    self.sample_weights[i] = init_unnormalized_weight
 
     def init_data_weights_from_heuristic(self, train_dataset):
         print(Fore.GREEN + "Initializing data weights" + Fore.RESET)

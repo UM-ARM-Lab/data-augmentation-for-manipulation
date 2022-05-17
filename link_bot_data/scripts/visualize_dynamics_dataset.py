@@ -67,6 +67,8 @@ def main():
             if 'traj_idx' in example:
                 traj_idx = example['traj_idx']
                 s.plot_traj_idx_rviz(traj_idx)
+            if 'meta_mask' in example:
+                print(example['meta_mask'])
 
             deserialize_scene_msg(example)
             if 'augmented_from' in example:

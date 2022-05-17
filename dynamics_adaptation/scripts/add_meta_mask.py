@@ -24,18 +24,27 @@ def main():
     args = parser.parse_args()
 
     n_low_error = 0
+    n_total = 0
 
     def _add_meta_mask(mode):
-        nonlocal n_low_error
+        nonlocal n_low_error, n_total
         dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode)
         print(Fore.CYAN + mode + Fore.RESET)
         for example in tqdm(dataset):
             example_idx = example['example_idx']
             predictions = numpify(remove_batch(model(torchify(add_batch(example)))))
             error = model.scenario.classifier_distance(example, predictions)
-            mask = (error < args.threshold).astype(np.float32)
+            mask = error < args.threshold
+            mask = np.logical_and(mask[:-1], mask[1:])
+            mask = mask.astype(np.float32)
             n_low_error += mask.sum()
-            example['metadata']['meta_mask'] = mask
+            n_total += mask.size
+            mask_padded = np.concatenate([np.zeros(1), mask])  # mask out the first time step
+            example['metadata']['meta_mask'] = mask_padded
+            # NOTE: upon loading, it copies everything from 'metadata' into the example
+            #  but we don't want it to be both in the example and in the metadata,
+            #  so remove it from the example before writing
+            example.pop('meta_mask', None)
             pkl_write_example(args.dataset_dir, example, example_idx)
 
     model = load_model_artifact(args.checkpoint, UDNN, project='udnn', version='latest', user='armlab')
@@ -43,7 +52,7 @@ def main():
     _add_meta_mask('val')
     _add_meta_mask('test')
 
-    print(n_low_error)
+    print(f"{n_low_error}/{n_total}={n_low_error / n_total:%} low error")
 
 
 if __name__ == '__main__':

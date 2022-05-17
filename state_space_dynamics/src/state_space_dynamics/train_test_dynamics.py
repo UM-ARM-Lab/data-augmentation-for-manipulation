@@ -330,20 +330,17 @@ def viz_main(dataset_dir: pathlib.Path,
         inputs = dataset[dataset_anim.t()]
 
         weight = inputs.get('weight', np.ones_like(inputs['time_idx']))
-        # if True:
-        if (weight_above <= weight).all() and (weight <= weight_below).all():
+        outputs = remove_batch(model(torchify(add_batch(inputs))))
 
-            outputs = remove_batch(model(torchify(add_batch(inputs))))
+        time_anim.reset()
+        while not time_anim.done:
+            t = time_anim.t()
+            init_viz_env(s, inputs, t)
+            viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.05)
+            s.plot_weight_rviz(weight[t])
+            time_anim.step()
 
-            time_anim.reset()
-            while not time_anim.done:
-                t = time_anim.t()
-                init_viz_env(s, inputs, t)
-                viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.05)
-                s.plot_weight_rviz(weight[t])
-                time_anim.step()
-
-            n_examples_visualized += 1
+        n_examples_visualized += 1
 
         dataset_anim.step()
 
