@@ -13,7 +13,6 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from wandb.util import generate_id
 
-from arc_utilities.algorithms import nested_dict_update
 from link_bot_data.visualization import init_viz_env, viz_pred_actual_t
 from link_bot_data.wandb_datasets import get_dataset_with_version
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
@@ -42,8 +41,8 @@ def load_udnn_model_wrapper(checkpoint):
     return model
 
 
-def prepare_train(batch_size, dataset_dir, take, skip, transform, repeat, train_mode):
-    train_dataset = TorchDynamicsDataset(dataset_dir, mode=train_mode, transform=transform)
+def prepare_data_loaders(batch_size, dataset_dir, take, skip, transform, repeat, no_validate, model_params):
+    train_dataset = TorchDynamicsDataset(dataset_dir, mode=model_params['train_mode'], transform=transform)
     train_dataset_take = take_subset(train_dataset, take)
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
     train_dataset_repeat = repeat_dataset(train_dataset_skip, repeat)
@@ -53,19 +52,26 @@ def prepare_train(batch_size, dataset_dir, take, skip, transform, repeat, train_
                               shuffle=True,
                               collate_fn=my_collate,
                               num_workers=get_num_workers(batch_size))
-    return train_loader, train_dataset, train_dataset_len
 
+    model_params['take'] = take
+    model_params['no_validate'] = no_validate
+    model_params['dataset_dir'] = dataset_dir
+    model_params['train_dataset_size'] = train_dataset_len
+    model_params['scenario'] = train_dataset.params['scenario']
+    model_params['dataset_hparams'] = train_dataset.params
 
-def prepare_validation(batch_size, dataset_dir, no_validate, transform, val_mode):
-    val_loader = None
-    val_dataset = TorchDynamicsDataset(dataset_dir, mode=val_mode, transform=transform)
+    val_dataset = TorchDynamicsDataset(dataset_dir, mode=model_params['val_mode'], transform=transform)
     val_dataset_len = len(val_dataset)
+    model_params['val_dataset_size'] = val_dataset_len
+
+    val_loader = None
     if val_dataset_len and not no_validate:
         val_loader = DataLoader(val_dataset,
                                 batch_size=batch_size,
                                 collate_fn=my_collate,
                                 num_workers=get_num_workers(batch_size))
-    return val_dataset_len, val_loader
+
+    return train_loader, val_loader
 
 
 def fine_tune_main(dataset_dir: pathlib.Path,
@@ -75,8 +81,6 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                    epochs: int,
                    seed: int,
                    user: str,
-                   train_mode: str,
-                   val_mode: str,
                    steps: int = -1,
                    nickname: Optional[str] = None,
                    take: Optional[int] = None,
@@ -91,9 +95,10 @@ def fine_tune_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([])
 
-    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform,
-                                                                   repeat, train_mode)
-    val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform, val_mode)
+    model_params = load_hjson(model_params)
+
+    train_loader, val_loader = prepare_data_loaders(batch_size, dataset_dir, take, skip, transform, repeat, no_validate,
+                                                    model_params)
 
     run_id = generate_id(length=5)
     if nickname is not None:
@@ -103,14 +108,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
         'resume': True,
     }
 
-    hparams_update = {
-        'dataset_dir':     train_dataset.dataset_dir,
-        'dataset_hparams': train_dataset.params,
-        'scenario':        train_dataset.params['scenario'],
-    }
-    more_hparams_update = load_hjson(model_params)
-    hparams_update = nested_dict_update(hparams_update, more_hparams_update)
-    model = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user, **hparams_update)
+    model = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user, **model_params)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
@@ -144,8 +142,6 @@ def train_main(dataset_dir: pathlib.Path,
                epochs: int,
                seed: int,
                user: str,
-               train_mode: str,
-               val_mode: str,
                steps: int = -1,
                nickname: Optional[str] = None,
                checkpoint: Optional = None,
@@ -161,30 +157,22 @@ def train_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
-    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size, dataset_dir, take, skip, transform,
-                                                                   repeat, train_mode)
-    val_dataset_len, val_loader = prepare_validation(batch_size, dataset_dir, no_validate, transform, val_mode)
-
     model_params = load_hjson(model_params)
-    model_params['scenario'] = train_dataset.params['scenario']
-    model_params['dataset_dir'] = train_dataset.dataset_dir
-    model_params['dataset_hparams'] = train_dataset.params
+
+    train_loader, val_loader = prepare_data_loaders(batch_size, dataset_dir, take, skip, transform, repeat, no_validate,
+                                                    model_params)
+
     # add some extra useful info here
     stamp = "{:%B_%d_%H-%M-%S}".format(datetime.now())
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha[:10]
     model_params['sha'] = sha
     model_params['start-train-time'] = stamp
-    model_params['train_dataset_size'] = train_dataset_len
-    model_params['val_dataset_size'] = val_dataset_len
     model_params['batch_size'] = batch_size
     model_params['seed'] = seed
     model_params['max_epochs'] = epochs
     model_params['max_steps'] = steps
-    model_params['take'] = take
-    model_params['mode'] = 'train'
     model_params['checkpoint'] = checkpoint
-    model_params['no_validate'] = no_validate
 
     if checkpoint is None:
         ckpt_path = None

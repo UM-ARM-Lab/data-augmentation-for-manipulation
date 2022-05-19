@@ -62,8 +62,6 @@ def main():
     fine_tune_parser.add_argument('dataset_dir', type=pathlib.Path)
     fine_tune_parser.add_argument('checkpoint')
     fine_tune_parser.add_argument('model_params', type=pathlib.Path)
-    fine_tune_parser.add_argument('--train-mode', type=str, default='train')
-    fine_tune_parser.add_argument('--val-mode', type=str, default='val')
     fine_tune_parser.add_argument('--nickname', '-n', type=str)
     fine_tune_parser.add_argument('--user', '-u', type=str, default='armlab')
     fine_tune_parser.add_argument('--batch-size', type=int, default=64)

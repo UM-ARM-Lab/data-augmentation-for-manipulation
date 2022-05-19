@@ -1,6 +1,8 @@
 {
   use_meta_mask_train: false
   use_meta_mask_val: true
+  train_mode: train
+  val_mode: val
   adam: true
   udnn_inner_learning_rate: 0.002
   data_weight_init: 0.5

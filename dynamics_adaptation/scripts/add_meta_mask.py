@@ -28,7 +28,7 @@ def main():
 
     def _remove_meta_mask(mode):
         dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode)
-        print(Fore.CYAN + mode + Fore.RESET)
+        print(Fore.RED + "Removing meta_mask from {mode}" + Fore.RESET)
         for example in tqdm(dataset):
             example_idx = example['example_idx']
             example.pop('meta_mask', None)
@@ -39,7 +39,7 @@ def main():
     def _add_meta_mask(mode):
         nonlocal n_low_error, n_total
         dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode)
-        print(Fore.CYAN + mode + Fore.RESET)
+        print(Fore.CYAN + f"Adding meta_mask to {mode}" + Fore.RESET)
         for example in tqdm(dataset):
             example_idx = example['example_idx']
             predictions = numpify(remove_batch(model(torchify(add_batch(example)))))
