@@ -30,12 +30,13 @@ from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, re
 PROJECT = 'udnn'
 
 
-def load_udnn_model_wrapper(checkpoint):
+def load_udnn_model_wrapper(checkpoint, with_joint_positions=False):
     try:
-        model = load_model_artifact(checkpoint, UDNN, 'udnn', version='best', user='armlab')
+        model = load_model_artifact(checkpoint, UDNN, 'udnn', version='best', user='armlab',
+                                    with_joint_positions=with_joint_positions)
     except RuntimeError:
         model_with_weights = load_model_artifact(checkpoint, MWNet, 'udnn', version='best', user='armlab',
-                                                 train_dataset=None)
+                                                 train_dataset=None, with_joint_positions=with_joint_positions)
         model = model_with_weights.udnn
     model.eval()
     return model

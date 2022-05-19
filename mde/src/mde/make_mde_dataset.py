@@ -23,7 +23,7 @@ def n_seq(max_t: int):
 def make_mde_dataset(dataset_dir: pathlib.Path,
                      checkpoint: pathlib.Path,
                      outdir: pathlib.Path):
-    model = load_udnn_model_wrapper(checkpoint)
+    model = load_udnn_model_wrapper(checkpoint, with_joint_positions=True)
 
     mde_dataset_hparams = load_params(dataset_dir)
 
