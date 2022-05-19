@@ -4,6 +4,7 @@
   scenario_params: {
     rope_name: rope_3d_alt
   }
+  fwd_model_dir: p:unadapted-b8s5s
   classifier_model_dir: [
       /media/shared/cl_trials/new_feasibility_baseline/none
   ]

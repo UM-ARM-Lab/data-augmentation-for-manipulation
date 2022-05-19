@@ -42,7 +42,7 @@ def get_filenames(dataset_dirs, mode: str):
 
 
 @lru_cache
-def load_single(metadata_filename: pathlib.Path):
+def load_single(metadata_filename: pathlib.Path, no_update_with_metadata=False):
     metadata = load_metadata(metadata_filename)
 
     data_filename = metadata.pop("data")
@@ -52,8 +52,9 @@ def load_single(metadata_filename: pathlib.Path):
     else:
         with full_data_filename.open("rb") as f:
             example = pickle.load(f)
-    example.update(metadata)
     example['metadata'] = metadata
+    if not no_update_with_metadata:
+        example.update(metadata)
     return example
 
 

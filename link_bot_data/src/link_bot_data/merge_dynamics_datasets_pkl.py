@@ -5,10 +5,10 @@ import hjson
 from tqdm import tqdm
 
 from arc_utilities.filesystem_utils import rm_tree
-from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
+from link_bot_data.split_dataset import write_mode
 from link_bot_data.tf_dataset_utils import pkl_write_example
-from link_bot_data.split_dataset import split_dataset
 from moonshine.filepath_tools import load_params
+from moonshine.my_torch_dataset import MyTorchDataset
 
 
 def merge_dynamics_datasets_pkl(outdir: pathlib.Path, indirs: List[pathlib.Path]):
@@ -20,9 +20,6 @@ def merge_dynamics_datasets_pkl(outdir: pathlib.Path, indirs: List[pathlib.Path]
         rm_tree(outdir)
 
     outdir.mkdir()
-
-    merged_dataset_loader = NewDynamicsDatasetLoader(indirs)
-    merged_dataset = merged_dataset_loader.get_datasets(mode='all')
 
     hparams_filename = 'hparams.hjson'
     path = indirs[0] / hparams_filename
@@ -41,12 +38,14 @@ def merge_dynamics_datasets_pkl(outdir: pathlib.Path, indirs: List[pathlib.Path]
         hjson.dump(hparams, new_hparams_file, indent=2)
     print(path, '-->', new_hparams_filename)
 
-    for traj_idx, e in enumerate(tqdm(merged_dataset)):
-        e['traj_idx'] = traj_idx
-        if "full_filename" in e:
-            e.pop("full_filename")
-        if "filename" in e:
-            e.pop("filename")
-        pkl_write_example(outdir, e, traj_idx)
-
-    split_dataset(outdir)
+    traj_idx = 0
+    for mode in ['train', 'val', 'test']:
+        files = []
+        for dataset_dir in indirs:
+            dataset = MyTorchDataset(dataset_dir, mode=mode, no_update_with_metadata=True)
+            for e in tqdm(dataset):
+                e['traj_idx'] = traj_idx
+                _, full_metadata_filename = pkl_write_example(outdir, e, traj_idx)
+                files.append(full_metadata_filename)
+                traj_idx += 1
+        write_mode(outdir, files, mode)

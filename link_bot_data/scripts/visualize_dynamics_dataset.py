@@ -20,7 +20,7 @@ def main():
     parser.add_argument('--take', type=int)
     parser.add_argument('--skip', type=int)
     parser.add_argument('--shard', type=int)
-    parser.add_argument('--mode', choices=['train', 'test', 'val', 'all'], default='all', help='train test or val')
+    parser.add_argument('--mode', default='all', help='train test or val')
     parser.add_argument('--shuffle', action='store_true', help='shuffle')
     parser.add_argument('--indices', type=int_set_arg, help='show specific example by example_idx value')
 

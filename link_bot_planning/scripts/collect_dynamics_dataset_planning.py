@@ -2,8 +2,13 @@
 import argparse
 import logging
 import pathlib
+import warnings
 
 import tensorflow as tf
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    from ompl import util as ou
 
 from arc_utilities import ros_init
 from link_bot_planning.planning_evaluation import load_planner_params, evaluate_planning
@@ -34,6 +39,8 @@ def main():
 
     planning_outdir = pathlib.Path("results") / args.nickname
 
+    ou.setLogLevel(ou.LOG_ERROR)
+
     planner_params = load_planner_params(args.planner_params)
     planner_params['method_name'] = args.outdir.name
     planner_params["classifier_model_dir"] = [pathlib.Path("cl_trials/new_feasibility_baseline/none")]
@@ -58,7 +65,10 @@ def main():
                       how_to_handle=args.on_exception)
 
     dynamics_outdir = pathlib.Path('fwd_model_data') / args.nickname
-    r = ResultsToDynamicsDataset(results_dir=planning_outdir, outdir=dynamics_outdir, traj_length=args.traj_length)
+    r = ResultsToDynamicsDataset(results_dir=planning_outdir,
+                                 outdir=dynamics_outdir,
+                                 visualize=False,
+                                 traj_length=args.traj_length)
     r.run()
 
 

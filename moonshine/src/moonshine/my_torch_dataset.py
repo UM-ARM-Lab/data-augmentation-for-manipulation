@@ -11,7 +11,7 @@ from link_bot_pycommon.get_scenario import get_scenario
 class MyTorchDataset(Dataset):
 
     def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, only_metadata=False,
-                 is_empty: bool = False):
+                 is_empty: bool = False, no_update_with_metadata: bool = False):
         self.mode = mode
         self.dataset_dir = dataset_dir
         self.only_metadata = only_metadata
@@ -25,6 +25,7 @@ class MyTorchDataset(Dataset):
 
         self.transform = transform
         self.scenario = None
+        self.no_update_with_metadata = no_update_with_metadata
 
     def __len__(self):
         return len(self.metadata_filenames)
@@ -35,7 +36,7 @@ class MyTorchDataset(Dataset):
             example = load_metadata(metadata_filename)
             return example
 
-        example = load_single(metadata_filename)
+        example = load_single(metadata_filename, no_update_with_metadata=self.no_update_with_metadata)
 
         if self.transform:
             example = self.transform(example)
