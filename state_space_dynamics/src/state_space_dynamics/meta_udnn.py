@@ -1,36 +1,17 @@
 from typing import Dict
 
-import numpy as np
 import pytorch_lightning as pl
 import torch
+import wandb
+from torchmeta.modules import MetaModule, MetaLinear, MetaSequential
 
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.numpify import numpify
-from moonshine.torch_utils import vector_to_dict, sequence_of_dicts_to_dict_of_tensors
+from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
 from moonshine.torchify import torchify
 
 
-def mask_after_first_0(x):
-    # TODO: vectorize?
-    x_out = torch.cat([x, torch.zeros([x.shape[0], 1]).to(x.device)], -1)
-    for b in range(x.shape[0]):
-        i = x_out[b].argmin()
-        x_out[b, i:] = 0
-    return x_out[:, :-1]
-
-
-def compute_batch_time_loss(inputs, outputs):
-    loss_by_key = []
-    for k, y_pred in outputs.items():
-        y_true = inputs[k]
-        # mean over time and state dim but not batch, not yet.
-        loss = (y_true - y_pred).square().mean(-1)
-        loss_by_key.append(loss)
-    batch_time_loss = torch.stack(loss_by_key).mean(0)
-    return batch_time_loss
-
-
-class UDNN(pl.LightningModule):
+class UDNN(MetaModule, pl.LightningModule):
     def __init__(self, with_joint_positions=False, **hparams):
         super().__init__()
         self.save_hyperparameters()
@@ -46,21 +27,26 @@ class UDNN(pl.LightningModule):
         self.total_state_dim = sum([self.dataset_state_description[k] for k in self.hparams.state_keys])
         self.total_action_dim = sum([self.dataset_action_description[k] for k in self.hparams.action_keys])
         self.with_joint_positions = with_joint_positions
-        self.max_step_size = self.data_collection_params['max_step_size']
+        self.max_step_size = self.data_collection_params.get('max_step_size', 0.01)  # default for current rope sim
 
         in_size = self.total_state_dim + self.total_action_dim
         fc_layer_size = None
 
         layers = []
         for fc_layer_size in self.hparams.fc_layer_sizes:
-            layers.append(torch.nn.Linear(in_size, fc_layer_size))
+            layers.append(MetaLinear(in_size, fc_layer_size))
             layers.append(torch.nn.ReLU())
             in_size = fc_layer_size
-        layers.append(torch.nn.Linear(fc_layer_size, self.total_state_dim))
+        layers.append(MetaLinear(fc_layer_size, self.total_state_dim))
 
-        self.mlp = torch.nn.Sequential(*layers)
+        self.mlp = MetaSequential(*layers)
 
-    def forward(self, inputs):
+        self.val_model_errors = None
+
+    def forward(self, inputs, params=None):
+        if params is None:
+            params = dict(self.named_parameters())
+
         actions = {k: inputs[k] for k in self.hparams.action_keys}
         input_sequence_length = actions[self.hparams.action_keys[0]].shape[1]
         s_0 = {k: inputs[k][:, 0] for k in self.hparams.state_keys}
@@ -69,7 +55,7 @@ class UDNN(pl.LightningModule):
         for t in range(input_sequence_length):
             s_t = pred_states[-1]
             action_t = {k: inputs[k][:, t] for k in self.hparams.action_keys}
-            s_t_plus_1 = self.one_step_forward(action_t, s_t)
+            s_t_plus_1 = self.one_step_forward(action_t, s_t, params)
 
             pred_states.append(s_t_plus_1)
 
@@ -86,7 +72,7 @@ class UDNN(pl.LightningModule):
 
         return pred_states_dict
 
-    def one_step_forward(self, action_t, s_t):
+    def one_step_forward(self, action_t, s_t, params):
         local_action_t = self.scenario.put_action_local_frame(s_t, action_t)
         s_t_local = self.scenario.put_state_local_frame_torch(s_t)
         states_and_actions = list(s_t_local.values()) + list(local_action_t.values())
@@ -95,47 +81,27 @@ class UDNN(pl.LightningModule):
         # DEBUGGING
         # self.plot_local_state_action_rviz(local_action_t, s_t_local)
 
-        z_t = self.mlp(z_t)
+        z_t = self.mlp(z_t, params=self.get_subdict(params, 'mlp'))
         delta_s_t = vector_to_dict(self.state_description, z_t, self.device)
         s_t_plus_1 = self.scenario.integrate_dynamics(s_t, delta_s_t)
         return s_t_plus_1
 
-    def plot_local_state_action_rviz(self, local_action_t, s_t_local):
-        self.scenario.plot_arrow_rviz(np.array([0, 0, 0]),
-                                      local_action_t['left_gripper_delta'][0].cpu().detach().numpy(),
-                                      label='left_action')
-        self.scenario.plot_arrow_rviz(np.array([0, 0, 0]),
-                                      local_action_t['right_gripper_delta'][0].cpu().detach().numpy(),
-                                      label='right_action')
-        local_rope = np.concatenate((s_t_local['left_gripper'][0].cpu().detach().numpy(),
-                                     s_t_local['right_gripper'][0].cpu().detach().numpy(),
-                                     s_t_local['rope'][0].cpu().detach().numpy()))
-        local_rope_points = local_rope.reshape([27, 3])
-        self.scenario.plot_points_rviz(local_rope_points, label='local_rope_points')
-
-    def compute_batch_loss(self, inputs, outputs, no_weights=True):
-        """
-
-        Args:
-            inputs:
-            outputs:
-            no_weights: Ignore the weight in the "inputs"
-
-        Returns:
-
-        """
+    def compute_batch_loss(self, inputs, outputs):
         batch_time_loss = compute_batch_time_loss(inputs, outputs)
-        if no_weights:
-            batch_loss = batch_time_loss.sum(-1)
-        else:
-            weights = self.get_weights(batch_time_loss, inputs)
-            batch_loss = (batch_time_loss * weights).sum(-1)
+        if self.use_meta_mask():
+            batch_time_loss = inputs['meta_mask'] * batch_time_loss
+        batch_loss = batch_time_loss.sum(-1)
         return batch_loss
 
-    def compute_loss(self, inputs, outputs, no_weights=True):
-        batch_loss = self.compute_batch_loss(inputs, outputs, no_weights=no_weights)
-        # print(inputs['example_idx'])
-        # print(batch_loss)
+    def use_meta_mask(self):
+        if self.training:
+            use_meta_mask = self.hparams.get('use_meta_mask_train', False)
+        else:
+            use_meta_mask = self.hparams.get('use_meta_mask_val', False)
+        return use_meta_mask
+
+    def compute_loss(self, inputs, outputs):
+        batch_loss = self.compute_batch_loss(inputs, outputs)
         return batch_loss.mean()
 
     def compute_batch_time_point_loss(self, inputs, outputs):
@@ -147,14 +113,6 @@ class UDNN(pl.LightningModule):
         batch_time_point_loss = torch.cat(loss_by_key, -1)
         return batch_time_point_loss
 
-    def get_weights(self, batch_time_loss, inputs):
-        if 'weight' in inputs:
-            weights = inputs['weight']
-        else:
-            weights = torch.ones_like(batch_time_loss).to(self.device)
-        weights = mask_after_first_0(weights)
-        return weights
-
     def training_step(self, train_batch, batch_idx):
         outputs = self.forward(train_batch)
         loss = self.compute_loss(train_batch, outputs)
@@ -162,10 +120,35 @@ class UDNN(pl.LightningModule):
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        outputs = self.forward(val_batch)
-        loss = self.compute_loss(val_batch, outputs)
-        self.log('val_loss', loss)
-        return loss
+        val_udnn_outputs = self.forward(val_batch)
+        val_loss = self.compute_loss(val_batch, val_udnn_outputs)
+        self.log('val_loss', val_loss)
+
+        model_error_batch = (val_batch['rope'] - val_udnn_outputs['rope']).norm(dim=-1).flatten()
+        if self.val_model_errors is None:
+            self.val_model_errors = model_error_batch
+        else:
+            self.val_model_errors = torch.cat([self.val_model_errors, model_error_batch])
+        return val_loss
+
+    def validation_epoch_end(self, _):
+        data = self.val_model_errors.cpu().unsqueeze(-1).numpy().tolist()
+        table = wandb.Table(data=data, columns=["model_errors"])
+        wandb.log({'val_model_error': table})
+
+        # reset all metrics
+        self.val_model_errors = None
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+
+
+def compute_batch_time_loss(inputs, outputs):
+    loss_by_key = []
+    for k, y_pred in outputs.items():
+        y_true = inputs[k]
+        # mean over time and state dim but not batch, not yet.
+        loss = (y_true - y_pred).square().mean(-1)
+        loss_by_key.append(loss)
+    batch_time_loss = torch.stack(loss_by_key).mean(0)
+    return batch_time_loss

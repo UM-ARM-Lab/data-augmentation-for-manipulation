@@ -205,10 +205,12 @@ class MDE(pl.LightningModule):
         self.log('val_loss', loss)
         self.val_accuracy(pred_error_thresholded, true_error_thresholded)  # updates the metric
         self.log('pred_minus_true_error', signed_loss)
+
         return loss
 
     def validation_epoch_end(self, _):
         self.log('val_accuracy', self.val_accuracy.compute())  # logs the metric result/value
+
         # reset all metrics
         self.val_accuracy.reset()
 
@@ -337,8 +339,8 @@ if __name__ == '__main__':
 
     with open("mde_test_inputs.pkl", 'rb') as f:
         env, states, actions = pickle.load(f)
-    outputs = c.check_constraint(env, states, actions)
-    print(outputs)
+    mde_outputs = c.check_constraint(env, states, actions)
+    print(mde_outputs)
 
     # DEBUGGING
     # import pickle

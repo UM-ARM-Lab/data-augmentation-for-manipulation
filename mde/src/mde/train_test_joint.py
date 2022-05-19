@@ -22,10 +22,10 @@ from moonshine.my_pl_callbacks import HeartbeatCallback
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
 from moonshine.torchify import torchify
+from state_space_dynamics.meta_udnn import UDNN
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
 from state_space_dynamics.torch_dynamics_dataset import remove_keys
 from state_space_dynamics.train_test_dynamics import prepare_train, prepare_validation
-from state_space_dynamics.udnn_torch import UDNN
 
 PROJECT = 'joint'
 

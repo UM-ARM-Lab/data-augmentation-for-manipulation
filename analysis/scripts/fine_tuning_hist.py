@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import seaborn as sns
 import argparse
 import logging
 import pathlib
@@ -7,6 +6,7 @@ import pathlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from tqdm import tqdm
@@ -16,8 +16,8 @@ from link_bot_pycommon.load_wandb_model import load_model_artifact
 from link_bot_pycommon.pandas_utils import df_where
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_datasets_utils import my_collate
+from state_space_dynamics.meta_udnn import UDNN
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
-from state_space_dynamics.udnn_torch import UDNN
 
 
 def main():
@@ -38,7 +38,7 @@ def main():
 
     data = []
     for ckpt in args.checkpoints:
-        model: UDNN = load_model_artifact(ckpt, UDNN, project='udnn', version='best', user='armlab')
+        model = load_model_artifact(ckpt, UDNN, project='udnn', version='best', user='armlab')
         model.eval()
 
         for inputs in tqdm(loader):

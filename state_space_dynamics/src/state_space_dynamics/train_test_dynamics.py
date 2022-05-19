@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from wandb.util import generate_id
 
+from arc_utilities.algorithms import nested_dict_update
 from link_bot_data.visualization import init_viz_env, viz_pred_actual_t
 from link_bot_data.wandb_datasets import get_dataset_with_version
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
@@ -23,9 +24,9 @@ from moonshine.my_pl_callbacks import HeartbeatCallback
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, repeat_dataset
 from moonshine.torchify import torchify
+from state_space_dynamics.meta_udnn import UDNN
 from state_space_dynamics.mw_net import MWNet
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
-from state_space_dynamics.udnn_torch import UDNN
 
 PROJECT = 'udnn'
 
@@ -69,6 +70,7 @@ def prepare_validation(batch_size, dataset_dir, no_validate, transform, val_mode
 
 def fine_tune_main(dataset_dir: pathlib.Path,
                    checkpoint: str,
+                   model_params: pathlib.Path,
                    batch_size: int,
                    epochs: int,
                    seed: int,
@@ -106,6 +108,8 @@ def fine_tune_main(dataset_dir: pathlib.Path,
         'dataset_hparams': train_dataset.params,
         'scenario':        train_dataset.params['scenario'],
     }
+    more_hparams_update = load_hjson(model_params)
+    hparams_update = nested_dict_update(hparams_update, more_hparams_update)
     model = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user, **hparams_update)
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
@@ -264,63 +268,18 @@ def eval_main(dataset_dir: pathlib.Path,
     return metrics
 
 
-def eval_versions_main(dataset_dir: pathlib.Path,
-                       checkpoint: str,
-                       versions_str: str,
-                       mode: str,
-                       batch_size: int,
-                       user: str,
-                       take: Optional[int] = None,
-                       skip: Optional[int] = None,
-                       project=PROJECT,
-                       **kwargs):
-    eval_versions = eval(versions_str.strip("'\""))
-    trainer = pl.Trainer(gpus=1, enable_model_summary=False)
-    dataset = TorchDynamicsDataset(dataset_dir, mode)
-    dataset = take_subset(dataset, take)
-    dataset = dataset_skip(dataset, skip)
-    loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
-    metrics_over_time = {}
-    for version in eval_versions:
-        metrics = eval_version(trainer, loader, checkpoint, project, user, version)
-        for k, v in metrics.items():
-            if k not in metrics_over_time:
-                metrics_over_time[k] = []
-            metrics_over_time[k].append(v)
-
-    import matplotlib.pyplot as plt
-    for k, v in metrics_over_time.items():
-        plt.figure()
-        plt.plot(eval_versions, v)
-        plt.ylabel(k)
-
-    plt.show()
-
-
-def eval_version(trainer, loader, checkpoint, project, user, version):
-    model = load_model_artifact(checkpoint, UDNN, project, f"v{version}", user=user)
-    model.eval()
-    metrics = trainer.validate(model, loader, verbose=False)
-    metrics0 = metrics[0]
-    return metrics0
-
-
 def viz_main(dataset_dir: pathlib.Path,
              checkpoint,
              mode: str,
-             user: str,
-             weight_above: float = 0,
-             weight_below: float = 1,
              skip: Optional[int] = None,
-             project=PROJECT,
              **kwargs):
-    dataset = TorchDynamicsDataset(dataset_dir, mode)
+    original_dataset = TorchDynamicsDataset(dataset_dir, mode)
 
-    dataset = dataset_skip(dataset, skip)
+    dataset = dataset_skip(original_dataset, skip)
 
     model = load_udnn_model_wrapper(checkpoint)
 
-    s = dataset.get_scenario()
+    s = original_dataset.get_scenario()
 
     dataset_anim = RvizAnimationController(n_time_steps=len(dataset), ns='trajs')
     time_anim = RvizAnimationController(n_time_steps=10)
@@ -336,7 +295,7 @@ def viz_main(dataset_dir: pathlib.Path,
         while not time_anim.done:
             t = time_anim.t()
             init_viz_env(s, inputs, t)
-            viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.05)
+            viz_pred_actual_t(original_dataset, model, inputs, outputs, s, t, threshold=0.05)
             s.plot_weight_rviz(weight[t])
             time_anim.step()
 

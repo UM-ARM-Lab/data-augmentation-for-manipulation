@@ -47,6 +47,7 @@ def main():
     plt.style.use("slides")
     # sns.boxplot(data=df, y='dynamics_error', x='legend_name')
     sns.boxenplot(data=df, y='dynamics_error', x='legend_name', k_depth='full')
+    plt.savefig("results/dynamics_error.png")
     plt.show(block=True)
 
 

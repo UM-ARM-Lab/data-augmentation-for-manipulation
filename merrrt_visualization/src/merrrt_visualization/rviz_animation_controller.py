@@ -1,5 +1,5 @@
 from time import sleep
-from typing import List, Callable, Any
+from typing import List, Callable, Any, Optional
 
 import halo
 import numpy as np
@@ -207,18 +207,24 @@ class RvizAnimation:
                  n_time_steps: int,
                  init_funcs: List[Callable],
                  t_funcs: List[Callable],
+                 time_steps: Optional = None,
                  ns='rviz_anim'):
         self.myobj = myobj
         self.init_funcs = init_funcs
         self.t_funcs = t_funcs
         self.n_time_steps = n_time_steps
+        self.time_steps = time_steps
         self.ns = ns
 
     def play(self, example: Any):
         for init_func in self.init_funcs:
             init_func(self.myobj, example)
 
-        controller = RvizAnimationController(n_time_steps=self.n_time_steps, ns=self.ns)
+        if self.time_steps is None:
+            controller = RvizAnimationController(n_time_steps=self.n_time_steps, ns=self.ns)
+        else:
+            controller = RvizAnimationController(time_steps=self.time_steps, ns=self.ns)
+
         while not controller.done:
             t = controller.t()
 

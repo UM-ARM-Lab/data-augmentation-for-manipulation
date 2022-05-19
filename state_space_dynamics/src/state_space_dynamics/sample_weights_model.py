@@ -4,7 +4,7 @@ import pytorch_lightning as pl
 import torch
 from torch.nn import Parameter
 
-from state_space_dynamics.udnn_torch import UDNN
+from state_space_dynamics.meta_udnn import UDNN
 
 
 class SampleWeightedUDNN(pl.LightningModule):
@@ -36,7 +36,7 @@ class SampleWeightedUDNN(pl.LightningModule):
         sample_weights_for_batch = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
         sample_weights_for_batch = torch.clip(sample_weights_for_batch, 0, 1)
         loss = sample_weights_for_batch @ batch_loss - (
-                    sample_weights_for_batch.sum() - batch_indices.shape[0]) * self.hparams.beta_sample_weights
+                sample_weights_for_batch.sum() - batch_indices.shape[0]) * self.hparams.beta_sample_weights
         self.log('weighted_train_loss', loss)
         return loss
 

@@ -11,8 +11,8 @@ from link_bot_pycommon.load_wandb_model import load_model_artifact
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torchify import torchify
+from state_space_dynamics.meta_udnn import UDNN
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
-from state_space_dynamics.udnn_torch import UDNN
 
 
 def main():
@@ -20,11 +20,21 @@ def main():
     parser.add_argument('dataset_dir', type=pathlib.Path)
     parser.add_argument('checkpoint')
     parser.add_argument('threshold', type=float)
-
+    parser.add_argument('--modes', default='val')
     args = parser.parse_args()
 
     n_low_error = 0
     n_total = 0
+
+    def _remove_meta_mask(mode):
+        dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode)
+        print(Fore.CYAN + mode + Fore.RESET)
+        for example in tqdm(dataset):
+            example_idx = example['example_idx']
+            example.pop('meta_mask', None)
+            if 'metadata' in example:
+                example['metadata'].pop('meta_mask', None)
+            pkl_write_example(args.dataset_dir, example, example_idx)
 
     def _add_meta_mask(mode):
         nonlocal n_low_error, n_total
@@ -49,8 +59,11 @@ def main():
 
     model = load_model_artifact(args.checkpoint, UDNN, project='udnn', version='latest', user='armlab')
 
-    _add_meta_mask('val')
-    _add_meta_mask('test')
+    modes = args.modes.split(",")
+    for mode in modes:
+        _add_meta_mask(mode)
+
+    _remove_meta_mask('test')
 
     print(f"{n_low_error}/{n_total}={n_low_error / n_total:%} low error")
 

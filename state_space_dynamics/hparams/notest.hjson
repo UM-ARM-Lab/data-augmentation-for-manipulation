@@ -1,5 +1,6 @@
 {
-  model_class: SimpleNN
+  use_meta_mask_train: false
+  use_meta_mask_val: false
   sequence_length: 10
   shuffle_buffer_size: 64
   state_metadata_keys: []

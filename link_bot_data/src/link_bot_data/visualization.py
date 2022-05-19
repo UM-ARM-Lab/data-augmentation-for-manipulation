@@ -303,6 +303,8 @@ def viz_pred_actual_t(loader, model, example, outputs, s, t, threshold):
     label_t = error_t < threshold
     s.plot_is_close(label_t)
 
+    return error_t
+
 
 def viz_pred_t(loader, model, example, outputs, s, t, threshold, color='blue', label=''):
     actual_t = loader.index_time(example, t)

@@ -7,15 +7,13 @@ from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.split_dataset import write_mode
 from link_bot_data.tf_dataset_utils import write_example, index_to_filename
 from link_bot_data.wandb_datasets import wandb_save_dataset
-from link_bot_pycommon.load_wandb_model import load_model_artifact
 from link_bot_pycommon.serialization import my_hdump
 from moonshine.filepath_tools import load_params
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.torchify import torchify
-from state_space_dynamics.mw_net import MWNet
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
-from state_space_dynamics.udnn_torch import UDNN
+from state_space_dynamics.train_test_dynamics import load_udnn_model_wrapper
 
 
 def n_seq(max_t: int):
@@ -25,15 +23,7 @@ def n_seq(max_t: int):
 def make_mde_dataset(dataset_dir: pathlib.Path,
                      checkpoint: pathlib.Path,
                      outdir: pathlib.Path):
-    try:
-        model = load_model_artifact(checkpoint, UDNN, project='udnn', version='latest', user='armlab',
-                                    with_joint_positions=True)
-    except RuntimeError:
-        model = load_model_artifact(checkpoint, MWNet, project='udnn', version='latest', user='armlab',
-                                    with_joint_positions=True, train_dataset=None)
-        model = model.udnn
-
-    model.eval()
+    model = load_udnn_model_wrapper(checkpoint)
 
     mde_dataset_hparams = load_params(dataset_dir)
 

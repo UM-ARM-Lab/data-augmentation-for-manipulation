@@ -22,7 +22,7 @@ from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, repeat_dataset
 from moonshine.torchify import torchify
 from state_space_dynamics.mw_net import MWNet
-from state_space_dynamics.mw_net import UDNN
+from state_space_dynamics.meta_udnn import UDNN
 from state_space_dynamics.torch_dynamics_dataset import TorchMetaDynamicsDataset, remove_keys
 
 PROJECT = 'udnn'
