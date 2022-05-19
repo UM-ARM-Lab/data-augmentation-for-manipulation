@@ -25,6 +25,7 @@ def main():
     outdir = args.dataset_dir.parent / f"{args.dataset_dir.name}+{args.suffix}"
 
     def _process_example(dataset, example: Dict):
+        example['time_idx'] = example['time_idx'].astype(np.float32)
         yield example
 
     hparams_update = {}

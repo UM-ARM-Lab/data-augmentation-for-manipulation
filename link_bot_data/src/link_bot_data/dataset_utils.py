@@ -219,7 +219,7 @@ def modify_pad_env(example: Dict, h, w, c):
 def pprint_example(example):
     for k, v in example.items():
         if hasattr(v, 'shape'):
-            print(k, v.shape)
+            print(k, v.shape, v.dtype)
         elif isinstance(v, OrderedDict):
             print(k, numpify(v))
         elif isinstance(v, PlanningScene):

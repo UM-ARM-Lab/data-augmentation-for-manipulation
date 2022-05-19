@@ -83,7 +83,14 @@ def my_collate(batch):
                     break
             if is_common:
                 common_keys.append(key)
-        return {key: my_collate([d[key] for d in batch]) for key in common_keys}
+        out_dict = {}
+        for key in common_keys:
+            try:
+                out_dict[key] =  my_collate([d[key] for d in batch])
+            except Exception as e:
+                print(key)
+                raise e
+        return out_dict
     elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
         return elem_type(*(my_collate(samples) for samples in zip(*batch)))
     elif isinstance(elem, collections.abc.Sequence):

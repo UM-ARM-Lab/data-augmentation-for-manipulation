@@ -276,6 +276,11 @@ def viz_main(dataset_dir: pathlib.Path,
     while not dataset_anim.done:
         inputs = dataset[dataset_anim.t()]
 
+        if 'meta_mask' in inputs:
+            if inputs['meta_mask'].sum() < 6:
+                dataset_anim.step()
+                continue
+            print(inputs['meta_mask'])
         weight = inputs.get('weight', np.ones_like(inputs['time_idx']))
         outputs = remove_batch(model(torchify(add_batch(inputs))))
 
