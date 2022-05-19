@@ -22,7 +22,6 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('planner_params', type=pathlib.Path, help='planner params hjson file')
-    parser.add_argument('classifier', type=pathlib.Path)
     parser.add_argument("test_scenes_dir", type=pathlib.Path)
     parser.add_argument("nickname", type=pathlib.Path, help='used in making the output directory')
     parser.add_argument("--trials", type=int_set_arg)
@@ -37,7 +36,7 @@ def main():
 
     planner_params = load_planner_params(args.planner_params)
     planner_params['method_name'] = args.outdir.name
-    planner_params["classifier_model_dir"] = [args.classifier, pathlib.Path("cl_trials/new_feasibility_baseline/none")]
+    planner_params["classifier_model_dir"] = [pathlib.Path("cl_trials/new_feasibility_baseline/none")]
 
     if not args.test_scenes_dir.exists():
         print(f"Test scenes dir {args.test_scenes_dir} does not exist")
