@@ -42,7 +42,7 @@ def main():
     ou.setLogLevel(ou.LOG_ERROR)
 
     planner_params = load_planner_params(args.planner_params)
-    planner_params['method_name'] = args.outdir.name
+    planner_params['method_name'] = "collect_dynamics_dataset"
     planner_params["classifier_model_dir"] = [pathlib.Path("cl_trials/new_feasibility_baseline/none")]
 
     if not args.test_scenes_dir.exists():
