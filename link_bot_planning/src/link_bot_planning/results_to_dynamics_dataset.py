@@ -62,23 +62,25 @@ class ResultsToDynamicsDataset:
             'seed':                   None,
             'n_trajs':                len(self.trials),
             'data_collection_params': {
-                'scenario_params':            planner_params.get("scenario_params", {}),
-                'max_step_size':              planner_params.get("max_step_size", 0.01),
-                'service_provider':           'gazebo',
-                'state_description':          {
+                'scenario_params':               planner_params.get("scenario_params", {}),
+                'max_step_size':                 planner_params.get("max_step_size", 0.01),
+                'max_distance_gripper_can_move': 0.1,
+                'res':                           0.02,
+                'service_provider':              'gazebo',
+                'state_description':             {
                     'left_gripper':    3,
                     'right_gripper':   3,
                     'joint_positions': 18,
                     'rope':            75,
                 },
-                'state_metadata_description': {
+                'state_metadata_description':    {
                     'joint_names': None,
                 },
-                'action_description':         {
+                'action_description':            {
                     'left_gripper_position':  3,
                     'right_gripper_position': 3,
                 },
-                'env_description':            {
+                'env_description':               {
                     'env':          None,
                     'extent':       4,
                     'origin_point': 3,
