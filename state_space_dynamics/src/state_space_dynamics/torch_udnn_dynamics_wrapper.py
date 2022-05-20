@@ -32,9 +32,6 @@ class TorchUDNNDynamicsWrapper:
             self.model.scenario = scenario
 
         self.data_collection_params = self.model.data_collection_params
-        print(Fore.RED + "HACK FIXME!!!!!" + Fore.RESET)
-        self.data_collection_params['max_distance_gripper_can_move'] = 0.1
-        self.data_collection_params['res'] = 0.02
         self.max_step_size = self.model.max_step_size
 
     def propagate(self, environment: Dict, start_state: Dict, actions: List[Dict]):
