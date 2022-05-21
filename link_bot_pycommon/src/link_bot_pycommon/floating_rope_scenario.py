@@ -315,7 +315,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         left_gripper_steps = np.round(np.linalg.norm(left_gripper_delta) / step_size).astype(np.int64)
         right_gripper_steps = np.round(np.linalg.norm(right_gripper_delta) / step_size).astype(np.int64)
-        steps = max(left_gripper_steps, right_gripper_steps)
+        steps = max(left_gripper_steps, right_gripper_steps, 1)
 
         interpolated_actions = []
         for t in np.linspace(step_size, 1, steps):

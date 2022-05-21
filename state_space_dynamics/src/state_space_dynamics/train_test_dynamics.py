@@ -228,6 +228,7 @@ def eval_main(dataset_dir: pathlib.Path,
               **kwargs):
     model = load_udnn_model_wrapper(checkpoint)
     model.eval()
+    model.testing = True
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {

@@ -42,6 +42,7 @@ class UDNN(MetaModule, pl.LightningModule):
         self.mlp = MetaSequential(*layers)
 
         self.val_model_errors = None
+        self.testing = False
 
     def forward(self, inputs, params=None):
         if params is None:
@@ -97,7 +98,10 @@ class UDNN(MetaModule, pl.LightningModule):
         if self.training:
             use_meta_mask = self.hparams.get('use_meta_mask_train', False)
         else:
-            use_meta_mask = self.hparams.get('use_meta_mask_val', False)
+            if self.testing:
+                return False
+            else:
+                use_meta_mask = self.hparams.get('use_meta_mask_val', False)
         return use_meta_mask
 
     def compute_loss(self, inputs, outputs):

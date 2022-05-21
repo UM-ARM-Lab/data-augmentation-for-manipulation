@@ -7,6 +7,7 @@ import rospy
 from arm_gazebo_msgs.srv import ComputeOccupancy, GetWorldInitialSDFResponse, GetWorldInitialSDF
 from gazebo_msgs.srv import GetPhysicsProperties, SetPhysicsProperties
 from geometry_msgs.msg import Pose
+from link_bot_gazebo import gazebo_utils
 from peter_msgs.srv import WorldControl, WorldControlRequest
 
 
@@ -14,6 +15,8 @@ class BaseServices:
 
     def __init__(self):
         self.service_names = []
+
+        gazebo_utils.resume()
 
         self.world_control = self.add_required_service('arm_gazebo/world_control', WorldControl)
         self.get_physics = self.add_required_service('/gazebo/get_physics_properties', GetPhysicsProperties)

@@ -307,7 +307,6 @@ def collect_dynamics_data(collect_dynamics_params: pathlib.Path,
         collect_dynamics_params = hjson.load(f)
     DataCollectorClass, extension = get_data_collector_class(save_format)
     data_collector = DataCollectorClass(params=collect_dynamics_params,
-
                                         seed=seed,
                                         verbose=verbose)
 

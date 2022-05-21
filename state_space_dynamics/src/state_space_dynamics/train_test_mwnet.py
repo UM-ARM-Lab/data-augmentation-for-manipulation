@@ -222,6 +222,7 @@ def eval_main(dataset_dir: pathlib.Path,
     eval_mode = 'test'
     model = load_model_artifact(checkpoint, MWNet, project, version='best', user=user, train_dataset=None)
     model.eval()
+    model.testing = True
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
