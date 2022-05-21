@@ -157,19 +157,20 @@ class MWNet(pl.LightningModule):
     def validation_step(self, inputs, batch_idx):
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch)
-        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
+        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs, use_meta_mask=False)
         self.log('val_loss', meta_train_udnn_loss)
 
     def training_step(self, inputs, batch_idx):
         # evaluate the validation loss
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch)
-        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
+        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs, use_meta_mask=False)
         self.log('val_loss', meta_train_udnn_loss)
 
         train_data_weights = self.sample_weights.detach().cpu()[self.hparams['train_example_indices']]
         wandb.log({'unnormalized weights': wandb.Histogram(train_data_weights)})
 
+        # start of actually meta-learning
         self.sample_weights.grad = None  # zero grad, very important!
         self.udnn.zero_grad()
 
@@ -198,7 +199,7 @@ class MWNet(pl.LightningModule):
 
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch, params=updated_params)
-        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs)
+        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs, use_meta_mask=True)
         meta_train_udnn_loss.backward()
         data_weight_opt.step()  # updates data weights
 

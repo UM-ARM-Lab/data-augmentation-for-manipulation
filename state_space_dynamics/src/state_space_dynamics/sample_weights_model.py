@@ -42,7 +42,7 @@ class SampleWeightedUDNN(pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         outputs = self.udnn.forward(val_batch)
-        val_loss = self.udnn.compute_loss(val_batch, outputs)
+        val_loss = self.udnn.compute_loss(val_batch, outputs, use_meta_mask=False)
         self.log('val_loss', val_loss)
         return val_loss
 

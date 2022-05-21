@@ -87,25 +87,15 @@ class UDNN(MetaModule, pl.LightningModule):
         s_t_plus_1 = self.scenario.integrate_dynamics(s_t, delta_s_t)
         return s_t_plus_1
 
-    def compute_batch_loss(self, inputs, outputs):
+    def compute_batch_loss(self, inputs, outputs, use_meta_mask: bool):
         batch_time_loss = compute_batch_time_loss(inputs, outputs)
-        if self.use_meta_mask():
+        if use_meta_mask:
             batch_time_loss = inputs['meta_mask'] * batch_time_loss
         batch_loss = batch_time_loss.sum(-1)
         return batch_loss
 
-    def use_meta_mask(self):
-        if self.training:
-            use_meta_mask = self.hparams.get('use_meta_mask_train', False)
-        else:
-            if self.testing:
-                return False
-            else:
-                use_meta_mask = self.hparams.get('use_meta_mask_val', False)
-        return use_meta_mask
-
-    def compute_loss(self, inputs, outputs):
-        batch_loss = self.compute_batch_loss(inputs, outputs)
+    def compute_loss(self, inputs, outputs, use_meta_mask: bool):
+        batch_loss = self.compute_batch_loss(inputs, outputs, use_meta_mask)
         return batch_loss.mean()
 
     def compute_batch_time_point_loss(self, inputs, outputs):
@@ -117,15 +107,19 @@ class UDNN(MetaModule, pl.LightningModule):
         batch_time_point_loss = torch.cat(loss_by_key, -1)
         return batch_time_point_loss
 
+
+
     def training_step(self, train_batch, batch_idx):
         outputs = self.forward(train_batch)
-        loss = self.compute_loss(train_batch, outputs)
+        use_meta_mask = self.hparams.get('use_meta_mask_train', False)
+        loss = self.compute_loss(train_batch, outputs, use_meta_mask)
         self.log('train_loss', loss)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
         val_udnn_outputs = self.forward(val_batch)
-        val_loss = self.compute_loss(val_batch, val_udnn_outputs)
+        use_meta_mask = self.hparams.get('use_meta_mask_val', False)
+        val_loss = self.compute_loss(val_batch, val_udnn_outputs, use_meta_mask)
         self.log('val_loss', val_loss)
 
         model_error_batch = (val_batch['rope'] - val_udnn_outputs['rope']).norm(dim=-1).flatten()
