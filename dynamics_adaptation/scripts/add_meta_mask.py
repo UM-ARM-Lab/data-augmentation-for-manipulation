@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# !/usr/bin/env python
 import argparse
 import pathlib
 
@@ -35,7 +35,6 @@ def main():
             if 'metadata' in example:
                 example['metadata'].pop('meta_mask', None)
             _, full_metadata_filename = pkl_write_example(args.dataset_dir, example, example_idx)
-            print(full_metadata_filename)
 
     def _add_meta_mask(mode):
         nonlocal n_low_error, n_total
@@ -57,7 +56,6 @@ def main():
             #  so remove it from the example before writing
             example.pop('meta_mask', None)
             _, full_metadata_filename = pkl_write_example(args.dataset_dir, example, example_idx)
-            print(full_metadata_filename)
 
     model = load_model_artifact(args.checkpoint, UDNN, project='udnn', version='latest', user='armlab')
 
