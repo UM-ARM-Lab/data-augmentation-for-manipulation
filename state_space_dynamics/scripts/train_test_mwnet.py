@@ -9,7 +9,7 @@ import torch
 from arc_utilities import ros_init
 from link_bot_pycommon.args import run_subparsers
 from moonshine.magic import wandb_lightning_magic
-from state_space_dynamics import train_test_mwnet
+from state_space_dynamics import train_test_mwnet, train_test_dynamics
 
 node_name = f"train_test_dynamics_{int(time())}"
 
@@ -29,10 +29,10 @@ def main():
         train_test_mwnet.fine_tune_main(**vars(args))
 
     def _eval_main(args):
-        train_test_mwnet.eval_main(**vars(args))
+        train_test_dynamics.eval_main(**vars(args))
 
     def _viz_main(args):
-        train_test_mwnet.viz_main(**vars(args))
+        train_test_dynamics.viz_main(**vars(args))
 
     torch.set_printoptions(linewidth=250, precision=7, sci_mode=False)
     np.set_printoptions(linewidth=250, precision=7, suppress=True)

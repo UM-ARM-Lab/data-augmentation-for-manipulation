@@ -24,6 +24,7 @@ from moonshine.torchify import torchify
 from state_space_dynamics.mw_net import MWNet
 from state_space_dynamics.meta_udnn import UDNN
 from state_space_dynamics.torch_dynamics_dataset import TorchMetaDynamicsDataset, remove_keys
+from state_space_dynamics.train_test_dynamics import eval_main
 
 PROJECT = 'udnn'
 
@@ -128,7 +129,6 @@ def fine_tune_main(dataset_dir: pathlib.Path,
 
     if checkpoint_is_udnn:
         model.init_data_weights_from_model_error(train_dataset)
-        # model.init_data_weights_from_heuristic(train_dataset)
 
     trainer.fit(model, train_loader, val_dataloaders=train_loader)
     wandb.finish()
@@ -209,95 +209,3 @@ def train_main(dataset_dir: pathlib.Path,
     wandb.finish()
     eval_main(dataset_dir, run_id, batch_size=batch_size, user=user)
     return run_id
-
-
-def eval_main(dataset_dir: pathlib.Path,
-              checkpoint: str,
-              batch_size: int,
-              user: str,
-              take: Optional[int] = None,
-              skip: Optional[int] = None,
-              project=PROJECT,
-              **kwargs):
-    eval_mode = 'test'
-    model = load_model_artifact(checkpoint, MWNet, project, version='best', user=user, train_dataset=None)
-    model.eval()
-    model.testing = True
-
-    run_id = f'eval-{generate_id(length=5)}'
-    eval_config = {
-        'training_dataset': model.hparams.dataset_dir,
-        'eval_dataset':     dataset_dir.as_posix(),
-        'eval_checkpoint':  checkpoint,
-        'eval_mode':        eval_mode,
-    }
-
-    wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity='armlab')
-    trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
-
-    transform = transforms.Compose([remove_keys("scene_msg")])
-    dataset = TorchMetaDynamicsDataset(dataset_dir, transform=transform, meta_train_mode=eval_mode)
-    dataset = take_subset(dataset, take)
-    dataset = dataset_skip(dataset, skip)
-    loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
-    metrics = trainer.validate(model, loader, verbose=False)
-    wandb.finish()
-
-    print(f'run_id: {run_id}')
-    for metrics_i in metrics:
-        for k, v in metrics_i.items():
-            print(f"{k:20s}: {v:0.5f}")
-
-    return metrics
-
-
-def viz_main(dataset_dir: pathlib.Path,
-             checkpoint,
-             user: str,
-             weight_above: Optional[float] = None,
-             weight_below: Optional[float] = None,
-             skip: Optional[int] = None,
-             project=PROJECT,
-             **kwargs):
-    dataset = TorchMetaDynamicsDataset(dataset_dir, meta_train_mode='test')
-
-    dataset = dataset_skip(dataset, skip)
-
-    model = load_model_artifact(checkpoint, MWNet, project, version='best', user=user, train_dataset=None)
-    model.eval()
-
-    s = dataset.get_scenario()
-
-    dataset_anim = RvizAnimationController(n_time_steps=len(dataset), ns='trajs')
-    print("Visualizing meta train data")
-
-    n_examples_visualized = 0
-    while not dataset_anim.done:
-        inputs = dataset[dataset_anim.t()]
-        inputs = inputs['meta_train']
-
-        outputs = remove_batch(model(torchify(add_batch(inputs))))
-        weight = model.sample_weights.detach().cpu()[inputs['example_idx']]
-
-        if weight_below is not None and bool(weight > weight_below):
-            dataset_anim.step()
-            continue
-        if weight_above is not None and bool(weight < weight_above):
-            dataset_anim.step()
-            continue
-
-        n_time_steps = inputs['time_idx'].shape[0]
-        time_anim = RvizAnimationController(n_time_steps=n_time_steps)
-
-        while not time_anim.done:
-            t = time_anim.t()
-            init_viz_env(s, inputs, t)
-            s.plot_weight_rviz(weight)
-            viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.05)
-            time_anim.step()
-
-        n_examples_visualized += 1
-
-        dataset_anim.step()
-
-    print(f"{n_examples_visualized:=}")
