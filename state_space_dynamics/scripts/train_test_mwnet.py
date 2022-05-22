@@ -16,12 +16,6 @@ node_name = f"train_test_dynamics_{int(time())}"
 
 @ros_init.with_ros(node_name)
 def main():
-    def _train_main(args):
-        if args.seed is None:
-            args.seed = np.random.randint(0, 10000)
-
-        train_test_mwnet.train_main(**vars(args))
-
     def _fine_tune_main(args):
         if args.seed is None:
             args.seed = np.random.randint(0, 10000)
@@ -40,21 +34,6 @@ def main():
     parser = argparse.ArgumentParser()
 
     subparsers = parser.add_subparsers()
-
-    train_parser = subparsers.add_parser('train')
-    train_parser.add_argument('dataset_dir', type=pathlib.Path)
-    train_parser.add_argument('model_params_path', type=pathlib.Path)
-    train_parser.add_argument('--nickname', '-n', type=str)
-    train_parser.add_argument('--user', '-u', type=str, default='armlab')
-    train_parser.add_argument('--checkpoint')
-    train_parser.add_argument('--batch-size', type=int, default=512)
-    train_parser.add_argument('--take', type=int)
-    train_parser.add_argument('--skip', type=int)
-    train_parser.add_argument('--repeat', type=int)
-    train_parser.add_argument('--epochs', type=int, default=-1)
-    train_parser.add_argument('--steps', type=int, default=10_000_000)
-    train_parser.add_argument('--seed', type=int, default=None)
-    train_parser.set_defaults(func=_train_main)
 
     fine_tune_parser = subparsers.add_parser('fine_tune')
     fine_tune_parser.add_argument('dataset_dir', type=pathlib.Path)

@@ -2,7 +2,7 @@
 import argparse
 import pathlib
 
-from link_bot_data.wandb_datasets import wandb_download_dataset
+from link_bot_data.wandb_datasets import wandb_download_dataset_to
 
 
 def main():
@@ -15,7 +15,7 @@ def main():
 
     args = parser.parse_args()
 
-    full_outdir = wandb_download_dataset(args.entity, args.project, args.dataset_name, args.version, args.outdir)
+    full_outdir = wandb_download_dataset_to(args.entity, args.project, args.dataset_name, args.version, args.outdir)
     print(full_outdir)
 
 

@@ -1,13 +1,15 @@
-# !/usr/bin/env python
+#!/usr/bin/env python
 import argparse
 import pathlib
 
+import hjson
 import numpy as np
 from colorama import Fore
 from tqdm import tqdm
 
 from link_bot_data.tf_dataset_utils import pkl_write_example
 from link_bot_pycommon.load_wandb_model import load_model_artifact
+from moonshine.filepath_tools import load_hjson
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torchify import torchify
@@ -20,15 +22,20 @@ def main():
     parser.add_argument('dataset_dir', type=pathlib.Path)
     parser.add_argument('checkpoint')
     parser.add_argument('threshold', type=float)
-    parser.add_argument('--modes', default='val')
+    parser.add_argument('--modes', default='train,val')
     args = parser.parse_args()
 
     n_low_error = 0
     n_total = 0
 
+    hparams = load_hjson(args.dataset_dir / 'hparams.hjson')
+    hparams['meta_mask_threshold'] = args.threshold
+    with (args.dataset_dir / 'hparams.hjson').open('w') as f:
+        hjson.dump(hparams, f)
+
     def _remove_meta_mask(mode):
         dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode)
-        print(Fore.RED + "Removing meta_mask from {mode}" + Fore.RESET)
+        print(Fore.RED + f"Removing meta_mask from {mode}" + Fore.RESET)
         for example in tqdm(dataset):
             example_idx = example['example_idx']
             example.pop('meta_mask', None)

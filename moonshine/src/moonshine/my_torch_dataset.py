@@ -17,9 +17,10 @@ class MyTorchDataset(Dataset):
         self.only_metadata = only_metadata
         if not is_empty:
             if isinstance(dataset_dir, list):
-                self.metadata_filenames = get_filenames(dataset_dir, mode)
+                dataset_dirs = dataset_dir
             else:
-                self.metadata_filenames = get_filenames([dataset_dir], mode)
+                dataset_dirs = [dataset_dir]
+            self.metadata_filenames = get_filenames(dataset_dirs, mode)
 
         self.params = merge_hparams_dicts(dataset_dir)
 

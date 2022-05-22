@@ -6,7 +6,6 @@ import wandb
 from colorama import Fore
 from wandb import CommError
 
-from arc_utilities.filesystem_utils import rm_tree
 from moonshine.filepath_tools import load_hjson
 
 
@@ -40,11 +39,15 @@ def get_dataset_with_version(dataset_dir: pathlib.Path, project, entity='armlab'
         return 'null'
 
 
-def wandb_download_dataset(entity: str, project: str, dataset_name: str, version: str, outdir: pathlib.Path):
+def wandb_download_dataset(entity: str, project: str, dataset_name: str, version: str):
     api = wandb.Api()
     artifact = api.artifact(f'{entity}/{project}/{dataset_name}:{version}')
-    artifact_dir = artifact.download()
+    dataset_dir = pathlib.Path(artifact.download())
+    return dataset_dir
+
+
+def wandb_download_dataset_to(entity: str, project: str, dataset_name: str, version: str, outdir: pathlib.Path):
     full_outdir = outdir / dataset_name
-    shutil.copytree(artifact_dir, full_outdir)
-    rm_tree(artifact_dir)
+    artifact_dir = wandb_download_dataset(entity, project, dataset_name, version)
+    shutil.move(artifact_dir, full_outdir)
     return full_outdir

@@ -1,10 +1,10 @@
 import pathlib
 import pickle
 from functools import lru_cache
-from typing import List, Union
+from typing import Union, List
 
 from link_bot_data.dataset_utils import merge_hparams_dicts
-from link_bot_pycommon.get_scenario import get_scenario
+from link_bot_data.wandb_datasets import wandb_download_dataset
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson
 
@@ -72,6 +72,17 @@ def load_metadata(metadata_filename):
     return metadata
 
 
+def check_download(dataset_dir):
+    if not dataset_dir.exists():
+        dataset_dir_downloaded = wandb_download_dataset(entity='armlab',
+                                                        project='udnn',
+                                                        dataset_name=dataset_dir.as_posix(),
+                                                        version='latest')
+        return dataset_dir_downloaded
+    else:
+        return dataset_dir
+
+
 class DynamicsDatasetParams:
 
     def __init__(self, dataset_dirs: Union[pathlib.Path, List[pathlib.Path]]):
@@ -90,11 +101,3 @@ class DynamicsDatasetParams:
         self.env_keys = list(self.env_description.keys())
         self.action_keys = list(self.action_description.keys())
         self.time_indexed_keys = self.state_keys + self.state_metadata_keys + self.action_keys
-
-
-def get_scenario_from_dataset_dir(dataset_dirs):
-    params = merge_hparams_dicts(dataset_dirs)
-    data_collection_params = params['data_collection_params']
-    scenario_name = data_collection_params['scenario']
-    scenario_params = data_collection_params['scenario_params']
-    return get_scenario(scenario_name, scenario_params)

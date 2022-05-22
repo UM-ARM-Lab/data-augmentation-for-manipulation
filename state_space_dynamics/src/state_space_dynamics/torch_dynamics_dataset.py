@@ -2,7 +2,6 @@ import logging
 import pathlib
 from typing import Dict
 
-import numpy as np
 from torch.utils.data import DataLoader
 
 from link_bot_data.new_dataset_utils import get_filenames, DynamicsDatasetParams, load_single
