@@ -118,7 +118,7 @@ class UDNN(MetaModule, pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         val_udnn_outputs = self.forward(val_batch)
-        use_meta_mask = self.hparams.get('use_meta_mask_val', False)
+        use_meta_mask = self.hparams.get('use_meta_mask_val', False) and not self.testing
         val_loss = self.compute_loss(val_batch, val_udnn_outputs, use_meta_mask)
         self.log('val_loss', val_loss)
 

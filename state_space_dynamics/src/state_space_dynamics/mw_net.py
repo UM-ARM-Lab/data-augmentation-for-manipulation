@@ -117,6 +117,7 @@ class MWNet(pl.LightningModule):
         self.state_keys = self.udnn.state_keys
         self.state_metadata_keys = self.udnn.state_metadata_keys
 
+        self.testing = False
         self.automatic_optimization = False
         self.params_states = {}
 
@@ -157,14 +158,15 @@ class MWNet(pl.LightningModule):
     def validation_step(self, inputs, batch_idx):
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch)
-        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs, use_meta_mask=False)
+        use_meta_mask = not self.testing
+        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs, use_meta_mask=use_meta_mask)
         self.log('val_loss', meta_train_udnn_loss)
 
     def training_step(self, inputs, batch_idx):
         # evaluate the validation loss
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch)
-        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs, use_meta_mask=False)
+        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs, use_meta_mask=True)
         self.log('val_loss', meta_train_udnn_loss)
 
         train_data_weights = self.sample_weights.detach().cpu()[self.hparams['train_example_indices']]
@@ -179,7 +181,7 @@ class MWNet(pl.LightningModule):
         train_batch = inputs['train']
 
         udnn_outputs = self.udnn(train_batch)
-        udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs)
+        udnn_loss = self.udnn.compute_batch_loss(train_batch, udnn_outputs, use_meta_mask=False)
         batch_indices = train_batch['example_idx']
         weights = torch.take_along_dim(self.sample_weights, batch_indices, dim=0)
         positive_weights = torch.sigmoid(weights)

@@ -81,7 +81,7 @@ class MDEWeightedDynamics(pl.LightningModule):
         return udnn_outputs, mde_outputs
 
     def compute_loss(self, inputs, predictions, mde_outputs):
-        batch_dynamics_loss = self.udnn.compute_batch_loss(inputs, predictions)
+        batch_dynamics_loss = self.udnn.compute_batch_loss(inputs, predictions, use_meta_mask=False)
         mde_loss = self.mde.compute_loss(inputs, mde_outputs)
         weights = torch.exp(-self.learned_weight_k * mde_outputs['error'])
         weighted_dynamics_loss = batch_dynamics_loss * weights
