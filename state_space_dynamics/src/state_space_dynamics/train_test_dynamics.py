@@ -245,6 +245,7 @@ def eval_main(dataset_dir: pathlib.Path,
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
     transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
+    dataset_dir = check_download(dataset_dir)
     dataset = TorchDynamicsDataset(dataset_dir, mode, transform=transform)
     dataset = take_subset(dataset, take)
     dataset = dataset_skip(dataset, skip)
@@ -265,6 +266,7 @@ def viz_main(dataset_dir: pathlib.Path,
              mode: str,
              skip: Optional[int] = None,
              **kwargs):
+    dataset_dir = check_download(dataset_dir)
     original_dataset = TorchDynamicsDataset(dataset_dir, mode)
 
     dataset = dataset_skip(original_dataset, skip)
