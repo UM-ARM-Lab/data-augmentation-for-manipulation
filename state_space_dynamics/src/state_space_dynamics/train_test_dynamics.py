@@ -94,7 +94,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     if steps != -1:
         steps = int(steps / batch_size)
 
-    transform = transforms.Compose([])
+    transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
 
     model_params = load_hjson(model_params)
 
@@ -156,7 +156,7 @@ def train_main(dataset_dir: pathlib.Path,
     if steps != -1:
         steps = int(steps / batch_size)
 
-    transform = transforms.Compose([remove_keys("scene_msg")])
+    transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
 
     model_params = load_hjson(model_params)
 
@@ -242,7 +242,7 @@ def eval_main(dataset_dir: pathlib.Path,
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity='armlab')
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
-    transform = transforms.Compose([remove_keys("scene_msg")])
+    transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
     dataset = TorchDynamicsDataset(dataset_dir, mode, transform=transform)
     dataset = take_subset(dataset, take)
     dataset = dataset_skip(dataset, skip)
