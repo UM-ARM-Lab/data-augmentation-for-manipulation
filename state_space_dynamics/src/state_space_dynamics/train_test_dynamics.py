@@ -21,6 +21,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.my_pl_callbacks import HeartbeatCallback
+from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, repeat_dataset
 from moonshine.torchify import torchify
@@ -294,7 +295,7 @@ def viz_main(dataset_dir: pathlib.Path,
         while not time_anim.done:
             t = time_anim.t()
             init_viz_env(s, inputs, t)
-            viz_pred_actual_t(original_dataset, model, inputs, outputs, s, t, threshold=0.08)
+            viz_pred_actual_t(original_dataset, model, inputs, outputs, s, t, threshold=0.1)
             s.plot_weight_rviz(weight[t])
             time_anim.step()
 

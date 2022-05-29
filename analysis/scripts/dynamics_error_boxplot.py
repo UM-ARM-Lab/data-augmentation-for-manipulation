@@ -11,6 +11,7 @@ from torchvision.transforms import transforms
 from tqdm import tqdm
 
 from analysis.analyze_results import try_split_model_name
+from link_bot_data.new_dataset_utils import check_download
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.torch_datasets_utils import my_collate
 from state_space_dynamics.torch_dynamics_dataset import remove_keys, TorchDynamicsDataset
@@ -26,7 +27,8 @@ def main():
     args = parser.parse_args()
 
     transform = transforms.Compose([remove_keys("scene_msg")])
-    dataset = TorchDynamicsDataset(args.dataset_dir, mode=args.mode, transform=transform)
+    dataset_dir = check_download(args.dataset_dir)
+    dataset = TorchDynamicsDataset(dataset_dir, mode=args.mode, transform=transform)
     batch_size = 8
     loader = DataLoader(dataset, collate_fn=my_collate, batch_size=batch_size, num_workers=get_num_workers(batch_size))
 
