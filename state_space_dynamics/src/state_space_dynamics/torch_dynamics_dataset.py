@@ -73,7 +73,7 @@ class TorchDynamicsDataset(MyTorchDataset, DynamicsDatasetParams):
                  transform=None,
                  only_metadata=False,
                  is_empty=False,
-                 no_update_with_metadata=True):
+                 no_update_with_metadata=False):
         MyTorchDataset.__init__(self, dataset_dir, mode, transform, only_metadata, is_empty, no_update_with_metadata)
         DynamicsDatasetParams.__init__(self, dataset_dir)
 

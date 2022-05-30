@@ -23,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path)
     parser.add_argument('mode')
+    parser.add_argument('checkpoint')
 
     args = parser.parse_args()
 
@@ -31,12 +32,13 @@ def main():
 
     dataset_dir_versioned = get_dataset_with_version(args.dataset_dir, project='udnn', entity='armlab')
 
-    run = wandb.init(project='datasets', entity='armlab', name=f'{dataset_dir_versioned}-{args.mode}')
+    name = f'{dataset_dir_versioned}-{args.mode}-{args.checkpoint}'
+    run = wandb.init(project='datasets', entity='armlab', name=name)
     run.config['dataset_dir'] = args.dataset_dir
     run.config['dataset_dir_versioned'] = dataset_dir_versioned
     run.config['mode'] = args.mode
 
-    model = load_udnn_model_wrapper('unadapted-b8s5s')
+    model = load_udnn_model_wrapper(args.checkpoint)
     model.eval()
     model.testing = True
 

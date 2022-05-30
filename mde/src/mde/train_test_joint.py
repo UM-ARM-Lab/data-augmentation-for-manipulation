@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
 import pathlib
-from datetime import datetime
 from typing import Optional
 
-import git
 import pytorch_lightning as pl
 import wandb
 from pytorch_lightning.loggers import WandbLogger
@@ -25,7 +23,7 @@ from moonshine.torchify import torchify
 from state_space_dynamics.meta_udnn import UDNN
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
 from state_space_dynamics.torch_dynamics_dataset import remove_keys
-from state_space_dynamics.train_test_dynamics import prepare_train, prepare_validation
+from state_space_dynamics.train_test_dynamics import prepare_data_loaders
 
 PROJECT = 'joint'
 
@@ -42,38 +40,16 @@ def train_main(dataset_dir: pathlib.Path,
                take: Optional[int] = None,
                skip: Optional[int] = None,
                no_validate: bool = False,
+               repeat: Optional[int] = None,
                project=PROJECT,
                **kwargs):
     pl.seed_everything(seed, workers=True)
 
     transform = transforms.Compose([remove_keys("scene_msg")])
 
-    train_loader, train_dataset, train_dataset_len = prepare_train(batch_size=batch_size, dataset_dir=dataset_dir,
-                                                                   take=take, skip=skip, transform=transform,
-                                                                   repeat=None)
-    val_dataset_len, val_loader = prepare_validation(batch_size=batch_size, dataset_dir=dataset_dir,
-                                                     no_validate=no_validate, transform=transform)
-
     model_params = load_hjson(model_params)
-    model_params['scenario'] = train_dataset.params['scenario']
-    model_params['dataset_dir'] = train_dataset.dataset_dir
-    model_params['dataset_hparams'] = train_dataset.params
-    # add some extra useful info here
-    stamp = "{:%B_%d_%H-%M-%S}".format(datetime.now())
-    repo = git.Repo(search_parent_directories=True)
-    sha = repo.head.object.hexsha[:10]
-    model_params['sha'] = sha
-    model_params['start-train-time'] = stamp
-    model_params['train_dataset_size'] = train_dataset_len
-    model_params['val_dataset_size'] = val_dataset_len
-    model_params['batch_size'] = batch_size
-    model_params['seed'] = seed
-    model_params['max_epochs'] = epochs
-    model_params['max_steps'] = steps
-    model_params['take'] = take
-    model_params['mode'] = 'train'
-    model_params['checkpoint'] = checkpoint
-    model_params['no_validate'] = no_validate
+    train_loader, val_loader = prepare_data_loaders(batch_size, dataset_dir, take, skip, transform, repeat, no_validate,
+                                                    model_params)
 
     udnn = load_model_artifact(checkpoint, UDNN, project='udnn', version='best', user=user)
     run_id = nickname + '-' + generate_id(length=5)
@@ -86,7 +62,7 @@ def train_main(dataset_dir: pathlib.Path,
     wandb_kargs = {'entity': user, 'resume': True}
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
-    hearbeat_callback = HeartbeatCallback(train_dataset.get_scenario())
+    hearbeat_callback = HeartbeatCallback(train_loader.dataset.get_scenario())
     trainer = pl.Trainer(gpus=1,
                          logger=wb_logger,
                          enable_model_summary=False,
@@ -99,9 +75,6 @@ def train_main(dataset_dir: pathlib.Path,
     wb_logger.watch(model)
     trainer.fit(model, train_loader, val_dataloaders=val_loader)
     wandb.finish()
-
-    # script = model.to_torchscript()
-    # torch.jit.save(script, "model.pt")
 
     eval_main(dataset_dir,
               run_id,

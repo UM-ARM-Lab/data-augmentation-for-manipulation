@@ -100,7 +100,6 @@ def fine_tune_main(dataset_dir: pathlib.Path,
     transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
 
     model_params = load_hjson(model_params)
-
     train_loader, val_loader = prepare_data_loaders(batch_size, dataset_dir, take, skip, transform, repeat, no_validate,
                                                     model_params)
 

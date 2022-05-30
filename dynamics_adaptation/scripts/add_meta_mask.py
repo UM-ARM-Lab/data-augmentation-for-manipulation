@@ -37,7 +37,7 @@ def main():
         dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode)
         print(Fore.RED + f"Removing meta_mask from {mode}" + Fore.RESET)
         for example in tqdm(dataset):
-            example_idx = example['example_idx']
+            example_idx = example['metadata']['example_idx']
             example.pop('meta_mask', None)
             if 'metadata' in example:
                 example['metadata'].pop('meta_mask', None)
@@ -48,7 +48,7 @@ def main():
         dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode, no_update_with_metadata=True)
         print(Fore.CYAN + f"Adding meta_mask to {mode}" + Fore.RESET)
         for example in tqdm(dataset):
-            example_idx = example['example_idx']
+            example_idx = example['metadata']['example_idx']
             predictions = numpify(remove_batch(model(torchify(add_batch(example)))))
             error = model.scenario.classifier_distance(example, predictions)
             mask = error < args.threshold

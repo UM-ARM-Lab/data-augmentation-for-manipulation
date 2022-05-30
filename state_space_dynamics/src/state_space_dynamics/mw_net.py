@@ -1,5 +1,4 @@
 import math
-import pathlib
 from collections import OrderedDict
 from typing import Optional
 
@@ -13,10 +12,8 @@ from torchmeta.utils import gradient_update_parameters
 from tqdm import tqdm
 
 from moonshine.numpify import numpify
-from moonshine.robot_points_torch import RobotVoxelgridInfo
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.torchify import torchify
-from state_space_dynamics.heuristic_data_weights import heuristic_weight_func
 from state_space_dynamics.meta_udnn import UDNN
 
 
@@ -140,26 +137,12 @@ class MWNet(pl.LightningModule):
                 with torch.no_grad():
                     self.sample_weights[i] = init_unnormalized_weight
 
-    def init_data_weights_from_heuristic(self, train_dataset):
-        print(Fore.GREEN + "Initializing data weights" + Fore.RESET)
-        hparams = {
-            'heuristic_weighting': True,  # don't change this, it's just metadata
-            'env_inflation':       0.9,
-            'check_robot':         True,
-            'robot_inflation':     0.6,
-            'max_rope_length':     0.774,
-            'check_length':        False,
-        }
-        robot_points_path = pathlib.Path("robot_points_data/val_high_res/robot_points.pkl")
-        robot_info = RobotVoxelgridInfo('joint_positions', robot_points_path)
-        for example_i in tqdm(train_dataset):
-            heuristic_weight_func(self.scenario, example_i, hparams, robot_info)
-
     def validation_step(self, inputs, batch_idx):
         meta_train_batch = inputs['meta_train']
         meta_train_udnn_outputs = self.udnn(meta_train_batch)
         use_meta_mask = not self.testing
-        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs, use_meta_mask=use_meta_mask)
+        meta_train_udnn_loss = self.udnn.compute_loss(meta_train_batch, meta_train_udnn_outputs,
+                                                      use_meta_mask=use_meta_mask)
         self.log('val_loss', meta_train_udnn_loss)
 
     def training_step(self, inputs, batch_idx):
