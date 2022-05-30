@@ -7,6 +7,7 @@ import time
 import tensorflow as tf
 from colorama import Fore
 from mde.make_mde_dataset import make_mde_dataset
+from link_bot_data.new_dataset_utils import check_download
 
 import rospy
 from arc_utilities import ros_init
@@ -33,7 +34,8 @@ def main():
         return
 
     rospy.loginfo(Fore.GREEN + f"Writing MERP dataset to {outdir}")
-    make_mde_dataset(dataset_dir=args.dataset_dir,
+    dataset_dir = check_download(args.dataset_dir)
+    make_mde_dataset(dataset_dir=dataset_dir,
                      checkpoint=args.checkpoint,
                      outdir=outdir)
 
