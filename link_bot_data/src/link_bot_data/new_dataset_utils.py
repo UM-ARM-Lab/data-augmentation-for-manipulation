@@ -73,11 +73,11 @@ def load_metadata(metadata_filename):
 
 
 def fetch_mde_dataset(dataset_dir):
-    fetch_dataset(dataset_dir, 'mde')
+    return fetch_dataset(dataset_dir, 'mde')
 
 
 def fetch_udnn_dataset(dataset_dir):
-    fetch_dataset(dataset_dir, 'udnn')
+    return fetch_dataset(dataset_dir, 'udnn')
 
 
 def fetch_dataset(dataset_dir, project):
