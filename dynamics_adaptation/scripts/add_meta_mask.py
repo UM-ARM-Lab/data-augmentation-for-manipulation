@@ -45,7 +45,7 @@ def main():
 
     def _add_meta_mask(mode):
         nonlocal n_low_error, n_total
-        dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode)
+        dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode, no_update_with_metadata=True)
         print(Fore.CYAN + f"Adding meta_mask to {mode}" + Fore.RESET)
         for example in tqdm(dataset):
             example_idx = example['example_idx']

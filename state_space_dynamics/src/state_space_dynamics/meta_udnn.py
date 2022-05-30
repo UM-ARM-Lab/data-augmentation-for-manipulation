@@ -79,9 +79,6 @@ class UDNN(MetaModule, pl.LightningModule):
         states_and_actions = list(s_t_local.values()) + list(local_action_t.values())
         z_t = torch.cat(states_and_actions, -1)
 
-        # DEBUGGING
-        # self.plot_local_state_action_rviz(local_action_t, s_t_local)
-
         z_t = self.mlp(z_t, params=self.get_subdict(params, 'mlp'))
         delta_s_t = vector_to_dict(self.state_description, z_t, self.device)
         s_t_plus_1 = self.scenario.integrate_dynamics(s_t, delta_s_t)

@@ -72,10 +72,18 @@ def load_metadata(metadata_filename):
     return metadata
 
 
-def check_download(dataset_dir):
+def fetch_mde_dataset(dataset_dir):
+    fetch_dataset(dataset_dir, 'mde')
+
+
+def fetch_udnn_dataset(dataset_dir):
+    fetch_dataset(dataset_dir, 'udnn')
+
+
+def fetch_dataset(dataset_dir, project):
     if not dataset_dir.exists():
         dataset_dir_downloaded = wandb_download_dataset(entity='armlab',
-                                                        project='udnn',
+                                                        project=project,
                                                         dataset_name=dataset_dir.as_posix(),
                                                         version='latest')
         return dataset_dir_downloaded

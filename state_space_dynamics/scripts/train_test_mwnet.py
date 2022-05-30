@@ -22,6 +22,9 @@ def main():
 
         train_test_mwnet.fine_tune_main(**vars(args))
 
+    def _resume_main(args):
+        train_test_mwnet.resume_main(**vars(args))
+
     def _eval_main(args):
         train_test_dynamics.eval_main(**vars(args))
 
@@ -49,6 +52,16 @@ def main():
     fine_tune_parser.add_argument('--steps', type=int, default=10_000_000)
     fine_tune_parser.add_argument('--seed', type=int, default=None)
     fine_tune_parser.set_defaults(func=_fine_tune_main)
+
+    resume_parser = subparsers.add_parser('resume')
+    resume_parser.add_argument('dataset_dir', type=pathlib.Path)
+    resume_parser.add_argument('checkpoint')
+    resume_parser.add_argument('--user', '-u', type=str, default='armlab')
+    resume_parser.add_argument('--batch-size', type=int, default=512)
+    resume_parser.add_argument('--repeat', type=int)
+    resume_parser.add_argument('--epochs', type=int, default=-1)
+    resume_parser.add_argument('--steps', type=int, default=10_000_000)
+    resume_parser.set_defaults(func=_resume_main)
 
     viz_parser = subparsers.add_parser('viz')
     viz_parser.add_argument('dataset_dir', type=pathlib.Path)

@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from link_bot_data.new_dataset_utils import get_filenames, DynamicsDatasetParams, load_single
 from link_bot_data.visualization import dynamics_viz_t, init_viz_env
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
-from moonshine.indexing import index_time_batched, index_time
+from moonshine.indexing import try_index_time, try_index_time_batched
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.my_torch_dataset import MyTorchDataset
 from moonshine.numpify import numpify
@@ -67,8 +67,14 @@ class TorchLoaderWrapped:
 
 class TorchDynamicsDataset(MyTorchDataset, DynamicsDatasetParams):
 
-    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, only_metadata=False, is_empty=False):
-        MyTorchDataset.__init__(self, dataset_dir, mode, transform, only_metadata, is_empty)
+    def __init__(self,
+                 dataset_dir: pathlib.Path,
+                 mode: str,
+                 transform=None,
+                 only_metadata=False,
+                 is_empty=False,
+                 no_update_with_metadata=True):
+        MyTorchDataset.__init__(self, dataset_dir, mode, transform, only_metadata, is_empty, no_update_with_metadata)
         DynamicsDatasetParams.__init__(self, dataset_dir)
 
     def get_datasets(self, mode=None):
@@ -77,11 +83,11 @@ class TorchDynamicsDataset(MyTorchDataset, DynamicsDatasetParams):
         return TorchLoaderWrapped(dataset=self)
 
     def index_time_batched(self, example_batched, t: int):
-        e_t = numpify(remove_batch(index_time_batched(example_batched, self.time_indexed_keys, t, False)))
+        e_t = numpify(remove_batch(try_index_time_batched(example_batched, self.time_indexed_keys, t, False)))
         return e_t
 
     def index_time(self, example, t: int):
-        e_t = numpify(index_time(example, self.time_indexed_keys, t, False))
+        e_t = numpify(try_index_time(example, self.time_indexed_keys, t, False))
         return e_t
 
     def dynamics_viz_t(self):

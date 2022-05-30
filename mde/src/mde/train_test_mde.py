@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from wandb.util import generate_id
 
+from link_bot_data.new_dataset_utils import fetch_mde_dataset
 from link_bot_data.visualization import init_viz_env
 from link_bot_data.wandb_datasets import get_dataset_with_version
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
@@ -30,7 +31,7 @@ PROJECT = 'mde'
 
 
 def prepare_train(batch_size, dataset_dir, take, skip, transform):
-    train_dataset = TorchMDEDataset(dataset_dir, mode='train', transform=transform)
+    train_dataset = TorchMDEDataset(fetch_mde_dataset(dataset_dir), mode='train', transform=transform)
     train_dataset_take = take_subset(train_dataset, take)
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
     train_dataset_len = len(train_dataset_skip)
@@ -44,7 +45,7 @@ def prepare_train(batch_size, dataset_dir, take, skip, transform):
 
 def prepare_validation(batch_size, dataset_dir, no_validate, transform):
     val_loader = None
-    val_dataset = TorchMDEDataset(dataset_dir, mode='val', transform=transform)
+    val_dataset = TorchMDEDataset(fetch_mde_dataset(dataset_dir), mode='val', transform=transform)
     val_dataset_len = len(val_dataset)
     if val_dataset_len and not no_validate:
         val_loader = DataLoader(val_dataset,
@@ -154,7 +155,7 @@ def eval_main(dataset_dir: pathlib.Path,
     model = load_model_artifact(checkpoint, MDE, project, version='best', user=user)
 
     transform = transforms.Compose([remove_keys("scene_msg")])
-    dataset = TorchMDEDataset(dataset_dir, mode=mode, transform=transform)
+    dataset = TorchMDEDataset(fetch_mde_dataset(dataset_dir), mode=mode, transform=transform)
     dataset = take_subset(dataset, take)
     dataset = dataset_skip(dataset, skip)
 
@@ -192,7 +193,7 @@ def viz_main(dataset_dir: pathlib.Path,
     model = load_model_artifact(checkpoint, MDE, project, version='best', user=user)
     model.training = False
 
-    dataset = TorchMDEDataset(dataset_dir, mode=mode)
+    dataset = TorchMDEDataset(fetch_mde_dataset(dataset_dir), mode=mode)
 
     dataset = dataset_skip(dataset, skip)
 

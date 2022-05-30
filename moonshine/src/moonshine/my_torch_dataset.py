@@ -10,8 +10,13 @@ from link_bot_pycommon.get_scenario import get_scenario
 
 class MyTorchDataset(Dataset):
 
-    def __init__(self, dataset_dir: pathlib.Path, mode: str, transform=None, only_metadata=False,
-                 is_empty: bool = False, no_update_with_metadata: bool = False):
+    def __init__(self,
+                 dataset_dir: pathlib.Path,
+                 mode: str,
+                 transform=None,
+                 only_metadata=False,
+                 is_empty: bool = False,
+                 no_update_with_metadata: bool = False):
         self.mode = mode
         self.dataset_dir = dataset_dir
         self.only_metadata = only_metadata

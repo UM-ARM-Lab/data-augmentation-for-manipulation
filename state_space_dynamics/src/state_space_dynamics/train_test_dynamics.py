@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from wandb.util import generate_id
 
-from link_bot_data.new_dataset_utils import check_download
+from link_bot_data.new_dataset_utils import fetch_udnn_dataset
 from link_bot_data.visualization import init_viz_env, viz_pred_actual_t
 from link_bot_data.wandb_datasets import get_dataset_with_version
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
@@ -45,7 +45,7 @@ def load_udnn_model_wrapper(checkpoint, with_joint_positions=False):
 
 
 def prepare_data_loaders(batch_size, dataset_dir, take, skip, transform, repeat, no_validate, model_params):
-    dataset_dir = check_download(dataset_dir)
+    dataset_dir = fetch_udnn_dataset(dataset_dir)
     train_dataset = TorchDynamicsDataset(dataset_dir, mode=model_params['train_mode'], transform=transform)
     train_dataset_take = take_subset(train_dataset, take)
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
@@ -246,7 +246,7 @@ def eval_main(dataset_dir: pathlib.Path,
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
     transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
-    dataset_dir = check_download(dataset_dir)
+    dataset_dir = fetch_udnn_dataset(dataset_dir)
     dataset = TorchDynamicsDataset(dataset_dir, mode, transform=transform)
     dataset = take_subset(dataset, take)
     dataset = dataset_skip(dataset, skip)
@@ -267,7 +267,7 @@ def viz_main(dataset_dir: pathlib.Path,
              mode: str,
              skip: Optional[int] = None,
              **kwargs):
-    dataset_dir = check_download(dataset_dir)
+    dataset_dir = fetch_udnn_dataset(dataset_dir)
     original_dataset = TorchDynamicsDataset(dataset_dir, mode)
 
     dataset = dataset_skip(original_dataset, skip)
