@@ -17,7 +17,8 @@ namespace gazebo
 class BaseLinkPositionController
 {
  public:
-  BaseLinkPositionController(char const *plugin_name, physics::LinkPtr link, std::string const type, bool position_only);
+  BaseLinkPositionController(char const *plugin_name, physics::LinkPtr link, std::string const type, bool position_only,
+                             bool fixed_rot);
 
   void OnUpdate();
 
@@ -47,6 +48,7 @@ class BaseLinkPositionController
 
   ignition::math::Pose3d setpoint_;
   bool position_only_;
+  bool fixed_rot_;
   double timeout_s_ = 0;
   double speed_mps_ = 0;
   double speed_rps_ = 0;

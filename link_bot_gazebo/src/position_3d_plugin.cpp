@@ -150,7 +150,7 @@ bool Position3dPlugin::OnRegister(peter_msgs::RegisterPosition3DControllerReques
     ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "registered PID controller for link " << req.scoped_link_name);
   } else if (req.controller_type == "kinematic") {
     controllers_map_[req.scoped_link_name] =
-        std::make_unique<LinkPosition3dKinematicController>(PLUGIN_NAME, link, req.position_only);
+        std::make_unique<LinkPosition3dKinematicController>(PLUGIN_NAME, link, req.position_only, req.fixed_rot);
     ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "registered kinematic controller for link " << req.scoped_link_name);
   } else {
     ROS_ERROR_STREAM_NAMED(PLUGIN_NAME, "unimplemented controller type " << req.controller_type);

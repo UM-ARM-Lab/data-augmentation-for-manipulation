@@ -5,13 +5,14 @@
 namespace gazebo {
 
 BaseLinkPositionController::BaseLinkPositionController(char const *plugin_name, physics::LinkPtr link,
-                                                       std::string const type, bool position_only)
+                                                       std::string const type, bool position_only, bool fixed_rot)
     : plugin_name_(plugin_name),
       link_(link),
       scoped_link_name_(link->GetScopedName()),
       tf_listener_(tf_buffer_),
       setpoint_(link->WorldPose()),
       position_only_(position_only),
+      fixed_rot_(fixed_rot),
       type(type) {}
 
 std::optional<ignition::math::Pose3d> BaseLinkPositionController::Get() const {

@@ -2,13 +2,14 @@
 #include <ros/console.h>
 
 #include <gazebo/physics/physics.hh>
+#include <ignition/math/Quaternion.hh>
 #include <link_bot_gazebo/mymath.hpp>
 
 namespace gazebo {
 
 LinkPosition3dKinematicController::LinkPosition3dKinematicController(char const *plugin_name, physics::LinkPtr link,
-                                                                     bool position_only)
-    : BaseLinkPositionController(plugin_name, link, "kinematic", position_only) {}
+                                                                     bool position_only, bool fixed_rot)
+    : BaseLinkPositionController(plugin_name, link, "kinematic", position_only, fixed_rot) {}
 
 void LinkPosition3dKinematicController::Update(ignition::math::Pose3d const &setpoint) {
   if (!link_) {
@@ -48,6 +49,9 @@ void LinkPosition3dKinematicController::Update(ignition::math::Pose3d const &set
     }
   }();
   auto const output_orientation = [&]() {
+    if (fixed_rot_) {
+      return ignition::math::Quaterniond(1, 0, 0, 0);
+    }
     if (position_only_) {
       return current_rot;
     } else if (distance_rot < 0.01) {

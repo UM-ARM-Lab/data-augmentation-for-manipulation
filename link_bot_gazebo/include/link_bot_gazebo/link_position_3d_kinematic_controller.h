@@ -10,7 +10,7 @@ namespace gazebo
 class LinkPosition3dKinematicController : public BaseLinkPositionController
 {
  public:
-  LinkPosition3dKinematicController(char const *plugin_name, physics::LinkPtr link, bool position_only);
+  LinkPosition3dKinematicController(char const *plugin_name, physics::LinkPtr link, bool position_only, bool fixed_rot);
 
   void Update(ignition::math::Pose3d const &setpoint) override;
 

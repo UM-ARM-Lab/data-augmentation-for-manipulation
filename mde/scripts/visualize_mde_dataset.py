@@ -3,6 +3,7 @@ import argparse
 import pathlib
 
 from arc_utilities import ros_init
+from link_bot_data.new_dataset_utils import fetch_mde_dataset
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.pycommon import print_dict
 from mde.torch_mde_dataset import TorchMDEDataset
@@ -34,8 +35,10 @@ def visualize_dataset(dataset, take, skip, shard, threshold=None):
             t = time_anim.t()
             init_viz_env(s, inputs, t)
             dataset.transition_viz_t()(s, inputs, t)
+            error_t = inputs['error'][t]
+
             if threshold is not None:
-                is_close = inputs['error'][t] < threshold
+                is_close = error_t < threshold
                 s.plot_is_close(is_close)
             time_anim.step()
 
@@ -58,7 +61,7 @@ def main():
 
     args = parser.parse_args()
 
-    dataset = TorchMDEDataset(args.dataset_dir, mode=args.mode)
+    dataset = TorchMDEDataset(fetch_mde_dataset(args.dataset_dir), mode=args.mode)
     visualize_dataset(dataset, args.take, args.skip, args.shard, threshold=args.threshold)
 
 
