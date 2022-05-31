@@ -893,13 +893,13 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         register_left_req.scoped_link_name = gz_scope(self.params['rope_name'], "left_gripper")
         register_left_req.controller_type = "kinematic"
         register_left_req.position_only = True
-        register_left_req.fixed_rot = True
+        register_left_req.fixed_rot = False
         self.pos3d.register(register_left_req)
         register_right_req = RegisterPosition3DControllerRequest()
         register_right_req.scoped_link_name = gz_scope(self.params['rope_name'], "right_gripper")
         register_right_req.controller_type = "kinematic"
         register_right_req.position_only = True
-        register_right_req.fixed_rot = True
+        register_right_req.fixed_rot = False
         self.pos3d.register(register_right_req)
 
     def make_rope_endpoints_follow_gripper(self):

@@ -35,8 +35,9 @@ void LinkPosition3dKinematicController::Update(ignition::math::Pose3d const &set
   auto const delta_rad = std::fmin(speed_rps_ * dt, max_step_size_rad);
   auto const distance = current_position.Distance(setpoint.Pos());
   auto const distance_rot = quat_diff(current_rot, setpoint.Rot());
-//  ROS_DEBUG_STREAM_NAMED(plugin_name_, scoped_link_name_ << " distance_rot " << distance_rot << " delta_rad " << delta_rad);
-//  ROS_DEBUG_STREAM_NAMED(plugin_name_, scoped_link_name_ << " distance " << distance << " delta_distance " << delta_distance);
+  //  ROS_DEBUG_STREAM_NAMED(plugin_name_, scoped_link_name_ << " distance_rot " << distance_rot << " delta_rad " <<
+  //  delta_rad); ROS_DEBUG_STREAM_NAMED(plugin_name_, scoped_link_name_ << " distance " << distance << " delta_distance
+  //  " << delta_distance);
   auto const step_size = std::fmin(delta_distance / distance, 1);
   auto const step_size_rad = std::fmin(delta_rad / distance_rot, 1);
   auto const direction = (setpoint.Pos() - current_position);
@@ -51,8 +52,7 @@ void LinkPosition3dKinematicController::Update(ignition::math::Pose3d const &set
   auto const output_orientation = [&]() {
     if (fixed_rot_) {
       return ignition::math::Quaterniond(1, 0, 0, 0);
-    }
-    if (position_only_) {
+    } else if (position_only_) {
       return current_rot;
     } else if (distance_rot < 0.01) {
       return setpoint.Rot();

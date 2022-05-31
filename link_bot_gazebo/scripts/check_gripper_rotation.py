@@ -71,6 +71,8 @@ def main():
     after_state2 = s.get_state()
     s.plot_state_rviz(after_state2, label='after2', color='b')
 
+    print(s.classifier_distance(after_state1, after_state2))
+
     print("done")
 
 

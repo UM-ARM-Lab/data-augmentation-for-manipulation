@@ -4,6 +4,7 @@ import pathlib
 
 from arc_utilities import ros_init
 from link_bot_data.base_collect_dynamics_data import collect_dynamics_data
+from link_bot_data.wandb_datasets import wandb_save_dataset
 from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(0.1)
@@ -23,7 +24,10 @@ def main():
     args = parser.parse_args()
 
     # list to actually execute the generator
-    list(collect_dynamics_data(**vars(args)))
+    for dataset_dir, n_trajs_done in collect_dynamics_data(**vars(args)):
+        pass
+
+    wandb_save_dataset(dataset_dir, 'udnn', entity='armlab')
 
 
 if __name__ == '__main__':

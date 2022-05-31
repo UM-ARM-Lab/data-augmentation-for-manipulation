@@ -87,7 +87,13 @@ class UDNN(MetaModule, pl.LightningModule):
     def compute_batch_loss(self, inputs, outputs, use_meta_mask: bool):
         batch_time_loss = compute_batch_time_loss(inputs, outputs)
         if use_meta_mask:
-            batch_time_loss = inputs['meta_mask'] * batch_time_loss
+            # NOTE: as an alternative we could compute meta_mask on the fly
+            error = self.scenario.classifier_distance_torch(inputs, outputs)
+            meta_mask = error < self.hparams['meta_mask_threshold']
+            # TODO: figure out what the right dimension is?
+            meta_mask = torch.logical_and(meta_mask[:, :-1], meta_mask[:, 1:]).float()
+            print(meta_mask.sum(-1).mean(0))
+            batch_time_loss = meta_mask * batch_time_loss
         batch_loss = batch_time_loss.sum(-1)
         return batch_loss
 
@@ -103,8 +109,6 @@ class UDNN(MetaModule, pl.LightningModule):
             loss_by_key.append(loss)
         batch_time_point_loss = torch.cat(loss_by_key, -1)
         return batch_time_point_loss
-
-
 
     def training_step(self, train_batch, batch_idx):
         outputs = self.forward(train_batch)
