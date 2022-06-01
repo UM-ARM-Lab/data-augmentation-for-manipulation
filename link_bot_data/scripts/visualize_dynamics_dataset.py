@@ -6,6 +6,7 @@ import numpy as np
 
 import rospy
 from arc_utilities import ros_init
+from link_bot_data.new_dataset_utils import fetch_udnn_dataset
 from link_bot_data.tf_dataset_utils import deserialize_scene_msg
 from link_bot_pycommon.args import int_set_arg
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
@@ -27,7 +28,7 @@ def main():
     args = parser.parse_args()
 
     # load the dataset
-    dataset = TorchDynamicsDataset(args.dataset_dir, mode=args.mode)
+    dataset = TorchDynamicsDataset(fetch_udnn_dataset(args.dataset_dir), mode=args.mode)
     indices = np.arange(0, len(dataset))
     if args.shuffle:
         np.random.shuffle(indices)

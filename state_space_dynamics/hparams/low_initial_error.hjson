@@ -1,7 +1,7 @@
 {
   use_meta_mask_train: true
   use_meta_mask_val: false
-  meta_mask_threshold: 0.05
+  meta_mask_threshold: 0.1
   train_mode: notest
   val_mode: test
   sequence_length: 10

@@ -52,7 +52,8 @@ void LinkPosition3dKinematicController::Update(ignition::math::Pose3d const &set
   auto const output_orientation = [&]() {
     if (fixed_rot_) {
       return ignition::math::Quaterniond(1, 0, 0, 0);
-    } else if (position_only_) {
+    }
+    if (position_only_) {
       return current_rot;
     } else if (distance_rot < 0.01) {
       return setpoint.Rot();
