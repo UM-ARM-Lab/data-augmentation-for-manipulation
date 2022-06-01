@@ -22,7 +22,6 @@ Position3dPlugin::~Position3dPlugin() {
   ros_node_.shutdown();
   private_ros_node_->shutdown();
   ros_queue_thread_.join();
-  private_ros_queue_thread_.join();
 }
 
 void Position3dPlugin::Load(physics::WorldPtr world, sdf::ElementPtr sdf) {
@@ -131,7 +130,6 @@ void Position3dPlugin::CreateServices() {
   }
 
   ros_queue_thread_ = std::thread([this] { QueueThread(); });
-  private_ros_queue_thread_ = std::thread([this] { PrivateQueueThread(); });
 
   auto update = [this](common::UpdateInfo const & /*info*/) { OnUpdate(); };
   this->update_connection_ = event::Events::ConnectWorldUpdateBegin(update);
@@ -146,7 +144,7 @@ bool Position3dPlugin::OnRegister(peter_msgs::RegisterPosition3DControllerReques
 
   if (req.controller_type == "pid") {
     controllers_map_[req.scoped_link_name] = std::make_unique<LinkPosition3dPIDController>(
-        PLUGIN_NAME, link, req.position_only, req.kp_pos, req.kp_vel, req.max_force, req.max_vel, true);
+        PLUGIN_NAME, link, req.position_only, req.kp_pos, req.kp_vel, req.kd_vel, req.max_force, req.max_vel, true);
     ROS_DEBUG_STREAM_NAMED(PLUGIN_NAME, "registered PID controller for link " << req.scoped_link_name);
   } else if (req.controller_type == "kinematic") {
     controllers_map_[req.scoped_link_name] =
@@ -330,13 +328,6 @@ void Position3dPlugin::QueueThread() {
   double constexpr timeout = 0.01;
   while (ros_node_.ok()) {
     queue_.callAvailable(ros::WallDuration(timeout));
-  }
-}
-
-void Position3dPlugin::PrivateQueueThread() {
-  double constexpr timeout = 0.01;
-  while (private_ros_node_->ok()) {
-    private_queue_.callAvailable(ros::WallDuration(timeout));
   }
 }
 

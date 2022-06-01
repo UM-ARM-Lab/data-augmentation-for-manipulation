@@ -1,0 +1,71 @@
+<?xml version="1.0" ?>
+<sdf version="1.4">
+    <world name="default">
+        <scene>
+            <grid>false</grid>
+            <origin_visual>false</origin_visual>
+            <sky>
+                <clouds>
+                    <speed>12</speed>
+                </clouds>
+            </sky>
+        </scene>
+
+        <physics type="ode">
+            <real_time_update_rate>1</real_time_update_rate>
+            <ode>
+                <solver>
+                    <thread_position_correction>0</thread_position_correction>
+                    <island_threads>2</island_threads>
+                </solver>
+                <constraints>
+                    <erp>0.8</erp>
+                </constraints>
+            </ode>
+        </physics>
+
+        <plugin name="arm_gazebo_ros" filename="libarm_gazebo_ros_plugin.so"/>
+        <plugin name="gazebo_ros_tf_plugin" filename="libgazebo_ros_tf_plugin.so"/>
+        <plugin name="position_3d_plugin" filename="libposition_3d_plugin.so"/>
+        <plugin name="collision_map_plugin" filename="libcollision_map_plugin.so"/>
+
+        <include>
+            <uri>model://my_ground_plane</uri>
+            <pose>0 0 0 0 0 0</pose>
+        </include>
+
+        <include>
+            <uri>model://sun</uri>
+        </include>
+
+        <!-- The Rope -->
+        <include>
+            <pose>0.3 0 0 0 0 0.1</pose>
+            <uri>model://rope_3d</uri>
+        </include>
+
+        <model name="cylinder">
+            <pose>0 0 0 0 0 0</pose>
+            <static>true</static>
+            <link name="link">
+                <pose>0 0 0.05 0 0 0</pose>
+                <collision name="link_collision">
+                    <geometry>
+                        <cylinder>
+                            <radius>0.25</radius>
+                            <length>0.1</length>
+                        </cylinder>
+                    </geometry>
+                </collision>
+                <visual name="link_visual">
+                    <geometry>
+                        <cylinder>
+                            <radius>0.25</radius>
+                            <length>0.1</length>
+                        </cylinder>
+                    </geometry>
+                </visual>
+            </link>
+        </model>
+    </world>
+</sdf>

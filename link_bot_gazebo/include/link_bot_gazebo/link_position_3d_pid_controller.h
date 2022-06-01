@@ -23,6 +23,7 @@ class LinkPosition3dPIDController : public BaseLinkPositionController
                               bool position_only,
                               double kp_pos,
                               double kp_vel,
+                              double kd_vel,
                               double max_force,
                               double max_vel,
                               bool grav_comp);

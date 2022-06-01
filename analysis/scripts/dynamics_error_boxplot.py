@@ -22,11 +22,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path)
     parser.add_argument('checkpoints', type=str, nargs='+')
-    parser.add_argument('--mode', type=str, default='train')
+    parser.add_argument('--mode', type=str, default='test')
 
     args = parser.parse_args()
 
-    transform = transforms.Compose([remove_keys("scene_msg")])
+    transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
     dataset_dir = fetch_udnn_dataset(args.dataset_dir)
     dataset = TorchDynamicsDataset(dataset_dir, mode=args.mode, transform=transform)
     batch_size = 8
@@ -40,7 +40,7 @@ def main():
         for example in tqdm(loader):
             outputs = model(example)
             error_batch = model.scenario.classifier_distance_torch(example, outputs)
-            for error_time in error_batch.detach().numpy().squeeze().tolist():
+            for error_time in error_batch.detach().numpy().tolist():
                 for error_t in error_time:
                     data.append([checkpoint, method_name, error_t])
 
