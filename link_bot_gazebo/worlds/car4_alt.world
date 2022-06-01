@@ -3,7 +3,7 @@
     <world name="default">
         <scene>
             <grid>false</grid>
-            <origin_visual>true</origin_visual>
+            <origin_visual>false</origin_visual>
             <sky>
                 <clouds>
                     <speed>12</speed>
@@ -30,8 +30,7 @@
         </physics>
 
         <plugin name="arm_gazebo_ros" filename="libarm_gazebo_ros_plugin.so"/>
-        <plugin name="gazebo_ros_tf_plugin" filename="libgazebo_ros_tf_plugin.so">
-        </plugin>
+        <plugin name="gazebo_ros_tf_plugin" filename="libgazebo_ros_tf_plugin.so"/>
         <plugin name="position_3d_plugin" filename="libposition_3d_plugin.so"/>
         <plugin name="collision_map_plugin" filename="libcollision_map_plugin.so"/>
 

@@ -34,7 +34,7 @@ def main():
 
     data = []
     for checkpoint in args.checkpoints:
-        checkpoint, legend_name = try_split_model_name(checkpoint)
+        checkpoint, method_name = try_split_model_name(checkpoint)
         model = load_udnn_model_wrapper(checkpoint)
         model.eval()
         for example in tqdm(loader):
@@ -42,13 +42,14 @@ def main():
             error_batch = model.scenario.classifier_distance_torch(example, outputs)
             for error_time in error_batch.detach().numpy().squeeze().tolist():
                 for error_t in error_time:
-                    data.append([checkpoint, legend_name, error_t])
+                    data.append([checkpoint, method_name, error_t])
 
-    df = pd.DataFrame(data, columns=['checkpoint', 'legend_name', 'dynamics_error'])
+    df = pd.DataFrame(data, columns=['checkpoint', 'method_name', 'dynamics_error'])
 
     plt.style.use("slides")
-    # sns.boxplot(data=df, y='dynamics_error', x='legend_name')
-    sns.boxenplot(data=df, y='dynamics_error', x='legend_name', k_depth='full')
+    plt.figure(figsize=(12, 5))
+    ax = plt.gca()
+    sns.boxenplot(data=df, x='dynamics_error', y='method_name', k_depth='full', ax=ax)
     plt.savefig("results/dynamics_error.png")
     plt.show(block=True)
 

@@ -12,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("results_dir", type=pathlib.Path, help='directory containing metrics.json')
     parser.add_argument("outdir", type=pathlib.Path, help='output directory')
-    parser.add_argument("--traj-length", type=int, help='if supplied, only generate trajs of this length')
+    parser.add_argument("--traj-length", type=int, default=10, help='if supplied, only generate trajs of this length')
     parser.add_argument("--visualize", action='store_true')
 
     args = parser.parse_args()

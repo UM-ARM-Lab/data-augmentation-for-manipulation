@@ -12,6 +12,7 @@ from torchvision.transforms import transforms
 from tqdm import tqdm
 
 from arc_utilities import ros_init
+from link_bot_data.new_dataset_utils import fetch_mde_dataset
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.load_wandb_model import load_model_artifact
 from mde.mde_torch import MDE
@@ -32,16 +33,14 @@ def main():
 
     args = parser.parse_args()
 
-    udnn_meta_checkpoint = "m1_adam_unadapted-470ps"
-    udnn_meta_model = load_model_artifact(udnn_meta_checkpoint, MWNet, project='udnn', version='best', user='armlab',
-                                          train_dataset=None)
-
     model = load_model_artifact(args.checkpoint, MDE, project='mde', version='best', user='armlab')
     model.eval()
 
+    dataset_dir = fetch_mde_dataset(args.dataset_dir)
+
     for mode in modes:
         transform = transforms.Compose([remove_keys("scene_msg")])
-        full_dataset = TorchMDEDataset(args.dataset_dir, mode=mode, transform=transform)
+        full_dataset = TorchMDEDataset(dataset_dir, mode=mode, transform=transform)
         s = full_dataset.get_scenario()
 
         max_len = 1000

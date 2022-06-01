@@ -281,6 +281,7 @@ def viz_main(dataset_dir: pathlib.Path,
     n_examples_visualized = 0
     while not dataset_anim.done:
         inputs = dataset[dataset_anim.t()]
+        print(inputs['example_idx'])
 
         if 'meta_mask' in inputs:
             if inputs['meta_mask'].sum() < 6:
@@ -294,7 +295,7 @@ def viz_main(dataset_dir: pathlib.Path,
         while not time_anim.done:
             t = time_anim.t()
             init_viz_env(s, inputs, t)
-            viz_pred_actual_t(original_dataset, model, inputs, outputs, s, t, threshold=0.1)
+            viz_pred_actual_t(original_dataset, model, inputs, outputs, s, t, threshold=0.08)
             s.plot_weight_rviz(weight[t])
             time_anim.step()
 
