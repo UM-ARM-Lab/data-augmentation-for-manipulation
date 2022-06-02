@@ -21,7 +21,6 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.my_pl_callbacks import HeartbeatCallback
-from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate, repeat_dataset
 from moonshine.torchify import torchify
@@ -276,7 +275,8 @@ def viz_main(dataset_dir: pathlib.Path,
     s = original_dataset.get_scenario()
 
     dataset_anim = RvizAnimationController(n_time_steps=len(dataset), ns='trajs')
-    time_anim = RvizAnimationController(n_time_steps=10)
+    n_time_steps = original_dataset.params['data_collection_params']['steps_per_traj']
+    time_anim = RvizAnimationController(n_time_steps=n_time_steps)
 
     n_examples_visualized = 0
     while not dataset_anim.done:
