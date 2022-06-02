@@ -1,0 +1,22 @@
+{
+  accept_type: strict
+  method_name: heuristic
+  fwd_model_dir: "p:u_alt-bj8jq"  # for generating known_good data
+  classifier_model_dir: [
+    /media/shared/cl_trials/cc_baseline/none
+    /media/shared/cl_trials/gd_baseline/none
+    /media/shared/cl_trials/new_feasibility_baseline/none
+  ]
+  scenario_params: {
+    rope_name: rope_3d_alt
+  }
+  termination_criteria: {
+    total_timeout: 1000
+    timeout: 800
+    max_extensions: 20000
+    max_attempts: 1
+    max_planning_attempts: 1
+    attempted_extensions_threshold: 128
+  }
+  dmax: 0.05
+}
