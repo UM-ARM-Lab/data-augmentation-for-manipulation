@@ -23,7 +23,7 @@ def main():
     parser.add_argument("--only-reached", action='store_true')
     parser.add_argument("--regenerate", action='store_true')
     parser.add_argument("--verbose", '-v', action="count", default=0)
-    parser.add_argument("--threshold", type=float, default=0.06)
+    parser.add_argument("--threshold", type=float, default=0.08)
 
     args = parser.parse_args()
 
