@@ -99,8 +99,11 @@ class UDNN(MetaModule, pl.LightningModule):
                     error = self.scenario.classifier_distance_torch(inputs, outputs)
                     meta_mask = error < self.hparams['meta_mask_threshold']
                     meta_mask = torch.logical_and(meta_mask[:, :-1], meta_mask[:, 1:]).float()
+                    # self.log("model error", error.mean())
+                    # self.log("iterative meta mask mean", meta_mask.mean())
                     meta_mask_padded = F.pad(meta_mask, [1, 0])
-                batch_time_loss = meta_mask_padded * batch_time_loss
+                if self.global_step > 10:  # skip the first few steps because training dynamics are weird...?
+                    batch_time_loss = meta_mask_padded * batch_time_loss
             else:
                 batch_time_loss = inputs['meta_mask'] * batch_time_loss
         batch_loss = batch_time_loss.sum(-1)
