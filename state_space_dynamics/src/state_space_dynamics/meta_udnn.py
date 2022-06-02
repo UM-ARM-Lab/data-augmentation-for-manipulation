@@ -12,6 +12,12 @@ from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors, vector_t
 from moonshine.torchify import torchify
 
 
+def segment_lengths(inputs):
+    initial_rope_points = inputs['rope'].reshape(inputs['rope'].shape[:-1] + (25, 3))
+    initial_rope_segment_lengths = (initial_rope_points[..., 1:, :] - initial_rope_points[..., :-1, :]).norm(dim=-1)
+    return initial_rope_segment_lengths
+
+
 class UDNN(MetaModule, pl.LightningModule):
     def __init__(self, with_joint_positions=False, **hparams):
         super().__init__()
@@ -98,20 +104,18 @@ class UDNN(MetaModule, pl.LightningModule):
             else:
                 batch_time_loss = inputs['meta_mask'] * batch_time_loss
         batch_loss = batch_time_loss.sum(-1)
+
+        if self.hparams.get('penalize_segment_length_error', False):
+            initial_rope_segment_lengths = segment_lengths(inputs)
+            pred_rope_segment_lengths = segment_lengths(outputs)
+            pred_segment_length_loss = F.mse_loss(pred_rope_segment_lengths, initial_rope_segment_lengths)
+            batch_loss = batch_time_loss + pred_segment_length_loss
+
         return batch_loss
 
     def compute_loss(self, inputs, outputs, use_meta_mask: bool):
         batch_loss = self.compute_batch_loss(inputs, outputs, use_meta_mask)
         return batch_loss.mean()
-
-    def compute_batch_time_point_loss(self, inputs, outputs):
-        loss_by_key = []
-        for k, y_pred in outputs.items():
-            y_true = inputs[k]
-            loss = (y_true - y_pred).square()
-            loss_by_key.append(loss)
-        batch_time_point_loss = torch.cat(loss_by_key, -1)
-        return batch_time_point_loss
 
     def training_step(self, train_batch, batch_idx):
         outputs = self.forward(train_batch)
