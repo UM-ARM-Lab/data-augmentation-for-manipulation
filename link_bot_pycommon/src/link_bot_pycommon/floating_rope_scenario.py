@@ -138,8 +138,8 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
 
         self.gz = GazeboServices()
 
-        left_gripper_position = np.array([-0.25, 0.2, 1.0])
-        right_gripper_position = np.array([0.25, 0.2, 1.0])
+        left_gripper_position = np.array([0.6, 0.25, 0.6])
+        right_gripper_position = np.array([0.6, -0.25, 0.6])
         init_action = {
             'left_gripper_position':  left_gripper_position,
             'right_gripper_position': right_gripper_position,
