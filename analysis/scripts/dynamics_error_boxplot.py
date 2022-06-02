@@ -26,6 +26,10 @@ def main():
 
     args = parser.parse_args()
 
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 1000)
+
     transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
     dataset_dir = fetch_udnn_dataset(args.dataset_dir)
     dataset = TorchDynamicsDataset(dataset_dir, mode=args.mode, transform=transform)
@@ -45,12 +49,14 @@ def main():
                     data.append([checkpoint, method_name, error_t])
 
     df = pd.DataFrame(data, columns=['checkpoint', 'method_name', 'dynamics_error'])
+    print(df.groupby("method_name")['dynamics_error'].describe(percentiles=[0.8, 0.9]))
 
     plt.style.use("slides")
     plt.figure(figsize=(12, 5))
     ax = plt.gca()
     sns.boxenplot(data=df, x='dynamics_error', y='method_name', k_depth='full', ax=ax)
     plt.savefig("results/dynamics_error.png")
+
     plt.show(block=True)
 
 

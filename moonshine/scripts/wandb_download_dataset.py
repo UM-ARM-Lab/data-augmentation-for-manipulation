@@ -7,8 +7,8 @@ from link_bot_data.wandb_datasets import wandb_download_dataset_to
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('project', type=str)
     parser.add_argument('dataset_name', type=str)
+    parser.add_argument('project', type=str)
     parser.add_argument('outdir', type=pathlib.Path)
     parser.add_argument('--entity', type=str, default='armlab')
     parser.add_argument('--version', type=str, default='latest')

@@ -49,5 +49,5 @@ def wandb_download_dataset(entity: str, project: str, dataset_name: str, version
 def wandb_download_dataset_to(entity: str, project: str, dataset_name: str, version: str, outdir: pathlib.Path):
     full_outdir = outdir / dataset_name
     artifact_dir = wandb_download_dataset(entity, project, dataset_name, version)
-    shutil.move(artifact_dir, full_outdir)
+    shutil.move(artifact_dir.as_posix(), full_outdir.as_posix())
     return full_outdir

@@ -9,6 +9,7 @@ from torchvision.transforms import transforms
 from tqdm import tqdm
 
 from dynamics_adaptation.dataset_statistics import metrics_funcs
+from link_bot_data.new_dataset_utils import fetch_udnn_dataset
 from link_bot_data.wandb_datasets import get_dataset_with_version
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch
@@ -28,13 +29,14 @@ def main():
     args = parser.parse_args()
 
     transform = transforms.Compose([remove_keys("scene_msg")])
-    dataset = TorchDynamicsDataset(args.dataset_dir, mode=args.mode, transform=transform)
+    dataset_dir = fetch_udnn_dataset(args.dataset_dir)
+    dataset = TorchDynamicsDataset(dataset_dir, mode=args.mode, transform=transform)
 
-    dataset_dir_versioned = get_dataset_with_version(args.dataset_dir, project='udnn', entity='armlab')
+    dataset_dir_versioned = get_dataset_with_version(dataset_dir, project='udnn', entity='armlab')
 
     name = f'{dataset_dir_versioned}-{args.mode}-{args.checkpoint}'
     run = wandb.init(project='datasets', entity='armlab', name=name)
-    run.config['dataset_dir'] = args.dataset_dir
+    run.config['dataset_dir'] = dataset_dir
     run.config['dataset_dir_versioned'] = dataset_dir_versioned
     run.config['mode'] = args.mode
 

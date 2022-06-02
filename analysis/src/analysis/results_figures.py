@@ -58,7 +58,7 @@ def generic_plot(plot_type, df, outdir, x: str, y: str, title: str, hue: Optiona
 
 def boxplot(df, outdir, x: str, y: str, title: str, hue: Optional[str] = None, save: bool = True,
             figsize=DEFAULT_FIG_SIZE,
-            outliers=False):
+            outliers=True):
     return generic_plot('boxplot', df, outdir, x, y, title, hue, save, figsize, showfliers=outliers)
 
 
