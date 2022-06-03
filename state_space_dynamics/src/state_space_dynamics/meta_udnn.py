@@ -1,4 +1,3 @@
-from copy import deepcopy
 from typing import Dict
 
 import pytorch_lightning as pl
@@ -52,6 +51,13 @@ class UDNN(MetaModule, pl.LightningModule):
         self.val_model_errors = None
         self.test_model_errors = None
 
+        if hparams.get('low_initial_error', False):
+            from copy import deepcopy
+            initial_model_hparams = deepcopy(hparams)
+            initial_model_hparams.pop("low_initial_error")
+            self.initial_model = UDNN(**initial_model_hparams)
+            self.initial_model.load_state_dict(self.state_dict())
+
     def forward(self, inputs, params=None):
         if params is None:
             params = dict(self.named_parameters())
@@ -95,18 +101,14 @@ class UDNN(MetaModule, pl.LightningModule):
     def compute_batch_loss(self, inputs, outputs, use_meta_mask: bool):
         batch_time_loss = compute_batch_time_loss(inputs, outputs)
         if use_meta_mask:
-            if self.hparams.get('iterative_meta_mask', False):
-                with torch.no_grad():
-                    error = self.scenario.classifier_distance_torch(inputs, outputs)
-                    meta_mask = error < self.hparams['meta_mask_threshold']
-                    meta_mask = torch.logical_and(meta_mask[:, :-1], meta_mask[:, 1:]).float()
-                    # self.log("model error", error.mean())
-                    # self.log("iterative meta mask mean", meta_mask.mean())
-                    meta_mask_padded = F.pad(meta_mask, [1, 0])
+            if self.hparams.get('iterative_lowest_error', False):
+                mask_padded = self.low_error_mask(inputs, outputs)
                 if self.global_step > 10:  # skip the first few steps because training dynamics are weird...?
-                    batch_time_loss = meta_mask_padded * batch_time_loss
-            else:
-                batch_time_loss = inputs['meta_mask'] * batch_time_loss
+                    batch_time_loss = mask_padded * batch_time_loss
+            elif self.hparams.get("low_initial_error", False):
+                initial_model_outputs = self.initial_model.forward(inputs)
+                mask_padded = self.low_error_mask(inputs, initial_model_outputs)
+                batch_time_loss = mask_padded * batch_time_loss
         batch_loss = batch_time_loss.sum(-1)
 
         if self.hparams.get('penalize_segment_length_error', False):
@@ -116,6 +118,16 @@ class UDNN(MetaModule, pl.LightningModule):
             batch_loss = batch_time_loss + pred_segment_length_loss
 
         return batch_loss
+
+    def low_error_mask(self, inputs, outputs):
+        with torch.no_grad():
+            error = self.scenario.classifier_distance_torch(inputs, outputs)
+            mask = error < self.hparams['mask_threshold']
+            mask = torch.logical_and(mask[:, :-1], mask[:, 1:]).float()
+            # self.log("model error", error.mean())
+            # self.log("iterative mask mean", mask.mean())
+            mask_padded = F.pad(mask, [1, 0])
+        return mask_padded
 
     def compute_loss(self, inputs, outputs, use_meta_mask: bool):
         batch_loss = self.compute_batch_loss(inputs, outputs, use_meta_mask)
@@ -171,6 +183,23 @@ class UDNN(MetaModule, pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+
+    def state_dict(self, *args, **kwargs):
+        return self.state_dict_without_initial_model()
+
+    def state_dict_without_initial_model(self, *args, **kwargs):
+        d = super().state_dict(*args, **kwargs)
+        out_d = {}
+        for k, v in d.items():
+            if not k.startswith('initial_model'):
+                out_d[k] = v
+        return out_d
+
+    def load_state_dict(self, state_dict, strict: bool = False):
+        self.load_state_dict_ignore_missing_initial_model(state_dict)
+
+    def load_state_dict_ignore_missing_initial_model(self, state_dict):
+        super().load_state_dict(state_dict, strict=False)
 
 
 def compute_batch_time_loss(inputs, outputs):

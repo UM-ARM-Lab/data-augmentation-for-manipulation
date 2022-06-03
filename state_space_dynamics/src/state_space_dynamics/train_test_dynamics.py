@@ -79,21 +79,6 @@ def fine_tune_main(dataset_dir: pathlib.Path,
 
     model = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user, **params)
 
-    if params['low_initial_error']:
-        initial_model = load_model_artifact(checkpoint, UDNN, project=project, version='latest', user=user, **params)
-
-        def _add_initial_error_mask(example):
-            initial_model_outputs = numpify(remove_batch(initial_model(torchify(add_batch(example)))))
-            error = model.scenario.classifier_distance(example, initial_model_outputs)
-            mask = error < params['meta_mask_threshold']
-            mask = np.logical_and(mask[:-1], mask[1:])
-            mask = mask.astype(np.float32)
-            mask_padded = np.concatenate([np.zeros(1), mask])  # mask out the first time step
-            example['meta_mask'] = mask_padded
-            return example
-
-        data_module.more_transforms.append(_add_initial_error_mask)
-
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', entity=user)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     hearbeat_callback = HeartbeatCallback(model.scenario)

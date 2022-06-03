@@ -1,6 +1,9 @@
 {
   use_meta_mask_train: false
   use_meta_mask_val: false
+  iterative_meta_mask: false
+  low_initial_error: false
+  mask_threshold: null
   train_mode: notest
   val_mode: test
   sequence_length: 10
