@@ -31,9 +31,11 @@ class UDNNDataModule(pl.LightningDataModule):
         self.repeat = repeat
         self.train_mode = train_mode
         self.val_mode = val_mode
+        self.test_mode = 'test'
 
         self.train_dataset = None
         self.val_dataset = None
+        self.test_dataset = None
 
         # NOTE: I'm not using prepare_data or setup correctly here. This is because in order to write the relevant info
         #  in `self.add_dataset_params` I need to have actually constructed the datasets
@@ -50,12 +52,18 @@ class UDNNDataModule(pl.LightningDataModule):
         self.train_dataset = repeat_dataset(train_dataset_skip, self.repeat)
         self.val_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.val_mode, transform=transform)
 
+        self.test_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.test_mode, transform=transform)
+
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, collate_fn=my_collate,
                           num_workers=get_num_workers(self.batch_size))
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset, batch_size=self.batch_size, collate_fn=my_collate,
+                          num_workers=get_num_workers(self.batch_size))
+
+    def test_dataloader(self):
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, collate_fn=my_collate,
                           num_workers=get_num_workers(self.batch_size))
 
     def add_dataset_params(self, model_params: Dict):

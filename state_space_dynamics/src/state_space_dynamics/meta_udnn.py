@@ -117,8 +117,8 @@ class UDNN(MetaModule, pl.LightningModule):
             error = self.scenario.classifier_distance_torch(inputs, outputs)
             mask = error < self.hparams['mask_threshold']
             mask = torch.logical_and(mask[:, :-1], mask[:, 1:]).float()
-            self.log("model error", error.mean())
-            self.log("iterative mask mean", mask.mean())
+            # self.log("model error", error.mean())
+            # self.log("iterative mask mean", mask.mean())
             mask_padded = F.pad(mask, [1, 0])
         return mask_padded
 

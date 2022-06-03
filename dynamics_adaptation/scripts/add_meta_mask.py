@@ -33,16 +33,6 @@ def main():
     with (args.dataset_dir / 'hparams.hjson').open('w') as f:
         hjson.dump(hparams, f)
 
-    def _remove_meta_mask(mode):
-        dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode)
-        print(Fore.RED + f"Removing meta_mask from {mode}" + Fore.RESET)
-        for example in tqdm(dataset):
-            example_idx = example['metadata']['example_idx']
-            example.pop('meta_mask', None)
-            if 'metadata' in example:
-                example['metadata'].pop('meta_mask', None)
-            _, full_metadata_filename = pkl_write_example(args.dataset_dir, example, example_idx)
-
     def _add_meta_mask(mode):
         nonlocal n_low_error, n_total
         dataset = TorchDynamicsDataset(args.dataset_dir, mode=mode, no_update_with_metadata=True)
@@ -69,8 +59,6 @@ def main():
     modes = args.modes.split(",")
     for mode in modes:
         _add_meta_mask(mode)
-
-    _remove_meta_mask('test')
 
     print(f"{n_low_error}/{n_total}={n_low_error / n_total:%} low error")
 
