@@ -3,7 +3,8 @@
   use_meta_mask_val: false
   iterative_lowest_error: true
   low_initial_error: false
-  mask_threshold: 0.1
+  meta_mask_threshold: 0.1
+  rope_reg: false
   train_mode: notest
   val_mode: test
   sequence_length: 10

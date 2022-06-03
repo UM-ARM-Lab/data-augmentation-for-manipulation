@@ -104,7 +104,7 @@ class UDNN(MetaModule, pl.LightningModule):
                 batch_time_loss = mask_padded * batch_time_loss
         batch_loss = batch_time_loss.sum(-1)
 
-        if self.hparams.get('penalize_segment_length_error', False):
+        if self.hparams.get('rope_reg', False):
             initial_rope_segment_lengths = segment_lengths(inputs)
             pred_rope_segment_lengths = segment_lengths(outputs)
             pred_segment_length_loss = F.mse_loss(pred_rope_segment_lengths, initial_rope_segment_lengths)

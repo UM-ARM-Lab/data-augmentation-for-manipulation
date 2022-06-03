@@ -1,10 +1,10 @@
 {
-  use_meta_mask_train: true
+  use_meta_mask_train: false
   use_meta_mask_val: false
-  iterative_lowest_error: false
-  low_initial_error: true
-  mask_threshold: 0.1
-  rope_reg: false
+  iterative_meta_mask: false
+  low_initial_error: false
+  mask_threshold: null
+  rope_reg: true
   train_mode: notest
   val_mode: test
   sequence_length: 10
