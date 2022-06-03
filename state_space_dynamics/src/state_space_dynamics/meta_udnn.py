@@ -51,13 +51,6 @@ class UDNN(MetaModule, pl.LightningModule):
         self.val_model_errors = None
         self.test_model_errors = None
 
-        if hparams.get('low_initial_error', False):
-            from copy import deepcopy
-            initial_model_hparams = deepcopy(hparams)
-            initial_model_hparams.pop("low_initial_error")
-            self.initial_model = UDNN(**initial_model_hparams)
-            self.initial_model.load_state_dict(self.state_dict())
-
     def forward(self, inputs, params=None):
         if params is None:
             params = dict(self.named_parameters())
@@ -124,8 +117,8 @@ class UDNN(MetaModule, pl.LightningModule):
             error = self.scenario.classifier_distance_torch(inputs, outputs)
             mask = error < self.hparams['mask_threshold']
             mask = torch.logical_and(mask[:, :-1], mask[:, 1:]).float()
-            # self.log("model error", error.mean())
-            # self.log("iterative mask mean", mask.mean())
+            self.log("model error", error.mean())
+            self.log("iterative mask mean", mask.mean())
             mask_padded = F.pad(mask, [1, 0])
         return mask_padded
 
@@ -194,6 +187,14 @@ class UDNN(MetaModule, pl.LightningModule):
             if not k.startswith('initial_model'):
                 out_d[k] = v
         return out_d
+
+    def on_load_checkpoint(self, checkpoint: Dict):
+        if self.hparams.get('low_initial_error', False):
+            from copy import deepcopy
+            initial_model_hparams = deepcopy(self.hparams)
+            initial_model_hparams.pop("low_initial_error")
+            self.initial_model = UDNN(**initial_model_hparams)
+            self.initial_model.load_state_dict(checkpoint["state_dict"])
 
     def load_state_dict(self, state_dict, strict: bool = False):
         self.load_state_dict_ignore_missing_initial_model(state_dict)
