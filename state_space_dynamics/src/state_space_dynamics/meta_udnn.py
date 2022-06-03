@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Dict
 
 import pytorch_lightning as pl
@@ -49,7 +50,7 @@ class UDNN(MetaModule, pl.LightningModule):
         self.mlp = MetaSequential(*layers)
 
         self.val_model_errors = None
-        self.testing = False
+        self.test_model_errors = None
 
     def forward(self, inputs, params=None):
         if params is None:
@@ -129,7 +130,7 @@ class UDNN(MetaModule, pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         val_udnn_outputs = self.forward(val_batch)
-        use_meta_mask = self.hparams.get('use_meta_mask_val', False) and not self.testing
+        use_meta_mask = self.hparams.get('use_meta_mask_val', False)
         val_loss = self.compute_loss(val_batch, val_udnn_outputs, use_meta_mask)
         self.log('val_loss', val_loss)
 
@@ -140,6 +141,18 @@ class UDNN(MetaModule, pl.LightningModule):
             self.val_model_errors = torch.cat([self.val_model_errors, model_error_batch])
         return val_loss
 
+    def test_step(self, test_batch, batch_idx):
+        test_udnn_outputs = self.forward(test_batch)
+        test_loss = self.compute_loss(test_batch, test_udnn_outputs, use_meta_mask=False)
+        self.log('test_loss', test_loss)
+
+        model_error_batch = (test_batch['rope'] - test_udnn_outputs['rope']).norm(dim=-1).flatten()
+        if self.test_model_errors is None:
+            self.test_model_errors = model_error_batch
+        else:
+            self.test_model_errors = torch.cat([self.test_model_errors, model_error_batch])
+        return test_loss
+
     def validation_epoch_end(self, _):
         data = self.val_model_errors.cpu().unsqueeze(-1).numpy().tolist()
         table = wandb.Table(data=data, columns=["model_errors"])
@@ -147,6 +160,14 @@ class UDNN(MetaModule, pl.LightningModule):
 
         # reset all metrics
         self.val_model_errors = None
+
+    def test_epoch_end(self, _):
+        data = self.test_model_errors.cpu().unsqueeze(-1).numpy().tolist()
+        table = wandb.Table(data=data, columns=["model_errors"])
+        wandb.log({'test_model_error': table})
+
+        # reset all metrics
+        self.test_model_errors = None
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)

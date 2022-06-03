@@ -66,10 +66,12 @@ def main():
 
     model = load_model_artifact(args.checkpoint, UDNN, project='udnn', version='latest', user='armlab')
 
-    modes = args.modes.split(",")
-    for mode in modes:
-        _add_meta_mask(mode)
+    # modes = args.modes.split(",")
+    # for mode in modes:
+    #     _add_meta_mask(mode)
 
+    _remove_meta_mask('train')
+    _remove_meta_mask('val')
     _remove_meta_mask('test')
 
     print(f"{n_low_error}/{n_total}={n_low_error / n_total:%} low error")

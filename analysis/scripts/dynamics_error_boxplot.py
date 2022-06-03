@@ -54,7 +54,7 @@ def main():
     plt.style.use("slides")
     plt.figure(figsize=(12, 5))
     ax = plt.gca()
-    sns.boxenplot(data=df, x='dynamics_error', y='method_name', k_depth='full', ax=ax)
+    sns.boxenplot(data=df, x='dynamics_error', y='method_name', ax=ax)
     plt.savefig("results/dynamics_error.png")
 
     plt.show(block=True)
