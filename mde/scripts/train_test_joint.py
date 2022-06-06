@@ -37,7 +37,7 @@ def main():
 
     train_parser = subparsers.add_parser('train')
     train_parser.add_argument('dataset_dir', type=pathlib.Path)
-    train_parser.add_argument('model_params', type=pathlib.Path)
+    train_parser.add_argument('params_filename', type=pathlib.Path)
     train_parser.add_argument('checkpoint')
     train_parser.add_argument('--nickname', '-n', type=str)
     train_parser.add_argument('--user', '-u', type=str, default='armlab')
@@ -46,7 +46,6 @@ def main():
     train_parser.add_argument('--skip', type=int)
     train_parser.add_argument('--epochs', type=int, default=-1)
     train_parser.add_argument('--steps', type=int, default=-1)
-    train_parser.add_argument('--no-validate', action='store_true')
     train_parser.add_argument('--seed', type=int, default=None)
     train_parser.set_defaults(func=_train_main)
 

@@ -50,6 +50,7 @@ class UDNN(MetaModule, pl.LightningModule):
 
         self.val_model_errors = None
         self.test_model_errors = None
+        self.rope_length_losses = None
 
     def forward(self, inputs, params=None):
         if params is None:
@@ -151,11 +152,20 @@ class UDNN(MetaModule, pl.LightningModule):
         test_loss = self.compute_loss(test_batch, test_udnn_outputs, use_meta_mask=False)
         self.log('test_loss', test_loss)
 
-        model_error_batch = (test_batch['rope'] - test_udnn_outputs['rope']).norm(dim=-1).flatten()
+        model_error_batch = (test_batch['rope'] - test_udnn_outputs['rope']).norm(dim=-1)
         if self.test_model_errors is None:
             self.test_model_errors = model_error_batch
         else:
             self.test_model_errors = torch.cat([self.test_model_errors, model_error_batch])
+
+        initial_rope_segment_lengths = segment_lengths(test_batch)
+        pred_rope_segment_lengths = segment_lengths(test_udnn_outputs)
+        rope_length_loss_batch = (pred_rope_segment_lengths - initial_rope_segment_lengths).norm(dim=-1)
+        if self.rope_length_losses is None:
+            self.rope_length_losses = model_error_batch
+        else:
+            self.rope_length_losses = torch.cat([self.rope_length_losses, rope_length_loss_batch])
+
         return test_loss
 
     def validation_epoch_end(self, _):
@@ -167,8 +177,11 @@ class UDNN(MetaModule, pl.LightningModule):
         self.val_model_errors = None
 
     def test_epoch_end(self, _):
-        data = self.test_model_errors.cpu().unsqueeze(-1).numpy().tolist()
-        table = wandb.Table(data=data, columns=["model_errors"])
+        rope_length_loss = self.rope_length_losses.cpu()
+        error = self.test_model_errors.cpu()
+        time = torch.arange(error.shape[1]).repeat(error.shape[0], 1)
+        data = torch.stack([error.flatten(), rope_length_loss.flatten(), time.flatten()], -1)
+        table = wandb.Table(data=data.numpy().tolist(), columns=["model_errors", "rope_length_loss", "time_idx"])
         wandb.log({'test_model_error': table})
 
         # reset all metrics

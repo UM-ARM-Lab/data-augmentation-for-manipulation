@@ -1,4 +1,6 @@
 {
+  train_mode: notest
+  val_mode: test
   udnn:
   {
     state_metadata_keys: []

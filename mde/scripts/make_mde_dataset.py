@@ -21,13 +21,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('checkpoint', type=str, help='dynamics model checkpoint')
-    parser.add_argument('out_dir', type=pathlib.Path, help='out dir')
+    parser.add_argument('out_name', type=str, help='output dataset name')
     parser.add_argument('--batch-size', type=int, help='batch size', default=8)
     parser.add_argument('--yes', '-y', action='store_true')
 
     args = parser.parse_args()
 
-    outdir = args.out_dir.parent / (args.out_dir.name + f'_{int(time.time())}')
+    root = pathlib.Path("mde_datasets")
+    outdir = root / (args.out_name + f'_{int(time.time())}')
     success = mkdir_and_ask(outdir, parents=True, yes=args.yes)
     if not success:
         print(Fore.RED + "Aborting" + Fore.RESET)

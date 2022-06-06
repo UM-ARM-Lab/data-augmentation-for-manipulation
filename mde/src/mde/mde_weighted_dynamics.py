@@ -29,8 +29,6 @@ class MDEWeightedDynamics(pl.LightningModule):
 
         self.register_parameter("learned_weight_k", Parameter(torch.tensor(10.0)))
 
-        self.has_checked_training_mode = False
-
     def forward(self, inputs):
         return self.udnn.forward(inputs)
 

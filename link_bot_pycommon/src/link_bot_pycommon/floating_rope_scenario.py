@@ -108,8 +108,11 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
         return self.is_rope_overstretched()
 
     def is_rope_overstretched(self):
-        res: GetOverstretchingResponse = self.overstretching_srv(GetOverstretchingRequest())
-        return res.overstretched
+        try:
+            res: GetOverstretchingResponse = self.overstretching_srv(GetOverstretchingRequest())
+            return res.overstretched
+        except Exception:
+            return False
 
     def get_environment(self, params: Dict, **kwargs):
         extent = params['extent']
