@@ -6,30 +6,9 @@ from deprecated import deprecated
 
 import rospy
 from geometry_msgs.msg import TransformStamped
-from link_bot_pycommon.grid_utils_np import compute_extent_3d, extent_res_to_origin_point
+from link_bot_pycommon.grid_utils_np import extent_res_to_origin_point
 from moonshine.numpify import numpify
 from moonshine.tensorflow_utils import swap_xy
-
-
-def pad_voxel_grid(voxel_grid, origin, res, new_shape):
-    assert voxel_grid.shape[0] <= new_shape[0]
-    assert voxel_grid.shape[1] <= new_shape[1]
-    assert voxel_grid.shape[2] <= new_shape[2]
-
-    h_pad1 = tf.math.floor((new_shape[0] - voxel_grid.shape[0]) / 2)
-    h_pad2 = tf.math.ceil((new_shape[0] - voxel_grid.shape[0]) / 2)
-
-    w_pad1 = tf.math.floor((new_shape[1] - voxel_grid.shape[1]) / 2)
-    w_pad2 = tf.math.ceil((new_shape[1] - voxel_grid.shape[1]) / 2)
-
-    c_pad1 = tf.math.floor((new_shape[2] - voxel_grid.shape[2]) / 2)
-    c_pad2 = tf.math.ceil((new_shape[2] - voxel_grid.shape[2]) / 2)
-
-    padded_env = tf.pad(voxel_grid, paddings=[[h_pad1, h_pad2], [w_pad1, w_pad2], [c_pad1, c_pad2]])
-    new_origin = origin + [h_pad1, w_pad1, c_pad1]
-    new_extent = compute_extent_3d(new_shape[0], new_shape[1], new_shape[2], res, new_origin)
-
-    return padded_env, new_origin, new_extent
 
 
 def batch_extent_to_env_size_tf(extent_3d):

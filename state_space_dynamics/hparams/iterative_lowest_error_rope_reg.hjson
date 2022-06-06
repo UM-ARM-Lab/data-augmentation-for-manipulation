@@ -4,7 +4,7 @@
   iterative_lowest_error: true
   low_initial_error: false
   mask_threshold: 0.08
-  rope_reg: true
+  rope_reg: 1
   train_mode: notest
   val_mode: test
   sequence_length: 10

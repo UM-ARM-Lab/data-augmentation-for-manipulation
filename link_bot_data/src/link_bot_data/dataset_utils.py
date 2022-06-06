@@ -11,7 +11,7 @@ from colorama import Fore
 
 from arc_utilities.filesystem_utils import mkdir_and_ask
 from link_bot_pycommon import pycommon
-from moonshine.grid_utils_tf import pad_voxel_grid
+from link_bot_pycommon.grid_utils_np import pad_voxel_grid
 from moonshine.filepath_tools import load_params
 from moonshine.numpify import numpify
 from moveit_msgs.msg import PlanningScene
@@ -206,13 +206,14 @@ def get_filter(name: str, **kwargs):
 
 
 def modify_pad_env(example: Dict, h, w, c):
-    padded_env, new_origin, new_extent = pad_voxel_grid(voxel_grid=example['env'],
-                                                        origin=example['origin'],
-                                                        res=example['res'],
-                                                        new_shape=[h, w, c])
+    padded_env, new_origin_point, new_extent = pad_voxel_grid(voxel_grid=example['env'],
+                                                              origin_point=example['origin_point'],
+                                                              res=example['res'],
+                                                              extent=example['extent'],
+                                                              new_shape=[h, w, c])
     example['env'] = padded_env
     example['extent'] = new_extent
-    example['origin'] = new_origin
+    example['origin_point'] = new_origin_point
     return example
 
 

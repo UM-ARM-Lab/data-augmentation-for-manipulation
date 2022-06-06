@@ -1,3 +1,4 @@
+import math
 from typing import Dict, Optional
 
 import numpy as np
@@ -6,6 +7,27 @@ import ros_numpy
 import rospy
 from rviz_voxelgrid_visuals import conversions
 from sensor_msgs.msg import PointCloud2
+
+
+def pad_voxel_grid(voxel_grid, origin_point, res, extent, new_shape):
+    assert voxel_grid.shape[0] <= new_shape[0]
+    assert voxel_grid.shape[1] <= new_shape[1]
+    assert voxel_grid.shape[2] <= new_shape[2]
+
+    h_pad1 = math.floor((new_shape[0] - voxel_grid.shape[0]) / 2)
+    h_pad2 = math.ceil((new_shape[0] - voxel_grid.shape[0]) / 2)
+
+    w_pad1 = math.floor((new_shape[1] - voxel_grid.shape[1]) / 2)
+    w_pad2 = math.ceil((new_shape[1] - voxel_grid.shape[1]) / 2)
+
+    c_pad1 = math.floor((new_shape[2] - voxel_grid.shape[2]) / 2)
+    c_pad2 = math.ceil((new_shape[2] - voxel_grid.shape[2]) / 2)
+
+    padded_env = np.pad(voxel_grid, [[h_pad1, h_pad2], [w_pad1, w_pad2], [c_pad1, c_pad2]])
+    new_origin_point = origin_point - np.array([w_pad1, h_pad1, c_pad1]) * res
+    new_extent = extent + np.array([-w_pad1, w_pad2, -h_pad1, h_pad2, -c_pad1, c_pad2]) * res
+
+    return padded_env, new_origin_point, new_extent
 
 
 def idx_to_point_3d_in_env(row: int,

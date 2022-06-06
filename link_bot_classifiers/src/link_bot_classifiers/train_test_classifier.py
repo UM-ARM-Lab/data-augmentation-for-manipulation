@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
-from dynamo_pandas.transactions import put_item
+from state_space_dynamics.train_test_dynamics_tf import setup_training_paths
 from tqdm import tqdm
 
 import link_bot_classifiers
@@ -20,17 +20,16 @@ import ros_numpy
 import rospy
 from analysis.results_utils import try_load_classifier_params
 from arc_utilities.algorithms import nested_dict_update
+from augmentation.add_augmentation_configs import add_augmentation_configs_to_dataset
 from geometry_msgs.msg import Point
 from link_bot_classifiers import classifier_utils
-from augmentation.add_augmentation_configs import add_augmentation_configs_to_dataset
 from link_bot_classifiers.base_constraint_checker import classifier_ensemble_check_constraint
 from link_bot_classifiers.uncertainty import make_max_class_prob
-from link_bot_data import dynamodb_utils
 from link_bot_data.classifier_dataset import ClassifierDatasetLoader
 from link_bot_data.dataset_utils import get_filter
-from link_bot_data.tf_dataset_utils import batch_tf_dataset, deserialize_scene_msg
 from link_bot_data.dynamodb_utils import get_classifier_df
 from link_bot_data.load_dataset import get_classifier_dataset_loader
+from link_bot_data.tf_dataset_utils import batch_tf_dataset, deserialize_scene_msg
 from link_bot_data.visualization import init_viz_env
 from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.pycommon import has_keys
@@ -42,7 +41,6 @@ from moonshine.indexing import index_dict_of_batched_tensors_tf
 from moonshine.metrics import AccuracyCheckpointMetric
 from moonshine.model_runner import ModelRunner
 from moonshine.torch_and_tf_utils import remove_batch
-from state_space_dynamics.train_test_dynamics_tf import setup_training_paths
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 
@@ -409,8 +407,6 @@ def put_eval_in_database(val_metrics,
         'invariance_model':         invariance_model,
     }
     item.update({k: float(v.result().numpy().squeeze()) for k, v in val_metrics.items()})
-
-    put_item(item=item, table=dynamodb_utils.classifier_table(kwargs.get("debug", False)))
 
 
 def compare_main(dataset_dirs: List[pathlib.Path],
