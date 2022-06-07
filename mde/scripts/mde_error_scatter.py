@@ -20,7 +20,6 @@ from mde.torch_mde_dataset import TorchMDEDataset
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.numpify import numpify
 from moonshine.torch_datasets_utils import my_collate, dataset_shard
-from state_space_dynamics.mw_net import MWNet
 from state_space_dynamics.torch_dynamics_dataset import remove_keys
 
 
@@ -29,7 +28,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path)
     parser.add_argument('checkpoint', type=str)
-    modes = ['train', 'test']
+    parser.add_argument('--modes', default='train,val')
 
     args = parser.parse_args()
 
@@ -38,6 +37,7 @@ def main():
 
     dataset_dir = fetch_mde_dataset(args.dataset_dir)
 
+    modes = args.modes.split(",")
     for mode in modes:
         transform = transforms.Compose([remove_keys("scene_msg")])
         full_dataset = TorchMDEDataset(dataset_dir, mode=mode, transform=transform)
@@ -63,18 +63,18 @@ def main():
                 pred_errors.append(pred_error_i)
                 true_errors.append(true_error_i)
 
-                if true_error_i < 0.05 and pred_error_i > 0.3:
-                    inputs = numpify({k: v[b] for k, v in batch.items()})
-                    time_anim = RvizAnimationController(n_time_steps=2)
-
-                    time_anim.reset()
-                    while not time_anim.done:
-                        t = time_anim.t()
-                        init_viz_env(s, inputs, t)
-                        full_dataset.transition_viz_t()(s, inputs, t)
-                        s.plot_pred_error_rviz(pred_error_i)
-                        s.plot_error_rviz(true_error_i)
-                        time_anim.step()
+                # if true_error_i < 0.05 and pred_error_i > 0.3:
+                #     inputs = numpify({k: v[b] for k, v in batch.items()})
+                #     time_anim = RvizAnimationController(n_time_steps=2)
+                #
+                #     time_anim.reset()
+                #     while not time_anim.done:
+                #         t = time_anim.t()
+                #         init_viz_env(s, inputs, t)
+                #         full_dataset.transition_viz_t()(s, inputs, t)
+                #         s.plot_pred_error_rviz(pred_error_i)
+                #         s.plot_error_rviz(true_error_i)
+                #         time_anim.step()
 
         true_errors_2d = np.array(true_errors).reshape([-1, 1])
         pred_errors_2d = np.array(pred_errors).reshape([-1, 1])

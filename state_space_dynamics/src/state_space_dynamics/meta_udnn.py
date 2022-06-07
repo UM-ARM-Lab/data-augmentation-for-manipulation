@@ -1,16 +1,20 @@
+import pathlib
 from typing import Dict
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import wandb
 from torchmeta.modules import MetaModule, MetaLinear, MetaSequential
 
+from link_bot_data.new_dataset_utils import fetch_udnn_dataset
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.numpify import numpify
 from moonshine.torch_geometry import pairwise_squared_distances
 from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
 from moonshine.torchify import torchify
+from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
 
 
 def segment_lengths(inputs):
@@ -48,6 +52,27 @@ class UDNN(MetaModule, pl.LightningModule):
         layers.append(MetaLinear(fc_layer_size, self.total_state_dim))
 
         self.mlp = MetaSequential(*layers)
+
+        if self.hparams.get('planning_mask', False):
+            torch_ref_dataset = TorchDynamicsDataset(fetch_udnn_dataset(pathlib.Path('known_good_4')), mode='test')
+            ref_actions_list = []
+            for ref_traj in torch_ref_dataset:
+                ref_s_0 = torch_ref_dataset.index_time(ref_traj, 0)
+                ref_left_gripper_0 = ref_s_0['left_gripper']
+                ref_right_gripper_0 = ref_s_0['right_gripper']
+                ref_before = np.concatenate([ref_left_gripper_0, ref_right_gripper_0])
+
+                ref_traj_len = len(ref_traj['time_idx'])
+                for ref_t in range(ref_traj_len):
+                    ref_s_t = torch_ref_dataset.index_time(ref_traj, ref_t)
+                    ref_left_gripper_t = ref_s_t['left_gripper_position']
+                    ref_right_gripper_t = ref_s_t['right_gripper_position']
+                    ref_after = np.concatenate([ref_left_gripper_t, ref_right_gripper_t])
+                    ref_actions = np.concatenate([ref_before, ref_after])
+                    ref_actions_list.append(ref_actions)
+
+                    ref_before = ref_after
+            self.register_buffer("ref_actions", torch.tensor(ref_actions_list))
 
         self.val_model_errors = None
         self.test_model_errors = None
@@ -121,21 +146,35 @@ class UDNN(MetaModule, pl.LightningModule):
             error = self.scenario.classifier_distance_torch(inputs, outputs)
             low_error_mask = error < self.hparams['mask_threshold']
             low_error_mask = torch.logical_and(low_error_mask[:, :-1], low_error_mask[:, 1:])
-            # self.log("model error", error.mean())
-            # self.log("iterative mask mean", mask.mean())
 
             # planning_mask should have a 1 if the distance between the action in inputs is within some threshold
             # of the action in some reference dataset of actions (known_good)
             # this would require computing a min over some dataset of actions, so we can't make that too big
-            # train_points = inputs # [b, 10, 2,
-            # distances_to_ref_matrix = pairwise_squared_distances(train_points, ref_points)
-            # distances_to_ref = distances_to_ref_matrix.norm()
-            # planning_mask = distances_to_ref.min(0) # [b, 9]
+            train_left_actions = torch.cat([inputs['left_gripper'][:, 0:1], inputs['left_gripper_position']], 1)
+            train_right_actions = torch.cat([inputs['right_gripper'][:, 0:1], inputs['right_gripper_position']], 1)
+            train_actions = torch.cat([train_left_actions, train_right_actions], -1)  # [b, 10, 6]
+            train_before_actions = train_actions[:, :-1]
+            train_after_actions = train_actions[:, 1:]
+            train_actions_before_after = torch.cat([train_before_actions, train_after_actions], -1)  # [b,T-1,12]
 
-            # mask = torch.logical_or(low_error_mask, planning_mask)
+            batch_size = train_left_actions.shape[0]
+            ref_actions_before_after = self.ref_actions.to(self.device).repeat([batch_size, 1, 1])  # [b,N,12]
+
+            # distance matrix has shape [b, T-1, N]
+            distances_to_ref_matrix = pairwise_squared_distances(train_actions_before_after,
+                                                                 ref_actions_before_after).sqrt()
+            min_distances = distances_to_ref_matrix.min(-1)[0]  # [b, T-1]
+            planning_mask = min_distances < self.hparams['planning_mask_threshold']
+            planning_mask = min_distances < 0.04
+
+            planning_mask_but_not_low_error = torch.logical_and(torch.logical_not(low_error_mask), planning_mask)
+            inputs['example_idx'][torch.where(planning_mask_but_not_low_error.any(1))[0]]
+            mask = torch.logical_or(low_error_mask, planning_mask)
             mask = low_error_mask
             mask_padded = F.pad(mask, [1, 0])
             mask_padded = mask_padded.float()
+
+            self.log("iterative mask mean", mask.mean())
 
         return mask_padded
 

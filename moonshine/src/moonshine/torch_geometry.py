@@ -4,7 +4,7 @@ import torch
 def pairwise_squared_distances(a, b):
     """
     Adapted from https://github.com/ClayFlannigan/icp
-    Computes pairwise distances between to sets of points
+    Computes pairwise distances between to sets of k-dimensional points
 
     Args:
         a: [b, ..., n, k]
