@@ -162,7 +162,7 @@ class UDNN(MetaModule, pl.LightningModule):
         pred_rope_segment_lengths = segment_lengths(test_udnn_outputs)
         rope_length_loss_batch = (pred_rope_segment_lengths - initial_rope_segment_lengths).norm(dim=-1)
         if self.rope_length_losses is None:
-            self.rope_length_losses = model_error_batch
+            self.rope_length_losses = rope_length_loss_batch
         else:
             self.rope_length_losses = torch.cat([self.rope_length_losses, rope_length_loss_batch])
 
