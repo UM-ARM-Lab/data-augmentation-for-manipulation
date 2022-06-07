@@ -8,6 +8,7 @@ from torchmeta.modules import MetaModule, MetaLinear, MetaSequential
 
 from link_bot_pycommon.get_scenario import get_scenario
 from moonshine.numpify import numpify
+from moonshine.torch_geometry import pairwise_squared_distances
 from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors, vector_to_dict
 from moonshine.torchify import torchify
 
@@ -111,16 +112,31 @@ class UDNN(MetaModule, pl.LightningModule):
         pred_segment_length_loss = F.mse_loss(pred_rope_segment_lengths, initial_rope_segment_lengths)
         batch_loss += rope_reg_weight * pred_segment_length_loss
 
+        self.log("rope_reg_loss", pred_segment_length_loss)
+
         return batch_loss
 
     def low_error_mask(self, inputs, outputs):
         with torch.no_grad():
             error = self.scenario.classifier_distance_torch(inputs, outputs)
-            mask = error < self.hparams['mask_threshold']
-            mask = torch.logical_and(mask[:, :-1], mask[:, 1:]).float()
+            low_error_mask = error < self.hparams['mask_threshold']
+            low_error_mask = torch.logical_and(low_error_mask[:, :-1], low_error_mask[:, 1:])
             # self.log("model error", error.mean())
             # self.log("iterative mask mean", mask.mean())
+
+            # planning_mask should have a 1 if the distance between the action in inputs is within some threshold
+            # of the action in some reference dataset of actions (known_good)
+            # this would require computing a min over some dataset of actions, so we can't make that too big
+            # train_points = inputs # [b, 10, 2,
+            # distances_to_ref_matrix = pairwise_squared_distances(train_points, ref_points)
+            # distances_to_ref = distances_to_ref_matrix.norm()
+            # planning_mask = distances_to_ref.min(0) # [b, 9]
+
+            # mask = torch.logical_or(low_error_mask, planning_mask)
+            mask = low_error_mask
             mask_padded = F.pad(mask, [1, 0])
+            mask_padded = mask_padded.float()
+
         return mask_padded
 
     def compute_loss(self, inputs, outputs, use_meta_mask: bool):
