@@ -46,14 +46,14 @@ def make_mde_dataset(dataset_dir: pathlib.Path,
     with Pool() as pool:
         results = []
         total_example_idx = 0
-        steps_per_traj = 10
+        steps_per_traj = model.hparams['dataset_hparams']['data_collection_params']['steps_per_traj']
         for mode in ['train', 'val', 'test']:
             dataset = TorchDynamicsDataset(dataset_dir=dataset_dir, mode=mode)
             model.scenario = dataset.get_scenario()
 
             total = n_seq(steps_per_traj - 1) * len(dataset)
             files = []
-            for out_example in tqdm(generate_mde_examples(model, dataset), total=total):
+            for out_example in tqdm(generate_mde_examples(model, dataset, steps_per_traj), total=total):
                 result = pool.apply_async(func=write_example, args=(outdir, out_example, total_example_idx, 'pkl'))
                 results.append(result)
 
@@ -76,9 +76,8 @@ def make_mde_dataset(dataset_dir: pathlib.Path,
     return outdir
 
 
-def generate_mde_examples(model, dataset):
+def generate_mde_examples(model, dataset, steps_per_traj):
     horizon = 2
-    steps_per_traj = 10
     step = 1
     scenario = dataset.get_scenario()
 
