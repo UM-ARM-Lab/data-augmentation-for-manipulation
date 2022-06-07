@@ -4,7 +4,6 @@
   penalize_segment_length_error: false
   train_mode: train
   val_mode: val
-  sequence_length: 10
   state_metadata_keys: []
   state_keys: [
     rope

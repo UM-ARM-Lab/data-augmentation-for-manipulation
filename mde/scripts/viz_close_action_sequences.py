@@ -35,7 +35,6 @@ def main():
 
 def vizualize_data(viz_data, s):
     anim = RvizAnimationController(n_time_steps=len(viz_data))
-    n_examples_visualized = 0
     while not anim.done:
         t = anim.t()
         ref_before, ref_after, train_before, train_after, d = viz_data[t]
@@ -47,7 +46,6 @@ def vizualize_data(viz_data, s):
         train_arrow_dir = train_after - train_before
         s.plot_arrows_rviz(train_before, train_arrow_dir, label='train', color='blue', scale=2)
         anim.step()
-    print(f"{n_examples_visualized:=}")
 
 
 def compute_viz_data(ref_actions_list, train_actions_list):
@@ -56,21 +54,25 @@ def compute_viz_data(ref_actions_list, train_actions_list):
     train_actions_batched = train_actions.permute([1, 2, 0, 3])
     ref_actions_batched = ref_actions.permute([1, 2, 0, 3])
     distances_to_ref_matrix_all = pairwise_squared_distances(train_actions_batched, ref_actions_batched).sqrt()
-    distances_to_ref_matrix = distances_to_ref_matrix_all.mean(1).mean(0)
+    _, _, a, b = distances_to_ref_matrix_all.shape
+    distances_to_ref_matrix_flat = distances_to_ref_matrix_all.reshape([4, a, b])
+    distances_to_ref_matrix = distances_to_ref_matrix_flat[1:].mean(0)
     # we want to compute the distance between each left/right before/after separately, so treat them as batch dims?
-    min_distances, min_indices = distances_to_ref_matrix.min(0)
+    min_distances, min_indices = distances_to_ref_matrix.min(1)
     data = []
-    for ref_idx, (min_distance, min_train_index) in enumerate(zip(min_distances, min_indices)):
-        train_action = train_actions[min_train_index]
+    for train_index, (min_distance, min_ref_index) in enumerate(zip(min_distances, min_indices)):
+        train_action = train_actions[train_index]
         train_before = train_action[0]
         train_after = train_action[1]
 
-        ref_action = ref_actions[ref_idx]
+        ref_action = ref_actions[min_ref_index]
         ref_before = ref_action[0]
         ref_after = ref_action[1]
 
-        if min_distance < 0.02:
+        if min_distance < 0.04:
             data.append([ref_before, ref_after, train_before, train_after, min_distance])
+
+    print(f"{len(data) / len(train_actions_list):%}")
     return data
 
 
@@ -88,7 +90,10 @@ def get_actions_list(dataset):
             left_gripper_t = s_t['left_gripper_position']
             right_gripper_t = s_t['right_gripper_position']
             after = np.stack([left_gripper_t, right_gripper_t])
-            actions = np.stack([before, after])
+            origin = before[0]
+            before_local = before - origin
+            after_local = after - origin
+            actions = np.stack([before_local, after_local])
             actions_list.append(actions)
 
             before = after
