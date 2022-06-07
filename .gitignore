@@ -22,7 +22,7 @@ CATKIN_IGNORE
 **/invariance_data/*
 lightning_logs
 wandb
-artifacts
+artifacts/*
 data/
 meta-weight-net
 captures
