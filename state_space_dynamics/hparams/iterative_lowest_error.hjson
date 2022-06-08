@@ -2,6 +2,7 @@
   use_meta_mask_train: true
   use_meta_mask_val: false
   iterative_lowest_error: true
+  iterative_lowest_error_skip_steps: 100
   low_initial_error: false
   mask_threshold: 0.08
   train_mode: notest

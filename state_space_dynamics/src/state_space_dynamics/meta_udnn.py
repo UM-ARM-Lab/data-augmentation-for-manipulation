@@ -123,7 +123,8 @@ class UDNN(MetaModule, pl.LightningModule):
         if use_meta_mask:
             if self.hparams.get('iterative_lowest_error', False):
                 mask_padded = self.low_error_mask(inputs, outputs)
-                if self.global_step > 10:  # skip the first few steps because training dynamics are weird...?
+                # skip the first few steps because training dynamics are weird...?
+                if self.global_step > self.hparams.get('iterative_lowest_error_skip_steps', 10):
                     batch_time_loss = mask_padded * batch_time_loss
             elif self.hparams.get("low_initial_error", False):
                 initial_model_outputs = self.initial_model.forward(inputs)
