@@ -66,7 +66,7 @@ def main():
     fine_tune_parser.add_argument('--batch-size', type=int, default=64)
     fine_tune_parser.add_argument('--take', type=int)
     fine_tune_parser.add_argument('--skip', type=int)
-    fine_tune_parser.add_argument('--repeat', type=int)
+    fine_tune_parser.add_argument('--repeat', type=int, default=5)
     fine_tune_parser.add_argument('--epochs', type=int, default=-1)
     fine_tune_parser.add_argument('--steps', type=int, default=500_000)
     fine_tune_parser.add_argument('--seed', type=int, default=None)
