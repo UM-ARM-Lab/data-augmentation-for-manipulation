@@ -794,7 +794,7 @@ class FloatingRopeScenario(ScenarioWithVisualization, MoveitPlanningSceneScenari
     def plot_state_rviz(self, state: Dict, **kwargs):
         label = kwargs.get("label", "")
         color_msg = ColorRGBA(*colors.to_rgba(kwargs.get("color", "r")))
-        s = kwargs.get('s', 0.006)
+        s = kwargs.get('s', 0.007)
         if 'a' in kwargs:
             color_msg.a = kwargs['a']
             a = kwargs['a']

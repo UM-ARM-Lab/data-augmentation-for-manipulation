@@ -157,20 +157,23 @@ class UDNN(MetaModule, pl.LightningModule):
             train_after_actions = train_actions[:, 1:]
             train_actions_before_after = torch.cat([train_before_actions, train_after_actions], -1)  # [b,T-1,12]
 
-            batch_size = train_left_actions.shape[0]
-            ref_actions_before_after = self.ref_actions.to(self.device).repeat([batch_size, 1, 1])  # [b,N,12]
+            if self.hparams.get("planning_mask", False):
+                batch_size = train_left_actions.shape[0]
+                ref_actions_before_after = self.ref_actions.to(self.device).repeat([batch_size, 1, 1])  # [b,N,12]
 
-            # distance matrix has shape [b, T-1, N]
-            distances_to_ref_matrix = pairwise_squared_distances(train_actions_before_after,
-                                                                 ref_actions_before_after).sqrt()
-            min_distances = distances_to_ref_matrix.min(-1)[0]  # [b, T-1]
-            planning_mask = min_distances < self.hparams['planning_mask_threshold']
-            planning_mask = min_distances < 0.04
+                # distance matrix has shape [b, T-1, N]
+                distances_to_ref_matrix = pairwise_squared_distances(train_actions_before_after,
+                                                                     ref_actions_before_after).sqrt()
+                min_distances = distances_to_ref_matrix.min(-1)[0]  # [b, T-1]
+                planning_mask = min_distances < self.hparams['planning_mask_threshold']
+                planning_mask = min_distances < 0.04
 
-            planning_mask_but_not_low_error = torch.logical_and(torch.logical_not(low_error_mask), planning_mask)
-            inputs['example_idx'][torch.where(planning_mask_but_not_low_error.any(1))[0]]
-            mask = torch.logical_or(low_error_mask, planning_mask)
-            mask = low_error_mask
+                planning_mask_but_not_low_error = torch.logical_and(torch.logical_not(low_error_mask), planning_mask)
+                inputs['example_idx'][torch.where(planning_mask_but_not_low_error.any(1))[0]]
+                mask = torch.logical_or(low_error_mask, planning_mask)
+            else:
+                mask = low_error_mask
+
             mask_padded = F.pad(mask, [1, 0])
             mask_padded = mask_padded.float()
 

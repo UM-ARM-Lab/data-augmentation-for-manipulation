@@ -80,7 +80,7 @@ def main():
 
     args = parser.parse_args()
 
-    # plt.style.use(args.style)
+    plt.style.use(args.style)
 
     analyze_planning_results(args)
 
