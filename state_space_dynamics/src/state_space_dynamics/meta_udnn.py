@@ -137,7 +137,8 @@ class UDNN(MetaModule, pl.LightningModule):
         pred_segment_length_loss = F.mse_loss(pred_rope_segment_lengths, initial_rope_segment_lengths)
         batch_loss += rope_reg_weight * pred_segment_length_loss
 
-        self.log("rope_reg_loss", pred_segment_length_loss)
+        if self.training:
+            self.log("rope_reg_loss", pred_segment_length_loss)
 
         return batch_loss
 
