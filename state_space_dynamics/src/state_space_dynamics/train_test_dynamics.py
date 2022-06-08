@@ -81,6 +81,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
 
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', entity=user)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
+    es_cb = pl.callbacks.EarlyStopping(monitor="val_loss", divergence_threshold=0.02, patience=10)
     hearbeat_callback = HeartbeatCallback(model.scenario)
 
     trainer = pl.Trainer(gpus=1,
@@ -90,7 +91,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                          max_steps=int(steps / batch_size) if steps != -1 else steps,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=1,
-                         callbacks=[ckpt_cb, hearbeat_callback],
+                         callbacks=[ckpt_cb, hearbeat_callback, es_cb],
                          default_root_dir='wandb',
                          gradient_clip_val=0.05)
     wb_logger.watch(model)

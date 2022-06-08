@@ -199,7 +199,7 @@ class UDNN(MetaModule, pl.LightningModule):
         use_meta_mask = self.hparams.get('use_meta_mask_val', False)
         val_losses = self.compute_loss(val_batch, val_udnn_outputs, use_meta_mask)
         self.log('val_loss', val_losses['loss'])
-        self.log('val_rope_reg_loss', val_losses['rope_leg_loss'])
+        self.log('val_rope_reg_loss', val_losses['rope_reg_loss'])
 
         model_error_batch = (val_batch['rope'] - val_udnn_outputs['rope']).norm(dim=-1).flatten()
         if self.val_model_errors is None:
