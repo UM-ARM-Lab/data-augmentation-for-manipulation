@@ -22,7 +22,7 @@ def main():
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
     parser.add_argument('checkpoint', type=str, help='dynamics model checkpoint')
     parser.add_argument('out_name', type=str, help='output dataset name')
-    parser.add_argument('--batch-size', type=int, help='batch size', default=8)
+    parser.add_argument('--step', type=int, default=1)
     parser.add_argument('--yes', '-y', action='store_true')
 
     args = parser.parse_args()
@@ -38,7 +38,8 @@ def main():
     dataset_dir = fetch_udnn_dataset(args.dataset_dir)
     make_mde_dataset(dataset_dir=dataset_dir,
                      checkpoint=args.checkpoint,
-                     outdir=outdir)
+                     outdir=outdir,
+                     step=args.step)
 
 
 if __name__ == '__main__':

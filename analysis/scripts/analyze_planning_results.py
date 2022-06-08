@@ -38,7 +38,7 @@ def analyze_planning_results(args):
 
     boxplot(df, outdir, hue, 'normalized_model_error', "Model Error", figsize=(12, 8))
 
-    barplot(df, outdir, hue, 'any_solved', "Any Plans Found?", figsize=(12, 8))
+    barplot(df, outdir, hue, 'any_solved', "Any Plans Found?", figsize=(12, 8), ci=None)
 
     success_barplot(df, 'success', hue, outdir, figsize=(12, 8))
 
