@@ -134,13 +134,13 @@ class UDNN(MetaModule, pl.LightningModule):
         rope_reg_weight = self.hparams.get('rope_reg', 0)
         initial_rope_segment_lengths = segment_lengths(inputs)
         pred_rope_segment_lengths = segment_lengths(outputs)
-        pred_segment_length_loss = F.mse_loss(pred_rope_segment_lengths, initial_rope_segment_lengths)
+        pred_segment_length_loss = (pred_rope_segment_lengths - initial_rope_segment_lengths).norm(dim=-1).mean(-1)
         batch_loss += rope_reg_weight * pred_segment_length_loss
 
-        if self.training:
-            self.log("rope_reg_loss", pred_segment_length_loss)
-
-        return batch_loss
+        return {
+            'loss':          batch_loss,
+            "rope_reg_loss": pred_segment_length_loss,
+        }
 
     def low_error_mask(self, inputs, outputs):
         with torch.no_grad():
@@ -183,33 +183,36 @@ class UDNN(MetaModule, pl.LightningModule):
         return mask_padded
 
     def compute_loss(self, inputs, outputs, use_meta_mask: bool):
-        batch_loss = self.compute_batch_loss(inputs, outputs, use_meta_mask)
-        return batch_loss.mean()
+        batch_losses = self.compute_batch_loss(inputs, outputs, use_meta_mask)
+        return {k: v.mean() for k, v in batch_losses.items()}
 
     def training_step(self, train_batch, batch_idx):
         outputs = self.forward(train_batch)
         use_meta_mask = self.hparams.get('use_meta_mask_train', False)
-        loss = self.compute_loss(train_batch, outputs, use_meta_mask)
-        self.log('train_loss', loss)
-        return loss
+        losses = self.compute_loss(train_batch, outputs, use_meta_mask)
+        self.log('train_loss', losses['loss'])
+        self.log('train_rope_reg_loss', losses['rope_reg_loss'])
+        return losses['loss']
 
     def validation_step(self, val_batch, batch_idx):
         val_udnn_outputs = self.forward(val_batch)
         use_meta_mask = self.hparams.get('use_meta_mask_val', False)
-        val_loss = self.compute_loss(val_batch, val_udnn_outputs, use_meta_mask)
-        self.log('val_loss', val_loss)
+        val_losses = self.compute_loss(val_batch, val_udnn_outputs, use_meta_mask)
+        self.log('val_loss', val_losses['loss'])
+        self.log('val_rope_reg_loss', val_losses['rope_leg_loss'])
 
         model_error_batch = (val_batch['rope'] - val_udnn_outputs['rope']).norm(dim=-1).flatten()
         if self.val_model_errors is None:
             self.val_model_errors = model_error_batch
         else:
             self.val_model_errors = torch.cat([self.val_model_errors, model_error_batch])
-        return val_loss
+        return val_losses['loss']
 
     def test_step(self, test_batch, batch_idx):
         test_udnn_outputs = self.forward(test_batch)
-        test_loss = self.compute_loss(test_batch, test_udnn_outputs, use_meta_mask=False)
-        self.log('test_loss', test_loss)
+        test_losses = self.compute_loss(test_batch, test_udnn_outputs, use_meta_mask=False)
+        self.log('test_loss', test_losses['loss'])
+        self.log('test_rope_reg_loss', test_losses['rope_reg_loss'])
 
         model_error_batch = (test_batch['rope'] - test_udnn_outputs['rope']).norm(dim=-1)
         if self.test_model_errors is None:
@@ -225,7 +228,7 @@ class UDNN(MetaModule, pl.LightningModule):
         else:
             self.rope_length_losses = torch.cat([self.rope_length_losses, rope_length_loss_batch])
 
-        return test_loss
+        return test_losses['loss']
 
     def validation_epoch_end(self, _):
         data = self.val_model_errors.cpu().unsqueeze(-1).numpy().tolist()
