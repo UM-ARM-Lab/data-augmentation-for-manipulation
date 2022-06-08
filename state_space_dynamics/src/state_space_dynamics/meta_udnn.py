@@ -147,17 +147,17 @@ class UDNN(MetaModule, pl.LightningModule):
             low_error_mask = error < self.hparams['mask_threshold']
             low_error_mask = torch.logical_and(low_error_mask[:, :-1], low_error_mask[:, 1:])
 
-            # planning_mask should have a 1 if the distance between the action in inputs is within some threshold
-            # of the action in some reference dataset of actions (known_good)
-            # this would require computing a min over some dataset of actions, so we can't make that too big
-            train_left_actions = torch.cat([inputs['left_gripper'][:, 0:1], inputs['left_gripper_position']], 1)
-            train_right_actions = torch.cat([inputs['right_gripper'][:, 0:1], inputs['right_gripper_position']], 1)
-            train_actions = torch.cat([train_left_actions, train_right_actions], -1)  # [b, 10, 6]
-            train_before_actions = train_actions[:, :-1]
-            train_after_actions = train_actions[:, 1:]
-            train_actions_before_after = torch.cat([train_before_actions, train_after_actions], -1)  # [b,T-1,12]
-
             if self.hparams.get("planning_mask", False):
+                # planning_mask should have a 1 if the distance between the action in inputs is within some threshold
+                # of the action in some reference dataset of actions (known_good)
+                # this would require computing a min over some dataset of actions, so we can't make that too big
+                train_left_actions = torch.cat([inputs['left_gripper'][:, 0:1], inputs['left_gripper_position']], 1)
+                train_right_actions = torch.cat([inputs['right_gripper'][:, 0:1], inputs['right_gripper_position']], 1)
+                train_actions = torch.cat([train_left_actions, train_right_actions], -1)  # [b, 10, 6]
+                train_before_actions = train_actions[:, :-1]
+                train_after_actions = train_actions[:, 1:]
+                train_actions_before_after = torch.cat([train_before_actions, train_after_actions], -1)  # [b,T-1,12]
+
                 batch_size = train_left_actions.shape[0]
                 ref_actions_before_after = self.ref_actions.to(self.device).repeat([batch_size, 1, 1])  # [b,N,12]
 
@@ -177,7 +177,7 @@ class UDNN(MetaModule, pl.LightningModule):
             mask_padded = F.pad(mask, [1, 0])
             mask_padded = mask_padded.float()
 
-            self.log("iterative mask mean", mask.mean())
+            # self.log("iterative mask mean", mask.mean())
 
         return mask_padded
 
