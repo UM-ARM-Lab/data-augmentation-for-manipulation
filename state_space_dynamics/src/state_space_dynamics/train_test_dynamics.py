@@ -227,13 +227,13 @@ def viz_main(dataset_dir: pathlib.Path,
     s = original_dataset.get_scenario()
 
     dataset_anim = RvizAnimationController(n_time_steps=len(dataset), ns='trajs')
-    n_time_steps = original_dataset.params['data_collection_params']['steps_per_traj']
-    time_anim = RvizAnimationController(n_time_steps=n_time_steps)
 
     n_examples_visualized = 0
     while not dataset_anim.done:
         inputs = dataset[dataset_anim.t()]
         print(inputs['example_idx'])
+
+        time_anim = RvizAnimationController(n_time_steps=inputs['left_gripper_position'].shape[0])
 
         if 'meta_mask' in inputs:
             if inputs['meta_mask'].sum() < 6:

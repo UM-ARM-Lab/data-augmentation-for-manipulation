@@ -47,10 +47,11 @@ def make_mde_dataset(dataset_dir: pathlib.Path,
     with Pool() as pool:
         results = []
         total_example_idx = 0
-        steps_per_traj = model.hparams['dataset_hparams']['data_collection_params']['steps_per_traj']
-        for mode in ['train', 'val', 'test']:
+        for mode in ['test', 'val', 'train']:
             dataset = TorchDynamicsDataset(dataset_dir=dataset_dir, mode=mode)
             model.scenario = dataset.get_scenario()
+
+            steps_per_traj = dataset[0][dataset.state_keys[0]].shape[0]
 
             total = n_seq(steps_per_traj - 1) * len(dataset) / step
             files = []
