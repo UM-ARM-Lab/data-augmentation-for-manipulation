@@ -51,6 +51,9 @@ def execute_actions(
         spinner.update()
         scenario.heartbeat()
 
+        print("PLANNED JOINT POSITIONS")
+        print(t, before_state['joint_positions'])
+
         if plot:
             scenario.plot_environment_rviz(environment)
             scenario.plot_state_rviz(before_state, label='actual', color='pink')
@@ -415,6 +418,10 @@ class PlanAndExecute:
 
     def execute(self, planning_query: PlanningQuery, planning_result: PlanningResult):
         # execute the plan, collecting the states that actually occurred
+        print("PLANNED JOINT POSITIONS")
+        for t, p in enumerate(planning_result.path):
+            print(t, p['joint_positions'])
+
         self.on_before_execute()
         end_trial = False
         if self.no_execution:
@@ -443,6 +450,7 @@ class PlanAndExecute:
                                                stop_condition=_stop_condition,
                                                use_gt_rope=self.use_gt_rope,
                                                plot=True)
+
             self.scenario.robot.raise_on_failure = True
 
             # backup if the stop condition was triggered

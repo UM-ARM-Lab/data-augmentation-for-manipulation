@@ -4,6 +4,7 @@ import logging
 import pathlib
 
 import colorama
+import numpy as np
 import tensorflow as tf
 
 from arc_utilities import ros_init
@@ -15,9 +16,11 @@ from moonshine.gpu_config import limit_gpu_mem
 
 limit_gpu_mem(None)
 
+
 @ros_init.with_ros("planning_evaluation")
 def main():
     colorama.init(autoreset=True)
+    np.set_printoptions(suppress=True, precision=5, linewidth=250)
     tf.get_logger().setLevel(logging.ERROR)
 
     parser = argparse.ArgumentParser()
