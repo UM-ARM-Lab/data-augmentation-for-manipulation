@@ -74,6 +74,7 @@ class UDNN(MetaModule, pl.LightningModule):
                     ref_before = ref_after
             self.register_buffer("ref_actions", torch.tensor(ref_actions_list))
 
+        self.train_model_errors = None
         self.val_model_errors = None
         self.test_model_errors = None
         self.rope_length_losses = None
@@ -183,7 +184,7 @@ class UDNN(MetaModule, pl.LightningModule):
             mask_padded = F.pad(mask, [1, 0])
             mask_padded = mask_padded.float()
 
-            # self.log("iterative mask mean", mask.mean())
+            self.log("iterative mask mean", mask.mean())
 
         return mask_padded
 
@@ -201,6 +202,12 @@ class UDNN(MetaModule, pl.LightningModule):
         losses = self.compute_loss(train_batch, outputs, use_meta_mask)
         self.log('train_loss', losses['loss'])
         self.log('train_rope_reg_loss', losses['rope_reg_loss'])
+
+        model_error_batch = (train_batch['rope'] - outputs['rope']).norm(dim=-1).flatten()
+        if self.train_model_errors is None:
+            self.train_model_errors = model_error_batch
+        else:
+            self.train_model_errors = torch.cat([self.train_model_errors, model_error_batch])
         return losses['loss']
 
     def validation_step(self, val_batch, batch_idx):
@@ -239,7 +246,15 @@ class UDNN(MetaModule, pl.LightningModule):
 
         return test_losses['loss']
 
-    def validation_epoch_end(self, _):
+    def on_train_epoch_end(self):
+        data = self.train_model_errors.detach().cpu().unsqueeze(-1).numpy().tolist()
+        table = wandb.Table(data=data, columns=["model_errors"])
+        wandb.log({'train_model_error': table})
+
+        # reset all metrics
+        self.train_model_errors = None
+
+    def on_validation_epoch_end(self):
         data = self.val_model_errors.cpu().unsqueeze(-1).numpy().tolist()
         table = wandb.Table(data=data, columns=["model_errors"])
         wandb.log({'val_model_error': table})
@@ -247,7 +262,7 @@ class UDNN(MetaModule, pl.LightningModule):
         # reset all metrics
         self.val_model_errors = None
 
-    def test_epoch_end(self, _):
+    def on_test_epoch_end(self):
         rope_length_loss = self.rope_length_losses.cpu()
         error = self.test_model_errors.cpu()
         time = torch.arange(error.shape[1]).repeat(error.shape[0], 1)
