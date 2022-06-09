@@ -91,7 +91,7 @@ def fine_tune_main(dataset_dir: pathlib.Path,
                          max_steps=int(steps / batch_size) if steps != -1 else steps,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=1,
-                         callbacks=[ckpt_cb, hearbeat_callback, es_cb],
+                         callbacks=[ckpt_cb, hearbeat_callback],
                          default_root_dir='wandb',
                          gradient_clip_val=0.05)
     wb_logger.watch(model)
@@ -165,7 +165,7 @@ def train_main(dataset_dir: pathlib.Path,
                          max_steps=steps,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=1,
-                         callbacks=[ckpt_cb, hearbeat_callback, es_cb],
+                         callbacks=[ckpt_cb, hearbeat_callback],
                          default_root_dir='wandb',
                          gradient_clip_val=0.05)
     wb_logger.watch(model)
