@@ -7,7 +7,7 @@ import numpy as np
 
 def load_model_artifact(checkpoint, model_class, project, version, user='armlab', **kwargs):
     local_ckpt_path = model_artifact_path(checkpoint, project, version, user)
-    model = model_class.load_from_checkpoint(local_ckpt_path.as_posix(), **kwargs)
+    model = model_class.load_from_checkpoint(local_ckpt_path.as_posix(), from_checkpoint=checkpoint, **kwargs)
     return model
 
 

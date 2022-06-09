@@ -146,8 +146,12 @@ class UDNN(MetaModule, pl.LightningModule):
     def low_error_mask(self, inputs, outputs):
         with torch.no_grad():
             error = self.scenario.classifier_distance_torch(inputs, outputs)
-            low_error_mask = error < self.hparams['mask_threshold']
-            low_error_mask = torch.logical_and(low_error_mask[:, :-1], low_error_mask[:, 1:])
+
+            if self.hparams.get("soft_masking", False):
+                low_error_mask = self.soft_mask(error[:, :-1]) * self.soft_mask(error[:, 1:])
+            else:
+                low_error_mask = error < self.hparams['mask_threshold']
+                low_error_mask = torch.logical_and(low_error_mask[:, :-1], low_error_mask[:, 1:])
 
             if self.hparams.get("planning_mask", False):
                 # planning_mask should have a 1 if the distance between the action in inputs is within some threshold
@@ -182,6 +186,10 @@ class UDNN(MetaModule, pl.LightningModule):
             # self.log("iterative mask mean", mask.mean())
 
         return mask_padded
+
+    def soft_mask(self, error):
+        low_error_mask = 1 - torch.sigmoid(self.global_step * (error - self.hparams['mask_threshold']))
+        return low_error_mask
 
     def compute_loss(self, inputs, outputs, use_meta_mask: bool):
         batch_losses = self.compute_batch_loss(inputs, outputs, use_meta_mask)

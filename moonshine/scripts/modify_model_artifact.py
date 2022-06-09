@@ -5,6 +5,7 @@ from pytorch_lightning import Trainer
 import wandb
 from arc_utilities.algorithms import nested_dict_update
 from link_bot_pycommon.load_wandb_model import get_model_artifact
+from state_space_dynamics.meta_udnn import UDNN
 from state_space_dynamics.mw_net import MWNet
 
 
@@ -16,7 +17,7 @@ def main():
     local_ckpt_path = pathlib.Path(artifact_dir) / "model.ckpt"
     print(f"Found {local_ckpt_path.as_posix()}")
 
-    model = MWNet.load_from_checkpoint(local_ckpt_path.as_posix(), train_dataset=None)
+    model = UDNN.load_from_checkpoint(local_ckpt_path.as_posix(), train_dataset=None)
     hparams_update = {
         'dataset_hparams': {
             'data_collection_params': {
