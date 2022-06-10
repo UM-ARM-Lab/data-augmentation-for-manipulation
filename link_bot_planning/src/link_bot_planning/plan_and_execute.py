@@ -37,8 +37,8 @@ def execute_actions(
         plot: bool = False):
     spinner = SynchronousSpinner('Executing actions')
 
-    # FIXME hacky
-    scenario.robot.jacobian_not_reached_is_failure = False
+    # FIXME hacky. this lets us execute as much of the jacobian action as possible
+    scenario.robot.jacobian_target_not_reached_is_failure = False
 
     before_state = start_state
     actual_path = [before_state]
@@ -51,19 +51,12 @@ def execute_actions(
         spinner.update()
         scenario.heartbeat()
 
-        print("PLANNED JOINT POSITIONS")
-        print(t, before_state['joint_positions'])
-
         if plot:
             scenario.plot_environment_rviz(environment)
             scenario.plot_state_rviz(before_state, label='actual', color='pink')
             scenario.plot_executed_action(before_state, action)
 
-        try:
-            end_trial = scenario.execute_action(environment, before_state, action)
-        except RobotPlanningError:
-            print(Fore.RED + "Robot planning error!!!!" + Fore.RESET)
-            pass
+        end_trial = scenario.execute_action(environment, before_state, action)
         after_state = scenario.get_state()
         if use_gt_rope:
             after_state = dataset_utils.use_gt_rope(after_state)
@@ -91,7 +84,7 @@ def execute_actions(
 
     # time.sleep(2)  # FIXME: hack for CDCPD to catch up, only needed in the real world
     # FIXME hacky reset
-    scenario.robot.jacobian_not_reached_is_failure = True
+    scenario.robot.jacobian_target_not_reached_is_failure = True
 
     execution_result = ExecutionResult(path=actual_path, end_trial=end_trial, stopped=stopped, end_t=t)
     return execution_result
