@@ -18,7 +18,7 @@ from merrrt_visualization.rviz_animation_controller import RvizAnimationControll
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.numpify import numpify
-from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
+from moonshine.torch_datasets_utils import dataset_take, dataset_skip, my_collate
 from propnet.propnet_models import PropNet
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
 
@@ -68,7 +68,7 @@ def train_main(dataset_dir: pathlib.Path,
     train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=transform)
     val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=transform)
 
-    train_dataset_take = take_subset(train_dataset, take)
+    train_dataset_take = dataset_take(train_dataset, take)
 
     train_loader = DataLoader(train_dataset_take,
                               batch_size=batch_size,
@@ -182,7 +182,7 @@ def eval_main(dataset_dir: pathlib.Path,
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
     dataset = TorchDynamicsDataset(dataset_dir, mode)
-    dataset = take_subset(dataset, take)
+    dataset = dataset_take(dataset, take)
     dataset = dataset_skip(dataset, skip)
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
     metrics = trainer.validate(model, loader, verbose=False)
@@ -209,7 +209,7 @@ def eval_versions_main(dataset_dir: pathlib.Path,
     eval_versions = eval(versions_str.strip("'\""))
     trainer = pl.Trainer(gpus=1, enable_model_summary=False)
     dataset = TorchDynamicsDataset(dataset_dir, mode)
-    dataset = take_subset(dataset, take)
+    dataset = dataset_take(dataset, take)
     dataset = dataset_skip(dataset, skip)
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
     metrics_over_time = {}

@@ -9,7 +9,7 @@ from link_bot_pycommon.pycommon import print_dict
 from mde.torch_mde_dataset import TorchMDEDataset
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.gpu_config import limit_gpu_mem
-from moonshine.torch_datasets_utils import take_subset, dataset_shard, dataset_skip
+from moonshine.torch_datasets_utils import dataset_take, dataset_shard, dataset_skip
 
 limit_gpu_mem(None)
 
@@ -19,7 +19,7 @@ def visualize_dataset(dataset, take, skip, shard, threshold=None):
 
     s = dataset.get_scenario()
 
-    dataset_ = take_subset(dataset, take)
+    dataset_ = dataset_take(dataset, take)
     dataset_ = dataset_skip(dataset_, skip)
     dataset_ = dataset_shard(dataset_, shard)
 

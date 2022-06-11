@@ -18,7 +18,7 @@ from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.my_pl_callbacks import HeartbeatCallback
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
-from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
+from moonshine.torch_datasets_utils import dataset_take, dataset_skip, my_collate
 from moonshine.torchify import torchify
 from state_space_dynamics.meta_udnn import UDNN
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset
@@ -103,7 +103,7 @@ def eval_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([remove_keys("scene_msg")])
     dataset = TorchDynamicsDataset(dataset_dir, mode=mode, transform=transform)
-    dataset = take_subset(dataset, take)
+    dataset = dataset_take(dataset, take)
     dataset = dataset_skip(dataset, skip)
 
     run_id = f'eval-{generate_id(length=5)}'

@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from tqdm import tqdm
 
-from moonshine.torch_datasets_utils import repeat_dataset, my_collate
+from moonshine.torch_datasets_utils import dataset_repeat, my_collate
 from propnet.train_test_propnet import get_num_workers
 from state_space_dynamics.torch_dynamics_dataset import remove_keys, TorchMetaDynamicsDataset
 
@@ -20,7 +20,7 @@ def main():
         remove_keys("scene_msg", "env", "sdf", "sdf_grad"),
     ])
     dataset = TorchMetaDynamicsDataset(p, transform=transform)
-    dataset = repeat_dataset(dataset, 100)
+    dataset = dataset_repeat(dataset, 100)
     loader = DataLoader(dataset,
                         batch_size=batch_size,
                         collate_fn=my_collate,

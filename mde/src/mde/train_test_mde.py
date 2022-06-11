@@ -23,7 +23,7 @@ from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
 from moonshine.my_pl_callbacks import HeartbeatCallback
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
-from moonshine.torch_datasets_utils import take_subset, dataset_skip, my_collate
+from moonshine.torch_datasets_utils import dataset_take, dataset_skip, my_collate
 from moonshine.torchify import torchify
 from state_space_dynamics.torch_dynamics_dataset import remove_keys
 
@@ -32,7 +32,7 @@ PROJECT = 'mde'
 
 def prepare_train(batch_size, dataset_dir, take, skip, transform):
     train_dataset = TorchMDEDataset(fetch_mde_dataset(dataset_dir), mode='train', transform=transform)
-    train_dataset_take = take_subset(train_dataset, take)
+    train_dataset_take = dataset_take(train_dataset, take)
     train_dataset_skip = dataset_skip(train_dataset_take, skip)
     train_dataset_len = len(train_dataset_skip)
     train_loader = DataLoader(train_dataset_skip,
@@ -156,7 +156,7 @@ def eval_main(dataset_dir: pathlib.Path,
 
     transform = transforms.Compose([remove_keys("scene_msg")])
     dataset = TorchMDEDataset(fetch_mde_dataset(dataset_dir), mode=mode, transform=transform)
-    dataset = take_subset(dataset, take)
+    dataset = dataset_take(dataset, take)
     dataset = dataset_skip(dataset, skip)
 
     run_id = f'eval-{generate_id(length=5)}'

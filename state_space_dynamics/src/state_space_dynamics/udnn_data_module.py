@@ -9,7 +9,7 @@ from link_bot_data.new_dataset_utils import fetch_udnn_dataset
 from link_bot_data.wandb_datasets import get_dataset_with_version
 from moonshine.filepath_tools import load_params
 from moonshine.moonshine_utils import get_num_workers
-from moonshine.torch_datasets_utils import my_collate, take_subset, dataset_skip, repeat_dataset
+from moonshine.torch_datasets_utils import my_collate, dataset_take, dataset_skip, dataset_repeat
 from state_space_dynamics.torch_dynamics_dataset import remove_keys, TorchDynamicsDataset
 
 
@@ -46,10 +46,10 @@ class UDNNDataModule(pl.LightningDataModule):
         transform = transforms.Compose([remove_keys("scene_msg", "env", "sdf", "sdf_grad")])
 
         train_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.train_mode, transform=transform)
-        train_dataset_take = take_subset(train_dataset, self.take)
+        train_dataset_take = dataset_take(train_dataset, self.take)
         train_dataset_skip = dataset_skip(train_dataset_take, self.skip)
 
-        self.train_dataset = repeat_dataset(train_dataset_skip, self.repeat)
+        self.train_dataset = dataset_repeat(train_dataset_skip, self.repeat)
         self.val_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.val_mode, transform=transform)
 
         self.test_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.test_mode, transform=transform)

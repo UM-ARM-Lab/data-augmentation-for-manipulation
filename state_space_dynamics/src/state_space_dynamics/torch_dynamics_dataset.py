@@ -12,7 +12,7 @@ from moonshine.moonshine_utils import get_num_workers
 from moonshine.my_torch_dataset import MyTorchDataset
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch
-from moonshine.torch_datasets_utils import take_subset, my_collate
+from moonshine.torch_datasets_utils import dataset_take, my_collate
 
 logger = logging.getLogger(__file__)
 
@@ -41,7 +41,7 @@ class TorchLoaderWrapped:
         self.dataset = dataset
 
     def take(self, take: int):
-        dataset_subset = take_subset(self.dataset, take)
+        dataset_subset = dataset_take(self.dataset, take)
         return TorchLoaderWrapped(dataset=dataset_subset)
 
     def batch(self, batch_size: int):

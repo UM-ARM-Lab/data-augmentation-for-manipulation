@@ -23,7 +23,7 @@ from moonshine.my_pl_callbacks import HeartbeatCallback
 from moonshine.my_torch_dataset import MyTorchDataset
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch
-from moonshine.torch_datasets_utils import take_subset, my_collate, repeat_dataset
+from moonshine.torch_datasets_utils import dataset_take, my_collate, dataset_repeat
 from moonshine.torchify import torchify
 from moonshine.vae import MyVAE
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
@@ -57,7 +57,7 @@ def fine_tune(dataset_dirs: List[pathlib.Path],
 
     train_dataset = MyTorchDataset(dataset_dirs, mode='train',
                                    transform=transform)
-    train_dataset_repeated = repeat_dataset(train_dataset, repeat=int(max(100 * batch_size / len(train_dataset), 1)))
+    train_dataset_repeated = dataset_repeat(train_dataset, repeat=int(max(100 * batch_size / len(train_dataset), 1)))
     val_dataset = MyTorchDataset(dataset_dirs, mode='train',
                                  transform=transform)
 
@@ -167,7 +167,7 @@ def train_main(dataset_dir: pathlib.Path,
     val_dataset = MyTorchDataset(dataset_dir, mode='val',
                                  transform=transform)
 
-    train_dataset_take = take_subset(train_dataset, take)
+    train_dataset_take = dataset_take(train_dataset, take)
 
     train_loader = DataLoader(train_dataset_take,
                               batch_size=batch_size,
@@ -269,7 +269,7 @@ def eval_main(dataset_dir: pathlib.Path,
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
     dataset = TorchDynamicsDataset(dataset_dir, mode)
-    dataset = take_subset(dataset, take)
+    dataset = dataset_take(dataset, take)
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size))
     metrics = trainer.validate(model, loader, verbose=False)
     wandb.finish()

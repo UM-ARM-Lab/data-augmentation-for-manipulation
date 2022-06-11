@@ -9,7 +9,7 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern, default_co
 import rospy
 
 
-def repeat_dataset(dataset, repeat: int):
+def dataset_repeat(dataset, repeat: int):
     if repeat is None:
         return dataset
 
@@ -17,7 +17,7 @@ def repeat_dataset(dataset, repeat: int):
     return dataset_repeated
 
 
-def take_subset(dataset, take):
+def dataset_take(dataset, take):
     if take is None:
         return dataset
 
