@@ -55,6 +55,7 @@ class MDEDataModule(pl.LightningDataModule):
         self.test_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.test_mode, transform=transform)
 
     def train_dataloader(self):
+        print("DEBUGGING!!!! SHUFFLE SHOULD BE TRUE!!!")
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=False, collate_fn=my_collate,
                           num_workers=get_num_workers(self.batch_size))
 
