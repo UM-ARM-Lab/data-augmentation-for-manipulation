@@ -82,21 +82,34 @@ def main():
         print(f"slope: {slope:.3f}")
 
         plt.style.use("slides")
+
+        root = pathlib.Path("results/mde_scatters") / args.dataset_dir.name
+        root.mkdir(exist_ok=True, parents=True)
+        max_error = 1.5
+
+        plt.figure(figsize=(12, 12))
+        ax = plt.gca()
+        ax.hist(true_errors)
+        ax.set_xlim(-0.001, max_error)
+        ax.set_title(f"True Error ({mode})")
+        ax.set_xlabel("true error")
+        ax.set_ylabel("count")
+
+        filename = root / f'true_error_{mode}'
+        plt.savefig(filename.as_posix())
+        plt.close()
+
         plt.figure(figsize=(12, 12))
         ax = plt.gca()
         sns.scatterplot(ax=ax, x=true_errors, y=pred_errors, alpha=0.2)
         sns.kdeplot(ax=ax, x=true_errors, y=pred_errors, color='k')
-        max_error = 0.6
         ax.set_xlim(-0.001, max_error)
         ax.set_ylim(-0.001, max_error)
         ax.set_aspect("equal")
-        ax.set_title(f"Error ({mode}) ({args.checkpoint})")
+        ax.set_title(f"error ({mode}) ({args.checkpoint})")
         ax.set_xlabel("true error")
         ax.set_ylabel("predicted error")
         ax.text(0.01, 0.9 * max_error, f"r2={r2_score:.3f},slope={slope:.3f}")
-
-        root = pathlib.Path("results/mde_scatters") / args.dataset_dir.name
-        root.mkdir(exist_ok=True, parents=True)
         filename = root / f'mde_scatter_{args.checkpoint}_{mode}'
         plt.savefig(filename.as_posix())
         plt.close()
