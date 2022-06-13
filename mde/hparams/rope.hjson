@@ -1,5 +1,5 @@
 {
-  loss_type: MAE
+  loss_type: MSE
   point_state_keys: [
     rope
     left_gripper
@@ -17,14 +17,14 @@
     left_gripper_position
     right_gripper_position
   ]
-  learning_rate:  0.0001
-  rnn_size: 128
-  fc_layer_sizes: [ 128, 128 ]
+  learning_rate:  0.001
+  rnn_size: 512
+  fc_layer_sizes: [ 512, 512 ]
   pooling: [ 2, 2, 2 ]
   conv_filters: [
-    [ 8, [ 3, 3, 3 ] ]
-    [ 8, [ 3, 3, 3 ] ]
-    [ 8, [ 3, 3, 3 ] ]
+    [ 64, [ 3, 3, 3 ] ]
+    [ 64, [ 3, 3, 3 ] ]
+    [ 64, [ 3, 3, 3 ] ]
   ]
   local_env_h_rows: 44
   local_env_w_cols: 44

@@ -186,7 +186,7 @@ class MDE(pl.LightningModule):
 
     def compute_loss(self, inputs: Dict[str, torch.Tensor], outputs):
         error_after = inputs['error'][:, 1]
-        if self.hparams.get("loss_type") == 'MAE':
+        if self.hparams.get("loss_type", None) == 'MAE':
             loss = (outputs - error_after).abs().mean()
         else:
             loss = F.mse_loss(outputs, error_after)
