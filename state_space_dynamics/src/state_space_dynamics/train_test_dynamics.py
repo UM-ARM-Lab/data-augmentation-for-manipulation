@@ -116,8 +116,6 @@ def train_main(dataset_dir: pathlib.Path,
                project=PROJECT,
                **kwargs):
     pl.seed_everything(seed, workers=True)
-    if steps != -1:
-        steps = int(steps / batch_size)
 
     params = load_hjson(params_filename)
 
@@ -139,7 +137,7 @@ def train_main(dataset_dir: pathlib.Path,
     params['batch_size'] = batch_size
     params['seed'] = seed
     params['max_epochs'] = epochs
-    params['max_steps'] = steps
+    params['steps'] = steps
     params['checkpoint'] = checkpoint
 
     wandb_kargs = {'entity': user}
@@ -162,7 +160,7 @@ def train_main(dataset_dir: pathlib.Path,
                          logger=wb_logger,
                          enable_model_summary=False,
                          max_epochs=epochs,
-                         max_steps=steps,
+                         max_steps=int(steps / batch_size) if steps != -1 else steps,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=1,
                          callbacks=[ckpt_cb, hearbeat_callback],

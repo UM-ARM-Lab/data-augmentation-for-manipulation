@@ -186,26 +186,33 @@ class MDE(pl.LightningModule):
 
     def compute_loss(self, inputs: Dict[str, torch.Tensor], outputs):
         error_after = inputs['error'][:, 1]
+
+        mae = (outputs - error_after).abs().mean()
+        mse = F.mse_loss(outputs, error_after)
+
         if self.hparams.get("loss_type", None) == 'MAE':
-            loss = (outputs - error_after).abs().mean()
+            loss = mae
         else:
-            loss = F.mse_loss(outputs, error_after)
-        return loss
+            loss = mse
+
+        return loss, mae
 
     def training_step(self, train_batch: Dict[str, torch.Tensor], batch_idx):
         outputs = self.forward(train_batch)
-        loss = self.compute_loss(train_batch, outputs)
+        loss, mae = self.compute_loss(train_batch, outputs)
         self.log('train_loss', loss)
+        self.log('train_mae', mae)
         return loss
 
     def validation_step(self, val_batch: Dict[str, torch.Tensor], batch_idx):
         pred_error = self.forward(val_batch)
-        loss = self.compute_loss(val_batch, pred_error)
+        loss, mae = self.compute_loss(val_batch, pred_error)
         true_error = val_batch['error'][:, 1]
         true_error_thresholded = true_error < self.hparams.error_threshold
         pred_error_thresholded = pred_error < self.hparams.error_threshold
         signed_loss = pred_error - true_error
         self.log('val_loss', loss)
+        self.log('val_mae', mae)
         self.val_accuracy(pred_error_thresholded, true_error_thresholded)  # updates the metric
         self.log('pred_minus_true_error', signed_loss)
 

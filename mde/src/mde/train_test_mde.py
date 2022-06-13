@@ -11,14 +11,14 @@ from pytorch_lightning.loggers import WandbLogger
 from wandb.util import generate_id
 
 from link_bot_data.new_dataset_utils import fetch_mde_dataset
-from moonshine.filepath_tools import load_hjson
 from link_bot_data.visualization import init_viz_env
 from link_bot_data.wandb_datasets import get_dataset_with_version
 from link_bot_pycommon.load_wandb_model import load_model_artifact, model_artifact_path
-from mde.mde_torch import MDE
 from mde.mde_data_module import MDEDataModule
+from mde.mde_torch import MDE
 from mde.torch_mde_dataset import TorchMDEDataset
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
+from moonshine.filepath_tools import load_hjson
 from moonshine.my_pl_callbacks import HeartbeatCallback
 from moonshine.torch_and_tf_utils import add_batch, remove_batch
 from moonshine.torch_datasets_utils import dataset_skip
@@ -47,10 +47,10 @@ def train_main(dataset_dir: pathlib.Path,
     params = load_hjson(params_filename)
 
     data_module = MDEDataModule(dataset_dir,
-                                 batch_size=batch_size,
-                                 take=take,
-                                 skip=skip,
-                                 repeat=repeat)
+                                batch_size=batch_size,
+                                take=take,
+                                skip=skip,
+                                repeat=repeat)
     data_module.add_dataset_params(params)
 
     # add some extra useful info here
@@ -61,8 +61,8 @@ def train_main(dataset_dir: pathlib.Path,
     params['start-train-time'] = stamp
     params['batch_size'] = batch_size
     params['seed'] = seed
-    params['max_epochs'] = epochs
-    params['max_steps'] = steps
+    params['epochs'] = epochs
+    params['steps'] = steps
     params['checkpoint'] = checkpoint
 
     if checkpoint is None:
@@ -83,11 +83,13 @@ def train_main(dataset_dir: pathlib.Path,
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, log_model='all', **wandb_kargs)
     ckpt_cb = pl.callbacks.ModelCheckpoint(monitor="val_loss", save_top_k=1, save_last=True, filename='{epoch:02d}')
     hearbeat_callback = HeartbeatCallback(model.scenario)
+    max_steps = int(steps / batch_size) if steps != -1 else steps
+    print(f"{max_steps=}")
     trainer = pl.Trainer(gpus=1,
                          logger=wb_logger,
                          enable_model_summary=False,
                          max_epochs=epochs,
-                         max_steps=steps,
+                         max_steps=max_steps,
                          log_every_n_steps=1,
                          check_val_every_n_epoch=1,
                          callbacks=[ckpt_cb, hearbeat_callback],
