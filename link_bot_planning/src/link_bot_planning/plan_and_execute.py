@@ -411,10 +411,6 @@ class PlanAndExecute:
 
     def execute(self, planning_query: PlanningQuery, planning_result: PlanningResult):
         # execute the plan, collecting the states that actually occurred
-        print("PLANNED JOINT POSITIONS")
-        for t, p in enumerate(planning_result.path):
-            print(t, p['joint_positions'])
-
         self.on_before_execute()
         end_trial = False
         if self.no_execution:

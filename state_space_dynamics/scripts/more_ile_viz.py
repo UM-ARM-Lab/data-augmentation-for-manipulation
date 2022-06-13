@@ -40,10 +40,16 @@ def main():
 
     initial_model, _, initial_errors = get_data_for_epoch(args.checkpoint, 0, inputs, s)
     time_steps = np.argwhere(initial_errors < .08).squeeze(1)
+    print("visualizing time steps with initial error < 0.08")
     viz_inputs(dataset, inputs, initial_model, time_steps)
-
+    #
     final_model, _, final_errors = get_data_for_epoch(args.checkpoint, n_epochs - 1, inputs, s)
-    time_steps = np.argwhere(final_errors < .08).squeeze()
+    # print("visualizing time steps with final error in custom range")
+    # time_steps = list(range(40, 55)) + list(range(75, 90))
+    # viz_inputs(dataset, inputs, final_model, time_steps)
+
+    print("visualizing time steps with final error above 0.15")
+    time_steps = np.argwhere(final_errors > .15).squeeze()
     viz_inputs(dataset, inputs, final_model, time_steps)
 
 
@@ -51,7 +57,7 @@ def get_data_for_epoch(checkpoint, epoch, inputs, s):
     model_at_epoch = load_model_artifact(checkpoint, UDNN, 'udnn', version=f'v{epoch}', user='armlab')
 
     outputs = numpify(remove_batch(model_at_epoch(torchify(add_batch(inputs)))))
-    error_at_epoch = s.classifier_distance(inputs, outputs)[1:]  # skip t=0
+    error_at_epoch = s.classifier_distance(inputs, outputs)
     xs = np.arange(error_at_epoch.shape[0])
 
     return model_at_epoch, xs, error_at_epoch
@@ -69,37 +75,6 @@ def viz_inputs(dataset, inputs, model, time_steps):
         init_viz_env(s, inputs, t)
         viz_pred_actual_t(dataset, model, inputs, outputs, s, t, threshold=0.08)
         time_anim.step()
-
-
-#
-#         with saved_results.open("wb") as f:
-#             pickle.dump([errors, initial_errors_sorted], f)
-#     return dataset, xs, errors, initial_errors_sorted, root
-#
-#
-# def make_animation(args, xs, errors, initial_errors_sorted, root):
-#     fig = plt.figure(figsize=(10, 4))
-#     ax = plt.gca()
-#     ax.set_xlabel("training data, sorted by initial error")
-#     ax.set_ylabel("error")
-#     ax.set_ylim(bottom=9e-3, top=1.3)
-#     ax.set_yscale("log")
-#     line, = ax.plot(xs, np.ones(len(errors[0])), label='current')
-#     ax.plot(xs, initial_errors_sorted, label='initial error')
-#     ax.legend()
-#     ax.axhline(y=0.08, color='k', linestyle='--')
-#
-#     def _viz_epoch(frame_idx):
-#         error_at_epoch = errors[frame_idx]
-#         line.set_ydata(error_at_epoch)
-#         ax.set_title(f"{frame_idx}")
-#
-#     anim = FuncAnimation(fig=fig, func=_viz_epoch, frames=len(errors))
-#     filename = root / f"anim_ile-{args.dataset_dir}-{args.checkpoint}-{int(time())}.gif"
-#     print(f"saving {filename.as_posix()}")
-#     anim.save(filename.as_posix(), fps=1)
-#     plt.close()
-#     print("done")
 
 
 if __name__ == '__main__':
