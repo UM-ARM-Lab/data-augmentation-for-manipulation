@@ -21,7 +21,8 @@ class MDEDataModule(pl.LightningDataModule):
                  skip: int,
                  repeat: Optional[int] = None,
                  train_mode: str = 'train',
-                 val_mode: str = 'val'):
+                 val_mode: str = 'val',
+                 test_mode: str = 'test'):
         super().__init__()
         self.dataset_dir = dataset_dir
         self.fetched_dataset_dir = None
@@ -31,7 +32,7 @@ class MDEDataModule(pl.LightningDataModule):
         self.repeat = repeat
         self.train_mode = train_mode
         self.val_mode = val_mode
-        self.test_mode = 'test'
+        self.test_mode = test_mode
 
         self.train_dataset = None
         self.val_dataset = None
@@ -51,12 +52,14 @@ class MDEDataModule(pl.LightningDataModule):
 
         self.train_dataset = dataset_repeat(train_dataset_skip, self.repeat)
 
-        print("Applying take to validation set as well")
+        print("Applying take to validation & test as well")
         val_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.val_mode, transform=transform)
         val_dataset_take = dataset_take(val_dataset, self.take)
         self.val_dataset = val_dataset_take
 
-        self.test_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.test_mode, transform=transform)
+        test_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.test_mode, transform=transform)
+        test_dataset_take = dataset_take(test_dataset, self.take)
+        self.test_dataset = test_dataset_take
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, collate_fn=my_collate,

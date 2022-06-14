@@ -218,6 +218,16 @@ class MDE(pl.LightningModule):
 
         return loss
 
+    def test_step(self, test_batch, batch_idx):
+        pred_error = self.forward(test_batch)
+        loss, mae = self.compute_loss(test_batch, pred_error)
+        true_error = test_batch['error'][:, 1]
+        signed_loss = pred_error - true_error
+        self.log('test_loss', loss)
+        self.log('test_mae', mae)
+        self.log('pred_minus_true_error', signed_loss)
+        return loss
+
     def validation_epoch_end(self, _):
         self.log('val_accuracy', self.val_accuracy.compute())  # logs the metric result/value
 
