@@ -134,7 +134,7 @@ def eval_main(dataset_dir: pathlib.Path,
     wb_logger = WandbLogger(project=project, name=run_id, id=run_id, tags=['eval'], config=eval_config, entity='armlab')
     trainer = pl.Trainer(gpus=1, enable_model_summary=False, logger=wb_logger)
 
-    data_module = UDNNDataModule(dataset_dir, batch_size=batch_size, take=take, skip=skip)
+    data_module = MDEDataModule(dataset_dir, batch_size=batch_size, take=take, skip=skip)
 
     metrics = trainer.test(model, data_module, verbose=False)
     wandb.finish()

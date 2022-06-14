@@ -16,7 +16,7 @@ from link_bot_data.new_dataset_utils import fetch_mde_dataset
 from link_bot_pycommon.load_wandb_model import load_model_artifact
 from mde.mde_torch import MDE
 from mde.torch_mde_dataset import TorchMDEDataset
-from moonshine.torch_datasets_utils import my_collate, dataset_shard
+from moonshine.torch_datasets_utils import my_collate, dataset_shard, dataset_take
 from state_space_dynamics.torch_dynamics_dataset import remove_keys
 
 
@@ -26,6 +26,7 @@ def main():
     parser.add_argument('dataset_dir', type=pathlib.Path)
     parser.add_argument('checkpoint', type=str)
     parser.add_argument('--modes', default='train,val')
+    parser.add_argument('--take', type=int)
 
     args = parser.parse_args()
 
@@ -38,7 +39,8 @@ def main():
     for mode in modes:
         transform = transforms.Compose([remove_keys("scene_msg")])
         full_dataset = TorchMDEDataset(dataset_dir, mode=mode, transform=transform)
-        s = full_dataset.get_scenario()
+        full_dataset = dataset_take(full_dataset, args.take)
+        # s = full_dataset.get_scenario()
 
         max_len = 1000
         shard = max(int(len(full_dataset) / max_len), 1)

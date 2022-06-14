@@ -51,7 +51,7 @@ def analyze_planning_results(args):
 
     boxplot(df, outdir, hue, 'planning_time', "Total Planning Time", figsize=(12, 8))
 
-    boxplot(df, outdir, hue, 'num_actions', "# Actions", figsize=(12, 8))
+    # boxplot(df, outdir, hue, 'num_actions', "# Actions", figsize=(12, 8))
 
     if not args.no_plot:
         plt.show(block=True)

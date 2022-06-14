@@ -42,8 +42,14 @@ def get_dataset_with_version(dataset_dir: pathlib.Path, project, entity='armlab'
 def wandb_download_dataset(entity: str, project: str, dataset_name: str, version: str):
     api = wandb.Api()
     artifact = api.artifact(f'{entity}/{project}/{dataset_name}:{version}')
-    dataset_dir = pathlib.Path(artifact.download())
-    return dataset_dir
+
+    # NOTE: this is much faster than letting .download() look up the manifest / cache etc...
+    #  but may be incorrect if we modify the data without incrementing the version
+    dataset_dir = pathlib.Path(artifact._default_root())
+    if dataset_dir.exists():
+        return dataset_dir
+
+    return pathlib.Path(artifact.download())
 
 
 def wandb_download_dataset_to(entity: str, project: str, dataset_name: str, version: str, outdir: pathlib.Path):

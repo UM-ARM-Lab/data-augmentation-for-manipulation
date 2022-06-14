@@ -1,8 +1,8 @@
 import pathlib
-
-import wandb
 from pathlib import Path
+
 import numpy as np
+import wandb
 
 
 def load_model_artifact(checkpoint, model_class, project, version, user='armlab', **kwargs):
@@ -35,8 +35,14 @@ def load_gp_mde_from_cfg(cfg, model_class):
 
 def model_artifact_path(checkpoint, project, version, user='armlab'):
     artifact = get_model_artifact(checkpoint, project, user, version)
-    artifact_dir = artifact.download()
-    local_ckpt_path = pathlib.Path(artifact_dir) / "model.ckpt"
+
+    # NOTE: this is much faster than letting .download() look up the manifest / cache etc...
+    #  but may be incorrect if we modify the data without incrementing the version
+    artifact_dir = pathlib.Path(artifact._default_root())
+    if not artifact_dir.exists():
+        artifact_dir = pathlib.Path(artifact.download())
+
+    local_ckpt_path = artifact_dir / "model.ckpt"
     print(f"Found artifact {local_ckpt_path}")
     return local_ckpt_path
 
