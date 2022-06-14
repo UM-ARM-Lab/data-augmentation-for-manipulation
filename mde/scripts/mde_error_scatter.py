@@ -85,7 +85,7 @@ def main():
 
         root = pathlib.Path("results/mde_scatters") / args.dataset_dir.name
         root.mkdir(exist_ok=True, parents=True)
-        max_error = 1.5
+        max_error = 0.6
 
         plt.figure(figsize=(12, 12))
         ax = plt.gca()
