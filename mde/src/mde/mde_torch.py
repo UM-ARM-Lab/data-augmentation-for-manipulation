@@ -86,7 +86,7 @@ class MDE(pl.LightningModule):
         if self.no_lstm:
             self.output_layer = nn.Linear(2 * final_hidden_dim, 1)
         else:
-            self.output_layer = nn.Linear(final_hidden_dim, 1)
+            self.output_layer = nn.Linear(self.hparams['rnn_size'], 1)
 
         self.debug = DebuggingViz(self.scenario, self.hparams.state_keys, self.hparams.action_keys)
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,

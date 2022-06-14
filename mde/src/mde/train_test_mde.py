@@ -45,6 +45,7 @@ def train_main(dataset_dir: pathlib.Path,
     pl.seed_everything(seed, workers=True)
 
     params = load_hjson(params_filename)
+    print(params)
 
     data_module = MDEDataModule(dataset_dir,
                                 batch_size=batch_size,
@@ -87,7 +88,7 @@ def train_main(dataset_dir: pathlib.Path,
     print(f"{max_steps=}")
     trainer = pl.Trainer(gpus=1,
                          logger=wb_logger,
-                         enable_model_summary=False,
+                         enable_model_summary=True,
                          max_epochs=epochs,
                          max_steps=max_steps,
                          log_every_n_steps=1,
