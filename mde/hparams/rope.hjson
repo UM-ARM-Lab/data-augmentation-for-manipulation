@@ -18,23 +18,22 @@
     right_gripper_position
   ]
   learning_rate:  0.0001
-  rnn_size: 2048
-  fc_layer_sizes: [ 2048, 2048, 2048 ]
-  pooling: [ 1, 2, 2 ]
+  rnn_size: 512
+  fc_layer_sizes: [ 512, 512 ]
+  pooling: [ 2, 2, 2 ]
   conv_filters: [
-    [ 32, [ 3, 3, 3 ] ]
-    [ 32, [ 3, 3, 3 ] ]
-    [ 32, [ 3, 3, 3 ] ]
-    [ 32, [ 3, 3, 3 ] ]
+    [ 64, [ 3, 3, 3 ] ]
+    [ 64, [ 3, 3, 3 ] ]
+    [ 64, [ 3, 3, 3 ] ]
   ]
-  conv_out_size: 5376
   local_env_h_rows: 44
   local_env_w_cols: 44
   local_env_c_channels: 44
   error_threshold: 0.08
   weight_decay: 0
   dropout_p: 0.0
+  no_lstm: true
   use_prev_error: true
-  use_batchnorm: false
+  use_batchnorm: true
   use_res3d: true
 }
