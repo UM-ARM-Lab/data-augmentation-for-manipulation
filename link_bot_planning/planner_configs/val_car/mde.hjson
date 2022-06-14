@@ -5,9 +5,9 @@
     rope_name: rope_3d_alt
   }
   termination_criteria: {
-    total_timeout: 1000
-    timeout: 1000
-    max_extensions: 20000
+    total_timeout: 500
+    timeout: 500
+    max_extensions: 10000
     max_attempts: 1
     max_planning_attempts: 1
     attempted_extensions_threshold: 128
