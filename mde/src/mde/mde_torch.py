@@ -22,6 +22,7 @@ from link_bot_pycommon.grid_utils_np import environment_to_vg_msg
 from link_bot_pycommon.load_wandb_model import load_model_artifact, load_gp_mde_from_cfg
 from moonshine import get_local_environment_torch
 from moonshine.make_voxelgrid_inputs_torch import VoxelgridInfo
+from moonshine.res3d import Res3D
 from moonshine.robot_points_torch import RobotVoxelgridInfo
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from moonshine.torch_utils import sequence_of_dicts_to_dict_of_tensors
@@ -51,20 +52,27 @@ class MDE(pl.LightningModule):
         in_channels = 5
         if self.hparams.get("new_pooling", False):
             assert (len(self.hparams['conv_filters']) == len(self.hparams['new_pooling']))
-            for (out_channels, kernel_size), pooling in zip(self.hparams['conv_filters'], self.hparams['new_pooling']):
-                conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
-                conv_layers.append(nn.LeakyReLU())
+            for i, ((out_channels, kernel_size), pooling) in enumerate(
+                    zip(self.hparams['conv_filters'], self.hparams['new_pooling'])):
+                if self.hparams.get("use_res3d", False) and i > 0:
+                    conv_layers.append(Res3D(in_channels, out_channels, kernel_size))
+                else:
+                    conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
+                    conv_layers.append(nn.LeakyReLU())
                 if self.hparams.get("use_batchnorm", False):
                     conv_layers.append(nn.BatchNorm3d())
                 conv_layers.append(nn.MaxPool3d(pooling))
                 in_channels = out_channels
         else:
-            for (out_channels, kernel_size), pooling in zip(self.hparams['conv_filters'], self.hparams['pooling']):
-                conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
-                conv_layers.append(nn.LeakyReLU())
+            for i, (out_channels, kernel_size) in enumerate(self.hparams['conv_filters']):
+                if self.hparams.get("use_res3d", False) and i > 0:
+                    conv_layers.append(Res3D(in_channels, out_channels, kernel_size))
+                else:
+                    conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
+                    conv_layers.append(nn.LeakyReLU())
                 if self.hparams.get("use_batchnorm", False):
-                    conv_layers.append(nn.BatchNorm3d())
-                conv_layers.append(nn.MaxPool3d(pooling))
+                    conv_layers.append(nn.BatchNorm3d(out_channels))
+                conv_layers.append(nn.MaxPool3d(self.hparams['pooling']))
                 in_channels = out_channels
 
         fc_layers = []
@@ -73,7 +81,11 @@ class MDE(pl.LightningModule):
         state_size = sum([state_desc[k] for k in self.hparams.state_keys])
         action_size = sum([action_desc[k] for k in self.hparams.action_keys])
 
-        conv_out_size = int(self.hparams['conv_filters'][-1][0] * np.prod(self.hparams['conv_filters'][-1][1]))
+        if self.hparams.get("conv_out_size", None):
+            conv_out_size = self.hparams["conv_out_size"]
+        else:
+            conv_out_size = int(self.hparams['conv_filters'][-1][0] * np.prod(self.hparams['conv_filters'][-1][1]))
+
         prev_error_size = 1
         if self.hparams.get("use_prev_error", True):
             in_size = conv_out_size + 2 * state_size + action_size + prev_error_size
@@ -164,7 +176,6 @@ class MDE(pl.LightningModule):
             [-1, 5, self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels])
         flat_conv_h = self.conv_encoder(flat_voxel_grids)
         conv_h = flat_conv_h.reshape(batch_size, time, -1)
-
         prev_pred_error = inputs['error'][:, 0].unsqueeze(-1).unsqueeze(-1)
         padded_prev_pred_error = F.pad(prev_pred_error, [0, 0, 0, 1, 0, 0])
         if self.hparams.get("use_prev_error", True):
