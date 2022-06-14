@@ -54,12 +54,16 @@ class MDE(pl.LightningModule):
             for (out_channels, kernel_size), pooling in zip(self.hparams['conv_filters'], self.hparams['new_pooling']):
                 conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
                 conv_layers.append(nn.LeakyReLU())
+                if self.hparams.get("use_batchnorm", False):
+                    conv_layers.append(nn.BatchNorm3d())
                 conv_layers.append(nn.MaxPool3d(pooling))
                 in_channels = out_channels
         else:
             for (out_channels, kernel_size), pooling in zip(self.hparams['conv_filters'], self.hparams['pooling']):
                 conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
                 conv_layers.append(nn.LeakyReLU())
+                if self.hparams.get("use_batchnorm", False):
+                    conv_layers.append(nn.BatchNorm3d())
                 conv_layers.append(nn.MaxPool3d(pooling))
                 in_channels = out_channels
 

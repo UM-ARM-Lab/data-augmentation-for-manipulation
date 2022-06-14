@@ -37,4 +37,5 @@
   weight_decay: 0
   dropout_p: 0.0
   use_prev_error: true
+  use_batchnorm: true
 }
