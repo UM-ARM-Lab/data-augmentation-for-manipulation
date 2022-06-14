@@ -369,16 +369,21 @@ def plot_steps(scenario: ScenarioWithVisualization,
         scenario.plot_environment_rviz(e_t)
         scenario.plot_state_rviz(s_t, label='actual', color=actual_state_color)
 
+        c = 'r'
         if s_t_pred is not None:
+            if 'error' in s_t_pred:
+                pred_error = np.squeeze(s_t_pred['error'])
+                scenario.plot_pred_error_rviz(pred_error)
+                c = cm.jet_r(pred_error)
+            else:
+                scenario.plot_pred_error_rviz(-999)
+
             if 'accept_probability' in s_t_pred:
                 accept_probability_t = np.squeeze(s_t_pred['accept_probability'])
+                scenario.plot_accept_probability(accept_probability_t)
+                c = cm.jet_r(accept_probability_t)
             else:
-                accept_probability_t = -1
-        else:
-            accept_probability_t = -1
-
-        scenario.plot_accept_probability(accept_probability_t)
-        c = cm.jet_r(accept_probability_t)
+                scenario.plot_accept_probability(-999)
 
         if t < anim.max_t:
             action_color = _type_action_color(type_t)
