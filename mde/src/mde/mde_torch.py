@@ -49,11 +49,19 @@ class MDE(pl.LightningModule):
 
         conv_layers = []
         in_channels = 5
-        for out_channels, kernel_size in self.hparams['conv_filters']:
-            conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
-            conv_layers.append(nn.LeakyReLU())
-            conv_layers.append(nn.MaxPool3d(self.hparams['pooling']))
-            in_channels = out_channels
+        if self.hparams.get("new_pooling", False):
+            assert (len(self.hparams['conv_filters']) == len(self.hparams['new_pooling']))
+            for (out_channels, kernel_size), pooling in zip(self.hparams['conv_filters'], self.hparams['new_pooling']):
+                conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
+                conv_layers.append(nn.LeakyReLU())
+                conv_layers.append(nn.MaxPool3d(pooling))
+                in_channels = out_channels
+        else:
+            for (out_channels, kernel_size), pooling in zip(self.hparams['conv_filters'], self.hparams['pooling']):
+                conv_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size))
+                conv_layers.append(nn.LeakyReLU())
+                conv_layers.append(nn.MaxPool3d(pooling))
+                in_channels = out_channels
 
         fc_layers = []
         state_desc = data_collection_params['state_description']
@@ -86,7 +94,7 @@ class MDE(pl.LightningModule):
         if self.no_lstm:
             self.output_layer = nn.Linear(2 * final_hidden_dim, 1)
         else:
-            self.output_layer = nn.Linear(self.hparams['rnn_size'], 1)
+            self.output_layer = nn.Linear(final_hidden_dim, 1)
 
         self.debug = DebuggingViz(self.scenario, self.hparams.state_keys, self.hparams.action_keys)
         self.local_env_helper = LocalEnvHelper(h=self.local_env_h_rows, w=self.local_env_w_cols,
