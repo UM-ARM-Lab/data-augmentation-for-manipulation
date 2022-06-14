@@ -5,7 +5,7 @@ from link_bot_pycommon.dual_arm_sim_rope_scenario import SimDualArmRopeScenario
 
 @ros_init.with_ros("val_grasp_rope")
 def main():
-    s = SimDualArmRopeScenario('hdt_michigan')
+    s = SimDualArmRopeScenario('hdt_michigan', params={'rope_name': 'rope_3d_alt'})
     s.on_before_get_state_or_execute_action()
 
     s.robot.plan_to_joint_config('both_arms', 'home')
