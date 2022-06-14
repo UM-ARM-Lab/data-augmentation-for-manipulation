@@ -122,9 +122,11 @@ def eval_main(dataset_dir: pathlib.Path,
               **kwargs):
     model = load_model_artifact(checkpoint, MDE, project, version='best', user=user)
     model.eval()
+    num_params = sum(p.numel() for p in model.parameters())
 
     run_id = f'eval-{generate_id(length=5)}'
     eval_config = {
+        'num_params':             num_params,
         'training_dataset':       model.hparams.dataset_dir,
         'eval_dataset':           dataset_dir.as_posix(),
         'eval_dataset_versioned': get_dataset_with_version(dataset_dir, PROJECT),
