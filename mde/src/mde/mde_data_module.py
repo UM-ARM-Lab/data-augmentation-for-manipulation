@@ -50,7 +50,11 @@ class MDEDataModule(pl.LightningDataModule):
         train_dataset_skip = dataset_skip(train_dataset_take, self.skip)
 
         self.train_dataset = dataset_repeat(train_dataset_skip, self.repeat)
-        self.val_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.val_mode, transform=transform)
+
+        print("Applying take to validation set as well")
+        val_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.val_mode, transform=transform)
+        val_dataset_take = dataset_take(val_dataset, self.take)
+        self.val_dataset = val_dataset_take
 
         self.test_dataset = TorchDynamicsDataset(self.fetched_dataset_dir, mode=self.test_mode, transform=transform)
 

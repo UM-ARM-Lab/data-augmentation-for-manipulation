@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytorch_lightning
 import seaborn as sns
+import wandb
 from sklearn.linear_model import LinearRegression
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
@@ -33,7 +34,20 @@ def main():
     model = load_model_artifact(args.checkpoint, MDE, project='mde', version='best', user='armlab')
     model.eval()
 
+    if args.take != model.hparams['take']:
+        raise RuntimeError()
+
     dataset_dir = fetch_mde_dataset(args.dataset_dir)
+
+    wandb.init(project='mde_scatter',
+               entity='armlab',
+               name=f'mde_scatter_{args.checkpoint}',
+               config={
+                   'dataset_dir': args.dataset_dir,
+                   'checkpoint':  args.checkpoint,
+                   'modes':       args.modes,
+                   'take':        args.take,
+               })
 
     modes = args.modes.split(",")
     for mode in modes:
@@ -83,6 +97,14 @@ def main():
         print(f"r2_score: {r2_score:.3f}")
         print(f"slope: {slope:.3f}")
 
+        data = np.stack([true_errors, pred_errors], 1)
+        table = wandb.Table(data=data, columns=["true_error", "pred_error"])
+        wandb.log({
+            f'{mode}_error_table': table,
+            f'{mode}_r2_score':    r2_score,
+            f'{mode}_slope':       slope,
+        })
+
         plt.style.use("slides")
 
         root = pathlib.Path("results/mde_scatters") / args.dataset_dir.name
@@ -112,9 +134,12 @@ def main():
         ax.set_xlabel("true error")
         ax.set_ylabel("predicted error")
         ax.text(0.01, 0.9 * max_error, f"r2={r2_score:.3f},slope={slope:.3f}")
+
         filename = root / f'mde_scatter_{args.checkpoint}_{mode}'
         plt.savefig(filename.as_posix())
         plt.close()
+
+    wandb.finish()
 
 
 if __name__ == '__main__':
