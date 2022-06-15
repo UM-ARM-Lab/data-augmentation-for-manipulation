@@ -17,7 +17,7 @@
     left_gripper_position
     right_gripper_position
   ]
-  learning_rate:  0.0001
+  learning_rate:  0.0002
   rnn_size: 512
   fc_layer_sizes: [ 512, 512 ]
   pooling: [ 2, 2, 2 ]
@@ -26,12 +26,13 @@
     [ 64, [ 3, 3, 3 ] ]
     [ 64, [ 3, 3, 3 ] ]
   ]
+  conv_out_size: 8000
   local_env_h_rows: 44
   local_env_w_cols: 44
   local_env_c_channels: 44
   error_threshold: 0.08
-  weight_decay: 0
-  dropout_p: 0.0
+  weight_decay: 1e-5
+  dropout_p: 0.5
   no_lstm: true
   use_prev_error: true
   use_batchnorm: true
