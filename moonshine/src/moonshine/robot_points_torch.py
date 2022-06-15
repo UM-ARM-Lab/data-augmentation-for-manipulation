@@ -1,9 +1,9 @@
-import numpy as np
-import torch
 import pathlib
 import pickle
 
+import numpy as np
 import pyjacobian_follower
+import torch
 
 from link_bot_pycommon.pycommon import unordered_pairs
 from moonshine.numpify import numpify
@@ -12,23 +12,31 @@ from moonshine.torch_utils import repeat_tensor
 
 class RobotVoxelgridInfo:
 
-    def __init__(self, joint_positions_key: str, robot_points_path=None):
+    def __init__(self, joint_positions_key: str, robot_points_path=None, exclude_links=None):
         if robot_points_path is None:
             self.robot_points_path = pathlib.Path("robot_points_data/val/robot_points.pkl")
         else:
             self.robot_points_path = robot_points_path
+        if exclude_links is None:
+            self.exclude_links = []
+        else:
+            self.exclude_links = exclude_links
 
         with self.robot_points_path.open("rb") as file:
             data = pickle.load(file)
+
         robot_points = data['points']
         self.res = data['res']
         self.link_names = list(robot_points.keys())
+        for k in self.exclude_links:
+            self.link_names.remove(k)
+
         self.points_per_links = []
         for link_name in self.link_names:
             self.points_per_links.append(len(robot_points[link_name]))
         self.n_points = sum(self.points_per_links)
 
-        self.points_link_frame_list = get_points_link_frame(robot_points)
+        self.points_link_frame_list = get_points_link_frame(robot_points, self.exclude_links)
         points_link_frame_concat = torch.cat(self.points_link_frame_list, 0)
         ones = torch.ones(self.n_points, 1, dtype=torch.float32)
         link_points_link_frame_homo = torch.cat([points_link_frame_concat, ones], 1)
@@ -52,9 +60,11 @@ class RobotVoxelgridInfo:
         return self._allowed_collidable_names_and_points
 
 
-def get_points_link_frame(points):
+def get_points_link_frame(points, exclude_links):
     points_link_frame = []
     for link_name, link_points_link_frame in points.items():
+        if link_name in exclude_links:
+            continue
         link_points_link_frame = torch.from_numpy(np.array(link_points_link_frame, dtype=np.float32))
         points_link_frame.append(link_points_link_frame)
     return points_link_frame

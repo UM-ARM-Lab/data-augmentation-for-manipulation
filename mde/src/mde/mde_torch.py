@@ -209,12 +209,12 @@ class MDE(pl.LightningModule):
         return local_env, local_origin_point
 
     def compute_loss(self, inputs: Dict[str, torch.Tensor], outputs):
-        error_after = inputs['error'][:, 1]
+        true_error_after = inputs['error'][:, 1]
 
-        mae = (outputs - error_after).abs().mean()
-        mse = F.mse_loss(outputs, error_after)
-        error_after_binary = (error_after < self.hparams['error_threshold']).float()
-        bce = F.binary_cross_entropy_with_logits(outputs, error_after_binary)
+        mae = (outputs - true_error_after).abs().mean()
+        mse = F.mse_loss(outputs, true_error_after)
+        true_error_after_binary = (true_error_after < self.hparams['error_threshold']).float()
+        bce = F.binary_cross_entropy_with_logits(outputs, true_error_after_binary)
 
         if self.hparams.get("loss_type", None) == 'MAE':
             loss = mae
@@ -237,10 +237,10 @@ class MDE(pl.LightningModule):
     def validation_step(self, val_batch: Dict[str, torch.Tensor], batch_idx):
         pred_error = self.forward(val_batch)
         loss, mse, mae, bce = self.compute_loss(val_batch, pred_error)
-        true_error = val_batch['error'][:, 1]
-        true_error_binary = true_error < self.hparams['error_threshold']
-        pred_error_binary = pred_error < self.hparams['error_threshold']
-        signed_loss = pred_error - true_error
+        true_error_after = val_batch['error'][:, 1]
+        true_error_binary = true_error_after < self.hparams['error_threshold']
+        pred_error_binary = F.sigmoid(pred_error)
+        signed_loss = pred_error - true_error_after
         self.log('val_loss', loss)
         self.log('val_mae', mae)
         self.log('val_mse', mse)
