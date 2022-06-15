@@ -1,5 +1,5 @@
 {
-  loss_type: MAE
+  loss_type: BCE
   point_state_keys: [
     rope
     left_gripper

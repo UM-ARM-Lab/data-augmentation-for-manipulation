@@ -176,6 +176,7 @@ class MDE(pl.LightningModule):
             [-1, 5, self.local_env_h_rows, self.local_env_w_cols, self.local_env_c_channels])
         flat_conv_h = self.conv_encoder(flat_voxel_grids)
         conv_h = flat_conv_h.reshape(batch_size, time, -1)
+        # NOTE: maybe we should be using the previous predicted error?
         prev_pred_error = inputs['error'][:, 0].unsqueeze(-1).unsqueeze(-1)
         padded_prev_pred_error = F.pad(prev_pred_error, [0, 0, 0, 1, 0, 0])
         if self.hparams.get("use_prev_error", True):
@@ -212,30 +213,38 @@ class MDE(pl.LightningModule):
 
         mae = (outputs - error_after).abs().mean()
         mse = F.mse_loss(outputs, error_after)
+        error_after_binary = (error_after < self.hparams['error_threshold']).float()
+        bce = F.binary_cross_entropy_with_logits(outputs, error_after_binary)
 
         if self.hparams.get("loss_type", None) == 'MAE':
             loss = mae
+        elif self.hparams.get("loss_type", None) == 'BCE':
+            loss = bce
         else:
             loss = mse
 
-        return loss, mae
+        return loss, mse, mae, bce
 
     def training_step(self, train_batch: Dict[str, torch.Tensor], batch_idx):
         outputs = self.forward(train_batch)
-        loss, mae = self.compute_loss(train_batch, outputs)
+        loss, mse, mae, bce = self.compute_loss(train_batch, outputs)
         self.log('train_loss', loss)
         self.log('train_mae', mae)
+        self.log('train_mse', mse)
+        self.log('train_bce', bce)
         return loss
 
     def validation_step(self, val_batch: Dict[str, torch.Tensor], batch_idx):
         pred_error = self.forward(val_batch)
-        loss, mae = self.compute_loss(val_batch, pred_error)
+        loss, mse, mae, bce = self.compute_loss(val_batch, pred_error)
         true_error = val_batch['error'][:, 1]
         true_error_thresholded = true_error < self.hparams.error_threshold
         pred_error_thresholded = pred_error < self.hparams.error_threshold
         signed_loss = pred_error - true_error
         self.log('val_loss', loss)
         self.log('val_mae', mae)
+        self.log('val_mse', mse)
+        self.log('val_bce', bce)
         self.val_accuracy(pred_error_thresholded, true_error_thresholded)  # updates the metric
         self.log('pred_minus_true_error', signed_loss)
 
@@ -243,11 +252,13 @@ class MDE(pl.LightningModule):
 
     def test_step(self, test_batch, batch_idx):
         pred_error = self.forward(test_batch)
-        loss, mae = self.compute_loss(test_batch, pred_error)
+        loss, mse, mae, bce = self.compute_loss(test_batch, pred_error)
         true_error = test_batch['error'][:, 1]
         signed_loss = pred_error - true_error
         self.log('test_loss', loss)
         self.log('test_mae', mae)
+        self.log('test_mse', mse)
+        self.log('test_bce', bce)
         self.log('pred_minus_true_error', signed_loss)
         return loss
 
