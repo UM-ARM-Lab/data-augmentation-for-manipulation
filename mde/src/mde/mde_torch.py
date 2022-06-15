@@ -238,14 +238,14 @@ class MDE(pl.LightningModule):
         pred_error = self.forward(val_batch)
         loss, mse, mae, bce = self.compute_loss(val_batch, pred_error)
         true_error = val_batch['error'][:, 1]
-        true_error_thresholded = true_error < self.hparams.error_threshold
-        pred_error_thresholded = pred_error < self.hparams.error_threshold
+        true_error_binary = true_error < self.hparams['error_threshold']
+        pred_error_binary = pred_error < self.hparams['error_threshold']
         signed_loss = pred_error - true_error
         self.log('val_loss', loss)
         self.log('val_mae', mae)
         self.log('val_mse', mse)
         self.log('val_bce', bce)
-        self.val_accuracy(pred_error_thresholded, true_error_thresholded)  # updates the metric
+        self.val_accuracy(pred_error_binary, true_error_binary)  # updates the metric
         self.log('pred_minus_true_error', signed_loss)
 
         return loss
