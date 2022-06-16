@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+import pickle
 from multiprocessing import get_context
 
 import numpy as np
@@ -21,6 +22,8 @@ from moonshine.torch_geometry import pairwise_squared_distances
 
 @ros_init.with_ros("vis_close_mde_examples")
 def main():
+    np.set_printoptions(precision=4)
+
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', type=pathlib.Path)
     parser.add_argument('example_indices', type=int_set_arg)
@@ -39,7 +42,14 @@ def main():
         actions, _ = get_actions(all_dataset.time_indexed_keys, val_traj)
         ref_actions_list.append(actions)
 
-    train_actions_list, train_example_indices = get_actions_list(train_dataset)
+    cache = pathlib.Path("viz_close_mde_examples.pkl")
+    if cache.exists():
+        with cache.open('rb') as f:
+            train_actions_list, train_example_indices = pickle.load(f)
+    else:
+        train_actions_list, train_example_indices = get_actions_list(train_dataset)
+        with cache.open('wb') as f:
+            pickle.dump((train_actions_list, train_example_indices), f)
 
     ref_example_indices = args.example_indices
 
@@ -52,35 +62,47 @@ def main():
     distances_to_ref_matrix_flat = distances_to_ref_matrix_all.reshape([4, a, b])
     distances_to_ref_matrix = distances_to_ref_matrix_flat[1:].mean(0)
     # we want to compute the distance between each left/right before/after separately, so treat them as batch dims?
-    min_distances, min_indices = distances_to_ref_matrix.min(0)
+    nearest_distances, nearest_indices = distances_to_ref_matrix.min(0)
 
-    min_train_example_indices = np.array(train_example_indices)[min_indices.cpu().numpy()]
+    nearest_train_example_indices = np.array(train_example_indices)[nearest_indices.cpu().numpy()]
 
-    def get_t(example, _t):
+    def get_pred_t(example, _t):
         return numpify(index_time(example, all_dataset.time_indexed_keys_predicted, _t, False))
+
+    def get_actual_t(example, _t):
+        return numpify(index_time(example, all_dataset.time_indexed_keys, _t, False))
 
     anim = RvizAnimationController(n_time_steps=len(ref_example_indices))
     while not anim.done:
         t = anim.t()
         ref_example_index = ref_example_indices[t]
-        min_train_example_index = min_train_example_indices[t]
+        nearest_train_example_index = nearest_train_example_indices[t]
+        ref_example = all_dataset[ref_example_index]
+        nearest_train_example = all_dataset[nearest_train_example_index]
 
-        ref_0 = get_t(all_dataset[ref_example_index], 0)
-        ref_1 = get_t(all_dataset[ref_example_index], 1)
-        ref_1.pop(add_predicted("left_gripper"))
-        ref_1.pop(add_predicted("right_gripper"))
-        min_train_0 = get_t(all_dataset[min_train_example_index], 0)
-        min_train_1 = get_t(all_dataset[min_train_example_index], 1)
-        min_train_1.pop(add_predicted("left_gripper"))
-        min_train_1.pop(add_predicted("right_gripper"))
+        ref_pred_0 = get_pred_t(all_dataset[ref_example_index], 0)
+        ref_pred_1 = get_pred_t(all_dataset[ref_example_index], 1)
+        ref_pred_1.pop(add_predicted("left_gripper"))
+        ref_pred_1.pop(add_predicted("right_gripper"))
+        nearest_train_0 = get_pred_t(all_dataset[nearest_train_example_index], 0)
+        nearest_train_1 = get_pred_t(all_dataset[nearest_train_example_index], 1)
+        nearest_train_1.pop(add_predicted("left_gripper"))
+        nearest_train_1.pop(add_predicted("right_gripper"))
+        ref_actual_0 = get_actual_t(all_dataset[ref_example_index], 0)
+        ref_actual_1 = get_actual_t(all_dataset[ref_example_index], 1)
 
-        s.plot_environment_rviz(all_dataset[ref_example_index])
-        s.plot_state_rviz(ref_0, label='ref_0', color='red')
-        s.plot_state_rviz(ref_1, label='ref_1', color=adjust_lightness('red', 0.5))
-        s.plot_action_rviz(ref_0, ref_1, label='ref', color='red')
-        s.plot_state_rviz(min_train_0, label='min_train_0', color='blue')
-        s.plot_state_rviz(min_train_1, label='min_train_1', color=adjust_lightness('blue', 0.5))
-        s.plot_action_rviz(min_train_0, min_train_1, label='min_train', color='blue')
+        s.plot_environment_rviz(ref_example)
+        print(f"{ref_example_index=}")
+        print(f"validation example has error {ref_example['error']}")
+        print(f"but nearest training example has error {nearest_train_example['error']}")
+        s.plot_state_rviz(ref_pred_0, label='ref_pred_0', color='red')
+        s.plot_state_rviz(ref_pred_1, label='ref_pred_1', color=adjust_lightness('red', 0.5))
+        s.plot_action_rviz(ref_pred_0, ref_pred_1, label='ref', color='red')
+        s.plot_state_rviz(ref_actual_0, label='ref_actual_0', color='red')
+        s.plot_state_rviz(ref_actual_1, label='ref_actual_1', color=adjust_lightness('red', 0.5))
+        s.plot_state_rviz(nearest_train_0, label='nearest_train_0', color='blue')
+        s.plot_state_rviz(nearest_train_1, label='nearest_train_1', color=adjust_lightness('blue', 0.5))
+        s.plot_action_rviz(nearest_train_0, nearest_train_1, label='nearest_train', color='blue')
         anim.step()
 
 
