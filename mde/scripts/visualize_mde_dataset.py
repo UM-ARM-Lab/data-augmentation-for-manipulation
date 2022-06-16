@@ -29,6 +29,7 @@ def visualize_dataset(dataset, take, skip, shard, threshold=None):
     n_examples_visualized = 0
     while not dataset_anim.done:
         inputs = dataset_[dataset_anim.t()]
+        print(inputs['example_idx'])
 
         time_anim.reset()
         while not time_anim.done:

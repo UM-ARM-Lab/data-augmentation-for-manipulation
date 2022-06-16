@@ -65,6 +65,7 @@ def main():
 
         true_errors = []
         pred_errors = []
+        example_indices = []
         for batch in tqdm(loader):
             true_error = batch['error'][:, 1]
             pred_error = model.forward(batch)
@@ -72,22 +73,24 @@ def main():
 
             pred_error = pred_error.detach().cpu().numpy().tolist()
             true_error = true_error.detach().cpu().numpy().tolist()
-            for b, (pred_error_i, true_error_i) in enumerate(zip(pred_error, true_error)):
-                pred_errors.append(pred_error_i)
-                true_errors.append(true_error_i)
+            example_index = batch['example_idx'].detach().cpu().numpy().tolist()
+            pred_errors.extend(pred_error)
+            true_errors.extend(true_error)
+            example_indices.extend(example_index)
 
-                # if true_error_i < 0.05 and pred_error_i > 0.3:
-                #     inputs = numpify({k: v[b] for k, v in batch.items()})
-                #     time_anim = RvizAnimationController(n_time_steps=2)
-                #
-                #     time_anim.reset()
-                #     while not time_anim.done:
-                #         t = time_anim.t()
-                #         init_viz_env(s, inputs, t)
-                #         full_dataset.transition_viz_t()(s, inputs, t)
-                #         s.plot_pred_error_rviz(pred_error_i)
-                #         s.plot_error_rviz(true_error_i)
-                #         time_anim.step()
+            # for b, (pred_error_i, true_error_i) in enumerate(zip(pred_error, true_error)):
+            #     if true_error_i < 0.05 and pred_error_i > 0.3:
+            #         inputs = numpify({k: v[b] for k, v in batch.items()})
+            #         time_anim = RvizAnimationController(n_time_steps=2)
+            #
+            #         time_anim.reset()
+            #         while not time_anim.done:
+            #             t = time_anim.t()
+            #             init_viz_env(s, inputs, t)
+            #             full_dataset.transition_viz_t()(s, inputs, t)
+            #             s.plot_pred_error_rviz(pred_error_i)
+            #             s.plot_error_rviz(true_error_i)
+            #             time_anim.step()
 
         true_errors_2d = np.array(true_errors).reshape([-1, 1])
         pred_errors_2d = np.array(pred_errors).reshape([-1, 1])
@@ -97,8 +100,8 @@ def main():
         print(f"r2_score: {r2_score:.3f}")
         print(f"slope: {slope:.3f}")
 
-        data = np.stack([true_errors, pred_errors], 1)
-        table = wandb.Table(data=data, columns=["true_error", "pred_error"])
+        data = np.stack([example_indices, true_errors, pred_errors], 1)
+        table = wandb.Table(data=data, columns=["example_idx", "true_error", "pred_error"])
         wandb.log({
             f'{mode}_error_table': table,
             f'{mode}_r2_score':    r2_score,

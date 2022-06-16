@@ -213,9 +213,10 @@ class MDE(pl.LightningModule):
 
         mae = (outputs - true_error_after).abs().mean()
         mse = F.mse_loss(outputs, true_error_after)
-        true_error_after_binary = (-true_error_after < self.hparams['error_threshold']).float()
-        bce = F.binary_cross_entropy_with_logits(outputs, true_error_after_binary)
-        biased_mse = mse * torch.exp(-10*true_error_after)
+        true_error_after_binary = (true_error_after < self.hparams['error_threshold']).float()
+        logits = -outputs
+        bce = F.binary_cross_entropy_with_logits(logits, true_error_after_binary)
+        biased_mse = mse * torch.exp(-10 * true_error_after)
 
         if self.hparams.get("loss_type", None) == 'MAE':
             loss = mae
@@ -241,14 +242,15 @@ class MDE(pl.LightningModule):
         pred_error = self.forward(val_batch)
         loss, mse, mae, bce = self.compute_loss(val_batch, pred_error)
         true_error_after = val_batch['error'][:, 1]
-        true_error_after_binary = (-true_error_after < self.hparams['error_threshold']).float()
-        pred_error_binary = torch.sigmoid(pred_error) > 0.5  # here we treat pred_error as a logit
+        true_error_after_binary = (true_error_after < self.hparams['error_threshold']).int()
+        logits = -pred_error
+        pred_error_probabilities = torch.sigmoid(logits)
         signed_loss = pred_error - true_error_after
         self.log('val_loss', loss)
         self.log('val_mae', mae)
         self.log('val_mse', mse)
         self.log('val_bce', bce)
-        self.val_accuracy(pred_error_binary, true_error_after_binary)  # updates the metric
+        self.val_accuracy(pred_error_probabilities, true_error_after_binary)  # updates the metric
         self.log('pred_minus_true_error', signed_loss)
 
         return loss
