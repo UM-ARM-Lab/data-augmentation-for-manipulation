@@ -181,8 +181,8 @@ class UDNN(MetaModule, pl.LightningModule):
             else:
                 mask = low_error_mask
 
+            mask = mask.float()
             mask_padded = F.pad(mask, [1, 0])
-            mask_padded = mask_padded.float()
 
             self.log("iterative mask mean", mask.mean())
 
