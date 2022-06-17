@@ -21,7 +21,7 @@ def get_grid_points(origin_point, res, shape):
 
 
 def visualize_sdf(pub, sdf: np.ndarray, shape, res, origin_point):
-    points = get_grid_points(origin_point, res, shape)
+    points = get_grid_points(origin_point, res, shape).numpy()
     list_of_tuples = [(p[0], p[1], p[2], d) for p, d in zip(points.reshape([-1, 3]), sdf.flatten())]
     dtype = [('x', np.float32), ('y', np.float32), ('z', np.float32), ('distance', np.float32)]
     np_record_array = np.array(list_of_tuples, dtype=dtype)

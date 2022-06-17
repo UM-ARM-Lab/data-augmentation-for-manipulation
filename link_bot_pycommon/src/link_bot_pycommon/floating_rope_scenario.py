@@ -40,7 +40,7 @@ from moonshine.base_learned_dynamics_model import dynamics_loss_function, dynami
 from moonshine.geometry_tf import xyzrpy_to_matrices, transform_points_3d, densify_points
 from moonshine.grid_utils_tf import batch_center_res_shape_to_origin_point, dist_to_bbox
 from moonshine.numpify import numpify
-from moonshine.numpy import homogeneous
+from moonshine.geometry_np import homogeneous
 from moonshine.torch_and_tf_utils import remove_batch, add_batch
 from peter_msgs.srv import *
 from rosgraph.names import ns_join

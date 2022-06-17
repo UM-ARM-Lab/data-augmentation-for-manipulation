@@ -37,4 +37,5 @@
   use_prev_error: true
   use_batchnorm: true
   use_res3d: true
+  use_sdf: true
 }

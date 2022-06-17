@@ -5,7 +5,7 @@ import pathlib
 import transformations
 
 from link_bot_planning.test_scenes import TestScene
-from moonshine.numpy import homogeneous
+from moonshine.geometry_np import homogeneous
 
 
 def move_poles_up(s: TestScene):

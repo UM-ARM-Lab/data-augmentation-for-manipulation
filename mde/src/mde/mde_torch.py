@@ -130,6 +130,7 @@ class MDE(pl.LightningModule):
         self.has_checked_training_mode = False
 
         self.val_accuracy = torchmetrics.Accuracy()
+        self.test_accuracy = torchmetrics.Accuracy()
 
     def forward(self, inputs: Dict[str, torch.Tensor]):
         if not self.has_checked_training_mode:
@@ -160,6 +161,21 @@ class MDE(pl.LightningModule):
                                                     child_frame_id='local_env_vg')
                     raster_msg = environment_to_vg_msg(raster_dict, frame='local_env_vg', stamp=rospy.Time.now())
                     self.debug.raster_debug_pubs[i].publish(raster_msg)
+
+        if self.hparams['use_sdf']:
+            import tensorflow as tf
+            from moonshine.gpu_config import limit_gpu_mem
+            from moonshine.tfa_sdf import build_sdf_3d
+            limit_gpu_mem(None)
+
+            res = tf.convert_to_tensor(inputs['res'].cpu().numpy())
+            voxel_grids_tf = tf.convert_to_tensor(voxel_grids.cpu().numpy())
+            sdf_tf = voxel_grids.clone()
+            for t in range(2):
+                for c in range(5):
+                    sdf_tf[:, t, c] = torch.from_numpy(build_sdf_3d(voxel_grids_tf[:, t, c], res).numpy())
+
+            voxel_grids = sdf_tf
 
         states = {k: inputs[add_predicted_hack(k)] for k in self.hparams.state_keys}
         states_local_frame = self.scenario.put_state_local_frame_torch(states)
@@ -260,14 +276,25 @@ class MDE(pl.LightningModule):
         loss, mse, mae, bce = self.compute_loss(test_batch, pred_error)
         true_error = test_batch['error'][:, 1]
         signed_loss = pred_error - true_error
+        true_error_after = test_batch['error'][:, 1]
+        true_error_after_binary = (true_error_after < self.hparams['error_threshold']).int()
+        logits = -pred_error
+        pred_error_probabilities = torch.sigmoid(logits)
         self.log('test_loss', loss)
         self.log('test_mae', mae)
         self.log('test_mse', mse)
         self.log('test_bce', bce)
         self.log('pred_minus_true_error', signed_loss)
+        self.test_accuracy(pred_error_probabilities, true_error_after_binary)  # updates the metric
         return loss
 
-    def validation_epoch_end(self, _):
+    def on_test_epoch_end(self):
+        self.log('test_accuracy', self.test_accuracy.compute())
+
+        # reset all metrics
+        self.test_accuracy.reset()
+
+    def on_validation_epoch_end(self):
         self.log('val_accuracy', self.val_accuracy.compute())  # logs the metric result/value
 
         # reset all metrics
