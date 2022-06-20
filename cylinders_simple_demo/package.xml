@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>cylinders_simple_demo</name>
+  <version>0.0.0</version>
+  <description>The cylinders_simple_demo package</description>
+
+  <maintainer email="pmitrano@umich.edu">peter</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>rospy</depend>
+
+</package>
