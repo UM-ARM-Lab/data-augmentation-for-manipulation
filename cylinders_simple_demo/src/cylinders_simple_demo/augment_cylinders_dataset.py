@@ -1,3 +1,4 @@
+import multiprocessing
 import pathlib
 from copy import deepcopy
 from typing import Dict, Callable, Optional
@@ -11,11 +12,10 @@ from cylinders_simple_demo.cylinders_dynamics_dataset import MyTorchDataset
 from cylinders_simple_demo.cylinders_scenario import CylindersScenario
 from cylinders_simple_demo.data_utils import pkl_write_example
 from cylinders_simple_demo.local_env_helper import LocalEnvHelper
+from cylinders_simple_demo.numpify import numpify
 from cylinders_simple_demo.utils import empty_callable
-from moonshine.moonshine_utils import get_num_workers
-from moonshine.numpify import numpify
-from moonshine.torch_datasets_utils import my_collate
-from moonshine.torchify import torchify
+from cylinders_simple_demo.torch_datasets_utils import my_collate
+from cylinders_simple_demo.torchify import torchify
 
 
 def dataset_take(dataset, take):
@@ -177,3 +177,7 @@ def make_aug_opt(scenario: CylindersScenario,
                                    post_project_cb=post_project_cb,
                                    )
     return aug
+
+
+def get_num_workers(batch_size):
+    return min(batch_size, multiprocessing.cpu_count())

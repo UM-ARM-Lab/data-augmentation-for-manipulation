@@ -7,8 +7,8 @@ from torch.utils.data import Dataset
 
 from cylinders_simple_demo.cylinders_scenario import CylindersScenario
 from cylinders_simple_demo.data_utils import load_gzipped_pickle
+from cylinders_simple_demo.numpify import numpify
 from cylinders_simple_demo.utils import load_params, load_hjson
-from moonshine.numpify import numpify
 
 
 def load_metadata(metadata_filename):

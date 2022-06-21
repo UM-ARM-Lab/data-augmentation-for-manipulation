@@ -305,3 +305,18 @@ def batch_align_to_grid_tf(point, origin_point, res):
     """
     res_expanded = tf.expand_dims(res, axis=-1)
     return tf.cast(tf.round((point - origin_point) / res_expanded), tf.float32) * res_expanded + origin_point
+
+
+def repeat_tensor(v, repetitions, axis, new_axis):
+    if np.isscalar(v):
+        multiples = []
+    else:
+        multiples = [1] * v.ndim
+
+    if new_axis:
+        multiples.insert(axis, repetitions)
+        v = tf.expand_dims(v, axis=axis)
+        return tf.tile(v, multiples)
+    else:
+        multiples[axis] *= repetitions
+        return tf.tile(v, multiples)

@@ -13,7 +13,7 @@ from tqdm import tqdm
 from merrrt_visualization.rviz_animation_controller import RvizAnimationController
 from moonshine.filepath_tools import load_hjson
 from moonshine.moonshine_utils import get_num_workers
-from moonshine.numpify import numpify
+from cylinders_simple_demo.numpify import numpify
 from moonshine.torch_datasets_utils import dataset_skip, my_collate
 from propnet.propnet_models import PropNet
 from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys

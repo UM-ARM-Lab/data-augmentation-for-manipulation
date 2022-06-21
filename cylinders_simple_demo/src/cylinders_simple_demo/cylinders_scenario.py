@@ -12,9 +12,8 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Circle
 
 from cylinders_simple_demo.grid_utils_tf import transform_points_3d, transformation_jacobian, euler_angle_diff, \
-    xyzrpy_to_matrices
+    xyzrpy_to_matrices, repeat_tensor
 from cylinders_simple_demo.utils import nested_dict_update, load_params
-from moonshine.tensorflow_utils import repeat_tensor
 
 HEIGHT = 0.08
 HALF_HEIGHT = HEIGHT / 2
