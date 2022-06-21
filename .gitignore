@@ -26,3 +26,4 @@ artifacts/*
 data/
 meta-weight-net
 captures
+venv
