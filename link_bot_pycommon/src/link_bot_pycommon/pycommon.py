@@ -7,10 +7,9 @@ import traceback
 import warnings
 from typing import Union, List, Callable, Optional, Tuple, Iterable, Dict
 
+import genpy
 import numpy as np
 import tensorflow as tf
-
-import genpy
 
 
 def directions_3d(pitch, yaw):
@@ -203,6 +202,7 @@ def make_dict_float32(d):
     for k, s_k in d.items():
         out_d[k] = s_k.astype(np.float32)
     return out_d
+
 
 def longest_reconverging_subsequence(x):
     max_start_idx = 0
@@ -493,5 +493,3 @@ def int_frac_to_range(i, n, low, high):
     frac *= (high - low)  # [0, range]
     frac += low  # [low, high]
     return frac
-
-

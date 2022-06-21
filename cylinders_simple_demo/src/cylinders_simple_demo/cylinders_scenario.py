@@ -10,9 +10,7 @@ import torch
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Circle
-from std_msgs.msg import ColorRGBA
-from tf import transformations
-from visualization_msgs.msg import MarkerArray, Marker
+from visualization_msgs.msg import MarkerArray
 
 from cylinders_simple_demo.utils import nested_dict_update
 from link_bot_data.color_from_kwargs import color_from_kwargs
@@ -123,35 +121,6 @@ def get_k_with_stats(batch, k):
     v_mean = batch[f"{k}/mean"]
     v_std = batch[f"{k}/std"]
     return v, v_mean, v_std
-
-
-def make_cylinder_marker(color_msg, height, idx, ns, position, radius):
-    marker = Marker(ns=ns, action=Marker.ADD, type=Marker.CYLINDER, id=idx, color=color_msg)
-    marker.header.frame_id = 'world'
-    marker.pose.position.x = position[0, 0]
-    marker.pose.position.y = position[0, 1]
-    marker.pose.position.z = position[0, 2]
-    marker.pose.orientation.w = 1
-    marker.scale.x = radius * 2
-    marker.scale.y = radius * 2
-    marker.scale.z = height
-
-    return marker
-
-
-def make_vel_arrow(position, velocity, height, color_msg, idx, ns, vel_scale=1.0):
-    start = position[0] + np.array([0, 0, height / 2 + 0.0005])
-    end = start + velocity[0] * np.array([vel_scale, vel_scale, 1])
-    vel_color_factor = 0.4
-    vel_color = ColorRGBA(color_msg.r * vel_color_factor,
-                          color_msg.g * vel_color_factor,
-                          color_msg.b * vel_color_factor,
-                          color_msg.a)
-    vel_marker = rviz_arrow(start, end,
-                            label=ns + 'vel',
-                            color=vel_color,
-                            idx=idx)
-    return vel_marker
 
 
 def pos_in_bounds(tcp_pos_aug_b):
@@ -486,21 +455,6 @@ class CylindersScenario(ExperimentScenario):
 
         target_params = tf.concat([trans_target, theta_target], -1)
         return target_params
-
-    def plot_transform(self, obj_i, transform_params, frame_id):
-        """
-
-        Args:
-            frame_id:
-            transform_params: [x,y,theta]
-
-        Returns:
-
-        """
-        target_pos_b = [transform_params[0], transform_params[1], 0]
-        theta = transform_params[2]
-        target_quat_b = transformations.quaternion_from_euler(0, 0, theta)
-        self.tf.send_transform(target_pos_b, target_quat_b, f'aug_opt_initial_{obj_i}', frame_id, False)
 
     def aug_target_pos(self, target):
         return tf.concat([target[0], target[1], 0], axis=0)

@@ -1,21 +1,90 @@
 import pathlib
+import pickle
+from functools import lru_cache
 from multiprocessing import get_context
-from typing import Dict, List, Optional, Callable
+from typing import List, Optional, Callable, OrderedDict, Dict
 
 import numpy as np
-from tqdm import tqdm
+from torch.utils.data import Dataset
 
-from link_bot_data.dataset_utils import merge_hparams_dicts, batch_sequence, pprint_example
-from link_bot_data.new_dataset_utils import UNUSED_COMPAT, DynamicsDatasetParams, get_filenames, EmptyDatasetException, \
-    load_single
-from link_bot_data.visualization import init_viz_env, dynamics_viz_t
-from link_bot_pycommon.get_scenario import get_scenario
-from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
-from merrrt_visualization.rviz_animation_controller import RvizAnimation
+from cylinders_simple_demo.cylinders_scenario import CylindersScenario
+from cylinders_simple_demo.data_utils import load_gzipped_pickle
+from cylinders_simple_demo.utils import load_params, load_hjson
+from link_bot_data.dataset_utils import batch_sequence
 from moonshine.indexing import index_time_batched
+from moonshine.numpify import numpify
 from moonshine.tensorflow_utils import batch_examples_dicts
 from moonshine.torch_and_tf_utils import remove_batch
-from moonshine.numpify import numpify
+
+
+class EmptyDatasetException(Exception):
+    pass
+
+
+def load_metadata(metadata_filename):
+    if 'hjson' in metadata_filename.name:
+        metadata = load_hjson(metadata_filename)
+    elif 'pkl' in metadata_filename.name:
+        with metadata_filename.open("rb") as f:
+            metadata = pickle.load(f)
+    else:
+        raise NotImplementedError()
+    metadata['filename'] = metadata_filename.stem
+    metadata['example_idx'] = int(metadata_filename.stem[8:])
+    metadata['full_filename'] = metadata_filename.as_posix()
+    return metadata
+
+
+@lru_cache
+def load_single(metadata_filename: pathlib.Path, no_update_with_metadata=False):
+    metadata = load_metadata(metadata_filename)
+
+    data_filename = metadata.pop("data")
+    full_data_filename = metadata_filename.parent / data_filename
+    if str(data_filename).endswith('.gz'):
+        example = load_gzipped_pickle(full_data_filename)
+    else:
+        with full_data_filename.open("rb") as f:
+            example = pickle.load(f)
+    example['metadata'] = metadata
+    if not no_update_with_metadata:
+        example.update(metadata)
+    return example
+
+
+def load_mode_filenames(d: pathlib.Path, filenames_filename: pathlib.Path):
+    with filenames_filename.open("r") as filenames_file:
+        filenames = [l.strip("\n") for l in filenames_file.readlines()]
+    return [d / p for p in filenames]
+
+
+def get_filenames(d, mode: str):
+    all_filenames = []
+    if mode == 'all':
+        all_filenames.extend(load_mode_filenames(d, d / f'train.txt'))
+        all_filenames.extend(load_mode_filenames(d, d / f'test.txt'))
+        all_filenames.extend(load_mode_filenames(d, d / f'val.txt'))
+    elif mode == 'notrain':
+        all_filenames.extend(load_mode_filenames(d, d / f'test.txt'))
+        all_filenames.extend(load_mode_filenames(d, d / f'val.txt'))
+    elif mode == 'notest':
+        all_filenames.extend(load_mode_filenames(d, d / f'train.txt'))
+        all_filenames.extend(load_mode_filenames(d, d / f'val.txt'))
+    else:
+        filenames_filename = d / f'{mode}.txt'
+        all_filenames.extend(load_mode_filenames(d, filenames_filename))
+    all_filenames = sorted(all_filenames)
+    return all_filenames
+
+
+def pprint_example(example):
+    for k, v in example.items():
+        if hasattr(v, 'shape'):
+            print(k, v.shape, v.dtype)
+        elif isinstance(v, OrderedDict):
+            print(k, numpify(v))
+        else:
+            print(k, type(v))
 
 
 def process_filenames(filenames, process_funcs):
@@ -55,26 +124,13 @@ class NewBaseDataset:
             self._process_filenames = process_filenames
 
     def __iter__(self):
-        if self.n_prefetch is None or self.n_prefetch == 0:
-            generator = self.iter_serial()
-        else:
-            generator = self.iter_multiprocessing()
+        generator = self.iter_multiprocessing()
 
         for example in generator:
             # NOTE: This post_process with both batched/non-batched inputs which is annoying
             example = self.loader.post_process(example)
             for p in self._post_process:
                 example = p(example)
-
-            yield example
-
-    def iter_serial(self):
-        for filenames in process_filenames(self.filenames, self._process_filenames):
-            if isinstance(filenames, list):
-                examples_i = [load_single(metadata_filename_i) for metadata_filename_i in filenames]
-                example = batch_examples_dicts(examples_i)
-            else:
-                example = load_single(filenames)
 
             yield example
 
@@ -89,12 +145,19 @@ class NewBaseDataset:
                 example = load_single(filenames_i)
             yield example
 
-    def get_example(self, idx: int):
-        filename = self.filenames[idx]
-        return load_single(filename)
+    def shuffle(self, seed: Optional[int] = 0, reshuffle_each_iteration=True):
+        if not reshuffle_each_iteration:
+            rng = np.random.RandomState(seed)
+        else:
+            rng = np.random.RandomState()
 
-    def __len__(self):
-        return len(process_filenames(self.filenames, self._process_filenames))
+        def _shuffle_filenames(filenames):
+            shuffled_filenames = filenames.copy()
+            rng.shuffle(shuffled_filenames)
+            return shuffled_filenames
+
+        self._process_filenames.append(_shuffle_filenames)
+        return self
 
     def batch(self, batch_size: int, drop_remainder: bool = False):
         if batch_size is None:
@@ -112,34 +175,6 @@ class NewBaseDataset:
         self._post_process.append(_include_batch_size)
         return self
 
-    def shuffle(self, buffer_size=UNUSED_COMPAT, seed: Optional[int] = 0, reshuffle_each_iteration=True):
-        if not reshuffle_each_iteration:
-            rng = np.random.RandomState(seed)
-        else:
-            rng = np.random.RandomState()
-
-        def _shuffle_filenames(filenames):
-            shuffled_filenames = filenames.copy()
-            rng.shuffle(shuffled_filenames)
-            return shuffled_filenames
-
-        self._process_filenames.append(_shuffle_filenames)
-        return self
-
-    def skip(self, skip: int):
-        def _skip(filenames: List[pathlib.Path]):
-            return filenames[skip:]
-
-        self._process_filenames.append(_skip)
-        return self
-
-    def shard(self, shard: int):
-        def _shard(filenames: List[pathlib.Path]):
-            return filenames[::shard]
-
-        self._process_filenames.append(_shard)
-        return self
-
     def take(self, take: int):
         def _take(filenames):
             return filenames[:take]
@@ -147,77 +182,43 @@ class NewBaseDataset:
         self._process_filenames.append(_take)
         return self
 
-    def map(self, _post_process: Callable):
-        self._post_process.append(_post_process)
-        return self
+    def get_example(self, idx: int):
+        filename = self.filenames[idx]
+        return load_single(filename)
 
-    def serial(self):
-        self.n_prefetch = 0
-        return self
-
-    def prefetch(self, n_prefetch: int):
-        if n_prefetch == -1:
-            n_prefetch = 2
-        self.n_prefetch = n_prefetch
-        return self
+    def __len__(self):
+        return len(process_filenames(self.filenames, self._process_filenames))
 
     def pprint_example(self):
-        for k, v in self.get_example(0).items():
-            try:
-                print(k, v.shape)
-            except AttributeError:
-                print(k, type(v))
-
-    def parallel_map(self, f: Callable, *args, **kwargs):
-        args = [(filename, f, args, kwargs) for filename in self.filenames]
-        for e in tqdm(self.loader.pool.imap_unordered(map_func, args), total=len(self.filenames)):
-            if e is not None:
-                yield e
-
-    def parallel_filter(self, f: Callable, *args, **kwargs):
-        args = [(filename, f, args, kwargs) for filename in self.filenames]
-        for e in tqdm(self.loader.pool.imap_unordered(filter_func, args), total=len(self.filenames)):
-            if e is not None:
-                yield e
+        pprint_example(self.get_example(0))
 
 
-def map_func(map_args):
-    filename, f, args, kwargs = map_args
-    example = load_single(filename)
-    return f(example, *args, **kwargs)
+class CylindersDynamicsDatasetLoader:
 
-
-def filter_func(map_args):
-    filename, f, args, kwargs = map_args
-    example = load_single(filename)
-    if f(example, *args, **kwargs):
-        return example
-    return None
-
-
-class NewBaseDatasetLoader:
-
-    def __init__(self, dataset_dirs: List[pathlib.Path],
-                 scenario: Optional[ScenarioWithVisualization] = None):
-        self.dataset_dirs = dataset_dirs
-        self.hparams = merge_hparams_dicts(dataset_dirs)
-        self.scenario = scenario
+    def __init__(self, dataset_dir):
+        self.dataset_dirs = dataset_dir
+        self.hparams = load_params(dataset_dir)
+        self.scenario = None
         self.batch_metadata = {}
 
         self.pool = get_context("spawn").Pool()
         print(f"Created pool with {self.pool._processes} workers")
+
+        self.data_collection_params = self.hparams['data_collection_params']
+        self.scenario_params = self.data_collection_params.get('scenario_params', {})
+
+        self.state_keys = self.data_collection_params['state_keys']
+        self.state_keys.append('time_idx')
+        self.state_metadata_keys = self.data_collection_params['state_metadata_keys']
+        self.env_keys = self.data_collection_params['env_keys']
+        self.action_keys = self.data_collection_params['action_keys']
+        self.time_indexed_keys = self.state_keys + self.state_metadata_keys + self.action_keys
 
     def __del__(self):
         self.pool.terminate()
 
     def post_process(self, e):
         return e
-
-    def get_scenario(self):
-        if self.scenario is None:
-            self.scenario = get_scenario(self.hparams['scenario'], params={})
-
-        return self.scenario
 
     def get_datasets(self, mode: str, shuffle: Optional[int] = 0, take: int = None):
         filenames = get_filenames(self.dataset_dirs, mode)
@@ -228,48 +229,49 @@ class NewBaseDatasetLoader:
         dataset = NewBaseDataset(loader=self, filenames=filenames, mode=mode)
         if shuffle:
             dataset = dataset.shuffle(seed=shuffle)
-        if take:
-            dataset = dataset.take(take)
         return dataset
-
-    def pprint_example(self):
-        dataset = self.get_datasets(mode='val', take=1)
-        example = dataset.get_example(0)
-        pprint_example(example)
-
-
-class CylindersDynamicsDatasetLoader(NewBaseDatasetLoader, DynamicsDatasetParams):
-
-    def __init__(self, dataset_dirs):
-        NewBaseDatasetLoader.__init__(self, dataset_dirs)
-        DynamicsDatasetParams.__init__(self, dataset_dirs)
-
-    def get_datasets(self,
-                     mode: str,
-                     shuffle: bool = False,
-                     take: int = None,
-                     do_not_process: bool = UNUSED_COMPAT,
-                     slow: bool = UNUSED_COMPAT):
-        return super().get_datasets(mode, shuffle, take)
-
-    def dynamics_viz_t(self):
-        return dynamics_viz_t(metadata={},
-                              state_metadata_keys=self.state_metadata_keys,
-                              state_keys=self.state_keys,
-                              action_keys=self.action_keys)
-
-    def anim_rviz(self, example: Dict):
-        anim = RvizAnimation(self.get_scenario(),
-                             n_time_steps=example['time_idx'].size,
-                             init_funcs=[
-                                 init_viz_env
-                             ],
-                             t_funcs=[
-                                 init_viz_env,
-                                 self.dynamics_viz_t()
-                             ])
-        anim.play(example)
 
     def index_time_batched(self, example_batched, t: int):
         e_t = numpify(remove_batch(index_time_batched(example_batched, self.time_indexed_keys, t, False)))
         return e_t
+
+
+class MyTorchDataset(Dataset):
+
+    def __init__(self,
+                 dataset_dir: pathlib.Path,
+                 mode: str,
+                 transform=None,
+                 no_update_with_metadata: bool = False):
+        self.mode = mode
+        self.dataset_dir = dataset_dir
+
+        self.metadata_filenames = get_filenames(self.dataset_dir, mode)
+
+        self.params = load_params(dataset_dir)
+
+        self.transform = transform
+        self.scenario = None
+        self.no_update_with_metadata = no_update_with_metadata
+
+    def __len__(self):
+        return len(self.metadata_filenames)
+
+    def __getitem__(self, idx):
+        metadata_filename = self.metadata_filenames[idx]
+
+        example = load_single(metadata_filename, no_update_with_metadata=self.no_update_with_metadata)
+
+        if self.transform:
+            example = self.transform(example)
+
+        return example
+
+    def get_scenario(self):
+        if self.scenario is None:
+            self.scenario = CylindersScenario()
+
+        return self.scenario
+
+    def pprint_example(self):
+        pprint_example(self[0])

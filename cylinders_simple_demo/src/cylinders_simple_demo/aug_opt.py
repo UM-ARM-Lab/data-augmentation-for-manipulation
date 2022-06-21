@@ -3,18 +3,14 @@ from typing import Dict, List, Callable
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from visualization_msgs.msg import MarkerArray
 
-from cylinders_simple_demo.aug_opt_utils import debug_ik, check_env_constraints, pick_best_params, transform_obj_points, \
+from cylinders_simple_demo.aug_opt_utils import check_env_constraints, pick_best_params, transform_obj_points, \
     sum_over_moved
 from cylinders_simple_demo.aug_projection_opt import AugProjOpt
 from cylinders_simple_demo.cylinders_scenario import CylindersScenario
 from cylinders_simple_demo.iterative_projection import iterative_projection
-from cylinders_simple_demo.utils import empty_callable
+from cylinders_simple_demo.utils import empty_callable, has_keys
 from link_bot_data.local_env_helper import LocalEnvHelper
-from link_bot_data.visualization import DebuggingViz
-from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
-from link_bot_pycommon.pycommon import has_keys
 from moonshine.grid_utils_tf import lookup_points_in_vg
 from moonshine.raster_3d_tf import points_to_voxel_grid_res_origin_point_batched
 
@@ -146,7 +142,7 @@ class AugmentationOptimization:
         sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary, res)
 
         def _viz_cb(_b):
-            self.plot_stationary_vg(_b, env_stationary, extent, origin_point, res)
+            pass
 
         transformation_matrices, to_local_frame, is_obj_aug_valid = self.aug_obj_transform(
             res=res,
@@ -193,9 +189,6 @@ class AugmentationOptimization:
                                                         batch_size=batch_size)
         keys_aug += ik_keys_aug
 
-        if debug_ik():
-            print(f"ik valid % = {tf.reduce_mean(is_ik_valid)}")
-
         is_valid = is_ik_valid * is_obj_aug_valid
 
         inputs_aug = self.use_original_if_invalid(is_valid, batch_size, inputs, inputs_aug, keys_aug)
@@ -235,16 +228,10 @@ class AugmentationOptimization:
         not_progressing_threshold = self.hparams['not_progressing_threshold']
         obj_transforms, viz_vars = iterative_projection(initial_value=initial_transformation_params,
                                                         target=target_transformation_params,
-                                                        n=self.hparams['n_outer_iters'],
-                                                        m=self.hparams['max_steps'],
+                                                        n=self.hparams['n_outer_iters'], m=self.hparams['max_steps'],
                                                         step_towards_target=project_opt.step_towards_target,
-                                                        project_opt=project_opt,
-                                                        x_distance=self.scenario.aug_distance,
-                                                        not_progressing_threshold=not_progressing_threshold,
-                                                        viz_func=project_opt.viz_func,
-                                                        post_init_cb=self.post_init_cb,
-                                                        post_step_cb=self.post_step_cb,
-                                                        post_project_cb=self.post_project_cb)
+                                                        project_opt=project_opt, x_distance=self.scenario.aug_distance,
+                                                        not_progressing_threshold=not_progressing_threshold)
 
         transformation_matrices = self.scenario.transformation_params_to_matrices(obj_transforms)
         # NOTE: to_local_frame is [b, 3] but technically it should be [b, k, 3]
@@ -348,14 +335,3 @@ class AugmentationOptimization:
         upper_extent_loss = tf.maximum(0., lower_extent - obj_points_aug)
         bbox_loss = tf.reduce_sum(lower_extent_loss + upper_extent_loss, axis=-1)  # [b,m,n_points]
         return self.hparams['bbox_weight'] * bbox_loss
-
-    def delete_state_action_markers(self):
-        label = 'aug'
-        state_delete_msg = MarkerArray(markers=[make_delete_marker(ns=label + '_l'),
-                                                make_delete_marker(ns=label + '_r'),
-                                                make_delete_marker(ns=label + '_rope')])
-        self.scenario.state_viz_pub.publish(state_delete_msg)
-        action_delete_msg = MarkerArray(markers=[make_delete_marker(ns=label)])
-        self.scenario.action_viz_pub.publish(action_delete_msg)
-        self.scenario.arrows_pub.publish(make_delete_markerarray())
-        self.scenario.arrows_pub.publish(make_delete_markerarray())

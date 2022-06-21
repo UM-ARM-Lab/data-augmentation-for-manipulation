@@ -1,6 +1,6 @@
 import collections
 import pathlib
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import hjson
 
@@ -39,3 +39,23 @@ def load_hjson(path: pathlib.Path):
     with path.open("r") as file:
         data = hjson.load(file)
     return data
+
+def has_keys(d: Dict, keys: List[str], noop_val=False):
+    """
+    For when you want to write something like `if d['a']['b']['z']`
+    and you want it to return false (noop_val) if the keys don't exist
+
+    Args:
+        d: dict
+        keys: keys
+
+    Returns: the result of the indexing, or false if the keys don't exist
+
+    """
+    if keys[0] not in d:
+        return noop_val
+
+    if len(keys) == 1:
+        return d[keys[0]]
+    else:
+        return has_keys(d[keys[0]], keys[1:], noop_val=noop_val)

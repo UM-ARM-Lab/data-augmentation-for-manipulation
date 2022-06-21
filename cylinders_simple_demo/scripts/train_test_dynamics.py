@@ -5,8 +5,8 @@ import pathlib
 import numpy as np
 import torch
 
+from cylinders_simple_demo import train_test_propnet
 from link_bot_pycommon.args import run_subparsers
-from propnet import train_test_propnet
 
 
 def train_main(args):

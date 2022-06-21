@@ -1,15 +1,12 @@
 from dataclasses import dataclass
 from typing import Optional, Callable
 
-import numpy as np
 import tensorflow as tf
 
-import rospy
 from cylinders_simple_demo.aug_opt_utils import transform_obj_points, dpoint_to_dparams, mean_over_moved, homogeneous
 from cylinders_simple_demo.iterative_projection import BaseProjectOpt
-from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
-from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from moonshine.grid_utils_tf import batch_point_to_idx
+from cylinders_simple_demo.torch_geometry import batch_point_to_idx
+from cylinders_simple_demo.utils import empty_callable
 
 
 @dataclass
@@ -34,7 +31,7 @@ class AugProjOpt(BaseProjectOpt):
                  moved_mask,
                  obj_points,
                  obj_occupancy,
-                 viz_cb: Callable):
+                 viz_cb: Callable = empty_callable):
         super().__init__()
         self.aug_opt = aug_opt
         self.sdf = sdf
@@ -216,104 +213,4 @@ class AugProjOpt(BaseProjectOpt):
         return x_interp, viz_vars
 
     def viz_func(self, _: Optional, obj_transforms, __, target, v: Optional[VizVars]):
-        s = self.aug_opt.scenario
-        for b in debug_viz_batch_indices(self.batch_size):
-            self.viz_cb(b)
-
-            target_b = target[b]
-            obj_transforms_b = obj_transforms[b]
-            obj_points_b = self.obj_points[b]  # [n_objects, T, n_points, 3]
-            obj_occupancy_b = self.obj_occupancy[b]  # [n_objects, T*n_points, 3]
-            moved_mask_b = self.moved_mask[b]
-
-            k = 0  # assume there's only one moved "object" (or group of objects, one big set of points)
-            obj_transforms_b_i = obj_transforms_b[k]
-            target_b_i = target_b[k]
-            target_pos_b_i = s.aug_target_pos(target_b_i)
-
-            s.plot_transform(k, obj_transforms_b_i, f'aug_opt_current_{k}')
-            s.plot_transform(k, target_b_i, f'aug_opt_target_{k}')
-
-            s.aug_plot_dir_arrow(target_pos_b_i.numpy(),
-                                 scale=self.viz_arrow_scale * 2,
-                                 frame_id=f'aug_opt_initial_{k}', k=k)
-
-            moved_obj_indices_b = tf.squeeze(tf.where(moved_mask_b))
-            moved_obj_points_b = tf.gather(obj_points_b, moved_obj_indices_b)
-            moved_obj_points_b = tf.reshape(moved_obj_points_b, [-1, 3])
-            moved_obj_occupancy_b = tf.gather(obj_occupancy_b, moved_obj_indices_b)
-            moved_obj_occupancy_b = tf.reshape(moved_obj_occupancy_b, [-1])
-
-            repel_indices = tf.squeeze(tf.where(1 - moved_obj_occupancy_b))  # [n_repel_points]
-            attract_indices = tf.squeeze(tf.where(moved_obj_occupancy_b), -1)  # [n_attract_points]
-
-            self.viz_b_i(moved_obj_indices_b, attract_indices, b, k, moved_obj_points_b, repel_indices, v)
-
-    def viz_b_i(self, moved_obj_indices_b, attract_indices, b, moved_obj_i, moved_obj_points_b_i, repel_indices, v):
-        s = self.aug_opt.scenario
-        repel_points = tf.gather(moved_obj_points_b_i, repel_indices).numpy()  # [n_attract_points]
-        attract_points = tf.gather(moved_obj_points_b_i, attract_indices).numpy()  # [n_repel_points]
-        s.plot_points_rviz(attract_points, label=f'attract_{moved_obj_i}', color='#aaff00', scale=self.viz_scale)
-        s.plot_points_rviz(repel_points, label=f'repel_{moved_obj_i}', color='#ffaa00', scale=self.viz_scale)
-        if v is not None:
-            # s.plot_points_rviz(moved_obj_points_b_i, label='aug', color='b', scale=self.viz_scale)
-
-            local_pos_b = v.to_local_frame[b].numpy()  # [3]
-            self.aug_opt.debug.send_position_transform(local_pos_b, f'aug_opt_initial_{moved_obj_i}')
-
-            obj_points_aug_b = v.obj_points_aug[b]  # [m_objects, T, n_points, 3]
-            moved_obj_points_aug_b = tf.gather(obj_points_aug_b, moved_obj_indices_b, axis=0)
-            moved_obj_points_aug_b_flat = tf.reshape(moved_obj_points_aug_b, [-1, 3])
-            attract_points_aug = tf.gather(moved_obj_points_aug_b_flat, attract_indices).numpy()
-            repel_points_aug = tf.gather(moved_obj_points_aug_b_flat, repel_indices).numpy()
-            s.plot_points_rviz(attract_points_aug, f'attract_aug_{moved_obj_i}', color='g', scale=self.viz_scale)
-            s.plot_points_rviz(repel_points_aug, f'repel_aug_{moved_obj_i}', color='r', scale=self.viz_scale)
-
-            attract_repel_dpoint_b = v.attract_repel_dpoint[b]  # [m_objects, T, n_points, 3]
-            moved_attract_repel_dpoint_b = tf.gather(attract_repel_dpoint_b, moved_obj_indices_b,
-                                                     axis=0)  # [m_moved, T, n_points, 3]
-            moved_attract_repel_dpoint_b_flat = tf.reshape(moved_attract_repel_dpoint_b, [-1, 3])
-            attract_grad_b = -tf.gather(moved_attract_repel_dpoint_b_flat, attract_indices, axis=0) * 0.02
-            repel_grad_b = -tf.gather(moved_attract_repel_dpoint_b_flat, repel_indices, axis=0) * 0.02
-            attract_grad_b = attract_grad_b.numpy()
-            repel_grad_b = repel_grad_b.numpy()
-
-            attract_grad_ns = f'attract_sdf_grad_{moved_obj_i}'
-            repel_grad_ns = f'repel_sdf_grad_{moved_obj_i}'
-
-            s.arrows_pub.publish(make_delete_markerarray(ns=attract_grad_ns))
-            s.arrows_pub.publish(make_delete_markerarray(ns=repel_grad_ns))
-
-            attract_grad_nonzero_b_indices = np.where(np.linalg.norm(attract_grad_b, axis=-1) > self.viz_grad_epsilon)
-            attract_points_aug_nonzero = attract_points_aug[attract_grad_nonzero_b_indices]
-            attract_grad_nonzero_b = attract_grad_b[attract_grad_nonzero_b_indices]
-
-            repel_grad_nonzero_b_indices = np.where(np.linalg.norm(repel_grad_b, axis=-1) > self.viz_grad_epsilon)
-            repel_points_aug_nonzero = repel_points_aug[repel_grad_nonzero_b_indices]
-            repel_grad_nonzero_b = repel_grad_b[repel_grad_nonzero_b_indices]
-
-            s.plot_arrows_rviz(attract_points_aug_nonzero, attract_grad_nonzero_b, attract_grad_ns,
-                               color='g', scale=self.viz_arrow_scale)
-            s.plot_arrows_rviz(repel_points_aug_nonzero, repel_grad_nonzero_b, repel_grad_ns,
-                               color='r', scale=self.viz_arrow_scale)
-
-            if not self.aug_opt.no_delta_min_dist:
-                min_dist_points_aug_b = v.min_dist_points_aug[b]  # [3]
-                delta_min_dist_grad_dpoint_b = -v.delta_min_dist_grad_dpoint[b]  # [3]
-                s.plot_arrow_rviz(min_dist_points_aug_b.numpy(),
-                                  delta_min_dist_grad_dpoint_b.numpy() * self.viz_delta_min_dist_grad_scale,
-                                  label=f'delta_min_dist_grad_{moved_obj_i}',
-                                  color='pink',
-                                  scale=self.viz_arrow_scale)
-
-    def clear_viz(self):
-        s = self.aug_opt.scenario
-        for _ in range(3):
-            s.point_pub.publish(make_delete_marker(ns='attract'))
-            s.point_pub.publish(make_delete_marker(ns='repel'))
-            s.point_pub.publish(make_delete_marker(ns='attract_aug'))
-            s.point_pub.publish(make_delete_marker(ns='repel_aug'))
-            s.delete_arrows_rviz(label='delta_min_dist_grad')
-            s.delete_arrows_rviz(label='attract_sdf_grad')
-            s.delete_arrows_rviz(label='repel_sdf_grad')
-            rospy.sleep(0.01)
+        pass

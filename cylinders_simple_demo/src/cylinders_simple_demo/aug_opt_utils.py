@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 import tensorflow as tf
 
-import rospy
 
 def homogeneous(points):
     return tf.concat([points, tf.ones_like(points[..., 0:1])], axis=-1)
@@ -24,18 +23,6 @@ def transform_points_3d(transform_matrix, points):
     return tf.squeeze(transformed_points, axis=-1)[..., :3]
 
 
-def debug_aug():
-    return rospy.get_param("DEBUG_AUG", False)
-
-
-def debug_input():
-    return rospy.get_param("DEBUG_INPUT", False)
-
-
-def debug_ik():
-    return rospy.get_param("DEBUG_IK", False)
-
-
 @dataclass
 class MinDists:
     attract: tf.Tensor
@@ -47,13 +34,6 @@ class MinDists:
 class EnvPoints:
     full: tf.Tensor
     sparse: tf.Tensor
-
-
-@dataclass
-class EnvOptDebugVars:
-    nearest_attract_env_points: tf.Tensor
-    nearest_repel_points: tf.Tensor
-    nearest_robot_repel_points: tf.Tensor
 
 
 def subsample_points(points, fraction):

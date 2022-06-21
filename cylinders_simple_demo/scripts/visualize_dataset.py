@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 from matplotlib.animation import FuncAnimation
 
-from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
+from cylinders_simple_demo.cylinders_dynamics_dataset import MyTorchDataset
 
 
 def main():
@@ -16,9 +16,7 @@ def main():
 
     args = parser.parse_args()
 
-    # load the dataset
-    loader = NewDynamicsDatasetLoader([args.dataset_dir])
-    dataset = loader.get_datasets(mode=args.mode)
+    dataset = MyTorchDataset(args.dataset_dir, mode=args.mode)
 
     for example in dataset:
         # matplotlib animation showing the cylinders moving
