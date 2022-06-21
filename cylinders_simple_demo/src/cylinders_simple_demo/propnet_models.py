@@ -170,7 +170,7 @@ class PropNet(pl.LightningModule):
         return pred_vel_t
 
     def forward(self, batch):
-        batch_size = len(batch['filenames'])
+        batch_size = len(batch['example_idx'])
 
         attr, states = self.attr_and_states(batch, batch_size)
         # attr: [b, n_objects, 1]

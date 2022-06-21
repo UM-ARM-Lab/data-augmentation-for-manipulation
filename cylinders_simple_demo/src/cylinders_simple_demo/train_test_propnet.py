@@ -13,9 +13,9 @@ from tqdm import tqdm
 from cylinders_simple_demo.augment_cylinders_dataset import get_num_workers
 from cylinders_simple_demo.cylinders_dynamics_dataset import remove_keys, MyTorchDataset
 from cylinders_simple_demo.numpify import numpify
-from cylinders_simple_demo.torch_datasets_utils import my_collate, dataset_skip
-from cylinders_simple_demo.utils import load_hjson
 from cylinders_simple_demo.propnet_models import PropNet
+from cylinders_simple_demo.torch_datasets_utils import my_collate, dataset_skip, dataset_repeat
+from cylinders_simple_demo.utils import load_hjson
 
 
 def train_main(dataset_dir: pathlib.Path,
@@ -34,7 +34,8 @@ def train_main(dataset_dir: pathlib.Path,
     train_dataset = MyTorchDataset(dataset_dir, mode='train', transform=transform)
     val_dataset = MyTorchDataset(dataset_dir, mode='val', transform=transform)
 
-    train_loader = DataLoader(train_dataset,
+    train_dataset_repeated = dataset_repeat(train_dataset, 10)
+    train_loader = DataLoader(train_dataset_repeated,
                               batch_size=batch_size,
                               shuffle=True,
                               collate_fn=my_collate,
