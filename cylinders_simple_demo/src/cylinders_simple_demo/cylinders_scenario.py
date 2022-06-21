@@ -10,31 +10,29 @@ import torch
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Circle
-from pyjacobian_follower import IkParams
 from std_msgs.msg import ColorRGBA
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
 
-from augmentation.aug_opt import compute_moved_mask
-from augmentation.aug_opt_utils import get_local_frame
 from cylinders_simple_demo.utils import nested_dict_update
-from dm_envs import primitive_hand
-from dm_envs.planar_pushing_scenario import PlanarPushingScenario
-from dm_envs.planar_pushing_task import ARM_HAND_NAME, ARM_NAME
-from link_bot_data.base_collect_dynamics_data import collect_trajectory
-from link_bot_data.coerce_types import coerce_types
 from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
+from link_bot_pycommon.experiment_scenario import ExperimentScenario
 from link_bot_pycommon.marker_index_generator import marker_index_generator
-from link_bot_pycommon.pycommon import int_frac_to_range
 from moonshine.filepath_tools import load_params
 from moonshine.geometry_tf import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
 from moonshine.numpify import numpify
 from moonshine.tensorflow_utils import repeat_tensor
-from moonshine.torch_and_tf_utils import remove_batch, add_batch
+from moonshine.torch_and_tf_utils import remove_batch
 
-TINV_TEST_OBJ_IDX = 0
+HEIGHT = 0.08
+HALF_HEIGHT = HEIGHT / 2
+RADIUS = 0.02
+ARM_NAME = 'jaco_arm'
+HAND_NAME = 'primitive_hand'
+ARM_HAND_NAME = f'{ARM_NAME}/{HAND_NAME}'
+ARM_OFFSET = (0., 0.3, 0.)
 
 
 def pos_to_vel(pos):
@@ -163,8 +161,16 @@ def pos_in_bounds(tcp_pos_aug_b):
     return always_in_bounds
 
 
-class CylindersScenario(PlanarPushingScenario):
-    tinv_dim = 3
+class CylindersScenario(ExperimentScenario):
+
+    def __init__(self):
+        ExperimentScenario.__init__(self)
+        self.task = None
+        self.env = None
+        self.action_spec = None
+
+        self.last_action = None
+        self.max_action_attempts = 100
 
     def iter_keys(self, num_objs):
         # NOTE: the robot goes first, this is relied on in aug_apply_no_ik
@@ -226,11 +232,11 @@ class CylindersScenario(PlanarPushingScenario):
             if is_robot:
                 if not no_robot and pos is not None:
                     robot_pos_viz = deepcopy(pos)
-                    robot_pos_viz[0, 2] += primitive_hand.HALF_HEIGHT
+                    robot_pos_viz[0, 2] += HALF_HEIGHT
                     robot_color_msg = deepcopy(color_msg)
                     robot_color_msg.b = 1 - robot_color_msg.b
-                    marker = make_cylinder_marker(robot_color_msg, primitive_hand.HEIGHT, next(ig), ns + '_robot',
-                                                  robot_pos_viz, primitive_hand.RADIUS)
+                    marker = make_cylinder_marker(robot_color_msg, HEIGHT, next(ig), ns + '_robot',
+                                                  robot_pos_viz, RADIUS)
                     msg.markers.append(marker)
                 # if pos is not None and vel is not None:
                 #     vel_marker = make_vel_arrow(pos, vel, primitive_hand.HEIGHT + 0.005, color_msg, next(ig),
@@ -277,12 +283,12 @@ class CylindersScenario(PlanarPushingScenario):
         res = repeat_tensor(inputs['res'], time, 1, True)  # [b]
 
         obj_points = cylinders_to_points(positions, res=res, radius=radius, height=height)
-        robot_radius = repeat_tensor(primitive_hand.RADIUS, batch_size, 0, True)
+        robot_radius = repeat_tensor(RADIUS, batch_size, 0, True)
         robot_radius = repeat_tensor(robot_radius, time, 1, True)
-        robot_height = repeat_tensor(primitive_hand.HEIGHT, batch_size, 0, True)
+        robot_height = repeat_tensor(HEIGHT, batch_size, 0, True)
         robot_height = repeat_tensor(robot_height, time, 1, True)
         tcp_positions = tf.reshape(inputs[f'{ARM_HAND_NAME}/tcp_pos'], [batch_size, 1, time, 3])
-        robot_cylinder_positions = tcp_positions + [0, 0, primitive_hand.HALF_HEIGHT]
+        robot_cylinder_positions = tcp_positions + [0, 0, HALF_HEIGHT]
         robot_points = cylinders_to_points(robot_cylinder_positions, res=res, radius=robot_radius, height=robot_height)
 
         obj_points = tf.concat([robot_points, obj_points], axis=1)
@@ -329,7 +335,7 @@ class CylindersScenario(PlanarPushingScenario):
                 x = pos[t, 0, 0]
                 y = pos[t, 0, 1]
                 if is_robot:
-                    p = Circle((x, y), primitive_hand.RADIUS, color=[1, 0, 1])
+                    p = Circle((x, y), RADIUS, color=[1, 0, 1])
                 else:
                     p = Circle((x, y), radius, color='red')
                 ax.add_patch(p)
@@ -370,7 +376,7 @@ class CylindersScenario(PlanarPushingScenario):
 
     def propnet_robot_v(self, batch, batch_size, time, device):
         is_robot = torch.ones([batch_size, 1], device=device)
-        radius = torch.ones([batch_size, 1], device=device) * primitive_hand.RADIUS
+        radius = torch.ones([batch_size, 1], device=device) * RADIUS
         robot_attr = torch.cat([radius, is_robot], dim=-1)
 
         robot_pos_k = f"{ARM_HAND_NAME}/tcp_pos"
@@ -589,7 +595,6 @@ class CylindersScenario(PlanarPushingScenario):
     def aug_ik(self,
                inputs: Dict,
                inputs_aug: Dict,
-               ik_params: IkParams,
                batch_size: int):
         """
 
@@ -710,120 +715,6 @@ class CylindersScenario(PlanarPushingScenario):
         else:
             v_out = v
         return v_out
-
-    def tinv_set_state(self, params, state_rng, visualize):
-        self.randomize_environment(state_rng, params)
-
-        self.env.step(np.zeros(self.action_spec.shape))
-
-        if visualize:
-            state = self.get_state()
-            self.plot_state_rviz(state, label='tinv_set_state')
-
-    def tinv_generate_data(self, action_rng: np.random.RandomState, params, visualize):
-        example, invalid = collect_trajectory(params=params,
-                                              scenario=self,
-                                              traj_idx=0,
-                                              predetermined_start_state=None,
-                                              predetermined_actions=None,
-                                              verbose=(1 if visualize else 0),
-                                              action_rng=action_rng)
-        return example, invalid
-
-    def tinv_sample_transform(self, transform_sampling_rng: np.random.RandomState, scaling: float):
-        trans = 0.25
-        euler = np.pi
-        lim = np.array([trans, trans, euler]) * scaling
-        transform = transform_sampling_rng.uniform(-lim, lim)
-        return transform
-
-    def tinv_set_state_from_aug_pred(self, params, example_aug_pred, moved_mask, visualize):
-        away_z = params['height'] / 2
-        y_min = params['extent'][2]
-        y_max = params['extent'][3]
-        away_x = params['extent'][1] - params['radius']
-
-        for i, obj in enumerate(self.task.objs):
-            # [0,0] because t=0 and extra dim of 1
-            if moved_mask[0, i + 1]:
-                pos = example_aug_pred[f'obj{i}/position'][0, 0]
-                quat = example_aug_pred[f'obj{i}/orientation'][0, 0]
-            else:
-                away_y = int_frac_to_range(i, len(self.task.objs), y_min, y_max)
-                pos = [away_x, away_y, away_z]
-                quat = [1, 0, 0, 0]
-            obj.set_pose(self.env.physics, position=pos, quaternion=quat)
-
-        aug_tcp_pos = example_aug_pred[f'{ARM_HAND_NAME}/tcp_pos'][0, 0]
-        success, joint_position_aug = self.task.solve_position_ik(self.env.physics, aug_tcp_pos)
-
-        if not success:
-            print(f"failed to solve ik to {aug_tcp_pos}")
-            return (invalid := True)
-
-        # teleports arm joints
-        for joint_idx, joint_value in enumerate(joint_position_aug):
-            self.env.physics.named.data.qpos[f'{ARM_NAME}/joint_{joint_idx + 1}'] = joint_value
-
-        self.env.step(np.zeros(self.action_spec.shape))
-
-        if visualize:
-            state = self.get_state()
-            self.plot_state_rviz(state, label='tinv_set_state')
-
-        return (invalid := False)
-
-    def tinv_generate_data_from_aug_pred(self, params, example_aug_pred, visualize):
-        unused_rng = np.random.RandomState(0)
-        action_k = 'gripper_position'
-        predetermined_actions = []
-        for action_t in example_aug_pred[action_k].numpy():
-            predetermined_actions.append({
-                action_k: action_t
-            })
-
-        example_aug_actual, invalid = collect_trajectory(params=params,
-                                                         scenario=self,
-                                                         traj_idx=0,
-                                                         predetermined_start_state=None,
-                                                         predetermined_actions=predetermined_actions,
-                                                         verbose=(1 if visualize else 0),
-                                                         action_rng=unused_rng)
-        return example_aug_actual, invalid
-
-    def tinv_apply_transformation(self, example: Dict, transform, visualize):
-        time = example['time_idx'].shape[0]
-
-        example = coerce_types(example)
-        example_aug = deepcopy(example)
-
-        example_batch = add_batch(example)
-        obj_points = self.compute_obj_points(example_batch, num_object_interp=1, batch_size=1)
-        moved_mask = compute_moved_mask(obj_points)
-
-        m = self.transformation_params_to_matrices(tf.convert_to_tensor(add_batch(transform), tf.float32))
-        to_local_frame = get_local_frame(moved_mask, obj_points)
-        example_aug_update, _, _ = self.aug_apply_no_ik(moved_mask, m, to_local_frame, example_batch,
-                                                        batch_size=1, time=time, visualize=visualize)
-        example_aug_update = remove_batch(example_aug_update)
-
-        example_aug = nested_dict_update(example_aug, example_aug_update)
-
-        return example_aug, moved_mask
-
-    def tinv_error(self, example: Dict, example_aug: Dict, moved_mask):
-        num_objs = example['num_objs'][0][0]
-        error = 0
-        for is_robot, obj_idx, k, pos_k, pos in self.iter_positions(example, num_objs):
-            if is_robot or moved_mask[0, obj_idx + 1] == 0:
-                continue
-            # compute the per-object error and add it
-            pos_aug = example_aug[pos_k]
-            obj_error = tf.reduce_mean(tf.linalg.norm(pos - pos_aug, axis=-1))
-            error += obj_error
-        error /= num_objs
-
-        return error
 
     def example_dict_to_flat_vector(self, example):
         num_objs = example['num_objs'][0, 0, 0]

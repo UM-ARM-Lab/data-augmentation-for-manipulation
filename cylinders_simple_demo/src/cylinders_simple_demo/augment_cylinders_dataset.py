@@ -6,19 +6,20 @@ from colorama import Fore
 from tqdm import tqdm
 
 from cylinders_simple_demo.aug_opt import AugmentationOptimization
-from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
-from link_bot_data.local_env_helper import LocalEnvHelper
-from link_bot_data.new_base_dataset import NewBaseDatasetLoader
-from link_bot_data.tf_dataset_utils import write_example, index_to_filename2
+from cylinders_simple_demo.cylinders_dynamics_dataset import CylindersDynamicsDatasetLoader
+from cylinders_simple_demo.local_env_helper import LocalEnvHelper
+from cylinders_simple_demo.cylinders_scenario import CylindersScenario
+from cylinders_simple_demo.utils import empty_callable
+from link_bot_data.tf_dataset_utils import pkl_write_example
 from link_bot_data.visualization import DebuggingViz, init_viz_env, dynamics_viz_t
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.pycommon import empty_callable
-from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.indexing import try_index_batched_dict
 from moonshine.numpify import numpify
 from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.torchify import torchify
+
+
 
 
 def unbatch_examples(example, actual_batch_size):
@@ -49,9 +50,8 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              scenario=None,
                              visualize: bool = False,
                              batch_size: int = 32,
-                             use_torch: bool = True,
-                             save_format='pkl'):
-    loader = NewDynamicsDatasetLoader([dataset_dir])
+                             use_torch: bool = True):
+    loader = CylindersDynamicsDatasetLoader([dataset_dir])
     if scenario is None:
         scenario = loader.get_scenario()
 
@@ -89,8 +89,7 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                                          scenario,
                                          visualize,
                                          batch_size,
-                                         use_torch,
-                                         save_format)
+                                         use_torch)
 
     return outdir
 
@@ -106,7 +105,6 @@ def augment(scenario, aug, n_augmentations, inputs, visualize, viz_f, use_torch)
     time = inputs['time_idx'].shape[1]
 
     for k in range(n_augmentations):
-        scenario.heartbeat()
         if use_torch:
             inputs = torchify(inputs)
         output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)
@@ -146,7 +144,7 @@ def out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f, 
             yield original_example_subset
 
 
-def augment_dataset_from_loader(loader: NewBaseDatasetLoader,
+def augment_dataset_from_loader(loader: CylindersDynamicsDatasetLoader,
                                 viz_f: Callable,
                                 dataset_dir: pathlib.Path,
                                 mode: str,
@@ -158,8 +156,7 @@ def augment_dataset_from_loader(loader: NewBaseDatasetLoader,
                                 scenario,
                                 visualize: bool = False,
                                 batch_size: int = 128,
-                                use_torch: bool = False,
-                                save_format='pkl'):
+                                use_torch: bool = False):
     aug = make_aug_opt(scenario, loader, hparams, debug_state_keys, batch_size)
 
     outdir.mkdir(exist_ok=True, parents=False)
@@ -174,7 +171,7 @@ def augment_dataset_from_loader(loader: NewBaseDatasetLoader,
     # copy in all of the data from modes we're not augmenting
     if mode != 'all':
         # += offsets example numbers so we don't overwrite the data we copy here with the augmentations
-        total_count += copy_modes(loader, mode, outdir, save_format)
+        total_count += copy_modes(loader, mode, outdir)
 
     need_to_write_hparams = True
     examples_names = []
@@ -187,20 +184,19 @@ def augment_dataset_from_loader(loader: NewBaseDatasetLoader,
         if need_to_write_hparams:
             scenario.aug_merge_hparams(dataset_dir, out_example, outdir)
             need_to_write_hparams = False
-        write_example(outdir, out_example, total_count, save_format)
-        example_name = index_to_filename2(total_count, save_format)
-        examples_names.append(example_name)
+        _, full_metadata_filename = pkl_write_example(outdir, out_example, total_count)
+        examples_names.append(full_metadata_filename)
         total_count += 1
     print(Fore.GREEN + outdir.as_posix() + Fore.RESET)
 
     if mode != 'all':
         with (outdir / f'{mode}.txt').open("w") as remaining_mode_f:
-            remaining_mode_f.writelines([n + '\n' for n in examples_names])
+            remaining_mode_f.writelines([n.as_posix() + '\n' for n in examples_names])
 
     return outdir
 
 
-def copy_modes(loader, mode, outdir, save_format):
+def copy_modes(loader, mode, outdir):
     total_count = 0
     modes = ['train', 'val', 'test']
     modes.remove(mode)
@@ -208,18 +204,17 @@ def copy_modes(loader, mode, outdir, save_format):
         remaining_mode_examples = []
         remaining_dataset = loader.get_datasets(mode=remaining_mode)
         for remaining_mode_example in tqdm(remaining_dataset):
-            write_example(outdir, remaining_mode_example, total_count, save_format)
-            example_name = index_to_filename2(total_count, save_format)
-            remaining_mode_examples.append(example_name)
+            _, full_metadata_filename = pkl_write_example(outdir, remaining_mode_example, total_count)
+            remaining_mode_examples.append(full_metadata_filename)
             total_count += 1
 
         with (outdir / f'{remaining_mode}.txt').open("w") as remaining_mode_f:
-            remaining_mode_f.writelines([n + '\n' for n in remaining_mode_examples])
+            remaining_mode_f.writelines([n.as_posix() + '\n' for n in remaining_mode_examples])
     return total_count
 
 
-def make_aug_opt(scenario: ScenarioWithVisualization,
-                 loader: NewBaseDatasetLoader,
+def make_aug_opt(scenario: CylindersScenario,
+                 loader: CylindersDynamicsDatasetLoader,
                  hparams: Dict,
                  debug_state_keys: List[str],
                  batch_size: int,

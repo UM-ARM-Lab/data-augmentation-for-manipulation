@@ -3,19 +3,20 @@ from typing import Dict, List, Callable
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from pyjacobian_follower import IkParams
 from visualization_msgs.msg import MarkerArray
 
-from cylinders_simple_demo.aug_opt_utils import debug_aug, debug_input, debug_ik, check_env_constraints, pick_best_params, \
+from cylinders_simple_demo.aug_opt_utils import debug_aug, debug_input, debug_ik, check_env_constraints, \
+    pick_best_params, \
     transform_obj_points, sum_over_moved
 from cylinders_simple_demo.aug_projection_opt import AugProjOpt
+from cylinders_simple_demo.cylinders_scenario import CylindersScenario
 from cylinders_simple_demo.iterative_projection import iterative_projection
+from cylinders_simple_demo.utils import empty_callable
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.visualization import DebuggingViz
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.pycommon import has_keys, empty_callable
-from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
+from link_bot_pycommon.pycommon import has_keys
 from moonshine.grid_utils_tf import lookup_points_in_vg
 from moonshine.numpify import numpify
 from moonshine.raster_3d_tf import points_to_voxel_grid_res_origin_point_batched
@@ -83,7 +84,7 @@ def add_stationary_points_to_env(env, obj_points, moved_mask, res, origin_point,
 class AugmentationOptimization:
 
     def __init__(self,
-                 scenario: ScenarioWithVisualization,
+                 scenario: CylindersScenario,
                  debug: DebuggingViz,
                  local_env_helper: LocalEnvHelper,
                  hparams: Dict,
@@ -107,8 +108,6 @@ class AugmentationOptimization:
 
         self.seed_int = 4 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
-        self.ik_params = IkParams(rng_dist=self.hparams.get("rand_dist", 0.1),
-                                  max_collision_check_attempts=self.hparams.get("max_collision_check_attempts", 1))
 
         if self.do_augmentation():
             self.invariance_model_wrapper = AcceptInvarianceModel()
@@ -221,7 +220,6 @@ class AugmentationOptimization:
         #  it assumes the body of the robot is not in contact and that any valid position IK is similar enough
         is_ik_valid, ik_keys_aug = self.scenario.aug_ik(inputs=inputs,
                                                         inputs_aug=inputs_aug,
-                                                        ik_params=self.ik_params,
                                                         batch_size=batch_size)
         keys_aug += ik_keys_aug
 

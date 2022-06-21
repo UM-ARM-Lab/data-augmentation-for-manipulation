@@ -495,5 +495,3 @@ def int_frac_to_range(i, n, low, high):
     return frac
 
 
-def empty_callable(*args, **kwargs):
-    pass

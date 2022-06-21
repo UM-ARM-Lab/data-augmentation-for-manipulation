@@ -20,21 +20,21 @@ The data set consists of pkl files, which contain some meta-data as well as file
 1. Generate the augmented dataset
 
 
-    ./scripts/generate_augmented_dataset -h  # help info
-    ./scripts/generate_augmented_dataset ./data aug_hparams/cylinders.hjson ./data_aug
+    ./scripts/generate_augmented_dataset.py -h  # help info
+    ./scripts/generate_augmented_dataset.py ./data aug_hparams/cylinders.hjson ./data_aug
 
 
 2. train the dynamics model
 
 
-    ./scripts/train-test_dynamics train -h  # see training options
-    ./scripts/train-test_dynamics train ./data_aug hparams/propnet.hjson -n with_augmentation
+    ./scripts/train-test_dynamics.py train -h  # see training options
+    ./scripts/train-test_dynamics.py train ./data_aug hparams/propnet.hjson -n with_augmentation
 
 3. evaluate the dynamics model 
  
   
-    ./scripts/train-test_dynamics eval -h  # see eval options
-    ./scripts/train-test_dynamics train ./data with_augmentation_xxx # full unique model name from the above training run
+    ./scripts/train-test_dynamics.py eval -h  # see eval options
+    ./scripts/train-test_dynamics.py train ./data with_augmentation_xxx # full unique model name from the above training run
 
 # Making a comparison to no augmentation
 

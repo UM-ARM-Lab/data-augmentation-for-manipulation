@@ -73,19 +73,6 @@ def wxyz2xyzw(quat):
 
 class PlanarPushingScenario(ScenarioWithVisualization):
 
-    def __init__(self, params):
-        ScenarioWithVisualization.__init__(self, params)
-        self.task = None
-        self.env = None
-        self.action_spec = None
-
-        self.camera_pub = rospy.Publisher("camera", Image, queue_size=10)
-        self.gripper_bbox_pub = rospy.Publisher('gripper_bbox_pub', BoundingBox, queue_size=10, latch=True)
-        self.joint_states_pub = rospy.Publisher(f'{ARM_NAME}/joint_states', JointState, queue_size=10)
-        self.viz_aug_pub = rospy.Publisher('viz_aug', MarkerArray, queue_size=10)
-
-        self.last_action = None
-        self.max_action_attempts = 100
 
     def on_before_data_collection(self, params: Dict):
         self.task = self.make_dm_task(params)

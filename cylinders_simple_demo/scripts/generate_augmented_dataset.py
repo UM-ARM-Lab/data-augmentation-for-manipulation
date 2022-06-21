@@ -7,10 +7,11 @@ from typing import Optional, Dict
 import hjson as hjson
 import numpy as np
 import tensorflow as tf
-from colorama import Fore
 
 from cylinders_simple_demo.augment_cylinders_dataset import augment_dataset_from_loader
 from cylinders_simple_demo.cylinders_dynamics_dataset import CylindersDynamicsDatasetLoader
+from cylinders_simple_demo.cylinders_scenario import CylindersScenario
+from cylinders_simple_demo.utils import load_hjson
 from link_bot_data.visualization import init_viz_env, dynamics_viz_t
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.numpify import numpify
@@ -26,26 +27,18 @@ def rm_tree(path):
     path.rmdir()
 
 
-def load_hjson(path: pathlib.Path):
-    with path.open("r") as file:
-        data = hjson.load(file)
-    return data
-
-
 def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              mode: str,
                              hparams: Dict,
                              outdir: pathlib.Path,
                              n_augmentations: int,
                              take: Optional[int] = None,
-                             scenario=None,
                              visualize: bool = False,
                              batch_size: int = 32,
                              use_torch: bool = True,
                              save_format='pkl'):
     loader = CylindersDynamicsDatasetLoader([dataset_dir])
-    if scenario is None:
-        scenario = loader.get_scenario()
+    scenario = CylindersScenario()
 
     def viz_f(_scenario, example, **kwargs):
         example = numpify(example)
@@ -78,8 +71,7 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                                          scenario,
                                          visualize,
                                          batch_size,
-                                         use_torch,
-                                         save_format)
+                                         use_torch)
 
     return outdir
 
@@ -117,19 +109,18 @@ def main():
     hparams = load_hjson(args.hparams)
     hparams['n_augmentations'] = args.n_augmentations
 
-    rm_tree(args.outdir)
+    if args.outdir.exists():
+        rm_tree(args.outdir)
 
-    outdir = augment_dynamics_dataset(dataset_dir=dataset_dir,
-                                      hparams=hparams,
-                                      mode=args.mode,
-                                      take=args.take,
-                                      outdir=args.outdir,
-                                      n_augmentations=args.n_augmentations,
-                                      use_torch=args.use_torch,
-                                      visualize=args.visualize,
-                                      batch_size=args.batch_size)
-
-    print(Fore.CYAN + outdir.as_posix() + Fore.RESET)
+    augment_dynamics_dataset(dataset_dir=dataset_dir,
+                             hparams=hparams,
+                             mode=args.mode,
+                             take=args.take,
+                             outdir=args.outdir,
+                             n_augmentations=args.n_augmentations,
+                             use_torch=args.use_torch,
+                             visualize=args.visualize,
+                             batch_size=args.batch_size)
 
 
 if __name__ == '__main__':

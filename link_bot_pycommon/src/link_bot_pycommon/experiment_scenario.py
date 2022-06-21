@@ -2,27 +2,16 @@ import logging
 from typing import Dict, Optional
 
 import numpy as np
-
-import rospy
-from arc_utilities.tf2wrapper import TF2Wrapper
 from geometry_msgs.msg import Vector3
-from link_bot_pycommon.base_services import BaseServices
-from link_bot_pycommon.heartbeat import HeartBeat
-from link_bot_pycommon.lazy import Lazy
-from link_bot_pycommon.sample_object_positions import sample_object_position, sample_object_positions
-from moonshine.indexing import index_time_2
 from peter_msgs.srv import GetPosition3DRequest, Position3DEnableRequest, Position3DActionRequest
 from std_msgs.msg import Int64, Float32
 from tf import transformations
-from visualization_msgs.msg import MarkerArray
+
+from link_bot_pycommon.base_services import BaseServices
+from link_bot_pycommon.sample_object_positions import sample_object_position, sample_object_positions
+from moonshine.indexing import index_time_2
 
 logger = logging.getLogger(__file__)
-
-
-class MockRobot:
-
-    def __init__(self):
-        self.robot_namespace = 'mock_robot'
 
 
 class ExperimentScenario:
@@ -32,18 +21,6 @@ class ExperimentScenario:
         if params is None:
             params = {}
         self.params = params
-        self.tf_features_converters = {}
-        self.time_viz_pub = rospy.Publisher("rviz_anim/time", Int64, queue_size=10, latch=True)
-        self.traj_idx_viz_pub = rospy.Publisher("traj_idx_viz", Float32, queue_size=10, latch=True)
-        self.recovery_prob_viz_pub = rospy.Publisher("recovery_probability_viz", Float32, queue_size=10, latch=True)
-        self.accept_probability_viz_pub = rospy.Publisher("accept_probability_viz", Float32, queue_size=10, latch=True)
-        self.stdev_viz_pub = rospy.Publisher("stdev", Float32, queue_size=10)
-        self.state_viz_pub = rospy.Publisher("state_viz", MarkerArray, queue_size=10, latch=True)
-        self.action_viz_pub = rospy.Publisher("action_viz", MarkerArray, queue_size=10, latch=True)
-        self.h = HeartBeat()
-
-        self.tf = Lazy(TF2Wrapper)
-        self.robot = MockRobot()
 
     @staticmethod
     def simple_name():

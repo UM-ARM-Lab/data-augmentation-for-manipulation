@@ -3,7 +3,7 @@ from typing import Callable
 import tensorflow as tf
 
 from cylinders_simple_demo.aug_opt_utils import debug_aug
-from link_bot_pycommon.pycommon import empty_callable
+from cylinders_simple_demo.utils import empty_callable
 
 
 class BaseProjectOpt:
