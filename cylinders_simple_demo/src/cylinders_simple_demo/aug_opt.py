@@ -5,9 +5,8 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from visualization_msgs.msg import MarkerArray
 
-from cylinders_simple_demo.aug_opt_utils import debug_aug, debug_input, debug_ik, check_env_constraints, \
-    pick_best_params, \
-    transform_obj_points, sum_over_moved
+from cylinders_simple_demo.aug_opt_utils import debug_ik, check_env_constraints, pick_best_params, transform_obj_points, \
+    sum_over_moved
 from cylinders_simple_demo.aug_projection_opt import AugProjOpt
 from cylinders_simple_demo.cylinders_scenario import CylindersScenario
 from cylinders_simple_demo.iterative_projection import iterative_projection
@@ -15,10 +14,8 @@ from cylinders_simple_demo.utils import empty_callable
 from link_bot_data.local_env_helper import LocalEnvHelper
 from link_bot_data.visualization import DebuggingViz
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
-from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.pycommon import has_keys
 from moonshine.grid_utils_tf import lookup_points_in_vg
-from moonshine.numpify import numpify
 from moonshine.raster_3d_tf import points_to_voxel_grid_res_origin_point_batched
 
 cache_ = {}
@@ -85,7 +82,6 @@ class AugmentationOptimization:
 
     def __init__(self,
                  scenario: CylindersScenario,
-                 debug: DebuggingViz,
                  local_env_helper: LocalEnvHelper,
                  hparams: Dict,
                  batch_size: int,
@@ -100,7 +96,6 @@ class AugmentationOptimization:
         self.hparams = hparams.get('augmentation', None)
         self.batch_size = batch_size
         self.scenario = scenario
-        self.debug = debug
         self.local_env_helper = local_env_helper
         self.post_init_cb = post_init_cb
         self.post_step_cb = post_step_cb
@@ -118,9 +113,6 @@ class AugmentationOptimization:
             self.no_delta_min_dist = has_keys(self.hparams, ['ablations', 'no_delta_min_dist'], False)
 
     def aug_opt(self, inputs: Dict, batch_size: int, time: int):
-        if debug_aug():
-            self.delete_state_action_markers()
-
         res = inputs['res']
         extent = inputs['extent']
         origin_point = inputs['origin_point']
@@ -149,10 +141,6 @@ class AugmentationOptimization:
                                                       res,
                                                       origin_point,
                                                       batch_size)
-
-        if debug_aug():
-            for b in debug_viz_batch_indices(batch_size):
-                self.plot_stationary_vg(b, env_stationary, extent, origin_point, res)
 
         from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
         sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary, res)
@@ -196,24 +184,6 @@ class AugmentationOptimization:
         inputs_aug.update(obj_aug_update)
         inputs_aug.update(self.scenario.aug_copy_inputs(inputs))
 
-        if debug_input():
-            for b in debug_viz_batch_indices(batch_size):
-                if local_origin_point_aug is not None:
-                    self.debug.send_position_transform(local_origin_point_aug[b], 'local_origin_point_aug')
-                if local_center_aug is not None:
-                    self.debug.send_position_transform(local_center_aug[b], 'local_center_aug')
-                self.debug.plot_state_rviz(inputs_aug, b, 0, 'aug_before', color='blue')
-                self.debug.plot_state_rviz(inputs_aug, b, 1, 'aug_after', color='blue')
-                self.debug.plot_action_rviz(inputs_aug, b, 'aug', color='blue')
-                env_b = {
-                    'env':          numpify(env[b]),
-                    'res':          numpify(res[b]),
-                    'origin_point': numpify(origin_point[b]),
-                    'extent':       numpify(extent[b]),
-                }
-                self.scenario.plot_environment_rviz(env_b)
-                self.debug.send_position_transform(origin_point[b], 'origin_point')
-
         # NOTE: We use IK as a simple and efficient way to preserve the contacts between the robot and the environment.
         #  Preserving contacts is a key insight of our augmentation method, so in a way this is just a more specific
         #  implementation of a more abstract rule. Solving IK is very efficient, but a bit less general.
@@ -234,16 +204,6 @@ class AugmentationOptimization:
         inputs_aug['is_valid'] = is_valid
 
         return inputs_aug
-
-    def plot_stationary_vg(self, b, env_stationary, extent, origin_point, res):
-        env_stationary_b = {
-            'env':          numpify(env_stationary[b]),
-            'res':          numpify(res[b]),
-            'origin_point': numpify(origin_point[b]),
-            'extent':       numpify(extent[b]),
-        }
-        self.scenario.plot_environment_rviz(env_stationary_b)
-        self.debug.send_position_transform(origin_point[b], 'origin_point')
 
     def aug_obj_transform(self,
                           res,
@@ -271,8 +231,7 @@ class AugmentationOptimization:
                                  obj_points=obj_points,
                                  obj_occupancy=obj_occupancy,
                                  viz_cb=viz_cb)
-        if debug_aug():
-            project_opt.clear_viz()
+
         not_progressing_threshold = self.hparams['not_progressing_threshold']
         obj_transforms, viz_vars = iterative_projection(initial_value=initial_transformation_params,
                                                         target=target_transformation_params,
@@ -297,9 +256,6 @@ class AugmentationOptimization:
                                        extent=extent,
                                        sdf=project_opt.obj_sdf_moved,
                                        sdf_aug=viz_vars.sdf_aug)
-        if debug_aug():
-            project_opt.clear_viz()
-
         return transformation_matrices, to_local_frame, is_valid
 
     def check_is_valid(self, moved_mask, obj_points_aug, obj_occupancy, extent, sdf, sdf_aug):

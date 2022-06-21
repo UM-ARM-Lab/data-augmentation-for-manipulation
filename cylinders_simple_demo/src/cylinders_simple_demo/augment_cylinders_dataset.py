@@ -1,25 +1,18 @@
 import pathlib
 from copy import deepcopy
-from typing import Dict, Callable, List, Optional
+from typing import Dict, Callable, Optional
 
 from colorama import Fore
 from tqdm import tqdm
 
 from cylinders_simple_demo.aug_opt import AugmentationOptimization
 from cylinders_simple_demo.cylinders_dynamics_dataset import CylindersDynamicsDatasetLoader
-from cylinders_simple_demo.local_env_helper import LocalEnvHelper
 from cylinders_simple_demo.cylinders_scenario import CylindersScenario
+from cylinders_simple_demo.data_utils import pkl_write_example
+from cylinders_simple_demo.local_env_helper import LocalEnvHelper
 from cylinders_simple_demo.utils import empty_callable
-from link_bot_data.tf_dataset_utils import pkl_write_example
-from link_bot_data.visualization import DebuggingViz, init_viz_env, dynamics_viz_t
-from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from merrrt_visualization.rviz_animation_controller import RvizAnimation
-from moonshine.indexing import try_index_batched_dict
 from moonshine.numpify import numpify
-from moonshine.torch_and_tf_utils import remove_batch
 from moonshine.torchify import torchify
-
-
 
 
 def unbatch_examples(example, actual_batch_size):
@@ -47,60 +40,27 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              outdir: pathlib.Path,
                              n_augmentations: int,
                              take: Optional[int] = None,
-                             scenario=None,
-                             visualize: bool = False,
                              batch_size: int = 32,
                              use_torch: bool = True):
     loader = CylindersDynamicsDatasetLoader([dataset_dir])
-    if scenario is None:
-        scenario = loader.get_scenario()
+    scenario = CylindersScenario()
 
-    # current needed because mujoco IK requires a fully setup simulation...
-    scenario.on_before_data_collection(loader.data_collection_params)
-
-    def viz_f(_scenario, example, **kwargs):
-        example = numpify(example)
-        state_keys = list(filter(lambda k: k in example, loader.state_keys))
-        anim = RvizAnimation(_scenario,
-                             n_time_steps=example['time_idx'].size,
-                             init_funcs=[
-                                 init_viz_env
-                             ],
-                             t_funcs=[
-                                 init_viz_env,
-                                 dynamics_viz_t(metadata={},
-                                                label='aug',
-                                                state_metadata_keys=loader.state_metadata_keys,
-                                                state_keys=state_keys,
-                                                action_keys=loader.action_keys),
-                             ])
-        anim.play(example)
-
-    debug_state_keys = loader.state_keys
     outdir = augment_dataset_from_loader(loader,
-                                         viz_f,
                                          dataset_dir,
                                          mode,
                                          take,
                                          hparams,
                                          outdir,
                                          n_augmentations,
-                                         debug_state_keys,
                                          scenario,
-                                         visualize,
                                          batch_size,
                                          use_torch)
 
     return outdir
 
 
-def augment(scenario, aug, n_augmentations, inputs, visualize, viz_f, use_torch):
+def augment(aug, n_augmentations, inputs, use_torch):
     actual_batch_size = inputs['batch_size']
-    if visualize:
-        scenario.reset_viz()
-
-        inputs_viz = remove_batch(inputs)
-        viz_f(scenario, inputs_viz, idx=0, color='g')
 
     time = inputs['time_idx'].shape[1]
 
@@ -112,20 +72,15 @@ def augment(scenario, aug, n_augmentations, inputs, visualize, viz_f, use_torch)
             output = numpify(output)
         output['augmented_from'] = inputs['full_filename']
 
-        if visualize:
-            for b in debug_viz_batch_indices(actual_batch_size):
-                output_b = try_index_batched_dict(output, b)
-                viz_f(scenario, output_b, idx=k, color='#0000ff88')
-
         yield output
 
 
-def out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f, use_torch):
+def out_examples_gen(aug, n_augmentations, dataset, use_torch):
     for example in dataset:
         actual_batch_size = example['batch_size']
         out_example_keys = None
 
-        for out_example in augment(scenario, aug, n_augmentations, example, visualize, viz_f, use_torch):
+        for out_example in augment(aug, n_augmentations, example, use_torch):
             if out_example_keys is None:
                 out_example_keys = list(out_example.keys())
             yield from unbatch_examples(out_example, actual_batch_size)
@@ -145,19 +100,16 @@ def out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f, 
 
 
 def augment_dataset_from_loader(loader: CylindersDynamicsDatasetLoader,
-                                viz_f: Callable,
                                 dataset_dir: pathlib.Path,
                                 mode: str,
                                 take: Optional[int],
                                 hparams: Dict,
                                 outdir: pathlib.Path,
                                 n_augmentations: int,
-                                debug_state_keys,
                                 scenario,
-                                visualize: bool = False,
                                 batch_size: int = 128,
                                 use_torch: bool = False):
-    aug = make_aug_opt(scenario, loader, hparams, debug_state_keys, batch_size)
+    aug = make_aug_opt(scenario, loader, hparams, batch_size)
 
     outdir.mkdir(exist_ok=True, parents=False)
     dataset = loader.get_datasets(mode=mode).take(take)
@@ -175,7 +127,7 @@ def augment_dataset_from_loader(loader: CylindersDynamicsDatasetLoader,
 
     need_to_write_hparams = True
     examples_names = []
-    for out_example in tqdm(out_examples_gen(scenario, aug, n_augmentations, dataset, visualize, viz_f, use_torch),
+    for out_example in tqdm(out_examples_gen(aug, n_augmentations, dataset, use_torch),
                             total=expected_total):
         if 'sdf' in out_example:
             out_example.pop("sdf")
@@ -216,18 +168,15 @@ def copy_modes(loader, mode, outdir):
 def make_aug_opt(scenario: CylindersScenario,
                  loader: CylindersDynamicsDatasetLoader,
                  hparams: Dict,
-                 debug_state_keys: List[str],
                  batch_size: int,
                  post_init_cb: Callable = empty_callable,
                  post_step_cb: Callable = empty_callable,
                  post_project_cb: Callable = empty_callable,
                  ):
-    debug = DebuggingViz(scenario, debug_state_keys, loader.action_keys)
     local_env_helper = LocalEnvHelper(h=hparams['local_env_h_rows'],
                                       w=hparams['local_env_w_cols'],
                                       c=hparams['local_env_c_channels'])
     aug = AugmentationOptimization(scenario=scenario,
-                                   debug=debug,
                                    local_env_helper=local_env_helper,
                                    hparams=hparams,
                                    batch_size=batch_size,
