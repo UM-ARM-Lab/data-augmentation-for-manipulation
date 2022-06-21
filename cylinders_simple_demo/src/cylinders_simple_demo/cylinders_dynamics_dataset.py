@@ -116,3 +116,11 @@ class MyTorchDataset(Dataset):
 
     def pprint_example(self):
         pprint_example(self[0])
+
+def remove_keys(*keys):
+    def _remove_keys(example):
+        for k in keys:
+            example.pop(k, None)
+        return example
+
+    return _remove_keys

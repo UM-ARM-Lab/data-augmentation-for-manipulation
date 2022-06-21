@@ -10,13 +10,12 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
-from merrrt_visualization.rviz_animation_controller import RvizAnimationController
-from moonshine.filepath_tools import load_hjson
-from moonshine.moonshine_utils import get_num_workers
+from cylinders_simple_demo.augment_cylinders_dataset import get_num_workers
+from cylinders_simple_demo.cylinders_dynamics_dataset import remove_keys, MyTorchDataset
 from cylinders_simple_demo.numpify import numpify
-from moonshine.torch_datasets_utils import dataset_skip, my_collate
-from propnet.propnet_models import PropNet
-from state_space_dynamics.torch_dynamics_dataset import TorchDynamicsDataset, remove_keys
+from cylinders_simple_demo.torch_datasets_utils import my_collate, dataset_skip
+from cylinders_simple_demo.utils import load_hjson
+from cylinders_simple_demo.propnet_models import PropNet
 
 
 def train_main(dataset_dir: pathlib.Path,
@@ -32,8 +31,8 @@ def train_main(dataset_dir: pathlib.Path,
         remove_keys('filename', 'full_filename', 'joint_names', 'metadata', 'is_valid', 'augmented_from'),
     ])
 
-    train_dataset = TorchDynamicsDataset(dataset_dir, mode='train', transform=transform)
-    val_dataset = TorchDynamicsDataset(dataset_dir, mode='val', transform=transform)
+    train_dataset = MyTorchDataset(dataset_dir, mode='train', transform=transform)
+    val_dataset = MyTorchDataset(dataset_dir, mode='val', transform=transform)
 
     train_loader = DataLoader(train_dataset,
                               batch_size=batch_size,
@@ -78,7 +77,7 @@ def train_main(dataset_dir: pathlib.Path,
 
 
 def eval_main(dataset_dir: pathlib.Path, checkpoint: str, mode: str, batch_size: int):
-    dataset = TorchDynamicsDataset(dataset_dir, mode)
+    dataset = MyTorchDataset(dataset_dir, mode)
     loader = DataLoader(dataset, collate_fn=my_collate, num_workers=get_num_workers(batch_size), batch_size=batch_size)
 
     model = PropNet.load_from_checkpoint(checkpoint_path=checkpoint)
@@ -88,7 +87,7 @@ def eval_main(dataset_dir: pathlib.Path, checkpoint: str, mode: str, batch_size:
 
 
 def viz_main(dataset_dir: pathlib.Path, checkpoint, mode: str, skip: Optional[int] = None):
-    dataset = TorchDynamicsDataset(dataset_dir, mode)
+    dataset = MyTorchDataset(dataset_dir, mode)
     s = dataset.get_scenario()
 
     dataset_ = dataset_skip(dataset, skip)

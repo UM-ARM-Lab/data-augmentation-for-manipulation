@@ -79,3 +79,13 @@ def min_max_extent_batched(rows: int, cols: int, channels: int, resolution, orig
     min_points = batch_idx_to_point_3d_res_origin_point(min_idx, resolution, origin)
     max_points = batch_idx_to_point_3d_res_origin_point(max_idx, resolution, origin)
     return min_points, max_points
+
+def pairwise_squared_distances_self(a):
+    """ same as above except, specialized to one input, with the diagonal is set to inf """
+    a_s = a.square().sum(dim=-1, keepdim=True)  # [b, ..., n, 1]
+    d = a_s - 2 * (a @ a.transpose(-1, -2)) + a_s.transpose(-2, -1)  # [b, ..., n, n]
+    n = a.shape[-2]
+    batch_shape = list(a.shape[:-2])
+    mask = torch.eye(n).repeat(*batch_shape, 1, 1).bool()
+    d[mask] = torch.inf
+    return d
