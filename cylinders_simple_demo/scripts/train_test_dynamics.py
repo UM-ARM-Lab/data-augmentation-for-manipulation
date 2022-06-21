@@ -1,36 +1,38 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-from time import time
 
 import numpy as np
 import torch
 
-from arc_utilities import ros_init
 from link_bot_pycommon.args import run_subparsers
-from moonshine.magic import wandb_lightning_magic
 from propnet import train_test_propnet
 
 
 def train_main(args):
-    if args.seed is None:
-        args.seed = np.random.randint(0, 10000)
-
-    train_test_propnet.train_main(**vars(args))
+    train_test_propnet.train_main(
+        dataset_dir=args.dataset_dir,
+        model_params=args.model_params,
+        nickname=args.nickname,
+        batch_size=args.batch_size,
+        epochs=args.epochs,
+        seed=args.seed,
+    )
 
 
 def eval_main(args):
-    train_test_propnet.eval_main(**vars(args))
+    train_test_propnet.eval_main(
+        dataset_dir=args.dataset_dir,
+        checkpoint=args.checkpoint,
+        mode=args.mode,
+        batch_size=args.batch_size,
+    )
 
 
 def viz_main(args):
     train_test_propnet.viz_main(**vars(args))
 
 
-node_name = f"train_test_propnet_{int(time())}"
-
-
-@ros_init.with_ros(node_name)
 def main():
     torch.set_printoptions(linewidth=250, precision=7, sci_mode=False)
     np.set_printoptions(linewidth=250, precision=7, suppress=True)
@@ -41,30 +43,24 @@ def main():
     train_parser = subparsers.add_parser('train')
     train_parser.add_argument('dataset_dir', type=pathlib.Path)
     train_parser.add_argument('model_params', type=pathlib.Path)
-    train_parser.add_argument('--nickname', '-n', type=str)
-    train_parser.add_argument('--user', '-u', type=str, default='armlab')
-    train_parser.add_argument('--checkpoint')
-    train_parser.add_argument('--batch-size', type=int, default=24)
-    train_parser.add_argument('--epochs', type=int, default=-1)
-    train_parser.add_argument('--steps', type=int, default=125_000)
-    train_parser.add_argument('--no-validate', action='store_true')
-    train_parser.add_argument('--seed', type=int, default=None)
+    train_parser.add_argument('--nickname', '-n', help='nickname')
+    train_parser.add_argument('--batch-size', type=int, default=32)
+    train_parser.add_argument('--epochs', type=int, default=500)
+    train_parser.add_argument('--seed', type=int, default=0)
     train_parser.set_defaults(func=train_main)
-
-    viz_parser = subparsers.add_parser('viz')
-    viz_parser.add_argument('dataset_dir', type=pathlib.Path)
-    viz_parser.add_argument('checkpoint')
-    viz_parser.add_argument('--user', '-u', type=str, default='armlab')
-    viz_parser.add_argument('--mode', type=str, default='test')
-    viz_parser.set_defaults(func=viz_main)
 
     eval_parser = subparsers.add_parser('eval')
     eval_parser.add_argument('dataset_dir', type=pathlib.Path)
     eval_parser.add_argument('checkpoint')
     eval_parser.add_argument('--mode', type=str, default='test')
-    eval_parser.add_argument('--batch-size', type=int, default=24)
-    eval_parser.add_argument('--user', '-u', type=str, default='armlab')
+    eval_parser.add_argument('--batch-size', type=int, default=32)
     eval_parser.set_defaults(func=eval_main)
+
+    viz_parser = subparsers.add_parser('viz')
+    viz_parser.add_argument('dataset_dir', type=pathlib.Path)
+    viz_parser.add_argument('checkpoint')
+    viz_parser.add_argument('--mode', type=str, default='test')
+    viz_parser.set_defaults(func=viz_main)
 
     run_subparsers(parser)
 
