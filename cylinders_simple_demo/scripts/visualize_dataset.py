@@ -1,18 +1,24 @@
 #!/usr/bin/env python
+import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
 from matplotlib import patches
 from matplotlib.animation import FuncAnimation
 
-from link_bot_data.cylinders_dataset import MyTorchDataset
+from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 
 
 def main():
-    dataset_dir = pathlib.Path("/media/shared/fwd_model_data/h50+vel/")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dataset_dir', type=pathlib.Path)
+    parser.add_argument('mode', type=str, choices=['train', 'val', 'test'])
+
+    args = parser.parse_args()
 
     # load the dataset
-    dataset = MyTorchDataset(dataset_dir, mode='train')
+    loader = NewDynamicsDatasetLoader([args.dataset_dir])
+    dataset = loader.get_datasets(mode=args.mode)
 
     for example in dataset:
         # matplotlib animation showing the cylinders moving
@@ -20,6 +26,7 @@ def main():
         plt.axis("equal")
         plt.title(f"Trajectory #{example['traj_idx']}")
         ax = plt.gca()
+        ax.set_xlim([-.2, .2])
 
         def viz_t(t):
             while len(ax.patches) > 0:
@@ -45,7 +52,7 @@ def main():
                 ax.add_patch(obj)
                 ax.add_patch(obj_vel)
 
-            ax.set_xlim([-.2, 0.2])
+            ax.set_ylim([-.2, .2])
 
         anim = FuncAnimation(fig, viz_t, frames=50, interval=2)
         # anim.save()

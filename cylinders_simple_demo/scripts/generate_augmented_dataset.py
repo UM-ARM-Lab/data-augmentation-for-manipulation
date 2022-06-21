@@ -15,6 +15,16 @@ from link_bot_data.visualization import init_viz_env, dynamics_viz_t
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.numpify import numpify
 
+def rm_tree(path):
+    path = pathlib.Path(path)
+    for child in path.glob('*'):
+        if child.is_file():
+            child.unlink()
+        else:
+            rm_tree(child)
+    path.rmdir()
+
+
 
 def load_hjson(path: pathlib.Path):
     with path.open("r") as file:
@@ -99,7 +109,7 @@ def main():
     parser.add_argument('--n-augmentations', type=int, default=25)
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--take', type=int)
-    parser.add_argument('--mode', type=str, default='all')
+    parser.add_argument('--mode', type=str, default='train')
     parser.add_argument('--visualize', action='store_true')
     parser.add_argument('--use-torch', action='store_true')
 
@@ -109,6 +119,8 @@ def main():
 
     hparams = load_hjson(args.hparams)
     hparams['n_augmentations'] = args.n_augmentations
+
+    rm_tree(args.outdir)
 
     outdir = augment_dynamics_dataset(dataset_dir=dataset_dir,
                                       hparams=hparams,

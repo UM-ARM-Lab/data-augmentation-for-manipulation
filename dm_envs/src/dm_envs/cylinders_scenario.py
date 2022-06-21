@@ -11,6 +11,9 @@ from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Circle
 from pyjacobian_follower import IkParams
+from std_msgs.msg import ColorRGBA
+from tf import transformations
+from visualization_msgs.msg import MarkerArray, Marker
 
 from augmentation.aug_opt import compute_moved_mask
 from augmentation.aug_opt_utils import get_local_frame
@@ -19,20 +22,17 @@ from dm_envs import primitive_hand
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario
 from dm_envs.planar_pushing_task import ARM_HAND_NAME, ARM_NAME
 from link_bot_data.base_collect_dynamics_data import collect_trajectory
-from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.coerce_types import coerce_types
+from link_bot_data.color_from_kwargs import color_from_kwargs
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
 from link_bot_pycommon.marker_index_generator import marker_index_generator
 from link_bot_pycommon.pycommon import int_frac_to_range
 from moonshine.filepath_tools import load_params
 from moonshine.geometry_tf import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
-from moonshine.torch_and_tf_utils import remove_batch, add_batch
-from moonshine.tensorflow_utils import repeat_tensor
 from moonshine.numpify import numpify
-from std_msgs.msg import ColorRGBA
-from tf import transformations
-from visualization_msgs.msg import MarkerArray, Marker
+from moonshine.tensorflow_utils import repeat_tensor
+from moonshine.torch_and_tf_utils import remove_batch, add_batch
 
 TINV_TEST_OBJ_IDX = 0
 
@@ -154,6 +154,13 @@ def make_vel_arrow(position, velocity, height, color_msg, idx, ns, vel_scale=1.0
                             color=vel_color,
                             idx=idx)
     return vel_marker
+
+
+def pos_in_bounds(tcp_pos_aug_b):
+    s = 0.2
+    in_bounds = tf.logical_and([-s, -s, 0] < tcp_pos_aug_b, tcp_pos_aug_b < [s, s, 0.01])
+    always_in_bounds = tf.reduce_all(in_bounds)
+    return always_in_bounds
 
 
 class CylindersScenario(PlanarPushingScenario):
@@ -600,34 +607,14 @@ class CylindersScenario(PlanarPushingScenario):
         tcp_pos_aug = inputs_aug[f'{ARM_HAND_NAME}/tcp_pos']
 
         is_ik_valid = []
-        joint_positions_aug = []
         for b in range(batch_size):
             tcp_pos_aug_b = tcp_pos_aug[b]
-            is_ik_valid_b = True
-            joint_positions_aug_b = []
-            for t in range(tcp_pos_aug_b.shape[0]):
-                tcp_pos_aug_b_t = tcp_pos_aug_b[t]
-                success, joint_position_aug_b_t = self.task.solve_position_ik(self.env.physics, tcp_pos_aug_b_t)
-                joint_positions_aug_b.append(joint_position_aug_b_t)
-                if not success:
-                    is_ik_valid_b = False
-            joint_positions_aug.append(joint_positions_aug_b)
+            is_ik_valid_b = pos_in_bounds(tcp_pos_aug_b)
             is_ik_valid.append(is_ik_valid_b)
 
-        joint_positions_aug = tf.stack(joint_positions_aug)  # [b, T, 6]
-        joint_positions_aug = tf.expand_dims(joint_positions_aug, -2)
-        joint_positions_aug_sin = tf.sin(joint_positions_aug)
-        joint_positions_aug_cos = tf.cos(joint_positions_aug)
-        joint_positions_aug_sincos = tf.stack([joint_positions_aug_sin, joint_positions_aug_cos], -1)  # [b, T, 1, 6, 2]
-        joint_positions_aug_sincos = tf.cast(joint_positions_aug_sincos, tf.float32)
         is_ik_valid = tf.cast(tf.stack(is_ik_valid), tf.float32)
 
-        joints_pos_k = f'{ARM_NAME}/joints_pos'
-
-        inputs_aug.update({
-            joints_pos_k: joint_positions_aug_sincos,
-        })
-        return is_ik_valid, [joints_pos_k]
+        return is_ik_valid, []
 
     def aug_transformation_jacobian(self, obj_transforms):
         """
@@ -667,6 +654,7 @@ class CylindersScenario(PlanarPushingScenario):
             'height',
             'joint_names',
             'time_idx',
+            'traj_idx',
             'dt',
         ]
         return {k: inputs[k] for k in aug_copy_keys}
