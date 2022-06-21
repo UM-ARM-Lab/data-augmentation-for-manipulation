@@ -218,21 +218,6 @@ def vector_to_dict(description: Dict, z):
     return d
 
 
-def swap_xy(x):
-    """
-
-    Args:
-        x: has shape [b1, b2, ..., bn, 3]
-        n_batch_dims: same as n in the above shape, number of dimensions before the dimension of 3 (x,y,z)
-
-    Returns: the x/y will be swapped
-
-    """
-    first = tf.gather(x, 0, axis=-1)
-    second = tf.gather(x, 1, axis=-1)
-    z = tf.gather(x, 2, axis=-1)
-    swapped = tf.stack([second, first, z], axis=-1)
-    return swapped
 
 
 def dict_of_numpy_arrays_to_dict_of_tensors(np_dict, dtype=tf.float32):

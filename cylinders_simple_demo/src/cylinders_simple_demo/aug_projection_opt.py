@@ -3,10 +3,11 @@ from typing import Optional, Callable
 
 import tensorflow as tf
 
-from cylinders_simple_demo.aug_opt_utils import transform_obj_points, dpoint_to_dparams, mean_over_moved, homogeneous
+from cylinders_simple_demo.aug_opt_utils import transform_obj_points, dpoint_to_dparams, mean_over_moved
+from cylinders_simple_demo.grid_utils_tf import batch_point_to_idx, homogeneous
 from cylinders_simple_demo.iterative_projection import BaseProjectOpt
-from cylinders_simple_demo.torch_geometry import batch_point_to_idx
 from cylinders_simple_demo.utils import empty_callable
+# from cylinders_simple_demo.torch_geometry import batch_point_to_idx
 
 
 @dataclass

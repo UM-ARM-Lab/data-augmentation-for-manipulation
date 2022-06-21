@@ -2,25 +2,7 @@ from dataclasses import dataclass
 
 import tensorflow as tf
 
-
-def homogeneous(points):
-    return tf.concat([points, tf.ones_like(points[..., 0:1])], axis=-1)
-
-
-def transform_points_3d(transform_matrix, points):
-    """
-
-    Args:
-        transform_matrix: [b1, b2, ..., 4, 4]
-        points: [b1, b2, ..., 3]
-
-    Returns:
-
-    """
-    points_homo = homogeneous(points)
-    points_homo = tf.expand_dims(points_homo, axis=-1)
-    transformed_points = tf.matmul(transform_matrix, points_homo)
-    return tf.squeeze(transformed_points, axis=-1)[..., :3]
+from cylinders_simple_demo.grid_utils_tf import transform_points_3d
 
 
 @dataclass

@@ -5,7 +5,7 @@ class LocalEnvHelper:
 
     def __init__(self, h: int, w: int, c: int, get_local_env_module=None):
         if get_local_env_module is None:
-            from moonshine import get_local_environment_tf
+            from cylinders_simple_demo import get_local_environment_tf
             self.get_local_env_module = get_local_environment_tf
         else:
             self.get_local_env_module = get_local_env_module

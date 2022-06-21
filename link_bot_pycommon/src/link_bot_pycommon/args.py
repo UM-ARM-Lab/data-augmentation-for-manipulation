@@ -171,9 +171,3 @@ class BooleanAction(BooleanOptionalAction):
                          metavar=metavar)
 
 
-def run_subparsers(parser: argparse.ArgumentParser):
-    args = parser.parse_args()
-    if args == argparse.Namespace():
-        parser.print_usage()
-    else:
-        args.func(args)

@@ -8,11 +8,10 @@ from cylinders_simple_demo.aug_opt_utils import check_env_constraints, pick_best
     sum_over_moved
 from cylinders_simple_demo.aug_projection_opt import AugProjOpt
 from cylinders_simple_demo.cylinders_scenario import CylindersScenario
+from cylinders_simple_demo.grid_utils_tf import lookup_points_in_vg, points_to_voxel_grid_res_origin_point_batched
 from cylinders_simple_demo.iterative_projection import iterative_projection
+from cylinders_simple_demo.local_env_helper import LocalEnvHelper
 from cylinders_simple_demo.utils import empty_callable, has_keys
-from link_bot_data.local_env_helper import LocalEnvHelper
-from moonshine.grid_utils_tf import lookup_points_in_vg
-from moonshine.raster_3d_tf import points_to_voxel_grid_res_origin_point_batched
 
 cache_ = {}
 

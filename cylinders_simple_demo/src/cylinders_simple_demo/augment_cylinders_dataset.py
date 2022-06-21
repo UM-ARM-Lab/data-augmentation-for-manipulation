@@ -93,7 +93,7 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
 
     if mode != 'all':
         with (outdir / f'{mode}.txt').open("w") as remaining_mode_f:
-            remaining_mode_f.writelines([n.as_posix() + '\n' for n in examples_names])
+            remaining_mode_f.writelines([n.name + '\n' for n in examples_names])
 
     return outdir
 
@@ -151,7 +151,7 @@ def copy_modes(dataset_dir, mode, outdir):
             total_count += 1
 
         with (outdir / f'{remaining_mode}.txt').open("w") as remaining_mode_f:
-            remaining_mode_f.writelines([n.as_posix() + '\n' for n in remaining_mode_examples])
+            remaining_mode_f.writelines([n.name + '\n' for n in remaining_mode_examples])
     return total_count
 
 

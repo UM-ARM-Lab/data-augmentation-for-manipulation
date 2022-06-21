@@ -10,19 +10,11 @@ import torch
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Circle
-from visualization_msgs.msg import MarkerArray
 
-from cylinders_simple_demo.utils import nested_dict_update
-from link_bot_data.color_from_kwargs import color_from_kwargs
-from link_bot_data.rviz_arrow import rviz_arrow
-from link_bot_pycommon.debugging_utils import debug_viz_batch_indices
-from link_bot_pycommon.experiment_scenario import ExperimentScenario
-from link_bot_pycommon.marker_index_generator import marker_index_generator
-from moonshine.filepath_tools import load_params
-from moonshine.geometry_tf import transform_points_3d, xyzrpy_to_matrices, transformation_jacobian, euler_angle_diff
-from moonshine.numpify import numpify
+from cylinders_simple_demo.grid_utils_tf import transform_points_3d, transformation_jacobian, euler_angle_diff, \
+    xyzrpy_to_matrices
+from cylinders_simple_demo.utils import nested_dict_update, load_params
 from moonshine.tensorflow_utils import repeat_tensor
-from moonshine.torch_and_tf_utils import remove_batch
 
 HEIGHT = 0.08
 HALF_HEIGHT = HEIGHT / 2
@@ -130,16 +122,10 @@ def pos_in_bounds(tcp_pos_aug_b):
     return always_in_bounds
 
 
-class CylindersScenario(ExperimentScenario):
+class CylindersScenario:
 
     def __init__(self):
-        ExperimentScenario.__init__(self)
-        self.task = None
-        self.env = None
-        self.action_spec = None
-
-        self.last_action = None
-        self.max_action_attempts = 100
+        pass
 
     def iter_keys(self, num_objs):
         # NOTE: the robot goes first, this is relied on in aug_apply_no_ik
@@ -182,50 +168,6 @@ class CylindersScenario(ExperimentScenario):
 
             yield is_robot, obj_idx, k, pos_k, vel_k, pos, vel
 
-    def plot_state_rviz(self, state: Dict, **kwargs):
-        super().plot_state_rviz(state, **kwargs)
-
-        no_robot = kwargs.get("no_robot", False)
-        ns = kwargs.get("label", "")
-        idx = kwargs.get("idx", 0)
-        color_msg = color_from_kwargs(kwargs, 1.0, 0, 0.0)
-
-        num_objs = state['num_objs'][0]
-        height = state['height'][0]
-        radius = state['radius'][0]
-        msg = MarkerArray()
-
-        ig = marker_index_generator(idx)
-
-        for is_robot, obj_idx, k, pos_k, vel_k, pos, vel in self.iter_positions_velocities(state, num_objs):
-            if is_robot:
-                if not no_robot and pos is not None:
-                    robot_pos_viz = deepcopy(pos)
-                    robot_pos_viz[0, 2] += HALF_HEIGHT
-                    robot_color_msg = deepcopy(color_msg)
-                    robot_color_msg.b = 1 - robot_color_msg.b
-                    marker = make_cylinder_marker(robot_color_msg, HEIGHT, next(ig), ns + '_robot',
-                                                  robot_pos_viz, RADIUS)
-                    msg.markers.append(marker)
-                # if pos is not None and vel is not None:
-                #     vel_marker = make_vel_arrow(pos, vel, primitive_hand.HEIGHT + 0.005, color_msg, next(ig),
-                #                                 ns + '_robot')
-                #     msg.markers.append(vel_marker)
-            else:
-                if pos is not None:
-                    obj_marker = make_cylinder_marker(color_msg, height, next(ig), ns, pos, radius)
-                    msg.markers.append(obj_marker)
-                # if pos is not None and vel is not None:
-                #     if np.linalg.norm(vel) < 1e-4:
-                #         # move it out of the view by moving it way up
-                #         up = np.array([0, 0, 10])
-                #         obj_vel_marker = make_vel_arrow(pos + up, vel, height, color_msg, next(ig), ns)
-                #     else:
-                #         obj_vel_marker = make_vel_arrow(pos, vel, height, color_msg, next(ig), ns)
-                #     msg.markers.append(obj_vel_marker)
-
-        self.state_viz_pub.publish(msg)
-
     def compute_obj_points(self, inputs: Dict, num_object_interp: int, batch_size: int):
         """
 
@@ -264,12 +206,6 @@ class CylindersScenario(ExperimentScenario):
 
         return obj_points
 
-    def set_state_from_dict(self, predetermined_start_state: Dict):
-        for obj in self.task.objs:
-            if obj.name in predetermined_start_state:
-                obj.set_pose(self.env.physics, position=predetermined_start_state[obj.name])
-        self.env.step(np.zeros(self.action_spec.shape))
-
     @staticmethod
     def is_points_key(k):
         return any([
@@ -280,8 +216,7 @@ class CylindersScenario(ExperimentScenario):
     def __repr__(self):
         return "cylinders"
 
-    def example_to_gif(self, batch):
-        example = remove_batch(batch)
+    def example_to_gif(self, example):
         time = example['time_idx'].shape[0]
         num_objs = example['num_objs'][0, 0]
 
@@ -522,28 +457,6 @@ class CylindersScenario(ExperimentScenario):
         gripper_position_aug = _transform(m, gripper_position, to_local_frame_expanded1)
         object_aug_update['gripper_position'] = gripper_position_aug
 
-        if kwargs.get('visualize', False):
-            for b in debug_viz_batch_indices(batch_size):
-                env_b = {
-                    'env':          inputs['env'][b],
-                    'res':          inputs['res'][b],
-                    'extent':       inputs['extent'][b],
-                    'origin_point': inputs['origin_point'][b],
-                }
-                object_aug_update_viz = deepcopy(object_aug_update)
-                object_aug_update_viz.update({
-                    'num_objs': inputs['num_objs'],
-                    'height':   inputs['height'],
-                    'radius':   inputs['radius'],
-                })
-                object_aug_update_viz_b = {k: v[b] for k, v in object_aug_update_viz.items()}
-
-                self.plot_environment_rviz(env_b)
-                for t in range(time):
-                    object_aug_update_b_t = {k: v[0] for k, v in object_aug_update_viz_b.items()}
-                    object_aug_update_b_t = numpify(object_aug_update_b_t)
-                    self.plot_state_rviz(object_aug_update_b_t, label='aug_no_ik', color='white', id=t)
-
         return object_aug_update, None, None
 
     def aug_ik(self,
@@ -634,41 +547,7 @@ class CylindersScenario(ExperimentScenario):
             hjson.dump(out_hparams, out_f)
 
     def aug_plot_dir_arrow(self, target_pos, scale, frame_id, k):
-        z_offset = 0.09
-        dir_msg = rviz_arrow([0, 0, z_offset], target_pos + np.array([0, 0, z_offset]), scale=scale)
-        dir_msg.header.frame_id = frame_id
-        dir_msg.id = k
-        self.aug_dir_pub.publish(dir_msg)
-
-    def simple_noise(self, rng: np.random.RandomState, example, k: str, v, noise_params):
-        mean = 0
-        # if k == 'env':
-        #     p_flip = noise_params['env']
-        #     flip_mask = (rng.rand(*v.shape) < p_flip).astype(np.float32)
-        #     v_out = flip_mask * (1 - v) + (1 - flip_mask) * v
-        if k in noise_params:
-            std = noise_params[k]
-            noise = rng.randn(*v.shape) * std + mean
-            v_out = v + noise
-        elif 'obj' in k and 'position' in k:
-            std = noise_params['obj_position']
-            noise = rng.randn(*v.shape) * std + mean
-            v_out = v + noise
-        elif 'obj' in k and 'linear_velocity' in k:
-            std = noise_params['obj_linear_velocity']
-            noise = rng.randn(*v.shape) * std + mean
-            v_out = v + noise
-        elif 'tcp_pos' in k:
-            std = noise_params['tcp_pos']
-            noise = rng.randn(*v.shape) * std + mean
-            v_out = v + noise
-        elif 'tcp_vel' in k:
-            std = noise_params['tcp_vel']
-            noise = rng.randn(*v.shape) * std + mean
-            v_out = v + noise
-        else:
-            v_out = v
-        return v_out
+        pass
 
     def example_dict_to_flat_vector(self, example):
         num_objs = example['num_objs'][0, 0, 0]
