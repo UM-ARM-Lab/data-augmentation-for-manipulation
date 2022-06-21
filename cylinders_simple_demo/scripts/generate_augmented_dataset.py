@@ -9,11 +9,12 @@ import numpy as np
 import tensorflow as tf
 from colorama import Fore
 
-from augmentation.augment_dataset import augment_dataset_from_loader
-from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
+from cylinders_simple_demo.augment_cylinders_dataset import augment_dataset_from_loader
+from cylinders_simple_demo.cylinders_dynamics_dataset import CylindersDynamicsDatasetLoader
 from link_bot_data.visualization import init_viz_env, dynamics_viz_t
 from merrrt_visualization.rviz_animation_controller import RvizAnimation
 from moonshine.numpify import numpify
+
 
 def rm_tree(path):
     path = pathlib.Path(path)
@@ -23,7 +24,6 @@ def rm_tree(path):
         else:
             rm_tree(child)
     path.rmdir()
-
 
 
 def load_hjson(path: pathlib.Path):
@@ -43,12 +43,9 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              batch_size: int = 32,
                              use_torch: bool = True,
                              save_format='pkl'):
-    loader = NewDynamicsDatasetLoader([dataset_dir])
+    loader = CylindersDynamicsDatasetLoader([dataset_dir])
     if scenario is None:
         scenario = loader.get_scenario()
-
-    # current needed because mujoco IK requires a fully setup simulation...
-    # scenario.on_before_data_collection(loader.data_collection_params)
 
     def viz_f(_scenario, example, **kwargs):
         example = numpify(example)
