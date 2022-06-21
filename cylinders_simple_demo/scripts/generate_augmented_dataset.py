@@ -2,51 +2,119 @@
 import argparse
 import logging
 import pathlib
-from time import time
+from typing import Optional, Dict
 
+import hjson as hjson
 import numpy as np
 import tensorflow as tf
 from colorama import Fore
 
-from arc_utilities import ros_init
-from augmentation.augment_dataset import augment_dynamics_dataset
-from augmentation.load_aug_params import load_aug_params
-from moonshine.gpu_config import limit_gpu_mem
+from augmentation.augment_dataset import augment_dataset_from_loader
+from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
+from link_bot_data.visualization import init_viz_env, dynamics_viz_t
+from merrrt_visualization.rviz_animation_controller import RvizAnimation
+from moonshine.numpify import numpify
 
-limit_gpu_mem(None)
+
+def load_hjson(path: pathlib.Path):
+    with path.open("r") as file:
+        data = hjson.load(file)
+    return data
 
 
-@ros_init.with_ros("augment_dynamics_dataset")
+def augment_dynamics_dataset(dataset_dir: pathlib.Path,
+                             mode: str,
+                             hparams: Dict,
+                             outdir: pathlib.Path,
+                             n_augmentations: int,
+                             take: Optional[int] = None,
+                             scenario=None,
+                             visualize: bool = False,
+                             batch_size: int = 32,
+                             use_torch: bool = True,
+                             save_format='pkl'):
+    loader = NewDynamicsDatasetLoader([dataset_dir])
+    if scenario is None:
+        scenario = loader.get_scenario()
+
+    # current needed because mujoco IK requires a fully setup simulation...
+    # scenario.on_before_data_collection(loader.data_collection_params)
+
+    def viz_f(_scenario, example, **kwargs):
+        example = numpify(example)
+        state_keys = list(filter(lambda k: k in example, loader.state_keys))
+        anim = RvizAnimation(_scenario,
+                             n_time_steps=example['time_idx'].size,
+                             init_funcs=[
+                                 init_viz_env
+                             ],
+                             t_funcs=[
+                                 init_viz_env,
+                                 dynamics_viz_t(metadata={},
+                                                label='aug',
+                                                state_metadata_keys=loader.state_metadata_keys,
+                                                state_keys=state_keys,
+                                                action_keys=loader.action_keys),
+                             ])
+        anim.play(example)
+
+    debug_state_keys = loader.state_keys
+    outdir = augment_dataset_from_loader(loader,
+                                         viz_f,
+                                         dataset_dir,
+                                         mode,
+                                         take,
+                                         hparams,
+                                         outdir,
+                                         n_augmentations,
+                                         debug_state_keys,
+                                         scenario,
+                                         visualize,
+                                         batch_size,
+                                         use_torch,
+                                         save_format)
+
+    return outdir
+
+
+def limit_gpu_mem(gigs: Optional[float]):
+    gpus = tf.config.list_physical_devices('GPU')
+    gpu = gpus[0]
+    tf.config.experimental.set_memory_growth(gpu, True)
+    if gigs is not None:
+        config = [tf.config.LogicalDeviceConfiguration(memory_limit=1024 * gigs)]
+        tf.config.set_logical_device_configuration(gpu, config)
+
+
 def main():
+    limit_gpu_mem(None)
+
     np.set_printoptions(suppress=True, precision=4)
 
     tf.get_logger().setLevel(logging.FATAL)
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset_dir', type=pathlib.Path, help='dataset directory')
+    parser.add_argument('hparams', type=pathlib.Path, help='hyper-parameters for augmentation')
+    parser.add_argument('outdir', type=pathlib.Path, help='output directory')
     parser.add_argument('--n-augmentations', type=int, default=25)
     parser.add_argument('--batch-size', type=int, default=64)
-    parser.add_argument('--nickname', '-n', help='a string to add on to the output dir name', default='')
     parser.add_argument('--take', type=int)
     parser.add_argument('--mode', type=str, default='all')
-    parser.add_argument('--hparams', type=pathlib.Path, default=pathlib.Path("aug_hparams/cylinders.hjson"))
     parser.add_argument('--visualize', action='store_true')
     parser.add_argument('--use-torch', action='store_true')
 
     args = parser.parse_args()
 
-    suffix = f"aug-{args.n_augmentations}-{int(time())}"
     dataset_dir = args.dataset_dir
 
-    outdir = dataset_dir.parent / f"{dataset_dir.name}+{suffix}+{args.nickname}"
-
-    hparams = load_aug_params(args.hparams)
+    hparams = load_hjson(args.hparams)
     hparams['n_augmentations'] = args.n_augmentations
 
     outdir = augment_dynamics_dataset(dataset_dir=dataset_dir,
                                       hparams=hparams,
                                       mode=args.mode,
                                       take=args.take,
-                                      outdir=outdir,
+                                      outdir=args.outdir,
                                       n_augmentations=args.n_augmentations,
                                       use_torch=args.use_torch,
                                       visualize=args.visualize,

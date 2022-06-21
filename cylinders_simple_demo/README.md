@@ -21,7 +21,7 @@ The data set consists of pkl files, which contain some meta-data as well as file
 
 
     ./scripts/generate_augmented_dataset -h  # help info
-    ./scripts/generate_augmented_dataset ./data hparams/cylinders.hjson ./data_aug
+    ./scripts/generate_augmented_dataset ./data aug_hparams/cylinders.hjson ./data_aug
 
 
 2. train the dynamics model

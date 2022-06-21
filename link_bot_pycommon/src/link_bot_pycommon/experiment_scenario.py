@@ -6,7 +6,6 @@ import numpy as np
 import rospy
 from arc_utilities.tf2wrapper import TF2Wrapper
 from geometry_msgs.msg import Vector3
-from link_bot_data.dataset_utils import add_predicted
 from link_bot_pycommon.base_services import BaseServices
 from link_bot_pycommon.heartbeat import HeartBeat
 from link_bot_pycommon.lazy import Lazy

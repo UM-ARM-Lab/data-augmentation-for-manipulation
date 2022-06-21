@@ -6,8 +6,6 @@ from colorama import Fore
 from tqdm import tqdm
 
 from augmentation.aug_opt import AugmentationOptimization
-from augmentation.simple_noise_augmentation import SimpleNoiseAugmentation
-from augmentation.vae_augmentation import VAEAugmentation
 from learn_invariance.new_dynamics_dataset import NewDynamicsDatasetLoader
 from link_bot_data.dataset_utils import add_predicted
 from link_bot_data.tf_dataset_utils import write_example, index_to_filename2
@@ -267,25 +265,19 @@ def make_aug_opt(scenario: ScenarioWithVisualization,
                  post_step_cb: Callable = empty_callable,
                  post_project_cb: Callable = empty_callable,
                  ):
-    if gaussian_noise_params := has_keys(hparams, ['augmentation', 'gaussian_noise']):
-        aug = SimpleNoiseAugmentation(scenario, gaussian_noise_params)
-    elif vae_model := has_keys(hparams, ['augmentation', 'vae_model']):
-        aug = VAEAugmentation(scenario, vae_model)
-    else:
-        debug = DebuggingViz(scenario, debug_state_keys, loader.action_keys)
-        local_env_helper = LocalEnvHelper(h=hparams['local_env_h_rows'],
-                                          w=hparams['local_env_w_cols'],
-                                          c=hparams['local_env_c_channels'])
-        aug = AugmentationOptimization(scenario=scenario,
-                                       debug=debug,
-                                       local_env_helper=local_env_helper,
-                                       hparams=hparams,
-                                       batch_size=batch_size,
-                                       state_keys=loader.state_keys,
-                                       action_keys=loader.action_keys,
-                                       points_state_keys=loader.points_state_keys,
-                                       post_init_cb=post_init_cb,
-                                       post_step_cb=post_step_cb,
-                                       post_project_cb=post_project_cb,
-                                       )
+    debug = DebuggingViz(scenario, debug_state_keys, loader.action_keys)
+    local_env_helper = LocalEnvHelper(h=hparams['local_env_h_rows'],
+                                      w=hparams['local_env_w_cols'],
+                                      c=hparams['local_env_c_channels'])
+    aug = AugmentationOptimization(scenario=scenario,
+                                   debug=debug,
+                                   local_env_helper=local_env_helper,
+                                   hparams=hparams,
+                                   batch_size=batch_size,
+                                   state_keys=loader.state_keys,
+                                   action_keys=loader.action_keys,
+                                   post_init_cb=post_init_cb,
+                                   post_step_cb=post_step_cb,
+                                   post_project_cb=post_project_cb,
+                                   )
     return aug

@@ -3,7 +3,6 @@ from typing import Dict, Optional
 
 import numpy as np
 import tensorflow as tf
-from dm_control import composer
 from tensorflow_graphics.geometry.transformation import rotation_matrix_3d
 
 import ros_numpy
@@ -18,7 +17,6 @@ from link_bot_pycommon.pycommon import yaw_diff
 from link_bot_pycommon.scenario_with_visualization import ScenarioWithVisualization
 from moonshine.tensorflow_utils import to_list_of_strings
 from moonshine.numpify import numpify
-from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import Image, JointState
 from visualization_msgs.msg import MarkerArray
 
@@ -75,8 +73,8 @@ def wxyz2xyzw(quat):
 
 class PlanarPushingScenario(ScenarioWithVisualization):
 
-    def __init__(self):
-        ScenarioWithVisualization.__init__(self)
+    def __init__(self, params):
+        ScenarioWithVisualization.__init__(self, params)
         self.task = None
         self.env = None
         self.action_spec = None

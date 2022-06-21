@@ -4,7 +4,6 @@ from functools import lru_cache
 from typing import Union, List
 
 from link_bot_data.dataset_utils import merge_hparams_dicts
-from link_bot_data.wandb_datasets import wandb_download_dataset
 from link_bot_pycommon.serialization import load_gzipped_pickle
 from moonshine.filepath_tools import load_hjson
 
@@ -98,14 +97,10 @@ class DynamicsDatasetParams:
         self.dataset_dirs = dataset_dirs
         self.data_collection_params = self.params['data_collection_params']
         self.scenario_params = self.data_collection_params.get('scenario_params', {})
-        self.state_description = self.data_collection_params['state_description']
 
-        self.state_metadata_description = self.data_collection_params['state_metadata_description']
-        self.action_description = self.data_collection_params['action_description']
-        self.env_description = self.data_collection_params['env_description']
-        self.state_keys = list(self.state_description.keys())
+        self.state_keys = self.data_collection_params['state_keys']
         self.state_keys.append('time_idx')
-        self.state_metadata_keys = list(self.state_metadata_description.keys())
-        self.env_keys = list(self.env_description.keys())
-        self.action_keys = list(self.action_description.keys())
+        self.state_metadata_keys = self.data_collection_params['state_metadata_keys']
+        self.env_keys = self.data_collection_params['env_keys']
+        self.action_keys = self.data_collection_params['action_keys']
         self.time_indexed_keys = self.state_keys + self.state_metadata_keys + self.action_keys

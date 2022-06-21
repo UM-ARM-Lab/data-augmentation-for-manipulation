@@ -209,8 +209,7 @@ class NewBaseDatasetLoader:
 
     def get_scenario(self):
         if self.scenario is None:
-            scenario_params = self.hparams['data_collection_params'].get('scenario_params', {'rope_name': 'rope_3d'})
-            self.scenario = get_scenario(self.hparams['scenario'], params=scenario_params)
+            self.scenario = get_scenario(self.hparams['scenario'], params={})
 
         return self.scenario
 

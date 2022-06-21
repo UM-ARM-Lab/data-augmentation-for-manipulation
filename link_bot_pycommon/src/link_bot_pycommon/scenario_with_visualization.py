@@ -13,7 +13,6 @@ from gazebo_msgs.srv import GetModelState, GetModelStateRequest, GetModelStateRe
 from gazebo_msgs.srv import SetModelState
 from geometry_msgs.msg import Pose, Point, Quaternion
 from jsk_recognition_msgs.msg import BoundingBox
-from link_bot_data.dataset_utils import NULL_PAD_VALUE
 from link_bot_data.rviz_arrow import rviz_arrow
 from link_bot_data.visualization_common import make_delete_marker, make_delete_markerarray
 from link_bot_pycommon.bbox_visualization import extent_to_bbox
@@ -29,7 +28,6 @@ from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from std_msgs.msg import Float32, ColorRGBA
 from tf import transformations
 from visualization_msgs.msg import MarkerArray, Marker
-
 
 class ScenarioWithVisualization(ExperimentScenario, ABC):
     """

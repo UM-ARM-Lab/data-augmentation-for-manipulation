@@ -1,7 +1,6 @@
 import contextlib
 import pathlib
 
-import halo
 import psutil
 
 import rospy
@@ -48,7 +47,6 @@ def get_gazebo_pids():
 GAZEBO_PIDS_FILENAME = pathlib.Path("~/.gazebo_pids").expanduser()
 
 
-@halo.Halo("Getting gazebo processes")
 def get_gazebo_processes():
     pids = get_gazebo_pids()
     processes = []

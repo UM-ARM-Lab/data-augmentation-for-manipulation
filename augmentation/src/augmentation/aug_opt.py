@@ -6,7 +6,6 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from pyjacobian_follower import IkParams
 
-import rospy
 from augmentation.aug_opt_utils import debug_aug, debug_input, debug_ik, check_env_constraints, pick_best_params, \
     transform_obj_points, sum_over_moved
 from augmentation.aug_projection_opt import AugProjOpt
@@ -93,7 +92,6 @@ class AugmentationOptimization:
                  batch_size: int,
                  state_keys: List[str],
                  action_keys: List[str],
-                 points_state_keys: List[str] = None,
                  post_init_cb: Callable = empty_callable,
                  post_step_cb: Callable = empty_callable,
                  post_project_cb: Callable = empty_callable,
@@ -105,7 +103,6 @@ class AugmentationOptimization:
         self.scenario = scenario
         self.debug = debug
         self.local_env_helper = local_env_helper
-        self.broadcaster = self.scenario.tf.tf_broadcaster
         self.post_init_cb = post_init_cb
         self.post_step_cb = post_step_cb
         self.post_project_cb = post_project_cb
@@ -116,19 +113,12 @@ class AugmentationOptimization:
                                   max_collision_check_attempts=self.hparams.get("max_collision_check_attempts", 1))
 
         if self.do_augmentation():
-            invariance_model = self.hparams['invariance_model']
-            if invariance_model is None:
-                self.invariance_model_wrapper = AcceptInvarianceModel()
-            else:
-                invariance_model_path = pathlib.Path(self.hparams['invariance_model'])
-                self.invariance_model_wrapper = InvarianceModelWrapper(invariance_model_path, self.batch_size,
-                                                                       self.scenario)
+            self.invariance_model_wrapper = AcceptInvarianceModel()
 
             # ablations
             self.no_invariance = has_keys(self.hparams, ['ablations', 'no_invariance'], False)
             self.no_occupancy = has_keys(self.hparams, ['ablations', 'no_occupancy'], False)
             self.no_delta_min_dist = has_keys(self.hparams, ['ablations', 'no_delta_min_dist'], False)
-            rospy.loginfo_once(f'{self.no_invariance=} {self.no_occupancy=} {self.no_delta_min_dist=}')
 
     def aug_opt(self, inputs: Dict, batch_size: int, time: int):
         if debug_aug():

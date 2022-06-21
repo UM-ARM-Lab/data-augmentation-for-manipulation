@@ -12,11 +12,10 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Circle
 from pyjacobian_follower import IkParams
 
-from arc_utilities.algorithms import nested_dict_update
 from augmentation.aug_opt import compute_moved_mask
 from augmentation.aug_opt_utils import get_local_frame
+from cylinders_simple_demo.utils import nested_dict_update
 from dm_envs import primitive_hand
-from dm_envs.cylinders_task import PlanarPushingCylindersTask
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario
 from dm_envs.planar_pushing_task import ARM_HAND_NAME, ARM_NAME
 from link_bot_data.base_collect_dynamics_data import collect_trajectory

@@ -8,7 +8,6 @@ from enum import Enum
 import hjson
 import numpy as np
 import tensorflow as tf
-from dataclasses_json import DataClassJsonMixin
 
 from rospy_message_converter import message_converter
 from sensor_msgs.msg import genpy
