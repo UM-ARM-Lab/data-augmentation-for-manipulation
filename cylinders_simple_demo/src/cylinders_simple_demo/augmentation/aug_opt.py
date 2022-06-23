@@ -1,17 +1,16 @@
 from typing import Dict, List, Callable
 
 import numpy as np
-import tensorflow as tf
-import tensorflow_probability as tfp
+import torch
 
-from cylinders_simple_demo.aug_opt_utils import check_env_constraints, pick_best_params, transform_obj_points, \
-    sum_over_moved
-from cylinders_simple_demo.aug_projection_opt import AugProjOpt
-from cylinders_simple_demo.cylinders_scenario import CylindersScenario
-from cylinders_simple_demo.grid_utils_tf import lookup_points_in_vg, points_to_voxel_grid_res_origin_point_batched
-from cylinders_simple_demo.iterative_projection import iterative_projection
-from cylinders_simple_demo.local_env_helper import LocalEnvHelper
-from cylinders_simple_demo.utils import empty_callable, has_keys
+from cylinders_simple_demo.augmentation.aug_opt_utils import pick_best_params, transform_obj_points, \
+    sum_over_moved, check_env_constraints
+from cylinders_simple_demo.augmentation.aug_projection_opt import AugProjOpt
+from cylinders_simple_demo.utils.cylinders_scenario import CylindersScenario
+from cylinders_simple_demo.utils.torch_geometry import lookup_points_in_vg, points_to_voxel_grid_res_origin_point_batched
+from cylinders_simple_demo.augmentation.iterative_projection import iterative_projection
+from cylinders_simple_demo.utils.local_env_helper import LocalEnvHelper
+from cylinders_simple_demo.utils.utils import has_keys
 
 cache_ = {}
 
@@ -21,7 +20,7 @@ class AcceptInvarianceModel:
         pass
 
     def evaluate(self, sampled_params):
-        return tf.ones(sampled_params.shape[:-1])
+        return torch.zeros(sampled_params.shape[:-1])
 
 
 def compute_moved_mask(obj_points, moved_threshold=0.01):
@@ -29,13 +28,13 @@ def compute_moved_mask(obj_points, moved_threshold=0.01):
     obj_points: [b, m, T, n_points, 3]
     return: [b, m], [b, m]
     """
-    obj_points_dist = tf.linalg.norm(obj_points - obj_points[:, :, 0:1], axis=-1)  # [b, m, T, n_points]
-    obj_points_dist = tf.reduce_max(tf.reduce_max(obj_points_dist, axis=-1), axis=-1)  # [b, m]
+    obj_points_dist = (obj_points - obj_points[:, :, 0:1]).norm(dim=-1)  # [b, m, T, n_points]
+    obj_points_dist = torch.max(torch.max(obj_points_dist, dim=-1)[0], dim=-1)[0]  # [b, m]
     moved_mask = obj_points_dist > moved_threshold ** 2
-    robot_always_moved_mask = np.zeros_like(moved_mask)
+    robot_always_moved_mask = torch.zeros_like(moved_mask)
     robot_always_moved_mask[:, 0] = 1
-    moved_mask = tf.logical_or(moved_mask, robot_always_moved_mask)
-    return tf.cast(moved_mask, tf.float32)
+    moved_mask = torch.logical_or(moved_mask, robot_always_moved_mask)
+    return moved_mask.float()
 
 
 def add_stationary_points_to_env(env, obj_points, moved_mask, res, origin_point, batch_size):
@@ -45,22 +44,24 @@ def add_stationary_points_to_env(env, obj_points, moved_mask, res, origin_point,
         env: [b, h, w, c]
         obj_points:  [b, m_objects, T, n_points, 3]
         moved_mask:  [b, m_objects]
+        res:
+        origin_point:
+        batch_size:
 
     Returns:
 
     """
-    indices = tf.where(1 - moved_mask)  # [n, 2]
-    batch_indices = indices[:, 0]
-    points = tf.gather_nd(obj_points, indices)  # [n, T, n_points, 3]
+    batch_indices, moved_object_indices = torch.where(1 - moved_mask)
+    points = obj_points[batch_indices, moved_object_indices]  # [n, T, n_points, 3]
 
     # because the objects here are stationary, we can ignore the time dimension
     points_0 = points[:, 0]  # [b, n_points, 3]
     n_points = points_0.shape[1]
 
-    points_flat = tf.reshape(points_0, [-1, 3])
-    res_flat = tf.repeat(tf.gather(res, batch_indices, axis=0), n_points, axis=0)
-    origin_point_flat = tf.repeat(tf.gather(origin_point, batch_indices, axis=0), n_points, axis=0)
-    batch_indices_flat = tf.repeat(batch_indices, n_points, axis=0)
+    points_flat = points_0.reshape([-1, 3])
+    res_flat = res[batch_indices].repeat_interleave(n_points)
+    origin_point_flat = origin_point[batch_indices].repeat_interleave(n_points, 0)
+    batch_indices_flat = batch_indices.repeat_interleave(n_points)
 
     # [b, h, w, c]
     env_stationary = points_to_voxel_grid_res_origin_point_batched(batch_indices_flat,
@@ -69,35 +70,23 @@ def add_stationary_points_to_env(env, obj_points, moved_mask, res, origin_point,
                                                                    origin_point_flat,
                                                                    *env.shape[-3:],
                                                                    batch_size)
-    env_stationary = tf.clip_by_value(env + env_stationary, 0, 1)
+    env_stationary = torch.clip(env + env_stationary, 0, 1)
     return env_stationary
 
 
 class AugmentationOptimization:
 
-    def __init__(self,
-                 scenario: CylindersScenario,
-                 local_env_helper: LocalEnvHelper,
-                 hparams: Dict,
-                 batch_size: int,
-                 state_keys: List[str],
-                 action_keys: List[str],
-                 post_init_cb: Callable = empty_callable,
-                 post_step_cb: Callable = empty_callable,
-                 post_project_cb: Callable = empty_callable,
-                 ):
+    def __init__(self, scenario: CylindersScenario, local_env_helper: LocalEnvHelper, hparams: Dict, batch_size: int,
+                 state_keys: List[str], action_keys: List[str]):
         self.state_keys = state_keys
         self.action_keys = action_keys
         self.hparams = hparams.get('augmentation', None)
         self.batch_size = batch_size
         self.scenario = scenario
         self.local_env_helper = local_env_helper
-        self.post_init_cb = post_init_cb
-        self.post_step_cb = post_step_cb
-        self.post_project_cb = post_project_cb
 
-        self.seed_int = 4 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
-        self.seed = tfp.util.SeedStream(self.seed_int + 1, salt="nn_classifier_aug")
+        self.seed = 4 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
+        self.rng = np.random.RandomState(self.seed)
 
         if self.do_augmentation():
             self.invariance_model_wrapper = AcceptInvarianceModel()
@@ -119,13 +108,12 @@ class AugmentationOptimization:
         if 'sdf_grad' in inputs:
             inputs.pop("sdf_grad")
 
-        n_interp = self.hparams['num_object_interp']
-        obj_points = self.scenario.compute_obj_points(inputs, n_interp, batch_size)  # [b,m,T,num_points,3]
+        obj_points = self.scenario.compute_obj_points(inputs, batch_size)  # [b,m,T,num_points,3]
         # check which objects move over time
         moved_mask = compute_moved_mask(obj_points)  # [b, m_objects]
-        obj_points_flat = tf.reshape(obj_points, [batch_size, -1, 3])
+        obj_points_flat = torch.reshape(obj_points, [batch_size, -1, 3])
         obj_occupancy_flat = lookup_points_in_vg(obj_points_flat, env, res, origin_point, batch_size)
-        obj_occupancy = tf.reshape(obj_occupancy_flat, obj_points.shape[:-1])  # [b, m, num_points]
+        obj_occupancy = torch.reshape(obj_occupancy_flat, obj_points.shape[:-1])  # [b, m, num_points]
 
         # then we can add the points that represent the non-moved objects to the "env" voxel grid,
         # then compute SDF and grad. This will be slow, what can we do about that?
@@ -137,8 +125,11 @@ class AugmentationOptimization:
                                                       origin_point,
                                                       batch_size)
 
+        # TODO: replace with pure pytorch implementation
         from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
         sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary, res)
+        sdf_stationary = torch.from_numpy(sdf_stationary.numpy())
+        sdf_grad_stationary = torch.from_numpy(sdf_grad_stationary.numpy())
 
         def _viz_cb(_b):
             pass
@@ -227,9 +218,11 @@ class AugmentationOptimization:
         not_progressing_threshold = self.hparams['not_progressing_threshold']
         obj_transforms, viz_vars = iterative_projection(initial_value=initial_transformation_params,
                                                         target=target_transformation_params,
-                                                        n=self.hparams['n_outer_iters'], m=self.hparams['max_steps'],
+                                                        n=self.hparams['n_outer_iters'],
+                                                        m=self.hparams['max_steps'],
                                                         step_towards_target=project_opt.step_towards_target,
-                                                        project_opt=project_opt, x_distance=self.scenario.aug_distance,
+                                                        project_opt=project_opt,
+                                                        x_distance=self.scenario.aug_distance,
                                                         not_progressing_threshold=not_progressing_threshold)
 
         transformation_matrices = self.scenario.transformation_params_to_matrices(obj_transforms)
@@ -240,34 +233,44 @@ class AugmentationOptimization:
                                        obj_points_aug=obj_points_aug,
                                        obj_occupancy=obj_occupancy,
                                        extent=extent,
-                                       sdf=project_opt.obj_sdf_moved,
+                                       sdf=project_opt.obj_sdf,
                                        sdf_aug=viz_vars.sdf_aug)
         return transformation_matrices, to_local_frame, is_valid
 
     def check_is_valid(self, moved_mask, obj_points_aug, obj_occupancy, extent, sdf, sdf_aug):
-        bbox_loss_batch = tf.reduce_max(self.bbox_loss(obj_points_aug, extent), axis=-2)
-        bbox_loss_batch = tf.reduce_max(bbox_loss_batch, axis=-1)
-        bbox_loss_batch = tf.reduce_max(bbox_loss_batch, axis=-1)
-        bbox_constraint_satisfied = tf.cast(bbox_loss_batch < self.hparams['max_bbox_violation'], tf.float32)
+        """
+
+        Args:
+            moved_mask: [b, m]
+            obj_points_aug: [b, m, T, n_points, 3]
+            obj_occupancy:  [b, m, T, n_points]
+            extent :[b, 4]
+            sdf: the SDF values for the unaugmented points [b, m, T, n_points]
+            sdf_aug:  the SDF values for the augmented points [b, m, T, n_points]
+
+        Returns:
+
+        """
+        batch_size = moved_mask.shape[0]
+        bbox_loss_batch = self.bbox_loss(obj_points_aug, extent).reshape([batch_size, -1]).max(dim=1)[0]
+        bbox_constraint_satisfied = (bbox_loss_batch < self.hparams['max_bbox_violation']).float()
 
         if self.no_occupancy:
             env_constraints_satisfied = 1.0
         else:
             env_constraints_satisfied_ = check_env_constraints(obj_occupancy, sdf_aug)  # [b, m, T, n]
-            num_env_constraints_violated = tf.reduce_sum(1 - env_constraints_satisfied_, axis=-1)
-            num_env_constraints_violated = tf.reduce_sum(num_env_constraints_violated, axis=-1)
+            num_env_constraints_violated = (1 - env_constraints_satisfied_).sum(dim=-1)
+            num_env_constraints_violated = num_env_constraints_violated.sum(dim=-1)
             num_env_constraints_violated_moved = sum_over_moved(moved_mask, num_env_constraints_violated)
             env_constraints_satisfied = num_env_constraints_violated_moved < self.hparams['max_env_violations']
-            env_constraints_satisfied = tf.cast(env_constraints_satisfied, tf.float32)
+            env_constraints_satisfied = env_constraints_satisfied.float()
 
         if self.no_delta_min_dist:
             delta_min_dist_satisfied = 1.0
         else:
-            delta_dist = tf.abs(sdf - sdf_aug)
-            delta_min_dist = tf.reduce_min(delta_dist, axis=-1)
-            delta_min_dist = tf.reduce_min(delta_min_dist, axis=-1)
-            delta_min_dist = tf.reduce_min(delta_min_dist, axis=-1)
-            delta_min_dist_satisfied = tf.cast(delta_min_dist < self.hparams['delta_min_dist_threshold'], tf.float32)
+            delta_dist = torch.abs(sdf - sdf_aug)
+            delta_min_dist = delta_dist.reshape([batch_size, -1]).min(dim=1)[0]
+            delta_min_dist_satisfied = (delta_min_dist < self.hparams['delta_min_dist_threshold']).float()
 
         constraints_satisfied = env_constraints_satisfied * bbox_constraint_satisfied * delta_min_dist_satisfied
         return constraints_satisfied
@@ -277,11 +280,11 @@ class AugmentationOptimization:
         good_enough_percentile = self.hparams['good_enough_percentile']
         n_samples = int(1 / good_enough_percentile) * n_total
 
-        target_params = self.scenario.sample_target_aug_params(self.seed, self.hparams, n_samples)
+        target_params = self.scenario.sample_target_aug_params(self.rng, self.hparams, n_samples)
 
         # pick the most valid transforms, via the learned object state augmentation validity model
         best_target_params = pick_best_params(self.invariance_model_wrapper, target_params, batch_size)
-        best_target_params = tf.reshape(best_target_params, [batch_size, k_transforms, target_params.shape[-1]])
+        best_target_params = torch.reshape(best_target_params, [batch_size, k_transforms, target_params.shape[-1]])
         return best_target_params
 
     def use_original_if_invalid(self,
@@ -292,7 +295,7 @@ class AugmentationOptimization:
                                 keys_aug):
         for k in keys_aug:
             v = inputs_aug[k]
-            iv = tf.reshape(is_valid, [batch_size] + [1] * (v.ndim - 1))
+            iv = torch.reshape(is_valid, [batch_size] + [1] * (v.ndim - 1))
             inputs_aug[k] = iv * inputs_aug[k] + (1 - iv) * inputs[k]
         return inputs_aug
 
@@ -326,11 +329,11 @@ class AugmentationOptimization:
         Returns:
 
         """
-        extent = tf.reshape(extent, [-1, 3, 2])  # [b,3,2]
+        extent = extent.reshape([-1, 3, 2])  # [b,3,2]
         extent_expanded = extent[:, None, None, None]
         lower_extent = extent_expanded[..., 0]  # [b,1,1,3]
         upper_extent = extent_expanded[..., 1]
-        lower_extent_loss = tf.maximum(0., obj_points_aug - upper_extent)  # [b,m,n_points,3]
-        upper_extent_loss = tf.maximum(0., lower_extent - obj_points_aug)
-        bbox_loss = tf.reduce_sum(lower_extent_loss + upper_extent_loss, axis=-1)  # [b,m,n_points]
+        lower_extent_loss = torch.clamp(obj_points_aug - upper_extent, min=0)  # [b,m,n_points,3]
+        upper_extent_loss = torch.clamp(lower_extent - obj_points_aug, min=0)
+        bbox_loss = (lower_extent_loss + upper_extent_loss).sum(-1)  # [b,m,n_points]
         return self.hparams['bbox_weight'] * bbox_loss

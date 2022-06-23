@@ -30,9 +30,9 @@ The data set consists of pkl files, which contain some meta-data as well as file
     ./scripts/train-test_dynamics.py train -h  # see training options
     ./scripts/train-test_dynamics.py train ./data_aug hparams/propnet.hjson -n with_augmentation
 
-3. evaluate the dynamics model 
- 
-  
+3. evaluate the dynamics model
+
+
     ./scripts/train-test_dynamics.py eval -h  # see eval options
     ./scripts/train-test_dynamics.py train ./data with_augmentation_xxx # full unique model name from the above training run
 
@@ -56,3 +56,8 @@ Testing
 |---|---|
 | Without Augmentation | xx.xxx |
 | With Augmentation | xx.xxx |
+
+## Misc
+
+In the simple cylinders example, I re-wrote everything to use pytorch only instead of tensorflow. If you'd like to use tensorflow, you can see the main implementation.
+

@@ -1,19 +1,16 @@
-import re
 from copy import deepcopy
 from typing import Dict
 
 import hjson
 import numpy as np
-import tensorflow as tf
-import tensorflow_probability as tfp
 import torch
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Circle
 
-from cylinders_simple_demo.grid_utils_tf import transform_points_3d, transformation_jacobian, euler_angle_diff, \
-    xyzrpy_to_matrices, repeat_tensor
-from cylinders_simple_demo.utils import nested_dict_update, load_params
+from cylinders_simple_demo.utils.torch_geometry import transform_points_3d, transformation_jacobian, euler_angle_diff, \
+    xyzrpy_to_matrices
+from cylinders_simple_demo.utils.utils import nested_dict_update, load_params
 
 HEIGHT = 0.08
 HALF_HEIGHT = HEIGHT / 2
@@ -49,21 +46,19 @@ def cylinders_to_points(positions, res, radius, height):
     m = positions.shape[1]  # m is the number of objects
     sized_points = size_to_points(radius, height, res)  # [b, T, n_points, 3]
     num_points = sized_points.shape[-2]
-    sized_points = repeat_tensor(sized_points, m, axis=1, new_axis=True)  # [b, m, T, n_points, 3]
-    ones = tf.ones(positions.shape[:-1] + [1])
-    positions_homo = tf.expand_dims(tf.concat([positions, ones], axis=-1), -1)  # [b, m, T, 4, 1]
-    rot_homo = tf.concat([tf.eye(3), tf.zeros([1, 3])], axis=0)
-    rot_homo = repeat_tensor(rot_homo, positions.shape[0], 0, True)
-    rot_homo = repeat_tensor(rot_homo, positions.shape[1], 1, True)
-    rot_homo = repeat_tensor(rot_homo, positions.shape[2], 2, True)
-    transform_matrix = tf.concat([rot_homo, positions_homo], axis=-1)  # [b, m, T, 4, 4]
-    transform_matrix = repeat_tensor(transform_matrix, num_points, 3, True)
+    sized_points = torch.stack(m * [sized_points], 1)  # [b, m, T, n_points, 3]
+    ones = torch.ones(positions.shape[:-1] + (1,))
+    positions_homo = torch.cat([positions, ones], -1)[..., None]  # [b, m, T, 4, 1]
+    rot_homo = torch.cat([torch.eye(3), torch.zeros([1, 3])], 0)
+    rot_homo = rot_homo.repeat(positions.shape[:-1] + (1, 1))
+    transform_matrix = torch.cat([rot_homo, positions_homo], -1)  # [b, m, T, 4, 4]
+    transform_matrix = torch.stack(num_points * [transform_matrix], 3)
     obj_points = transform_points_3d(transform_matrix, sized_points)  # [b, m, T, num_points, 3]
     return obj_points
 
 
 def make_odd(x):
-    return tf.where(tf.cast(x % 2, tf.bool), x, x + 1)
+    return torch.where((x % 2).bool(), x, x + 1)
 
 
 NUM_POINTS = 128
@@ -86,38 +81,33 @@ def size_to_points(radius, height, res):
     radius = radius[0, 0]
     height = height[0, 0]
 
-    n_side = make_odd(tf.cast(2 * radius / res, tf.int64))
-    n_height = make_odd(tf.cast(height / res, tf.int64))
-    p = tf.linspace(-radius, radius, n_side)
-    grid_points = tf.stack(tf.meshgrid(p, p), -1)  # [n_side, n_side, 2]
-    in_circle = tf.linalg.norm(grid_points, axis=-1) <= radius
-    in_circle_indices = tf.where(in_circle)
-    points_in_circle = tf.gather_nd(grid_points, in_circle_indices)
-    points_in_circle_w_height = repeat_tensor(points_in_circle, n_height, 0, True)
-    z = tf.linspace(0., height, n_height) - height / 2
-    z = repeat_tensor(z, points_in_circle_w_height.shape[1], 1, True)[..., None]
-    points = tf.concat([points_in_circle_w_height, z], axis=-1)
-    points = tf.reshape(points, [-1, 3])
+    n_side = make_odd((2 * radius / res).long())
+    n_height = make_odd((height / res).long())
+    p = torch.linspace(-radius, radius, n_side)
+    grid_points = torch.stack(torch.meshgrid(p, p, indexing='xy'), -1)  # [n_side, n_side, 2]
+    in_circle = grid_points.norm(dim=-1) <= radius
+    in_circle_indices = torch.where(in_circle)
+    points_in_circle = grid_points[in_circle_indices]
+    points_in_circle_w_height = torch.stack(n_height * [points_in_circle], 0)
+    z = torch.linspace(0., height, n_height) - height / 2
+    z = torch.stack(points_in_circle_w_height.shape[1] * [z], 1)[..., None]
+    points = torch.concat([points_in_circle_w_height, z], dim=-1)
+    points = points.reshape([-1, 3])
 
-    sampled_points_indices = cylinder_points_rng.randint(0, points.shape[0], NUM_POINTS)
-    sampled_points = tf.gather(points, sampled_points_indices, axis=0)
+    sampled_points_indices = torch.tensor(cylinder_points_rng.randint(0, points.shape[0], NUM_POINTS))
+    sampled_points = torch.index_select(points, dim=0, index=sampled_points_indices)
 
-    points_batch = repeat_tensor(sampled_points, batch_size, 0, True)
-    points_batch_time = repeat_tensor(points_batch, time, 1, True)
+    points_batch = torch.stack(batch_size * [sampled_points], 0)
+    points_batch_time = torch.stack(time * [points_batch], 1)
     return points_batch_time
-
-
-def get_k_with_stats(batch, k):
-    v = batch[f"{k}"]
-    v_mean = batch[f"{k}/mean"]
-    v_std = batch[f"{k}/std"]
-    return v, v_mean, v_std
 
 
 def pos_in_bounds(tcp_pos_aug_b):
     s = 0.2
-    in_bounds = tf.logical_and([-s, -s, 0] < tcp_pos_aug_b, tcp_pos_aug_b < [s, s, 0.01])
-    always_in_bounds = tf.reduce_all(in_bounds)
+    lower = torch.Tensor([-s, -s, 0])
+    upper = torch.Tensor([s, s, 0.01])
+    in_bounds = torch.logical_and(lower < tcp_pos_aug_b, tcp_pos_aug_b < upper)
+    always_in_bounds = torch.all(in_bounds)
     return always_in_bounds
 
 
@@ -167,12 +157,11 @@ class CylindersScenario:
 
             yield is_robot, obj_idx, k, pos_k, vel_k, pos, vel
 
-    def compute_obj_points(self, inputs: Dict, num_object_interp: int, batch_size: int):
+    def compute_obj_points(self, inputs: Dict, batch_size: int):
         """
 
         Args:
             inputs: contains the poses and size of the blocks, over a whole trajectory, which we convert into points
-            num_object_interp:
             batch_size:
 
         Returns: [b, m_objects, T, n_points, 3]
@@ -187,30 +176,23 @@ class CylindersScenario:
                 pos = pos[:, :, 0]  # [b, T, 3]
                 positions.append(pos)
 
-        positions = tf.stack(positions, axis=1)
+        positions = torch.stack(positions, dim=1)
         time = positions.shape[2]
 
-        res = repeat_tensor(inputs['res'], time, 1, True)  # [b]
+        res = torch.stack(time * [inputs['res']], 1)
 
         obj_points = cylinders_to_points(positions, res=res, radius=radius, height=height)
-        robot_radius = repeat_tensor(RADIUS, batch_size, 0, True)
-        robot_radius = repeat_tensor(robot_radius, time, 1, True)
-        robot_height = repeat_tensor(HEIGHT, batch_size, 0, True)
-        robot_height = repeat_tensor(robot_height, time, 1, True)
-        tcp_positions = tf.reshape(inputs[f'{ARM_HAND_NAME}/tcp_pos'], [batch_size, 1, time, 3])
-        robot_cylinder_positions = tcp_positions + [0, 0, HALF_HEIGHT]
+        robot_radius = torch.tensor(batch_size * [RADIUS])
+        robot_radius = torch.stack(time * [robot_radius], 1)
+        robot_height = torch.tensor(batch_size * [HEIGHT])
+        robot_height = torch.stack(time * [robot_height], 1)
+        tcp_positions = inputs[f'{ARM_HAND_NAME}/tcp_pos'].reshape([batch_size, 1, time, 3])
+        robot_cylinder_positions = tcp_positions + torch.tensor([0, 0, HALF_HEIGHT])
         robot_points = cylinders_to_points(robot_cylinder_positions, res=res, radius=robot_radius, height=robot_height)
 
-        obj_points = tf.concat([robot_points, obj_points], axis=1)
+        obj_points = torch.cat([robot_points, obj_points], 1)
 
         return obj_points
-
-    @staticmethod
-    def is_points_key(k):
-        return any([
-            re.match('obj.*position', k),
-            k == f'{ARM_HAND_NAME}/tcp_pos',
-        ])
 
     def __repr__(self):
         return "cylinders"
@@ -339,6 +321,7 @@ class CylindersScenario:
         """
 
         Args:
+            obj_pos:
             num_objects: number of objects/particles, $|O|$
             relation_dim: dimension of the relation vector
             is_close_threshold: in meters. Defines whether a relation will exist between two objects
@@ -375,29 +358,26 @@ class CylindersScenario:
         return Rs, Rr, Ra
 
     def initial_identity_aug_params(self, batch_size, k_transforms):
-        return tf.zeros([batch_size, k_transforms, 3], tf.float32)  # change in x, y, theta (about z)
+        return torch.zeros([batch_size, k_transforms, 3])  # change in x, y, theta (about z)
 
-    def sample_target_aug_params(self, seed, aug_params, n_samples):
-        trans_lim = tf.ones([2]) * aug_params['target_trans_lim']
-        trans_distribution = tfp.distributions.Uniform(low=-trans_lim, high=trans_lim)
+    def sample_target_aug_params(self, rng: np.random.RandomState, aug_params, n_samples):
+        trans_lim = torch.ones([2]) * aug_params['target_trans_lim']
+        trans_target = torch.Tensor(rng.uniform(low=-trans_lim, high=trans_lim, size=[n_samples, 2]))
 
-        theta_lim = tf.ones([1]) * aug_params['target_euler_lim']
-        theta_distribution = tfp.distributions.Uniform(low=-theta_lim, high=theta_lim)
+        theta_lim = torch.ones([1]) * aug_params['target_euler_lim']
+        theta_target = torch.Tensor(rng.uniform(low=-theta_lim, high=theta_lim, size=[n_samples, 1]))
 
-        trans_target = trans_distribution.sample(sample_shape=n_samples, seed=seed())
-        theta_target = theta_distribution.sample(sample_shape=n_samples, seed=seed())
-
-        target_params = tf.concat([trans_target, theta_target], -1)
+        target_params = torch.cat([trans_target, theta_target], -1)
         return target_params
 
     def aug_target_pos(self, target):
-        return tf.concat([target[0], target[1], 0], axis=0)
+        return torch.cat([target[0], target[1], 0], 0)
 
     def transformation_params_to_matrices(self, obj_transforms):
         xy = obj_transforms[..., :2]
         theta = obj_transforms[..., 2:3]
-        zrp = tf.zeros(obj_transforms.shape[:-1] + [3])
-        xyzrpy = tf.concat([xy, zrp, theta], axis=-1)
+        zrp = torch.zeros(obj_transforms.shape[:-1] + (3,))
+        xyzrpy = torch.cat([xy, zrp, theta], -1)
         return xyzrpy_to_matrices(xyzrpy)
 
     def aug_apply_no_ik(self,
@@ -425,15 +405,15 @@ class CylindersScenario:
         """
         to_local_frame_expanded1 = to_local_frame[:, None]
         to_local_frame_expanded2 = to_local_frame[:, None, None]
-        zeros_expanded2 = tf.zeros([batch_size, 1, 1, 3])
+        zeros_expanded2 = torch.zeros([batch_size, 1, 1, 3])
         m_expanded = m[:, None]
-        no_translation_mask = np.ones(m_expanded.shape)
+        no_translation_mask = torch.ones(m_expanded.shape)
         no_translation_mask[..., 0:3, 3] = 0
         m_expanded_no_translation = m_expanded * no_translation_mask
 
-        def _transform(m, points, _to_local_frame):
+        def _transform(_m, points, _to_local_frame):
             points_local_frame = points - _to_local_frame
-            points_local_frame_aug = transform_points_3d(m, points_local_frame)
+            points_local_frame_aug = transform_points_3d(_m, points_local_frame)
             return points_local_frame_aug + _to_local_frame
 
         # apply transformations to the state
@@ -482,7 +462,7 @@ class CylindersScenario:
             is_ik_valid_b = pos_in_bounds(tcp_pos_aug_b)
             is_ik_valid.append(is_ik_valid_b)
 
-        is_ik_valid = tf.cast(tf.stack(is_ik_valid), tf.float32)
+        is_ik_valid = torch.stack(is_ik_valid).float()
 
         return is_ik_valid, []
 
@@ -495,14 +475,14 @@ class CylindersScenario:
         Returns: [b, k_transforms, p, 4, 4]
 
         """
-        zrp = tf.zeros(obj_transforms.shape[:-1] + [3])
+        zrp = torch.zeros(obj_transforms.shape[:-1] + (3,))
         xy = obj_transforms[..., :2]
         theta = obj_transforms[..., 2:3]
-        xyzrpy = tf.concat([xy, zrp, theta], axis=-1)
+        xyzrpy = torch.cat([xy, zrp, theta], -1)
         jacobian = transformation_jacobian(xyzrpy)
         jacobian_xy = jacobian[..., 0:2, :, :]
         jacobian_theta = jacobian[..., 2:3, :, :]
-        jacobian_xyt = tf.concat([jacobian_xy, jacobian_theta], axis=-3)
+        jacobian_xyt = torch.cat([jacobian_xy, jacobian_theta], -3)
         return jacobian_xyt
 
     def aug_distance(self, transforms1, transforms2):
@@ -510,10 +490,10 @@ class CylindersScenario:
         trans2 = transforms2[..., :2]
         theta1 = transforms1[..., 2:3]
         theta2 = transforms2[..., 2:3]
-        theta_dist = tf.linalg.norm(euler_angle_diff(theta1, theta2), axis=-1)
-        trans_dist = tf.linalg.norm(trans1 - trans2, axis=-1)
+        theta_dist = euler_angle_diff(theta1, theta2).norm(dim=-1)
+        trans_dist = (trans1 - trans2).norm(dim=-1)
         distances = trans_dist + theta_dist
-        max_distance = tf.reduce_max(distances)
+        max_distance = distances.max()
         return max_distance
 
     @staticmethod
@@ -544,9 +524,6 @@ class CylindersScenario:
         nested_dict_update(out_hparams, update)
         with (outdir / 'hparams.hjson').open("w") as out_f:
             hjson.dump(out_hparams, out_f)
-
-    def aug_plot_dir_arrow(self, target_pos, scale, frame_id, k):
-        pass
 
     def example_dict_to_flat_vector(self, example):
         num_objs = example['num_objs'][0, 0, 0]

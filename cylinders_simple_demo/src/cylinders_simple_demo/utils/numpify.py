@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 import torch
 
 
@@ -26,16 +25,6 @@ def numpify(x, dtype=np.float32):
                 return l
     elif isinstance(x, torch.Tensor):
         return x.detach().cpu().numpy()
-    elif isinstance(x, tf.Tensor):
-        if x.dtype == tf.string:
-            if len(x.shape) == 0:
-                return x.numpy().decode("utf-8")
-            else:
-                return x.numpy().astype(np.str_)
-        else:
-            return x.numpy()
-    elif isinstance(x, tf.Variable):
-        return x.numpy()
     elif isinstance(x, dict):
         return {k: numpify(v) for k, v in x.items()}
     elif isinstance(x, tuple):

@@ -5,7 +5,7 @@ import pathlib
 import numpy as np
 import torch
 
-from cylinders_simple_demo import train_test_propnet
+from cylinders_simple_demo.propnet import train_test_propnet
 
 
 def run_subparsers(parser: argparse.ArgumentParser):

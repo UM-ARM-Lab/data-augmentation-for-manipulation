@@ -6,9 +6,9 @@ import torch
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from cylinders_simple_demo.cylinders_scenario import CylindersScenario
-from cylinders_simple_demo.torch_geometry import pairwise_squared_distances_self
-from cylinders_simple_demo.component_models import ParticleEncoder, RelationEncoder, Propagator, ParticlePredictor
+from cylinders_simple_demo.utils.cylinders_scenario import CylindersScenario
+from cylinders_simple_demo.utils.torch_geometry import pairwise_squared_distances_self
+from cylinders_simple_demo.propnet.component_models import ParticleEncoder, RelationEncoder, Propagator, ParticlePredictor
 
 
 def pos_to_vel(pos):

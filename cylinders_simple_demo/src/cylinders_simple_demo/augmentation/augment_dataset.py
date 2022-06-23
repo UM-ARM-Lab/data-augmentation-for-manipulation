@@ -1,29 +1,19 @@
-import multiprocessing
 import pathlib
 from copy import deepcopy
-from typing import Dict, Callable, Optional
+from typing import Dict, Optional
 
 from colorama import Fore
-from torch.utils.data import Subset, DataLoader
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from cylinders_simple_demo.aug_opt import AugmentationOptimization
-from cylinders_simple_demo.cylinders_dynamics_dataset import MyTorchDataset
-from cylinders_simple_demo.cylinders_scenario import CylindersScenario
-from cylinders_simple_demo.data_utils import pkl_write_example
-from cylinders_simple_demo.local_env_helper import LocalEnvHelper
-from cylinders_simple_demo.numpify import numpify
-from cylinders_simple_demo.utils import empty_callable
-from cylinders_simple_demo.torch_datasets_utils import my_collate
-from cylinders_simple_demo.torchify import torchify
-
-
-def dataset_take(dataset, take):
-    if take is None:
-        return dataset
-
-    dataset_take = Subset(dataset, range(min(take, len(dataset))))
-    return dataset_take
+from cylinders_simple_demo.augmentation.aug_opt import AugmentationOptimization
+from cylinders_simple_demo.utils.cylinders_scenario import CylindersScenario
+from cylinders_simple_demo.utils.data_utils import pkl_write_example, get_num_workers, my_collate
+from cylinders_simple_demo.utils.local_env_helper import LocalEnvHelper
+from cylinders_simple_demo.utils.my_torch_dataset import MyTorchDataset
+from cylinders_simple_demo.utils.numpify import numpify
+from cylinders_simple_demo.utils.torch_datasets_utils import dataset_take
+from cylinders_simple_demo.utils.torchify import torchify
 
 
 def unbatch_examples(example, actual_batch_size):
@@ -33,7 +23,6 @@ def unbatch_examples(example, actual_batch_size):
     if 'time' in example_copy:
         example_copy.pop('time')
 
-    # FIXME: this is a bad hack!
     if 'metadata' in example_copy:
         example_copy.pop('metadata')
     for b in range(actual_batch_size):
@@ -50,18 +39,14 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
                              hparams: Dict,
                              outdir: pathlib.Path,
                              n_augmentations: int,
-                             take: Optional[int] = None,
-                             batch_size: int = 32,
-                             use_torch: bool = True):
+                             batch_size: int,
+                             take: Optional[int] = None):
     dataset = MyTorchDataset(dataset_dir, mode)
     dataset_taken = dataset_take(dataset, take)
     scenario = CylindersScenario()
     aug = make_aug_opt(scenario, dataset, hparams, batch_size)
 
-    loader = DataLoader(dataset_taken,
-                        batch_size=batch_size,
-                        collate_fn=my_collate,
-                        num_workers=get_num_workers(batch_size))
+    loader = DataLoader(dataset_taken, batch_size=batch_size, num_workers=get_num_workers(batch_size), collate_fn=my_collate)
 
     outdir.mkdir(exist_ok=True, parents=False)
     expected_total = (1 + n_augmentations) * len(dataset_taken)
@@ -77,8 +62,7 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
 
     need_to_write_hparams = True
     examples_names = []
-    for out_example in tqdm(out_examples_gen(aug, n_augmentations, loader, use_torch),
-                            total=expected_total):
+    for out_example in tqdm(out_examples_gen(aug, n_augmentations, loader), total=expected_total):
         if 'sdf' in out_example:
             out_example.pop("sdf")
         if 'sdf_grad' in out_example:
@@ -98,28 +82,26 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
     return outdir
 
 
-def augment(aug, n_augmentations, inputs, use_torch):
+def augment(aug, n_augmentations, inputs):
     actual_batch_size = len(inputs['filename'])
 
     time = inputs['time_idx'].shape[1]
 
     for k in range(n_augmentations):
-        if use_torch:
-            inputs = torchify(inputs)
+        inputs = torchify(inputs)
         output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)
-        if use_torch:
-            output = numpify(output)
+        output = numpify(output)
         output['augmented_from'] = inputs['full_filename']
 
         yield output
 
 
-def out_examples_gen(aug, n_augmentations, dataset, use_torch):
+def out_examples_gen(aug, n_augmentations, dataset):
     for example in dataset:
         actual_batch_size = len(example['filename'])
         out_example_keys = None
 
-        for out_example in augment(aug, n_augmentations, example, use_torch):
+        for out_example in augment(aug, n_augmentations, example):
             if out_example_keys is None:
                 out_example_keys = list(out_example.keys())
             yield from unbatch_examples(out_example, actual_batch_size)
@@ -155,29 +137,12 @@ def copy_modes(dataset_dir, mode, outdir):
     return total_count
 
 
-def make_aug_opt(scenario: CylindersScenario,
-                 dataset: MyTorchDataset,
-                 hparams: Dict,
-                 batch_size: int,
-                 post_init_cb: Callable = empty_callable,
-                 post_step_cb: Callable = empty_callable,
-                 post_project_cb: Callable = empty_callable,
-                 ):
+def make_aug_opt(scenario: CylindersScenario, dataset: MyTorchDataset, hparams: Dict, batch_size: int):
     local_env_helper = LocalEnvHelper(h=hparams['local_env_h_rows'],
                                       w=hparams['local_env_w_cols'],
                                       c=hparams['local_env_c_channels'])
-    aug = AugmentationOptimization(scenario=scenario,
-                                   local_env_helper=local_env_helper,
-                                   hparams=hparams,
+    aug = AugmentationOptimization(scenario=scenario, local_env_helper=local_env_helper, hparams=hparams,
                                    batch_size=batch_size,
                                    state_keys=dataset.params['data_collection_params']['state_keys'],
-                                   action_keys=dataset.params['data_collection_params']['action_keys'],
-                                   post_init_cb=post_init_cb,
-                                   post_step_cb=post_step_cb,
-                                   post_project_cb=post_project_cb,
-                                   )
+                                   action_keys=dataset.params['data_collection_params']['action_keys'])
     return aug
-
-
-def get_num_workers(batch_size):
-    return min(batch_size, multiprocessing.cpu_count())

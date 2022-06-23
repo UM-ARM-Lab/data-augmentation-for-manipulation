@@ -10,12 +10,12 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
-from cylinders_simple_demo.augment_cylinders_dataset import get_num_workers
-from cylinders_simple_demo.cylinders_dynamics_dataset import remove_keys, MyTorchDataset
-from cylinders_simple_demo.numpify import numpify
-from cylinders_simple_demo.propnet_models import PropNet
-from cylinders_simple_demo.torch_datasets_utils import my_collate, dataset_skip, dataset_repeat
-from cylinders_simple_demo.utils import load_hjson
+from cylinders_simple_demo.propnet.propnet_models import PropNet
+from cylinders_simple_demo.utils.data_utils import remove_keys, get_num_workers, my_collate
+from cylinders_simple_demo.utils.my_torch_dataset import MyTorchDataset
+from cylinders_simple_demo.utils.numpify import numpify
+from cylinders_simple_demo.utils.torch_datasets_utils import dataset_skip, dataset_repeat
+from cylinders_simple_demo.utils.utils import load_hjson
 
 
 def train_main(dataset_dir: pathlib.Path,

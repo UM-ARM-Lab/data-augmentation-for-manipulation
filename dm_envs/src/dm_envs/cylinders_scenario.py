@@ -17,7 +17,7 @@ from visualization_msgs.msg import MarkerArray, Marker
 
 from augmentation.aug_opt import compute_moved_mask
 from augmentation.aug_opt_utils import get_local_frame
-from cylinders_simple_demo.utils import nested_dict_update
+from cylinders_simple_demo.utils.utils import nested_dict_update
 from dm_envs import primitive_hand
 from dm_envs.planar_pushing_scenario import PlanarPushingScenario
 from dm_envs.planar_pushing_task import ARM_HAND_NAME, ARM_NAME

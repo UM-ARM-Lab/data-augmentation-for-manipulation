@@ -40,6 +40,7 @@ def load_hjson(path: pathlib.Path):
         data = hjson.load(file)
     return data
 
+
 def has_keys(d: Dict, keys: List[str], noop_val=False):
     """
     For when you want to write something like `if d['a']['b']['z']`

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 from matplotlib.animation import FuncAnimation
 
-from cylinders_simple_demo.cylinders_dynamics_dataset import MyTorchDataset
+from cylinders_simple_demo.utils.my_torch_dataset import MyTorchDataset
 
 
 def main():

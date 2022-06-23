@@ -1,18 +1,6 @@
 from typing import Callable
 
-import tensorflow as tf
-
-
-class BaseProjectOpt:
-    def __init__(self):
-        self.opt = None
-        self.x_var = None
-
-    def make_opt(self):
-        return tf.optimizers.Adam()
-
-    def project(self, i: int, opt, x_var: tf.Variable):
-        raise NotImplementedError()
+import torch
 
 
 def iterative_projection(initial_value,
@@ -20,19 +8,36 @@ def iterative_projection(initial_value,
                          n: int,
                          m: int,
                          step_towards_target: Callable,
-                         project_opt: BaseProjectOpt,
+                         project_opt,
                          x_distance: Callable,
                          not_progressing_threshold: float,
                          m_last=None):
+    """
+
+    Args:
+        initial_value:
+        target:
+        n: number of outer-loop optimization steps
+        m: number of inner-loop projection steps
+        step_towards_target:
+        project_opt:
+        x_distance:
+        not_progressing_threshold:
+        m_last:
+
+    Returns:
+
+    """
     # in the paper x is $T$, the transformation we apply to the moved points
     x = initial_value
 
     for i in range(n):
-        x_old = tf.identity(x)  # make a copy
+        x_old = x.clone()  # make a copy
 
         x, viz_vars = step_towards_target(target, x)
 
-        opt = project_opt.make_opt()
+        x_param = torch.nn.Parameter(x)
+        opt, scheduler = project_opt.make_opt(x_param)
 
         # we might want to spend more iterations satisfying the constraints on the final step
         if i == n - 1:
@@ -43,9 +48,8 @@ def iterative_projection(initial_value,
         else:
             _m = m
 
-        x_var = tf.Variable(x)
         for j in range(_m):
-            x, can_terminate, viz_vars = project_opt.project(j, opt, x_var)
+            x, can_terminate, viz_vars = project_opt.project(j, opt, scheduler, x_param)
             if can_terminate:
                 break
 

@@ -12,7 +12,6 @@
 
     # hyperparameters of the optimization loop
     lr_decay: 0.95
-    lr_decay_steps: 1
     max_steps: 25
     n_outer_iters: 5
     target_euler_lim: 0.5

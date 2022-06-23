@@ -1,21 +1,22 @@
 from dataclasses import dataclass
 
-import tensorflow as tf
+import numpy as np
+import torch
 
-from cylinders_simple_demo.grid_utils_tf import transform_points_3d
+from cylinders_simple_demo.utils.torch_geometry import transform_points_3d
 
 
 @dataclass
 class MinDists:
-    attract: tf.Tensor
-    repel: tf.Tensor
-    robot_repel: tf.Tensor
+    attract: torch.Tensor
+    repel: torch.Tensor
+    robot_repel: torch.Tensor
 
 
 @dataclass
 class EnvPoints:
-    full: tf.Tensor
-    sparse: tf.Tensor
+    full: torch.Tensor
+    sparse: torch.Tensor
 
 
 def subsample_points(points, fraction):
@@ -56,8 +57,8 @@ def transform_obj_points(obj_points, moved_mask, transformation_matrices):
 
 
 def get_local_frame(moved_mask, obj_points):
-    to_local_frame = tf.reduce_mean(obj_points, axis=-2)  # [b,m,T,3]
-    to_local_frame = tf.reduce_mean(to_local_frame, axis=-2)  # [b,m,3]
+    to_local_frame = obj_points.mean(-2)  # [b,m,T,3]
+    to_local_frame = to_local_frame.mean(-2)  # [b,m,3]
     to_local_frame_moved_mean = mean_over_moved(moved_mask, to_local_frame)  # [b, 3]
     return to_local_frame_moved_mean
 
@@ -75,8 +76,8 @@ def sum_over_moved(moved_mask, x):
     """
     # replacing the values where moved_mask is false with zero will not affect the sum...
     moved_mask_expanded = expand_to_match(moved_mask, x)
-    x_moved = tf.where(tf.cast(moved_mask_expanded, tf.bool), x, 0)
-    x_moved_sum = tf.reduce_sum(x_moved, axis=1)
+    x_moved = torch.where(moved_mask_expanded.bool(), x, torch.zeros_like(x))
+    x_moved_sum = x_moved.sum(1)
     return x_moved_sum
 
 
@@ -94,7 +95,7 @@ def mean_over_moved(moved_mask, x):
     # replacing the values where moved_mask is false with zero will not affect the sum...
     x_moved_sum = sum_over_moved(moved_mask, x)
     # ... if we divide by the right numbers
-    moved_count = tf.reduce_sum(moved_mask, axis=1)
+    moved_count = moved_mask.sum(1)
     moved_count = expand_to_match(moved_count, x)
     x_moved_mean = x_moved_sum / moved_count
     return x_moved_mean
@@ -112,7 +113,7 @@ def expand_to_match(a, b):
     """
     a_expanded = a
     for dim_j in range(b.ndim - 2):
-        a_expanded = tf.expand_dims(a_expanded, axis=-1)
+        a_expanded = torch.unsqueeze(a_expanded, dim=-1)
     return a_expanded
 
 
@@ -120,25 +121,27 @@ def check_env_constraints(attract_mask, min_dist):
     # NOTE: SDF can be exactly 0 if OOB lookup was done.
     #  We want OOB to count as free-space, so repel satisfied should be 1 if min_dist == 0
     #  attract satisfied should be 0 if min_dist == 0
-    attract_satisfied = tf.cast(min_dist < 0, tf.float32)
-    repel_satisfied = tf.cast(min_dist >= 0, tf.float32)
+    attract_satisfied = (min_dist < 0).float()
+    repel_satisfied = (min_dist >= 0).float()
     constraints_satisfied = (attract_mask * attract_satisfied) + ((1 - attract_mask) * repel_satisfied)
     return constraints_satisfied
 
 
 def pick_best_params(invariance_model, sampled_params, batch_size):
     predicted_errors = invariance_model.evaluate(sampled_params)
-    _, best_indices_all = tf.math.top_k(-predicted_errors, tf.cast(batch_size, tf.int32), sorted=False)
-    best_indices_shuffled = tf.random.shuffle(best_indices_all, seed=0)
+    _, best_indices_all = torch.topk(-predicted_errors, batch_size, sorted=False)
+    rng = np.random.RandomState(0)
+    shuffle_indices = rng.permutation(range(batch_size))
+    best_indices_shuffled = best_indices_all[shuffle_indices]
     best_indices = best_indices_shuffled[:batch_size]
-    best_params = tf.gather(sampled_params, best_indices, axis=0)
+    best_params = sampled_params[best_indices]
     return best_params
 
 
 def delta_min_dist_loss(sdf_dist, sdf_dist_aug):
-    min_dist = tf.reduce_min(sdf_dist, axis=1)
-    min_dist_aug = tf.reduce_min(sdf_dist_aug, axis=1)
-    delta_min_dist = tf.abs(min_dist - min_dist_aug)
+    min_dist = torch.min(sdf_dist, dim=1)[0]
+    min_dist_aug = torch.min(sdf_dist_aug, dim=1)[0]
+    delta_min_dist = torch.abs(min_dist - min_dist_aug)
     return delta_min_dist
 
 
@@ -152,4 +155,4 @@ def dpoint_to_dparams(dpoint, dpoint_dparams):
     Returns: [b,m,T,n_points,p]
 
     """
-    return tf.squeeze(tf.matmul(tf.expand_dims(dpoint, -2), dpoint_dparams), axis=-2)
+    return torch.squeeze(torch.matmul(torch.unsqueeze(dpoint, -2), dpoint_dparams), dim=-2)

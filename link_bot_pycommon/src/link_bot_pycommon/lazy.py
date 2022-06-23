@@ -12,3 +12,6 @@ class Lazy:
         if self.called is None:
             self.called = self.class_name(*self.args, **self.kwargs)
         return getattr(self.called, attr)
+
+    def __setattr__(self, attr, value):
+        self.called.__setattr__(attr, value)
