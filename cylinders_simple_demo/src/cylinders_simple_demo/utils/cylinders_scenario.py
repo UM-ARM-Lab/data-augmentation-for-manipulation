@@ -1,15 +1,16 @@
+import colorsys
 from copy import deepcopy
 from typing import Dict
 
 import hjson
+import matplotlib.colors as mc
 import numpy as np
 import torch
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, patches
 from matplotlib.animation import FuncAnimation
-from matplotlib.patches import Circle
 
 from cylinders_simple_demo.utils.torch_geometry import transform_points_3d, transformation_jacobian, euler_angle_diff, \
-    xyzrpy_to_matrices
+    xyzrpy_to_matrices, homogeneous
 from cylinders_simple_demo.utils.utils import nested_dict_update, load_params
 
 HEIGHT = 0.08
@@ -19,6 +20,26 @@ ARM_NAME = 'jaco_arm'
 HAND_NAME = 'primitive_hand'
 ARM_HAND_NAME = f'{ARM_NAME}/{HAND_NAME}'
 ARM_OFFSET = (0., 0.3, 0.)
+NUM_POINTS = 128
+cylinder_points_rng = np.random.RandomState(0)
+
+
+def adjust_lightness(color, amount=1.0):
+    """
+    Adjusts the brightness/lightness of a color
+    Args:
+        color: any valid matplotlib color, could be hex string, or tuple, etc.
+        amount: 1 means no change, less than 1 is darker, more than 1 is brighter
+
+    Returns:
+
+    """
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
 
 
 def pos_to_vel(pos):
@@ -59,10 +80,6 @@ def cylinders_to_points(positions, res, radius, height):
 
 def make_odd(x):
     return torch.where((x % 2).bool(), x, x + 1)
-
-
-NUM_POINTS = 128
-cylinder_points_rng = np.random.RandomState(0)
 
 
 def size_to_points(radius, height, res):
@@ -116,14 +133,16 @@ class CylindersScenario:
     def __init__(self):
         pass
 
-    def iter_keys(self, num_objs):
+    @staticmethod
+    def iter_keys(num_objs):
         # NOTE: the robot goes first, this is relied on in aug_apply_no_ik
         yield True, -1, ARM_HAND_NAME
         for obj_idx in range(num_objs):
             obj_k = f'obj{obj_idx}'
             yield False, obj_idx, obj_k
 
-    def iter_keys_pos_vel(self, num_objs):
+    @staticmethod
+    def iter_keys_pos_vel(num_objs):
         yield ARM_HAND_NAME + '/tcp_pos', ARM_HAND_NAME + '/tcp_vel'
         for obj_idx in range(num_objs):
             obj_k = f'obj{obj_idx}'
@@ -197,38 +216,67 @@ class CylindersScenario:
     def __repr__(self):
         return "cylinders"
 
-    def example_to_gif(self, example):
-        time = example['time_idx'].shape[0]
-        num_objs = example['num_objs'][0, 0]
-
-        # FIXME: de-duplicate this with the dataset visualization code
-
+    def example_and_predictions_to_animation(self, example, gt_vel, gt_pos, pred_vel, pred_pos):
         fig = plt.figure()
+        plt.axis("equal")
+        plt.title(f"Trajectory #{example['traj_idx']}")
         ax = plt.gca()
-        ax.set_aspect("equal")
-        s = 0.15
-        ax.set_xlim([-s, s])
-        ax.set_ylim([-s, s])
+        ax.set_xlim([-.2, .2])
 
-        def _func(t):
-            # https://stackoverflow.com/questions/49791848/matplotlib-remove-all-patches-from-figure
-            for p in reversed(ax.patches):
-                p.remove()
+        def viz_t(t):
+            while len(ax.patches) > 0:
+                ax.patches.pop()
 
-            for is_robot, obj_idx, k, pos_k, pos in self.iter_positions(example, num_objs):
-                radius = example['radius'][t, 0]
-                x = pos[t, 0, 0]
-                y = pos[t, 0, 1]
-                if is_robot:
-                    p = Circle((x, y), RADIUS, color=[1, 0, 1])
-                else:
-                    p = Circle((x, y), radius, color='red')
-                ax.add_patch(p)
+            pred_dict = self.propnet_outputs_to_state(example, pred_vel, pred_pos)
 
-        anim = FuncAnimation(fig=fig, func=_func, frames=time)
+            self.cylinders_viz_t(ax, example, t, objs_color='red', robot_color='black')
+            self.cylinders_viz_t(ax, pred_dict, t, objs_color='blue', robot_color='black')
+
+            ax.set_ylim([-.2, .2])
+
+        anim = FuncAnimation(fig, viz_t, frames=50, interval=2)
         return anim
 
-    def propnet_obj_v(self, batch, batch_size, obj_idx, time, device):
+    def cylinders_viz_t(self, ax, example, t, robot_color, objs_color):
+        radius = example['radius'][t, 0]
+        x = example['jaco_arm/primitive_hand/tcp_pos'][t, 0, 0]
+        y = example['jaco_arm/primitive_hand/tcp_pos'][t, 0, 1]
+        dx = example['jaco_arm/primitive_hand/tcp_vel'][t, 0, 0]
+        dy = example['jaco_arm/primitive_hand/tcp_vel'][t, 0, 1]
+        robot = patches.Circle((x, y), radius, color=adjust_lightness(robot_color))
+        robot_vel = patches.Arrow(x, y, dx, dy, width=0.01, color=robot_color)
+        ax.add_patch(robot)
+        ax.add_patch(robot_vel)
+        for object_idx in range(9):
+            x = example[f'obj{object_idx}/position'][t, 0, 0]
+            y = example[f'obj{object_idx}/position'][t, 0, 1]
+            dx = example[f'obj{object_idx}/linear_velocity'][t, 0, 0]
+            dy = example[f'obj{object_idx}/linear_velocity'][t, 0, 1]
+
+            obj = plt.Circle((x, y), radius, color=adjust_lightness(objs_color))
+            obj_vel = plt.Arrow(x, y, dx, dy, width=0.01, color=objs_color)
+            ax.add_patch(obj)
+            ax.add_patch(obj_vel)
+
+    def example_to_animation(self, example):
+        fig = plt.figure()
+        plt.axis("equal")
+        plt.title(f"Trajectory #{example['traj_idx']}")
+        ax = plt.gca()
+        ax.set_xlim([-.2, .2])
+
+        def viz_t(t):
+            while len(ax.patches) > 0:
+                ax.patches.pop()
+            self.cylinders_viz_t(ax, example, t, objs_color='red', robot_color='black')
+
+            ax.set_ylim([-.2, .2])
+
+        anim = FuncAnimation(fig, viz_t, frames=50, interval=2)
+        return anim
+
+    @staticmethod
+    def propnet_obj_v(batch, batch_size, obj_idx, time, device):
         """
 
         Args:
@@ -259,7 +307,8 @@ class CylindersScenario:
 
         return obj_attr, obj_state
 
-    def propnet_robot_v(self, batch, batch_size, time, device):
+    @staticmethod
+    def propnet_robot_v(batch, batch_size, time, device):
         is_robot = torch.ones([batch_size, 1], device=device)
         radius = torch.ones([batch_size, 1], device=device) * RADIUS
         robot_attr = torch.cat([radius, is_robot], dim=-1)
@@ -276,7 +325,8 @@ class CylindersScenario:
 
         return robot_attr, robot_state
 
-    def propnet_add_vel(self, example: Dict):
+    @staticmethod
+    def propnet_add_vel(example: Dict):
         num_objs = example['num_objs'][0, 0]  # assumed fixed across time
         robot_pos = example[f'{ARM_HAND_NAME}/tcp_pos']
         robot_vel = pos_to_vel(robot_pos)
@@ -291,33 +341,30 @@ class CylindersScenario:
             vel_state_keys.append(obj_vel_k)
         return example, vel_state_keys
 
-    def propnet_outputs_to_state(self, inputs, pred_vel, pred_pos, b, t, obj_dz=0):
-        pred_state_t = {}
-        height_b_t = inputs['height'][b, t]
-        pred_state_t['height'] = height_b_t
-        pred_state_t['radius'] = inputs['radius'][b, t]
-        num_objs = inputs['num_objs'][b, t, 0]
-        pred_state_t['num_objs'] = [num_objs]
+    @staticmethod
+    def propnet_outputs_to_state(inputs, pred_vel, pred_pos, obj_dz=0):
+        pred_states = {}
+        pred_states['height'] = inputs['height']
+        pred_states['radius'] = inputs['radius']
+        pred_states['num_objs'] = inputs['num_objs']
 
-        pred_robot_pos_b_t_2d = pred_pos[b, t, 0]
-        default_robot_z = torch.zeros(1) * 0.01  # we've lost this info so just put something that will visualize ok
-        pred_robot_pos_b_t_3d = torch.cat([pred_robot_pos_b_t_2d, default_robot_z])
-        pred_robot_vel_b_t_2d = pred_vel[b, t, 0]
-        pred_robot_vel_b_t_3d = torch.cat([pred_robot_vel_b_t_2d, torch.zeros(1)])
-        pred_state_t[f'{ARM_HAND_NAME}/tcp_pos'] = torch.unsqueeze(pred_robot_pos_b_t_3d, 0).detach()
-        pred_state_t[f'{ARM_HAND_NAME}/tcp_vel'] = torch.unsqueeze(pred_robot_vel_b_t_3d, 0).detach()
+        pred_robot_pos_3d = homogeneous(pred_pos[:, 0])  # just needs to be 3d, doesn't matter what Z values is
+        pred_robot_vel_3d = homogeneous(pred_vel[:, 0])
+        pred_states[f'{ARM_HAND_NAME}/tcp_pos'] = torch.unsqueeze(pred_robot_pos_3d, 1).detach()
+        pred_states[f'{ARM_HAND_NAME}/tcp_vel'] = torch.unsqueeze(pred_robot_vel_3d, 1).detach()
 
-        for j in range(num_objs):
-            pred_pos_b_t_2d = pred_pos[b, t, j + 1]
-            pred_pos_b_t_3d = torch.cat([pred_pos_b_t_2d, height_b_t / 2 + obj_dz])
-            pred_vel_b_t_2d = pred_vel[b, t, j + 1]
-            pred_vel_b_t_3d = torch.cat([pred_vel_b_t_2d, torch.zeros(1)])
-            pred_state_t[f'obj{j}/position'] = torch.unsqueeze(pred_pos_b_t_3d, 0).detach()
-            pred_state_t[f'obj{j}/linear_velocity'] = torch.unsqueeze(pred_vel_b_t_3d, 0).detach()
+        for j in range(int(inputs['num_objs'][0])):
+            pred_pos_2d = pred_pos[:, j + 1]
+            pred_pos_z = torch.Tensor(inputs['height'] / 2 + obj_dz)
+            pred_pos_3d = torch.cat([pred_pos_2d, pred_pos_z], -1)
+            pred_vel_3d = homogeneous(pred_vel[:, j + 1])
+            pred_states[f'obj{j}/position'] = torch.unsqueeze(pred_pos_3d, 1).detach()
+            pred_states[f'obj{j}/linear_velocity'] = torch.unsqueeze(pred_vel_3d, 1).detach()
 
-        return pred_state_t
+        return pred_states
 
-    def propnet_rel(self, obj_pos, num_objects, relation_dim, is_close_threshold, device=None):
+    @staticmethod
+    def propnet_rel(obj_pos, num_objects, relation_dim, is_close_threshold, device=None):
         """
 
         Args:
@@ -357,10 +404,12 @@ class CylindersScenario:
 
         return Rs, Rr, Ra
 
-    def initial_identity_aug_params(self, batch_size, k_transforms):
+    @staticmethod
+    def initial_identity_aug_params(batch_size, k_transforms):
         return torch.zeros([batch_size, k_transforms, 3])  # change in x, y, theta (about z)
 
-    def sample_target_aug_params(self, rng: np.random.RandomState, aug_params, n_samples):
+    @staticmethod
+    def sample_target_aug_params(rng: np.random.RandomState, aug_params, n_samples):
         trans_lim = torch.ones([2]) * aug_params['target_trans_lim']
         trans_target = torch.Tensor(rng.uniform(low=-trans_lim, high=trans_lim, size=[n_samples, 2]))
 
@@ -370,10 +419,12 @@ class CylindersScenario:
         target_params = torch.cat([trans_target, theta_target], -1)
         return target_params
 
-    def aug_target_pos(self, target):
+    @staticmethod
+    def aug_target_pos(target):
         return torch.cat([target[0], target[1], 0], 0)
 
-    def transformation_params_to_matrices(self, obj_transforms):
+    @staticmethod
+    def transformation_params_to_matrices(obj_transforms):
         xy = obj_transforms[..., :2]
         theta = obj_transforms[..., 2:3]
         zrp = torch.zeros(obj_transforms.shape[:-1] + (3,))
@@ -438,8 +489,8 @@ class CylindersScenario:
 
         return object_aug_update, None, None
 
-    def aug_ik(self,
-               inputs: Dict,
+    @staticmethod
+    def aug_ik(inputs: Dict,
                inputs_aug: Dict,
                batch_size: int):
         """
@@ -466,7 +517,8 @@ class CylindersScenario:
 
         return is_ik_valid, []
 
-    def aug_transformation_jacobian(self, obj_transforms):
+    @staticmethod
+    def aug_transformation_jacobian(obj_transforms):
         """
 
         Args:
@@ -485,7 +537,8 @@ class CylindersScenario:
         jacobian_xyt = torch.cat([jacobian_xy, jacobian_theta], -3)
         return jacobian_xyt
 
-    def aug_distance(self, transforms1, transforms2):
+    @staticmethod
+    def aug_distance(transforms1, transforms2):
         trans1 = transforms1[..., :2]
         trans2 = transforms2[..., :2]
         theta1 = transforms1[..., 2:3]

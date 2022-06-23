@@ -4,17 +4,17 @@ import pathlib
 from typing import Optional
 
 import pytorch_lightning as pl
+from matplotlib import pyplot as plt
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from tqdm import tqdm
 
 from cylinders_simple_demo.propnet.propnet_models import PropNet
-from cylinders_simple_demo.utils.data_utils import remove_keys, get_num_workers, my_collate
+from cylinders_simple_demo.utils.data_utils import remove_keys, get_num_workers, my_collate, remove_batch, add_batch
 from cylinders_simple_demo.utils.my_torch_dataset import MyTorchDataset
-from cylinders_simple_demo.utils.numpify import numpify
 from cylinders_simple_demo.utils.torch_datasets_utils import dataset_skip, dataset_repeat
+from cylinders_simple_demo.utils.torchify import torchify
 from cylinders_simple_demo.utils.utils import load_hjson
 
 
@@ -70,7 +70,7 @@ def train_main(dataset_dir: pathlib.Path,
                          logger=tb_logger,
                          max_epochs=epochs,
                          log_every_n_steps=10,
-                         check_val_every_n_epoch=10,
+                         check_val_every_n_epoch=1,
                          callbacks=[ckpt_cb],
                          gradient_clip_val=0.1)
 
@@ -92,31 +92,12 @@ def viz_main(dataset_dir: pathlib.Path, checkpoint, mode: str, skip: Optional[in
     s = dataset.get_scenario()
 
     dataset_ = dataset_skip(dataset, skip)
-    loader = DataLoader(dataset_, collate_fn=my_collate)
 
     model = PropNet.load_from_checkpoint(checkpoint_path=checkpoint)
     model.eval()
 
-    for i, inputs in enumerate(tqdm(loader)):
-        # TODO: replace with matplotlib visualization
-        gt_vel, gt_pos, pred_vel, pred_pos = model(inputs)
-
-        n_time_steps = inputs['time_idx'].shape[1]
-        b = 0
-        anim = RvizAnimationController(n_time_steps=n_time_steps)
-
-        while not anim.done:
-            t = anim.t()
-            state_t = {}
-            for k in dataset.state_keys:
-                if k in inputs:
-                    state_t[k] = numpify(inputs[k][b, t])
-
-            s.plot_state_rviz(state_t, label='actual', color='#ff0000aa')
-
-            pred_state_t = s.propnet_outputs_to_state(inputs=inputs, pred_vel=pred_vel, pred_pos=pred_pos, b=b, t=t,
-                                                      obj_dz=0.01)
-
-            s.plot_state_rviz(pred_state_t, label='predicted', color='#0000ffaa')
-
-            anim.step()
+    for example in dataset_:
+        model_inputs = torchify(add_batch(example))
+        gt_vel, gt_pos, pred_vel, pred_pos = remove_batch(*model(model_inputs))
+        anim = s.example_and_predictions_to_animation(example, gt_vel, gt_pos, pred_vel, pred_pos)
+        plt.show()

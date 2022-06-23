@@ -37,7 +37,12 @@ def eval_main(args):
 
 
 def viz_main(args):
-    train_test_propnet.viz_main(**vars(args))
+    train_test_propnet.viz_main(
+        dataset_dir=args.dataset_dir,
+        checkpoint=args.checkpoint,
+        mode=args.mode,
+        skip=args.skip,
+    )
 
 
 def main():
@@ -67,6 +72,7 @@ def main():
     viz_parser.add_argument('dataset_dir', type=pathlib.Path)
     viz_parser.add_argument('checkpoint')
     viz_parser.add_argument('--mode', type=str, default='test')
+    viz_parser.add_argument('--skip', type=int)
     viz_parser.set_defaults(func=viz_main)
 
     run_subparsers(parser)

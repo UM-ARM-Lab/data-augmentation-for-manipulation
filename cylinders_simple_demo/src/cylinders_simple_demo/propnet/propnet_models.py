@@ -233,7 +233,7 @@ class PropNet(pl.LightningModule):
         states.append(robot_state)
 
         # loop over objects
-        for obj_idx in range(num_objs):
+        for obj_idx in range(int(num_objs)):
             obj_attr, obj_state = self.scenario.propnet_obj_v(batch, batch_size, obj_idx, time, self.device)
             attrs.append(obj_attr)
             states.append(obj_state)

@@ -266,3 +266,50 @@ def my_collate(batch):
         transposed = zip(*batch)
         return [my_collate(samples) for samples in transposed]
     raise TypeError(default_collate_err_msg_format.format(elem_type))
+
+
+def remove_batch(*xs):
+    if len(xs) == 1:
+        return remove_batch_single(xs[0])
+    else:
+        return [remove_batch_single(x) for x in xs]
+
+
+def add_batch(*xs, batch_axis=0):
+    if len(xs) == 1:
+        return add_batch_single(xs[0], batch_axis, keys=None)
+    else:
+        return [add_batch_single(x, batch_axis, keys=None) for x in xs]
+
+
+def remove_batch_single(x):
+    if isinstance(x, dict):
+        return {k: remove_batch_single(v) for k, v in x.items()}
+    elif isinstance(x, int):
+        return x
+    elif isinstance(x, float):
+        return x
+    else:
+        return x[0]
+
+
+def add_batch_single(x, batch_axis=0, keys=None):
+    if isinstance(x, np.ndarray):
+        return np.expand_dims(x, axis=batch_axis)
+    elif isinstance(x, list) and isinstance(x[0], dict):
+        return [(add_batch_single(v)) for v in x]
+    elif isinstance(x, torch.Tensor):
+        x = torch.unsqueeze(x, dim=batch_axis)
+        return x
+    elif isinstance(x, dict):
+        out = {}
+        for k, v in x.items():
+            if keys is not None and k in keys:
+                out[k] = add_batch_single(v, batch_axis)
+            elif keys is not None and k not in keys:
+                out[k] = v
+            elif keys is None:
+                out[k] = add_batch_single(v, batch_axis)
+        return out
+    else:
+        return np.array([x])
