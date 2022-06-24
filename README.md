@@ -4,5 +4,4 @@ The `augmentation` folder contains most of the code for generating augmentations
 
 # A simple demo
 
-In the coming months I plan to make a simple demo based on the cylinders planar pushing example.
-
+See the README in the `cylinders_simple_demo` folder
