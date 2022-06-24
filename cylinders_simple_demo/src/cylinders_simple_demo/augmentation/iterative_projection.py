@@ -11,6 +11,7 @@ def iterative_projection(initial_value,
                          project_opt,
                          x_distance: Callable,
                          not_progressing_threshold: float,
+                         device,
                          m_last=None):
     """
 
@@ -34,7 +35,7 @@ def iterative_projection(initial_value,
     for i in range(n):
         x_old = x.clone()  # make a copy
 
-        x, viz_vars = step_towards_target(target, x)
+        x, viz_vars = step_towards_target(target, x, device)
 
         x_param = torch.nn.Parameter(x)
         opt, scheduler = project_opt.make_opt(x_param)
@@ -49,7 +50,7 @@ def iterative_projection(initial_value,
             _m = m
 
         for j in range(_m):
-            x, can_terminate, viz_vars = project_opt.project(j, opt, scheduler, x_param)
+            x, can_terminate, viz_vars = project_opt.project(j, opt, scheduler, x_param, device)
             if can_terminate:
                 break
 

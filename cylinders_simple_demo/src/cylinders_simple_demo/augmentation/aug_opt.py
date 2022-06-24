@@ -6,10 +6,10 @@ import torch
 from cylinders_simple_demo.augmentation.aug_opt_utils import pick_best_params, transform_obj_points, \
     sum_over_moved, check_env_constraints
 from cylinders_simple_demo.augmentation.aug_projection_opt import AugProjOpt
-from cylinders_simple_demo.utils.cylinders_scenario import CylindersScenario
-from cylinders_simple_demo.utils.torch_geometry import lookup_points_in_vg, points_to_voxel_grid_res_origin_point_batched
 from cylinders_simple_demo.augmentation.iterative_projection import iterative_projection
-from cylinders_simple_demo.utils.local_env_helper import LocalEnvHelper
+from cylinders_simple_demo.utils.cylinders_scenario import CylindersScenario
+from cylinders_simple_demo.utils.torch_geometry import lookup_points_in_vg, \
+    points_to_voxel_grid_res_origin_point_batched
 from cylinders_simple_demo.utils.utils import has_keys
 
 cache_ = {}
@@ -20,7 +20,7 @@ class AcceptInvarianceModel:
         pass
 
     def evaluate(self, sampled_params):
-        return torch.zeros(sampled_params.shape[:-1])
+        return torch.zeros(sampled_params.shape[:-1], device=sampled_params.device)
 
 
 def compute_moved_mask(obj_points, moved_threshold=0.01):
@@ -37,7 +37,7 @@ def compute_moved_mask(obj_points, moved_threshold=0.01):
     return moved_mask.float()
 
 
-def add_stationary_points_to_env(env, obj_points, moved_mask, res, origin_point, batch_size):
+def add_stationary_points_to_env(env, obj_points, moved_mask, res, origin_point, batch_size, device):
     """
 
     Args:
@@ -69,21 +69,21 @@ def add_stationary_points_to_env(env, obj_points, moved_mask, res, origin_point,
                                                                    res_flat,
                                                                    origin_point_flat,
                                                                    *env.shape[-3:],
-                                                                   batch_size)
+                                                                   batch_size,
+                                                                   device)
     env_stationary = torch.clip(env + env_stationary, 0, 1)
     return env_stationary
 
 
 class AugmentationOptimization:
 
-    def __init__(self, scenario: CylindersScenario, local_env_helper: LocalEnvHelper, hparams: Dict, batch_size: int,
-                 state_keys: List[str], action_keys: List[str]):
+    def __init__(self, scenario: CylindersScenario, hparams: Dict, batch_size: int, state_keys: List[str],
+                 action_keys: List[str]):
         self.state_keys = state_keys
         self.action_keys = action_keys
         self.hparams = hparams.get('augmentation', None)
         self.batch_size = batch_size
         self.scenario = scenario
-        self.local_env_helper = local_env_helper
 
         self.seed = 4 if self.hparams is None or 'seed' not in self.hparams else self.hparams['seed']
         self.rng = np.random.RandomState(self.seed)
@@ -96,7 +96,7 @@ class AugmentationOptimization:
             self.no_occupancy = has_keys(self.hparams, ['ablations', 'no_occupancy'], False)
             self.no_delta_min_dist = has_keys(self.hparams, ['ablations', 'no_delta_min_dist'], False)
 
-    def aug_opt(self, inputs: Dict, batch_size: int, time: int):
+    def aug_opt(self, inputs: Dict, batch_size: int, time: int, device):
         res = inputs['res']
         extent = inputs['extent']
         origin_point = inputs['origin_point']
@@ -108,7 +108,7 @@ class AugmentationOptimization:
         if 'sdf_grad' in inputs:
             inputs.pop("sdf_grad")
 
-        obj_points = self.scenario.compute_obj_points(inputs, batch_size)  # [b,m,T,num_points,3]
+        obj_points = self.scenario.compute_obj_points(inputs, batch_size, device)  # [b,m,T,num_points,3]
         # check which objects move over time
         moved_mask = compute_moved_mask(obj_points)  # [b, m_objects]
         obj_points_flat = torch.reshape(obj_points, [batch_size, -1, 3])
@@ -123,13 +123,14 @@ class AugmentationOptimization:
                                                       moved_mask,
                                                       res,
                                                       origin_point,
-                                                      batch_size)
+                                                      batch_size,
+                                                      device)
 
         # TODO: replace with pure pytorch implementation
         from moonshine.tfa_sdf import compute_sdf_and_gradient_batch
-        sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary, res)
-        sdf_stationary = torch.from_numpy(sdf_stationary.numpy())
-        sdf_grad_stationary = torch.from_numpy(sdf_grad_stationary.numpy())
+        sdf_stationary, sdf_grad_stationary = compute_sdf_and_gradient_batch(env_stationary.cpu(), res.cpu())
+        sdf_stationary = torch.from_numpy(sdf_stationary.numpy()).to(device)
+        sdf_grad_stationary = torch.from_numpy(sdf_grad_stationary.numpy()).to(device)
 
         def _viz_cb(_b):
             pass
@@ -144,16 +145,17 @@ class AugmentationOptimization:
             obj_points=obj_points,
             obj_occupancy=obj_occupancy,
             viz_cb=_viz_cb,
-            batch_size=batch_size)
+            batch_size=batch_size,
+            device=device)
 
         # apply the transformations to some components of the state/action
         obj_aug_update, local_origin_point_aug, local_center_aug = self.aug_apply_no_ik(
-            moved_mask,
-            transformation_matrices,
-            to_local_frame,
-            inputs,
-            batch_size,
-            time)
+            moved_mask=moved_mask,
+            transformation_matrices=transformation_matrices,
+            to_local_frame=to_local_frame,
+            inputs=inputs,
+            batch_size=batch_size,
+            device=device)
 
         keys_aug = list(obj_aug_update.keys())
 
@@ -180,6 +182,7 @@ class AugmentationOptimization:
         keys_aug += ik_keys_aug
 
         is_valid = is_ik_valid * is_obj_aug_valid
+        print(is_valid.sum() / is_valid.numel())
 
         inputs_aug = self.use_original_if_invalid(is_valid, batch_size, inputs, inputs_aug, keys_aug)
 
@@ -199,10 +202,11 @@ class AugmentationOptimization:
                           obj_occupancy,
                           viz_cb: Callable,
                           batch_size: int,
+                          device,
                           ):
         k_transforms = 1  # this is always one at the moment because we transform all moved objects rigidly
-        initial_transformation_params = self.scenario.initial_identity_aug_params(batch_size, k_transforms)
-        target_transformation_params = self.sample_target_transform_params(batch_size, k_transforms)
+        initial_transformation_params = self.scenario.initial_identity_aug_params(batch_size, k_transforms, device)
+        target_transformation_params = self.sample_target_transform_params(batch_size, k_transforms, device)
         project_opt = AugProjOpt(aug_opt=self,
                                  sdf=sdf,
                                  sdf_grad=sdf_grad,
@@ -223,9 +227,10 @@ class AugmentationOptimization:
                                                         step_towards_target=project_opt.step_towards_target,
                                                         project_opt=project_opt,
                                                         x_distance=self.scenario.aug_distance,
-                                                        not_progressing_threshold=not_progressing_threshold)
+                                                        not_progressing_threshold=not_progressing_threshold,
+                                                        device=device)
 
-        transformation_matrices = self.scenario.transformation_params_to_matrices(obj_transforms)
+        transformation_matrices = self.scenario.transformation_params_to_matrices(obj_transforms, device)
         # NOTE: to_local_frame is [b, 3] but technically it should be [b, k, 3]
         obj_points_aug, to_local_frame = transform_obj_points(obj_points, moved_mask, transformation_matrices)
 
@@ -275,12 +280,12 @@ class AugmentationOptimization:
         constraints_satisfied = env_constraints_satisfied * bbox_constraint_satisfied * delta_min_dist_satisfied
         return constraints_satisfied
 
-    def sample_target_transform_params(self, batch_size: int, k_transforms: int):
+    def sample_target_transform_params(self, batch_size: int, k_transforms: int, device):
         n_total = batch_size * k_transforms
         good_enough_percentile = self.hparams['good_enough_percentile']
         n_samples = int(1 / good_enough_percentile) * n_total
 
-        target_params = self.scenario.sample_target_aug_params(self.rng, self.hparams, n_samples)
+        target_params = self.scenario.sample_target_aug_params(self.rng, self.hparams, n_samples, device)
 
         # pick the most valid transforms, via the learned object state augmentation validity model
         best_target_params = pick_best_params(self.invariance_model_wrapper, target_params, batch_size)
@@ -305,16 +310,13 @@ class AugmentationOptimization:
                         to_local_frame,
                         inputs,
                         batch_size,
-                        time):
-        return self.scenario.aug_apply_no_ik(moved_mask,
-                                             transformation_matrices,
-                                             to_local_frame,
-                                             inputs,
-                                             batch_size,
-                                             time,
-                                             self.local_env_helper.h,
-                                             self.local_env_helper.w,
-                                             self.local_env_helper.c)
+                        device):
+        return self.scenario.aug_apply_no_ik(moved_mask=moved_mask,
+                                             m=transformation_matrices,
+                                             to_local_frame=to_local_frame,
+                                             inputs=inputs,
+                                             batch_size=batch_size,
+                                             device=device)
 
     def do_augmentation(self):
         return self.hparams is not None

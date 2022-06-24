@@ -6,6 +6,11 @@ import numpy as np
 
 from cylinders_simple_demo.augmentation.augment_dataset import augment_dynamics_dataset
 from cylinders_simple_demo.utils.utils import load_hjson
+import tensorflow as tf  # only needed so long as we're using tfa_sdf
+
+gpus = tf.config.list_physical_devices('GPU')
+gpu = gpus[0]
+tf.config.experimental.set_memory_growth(gpu, True)
 
 
 def rm_tree(path):
@@ -26,7 +31,7 @@ def main():
     parser.add_argument('hparams', type=pathlib.Path, help='hyper-parameters for augmentation')
     parser.add_argument('outdir', type=pathlib.Path, help='output directory')
     parser.add_argument('--n-augmentations', type=int, default=25)
-    parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--take', type=int)
     parser.add_argument('--mode', type=str, default='train')
 

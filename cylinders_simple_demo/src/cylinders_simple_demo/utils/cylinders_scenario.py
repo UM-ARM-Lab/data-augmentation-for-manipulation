@@ -52,7 +52,7 @@ def squeeze_and_get_xy(p):
     return torch.squeeze(p, 2)[:, :, :2]
 
 
-def cylinders_to_points(positions, res, radius, height):
+def cylinders_to_points(positions, res, radius, height, device):
     """
 
     Args:
@@ -65,12 +65,12 @@ def cylinders_to_points(positions, res, radius, height):
 
     """
     m = positions.shape[1]  # m is the number of objects
-    sized_points = size_to_points(radius, height, res)  # [b, T, n_points, 3]
+    sized_points = size_to_points(radius, height, res, device)  # [b, T, n_points, 3]
     num_points = sized_points.shape[-2]
     sized_points = torch.stack(m * [sized_points], 1)  # [b, m, T, n_points, 3]
-    ones = torch.ones(positions.shape[:-1] + (1,))
+    ones = torch.ones(positions.shape[:-1] + (1,), device=device)
     positions_homo = torch.cat([positions, ones], -1)[..., None]  # [b, m, T, 4, 1]
-    rot_homo = torch.cat([torch.eye(3), torch.zeros([1, 3])], 0)
+    rot_homo = torch.cat([torch.eye(3, device=device), torch.zeros([1, 3], device=device)], 0)
     rot_homo = rot_homo.repeat(positions.shape[:-1] + (1, 1))
     transform_matrix = torch.cat([rot_homo, positions_homo], -1)  # [b, m, T, 4, 4]
     transform_matrix = torch.stack(num_points * [transform_matrix], 3)
@@ -82,7 +82,7 @@ def make_odd(x):
     return torch.where((x % 2).bool(), x, x + 1)
 
 
-def size_to_points(radius, height, res):
+def size_to_points(radius, height, res, device):
     """
 
     Args:
@@ -100,18 +100,18 @@ def size_to_points(radius, height, res):
 
     n_side = make_odd((2 * radius / res).long())
     n_height = make_odd((height / res).long())
-    p = torch.linspace(-radius, radius, n_side)
+    p = torch.linspace(-radius, radius, n_side, device=device)
     grid_points = torch.stack(torch.meshgrid(p, p, indexing='xy'), -1)  # [n_side, n_side, 2]
     in_circle = grid_points.norm(dim=-1) <= radius
     in_circle_indices = torch.where(in_circle)
     points_in_circle = grid_points[in_circle_indices]
     points_in_circle_w_height = torch.stack(n_height * [points_in_circle], 0)
-    z = torch.linspace(0., height, n_height) - height / 2
+    z = torch.linspace(0., height, n_height, device=device) - height / 2
     z = torch.stack(points_in_circle_w_height.shape[1] * [z], 1)[..., None]
     points = torch.concat([points_in_circle_w_height, z], dim=-1)
     points = points.reshape([-1, 3])
 
-    sampled_points_indices = torch.tensor(cylinder_points_rng.randint(0, points.shape[0], NUM_POINTS))
+    sampled_points_indices = torch.from_numpy(cylinder_points_rng.randint(0, points.shape[0], NUM_POINTS)).to(device)
     sampled_points = torch.index_select(points, dim=0, index=sampled_points_indices)
 
     points_batch = torch.stack(batch_size * [sampled_points], 0)
@@ -121,8 +121,8 @@ def size_to_points(radius, height, res):
 
 def pos_in_bounds(tcp_pos_aug_b):
     s = 0.2
-    lower = torch.Tensor([-s, -s, 0])
-    upper = torch.Tensor([s, s, 0.01])
+    lower = torch.tensor([-s, -s, 0], device=tcp_pos_aug_b.device)
+    upper = torch.tensor([s, s, 0.01], device=tcp_pos_aug_b.device)
     in_bounds = torch.logical_and(lower < tcp_pos_aug_b, tcp_pos_aug_b < upper)
     always_in_bounds = torch.all(in_bounds)
     return always_in_bounds
@@ -176,7 +176,7 @@ class CylindersScenario:
 
             yield is_robot, obj_idx, k, pos_k, vel_k, pos, vel
 
-    def compute_obj_points(self, inputs: Dict, batch_size: int):
+    def compute_obj_points(self, inputs: Dict, batch_size: int, device):
         """
 
         Args:
@@ -200,14 +200,15 @@ class CylindersScenario:
 
         res = torch.stack(time * [inputs['res']], 1)
 
-        obj_points = cylinders_to_points(positions, res=res, radius=radius, height=height)
-        robot_radius = torch.tensor(batch_size * [RADIUS])
+        obj_points = cylinders_to_points(positions, res=res, radius=radius, height=height, device=device)
+        robot_radius = torch.tensor(batch_size * [RADIUS]).to(device)
         robot_radius = torch.stack(time * [robot_radius], 1)
-        robot_height = torch.tensor(batch_size * [HEIGHT])
+        robot_height = torch.tensor(batch_size * [HEIGHT], device=device)
         robot_height = torch.stack(time * [robot_height], 1)
         tcp_positions = inputs[f'{ARM_HAND_NAME}/tcp_pos'].reshape([batch_size, 1, time, 3])
-        robot_cylinder_positions = tcp_positions + torch.tensor([0, 0, HALF_HEIGHT])
-        robot_points = cylinders_to_points(robot_cylinder_positions, res=res, radius=robot_radius, height=robot_height)
+        robot_cylinder_positions = tcp_positions + torch.tensor([0, 0, HALF_HEIGHT], device=device)
+        robot_points = cylinders_to_points(robot_cylinder_positions, res=res, radius=robot_radius, height=robot_height,
+                                           device=device)
 
         obj_points = torch.cat([robot_points, obj_points], 1)
 
@@ -342,7 +343,7 @@ class CylindersScenario:
         return example, vel_state_keys
 
     @staticmethod
-    def propnet_outputs_to_state(inputs, pred_vel, pred_pos, obj_dz=0):
+    def propnet_outputs_to_state(inputs, pred_vel, pred_pos, device, obj_dz=0):
         pred_states = {}
         pred_states['height'] = inputs['height']
         pred_states['radius'] = inputs['radius']
@@ -355,7 +356,7 @@ class CylindersScenario:
 
         for j in range(int(inputs['num_objs'][0])):
             pred_pos_2d = pred_pos[:, j + 1]
-            pred_pos_z = torch.Tensor(inputs['height'] / 2 + obj_dz)
+            pred_pos_z = torch.tensor(inputs['height'] / 2 + obj_dz, device=device)
             pred_pos_3d = torch.cat([pred_pos_2d, pred_pos_z], -1)
             pred_vel_3d = homogeneous(pred_vel[:, j + 1])
             pred_states[f'obj{j}/position'] = torch.unsqueeze(pred_pos_3d, 1).detach()
@@ -405,16 +406,18 @@ class CylindersScenario:
         return Rs, Rr, Ra
 
     @staticmethod
-    def initial_identity_aug_params(batch_size, k_transforms):
-        return torch.zeros([batch_size, k_transforms, 3])  # change in x, y, theta (about z)
+    def initial_identity_aug_params(batch_size, k_transforms, device):
+        return torch.zeros([batch_size, k_transforms, 3], device=device)  # change in x, y, theta (about z)
 
     @staticmethod
-    def sample_target_aug_params(rng: np.random.RandomState, aug_params, n_samples):
-        trans_lim = torch.ones([2]) * aug_params['target_trans_lim']
-        trans_target = torch.Tensor(rng.uniform(low=-trans_lim, high=trans_lim, size=[n_samples, 2]))
+    def sample_target_aug_params(rng: np.random.RandomState, aug_params, n_samples, device):
+        trans_lim = np.ones([2]) * aug_params['target_trans_lim']
+        trans_target = torch.tensor(rng.uniform(low=-trans_lim, high=trans_lim, size=[n_samples, 2]), device=device,
+                                    dtype=torch.float32)
 
-        theta_lim = torch.ones([1]) * aug_params['target_euler_lim']
-        theta_target = torch.Tensor(rng.uniform(low=-theta_lim, high=theta_lim, size=[n_samples, 1]))
+        theta_lim = np.ones([1]) * aug_params['target_euler_lim']
+        theta_target = torch.tensor(rng.uniform(low=-theta_lim, high=theta_lim, size=[n_samples, 1]), device=device,
+                                    dtype=torch.float32)
 
         target_params = torch.cat([trans_target, theta_target], -1)
         return target_params
@@ -424,10 +427,10 @@ class CylindersScenario:
         return torch.cat([target[0], target[1], 0], 0)
 
     @staticmethod
-    def transformation_params_to_matrices(obj_transforms):
+    def transformation_params_to_matrices(obj_transforms, device):
         xy = obj_transforms[..., :2]
         theta = obj_transforms[..., 2:3]
-        zrp = torch.zeros(obj_transforms.shape[:-1] + (3,))
+        zrp = torch.zeros(obj_transforms.shape[:-1] + (3,), device=device)
         xyzrpy = torch.cat([xy, zrp, theta], -1)
         return xyzrpy_to_matrices(xyzrpy)
 
@@ -437,9 +440,7 @@ class CylindersScenario:
                         to_local_frame,
                         inputs: Dict,
                         batch_size,
-                        time,
-                        *args,
-                        **kwargs,
+                        device,
                         ):
         """
 
@@ -456,9 +457,9 @@ class CylindersScenario:
         """
         to_local_frame_expanded1 = to_local_frame[:, None]
         to_local_frame_expanded2 = to_local_frame[:, None, None]
-        zeros_expanded2 = torch.zeros([batch_size, 1, 1, 3])
+        zeros_expanded2 = torch.zeros([batch_size, 1, 1, 3], device=device)
         m_expanded = m[:, None]
-        no_translation_mask = torch.ones(m_expanded.shape)
+        no_translation_mask = torch.ones(m_expanded.shape, device=device)
         no_translation_mask[..., 0:3, 3] = 0
         m_expanded_no_translation = m_expanded * no_translation_mask
 
@@ -518,7 +519,7 @@ class CylindersScenario:
         return is_ik_valid, []
 
     @staticmethod
-    def aug_transformation_jacobian(obj_transforms):
+    def aug_transformation_jacobian(obj_transforms, device):
         """
 
         Args:
@@ -527,7 +528,7 @@ class CylindersScenario:
         Returns: [b, k_transforms, p, 4, 4]
 
         """
-        zrp = torch.zeros(obj_transforms.shape[:-1] + (3,))
+        zrp = torch.zeros(obj_transforms.shape[:-1] + (3,), device=device)
         xy = obj_transforms[..., :2]
         theta = obj_transforms[..., 2:3]
         xyzrpy = torch.cat([xy, zrp, theta], -1)

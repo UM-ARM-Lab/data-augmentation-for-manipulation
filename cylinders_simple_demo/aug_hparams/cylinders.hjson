@@ -1,7 +1,4 @@
 {
-  local_env_h_rows: 44
-  local_env_w_cols: 44
-  local_env_c_channels: 44
   augmentation: {
     # weights for the different terms in the objective
     sdf_grad_weight: 1.0
@@ -16,10 +13,15 @@
     n_outer_iters: 5
     target_euler_lim: 0.5
     grad_clip: 0.1
+    target_trans_lim: 0.15
+    not_progressing_threshold: 0.0005
+    step_size_threshold: 0.0001
+    step_size: 0.1
 
     # for the final check of the constraints
     max_env_violations: 8
     max_bbox_violation: 0.001
+    delta_min_dist_threshold: 0.005
 
     # IK
     rand_dist: 0.1
@@ -28,20 +30,5 @@
     # misc
     num_object_interp: 2
     good_enough_percentile: 1.0  # 1 accept all target transforms, 0.1 means use the top 10%
-
-    # hyperparameters of the optimization loop
-    target_trans_lim: 0.15
-    not_progressing_threshold: 0.0005
-    step_size_threshold: 0.0001
-    step_size: 0.5
-
-    # for the final check of the constraints
-    delta_min_dist_threshold: 0.005
-
-    viz: {
-      scale: 0.006
-      arrows_scale: 0.004
-      min_delta_dist_grad_scale: 2
-    }
   }
 }

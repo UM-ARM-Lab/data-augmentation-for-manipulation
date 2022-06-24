@@ -57,7 +57,7 @@ def main():
     train_parser.add_argument('model_params', type=pathlib.Path)
     train_parser.add_argument('--nickname', '-n', help='nickname')
     train_parser.add_argument('--batch-size', type=int, default=32)
-    train_parser.add_argument('--epochs', type=int, default=500)
+    train_parser.add_argument('--epochs', type=int, default=250)
     train_parser.add_argument('--seed', type=int, default=0)
     train_parser.set_defaults(func=train_main)
 

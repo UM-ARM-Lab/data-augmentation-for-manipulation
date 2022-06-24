@@ -2,6 +2,7 @@ import pathlib
 from copy import deepcopy
 from typing import Dict, Optional
 
+import torch
 from colorama import Fore
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -9,7 +10,6 @@ from tqdm import tqdm
 from cylinders_simple_demo.augmentation.aug_opt import AugmentationOptimization
 from cylinders_simple_demo.utils.cylinders_scenario import CylindersScenario
 from cylinders_simple_demo.utils.data_utils import pkl_write_example, get_num_workers, my_collate
-from cylinders_simple_demo.utils.local_env_helper import LocalEnvHelper
 from cylinders_simple_demo.utils.my_torch_dataset import MyTorchDataset
 from cylinders_simple_demo.utils.numpify import numpify
 from cylinders_simple_demo.utils.torch_datasets_utils import dataset_take
@@ -46,7 +46,8 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
     scenario = CylindersScenario()
     aug = make_aug_opt(scenario, dataset, hparams, batch_size)
 
-    loader = DataLoader(dataset_taken, batch_size=batch_size, num_workers=get_num_workers(batch_size), collate_fn=my_collate)
+    loader = DataLoader(dataset_taken, batch_size=batch_size, num_workers=get_num_workers(batch_size),
+                        collate_fn=my_collate)
 
     outdir.mkdir(exist_ok=True, parents=False)
     expected_total = (1 + n_augmentations) * len(dataset_taken)
@@ -55,10 +56,10 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
 
     total_count = 0
 
-    # copy in all of the data from modes we're not augmenting
-    if mode != 'all':
-        # += offsets example numbers so we don't overwrite the data we copy here with the augmentations
-        total_count += copy_modes(dataset_dir, mode, outdir)
+    # # copy in all of the data from modes we're not augmenting
+    # if mode != 'all':
+    #     # += offsets example numbers so we don't overwrite the data we copy here with the augmentations
+    #     total_count += copy_modes(dataset_dir, mode, outdir)
 
     need_to_write_hparams = True
     examples_names = []
@@ -82,14 +83,14 @@ def augment_dynamics_dataset(dataset_dir: pathlib.Path,
     return outdir
 
 
-def augment(aug, n_augmentations, inputs):
+def augment(aug, n_augmentations, inputs, device):
     actual_batch_size = len(inputs['filename'])
 
     time = inputs['time_idx'].shape[1]
 
     for k in range(n_augmentations):
         inputs = torchify(inputs)
-        output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time)
+        output = aug.aug_opt(inputs, batch_size=actual_batch_size, time=time, device=device)
         output = numpify(output)
         output['augmented_from'] = inputs['full_filename']
 
@@ -97,11 +98,19 @@ def augment(aug, n_augmentations, inputs):
 
 
 def out_examples_gen(aug, n_augmentations, dataset):
-    for example in dataset:
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+    for example_cpu in dataset:
+        example = {}
+        for k, v in example_cpu.items():
+            if isinstance(v, torch.Tensor):
+                example[k] = v.to(device)
+            else:
+                example[k] = v
         actual_batch_size = len(example['filename'])
         out_example_keys = None
 
-        for out_example in augment(aug, n_augmentations, example):
+        for out_example in augment(aug, n_augmentations, example, device):
             if out_example_keys is None:
                 out_example_keys = list(out_example.keys())
             yield from unbatch_examples(out_example, actual_batch_size)
@@ -138,11 +147,7 @@ def copy_modes(dataset_dir, mode, outdir):
 
 
 def make_aug_opt(scenario: CylindersScenario, dataset: MyTorchDataset, hparams: Dict, batch_size: int):
-    local_env_helper = LocalEnvHelper(h=hparams['local_env_h_rows'],
-                                      w=hparams['local_env_w_cols'],
-                                      c=hparams['local_env_c_channels'])
-    aug = AugmentationOptimization(scenario=scenario, local_env_helper=local_env_helper, hparams=hparams,
-                                   batch_size=batch_size,
+    aug = AugmentationOptimization(scenario=scenario, hparams=hparams, batch_size=batch_size,
                                    state_keys=dataset.params['data_collection_params']['state_keys'],
                                    action_keys=dataset.params['data_collection_params']['action_keys'])
     return aug

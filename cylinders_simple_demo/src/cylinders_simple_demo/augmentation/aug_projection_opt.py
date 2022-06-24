@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional, Callable
+from line_profiler_pycharm import profile
 
 import torch
 import torch.optim.lr_scheduler
@@ -74,8 +75,6 @@ class AugProjOpt:
 
         # More hyperparameters
         self.step_toward_target_fraction = 1 / self.hparams['n_outer_iters']
-        self.lr_decay = 0.90
-        self.lr_decay_steps = 10
 
         # precompute stuff
         self.m_objs = self.obj_points.shape[1]
@@ -111,7 +110,7 @@ class AugProjOpt:
         c = sdf.shape[3]
         bounds_ones = torch.ones_like(point_indices)
         lower = bounds_ones * 0
-        upper = bounds_ones * torch.LongTensor([h, w, c]) - 1
+        upper = bounds_ones * torch.tensor([h, w, c], device=sdf.device) - 1
         point_indices_valid = point_indices.clamp(lower, upper)
         return batch_index_3d_idx(sdf, point_indices_valid)
 
@@ -120,7 +119,8 @@ class AugProjOpt:
         scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=self.hparams['lr_decay'])
         return opt, scheduler
 
-    def forward(self, obj_transforms):
+    @profile
+    def forward(self, obj_transforms, device):
         s = self.aug_opt.scenario
 
         # obj_points is the set of points that define the object state, ie. the swept rope points.
@@ -128,7 +128,7 @@ class AugProjOpt:
         # to compute the object state constraints loss we need to transform this during each forward pass
         # we also need to call apply_object_augmentation* at the end
         # to update the rest of the "state" which is input to the network
-        transformation_matrices = s.transformation_params_to_matrices(obj_transforms)
+        transformation_matrices = s.transformation_params_to_matrices(obj_transforms, device)
         obj_points_aug, to_local_frame = transform_obj_points(self.obj_points,
                                                               self.moved_mask,
                                                               transformation_matrices)
@@ -159,12 +159,13 @@ class AugProjOpt:
                        attract_repel_dpoint=attract_repel_dpoint,
                        sdf_aug=obj_sdf_aug)
 
-    def project(self, _: int, opt: torch.optim.Optimizer, scheduler, obj_transforms: torch.nn.Parameter):
+    @profile
+    def project(self, _: int, opt: torch.optim.Optimizer, scheduler, obj_transforms: torch.nn.Parameter, device):
         s = self.aug_opt.scenario
 
         opt.zero_grad()
 
-        v = self.forward(obj_transforms)
+        v = self.forward(obj_transforms, device)
 
         invariance_loss = self.aug_opt.invariance_model_wrapper.evaluate(obj_transforms)  # [b, k_transforms]
         # when the constant is larger, this kills the gradient
@@ -184,7 +185,7 @@ class AugProjOpt:
         loss = losses_sum.mean()
 
         # Compute the jacobian of the transformation. Here the transformation parameters have dimension p
-        jacobian = s.aug_transformation_jacobian(obj_transforms)[:, :, None, None]  # [b,k,1,1,p,4,4]
+        jacobian = s.aug_transformation_jacobian(obj_transforms, device)[:, :, None, None]  # [b,k,1,1,p,4,4]
         to_local_frame_moved_mean_expanded = v.to_local_frame[:, None, None, None, :]
         obj_points_local_frame = self.obj_points - to_local_frame_moved_mean_expanded  # [b,m_objects,T,n_points,3]
         obj_points_local_frame_h = homogeneous(obj_points_local_frame)[..., None, :, None]  # [b,m,T,n_points,1,4,1]
@@ -239,11 +240,11 @@ class AugProjOpt:
         all_can_terminate = torch.all(can_terminate)
         return all_can_terminate
 
-    def step_towards_target(self, target_transforms, obj_transforms):
+    def step_towards_target(self, target_transforms, obj_transforms, device):
         # NOTE: although interpolating euler angles can be problematic or unintuitive,
         #  we have ensured the differences are <pi/2. So it should be ok
         x_interp = obj_transforms + (target_transforms - obj_transforms) * self.step_toward_target_fraction
-        viz_vars = self.forward(x_interp)
+        viz_vars = self.forward(x_interp, device)
         return x_interp, viz_vars
 
     def viz_func(self, _: Optional, obj_transforms, __, target, v: Optional[VizVars]):

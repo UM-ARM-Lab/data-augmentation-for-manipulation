@@ -160,7 +160,7 @@ def euler_angle_diff(euler1, euler2):
     return abs_diff.minimum(2 * pi - abs_diff)
 
 
-def points_to_voxel_grid_res_origin_point_batched(batch_indices, points, res, origin_point, h, w, c, batch_size):
+def points_to_voxel_grid_res_origin_point_batched(batch_indices, points, res, origin_point, h, w, c, batch_size, device):
     """
     Args:
         batch_indices: [n], batch_indices[i] is the batch indices for point points[i]. Must be int64 type
@@ -177,7 +177,7 @@ def points_to_voxel_grid_res_origin_point_batched(batch_indices, points, res, or
     indices = batch_point_to_idx(points, res, origin_point)  # [n, 4]
     rows, cols, channels = torch.unbind(indices, dim=-1)
     indices = torch.stack([batch_indices, rows, cols, channels], dim=-1)
-    voxel_grid = torch.zeros([batch_size, h, w, c])
+    voxel_grid = torch.zeros([batch_size, h, w, c], device=device)
     voxel_grid[torch.unbind(indices, -1)] = 1
     return voxel_grid
 
@@ -215,7 +215,7 @@ def xyzrpy_to_matrices(params):
     angles = params[..., 3:]
     r33 = euler_angles_to_matrix(angles, convention='XYZ')
     r34 = torch.cat([r33, translation], dim=-1)
-    bottom_row = torch.Tensor([0, 0, 0, 1])
-    bottom_row = torch.ones(params.shape[:-1] + (1, 4)) * bottom_row
+    bottom_row = torch.tensor([0, 0, 0, 1], device=params.device)
+    bottom_row = torch.ones(params.shape[:-1] + (1, 4), device=params.device) * bottom_row
     matrices = torch.cat([r34, bottom_row], dim=-2)
     return matrices
