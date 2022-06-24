@@ -30,13 +30,13 @@ Each example is a single trajectory of length 50.
 
 
     ./scripts/train-test_dynamics.py train -h  # see training options
-    ./scripts/train-test_dynamics.py train ./data_aug hparams/propnet.hjson
+    ./scripts/train-test_dynamics.py train ./data_aug hparams/propnet.hjson -n nickname
 
 3. evaluate the dynamics model
 
 
     ./scripts/train-test_dynamics.py eval -h  # see eval options
-    ./scripts/train-test_dynamics.py train ./data tb_logs/version_XXX # full unique model name from the above training run
+    ./scripts/train-test_dynamics.py train ./data tb_logs/nickname/version_XXX # full unique model name from the above training run
 
 # Making a comparison to no augmentation
 
